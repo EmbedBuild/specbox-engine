@@ -35,7 +35,7 @@ El archivo `.claude/settings.local.json` puede contener:
 ### Asignee por defecto
 
 **OBLIGATORIO**: Todas las tareas creadas con `/prd` se asignan automáticamente a:
-- **Usuario**: Jesus Perez Sanchez (jesus.perez.developer@gmail.com)
+- **Usuario**: {developer_name} ({developer_email})
 - **ID**: `d325686f-2d7c-491f-9e28-dffbf4e23c55`
 
 ---
@@ -267,7 +267,7 @@ Usar `plane:create_work_item`:
 }
 ```
 
-> **IMPORTANTE**: El campo `assignees` SIEMPRE incluye el ID de Jesus Perez (jesus.perez.developer@gmail.com)
+> **IMPORTANTE**: El campo `assignees` SIEMPRE incluye el ID de {developer_name} ({developer_email})
 
 ### Mapeo de prioridades
 

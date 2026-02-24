@@ -1,6 +1,6 @@
-version: 3.1.0
+version: 3.1.1
 codename: "Skills Engine"
-release_date: 2026-02-24
+release_date: 2026-02-25
 min_claude_code: "1.0.0"
 
 stacks:
@@ -34,6 +34,13 @@ features:
   - ratchet-baseline-updater
 
 changelog:
+  3.1.1:
+    date: 2026-02-25
+    changes:
+      - "docs: add docs/agent-teams.md — executive summary of Agent Teams for developers"
+      - "docs: add docs/architecture.md — multi-stack architecture guide with per-stack doc inventory"
+      - "Complete docs/ directory: getting-started, commands, agent-teams, architecture"
+
   3.1.0:
     date: 2026-02-24
     changes:

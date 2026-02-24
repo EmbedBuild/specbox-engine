@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.1.0
+# JPS Dev Engine v3.1.1
 
 Sistema de programacion agentica basado en **Agent Skills** para Claude Code.
 
@@ -622,6 +622,15 @@ El desarrollador revisa la PR en GitHub y hace merge.
 
 Ver guia completa en [docs/getting-started.md](docs/getting-started.md).
 
+### Documentacion
+
+| Documento | Contenido |
+|-----------|-----------|
+| [docs/getting-started.md](docs/getting-started.md) | Guia de inicio rapido |
+| [docs/commands.md](docs/commands.md) | Referencia de commands y Skills |
+| [docs/agent-teams.md](docs/agent-teams.md) | Orquestacion multi-agente con Agent Teams |
+| [docs/architecture.md](docs/architecture.md) | Guia de arquitectura multi-stack |
+
 ---
 
 ## Actualizacion
@@ -652,4 +661,4 @@ MIT
 
 ---
 
-v3.1.0 | 2026-02-24 | JPS Developer
+v3.1.1 | 2026-02-25 | JPS Developer

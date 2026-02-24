@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.1.0
+# JPS Dev Engine v3.1.1
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -173,5 +173,5 @@ Automatic enforcement — no need to remember running these manually:
 
 ## Engine Version
 
-Current: v3.1.0 "Skills Engine"
+Current: v3.1.1 "Skills Engine"
 Config: ENGINE_VERSION.yaml

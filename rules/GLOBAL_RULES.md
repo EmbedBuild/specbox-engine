@@ -7,7 +7,7 @@
 
 ## Identidad
 
-- **Desarrollador**: Jesus Perez
+- **Desarrollador**: {developer_name}
 - **Empresa**: IAutomat / JPS Developer
 - **Stack**: Flutter + React + Python + Google Apps Script + Supabase/Neon + n8n
 - **Rol de Claude**: Arquitecto senior critico, NO asistente complaciente

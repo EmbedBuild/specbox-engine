@@ -198,6 +198,57 @@ npm run test && npm run lint && npm run push
 
 ---
 
+## Quality Gates (todos los stacks)
+
+### Políticas
+
+| Métrica | Política | Descripción |
+|---------|----------|-------------|
+| **Lint** | `zero-tolerance` | 0 errors, 0 warnings, 0 infos. SIEMPRE. SIN EXCEPCIONES. BLOQUEANTE. |
+| **Coverage** | `ratchet` | Nunca baja del baseline. Sube progresivamente. |
+| **Tests** | `no-regression` | Nunca menos tests passing. Failing siempre = 0. |
+| **Architecture** | `ratchet` | Nunca más violaciones de capas. |
+| **Dead code** | `ratchet` | Nunca más código muerto. |
+| **Dependencies** | `info` | Reportar outdated/vulnerable. Solo bloquea CVEs. |
+
+### Baseline
+
+Cada proyecto tiene un `.quality/baseline.json` auto-generado que registra su estado actual.
+- Proyectos nuevos: baseline = target (85% coverage, strict)
+- Proyectos legacy: baseline = estado actual (ratchet progresivo)
+- El baseline SUBE automáticamente cuando el proyecto mejora (nunca baja)
+
+### Evidence
+
+Cada feature implementada genera evidencia auditable en `.quality/evidence/{feature}/`:
+- `pre-gate.json` — Estado antes de empezar
+- `phase-N-gate.json` — Estado después de cada fase
+- `final-gate.json` — Estado final
+- `report.md` — Report legible con veredicto AG-08
+
+### Gates entre fases de /implement
+
+```
+Después de CADA fase:
+  1. Lint (0/0/0) → BLOQUEANTE
+  2. Compilación → BLOQUEANTE
+  3. Tests existentes pasan → BLOQUEANTE
+  4. Coverage ≥ baseline → WARNING entre fases, BLOQUEANTE al final
+```
+
+### AG-08 Quality Auditor (independiente de AG-04)
+
+AG-04 genera tests. AG-08 verifica que:
+- Los tests son reales (no triviales)
+- El coverage es legítimo (sin exclusiones tramposas)
+- La arquitectura se respeta (sin violaciones de capas)
+- Las convenciones se cumplen
+- No hay código muerto nuevo
+
+AG-08 emite veredicto GO/NO-GO antes de crear PR.
+
+---
+
 ## Testing (todos los stacks)
 
 | Tipo | Cobertura | Estrategia |

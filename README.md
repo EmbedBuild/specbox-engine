@@ -1,4 +1,4 @@
-# JPS Dev Engine v2.3.0
+# JPS Dev Engine v2.4.0
 
 Sistema de programacion agentica para Claude Code.
 
@@ -58,8 +58,9 @@ Este es el flujo end-to-end que el engine proporciona. Cada paso tiene su propio
 ### Comandos de soporte
 
 ```
-/adapt-ui ─────────> Escanea widgets del proyecto, genera mapeo UI
-/optimize-agents ──> Audita y optimiza sistema agentico (score /100)
+/adapt-ui ──────────> Escanea widgets del proyecto, genera mapeo UI
+/optimize-agents ───> Audita y optimiza sistema agentico (score /100)
+/quality-gate ──────> Quality gates adaptativos con evidence auditable
 ```
 
 ---
@@ -289,6 +290,7 @@ Cada stack tiene su carpeta en `architecture/` con:
 | AG-05 | n8n Specialist | Workflows de automatizacion | Si hay integracion n8n |
 | AG-06 | Design Specialist | Google Stitch MCP | Generacion de diseños |
 | AG-07 | Apps Script Specialist | Google Apps Script | Proyectos GAS |
+| AG-08 | Quality Auditor | Verificacion independiente | Auditoria post-QA, GO/NO-GO |
 
 ### Agent Teams (Claude Code nativo)
 
@@ -311,6 +313,57 @@ agent-teams/
 ```
 
 Cada rol tiene: modelo asignado, prompt especializado, file ownership y quality gates.
+
+---
+
+## Quality Gate System (NUEVO en v2.4.0)
+
+Sistema de quality gates adaptativos con baseline auto-descubierto y evidencia auditable.
+
+### Problema que resuelve
+
+Antes: el pipeline confiaba en que Claude "recordara" hacer lint/test entre fases. No habia enforcement real ni evidencia auditable.
+
+Ahora: quality gates automaticos entre cada fase, con evidence persistente y un auditor independiente (AG-08).
+
+### Flujo con quality gates
+
+```
+/implement staff_management
+  │
+  ├─ [Pre-flight] Verificar/crear baseline → .quality/baseline.json
+  ├─ [Fase 1: DB] → GATE: lint 0/0/0 ✅ compile ✅
+  ├─ [Fase 2: Feature] → GATE: lint 0/0/0 ✅ compile ✅ tests pass ✅
+  ├─ [Fase 3: QA] → GATE: coverage ≥ baseline ✅
+  ├─ [AG-08: Audit] → Verifica tests reales, arquitectura, convenciones
+  └─ [PR] → Con quality report y evidence adjunta
+```
+
+### Politicas
+
+| Metrica | Politica | Descripcion |
+|---------|----------|-------------|
+| Lint | zero-tolerance | 0/0/0 siempre. BLOQUEANTE |
+| Coverage | ratchet | Nunca baja. Sube progresivamente |
+| Tests | no-regression | Nunca menos passing. Failing = 0 |
+| Architecture | ratchet | Nunca mas violaciones |
+
+### Comandos
+
+```bash
+/quality-gate           # Audit: escanea y genera baseline
+/quality-gate check     # Valida contra baseline (GO/NO-GO)
+/quality-gate plan      # Plan progresivo de mejora
+/quality-gate fix       # Ejecuta siguiente paso del plan
+/quality-gate report    # Report completo
+```
+
+### Evidence auditable
+
+Cada feature genera `.quality/evidence/{feature}/` con:
+- Metricas pre/post por fase
+- Resultado del audit de AG-08
+- Report legible con veredicto
 
 ---
 
@@ -384,14 +437,15 @@ jps_dev_engine/
 ├── README.md                      # Este archivo
 ├── install.sh                     # Instalador de commands (symlinks)
 │
-├── commands/                      # Commands globales (5 archivos)
+├── commands/                      # Commands globales (6 archivos)
 │   ├── prd.md                     #   /prd — PRD + Work Item
 │   ├── plan.md                    #   /plan — Plan tecnico + Stitch
 │   ├── implement.md               #   /implement — Autopilot end-to-end
 │   ├── adapt-ui.md                #   /adapt-ui — Mapeo de widgets
-│   └── optimize-agents.md         #   /optimize-agents — Audit agentico
+│   ├── optimize-agents.md         #   /optimize-agents — Audit agentico
+│   └── quality-gate.md            #   /quality-gate — Quality gates adaptativos
 │
-├── agents/                        # Templates de agentes (8 roles)
+├── agents/                        # Templates de agentes (9 roles)
 │   ├── orchestrator.md
 │   ├── feature-generator.md       #   AG-01
 │   ├── uiux-designer.md           #   AG-02
@@ -399,6 +453,7 @@ jps_dev_engine/
 │   ├── qa-validation.md           #   AG-04
 │   ├── n8n-specialist.md          #   AG-05
 │   ├── appscript-specialist.md    #   AG-07
+│   ├── quality-auditor.md         #   AG-08 (NEW)
 │   └── templates/
 │
 ├── agent-teams/                   # Agent Teams nativo (Claude Code)

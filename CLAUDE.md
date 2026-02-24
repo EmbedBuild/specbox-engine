@@ -78,7 +78,8 @@ jps_dev_engine/
 │   ├── plan.md
 │   ├── implement.md
 │   ├── adapt-ui.md
-│   └── optimize-agents.md
+│   ├── optimize-agents.md
+│   └── quality-gate.md
 ├── agents/                ← Templates de agentes por rol
 │   ├── orchestrator.md
 │   ├── feature-generator.md
@@ -87,7 +88,8 @@ jps_dev_engine/
 │   ├── qa-validation.md
 │   ├── design-specialist.md
 │   ├── n8n-specialist.md
-│   └── appscript-specialist.md
+│   ├── appscript-specialist.md
+│   └── quality-auditor.md
 ├── agent-teams/           ← Agent Teams nativo (Claude Code)
 │   ├── README.md
 │   ├── templates/
@@ -109,7 +111,8 @@ jps_dev_engine/
 ├── templates/             ← Templates para nuevos proyectos
 │   ├── CLAUDE.md.template
 │   ├── settings.json.template
-│   └── team-config.json.template
+│   ├── team-config.json.template
+│   └── quality-baseline.json.template
 ├── .quality/              ← Telemetria y evidencia (v3.0)
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md

@@ -11,14 +11,15 @@ Coordinar la ejecucion de subagentes especializados (AG-01 a AG-06) para impleme
 
 ## Roles de Agentes
 
-| ID | Rol | Archivo |
-|----|-----|---------|
-| AG-01 | Feature Generator | `agents/feature-generator.md` |
-| AG-02 | UI/UX Designer | `agents/uiux-designer.md` |
-| AG-03 | DB Specialist | `agents/db-specialist.md` |
-| AG-04 | QA & Validation | `agents/qa-validation.md` |
-| AG-05 | n8n Specialist | `agents/n8n-specialist.md` |
-| AG-06 | Design Specialist | `agents/design-specialist.md` |
+| ID | Rol | Archivo | Modelo |
+|----|-----|---------|--------|
+| AG-01 | Feature Generator | `agents/feature-generator.md` | sonnet |
+| AG-02 | UI/UX Designer | `agents/uiux-designer.md` | sonnet |
+| AG-03 | DB Specialist | `agents/db-specialist.md` | sonnet |
+| AG-04 | QA & Validation | `agents/qa-validation.md` | sonnet |
+| AG-05 | n8n Specialist | `agents/n8n-specialist.md` | sonnet |
+| AG-06 | Design Specialist | `agents/design-specialist.md` | sonnet |
+| AG-08 | Quality Auditor | `agents/quality-auditor.md` | haiku |
 
 ---
 
@@ -55,26 +56,32 @@ Entrada: PRD o /plan de {feature}
 
 ### Feature completa (UI + DB + logica)
 
-1. **AG-06** -- Generar disenos en Stitch (si hay pantallas nuevas)
-2. **AG-03** -- Preparar base de datos (tablas, RLS, migraciones)
-3. **AG-02** -- Crear/adaptar componentes UI
-4. **AG-01** -- Generar estructura de la feature completa
-5. **AG-05** -- Configurar workflows si aplica
-6. **AG-04** -- Tests y validacion final
+1. **GATE** -- Pre-flight: verificar baseline (.quality/baseline.json)
+2. **AG-06** -- Generar disenos en Stitch (si hay pantallas nuevas)
+3. **AG-03** -- Preparar base de datos → **GATE** (lint + compile)
+4. **AG-02** -- Crear/adaptar componentes UI → **GATE** (lint + compile)
+5. **AG-01** -- Generar estructura de la feature completa → **GATE** (lint + compile + tests)
+6. **AG-05** -- Configurar workflows si aplica → **GATE**
+7. **AG-04** -- Tests y validacion → **GATE** (coverage ≥ baseline)
+8. **AG-08** -- Quality Audit independiente → **GO/NO-GO**
 
 ### Feature solo backend (API / DB)
 
-1. **AG-03** -- Base de datos
-2. **AG-01** -- Logica de negocio y repositorios
-3. **AG-05** -- Workflows si aplica
-4. **AG-04** -- Tests
+1. **GATE** -- Pre-flight
+2. **AG-03** -- Base de datos → **GATE**
+3. **AG-01** -- Logica de negocio y repositorios → **GATE**
+4. **AG-05** -- Workflows si aplica → **GATE**
+5. **AG-04** -- Tests → **GATE**
+6. **AG-08** -- Quality Audit → **GO/NO-GO**
 
 ### Feature solo UI (sin DB nueva)
 
-1. **AG-06** -- Disenos Stitch
-2. **AG-02** -- Componentes UI
-3. **AG-01** -- Estructura de la feature
-4. **AG-04** -- Tests
+1. **GATE** -- Pre-flight
+2. **AG-06** -- Disenos Stitch
+3. **AG-02** -- Componentes UI → **GATE**
+4. **AG-01** -- Estructura de la feature → **GATE**
+5. **AG-04** -- Tests → **GATE**
+6. **AG-08** -- Quality Audit → **GO/NO-GO**
 
 ---
 
@@ -84,9 +91,12 @@ Entrada: PRD o /plan de {feature}
 
 1. NUNCA ejecutar AG-01 sin antes tener la DB lista (AG-03) si la feature requiere datos
 2. NUNCA crear widgets sin haber consultado la biblioteca existente del proyecto
-3. SIEMPRE ejecutar AG-04 como ultima fase
-4. SIEMPRE verificar compilacion/lint entre fases
-5. Si un agente falla, detener la ejecucion y reportar el error
+3. SIEMPRE ejecutar AG-04 antes de AG-08 (primero tests, luego auditoria)
+4. SIEMPRE ejecutar AG-08 como ultima fase antes de crear PR
+5. SIEMPRE ejecutar QUALITY GATE entre cada fase (lint 0/0/0 + compile + tests pass)
+6. Si lint no es 0/0/0 despues de una fase → PARAR, fix, re-check
+7. Si un agente falla, detener la ejecucion y reportar el error
+8. SIEMPRE generar evidence en .quality/evidence/{feature}/ para cada gate
 
 ### Deteccion de stack
 

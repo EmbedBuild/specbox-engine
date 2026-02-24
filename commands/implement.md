@@ -277,9 +277,42 @@ git commit -m "design: add Stitch designs for {feature}"
 
 ---
 
-## Paso 5: Ejecutar Fases de Implementacion
+## Paso 4.5: Pre-flight Quality Gate
 
-> Ejecutar cada fase del plan en orden. Cada fase se implementa completamente antes de pasar a la siguiente.
+> OBLIGATORIO antes de implementar. Establece el punto de partida medible.
+
+### 4.5.1 Verificar baseline existente
+
+```bash
+cat .quality/baseline.json 2>/dev/null
+```
+
+**Si no existe** → Ejecutar quality gate audit internamente:
+1. Ejecutar lint del stack (DEBE ser 0/0/0 para continuar)
+2. Ejecutar tests, medir coverage
+3. Generar `.quality/baseline.json`
+
+**Si existe** → Cargar y usar como referencia.
+
+### 4.5.2 Registrar pre-gate
+
+Guardar estado previo en `.quality/evidence/{feature}/pre-gate.json`:
+
+```json
+{
+  "phase": "pre",
+  "timestamp": "[ISO]",
+  "lint": {"errors": 0, "warnings": 0, "infos": 0},
+  "coverage": {"value": 72.3},
+  "tests": {"total": 148, "passing": 148, "failing": 0}
+}
+```
+
+---
+
+## Paso 5: Ejecutar Fases de Implementacion (con Quality Gates)
+
+> Ejecutar cada fase del plan en orden. Cada fase se valida con un quality gate ANTES de avanzar.
 
 ### 5.1 Para cada fase del plan
 
@@ -291,7 +324,15 @@ Fase N: [Nombre]
 ├── Tarea 2: [descripcion] → Ejecutar
 └── Tarea 3: [descripcion] → Ejecutar
     ↓
-Verificar que la fase compila/funciona
+QUALITY GATE (obligatorio entre fases):
+  1. Lint → DEBE ser 0/0/0 (BLOQUEANTE)
+     Si falla: dart fix --apply / eslint --fix / ruff --fix
+     Si sigue fallando: PARAR y reportar
+  2. Compilacion → DEBE compilar (BLOQUEANTE)
+  3. Tests existentes → DEBEN pasar todos (BLOQUEANTE)
+  4. Coverage → NO debe bajar del baseline (WARNING, no bloquea entre fases)
+    ↓
+Guardar .quality/evidence/{feature}/phase-N-gate.json
     ↓
 Commit parcial: "feat({feature}): {descripcion de la fase}"
     ↓
@@ -441,6 +482,43 @@ git commit -m "test({feature}): add tests with 85%+ coverage"
 
 ---
 
+## Paso 7.5: Quality Audit (AG-08)
+
+> OBLIGATORIO después de QA. El auditor independiente verifica que todo es real.
+
+### 7.5.1 Ejecutar AG-08
+
+El Quality Auditor (AG-08) ejecuta su checklist completo:
+1. **Test Quality**: ¿Los tests son reales? ¿Tienen assertions significativas?
+2. **Coverage Legitimacy**: ¿El coverage es legítimo? ¿No hay exclusiones tramposas?
+3. **Architecture Compliance**: ¿Las capas se respetan?
+4. **Convention Compliance**: ¿Se siguen las convenciones del stack?
+5. **Dead Code**: ¿No se introdujo código muerto?
+
+### 7.5.2 Generar evidence
+
+Guardar en `.quality/evidence/{feature}/`:
+- `final-gate.json` — Métricas finales
+- `audit.json` — Resultado del audit de AG-08
+- `report.md` — Report legible con veredicto
+
+### 7.5.3 Evaluar veredicto
+
+| Veredicto | Acción |
+|-----------|--------|
+| ✅ GO | Continuar a crear PR |
+| ⚠️ CONDITIONAL GO | Crear PR con notas de mejora |
+| 🛑 NO-GO | PARAR. Reportar hallazgos. Intentar fix. Re-auditar (max 2 intentos) |
+
+### 7.5.4 Commit de evidencia
+
+```bash
+git add .quality/evidence/{feature}/
+git commit -m "quality({feature}): audit evidence and report"
+```
+
+---
+
 ## Paso 8: Crear Pull Request
 
 ### 8.1 Push de la rama
@@ -479,11 +557,24 @@ gh pr create \
 
 {Si aplica: lista de pantallas generadas con links a HTMLs}
 
+## Quality Report
+
+| Métrica | Pre | Post | Delta | Gate |
+|---------|-----|------|-------|------|
+| Lint | 0/0/0 | 0/0/0 | = | ✅ |
+| Coverage | {pre}% | {post}% | {delta} | ✅/🛑 |
+| Tests | {pre} | {post} | +{N} | ✅ |
+| Architecture | {N} violations | {N} violations | {delta} | ✅/🛑 |
+
+**Veredicto AG-08**: {GO/CONDITIONAL GO/NO-GO}
+**Evidence**: `.quality/evidence/{feature}/`
+
 ## Test Plan
 
-- [ ] Tests unitarios pasan con 85%+ coverage
-- [ ] Lint sin errores
+- [ ] Tests unitarios pasan con coverage ≥ baseline
+- [ ] Lint 0/0/0
 - [ ] Build exitoso
+- [ ] AG-08 Quality Audit: GO
 - [ ] {Criterios adicionales del plan}
 
 ## Plan Reference
@@ -491,7 +582,7 @@ gh pr create \
 `{path al plan}`
 
 ---
-🤖 Implementado con [JPS Dev Engine](https://github.com/jesusperezdeveloper/jps_dev_engine) `/implement`
+🤖 Implementado con [JPS Dev Engine](https://github.com/jesusperezdeveloper/jps_dev_engine) `/implement` + Quality Gates
 EOF
 )"
 ```

@@ -28,6 +28,7 @@ features:
   - context-isolation
   - checkpoint-resume
   - implement-autopilot
+  - evidence-system
 
 changelog:
   3.0.0:
@@ -42,6 +43,21 @@ changelog:
       - "Checkpoint/resume system for /implement"
       - "Skills auto-discovery via CLAUDE.md registry"
       - "install.sh updated to copy skills + hooks"
+
+  2.4.0:
+    date: 2026-02-24
+    changes:
+      - "Nuevo comando /quality-gate — baseline auto-descubierto, ratchet progresivo, evidence auditable"
+      - "Nuevo agente AG-08 Quality Auditor — verificación independiente de calidad"
+      - "Quality gates entre fases de /implement — lint 0/0/0 bloqueante, coverage ratchet"
+      - ".quality/ directorio con baseline.json, plan.md, evidence/ y reports/"
+      - "Políticas: zero-tolerance (lint), ratchet (coverage/arch/deadcode), no-regression (tests)"
+      - "AG-08 verifica tests reales, coverage legítimo, arquitectura, convenciones"
+      - "Evidence auditable por feature con pre-gate, phase-N-gate, final-gate, report"
+      - "Orchestrator actualizado con AG-08 y gates obligatorios entre fases"
+      - "GLOBAL_RULES actualizado con sección Quality Gates completa"
+      - "Agent Teams prompt para quality-auditor"
+      - "Template quality-baseline.json.template"
 
   2.3.0:
     date: 2026-02-24

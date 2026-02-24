@@ -1,8 +1,8 @@
-# JPS Dev Engine v2.3.0
+# JPS Dev Engine v3.0.0
 
-Sistema de programacion agentica para Claude Code.
+Sistema de programacion agentica basado en **Agent Skills** para Claude Code.
 
-Repositorio canonico que contiene commands, patrones de arquitectura, templates de agentes, configuracion de Agent Teams y patrones de infraestructura para desarrollo profesional con Claude Code.
+Repositorio canonico que contiene Skills auto-descubribles, hooks de calidad, patrones de arquitectura, templates de agentes, configuracion de Agent Teams y patrones de infraestructura para desarrollo profesional con Claude Code.
 
 ---
 
@@ -16,12 +16,16 @@ cd ~/jps_dev_engine
 # 2. Instalar commands globales
 ./install.sh
 
-# 3. Verificar
+# 3. Verificar commands
 ls -la ~/.claude/commands/
 # Deberias ver: prd.md, plan.md, implement.md, adapt-ui.md, optimize-agents.md
+
+# 4. Verificar skills
+ls -la ~/.claude/skills/
+# Deberias ver: prd, plan, implement, adapt-ui, optimize-agents, quality-gate, explore
 ```
 
-Los commands quedan disponibles globalmente en Claude Code: `/prd`, `/plan`, `/implement`, `/adapt-ui`, `/optimize-agents`.
+Los commands y skills quedan disponibles globalmente en Claude Code. Las Skills se auto-descubren cuando son relevantes.
 
 ---
 
@@ -65,6 +69,8 @@ Este es el flujo end-to-end que el engine proporciona. Cada paso tiene su propio
 ---
 
 ## Commands en Detalle
+
+> **v3.0:** Los commands han sido migrados a Agent Skills. Los archivos en `commands/` se mantienen como referencia. Las Skills en `.claude/skills/` son la version activa con auto-discovery, context isolation, y hooks.
 
 ### `/prd` — Generar PRD
 
@@ -246,6 +252,20 @@ Analiza, puntua y optimiza el sistema multi-agente del proyecto. Soporta tanto s
 
 ---
 
+## Hooks System (v3.0)
+
+Enforcement automatico — no hace falta recordar ejecutarlos manualmente:
+
+| Hook | Evento | Comportamiento |
+|------|--------|----------------|
+| pre-commit-lint | PostToolUse (git commit) | BLOQUEANTE: falla el commit si lint tiene errores |
+| on-session-end | Stop | Registra telemetria de sesion en .quality/logs/ |
+| implement-checkpoint | Manual (llamado por /implement) | Guarda progreso de fase para resume |
+
+Configuracion en `.claude/settings.json`. Los hooks se ejecutan automaticamente por Claude Code.
+
+---
+
 ## Stacks Soportados
 
 | Stack | Version | Arquitectura | Estado |
@@ -382,9 +402,24 @@ jps_dev_engine/
 ├── CLAUDE.md                      # Descripcion del engine para Claude
 ├── ENGINE_VERSION.yaml            # Version, stacks, servicios, changelog
 ├── README.md                      # Este archivo
-├── install.sh                     # Instalador de commands (symlinks)
+├── install.sh                     # Instalador de commands + skills + hooks
 │
-├── commands/                      # Commands globales (5 archivos)
+├── .claude/                       # Configuracion Claude Code (v3.0)
+│   ├── settings.json              #   Hooks config
+│   ├── skills/                    #   Agent Skills (7 skills)
+│   │   ├── prd/SKILL.md
+│   │   ├── plan/SKILL.md
+│   │   ├── implement/SKILL.md
+│   │   ├── adapt-ui/SKILL.md
+│   │   ├── optimize-agents/SKILL.md
+│   │   ├── quality-gate/SKILL.md
+│   │   └── explore/SKILL.md
+│   └── hooks/                     #   Hook scripts
+│       ├── pre-commit-lint.sh
+│       ├── on-session-end.sh
+│       └── implement-checkpoint.sh
+│
+├── commands/                      # Commands legacy (referencia)
 │   ├── prd.md                     #   /prd — PRD + Work Item
 │   ├── plan.md                    #   /plan — Plan tecnico + Stitch
 │   ├── implement.md               #   /implement — Autopilot end-to-end
@@ -546,4 +581,4 @@ MIT
 
 ---
 
-v2.3.0 | 2026-02-24 | JPS Developer
+v3.0.0 | 2026-02-24 | JPS Developer

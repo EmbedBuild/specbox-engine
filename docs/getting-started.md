@@ -1,4 +1,4 @@
-# Getting Started - JPS Dev Engine v2.0.0
+# Getting Started - JPS Dev Engine v3.0.0
 
 ## Requisitos
 
@@ -15,22 +15,30 @@ git clone <repo-url> ~/jps_dev_engine
 cd ~/jps_dev_engine
 ```
 
-### 2. Instalar commands globales
+### 2. Instalar commands, skills y hooks
 
 ```bash
 ./install.sh
 ```
 
-Esto crea symlinks en `~/.claude/commands/` apuntando a los commands del engine.
-Los commands quedan disponibles globalmente: `/prd`, `/plan`, `/adapt-ui`, `/optimize-agents`.
+Esto instala:
+- **Commands** como symlinks en `~/.claude/commands/` (legacy)
+- **Skills** copiados a `~/.claude/skills/` (v3.0 — auto-discovery)
+- **Hooks** copiados a `~/.claude/hooks/` (enforcement automatico)
 
 ### 3. Verificar instalacion
 
 ```bash
+# Commands (legacy)
 ls -la ~/.claude/commands/
-```
 
-Deberias ver symlinks a los archivos en el engine.
+# Skills (v3.0)
+ls -la ~/.claude/skills/
+# Deberias ver: prd, plan, implement, adapt-ui, optimize-agents, quality-gate, explore
+
+# Hooks
+ls -la ~/.claude/hooks/
+```
 
 ## Uso en un proyecto nuevo
 
@@ -91,8 +99,17 @@ Activa Agent Teams en settings.json:
 # Generar plan de implementacion (incluye diseños Stitch si hay UI)
 /plan PROYECTO-42
 
+# Implementar el plan (autopilot end-to-end)
+/implement nombre_del_plan
+
 # Auditar configuracion agentica
 /optimize-agents audit
+
+# Explorar un codebase (read-only)
+/explore
+
+# Verificar calidad antes de PR
+/quality-gate check
 ```
 
 ## Actualizacion del engine
@@ -113,11 +130,14 @@ Ver [CLAUDE.md](../CLAUDE.md) en la raiz del repositorio para la estructura comp
 
 | Quiero... | Accion |
 |-----------|--------|
-| Instalar commands | `./install.sh` |
+| Instalar todo | `./install.sh` |
 | Crear un PRD | `/prd "descripcion"` |
 | Planificar feature | `/plan PROYECTO-N` |
+| Implementar plan | `/implement nombre_plan` |
 | Escanear widgets | `/adapt-ui /path/proyecto` |
 | Auditar agentes | `/optimize-agents audit` |
+| Explorar codebase | `/explore` |
+| Verificar calidad | `/quality-gate check` |
 | Ver patrones Flutter | `architecture/flutter/` |
 | Ver patrones React | `architecture/react/` |
 | Ver patrones Python | `architecture/python/` |

@@ -1,4 +1,4 @@
-# JPS Dev Engine v2.3.0
+# JPS Dev Engine v3.0.0
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -108,6 +108,43 @@ jps_dev_engine/
 
 ## Para contribuir
 
-1. Los commands en `commands/` son los archivos reales que se instalan
-2. Tras modificar un command, ejecutar `./install.sh` para actualizar symlinks
-3. Versionar cambios en ENGINE_VERSION.yaml
+1. Las Skills en `.claude/skills/` son los archivos activos del sistema
+2. Los commands en `commands/` se mantienen como referencia legacy
+3. Tras modificar una Skill, ejecutar `./install.sh` para actualizar en global
+4. Versionar cambios en ENGINE_VERSION.yaml
+
+## Available Skills (v3.0)
+
+Skills are auto-discoverable. Claude will use them when relevant. You can also invoke them explicitly.
+
+| Skill | Trigger phrases | Mode | Tools |
+|-------|----------------|------|-------|
+| /prd | "create PRD", "new feature", "write requirements" | fork:Plan | Full |
+| /plan | "plan feature", "technical plan", "analyze for implementation" | fork:Plan | Full |
+| /implement | "implement plan", "execute plan", "autopilot" | direct | Full |
+| /adapt-ui | "scan UI", "map components", "detect widgets" | fork:Explore | Read-only |
+| /optimize-agents | "audit agents", "optimize system", "agent score" | fork:Explore | Read-only |
+| /quality-gate | "check quality", "run gates", "coverage check" | direct | Lint+Read |
+| /explore | "analyze codebase", "explore code", "understand architecture" | fork:Explore | Read-only |
+
+## Hooks (v3.0)
+
+Automatic enforcement — no need to remember running these manually:
+
+| Hook | Event | Behavior |
+|------|-------|----------|
+| pre-commit-lint | PostToolUse (git commit) | BLOCKING: fails commit if lint has errors |
+| on-session-end | Stop | Logs session telemetry to .quality/logs/ |
+| implement-checkpoint | Manual (called by /implement) | Saves phase progress for resume |
+
+## Context Rules (v3.0)
+
+- Skills with `context: fork` run in isolated subagents — they don't pollute your main session
+- /implement delegates phases to isolated Tasks to prevent context saturation
+- Read-only Skills (explore, optimize-agents, adapt-ui) cannot modify files
+- File ownership per agent is documented in .claude/skills/implement/file-ownership.md
+
+## Engine Version
+
+Current: v3.0.0 "Skills Engine"
+Config: ENGINE_VERSION.yaml

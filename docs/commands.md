@@ -1,16 +1,37 @@
-# Referencia de Commands
+# Referencia de Commands y Skills
+
+> **v3.0:** Los commands han sido migrados a **Agent Skills** en `.claude/skills/`. Los archivos en `commands/` se mantienen como referencia. Las Skills son la version activa con auto-discovery, context isolation y hooks.
 
 ## Instalacion
 
-Los commands se instalan como symlinks globales en `~/.claude/commands/`:
-
 ```bash
-./install.sh          # Instalar/actualizar
+./install.sh          # Instalar commands + skills + hooks
 ./install.sh --dry-run    # Ver que haria sin cambios
 ./install.sh --uninstall  # Desinstalar
 ```
 
-## Commands disponibles
+Instala:
+- **Commands** (legacy) como symlinks en `~/.claude/commands/`
+- **Skills** (v3.0) copiados a `~/.claude/skills/`
+- **Hooks** (v3.0) copiados a `~/.claude/hooks/`
+
+## Skills disponibles (v3.0)
+
+| Skill | Modo | Descripcion |
+|-------|------|-------------|
+| /prd | fork:Plan | Genera PRDs estructurados |
+| /plan | fork:Plan | Planes tecnicos con UI analysis y Stitch |
+| /implement | direct | Autopilot end-to-end con checkpoint/resume |
+| /adapt-ui | fork:Explore | Mapeo de componentes UI |
+| /optimize-agents | fork:Explore | Auditoria del sistema agentico |
+| /quality-gate | direct | Gates de calidad adaptativos |
+| /explore | fork:Explore | Exploracion read-only del codebase |
+
+Las Skills con `fork` corren en subagentes aislados — no contaminan la sesion principal.
+
+---
+
+## Commands en detalle
 
 ### /prd
 

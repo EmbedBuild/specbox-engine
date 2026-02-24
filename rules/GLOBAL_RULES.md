@@ -1,4 +1,4 @@
-# Reglas Globales - JPS Dev Engine v2.3.0
+# Reglas Globales - JPS Dev Engine v3.0.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.
@@ -229,4 +229,4 @@ npm run test && npm run lint && npm run push
 
 ---
 
-*Version: 2.3.0 | Ultima actualizacion: 2026-02-24*
+*Version: 3.0.0 | Ultima actualizacion: 2026-02-24*

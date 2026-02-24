@@ -1,4 +1,4 @@
-version: 2.2.0
+version: 2.3.0
 release_date: 2026-02-24
 min_claude_code: "1.0.0"
 
@@ -22,8 +22,18 @@ features:
   - multi-stack
   - stitch-design
   - global-commands
+  - implement-autopilot
 
 changelog:
+  2.3.0:
+    date: 2026-02-24
+    changes:
+      - "Nuevo comando /implement — autopilot de implementacion end-to-end"
+      - "Lee plan de doc/plans/, crea rama, ejecuta fases, design-to-code si aplica, QA, PR"
+      - "Soporte multi-stack: Flutter, React, Python, Google Apps Script"
+      - "Commits parciales por fase, coverage check 85%+, PR automatica con gh"
+      - "Flujo actualizado: /prd → /plan → /implement → done"
+
   2.2.0:
     date: 2026-02-24
     changes:

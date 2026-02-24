@@ -57,6 +57,34 @@ Los commands se instalan como symlinks globales en `~/.claude/commands/`:
 
 ---
 
+### /implement
+
+**Archivo**: `commands/implement.md`
+**Proposito**: Autopilot de implementacion end-to-end. Lee un plan, crea rama, ejecuta todas las fases, genera diseños Stitch si aplica, valida con QA, y crea PR.
+
+**Uso**:
+```
+/implement nombre_del_plan        # Busca doc/plans/{nombre}_plan.md
+/implement doc/plans/mi_plan.md   # Path directo
+/implement                        # Lista planes disponibles
+```
+
+**Que hace**:
+1. Carga y parsea el plan de `doc/plans/`
+2. Crea rama `feature/{nombre-del-plan}` desde main
+3. Detecta si el plan requiere diseños Stitch
+4. Si faltan diseños: genera con Stitch MCP automaticamente
+5. Ejecuta design-to-code (si hay HTMLs de diseño)
+6. Ejecuta cada fase del plan en orden
+7. Commits parciales por fase
+8. Integracion (DI, routing, config)
+9. QA: tests con 85%+ coverage, lint
+10. Push y crea PR con resumen completo via `gh`
+
+**Output**: Rama con commits por fase + PR lista para review.
+
+---
+
 ### /adapt-ui
 
 **Archivo**: `commands/adapt-ui.md`

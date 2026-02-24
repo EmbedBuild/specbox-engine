@@ -1,6 +1,6 @@
 # {PROJECT_NAME}
 
-> Generado con JPS Dev Engine v2.0.0
+> Generado con JPS Dev Engine v2.3.0
 
 ## Stack
 
@@ -44,6 +44,7 @@ Agentes disponibles en .claude/agents/:
 | AG-03 | DB Specialist | agents/db_specialist.md |
 | AG-04 | QA Validation | agents/qa_validation.md |
 | AG-05 | n8n Specialist | agents/n8n_specialist.md |
+| AG-07 | Apps Script Specialist | agents/appscript_specialist.md |
 
 ### Opcion B: Agent Teams (nativo Claude Code)
 
@@ -69,6 +70,7 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 |---------|-----------|
 | /prd | Genera PRD + work item |
 | /plan | Plan de implementacion + diseños Stitch |
+| /implement | Autopilot: rama + fases + design-to-code + QA + PR |
 | /adapt-ui | Escanea y mapea widgets existentes |
 | /optimize-agents | Audita y optimiza sistema agentico |
 
@@ -79,7 +81,7 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
   |
 /plan → Plan tecnico + Diseños Stitch
   |
-Implementacion → Usando agentes/teams
+/implement → Autopilot: rama + fases + design-to-code + QA + PR
   |
 /optimize-agents → Validar configuracion agentica
 ```
@@ -93,4 +95,4 @@ Implementacion → Usando agentes/teams
 ---
 
 *Generado: {DATE}*
-*Engine: jps_dev_engine v2.0.0*
+*Engine: jps_dev_engine v2.3.0*

@@ -52,10 +52,15 @@ Genera un plan de implementación detallado con análisis de componentes UI.
 ls -la .claude/ 2>/dev/null
 
 # Detectar stack
-cat pubspec.yaml | grep -E "flutter:|dependencies:"
+cat pubspec.yaml 2>/dev/null | grep -E "flutter:|dependencies:"  # Flutter
+cat package.json 2>/dev/null | grep -E "react|next"              # React/Node
+cat pyproject.toml 2>/dev/null | grep -E "fastapi|django"        # Python
+ls .clasp.json appsscript.json 2>/dev/null                       # Google Apps Script
 
-# Encontrar biblioteca de widgets
-find lib -type d -name "widgets" 2>/dev/null
+# Encontrar biblioteca de widgets/componentes
+find lib -type d -name "widgets" 2>/dev/null                      # Flutter
+find src -type d -name "components" 2>/dev/null                   # React
+find src -type d \( -name "html" -o -name "ui" \) 2>/dev/null    # Apps Script
 ```
 
 ### Mapeo de estructura detectada
@@ -64,9 +69,11 @@ find lib -type d -name "widgets" 2>/dev/null
 |-----------|--------|
 | `.claude/orchestrator.md` | Usar agentes del proyecto |
 | `.claude/agents/` | Mapear tareas a agentes específicos |
-| `lib/core/widgets/` | Usar como biblioteca de componentes |
-| `lib/presentation/shared/widgets/` | Alternativa de biblioteca |
-| Ninguna biblioteca | Proponer crear `lib/core/widgets/` |
+| `lib/core/widgets/` | Usar como biblioteca de componentes (Flutter) |
+| `lib/presentation/shared/widgets/` | Alternativa de biblioteca (Flutter) |
+| `src/components/` | Biblioteca de componentes (React) |
+| `.clasp.json` + `src/html/` | Proyecto Apps Script con clasp |
+| Ninguna biblioteca | Proponer crear según stack detectado |
 
 ---
 
@@ -155,6 +162,7 @@ Leer y mapear agentes:
 | AG-03 Supabase | DB, queries, RLS |
 | AG-04 QA | Tests, validación |
 | AG-05 n8n | Workflows, automatizaciones |
+| AG-07 Apps Script | Scripts GAS, clasp, triggers, Web Apps |
 
 ### Si NO existe orquestador:
 

@@ -144,6 +144,6 @@ if [ "$DRY_RUN" = true ]; then
     echo -e "${YELLOW}(Dry run - no changes made)${NC}"
 else
     echo -e "${GREEN}Installation complete.${NC}"
-    echo -e "Commands available: /prd, /plan, /adapt-ui, /optimize-agents"
+    echo -e "Commands available: /prd, /plan, /implement, /adapt-ui, /optimize-agents"
 fi
 echo ""

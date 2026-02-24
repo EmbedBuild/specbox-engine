@@ -155,6 +155,36 @@ Para cada comando, extraer:
 - **¿Tiene checkpoints?** (buscar "CHECKPOINT", "verificar", "validate", "analyze")
 - **¿Usa subagents?** (buscar "Task tool", "subagent", "agent team")
 
+### 0.6 Detectar JPS Dev Engine y Comparar Versiones
+
+**Localizar el engine**: Buscar `jps_dev_engine` en estas ubicaciones (en orden):
+1. `~/jps_dev_engine/`
+2. `~/Desktop/Proyectos/jpsdeveloper/jps_dev_engine/`
+3. Seguir symlinks de `~/.claude/commands/*.md` para encontrar la ruta del engine
+
+Si se encuentra el engine, leer `ENGINE_VERSION.yaml` y guardar `$ENGINE_VERSION`.
+
+**Comparar archivos del proyecto con el engine**:
+
+| Archivo del proyecto | Fuente en el engine | Tipo |
+|---------------------|---------------------|------|
+| `.claude/commands/*.md` | `commands/*.md` | Symlink (auto-actualizado) o copia |
+| `.claude/agents/*.md` | `agents/*.md` | Copia (puede estar desactualizado) |
+| `.claude/team-config.json` | `templates/team-config.json.template` | Copia (puede estar desactualizado) |
+| `.claude/team-prompts/*.md` | `agent-teams/prompts/*.md` | Copia (puede estar desactualizado) |
+| `CLAUDE.md` | `templates/CLAUDE.md.template` | Personalizado (comparar estructura) |
+
+**Para cada archivo copiado (no symlink)**:
+1. Verificar si existe en el proyecto
+2. Si existe, comparar fecha de modificación y contenido con la fuente del engine
+3. Clasificar: `SYNCED` (idéntico o personalizado correctamente) / `OUTDATED` (engine tiene versión más nueva) / `CUSTOM` (modificado por el usuario, no se puede comparar directamente)
+
+**Para commands (symlinks)**:
+1. Verificar que cada `.md` en `~/.claude/commands/` es un symlink al engine (no una copia suelta)
+2. Si es copia suelta → marcar como `NOT_LINKED` (recomendación: ejecutar `./install.sh`)
+
+Guardar resultados en `$ENGINE_SYNC[]`.
+
 ---
 
 ## Paso 1: Documentation Sync Analysis (25 puntos)
@@ -637,6 +667,7 @@ Imprimir directamente en la conversación:
   Stack: [stacks detectados]
   Infra: [infra detectada]
   System: [LEGACY_ONLY | NATIVE_ONLY | HYBRID | NO_AGENTS]
+  Engine: JPS Dev Engine v[VERSION] [o "not found"]
   Agents: [N] detected ([N] active, [N] deprecated)
   Teams: [N native teams] ([N active tasks], [N stuck])
   Date: [fecha]
@@ -771,6 +802,35 @@ Estructura propuesta:
 
 [Si ya tiene Agent Teams:]
 Estado actual del equipo: [métricas]
+
+────────────────────────────────────────────────────────────
+7. ENGINE SYNC                                 [info]
+────────────────────────────────────────────────────────────
+
+Engine: JPS Dev Engine v[VERSION] — [ruta del engine]
+
+Commands (symlinks):
+  /prd              [✅ Linked / ⚠️ Copia suelta — ejecutar ./install.sh]
+  /plan             [✅ Linked / ⚠️ Copia suelta]
+  /adapt-ui         [✅ Linked / ⚠️ Copia suelta]
+  /optimize-agents  [✅ Linked / ⚠️ Copia suelta]
+
+[Si hay archivos copiados del engine en el proyecto:]
+Archivos del proyecto vs engine:
+| Archivo | Estado | Detalle |
+|---------|--------|---------|
+| .claude/agents/orchestrator.md | ✅ SYNCED | Idéntico al engine |
+| .claude/agents/feature-generator.md | ⚠️ OUTDATED | Engine modificado el [fecha] |
+| .claude/team-config.json | 🔧 CUSTOM | Personalizado (revisar manualmente) |
+
+[Si hay archivos OUTDATED:]
+Para actualizar, copiar desde el engine:
+  cp ~/jps_dev_engine/agents/feature-generator.md .claude/agents/
+  [comando por cada archivo outdated]
+
+[Si no se encontró el engine:]
+⚠️ JPS Dev Engine no encontrado.
+  Instalar: git clone <repo-url> ~/jps_dev_engine && cd ~/jps_dev_engine && ./install.sh
 
 ════════════════════════════════════════════════════════════
   RESUMEN

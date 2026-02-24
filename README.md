@@ -1,150 +1,190 @@
-# JPS Development Engine
+# JPS Dev Engine v2.0.0
 
-Motor de desarrollo estandarizado para proyectos Flutter y Python, diseñado para trabajar con Claude AI como asistente de desarrollo.
+Sistema de programacion agentica para Claude Code.
 
-## Filosofía
+Repositorio canonico que contiene commands, patrones de arquitectura, templates de agentes, configuracion de Agent Teams y patrones de infraestructura para desarrollo profesional con Claude Code.
 
-- **100% SaaS oriented** - Todo el desarrollo está enfocado en crear productos SaaS
-- **Multi-tenancy desde día 1** - Arquitectura preparada para múltiples clientes/organizaciones
-- **Preparado para monetización** - Estructura lista para billing, suscripciones y planes
+## Quick Start
 
-## Objetivo
+```bash
+# 1. Clonar
+git clone <repo-url> ~/jps_dev_engine
+cd ~/jps_dev_engine
 
-Proporcionar una arquitectura, convenciones y herramientas estandarizadas que permitan:
-- Desarrollo consistente entre proyectos
-- Integración optimizada con Claude AI
-- Código mantenible y escalable
-- Testing comprehensivo
+# 2. Instalar commands globales
+./install.sh
 
-## Stack Tecnológico
+# 3. Verificar
+ls -la ~/.claude/commands/
+# Deberias ver: prd.md, plan.md, adapt-ui.md, optimize-agents.md
+```
 
-| Tecnología | Versión | Uso |
-|------------|---------|-----|
-| Flutter | 3.x | Apps móviles/web/desktop |
-| Dart | 3.x | Lenguaje principal Flutter |
-| Python | 3.11+ | Backend, scripts, automation |
-| BLoC | 8.x | State management (obligatorio) |
+Los commands quedan disponibles globalmente en Claude Code: `/prd`, `/plan`, `/adapt-ui`, `/optimize-agents`.
 
-## Estructura del Repositorio
+## Que incluye
+
+### Commands (`commands/`)
+
+| Comando | Proposito |
+|---------|-----------|
+| `/prd` | Genera PRD + crea work item en Plane/Trello |
+| `/plan` | Plan de implementacion + diseños UI via Stitch MCP |
+| `/adapt-ui` | Escanea widgets existentes y genera mapeo UI |
+| `/optimize-agents` | Audita y optimiza sistema agentico del proyecto |
+
+### Arquitectura (`architecture/`)
+
+Patrones y convenciones por stack:
+
+| Stack | Contenido |
+|-------|-----------|
+| **Flutter 3.38+** | Clean Architecture, BLoC+Freezed, Responsive (3 layouts), DataSource pattern, Testing |
+| **React 19.x** | Next.js 15 App Router, Server Components, TanStack Query, Zustand, Tailwind CSS |
+| **Python 3.12+** | FastAPI, SQLAlchemy 2 async, Pydantic v2, Repository pattern |
+
+### Agentes (`agents/`)
+
+Templates genericos de agentes especializados:
+
+| Agente | Rol |
+|--------|-----|
+| Orchestrator | Coordinador de subagentes |
+| Feature Generator (AG-01) | Genera features completas (multi-stack) |
+| UI/UX Designer (AG-02) | Diseño de interfaces |
+| DB Specialist (AG-03) | Supabase, Neon, Firebase |
+| QA Validation (AG-04) | Testing (85%+ coverage) |
+| n8n Specialist (AG-05) | Workflows de automatizacion |
+| Design Specialist (AG-06) | Google Stitch MCP |
+
+### Agent Teams (`agent-teams/`)
+
+Configuracion para Agent Teams nativo de Claude Code (feature experimental):
+
+- Templates de team-config.json
+- Prompts por rol (Lead, Flutter, React, DB, QA, Design)
+- Hooks de calidad (teammate-idle, task-completed)
+- Documentacion de patrones
+
+### Infraestructura (`infra/`)
+
+Patrones por servicio:
+
+| Servicio | Contenido |
+|----------|-----------|
+| **Supabase** | MCP tools, RLS, migrations, Realtime, DataSource pattern |
+| **Neon** | Connection pooling, branching, Drizzle ORM |
+| **Stripe** | Webhooks, Checkout, Subscriptions, Customer Portal |
+| **Firebase** | Firestore rules, Auth, Cloud Functions, Storage |
+| **n8n** | Workflow patterns, triggers, webhooks |
+
+### Diseño (`design/`)
+
+Integracion con Google Stitch MCP:
+
+- Configuracion y workflow
+- Template de prompts reutilizable
+- Estrategia de paralelizacion
+
+### UI/UX (`uiux/`)
+
+Biblioteca de 6 estilos visuales para Flutter:
+
+| Estilo | Uso recomendado |
+|--------|-----------------|
+| Material Design 3 | Apps multiplataforma, Android-first |
+| Cupertino/iOS | Apps iOS-first |
+| Minimalist Modern | Blogs, portfolios, apps de contenido |
+| Neumorphism | Dashboards, controles |
+| Glassmorphism | Landing pages, widgets flotantes |
+| Neobrutalism | Apps creativas, startups |
+
+### Templates (`templates/`)
+
+Templates para configurar un nuevo proyecto:
+
+- `CLAUDE.md.template` - Instrucciones del proyecto para Claude
+- `settings.json.template` - Permisos y config de Claude Code
+- `team-config.json.template` - Configuracion de Agent Teams
+
+### Reglas (`rules/`)
+
+- `GLOBAL_RULES.md` - Reglas universales multi-stack
+
+## Flujo de desarrollo
+
+```
+/prd --> PRD + Work Item
+  |
+/plan --> Plan tecnico + Diseños Stitch (HTML)
+  |
+Implementacion --> Agentes/Teams ejecutan el plan
+  |
+/optimize-agents --> Validar y optimizar sistema agentico
+```
+
+## Uso en un proyecto existente
+
+1. **Instalar commands** (si no lo has hecho): `./install.sh`
+2. **Copiar CLAUDE.md template** al proyecto y personalizar
+3. **Copiar agentes** que necesites a `.claude/agents/`
+4. **Ejecutar `/optimize-agents audit`** para evaluar tu configuracion actual
+5. **Seguir recomendaciones** del audit para mejorar
+
+Ver guia completa en [docs/getting-started.md](docs/getting-started.md).
+
+## Actualizacion
+
+```bash
+cd ~/jps_dev_engine
+git pull
+./install.sh
+```
+
+Los symlinks se actualizan automaticamente.
+
+## Estructura completa
 
 ```
 jps_dev_engine/
-├── docs/                    # Documentación
-│   ├── architecture/        # Arquitectura detallada
-│   ├── conventions/         # Convenciones de código
-│   └── templates/           # Plantillas de features
-├── flutter/                 # Recursos Flutter
-│   ├── templates/           # Código base reutilizable
-│   └── analysis_options.yaml
-├── python/                  # Recursos Python
-│   └── templates/
-├── scripts/                 # Scripts de automatización
-└── .claude/                 # Configuración para Claude
+├── CLAUDE.md                  # Descripcion del engine
+├── ENGINE_VERSION.yaml        # Version y changelog
+├── install.sh                 # Instalador de commands
+├── commands/                  # Commands globales (4 archivos)
+├── agents/                    # Templates de agentes (7 roles)
+├── agent-teams/               # Agent Teams config
+│   ├── templates/
+│   ├── prompts/
+│   └── hooks/
+├── architecture/              # Patrones por stack
+│   ├── flutter/
+│   ├── react/
+│   └── python/
+├── design/                    # Integracion Stitch MCP
+│   └── stitch/
+├── infra/                     # Patrones por servicio
+│   ├── supabase/
+│   ├── neon/
+│   ├── stripe/
+│   ├── firebase/
+│   └── n8n/
+├── uiux/                      # Biblioteca de estilos UI
+├── templates/                 # Templates para nuevos proyectos
+├── rules/                     # Reglas globales
+└── docs/                      # Documentacion
 ```
 
-## Arquitectura Flutter
+## Filosofia
 
-```
-lib/
-├── core/                    # Código compartido
-│   ├── assets/              # Asset paths
-│   ├── config/              # Configuración app
-│   ├── constants/           # Constantes globales
-│   ├── di/                  # Dependency injection
-│   ├── extensions/          # Extension methods
-│   ├── gen/                 # Código generado
-│   ├── lang/                # Internacionalización
-│   ├── theme/               # Tema y estilos
-│   └── widgets/             # Widgets reutilizables
-│       ├── avatar/
-│       ├── buttons/
-│       ├── feedback/
-│       ├── inputs/
-│       ├── layout/
-│       ├── lists/
-│       ├── navigation/
-│       └── responsive/
-├── data/                    # Capa de datos
-│   ├── datasources/
-│   ├── models/
-│   └── repositories/
-├── domain/                  # Capa de dominio
-│   ├── entities/
-│   ├── repositories/
-│   └── usecases/
-├── presentation/            # Capa de presentación
-│   └── features/
-│       └── {feature}/
-│           ├── bloc/        # State management
-│           ├── layouts/     # Responsive layouts (OBLIGATORIO)
-│           │   ├── {feature}_mobile_layout.dart
-│           │   ├── {feature}_tablet_layout.dart
-│           │   └── {feature}_desktop_layout.dart
-│           ├── page/        # Páginas/screens
-│           ├── routes/      # Rutas de la feature
-│           └── widgets/     # Widgets específicos
-└── main.dart
-```
-
-## Reglas Fundamentales
-
-### State Management
-- **BLoC es obligatorio** - Nunca usar Provider, Riverpod u otras alternativas
-- Cada feature con lógica de estado debe tener su BLoC
-- Usar `flutter_bloc` para la integración con widgets
-
-### Responsive Design
-- **3 layouts obligatorios por feature**: mobile, tablet, desktop
-- Usar `AppLayoutBuilder` para selección automática de layout
-- Breakpoints: mobile (<600), tablet (600-1024), desktop (>1024)
-
-### Testing
-| Tipo | Cobertura | Herramientas |
-|------|-----------|--------------|
-| Unit | BLoC, repositories, use cases | `bloc_test`, `mockito` |
-| Widget | Diferentes tamaños de pantalla | `flutter_test` |
-| Golden | Pantallas core | `golden_toolkit` |
-
-### Convenciones de Código
-- **Código en inglés** (variables, funciones, clases)
-- **Comunicación en español** (commits, PRs, documentación)
-- Seguir Effective Dart
-- Máximo 80 caracteres por línea
-
-## Documentación
-
-- [Arquitectura Flutter](docs/architecture/flutter.md)
-- [Arquitectura Python](docs/architecture/python.md)
-- [Convenciones de Código](docs/conventions/code_style.md)
-- [Guía de Testing](docs/conventions/testing.md)
-- [Plantilla de Feature](docs/templates/feature_template.md)
-
-## Uso con Claude
-
-Este repositorio está optimizado para trabajar con Claude AI. El archivo `CLAUDE.md` en la raíz del repositorio contiene las instrucciones específicas para que Claude siga la arquitectura y convenciones definidas.
-
-### Comandos útiles
-```bash
-# Crear nueva feature siguiendo la arquitectura
-# Claude generará: bloc/, layouts/, page/, routes/, widgets/
-
-# Revisar arquitectura antes de implementar
-# Claude validará cumplimiento de reglas
-```
-
-## Principios de Diseño
-
-1. **Consistencia** - Misma estructura en todos los proyectos
-2. **Simplicidad** - Evitar sobre-ingeniería
-3. **Mantenibilidad** - Código fácil de entender y modificar
-4. **Testabilidad** - Arquitectura que facilita testing
-5. **Escalabilidad** - Preparado para crecer
+1. Consistencia > Velocidad
+2. Documentacion ejecutable
+3. Claude como arquitecto critico
+4. Escalable desde dia 1
+5. Multi-stack desde el core
 
 ## Licencia
 
-MIT License - Ver [LICENSE](LICENSE)
+MIT
 
-## Autor
+---
 
-**Jesús Pérez** (JPSDeveloper / IAutomat)
-- GitHub: [@jesusperezdeveloper](https://github.com/jesusperezdeveloper)
+v2.0.0 | 2026-02-24 | JPS Developer

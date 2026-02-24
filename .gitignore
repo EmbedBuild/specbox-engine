@@ -1,0 +1,13 @@
+# Quality system
+.quality/logs/
+.quality/evidence/**/report.md
+!.quality/evidence/**/checkpoint.json
+!.quality/baselines/
+!.quality/README.md
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

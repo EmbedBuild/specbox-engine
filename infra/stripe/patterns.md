@@ -1,6 +1,6 @@
 # Stripe - Patrones de Infraestructura
 
-> jps_dev_engine v2.0.0 | Referencia de patrones para integracion de pagos con Stripe
+> jps_dev_engine v3.0.0 | Referencia de patrones para integracion de pagos con Stripe
 
 ---
 

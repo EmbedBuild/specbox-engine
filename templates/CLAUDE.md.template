@@ -1,6 +1,6 @@
 # {PROJECT_NAME}
 
-> Generado con JPS Dev Engine v2.3.0
+> Generado con JPS Dev Engine v3.0.0
 
 ## Stack
 
@@ -29,22 +29,24 @@ Las reglas de jps_dev_engine/rules/GLOBAL_RULES.md aplican a este proyecto.
 ## Sistema de Diseño
 
 Estilo: {UI_STYLE} ({UI_STYLE_ID})
-Ver: jps_dev_engine/uiux/{ui_style_file}.md
+Diseños Stitch: `doc/design/{feature}/`
+Patrones: `jps_dev_engine/design/stitch/`
 
 ## Agentes del Proyecto
 
-### Opcion A: Subagentes (legacy)
+### Opcion A: Subagentes
 
 Agentes disponibles en .claude/agents/:
 
 | ID | Agente | Archivo |
 |----|--------|---------|
-| AG-01 | Feature Generator | agents/feature_generator.md |
-| AG-02 | UI/UX Designer | agents/uiux_designer.md |
-| AG-03 | DB Specialist | agents/db_specialist.md |
-| AG-04 | QA Validation | agents/qa_validation.md |
-| AG-05 | n8n Specialist | agents/n8n_specialist.md |
-| AG-07 | Apps Script Specialist | agents/appscript_specialist.md |
+| AG-01 | Feature Generator | agents/feature-generator.md |
+| AG-02 | UI/UX Designer | agents/uiux-designer.md |
+| AG-03 | DB Specialist | agents/db-specialist.md |
+| AG-04 | QA Validation | agents/qa-validation.md |
+| AG-05 | n8n Specialist | agents/n8n-specialist.md |
+| AG-06 | Design Specialist | agents/design-specialist.md |
+| AG-07 | Apps Script Specialist | agents/appscript-specialist.md |
 
 ### Opcion B: Agent Teams (nativo Claude Code)
 
@@ -95,4 +97,4 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ---
 
 *Generado: {DATE}*
-*Engine: jps_dev_engine v2.3.0*
+*Engine: jps_dev_engine v3.0.0*

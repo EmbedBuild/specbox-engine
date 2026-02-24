@@ -1,0 +1,25 @@
+#!/bin/bash
+# Hook helper: guarda checkpoint despues de cada fase de /implement
+# Llamado desde dentro de la Skill /implement, no como hook automatico
+# Uso: .claude/hooks/implement-checkpoint.sh <feature> <phase_number> <phase_name>
+
+set -e
+
+FEATURE="$1"
+PHASE="$2"
+PHASE_NAME="$3"
+BRANCH="$(git branch --show-current 2>/dev/null || echo 'unknown')"
+
+if [ -z "$FEATURE" ] || [ -z "$PHASE" ]; then
+  echo "Usage: implement-checkpoint.sh <feature> <phase> <phase_name>"
+  exit 1
+fi
+
+mkdir -p ".quality/evidence/${FEATURE}"
+
+# Use printf to avoid JSON injection from phase names
+printf '{\n  "feature": "%s",\n  "phase": %s,\n  "phase_name": "%s",\n  "branch": "%s",\n  "timestamp": "%s",\n  "status": "complete"\n}\n' \
+  "$FEATURE" "$PHASE" "$PHASE_NAME" "$BRANCH" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  > ".quality/evidence/${FEATURE}/checkpoint.json"
+
+echo "[CHECKPOINT] Phase ${PHASE} (${PHASE_NAME}) saved for ${FEATURE}"

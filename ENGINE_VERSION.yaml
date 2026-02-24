@@ -1,4 +1,5 @@
-version: 2.4.0
+version: 3.0.0
+codename: "Skills Engine"
 release_date: 2026-02-24
 min_claude_code: "1.0.0"
 
@@ -18,15 +19,31 @@ services:
   - google-workspace
 
 features:
+  - agent-skills
   - agent-teams
   - multi-stack
   - stitch-design
-  - global-commands
-  - implement-autopilot
+  - hooks-system
   - quality-gates
+  - context-isolation
+  - checkpoint-resume
+  - implement-autopilot
   - evidence-system
 
 changelog:
+  3.0.0:
+    date: 2026-02-24
+    changes:
+      - "Migrated all commands to Agent Skills with YAML frontmatter"
+      - "Added hooks system: pre-commit lint, session telemetry, checkpointing"
+      - "Implemented context isolation with fork and Task patterns"
+      - "Added file ownership enforcement per agent"
+      - "New /explore Skill for read-only codebase analysis"
+      - "New /quality-gate Skill for adaptive quality gates"
+      - "Checkpoint/resume system for /implement"
+      - "Skills auto-discovery via CLAUDE.md registry"
+      - "install.sh updated to copy skills + hooks"
+
   2.4.0:
     date: 2026-02-24
     changes:
@@ -65,9 +82,9 @@ changelog:
   2.1.0:
     date: 2026-02-24
     changes:
-      - "/optimize-agents: nueva sección Engine Sync — detecta versión del engine y compara archivos del proyecto"
+      - "/optimize-agents: nueva seccion Engine Sync — detecta version del engine y compara archivos del proyecto"
       - "Paso 0.6: localiza jps_dev_engine, compara agents/prompts/config copiados vs engine"
-      - "Output audit: sección 7 Engine Sync con estado de symlinks y archivos outdated"
+      - "Output audit: seccion 7 Engine Sync con estado de symlinks y archivos outdated"
 
   2.0.1:
     date: 2026-02-24

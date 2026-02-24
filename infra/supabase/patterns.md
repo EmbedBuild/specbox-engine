@@ -1,6 +1,6 @@
 # Supabase - Patrones de Infraestructura
 
-> jps_dev_engine v2.0.0 | Referencia de patrones, herramientas MCP y plantillas
+> jps_dev_engine v3.0.0 | Referencia de patrones, herramientas MCP y plantillas
 
 ---
 

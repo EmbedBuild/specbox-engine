@@ -1,6 +1,6 @@
 # Orquestador de Agentes (Orchestrator)
 
-> JPS Dev Engine v2.0.0
+> JPS Dev Engine v3.0.0
 > Template generico -- personalizar por proyecto en `.claude/orchestrator.md`
 
 ## Proposito
@@ -160,7 +160,7 @@ Estas variables deben resolverse al personalizar para un proyecto:
 ## Referencia
 
 - Engine: `jps_dev_engine/`
-- Commands: `jps_dev_engine/commands/`
+- Skills: `jps_dev_engine/.claude/skills/`
 - Arquitectura por stack: `jps_dev_engine/architecture/{stack}/`
 - Infraestructura: `jps_dev_engine/infra/{servicio}/`
-- Estilos UI: `jps_dev_engine/uiux/`
+- Diseño Stitch: `jps_dev_engine/design/stitch/`

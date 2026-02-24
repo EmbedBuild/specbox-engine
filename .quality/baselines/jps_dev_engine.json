@@ -1,0 +1,17 @@
+{
+  "project": "jps_dev_engine",
+  "stack": "unknown",
+  "timestamp": "2026-02-24T21:43:17Z",
+  "metrics": {
+    "lint_errors": 0,
+    "lint_warnings": 0,
+    "test_coverage_pct": 0,
+    "tests_passing": 0,
+    "tests_failing": 0
+  },
+  "policies": {
+    "lint": "zero-tolerance",
+    "coverage": "ratchet",
+    "tests": "no-regression"
+  }
+}

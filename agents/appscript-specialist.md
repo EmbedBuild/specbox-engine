@@ -1,6 +1,6 @@
 # AG-07: Apps Script Specialist
 
-> JPS Dev Engine v2.2.0
+> JPS Dev Engine v3.0.0
 > Especialista en Google Apps Script — automatizaciones, Web Apps, Add-ons e integraciones con Google Workspace.
 
 ## Proposito

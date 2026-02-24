@@ -1,6 +1,6 @@
 # AG-05: n8n Specialist
 
-> JPS Dev Engine v2.0.0
+> JPS Dev Engine v3.0.0
 > Template generico -- especialista en automatizacion de workflows con n8n.
 
 ## Proposito

@@ -1,6 +1,6 @@
 #!/bin/bash
-# JPS Dev Engine - Installer
-# Instala commands globales en ~/.claude/commands/ como symlinks
+# JPS Dev Engine v3.0 - Installer
+# Instala commands, skills y hooks globales en ~/.claude/
 # Usage: ./install.sh [--uninstall] [--dry-run]
 
 set -e
@@ -140,10 +140,72 @@ echo -e "  Updated: ${YELLOW}$updated${NC}"
 echo -e "  Unchanged: $skipped"
 echo ""
 
+## --- INSTALL SKILLS (v3.0) ---
+
+SKILLS_DIR="$HOME/.claude/skills"
+echo -e "${GREEN}Installing skills to $SKILLS_DIR${NC}"
+echo ""
+
+skills_installed=0
+for skill_dir in "$ENGINE_DIR"/.claude/skills/*/; do
+    [ -d "$skill_dir" ] || continue
+    skill_name=$(basename "$skill_dir")
+
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "  Would install skill: ${GREEN}$skill_name${NC}"
+    else
+        mkdir -p "$SKILLS_DIR/$skill_name"
+        cp -r "$skill_dir"* "$SKILLS_DIR/$skill_name/"
+        echo -e "  Installed: ${GREEN}$skill_name${NC}"
+    fi
+    skills_installed=$((skills_installed + 1))
+done
+
+echo -e "  Skills installed: ${GREEN}$skills_installed${NC}"
+echo ""
+
+## --- INSTALL HOOKS (v3.0) ---
+
+HOOKS_DIR="$HOME/.claude/hooks"
+if [ -d "$ENGINE_DIR/.claude/hooks" ]; then
+    echo -e "${GREEN}Installing hooks to $HOOKS_DIR${NC}"
+
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "  Would install hooks to $HOOKS_DIR"
+    else
+        mkdir -p "$HOOKS_DIR"
+        cp "$ENGINE_DIR"/.claude/hooks/*.sh "$HOOKS_DIR/"
+        chmod +x "$HOOKS_DIR"/*.sh
+        echo -e "  Hooks installed"
+    fi
+    echo ""
+fi
+
+## --- INSTALL SETTINGS (v3.0) ---
+
+if [ -f "$ENGINE_DIR/.claude/settings.json" ]; then
+    if [ -f "$HOME/.claude/settings.json" ]; then
+        echo -e "${YELLOW}  ~/.claude/settings.json already exists. Manual merge needed.${NC}"
+        echo -e "  New settings at: $ENGINE_DIR/.claude/settings.json"
+    else
+        if [ "$DRY_RUN" = true ]; then
+            echo -e "  Would install: ${GREEN}settings.json${NC}"
+        else
+            cp "$ENGINE_DIR/.claude/settings.json" "$HOME/.claude/settings.json"
+            echo -e "  ${GREEN}Settings installed${NC}"
+        fi
+    fi
+    echo ""
+fi
+
+## --- SUMMARY ---
+
 if [ "$DRY_RUN" = true ]; then
     echo -e "${YELLOW}(Dry run - no changes made)${NC}"
 else
     echo -e "${GREEN}Installation complete.${NC}"
-    echo -e "Commands available: /prd, /plan, /implement, /adapt-ui, /optimize-agents"
+    echo -e "Commands: /prd, /plan, /implement, /adapt-ui, /optimize-agents"
+    echo -e "Skills:   /prd, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore"
+    echo -e "Hooks:    pre-commit-lint, on-session-end, implement-checkpoint"
 fi
 echo ""

@@ -257,6 +257,15 @@
     }
   },
 
+  "engineIntegration": {
+    "version": "3.1",
+    "skills": ["/prd", "/plan", "/implement", "/quality-gate", "/explore", "/adapt-ui", "/optimize-agents"],
+    "hooks": ["pre-commit-lint", "on-session-end", "implement-checkpoint", "implement-healing"],
+    "qualityBaseline": ".quality/baselines/{project}.json",
+    "evidencePath": ".quality/evidence/{feature}/",
+    "fileOwnership": ".claude/skills/implement/file-ownership.md"
+  },
+
   "modelAssignments": {
     "$comment": "El Lead usa opus para mejor razonamiento en coordinacion. Especialistas usan sonnet para velocidad.",
     "opus": ["lead"],

@@ -40,6 +40,5 @@ changelog:
     changes:
       - Setup inicial del engine
       - Comandos globales (prd, plan, adapt-ui)
-      - 6 estilos UI disponibles
       - GLOBAL_RULES.md para Claude Code
       - Scripts de setup y sincronizacion (eliminados en v2)

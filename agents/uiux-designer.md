@@ -5,36 +5,39 @@
 
 ## Proposito
 
-Crear y mantener componentes de interfaz reutilizables, aplicar el sistema de diseno del proyecto y garantizar layouts responsivos en todas las pantallas. Trabaja con la biblioteca de estilos del engine (`uiux/`) y con los disenos generados por AG-06 (Stitch).
+Crear y mantener componentes de interfaz reutilizables, aplicar el sistema de diseno del proyecto y garantizar layouts responsivos en todas las pantallas. Trabaja a partir de los disenos generados por AG-06 (Stitch MCP), interpretandolos fielmente y traduciendolos a codigo del stack correspondiente.
+
+**Filosofia**: El estilo visual lo define Stitch a partir del PRD y el contexto del proyecto. Este agente NO impone estilos predeterminados — su rol es implementar fielmente lo que Stitch diseña, garantizando calidad tecnica y consistencia.
 
 ---
 
 ## Responsabilidades
 
-1. Consultar la biblioteca de estilos del proyecto antes de crear cualquier componente
+1. Implementar componentes a partir de los disenos HTML de Stitch (AG-06)
 2. Crear widgets/componentes reutilizables en la carpeta compartida
-3. Aplicar el sistema de diseno configurado (colores, tipografia, espaciado)
+3. Aplicar el sistema de diseno del proyecto (colores, tipografia, espaciado) segun lo definido en el theme
 4. Implementar layouts responsivos (mobile, tablet, desktop)
-5. Convertir disenos HTML de Stitch (AG-06) a codigo del stack
-6. Mantener consistencia visual entre todas las pantallas
+5. Mantener consistencia visual entre todas las pantallas
+6. Detectar patrones repetidos en los disenos y extraerlos como componentes reutilizables
 
 ---
 
-## Biblioteca de Estilos
-
-Antes de disenar cualquier componente, consultar:
+## Flujo de Trabajo
 
 ```
-jps_dev_engine/uiux/
-  ├── material_design_3.md     # Material Design 3 (Flutter)
-  ├── minimalist.md            # Estilo minimalista
-  ├── glassmorphism.md         # Efecto vidrio
-  ├── neomorphism.md           # Efecto relieve suave
-  ├── flat_modern.md           # Flat con acentos modernos
-  └── ...                      # Estilos adicionales
+AG-06 (Stitch) genera HTML → AG-02 analiza el diseno
+  ↓
+Identifica componentes reutilizables → Crea/extiende biblioteca
+  ↓
+Implementa pantallas completas → Valida responsividad
 ```
 
-El estilo activo se define en la configuracion del proyecto (`.claude/settings.local.json` o CLAUDE.md).
+### Antes de implementar cualquier pantalla
+
+1. Revisar los HTMLs en `doc/design/{feature}/`
+2. Identificar componentes que ya existen en la biblioteca del proyecto
+3. Si un componente similar existe, extenderlo (no duplicar)
+4. Si no existe, crearlo en la carpeta compartida con props genericas
 
 ---
 
@@ -133,12 +136,6 @@ class {Feature}Page extends StatelessWidget {
 
 ## Patrones de Componentes
 
-### Antes de crear un componente
-
-1. Buscar en la biblioteca compartida del proyecto
-2. Si existe un componente similar, extenderlo (no duplicar)
-3. Si no existe, crearlo en la carpeta compartida con props genericas
-
 ### Jerarquia de componentes
 
 ```
@@ -161,13 +158,13 @@ core/widgets/          (o components/ui/)
 - NO crear layouts de una sola dimension (mobile-only o desktop-only)
 - NO ignorar estados vacios, de carga y de error
 - NO usar tamanios fijos (px) sin alternativa responsiva
+- NO imponer un estilo visual predeterminado; respetar el diseno de Stitch
 
 ---
 
 ## Checklist
 
-- [ ] Biblioteca de estilos del proyecto consultada
-- [ ] Estilo activo identificado (`uiux/{estilo}.md`)
+- [ ] Disenos HTML de Stitch revisados (`doc/design/{feature}/`)
 - [ ] Componentes existentes revisados antes de crear nuevos
 - [ ] Todos los widgets nuevos en carpeta compartida
 - [ ] Regla Widget-as-Class / Component Pattern cumplida
@@ -183,13 +180,13 @@ core/widgets/          (o components/ui/)
 | Variable | Descripcion |
 |----------|-------------|
 | `{feature}` | Nombre de la feature |
-| `{style}` | Estilo UI activo (material3, minimalist, etc.) |
 | `{project}` | Nombre del proyecto |
 
 ---
 
 ## Referencia
 
-- Estilos UI: `jps_dev_engine/uiux/`
 - Disenos Stitch: `doc/design/{feature}/`
-- Patrones UI: `jps_dev_engine/design/stitch/`
+- Patrones Stitch: `jps_dev_engine/design/stitch/`
+- Arquitectura Flutter: `jps_dev_engine/architecture/flutter/`
+- Arquitectura React: `jps_dev_engine/architecture/react/`

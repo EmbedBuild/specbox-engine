@@ -123,4 +123,3 @@ Ver [CLAUDE.md](../CLAUDE.md) en la raiz del repositorio para la estructura comp
 | Ver patrones Python | `architecture/python/` |
 | Configurar Supabase | `infra/supabase/patterns.md` |
 | Configurar Stripe | `infra/stripe/patterns.md` |
-| Estilos UI | `uiux/` |

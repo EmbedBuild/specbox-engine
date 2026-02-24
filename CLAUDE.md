@@ -89,11 +89,6 @@ jps_dev_engine/
 │   ├── stripe/
 │   ├── firebase/
 │   └── n8n/
-├── uiux/                  ← Biblioteca de estilos UI/UX
-│   ├── README.md
-│   ├── material_design_3.md
-│   ├── minimalist.md
-│   └── ...
 ├── templates/             ← Templates para nuevos proyectos
 │   ├── CLAUDE.md.template
 │   ├── settings.json.template

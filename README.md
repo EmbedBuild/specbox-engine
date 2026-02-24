@@ -85,19 +85,6 @@ Integracion con Google Stitch MCP:
 - Template de prompts reutilizable
 - Estrategia de paralelizacion
 
-### UI/UX (`uiux/`)
-
-Biblioteca de 6 estilos visuales para Flutter:
-
-| Estilo | Uso recomendado |
-|--------|-----------------|
-| Material Design 3 | Apps multiplataforma, Android-first |
-| Cupertino/iOS | Apps iOS-first |
-| Minimalist Modern | Blogs, portfolios, apps de contenido |
-| Neumorphism | Dashboards, controles |
-| Glassmorphism | Landing pages, widgets flotantes |
-| Neobrutalism | Apps creativas, startups |
-
 ### Templates (`templates/`)
 
 Templates para configurar un nuevo proyecto:
@@ -167,7 +154,6 @@ jps_dev_engine/
 │   ├── stripe/
 │   ├── firebase/
 │   └── n8n/
-├── uiux/                      # Biblioteca de estilos UI
 ├── templates/                 # Templates para nuevos proyectos
 ├── rules/                     # Reglas globales
 └── docs/                      # Documentacion

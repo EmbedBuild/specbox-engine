@@ -1,6 +1,6 @@
 # AG-01: Feature Generator
 
-> JPS Dev Engine v2.2.0
+> JPS Dev Engine v3.0.0
 > Template generico -- genera features completas segun el stack del proyecto.
 
 ## Proposito

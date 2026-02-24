@@ -1,6 +1,6 @@
 # AG-02: UI/UX Designer
 
-> JPS Dev Engine v2.0.0
+> JPS Dev Engine v3.0.0
 > Template generico -- especialista en componentes UI y diseno responsivo.
 
 ## Proposito

@@ -38,7 +38,7 @@ cd jps_dev_engine
 ./install.sh
 ```
 
-Esto instala los commands globales en `~/.claude/commands/` como symlinks.
+Esto instala Skills en `~/.claude/skills/`, hooks en `~/.claude/hooks/` y commands en `~/.claude/commands/`.
 
 ## Flujo de desarrollo
 
@@ -58,8 +58,22 @@ Esto instala los commands globales en `~/.claude/commands/` como symlinks.
 jps_dev_engine/
 ├── CLAUDE.md              ← Este archivo
 ├── ENGINE_VERSION.yaml    ← Version del engine
-├── install.sh             ← Instala commands en ~/.claude/commands/
-├── commands/              ← Commands globales (se instalan via install.sh)
+├── install.sh             ← Instala skills, hooks, commands
+├── .claude/
+│   ├── skills/            ← Agent Skills (v3.0)
+│   │   ├── prd/SKILL.md
+│   │   ├── plan/SKILL.md
+│   │   ├── implement/SKILL.md
+│   │   ├── adapt-ui/SKILL.md
+│   │   ├── optimize-agents/SKILL.md
+│   │   ├── quality-gate/SKILL.md
+│   │   └── explore/SKILL.md
+│   ├── hooks/             ← Hooks (v3.0)
+│   │   ├── pre-commit-lint.sh
+│   │   ├── on-session-end.sh
+│   │   └── implement-checkpoint.sh
+│   └── settings.json      ← Hooks config
+├── commands/              ← Commands (referencia legacy)
 │   ├── prd.md
 │   ├── plan.md
 │   ├── implement.md
@@ -69,15 +83,14 @@ jps_dev_engine/
 │   ├── orchestrator.md
 │   ├── feature-generator.md
 │   ├── uiux-designer.md
+│   ├── db-specialist.md
 │   ├── qa-validation.md
-│   ├── supabase-specialist.md
+│   ├── design-specialist.md
 │   ├── n8n-specialist.md
-│   ├── appscript-specialist.md
-│   └── templates/
+│   └── appscript-specialist.md
 ├── agent-teams/           ← Agent Teams nativo (Claude Code)
 │   ├── README.md
 │   ├── templates/
-│   │   └── team-config.template.json
 │   ├── prompts/
 │   └── hooks/
 ├── architecture/          ← Patrones por stack
@@ -97,6 +110,7 @@ jps_dev_engine/
 │   ├── CLAUDE.md.template
 │   ├── settings.json.template
 │   └── team-config.json.template
+├── .quality/              ← Telemetria y evidencia (v3.0)
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
 └── docs/                  ← Documentacion del sistema

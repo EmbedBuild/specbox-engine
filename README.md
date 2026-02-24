@@ -430,9 +430,10 @@ jps_dev_engine/
 │   ├── orchestrator.md
 │   ├── feature-generator.md       #   AG-01
 │   ├── uiux-designer.md           #   AG-02
-│   ├── supabase-specialist.md     #   AG-03
+│   ├── db-specialist.md           #   AG-03
 │   ├── qa-validation.md           #   AG-04
 │   ├── n8n-specialist.md          #   AG-05
+│   ├── design-specialist.md       #   AG-06
 │   ├── appscript-specialist.md    #   AG-07
 │   └── templates/
 │

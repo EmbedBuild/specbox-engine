@@ -1,6 +1,6 @@
 # AG-06: Design Specialist (Google Stitch MCP)
 
-> JPS Dev Engine v2.0.0
+> JPS Dev Engine v3.0.0
 > Template generico -- especialista en generacion de disenos UI via Google Stitch MCP.
 
 ## Proposito
@@ -228,6 +228,5 @@ doc/
 ## Referencia
 
 - Integracion Stitch: `jps_dev_engine/design/stitch/`
-- Estilos UI: `jps_dev_engine/uiux/`
-- Comando /plan (Paso 6): `jps_dev_engine/commands/plan.md`
+- Skill /plan: `jps_dev_engine/.claude/skills/plan/SKILL.md`
 - Instrucciones globales Stitch: `~/.claude/CLAUDE.md`

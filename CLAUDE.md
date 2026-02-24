@@ -1,4 +1,4 @@
-# JPS Dev Engine v2.2.0
+# JPS Dev Engine v2.3.0
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -7,7 +7,7 @@
 
 Este repositorio contiene el **sistema completo de programacion agentica** para trabajar con Claude Code. Incluye:
 
-- **Commands** (`/prd`, `/plan`, `/adapt-ui`, `/optimize-agents`) — flujo completo de desarrollo
+- **Commands** (`/prd`, `/plan`, `/implement`, `/adapt-ui`, `/optimize-agents`) — flujo completo de desarrollo
 - **Agent Teams** — configuracion para orquestacion multi-agente nativa de Claude Code
 - **Architecture** — patrones por stack (Flutter, React, Python, Google Apps Script)
 - **Infrastructure** — patrones por servicio (Supabase, Neon, Stripe, Firebase, n8n)
@@ -47,7 +47,7 @@ Esto instala los commands globales en `~/.claude/commands/` como symlinks.
   ↓
 /plan → Plan tecnico + Diseños Stitch (MCP) + HTML
   ↓
-/design-to-code → HTML Stitch → Codigo Flutter/React
+/implement → Autopilot: rama + fases + design-to-code + QA + PR
   ↓
 /optimize-agents → Audita y optimiza sistema agentico del proyecto
 ```
@@ -62,6 +62,7 @@ jps_dev_engine/
 ├── commands/              ← Commands globales (se instalan via install.sh)
 │   ├── prd.md
 │   ├── plan.md
+│   ├── implement.md
 │   ├── adapt-ui.md
 │   └── optimize-agents.md
 ├── agents/                ← Templates de agentes por rol

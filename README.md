@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.0.0
+# JPS Dev Engine v3.1.0
 
 Sistema de programacion agentica basado en **Agent Skills** para Claude Code.
 
@@ -264,6 +264,21 @@ Enforcement automatico — no hace falta recordar ejecutarlos manualmente:
 | implement-checkpoint | Manual (llamado por /implement) | Guarda progreso de fase para resume |
 
 Configuracion en `.claude/settings.json`. Los hooks se ejecutan automaticamente por Claude Code.
+
+---
+
+## Self-Healing Protocol (v3.1)
+
+Cuando `/implement` encuentra errores durante la ejecución, el sistema intenta auto-recuperarse antes de pedir intervención humana:
+
+| Nivel | Acción | Ejemplo |
+|-------|--------|---------|
+| **1: Auto-Fix** | Ejecuta auto-fix del stack | `dart fix --apply`, `eslint --fix` |
+| **2: Diagnóstico** | Analiza error y aplica fix específico | Import faltante, tipo incorrecto |
+| **3: Rollback** | Revierte fase y reintenta desde cero | `git stash` + fresh attempt |
+| **4: Humano** | Genera error report y pausa | `.quality/evidence/{feature}/error_report.md` |
+
+Todos los intentos se registran en `.quality/evidence/{feature}/healing.jsonl` para auditoría.
 
 ---
 
@@ -637,4 +652,4 @@ MIT
 
 ---
 
-v3.0.0 | 2026-02-24 | JPS Developer
+v3.1.0 | 2026-02-24 | JPS Developer

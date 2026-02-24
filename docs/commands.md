@@ -158,3 +158,13 @@ Las Skills con `fork` corren en subagentes aislados — no contaminan la sesion 
 - Agentes: Legacy (.claude/agents/) + Agent Teams nativos
 
 **Output**: Score /100 con recomendaciones priorizadas.
+
+---
+
+## Quality Scripts (v3.1)
+
+Scripts utilitarios para gestión de calidad:
+
+- `create-baseline.sh` — Genera baseline de métricas (lint, coverage, tests)
+- `update-baseline.sh` — Actualiza baseline con política ratchet (solo mejora, nunca empeora)
+- `analyze-sessions.sh` — Reporte de telemetría: sesiones, self-healing, checkpoints activos

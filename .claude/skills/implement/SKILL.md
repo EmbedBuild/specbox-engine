@@ -596,19 +596,72 @@ Si el plan referencia un work item de Plane/Trello:
 
 ---
 
-## Manejo de Errores
+## Self-Healing Protocol
 
-### Error en compilacion/lint durante una fase
+Cuando una fase falla, el sistema intenta auto-recuperarse antes de pedir intervención humana.
 
-```
-1. Leer el error completo
-2. Intentar fix automatico (dart fix, eslint --fix, ruff --fix)
-3. Si persiste: analizar y corregir el codigo
-4. Si no se puede resolver:
-   - Commitear el progreso hasta ahora
-   - Reportar al usuario con detalles del error
-   - Sugerir solucion manual
-   - NO continuar con fases siguientes
+### Nivel 1: Auto-Fix (automático, sin preguntar)
+
+Para errores de lint/format:
+1. Ejecutar auto-fix del stack:
+   - Flutter: `dart fix --apply && dart format .`
+   - React: `npx eslint --fix . && npx prettier --write .`
+   - Python: `ruff check --fix . && ruff format .`
+   - GAS: `npx eslint --fix .`
+2. Re-ejecutar validación
+3. Si pasa → continuar. Si falla → escalar a Nivel 2
+
+### Nivel 2: Diagnóstico + Fix (automático, 1 intento)
+
+Para errores de compilación o imports:
+1. Leer el error completo (primeras 50 líneas)
+2. Identificar la causa raíz:
+   - Import faltante → añadir import
+   - Tipo incorrecto → corregir tipo
+   - Archivo referenciado no existe → crear stub o corregir path
+   - Dependencia faltante → añadir a pubspec/package.json/requirements
+3. Aplicar fix
+4. Re-ejecutar validación
+5. Si pasa → continuar. Si falla → escalar a Nivel 3
+
+### Nivel 3: Rollback parcial (automático, último recurso)
+
+Si el error persiste tras Nivel 2:
+1. Guardar checkpoint con status "failed" y error details
+2. `git stash` los cambios de la fase actual
+3. Registrar en `.quality/evidence/${feature}/healing.jsonl`:
+   ```jsonl
+   {"phase": N, "error": "...", "level": 3, "action": "rollback", "timestamp": "..."}
+   ```
+4. Intentar la fase una vez más desde cero (fresh attempt)
+5. Si falla de nuevo → escalar a Nivel 4
+
+### Nivel 4: Intervención humana (reportar y pausar)
+
+Si nada funciona:
+1. Guardar checkpoint con status "needs_human" y full error context
+2. Generar `.quality/evidence/${feature}/error_report.md` con:
+   - Fase que falló y número de intentos
+   - Error completo
+   - Fixes intentados
+   - Archivos modificados en la fase
+   - Sugerencia de resolución
+3. Reportar al usuario: "Phase {N} failed after 2 attempts. See error report at .quality/evidence/{feature}/error_report.md"
+4. Preguntar: "¿Quieres que intente un approach diferente, o prefieres intervenir manualmente?"
+
+### Retry Budget
+
+- Máximo 2 intentos completos por fase (original + 1 retry)
+- Máximo 3 auto-fixes de lint por fase
+- Si 2 fases consecutivas fallan → detener pipeline y generar report completo
+- Total de auto-heals por implementación: máximo 8
+
+### Logging
+
+TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}/healing.jsonl`:
+```jsonl
+{"phase": 1, "error": "dart analyze: 3 errors", "level": 1, "action": "dart fix --apply", "result": "resolved", "timestamp": "..."}
+{"phase": 3, "error": "build failed: missing import", "level": 2, "action": "added import to user_bloc.dart", "result": "resolved", "timestamp": "..."}
 ```
 
 ### Error en generacion Stitch
@@ -659,6 +712,8 @@ Si el plan referencia un work item de Plane/Trello:
 - [ ] Lint sin errores
 - [ ] PR creada con resumen completo
 - [ ] Work item actualizado (si aplica)
+- [ ] Self-healing log limpio (0 level 3+ events)
+- [ ] Healing budget no excedido (≤8 auto-heals total)
 
 ---
 

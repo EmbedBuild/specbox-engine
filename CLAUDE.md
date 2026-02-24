@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.0.0
+# JPS Dev Engine v3.1.0
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -134,15 +134,15 @@ jps_dev_engine/
 
 Skills are auto-discoverable. Claude will use them when relevant. You can also invoke them explicitly.
 
-| Skill | Trigger phrases | Mode | Tools |
-|-------|----------------|------|-------|
-| /prd | "create PRD", "new feature", "write requirements" | fork:Plan | Full |
-| /plan | "plan feature", "technical plan", "analyze for implementation" | fork:Plan | Full |
-| /implement | "implement plan", "execute plan", "autopilot" | direct | Full |
-| /adapt-ui | "scan UI", "map components", "detect widgets" | fork:Explore | Read-only |
-| /optimize-agents | "audit agents", "optimize system", "agent score" | fork:Explore | Read-only |
-| /quality-gate | "check quality", "run gates", "coverage check" | direct | Lint+Read |
-| /explore | "analyze codebase", "explore code", "understand architecture" | fork:Explore | Read-only |
+| Skill | Trigger phrases | Mode | Tools | Notes |
+|-------|----------------|------|-------|-------|
+| /prd | "create PRD", "new feature", "write requirements" | fork:Plan | Full | |
+| /plan | "plan feature", "technical plan", "analyze for implementation" | fork:Plan | Full | |
+| /implement | "implement plan", "execute plan", "autopilot" | direct | Full | Self-healing with 4-level auto-recovery |
+| /adapt-ui | "scan UI", "map components", "detect widgets" | fork:Explore | Read-only | |
+| /optimize-agents | "audit agents", "optimize system", "agent score" | fork:Explore | Read-only | |
+| /quality-gate | "check quality", "run gates", "coverage check" | direct | Lint+Read | |
+| /explore | "analyze codebase", "explore code", "understand architecture" | fork:Explore | Read-only | |
 
 ## Hooks (v3.0)
 
@@ -153,6 +153,8 @@ Automatic enforcement — no need to remember running these manually:
 | pre-commit-lint | PostToolUse (git commit) | BLOCKING: fails commit if lint has errors |
 | on-session-end | Stop | Logs session telemetry to .quality/logs/ |
 | implement-checkpoint | Manual (called by /implement) | Saves phase progress for resume |
+| implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
+| post-implement-validate | Manual (called by /implement) | Checks baseline regression after implementation |
 
 ## Context Rules (v3.0)
 
@@ -161,7 +163,15 @@ Automatic enforcement — no need to remember running these manually:
 - Read-only Skills (explore, optimize-agents, adapt-ui) cannot modify files
 - File ownership per agent is documented in .claude/skills/implement/file-ownership.md
 
+## Quality Scripts
+
+| Script | Usage | Purpose |
+|--------|-------|---------|
+| `create-baseline.sh` | `.quality/scripts/create-baseline.sh [path]` | Generate initial quality baseline |
+| `update-baseline.sh` | `.quality/scripts/update-baseline.sh [path]` | Ratchet-safe baseline update (only improves) |
+| `analyze-sessions.sh` | `.quality/scripts/analyze-sessions.sh [--last N]` | Telemetry report: sessions, healing, checkpoints |
+
 ## Engine Version
 
-Current: v3.0.0 "Skills Engine"
+Current: v3.1.0 "Skills Engine"
 Config: ENGINE_VERSION.yaml

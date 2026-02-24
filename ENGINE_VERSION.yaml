@@ -1,4 +1,4 @@
-version: 3.0.0
+version: 3.1.0
 codename: "Skills Engine"
 release_date: 2026-02-24
 min_claude_code: "1.0.0"
@@ -29,8 +29,22 @@ features:
   - checkpoint-resume
   - implement-autopilot
   - evidence-system
+  - self-healing-protocol
+  - telemetry-analysis
+  - ratchet-baseline-updater
 
 changelog:
+  3.1.0:
+    date: 2026-02-24
+    changes:
+      - "Self-healing protocol: 4-level auto-recovery in /implement with healing log"
+      - "Agent Teams prompts updated for v3 engine integration (Skills, hooks, quality)"
+      - "Telemetry analysis script: analyze-sessions.sh with healing and checkpoint reports"
+      - "Ratchet-safe baseline updater: update-baseline.sh (only improves, never regresses)"
+      - "Post-implement validation hook for baseline regression detection"
+      - "install.sh migrated from cp to symlinks for Skills (instant updates with git pull)"
+      - "implement-healing.sh hook for structured healing event logging"
+
   3.0.0:
     date: 2026-02-24
     changes:

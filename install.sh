@@ -140,28 +140,56 @@ echo -e "  Updated: ${YELLOW}$updated${NC}"
 echo -e "  Unchanged: $skipped"
 echo ""
 
-## --- INSTALL SKILLS (v3.0) ---
+## --- INSTALL SKILLS (v3.1) ---
 
 SKILLS_DIR="$HOME/.claude/skills"
-echo -e "${GREEN}Installing skills to $SKILLS_DIR${NC}"
+echo -e "${GREEN}Installing skills to $SKILLS_DIR (symlinks)${NC}"
 echo ""
 
 skills_installed=0
+skills_updated=0
 for skill_dir in "$ENGINE_DIR"/.claude/skills/*/; do
     [ -d "$skill_dir" ] || continue
     skill_name=$(basename "$skill_dir")
+    target="$SKILLS_DIR/$skill_name"
 
-    if [ "$DRY_RUN" = true ]; then
-        echo -e "  Would install skill: ${GREEN}$skill_name${NC}"
+    if [ -L "$target" ]; then
+        current_target=$(readlink "$target")
+        if [ "$current_target" = "$skill_dir" ] || [ "$current_target" = "${skill_dir%/}" ]; then
+            continue
+        else
+            if [ "$DRY_RUN" = true ]; then
+                echo -e "  Would update skill: ${YELLOW}$skill_name${NC}"
+            else
+                rm "$target"
+                ln -s "${skill_dir%/}" "$target"
+                echo -e "  Updated: ${YELLOW}$skill_name${NC}"
+            fi
+            skills_updated=$((skills_updated + 1))
+        fi
+    elif [ -d "$target" ]; then
+        # Directory exists (from v3.0 cp -r) — replace with symlink
+        if [ "$DRY_RUN" = true ]; then
+            echo -e "  Would replace dir with symlink: ${YELLOW}$skill_name${NC}"
+        else
+            rm -rf "$target"
+            ln -s "${skill_dir%/}" "$target"
+            echo -e "  Migrated to symlink: ${YELLOW}$skill_name${NC}"
+        fi
+        skills_updated=$((skills_updated + 1))
     else
-        mkdir -p "$SKILLS_DIR/$skill_name"
-        cp -r "$skill_dir"* "$SKILLS_DIR/$skill_name/"
-        echo -e "  Installed: ${GREEN}$skill_name${NC}"
+        if [ "$DRY_RUN" = true ]; then
+            echo -e "  Would install skill: ${GREEN}$skill_name${NC}"
+        else
+            mkdir -p "$SKILLS_DIR"
+            ln -s "${skill_dir%/}" "$target"
+            echo -e "  Installed: ${GREEN}$skill_name${NC}"
+        fi
+        skills_installed=$((skills_installed + 1))
     fi
-    skills_installed=$((skills_installed + 1))
 done
 
-echo -e "  Skills installed: ${GREEN}$skills_installed${NC}"
+echo -e "  Skills new: ${GREEN}$skills_installed${NC}, updated: ${YELLOW}$skills_updated${NC}"
 echo ""
 
 ## --- INSTALL HOOKS (v3.0) ---

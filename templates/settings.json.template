@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "WebFetch(domain:*)"
+    ]
+  },
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "stitch": {
+    "projectId": "{STITCH_PROJECT_ID}",
+    "deviceType": "DESKTOP",
+    "modelId": "GEMINI_3_PRO"
+  },
+  "plane": {
+    "defaultProject": "{PLANE_PROJECT}",
+    "defaultState": "Backlog",
+    "projectId": "{PLANE_PROJECT_ID}",
+    "defaultAssignee": "{USER_ID}"
+  }
+}

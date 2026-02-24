@@ -1,0 +1,96 @@
+# {PROJECT_NAME}
+
+> Generado con JPS Dev Engine v2.0.0
+
+## Stack
+
+| Tecnologia | Version |
+|------------|---------|
+| {STACK} | {VERSION} |
+| Backend | {BACKEND} |
+| Database | {DATABASE} |
+
+## Arquitectura
+
+{ARCHITECTURE_DESCRIPTION}
+
+Ver patrones detallados en: jps_dev_engine/architecture/{stack}/
+
+## Reglas del Proyecto
+
+### Importar reglas globales
+Las reglas de jps_dev_engine/rules/GLOBAL_RULES.md aplican a este proyecto.
+
+### Reglas especificas de este proyecto
+
+- {PROJECT_SPECIFIC_RULE_1}
+- {PROJECT_SPECIFIC_RULE_2}
+
+## Sistema de Diseño
+
+Estilo: {UI_STYLE} ({UI_STYLE_ID})
+Ver: jps_dev_engine/uiux/{ui_style_file}.md
+
+## Agentes del Proyecto
+
+### Opcion A: Subagentes (legacy)
+
+Agentes disponibles en .claude/agents/:
+
+| ID | Agente | Archivo |
+|----|--------|---------|
+| AG-01 | Feature Generator | agents/feature_generator.md |
+| AG-02 | UI/UX Designer | agents/uiux_designer.md |
+| AG-03 | DB Specialist | agents/db_specialist.md |
+| AG-04 | QA Validation | agents/qa_validation.md |
+| AG-05 | n8n Specialist | agents/n8n_specialist.md |
+
+### Opcion B: Agent Teams (nativo Claude Code)
+
+Ver: jps_dev_engine/agent-teams/README.md
+Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+
+## Servicios Externos
+
+### {SERVICE_1} (ej: Supabase)
+- Project ID: {PROJECT_ID}
+- Entorno: desarrollo
+- Patrones: jps_dev_engine/infra/{service}/patterns.md
+
+### Google Stitch (si aplica UI)
+- Project ID: {STITCH_PROJECT_ID}
+- Device: {DESKTOP|MOBILE}
+- Model: GEMINI_3_PRO
+- Diseños en: doc/design/{feature}/
+
+## Comandos Disponibles
+
+| Comando | Proposito |
+|---------|-----------|
+| /prd | Genera PRD + work item |
+| /plan | Plan de implementacion + diseños Stitch |
+| /adapt-ui | Escanea y mapea widgets existentes |
+| /optimize-agents | Audita y optimiza sistema agentico |
+
+## Flujo de Desarrollo
+
+```
+/prd → PRD + Trello/Plane
+  |
+/plan → Plan tecnico + Diseños Stitch
+  |
+Implementacion → Usando agentes/teams
+  |
+/optimize-agents → Validar configuracion agentica
+```
+
+## Hooks
+
+```bash
+# Post-modificacion {STACK_HOOKS}
+```
+
+---
+
+*Generado: {DATE}*
+*Engine: jps_dev_engine v2.0.0*

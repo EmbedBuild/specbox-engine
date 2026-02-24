@@ -1,21 +1,45 @@
-version: 1.0.0
-release_date: 2025-01-15
+version: 2.0.0
+release_date: 2026-02-24
+min_claude_code: "1.0.0"
 
-includes:
-  architecture:
-    flutter: 1.0.0
-  skills: []
-  memory_edits: 10
+stacks:
+  flutter: "3.38+"
+  react: "19.x"
+  python: "3.12+"
+
+services:
+  - supabase
+  - neon
+  - stripe
+  - firebase
+  - n8n
+  - stitch-mcp
+
+features:
+  - agent-teams
+  - multi-stack
+  - stitch-design
+  - global-commands
 
 changelog:
+  2.0.0:
+    date: 2026-02-24
+    changes:
+      - "Reestructuracion completa: repositorio canonico del sistema agentico"
+      - "Multi-stack: Flutter 3.38+, React 19.x, Python 3.12+"
+      - "Agent Teams nativo (Claude Code experimental)"
+      - "Integracion Google Stitch MCP para diseño UI"
+      - "Patrones de infraestructura: Supabase, Neon, Stripe, Firebase, n8n"
+      - "install.sh: instalacion de commands via symlinks"
+      - "Comando /optimize-agents con soporte Agent Teams"
+      - "Templates genericos de agentes por rol"
+      - "Eliminados scripts de sync/upgrade (el engine es referencia, no herramienta)"
+
   1.0.0:
     date: 2025-01-15
-    summary: "Initial release - Arquitectura base Flutter"
     changes:
-      - Clean Architecture por capas (core/data/domain/presentation)
-      - AppLayoutBuilder obligatorio (mobile/tablet/desktop)
-      - Sistema de responsive con breakpoints definidos
-      - 10 Memory Edits base configurados
-      - Testing strategy (unit/widget/golden)
-      - BLoC como único state management permitido
-    migration: null
+      - Setup inicial del engine
+      - Comandos globales (prd, plan, adapt-ui)
+      - 6 estilos UI disponibles
+      - GLOBAL_RULES.md para Claude Code
+      - Scripts de setup y sincronizacion (eliminados en v2)

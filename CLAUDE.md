@@ -1,147 +1,114 @@
-# CLAUDE.md - JPS Dev Engine
+# JPS Dev Engine v2.0.0
 
-## Contexto
+> Sistema de programacion agentica para Claude Code.
+> Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
 
-Este es **jps_dev_engine** - motor de desarrollo estandarizado para proyectos Flutter/Python de JPSDeveloper e IAutomat.
+## Que es este repositorio
 
-**Propietario**: Jesús Pérez  
-**Empresas**: IAutomat (agencia automatización) + JPSDeveloper (freelance)  
-**Objetivo**: 100% SaaS oriented - crear múltiples SaaS para ingresos recurrentes
+Este repositorio contiene el **sistema completo de programacion agentica** para trabajar con Claude Code. Incluye:
 
-## Stack Principal
+- **Commands** (`/prd`, `/plan`, `/adapt-ui`, `/optimize-agents`) — flujo completo de desarrollo
+- **Agent Teams** — configuracion para orquestacion multi-agente nativa de Claude Code
+- **Architecture** — patrones por stack (Flutter, React, Python)
+- **Infrastructure** — patrones por servicio (Supabase, Neon, Stripe, Firebase, n8n)
+- **Design** — integracion con Google Stitch MCP para diseño UI
+- **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
+- **Agents** — templates genericos de roles especializados
 
-- **Frontend**: Flutter (BLoC + Clean Architecture)
-- **Backend**: Firebase, Python
-- **Automatización**: n8n
-- **Hardware**: MacBook Pro M4 Pro (48GB RAM) - no limitar tareas pesadas
+## Stack soportado
 
-## Reglas Inamovibles
+| Stack | Version | Estado |
+|-------|---------|--------|
+| Flutter | 3.38+ | Completo |
+| React | 19.x | Completo |
+| Python (FastAPI) | 3.12+ | Completo |
+| Supabase | 2.x | Completo |
+| Neon (Postgres serverless) | - | Completo |
+| Stripe | latest | Completo |
+| Firebase | latest | Completo |
+| n8n | latest | Completo |
+| Google Stitch MCP | - | Completo |
 
-1. **BLoC obligatorio** para state management. Nunca Provider ni Riverpod.
-2. **3 layouts responsivos obligatorios** por feature (mobile/tablet/desktop)
-3. **Código en inglés**, comunicación en español
-4. **Testing obligatorio**: unit (BLoC/repos), widget (screen sizes), golden (pantallas core)
-5. **Simplicidad > Clever code** - soluciones mantenibles siempre
-
-## Arquitectura Flutter Estándar
-
-```
-lib/
-├── core/
-│   ├── assets/           # Imágenes, fonts, etc.
-│   ├── config/           # Configuración de la app
-│   ├── constants/        # Constantes globales
-│   ├── di/               # Dependency injection
-│   ├── extensions/       # Extensions de Dart
-│   ├── gen/              # Código generado
-│   ├── lang/             # Internacionalización
-│   ├── theme/            # Design system (colores, tipografía, spacing)
-│   └── widgets/          # Widgets genéricos reutilizables
-│       ├── avatar/
-│       ├── buttons/
-│       ├── feedback/
-│       ├── inputs/
-│       ├── layout/
-│       ├── lists/
-│       ├── navigation/
-│       └── responsive/   # AppLayoutBuilder, breakpoints
-│
-├── data/
-│   ├── datasources/      # Remote y local data sources
-│   ├── models/           # DTOs, modelos de datos
-│   └── repositories/     # Implementaciones de repositories
-│
-├── domain/
-│   ├── entities/         # Entidades de negocio
-│   ├── repositories/     # Interfaces de repositories
-│   └── usecases/         # Casos de uso (si aplica)
-│
-├── presentation/
-│   └── features/
-│       └── {feature_name}/
-│           ├── bloc/                        # Opcional - solo si hay estado
-│           │   ├── {feature}_bloc.dart
-│           │   ├── {feature}_event.dart
-│           │   └── {feature}_state.dart
-│           ├── layouts/                     # OBLIGATORIO
-│           │   ├── {feature}_mobile_layout.dart
-│           │   ├── {feature}_tablet_layout.dart
-│           │   └── {feature}_desktop_layout.dart
-│           ├── page/
-│           │   └── {feature}_page.dart
-│           ├── routes/
-│           │   └── {feature}_route.dart
-│           └── widgets/                     # Widgets específicos de la feature
-│
-└── main.dart
-```
-
-## Sistema de Responsividad
-
-Todas las features usan `AppLayoutBuilder` que requiere **3 layouts obligatorios**:
-
-```dart
-AppLayoutBuilder(
-  mobile: FeatureMobileLayout(),   // < 600dp
-  tablet: FeatureTabletLayout(),   // 600dp - 1024dp
-  desktop: FeatureDesktopLayout(), // > 1024dp
-)
-```
-
-**Breakpoints**:
-- Mobile: < 600dp
-- Tablet: 600dp - 1024dp
-- Desktop: > 1024dp
-
-## Testing Strategy
-
-| Tipo | Qué testear | Cuándo |
-|------|-------------|--------|
-| **Unit tests** | BLoCs, repositories, usecases | Siempre |
-| **Widget tests** | Layouts con múltiples screen sizes | Siempre |
-| **Golden tests** | Pantallas core (home, dashboard, forms principales) | Features críticas |
-
-### Screen sizes para widget tests
-
-```dart
-final screenSizes = [
-  Size(375, 667),   // iPhone SE (mobile)
-  Size(768, 1024),  // iPad Portrait (tablet)
-  Size(1440, 900),  // MacBook (desktop)
-];
-```
-
-## Rol de Claude
-
-- **Arquitecto senior crítico**, NO asistente complaciente
-- **Cuestionar** decisiones que no escalen o generen deuda técnica
-- **Proponer mejoras** proactivamente
-- **Explicar el "por qué"**, no solo el "qué"
-- **Mantener simplicidad** - si algo se puede hacer más simple, decirlo
-
-## Proyectos Activos
-
-- PaddockManager
-- FutManager
-- Apps de movilidad
-- Pickleball app
-
-## Comandos Útiles
+## Instalacion
 
 ```bash
-# Generar código (freezed, json_serializable, etc.)
-dart run build_runner build --delete-conflicting-outputs
-
-# Tests
-flutter test
-flutter test --coverage
-
-# Análisis
-flutter analyze
-dart fix --apply
+git clone <repo-url> jps_dev_engine
+cd jps_dev_engine
+./install.sh
 ```
 
-## Referencias
+Esto instala los commands globales en `~/.claude/commands/` como symlinks.
 
-- **Proyecto Claude**: "JPS Development Engine" (contiene toda la conversación de diseño)
-- **Repo**: https://github.com/jesusperezdeveloper/jps_dev_engine
+## Flujo de desarrollo
+
+```
+/prd → PRD + Trello/Plane
+  ↓
+/plan → Plan tecnico + Diseños Stitch (MCP) + HTML
+  ↓
+/design-to-code → HTML Stitch → Codigo Flutter/React
+  ↓
+/optimize-agents → Audita y optimiza sistema agentico del proyecto
+```
+
+## Estructura del repositorio
+
+```
+jps_dev_engine/
+├── CLAUDE.md              ← Este archivo
+├── ENGINE_VERSION.yaml    ← Version del engine
+├── install.sh             ← Instala commands en ~/.claude/commands/
+├── commands/              ← Commands globales (se instalan via install.sh)
+│   ├── prd.md
+│   ├── plan.md
+│   ├── adapt-ui.md
+│   └── optimize-agents.md
+├── agents/                ← Templates de agentes por rol
+│   ├── orchestrator.md
+│   ├── feature-generator.md
+│   ├── uiux-designer.md
+│   ├── qa-validation.md
+│   ├── supabase-specialist.md
+│   ├── n8n-specialist.md
+│   └── templates/
+├── agent-teams/           ← Agent Teams nativo (Claude Code)
+│   ├── README.md
+│   ├── templates/
+│   │   └── team-config.template.json
+│   ├── prompts/
+│   └── hooks/
+├── architecture/          ← Patrones por stack
+│   ├── flutter/
+│   ├── react/
+│   └── python/
+├── design/                ← Integracion Stitch MCP
+│   └── stitch/
+├── infra/                 ← Patrones por servicio
+│   ├── supabase/
+│   ├── neon/
+│   ├── stripe/
+│   ├── firebase/
+│   └── n8n/
+├── uiux/                  ← Biblioteca de estilos UI/UX
+│   ├── README.md
+│   ├── material_design_3.md
+│   ├── minimalist.md
+│   └── ...
+├── templates/             ← Templates para nuevos proyectos
+│   ├── CLAUDE.md.template
+│   ├── settings.json.template
+│   └── team-config.json.template
+├── rules/                 ← Reglas globales
+│   └── GLOBAL_RULES.md
+└── docs/                  ← Documentacion del sistema
+    ├── getting-started.md
+    ├── commands.md
+    ├── agent-teams.md
+    └── architecture.md
+```
+
+## Para contribuir
+
+1. Los commands en `commands/` son los archivos reales que se instalan
+2. Tras modificar un command, ejecutar `./install.sh` para actualizar symlinks
+3. Versionar cambios en ENGINE_VERSION.yaml

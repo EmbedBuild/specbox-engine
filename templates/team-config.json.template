@@ -1,0 +1,107 @@
+{
+  "$schema": "JPS Dev Engine v2.0.0 - Agent Teams Configuration",
+  "team": {
+    "name": "{PROJECT_NAME}",
+    "description": "Equipo de desarrollo para {PROJECT_NAME}",
+    "maxConcurrentTeammates": 3
+  },
+  "roles": {
+    "Lead": {
+      "model": "opus",
+      "prompt": "agent-teams/prompts/lead-agent.md",
+      "responsibilities": [
+        "Planificacion y coordinacion",
+        "Revision de PRs",
+        "Decisiones de arquitectura"
+      ],
+      "fileOwnership": ["doc/plans/", "CLAUDE.md"],
+      "canDelegate": true,
+      "canImplement": false
+    },
+    "DesignSpecialist": {
+      "model": "sonnet",
+      "prompt": "agent-teams/prompts/design-specialist.md",
+      "responsibilities": [
+        "Generacion de diseños via Stitch MCP",
+        "Conversion HTML a codigo",
+        "Design system"
+      ],
+      "fileOwnership": ["doc/design/"],
+      "priority": "FIRST",
+      "note": "Lanzar primero: Stitch tarda minutos por pantalla"
+    },
+    "FlutterSpecialist": {
+      "model": "sonnet",
+      "prompt": "agent-teams/prompts/flutter-specialist.md",
+      "responsibilities": [
+        "Features Flutter (BLoC + Freezed)",
+        "Responsive layouts (3 breakpoints)",
+        "Widgets como clases separadas"
+      ],
+      "fileOwnership": ["lib/presentation/", "lib/data/", "lib/domain/", "lib/core/widgets/"]
+    },
+    "ReactSpecialist": {
+      "model": "sonnet",
+      "prompt": "agent-teams/prompts/react-specialist.md",
+      "responsibilities": [
+        "Next.js App Router",
+        "Server Components + TanStack Query",
+        "Tailwind CSS"
+      ],
+      "fileOwnership": ["src/app/", "src/components/", "src/hooks/", "src/stores/"]
+    },
+    "PythonBackend": {
+      "model": "sonnet",
+      "prompt": "agent-teams/prompts/python-backend.md",
+      "responsibilities": [
+        "FastAPI endpoints",
+        "SQLAlchemy models",
+        "Pydantic schemas"
+      ],
+      "fileOwnership": ["src/api/", "src/models/", "src/schemas/", "src/services/"]
+    },
+    "DBInfra": {
+      "model": "sonnet",
+      "prompt": "agent-teams/prompts/db-infra.md",
+      "responsibilities": [
+        "Supabase/Neon/Firebase",
+        "Migraciones y schemas",
+        "RLS policies",
+        "Stripe integracion"
+      ],
+      "fileOwnership": ["supabase/", "migrations/", "prisma/"]
+    },
+    "QAReviewer": {
+      "model": "sonnet",
+      "prompt": "agent-teams/prompts/qa-reviewer.md",
+      "responsibilities": [
+        "Tests unitarios, widget, integracion",
+        "Coverage 85%+",
+        "Edge cases + fuzz testing"
+      ],
+      "fileOwnership": ["test/", "tests/", "__tests__/"]
+    }
+  },
+  "communication": {
+    "patterns": {
+      "request": "Lead → Specialist (asignacion de tarea)",
+      "report": "Specialist → Lead (tarea completada)",
+      "broadcast": "Lead → All (cambio de plan)",
+      "debate": "Specialist ↔ Specialist (decision tecnica)"
+    }
+  },
+  "qualityGates": {
+    "preCommit": {
+      "flutter": "dart fix --apply && dart analyze && flutter test",
+      "react": "npx eslint . --fix && npx tsc --noEmit && npx jest",
+      "python": "ruff check . --fix && mypy . && pytest"
+    },
+    "minCoverage": 85
+  },
+  "notes": {
+    "activateRoles": "Activar solo los roles necesarios para el proyecto",
+    "flutterOnly": "Si el proyecto es solo Flutter, usar: Lead + DesignSpecialist + FlutterSpecialist + DBInfra + QAReviewer",
+    "reactOnly": "Si el proyecto es solo React, usar: Lead + DesignSpecialist + ReactSpecialist + DBInfra + QAReviewer",
+    "fullStack": "Para full-stack, activar todos los roles relevantes"
+  }
+}

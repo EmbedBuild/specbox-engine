@@ -1,0 +1,272 @@
+{
+  "$schema": "https://claude.ai/schemas/team-config.json",
+  "$comment": "Configuracion de Agent Teams para jps_dev_engine v2.0.0. Copiar a .claude/team-config.json del proyecto destino y ajustar segun necesidad.",
+
+  "experimentalFeatures": {
+    "agentTeams": true
+  },
+
+  "team": {
+    "name": "jps-dev-team",
+    "description": "Equipo de desarrollo full-stack con coordinacion por Lead Agent",
+    "maxConcurrentAgents": 4,
+    "taskBoardEnabled": true,
+    "debateEnabled": true
+  },
+
+  "roles": {
+    "lead": {
+      "name": "Lead",
+      "description": "Coordinador del equipo. Planifica, delega y sintetiza. No implementa directamente.",
+      "promptFile": "team-prompts/lead.md",
+      "model": "opus",
+      "canDelegate": true,
+      "canImplement": false,
+      "communicationScope": ["broadcast", "message", "debate"],
+      "fileOwnership": {
+        "write": [
+          "doc/plan/**",
+          "doc/status/**",
+          "doc/architecture/**"
+        ],
+        "read": ["**/*"]
+      }
+    },
+
+    "designSpecialist": {
+      "name": "DesignSpecialist",
+      "description": "Especialista en diseyo UI. Genera pantallas con Stitch MCP, exporta HTML.",
+      "promptFile": "team-prompts/design-specialist.md",
+      "model": "sonnet",
+      "canDelegate": false,
+      "canImplement": true,
+      "communicationScope": ["message"],
+      "mcpTools": [
+        "mcp__stitch__generate_screen_from_text",
+        "mcp__stitch__get_screen",
+        "mcp__stitch__list_screens",
+        "mcp__stitch__get_project"
+      ],
+      "fileOwnership": {
+        "write": [
+          "doc/design/**",
+          "assets/images/**",
+          "assets/icons/**"
+        ],
+        "read": [
+          "doc/plan/**",
+          "doc/prd/**"
+        ]
+      }
+    },
+
+    "flutterSpecialist": {
+      "name": "FlutterSpecialist",
+      "description": "Especialista Flutter. BLoC + Freezed, Clean Architecture, responsive layouts.",
+      "promptFile": "team-prompts/flutter-specialist.md",
+      "model": "sonnet",
+      "canDelegate": false,
+      "canImplement": true,
+      "communicationScope": ["message"],
+      "fileOwnership": {
+        "write": [
+          "lib/**/*.dart",
+          "test/**/*.dart",
+          "pubspec.yaml",
+          "pubspec.lock",
+          "analysis_options.yaml",
+          "l10n/**",
+          "android/**",
+          "ios/**",
+          "web/**",
+          "macos/**",
+          "linux/**",
+          "windows/**"
+        ],
+        "read": [
+          "doc/design/**",
+          "doc/plan/**",
+          "supabase/migrations/**"
+        ]
+      }
+    },
+
+    "reactSpecialist": {
+      "name": "ReactSpecialist",
+      "description": "Especialista React. Next.js 15, Server Components, TanStack Query.",
+      "promptFile": "team-prompts/react-specialist.md",
+      "model": "sonnet",
+      "canDelegate": false,
+      "canImplement": true,
+      "communicationScope": ["message"],
+      "fileOwnership": {
+        "write": [
+          "src/**/*.ts",
+          "src/**/*.tsx",
+          "src/**/*.css",
+          "src/**/*.module.css",
+          "app/**/*.ts",
+          "app/**/*.tsx",
+          "components/**/*.tsx",
+          "hooks/**/*.ts",
+          "lib/**/*.ts",
+          "styles/**/*.css",
+          "public/**",
+          "package.json",
+          "package-lock.json",
+          "tsconfig.json",
+          "next.config.ts",
+          "tailwind.config.ts",
+          "postcss.config.js"
+        ],
+        "read": [
+          "doc/design/**",
+          "doc/plan/**",
+          "supabase/migrations/**"
+        ]
+      }
+    },
+
+    "pythonBackend": {
+      "name": "PythonBackend",
+      "description": "Especialista Python backend. FastAPI, servicios, workers, scripts.",
+      "promptFile": "team-prompts/python-backend.md",
+      "model": "sonnet",
+      "canDelegate": false,
+      "canImplement": true,
+      "communicationScope": ["message"],
+      "fileOwnership": {
+        "write": [
+          "backend/**/*.py",
+          "api/**/*.py",
+          "workers/**/*.py",
+          "scripts/**/*.py",
+          "requirements.txt",
+          "pyproject.toml",
+          "Dockerfile",
+          "docker-compose.yml"
+        ],
+        "read": [
+          "doc/plan/**",
+          "supabase/migrations/**"
+        ]
+      }
+    },
+
+    "dbInfra": {
+      "name": "DBInfra",
+      "description": "Especialista en base de datos e infraestructura. Supabase, Neon, migraciones, RLS.",
+      "promptFile": "team-prompts/db-infra.md",
+      "model": "sonnet",
+      "canDelegate": false,
+      "canImplement": true,
+      "communicationScope": ["message"],
+      "mcpTools": [
+        "mcp__supabase__execute_sql",
+        "mcp__supabase__apply_migration",
+        "mcp__supabase__list_tables",
+        "mcp__supabase__list_migrations",
+        "mcp__supabase__list_extensions",
+        "mcp__supabase__get_logs"
+      ],
+      "fileOwnership": {
+        "write": [
+          "supabase/**",
+          "infra/**",
+          "database/**",
+          ".env.example",
+          "neon/**"
+        ],
+        "read": [
+          "doc/plan/**",
+          "lib/data/models/**",
+          "src/types/**"
+        ]
+      }
+    },
+
+    "qaReviewer": {
+      "name": "QAReviewer",
+      "description": "Revisor de calidad. Tests, cobertura 85%+, linting, validacion.",
+      "promptFile": "team-prompts/qa-reviewer.md",
+      "model": "sonnet",
+      "canDelegate": false,
+      "canImplement": true,
+      "communicationScope": ["message", "broadcast"],
+      "fileOwnership": {
+        "write": [
+          "test/**",
+          "tests/**",
+          "__tests__/**",
+          "*.test.ts",
+          "*.test.tsx",
+          "*_test.dart",
+          ".github/workflows/**",
+          "coverage/**"
+        ],
+        "read": ["**/*"]
+      }
+    }
+  },
+
+  "communication": {
+    "messageTypes": {
+      "message": {
+        "description": "Mensaje directo punto a punto entre dos teammates",
+        "requiresAck": true,
+        "maxLength": 2000
+      },
+      "broadcast": {
+        "description": "Mensaje de un teammate a todos los demas",
+        "allowedRoles": ["lead", "qaReviewer"],
+        "maxLength": 1000
+      },
+      "debate": {
+        "description": "Discusion estructurada entre teammates. Lead modera y decide.",
+        "moderator": "lead",
+        "maxRounds": 3,
+        "requiresResolution": true
+      }
+    },
+    "escalationPath": {
+      "default": "lead",
+      "fileConflict": "lead",
+      "architectureDecision": "lead"
+    }
+  },
+
+  "hooks": {
+    "teammateIdle": {
+      "script": ".claude/hooks/teammate-idle.sh",
+      "timeout": 30,
+      "enabled": true
+    },
+    "taskCompleted": {
+      "script": ".claude/hooks/task-completed.sh",
+      "timeout": 120,
+      "enabled": true
+    }
+  },
+
+  "qualityGates": {
+    "beforeMerge": {
+      "lintPass": true,
+      "testsPass": true,
+      "coverageThreshold": 85,
+      "qaReviewRequired": true
+    }
+  },
+
+  "modelAssignments": {
+    "$comment": "El Lead usa opus para mejor razonamiento en coordinacion. Especialistas usan sonnet para velocidad.",
+    "opus": ["lead"],
+    "sonnet": [
+      "designSpecialist",
+      "flutterSpecialist",
+      "reactSpecialist",
+      "pythonBackend",
+      "dbInfra",
+      "qaReviewer"
+    ]
+  }
+}

@@ -1,0 +1,191 @@
+# Reglas Globales - JPS Dev Engine v2.0.0
+
+> Estas reglas aplican a TODOS los proyectos que usen el engine.
+> Se referencian desde el CLAUDE.md de cada proyecto.
+
+---
+
+## Identidad
+
+- **Desarrollador**: Jesus Perez
+- **Empresa**: IAutomat / JPS Developer
+- **Stack**: Flutter + React + Python + Supabase/Neon + n8n
+- **Rol de Claude**: Arquitecto senior critico, NO asistente complaciente
+
+---
+
+## Reglas Universales (todos los stacks)
+
+### Comportamiento
+
+1. **Cuestionar** decisiones que no escalen o generen deuda tecnica
+2. **Proponer** mejoras proactivamente
+3. **Explicar** el "por que", no solo el "que"
+4. **Documentar** decisiones importantes
+5. **Planificar** antes de implementar (tareas complejas requieren plan en doc/plans/)
+
+### Prohibiciones universales
+
+- No modificar produccion sin confirmacion explicita
+- No comenzar tareas complejas sin plan en doc/plans/
+- No hardcodear valores de configuracion (usar env vars o config files)
+- No codigo sin tests (minimo 85% coverage)
+- No commits sin validacion (lint + analyze + test)
+
+---
+
+## Reglas por Stack
+
+### Flutter (3.38+)
+
+**State Management**: BLoC + Freezed (obligatorio, nunca Provider/Riverpod)
+
+**Arquitectura**: Clean Architecture Lite
+- Presentation: Pages, BLoCs, Layouts, Widgets
+- Domain: Entities, Repository contracts, UseCases (opcional)
+- Data: Models (Freezed), DataSources, Repository implementations
+
+**Patron DataSource** (critico):
+```
+Repository → DataSource (contrato) → DataSource Impl (Supabase/Firebase/API)
+```
+Repositorios NUNCA inyectan SupabaseClient directamente.
+
+**Responsividad**: 3 layouts obligatorios por feature (mobile/tablet/desktop)
+- Breakpoints: mobile (<600dp), tablet (600-1024dp), desktop (>1024dp)
+- Usar AppLayoutBuilder o AppResponsiveLayout
+
+**Widgets**: Siempre clases separadas, NUNCA metodos `_buildX()` que devuelvan Widget
+
+**UI**: Usar AppColors y AppSpacing, nunca hardcodear colores/spacing
+
+**Hooks obligatorios**:
+```bash
+# Despues de cada modificacion .dart:
+dart fix --apply && dart analyze
+
+# Pre-commit:
+dart fix --apply && dart analyze && flutter test --coverage
+
+# Post build_runner:
+dart run build_runner build --delete-conflicting-outputs && dart fix --apply
+```
+
+**Estructura de feature**:
+```
+lib/presentation/features/{feature}/
+├── bloc/
+│   ├── {feature}_bloc.dart
+│   ├── {feature}_event.dart
+│   └── {feature}_state.dart
+├── page/
+│   └── {feature}_page.dart
+├── layouts/
+│   ├── {feature}_mobile_layout.dart
+│   ├── {feature}_tablet_layout.dart
+│   └── {feature}_desktop_layout.dart
+├── widgets/
+└── routes/
+    └── {feature}_route.dart
+```
+
+### React (19.x)
+
+**Framework**: Next.js 15 con App Router
+
+**State Management**:
+- Server state: TanStack Query (React Query)
+- Client state: Zustand (simple) o Jotai (atomico)
+- NUNCA Redux para proyectos nuevos
+
+**Arquitectura**:
+```
+src/
+├── app/             # Next.js App Router (pages, layouts)
+├── components/      # Componentes reutilizables
+│   ├── ui/          # Primitivos (Button, Input, Card)
+│   └── features/    # Componentes de feature
+├── lib/             # Utilidades, clients, helpers
+├── hooks/           # Custom hooks
+├── services/        # API clients, external services
+├── stores/          # Zustand stores
+├── types/           # TypeScript types/interfaces
+└── styles/          # Global styles, tokens
+```
+
+**Server Components**: Usar por defecto. Solo 'use client' cuando se necesite interactividad.
+
+**Validacion**: Zod para schemas, react-hook-form para formularios.
+
+**Styling**: Tailwind CSS 4.x o CSS Modules. NO styled-components en proyectos nuevos.
+
+**Hooks obligatorios**:
+```bash
+# Pre-commit:
+npx eslint . --fix && npx tsc --noEmit && npx jest --passWithNoTests
+```
+
+### Python (3.12+ / FastAPI)
+
+**Framework**: FastAPI con async/await
+
+**Arquitectura**:
+```
+src/
+├── api/
+│   ├── routes/      # Endpoints
+│   └── deps/        # Dependencies (auth, db)
+├── core/
+│   ├── config.py    # Settings (pydantic-settings)
+│   └── security.py  # Auth logic
+├── models/          # SQLAlchemy models
+├── schemas/         # Pydantic schemas (request/response)
+├── services/        # Business logic
+├── repositories/    # Data access
+└── main.py
+```
+
+**ORM**: SQLAlchemy 2.x con async (asyncpg)
+**Validacion**: Pydantic v2
+**Testing**: pytest + pytest-asyncio + httpx
+
+**Hooks obligatorios**:
+```bash
+# Pre-commit:
+ruff check . --fix && ruff format . && mypy . && pytest
+```
+
+---
+
+## Testing (todos los stacks)
+
+| Tipo | Cobertura | Estrategia |
+|------|-----------|------------|
+| Unit | 100% logica de negocio | Happy path + edge cases + fuzz |
+| Integration | Todos los endpoints/repos | Success + failure |
+| Widget/Component | Interacciones criticas | User flows principales |
+
+**Cobertura minima**: 85%
+
+**Estrategia obligatoria de casos**:
+1. **Happy path** — Flujo normal esperado
+2. **Edge cases** — Valores limite, nulls, strings vacios, listas enormes
+3. **Fuzz testing** — Datos aleatorios con seed fijo para reproducibilidad
+
+---
+
+## Checklist Nueva Feature (cualquier stack)
+
+- [ ] Plan en doc/plans/{feature}_plan.md (si es tarea compleja)
+- [ ] Estructura de carpetas creada
+- [ ] Modelo/Schema definido
+- [ ] Repository/Service implementado
+- [ ] UI/Componentes con responsividad
+- [ ] Rutas configuradas
+- [ ] Tests con 85%+ coverage
+- [ ] Lint + Analyze sin errores
+- [ ] Documentacion actualizada si aplica
+
+---
+
+*Version: 2.0.0 | Ultima actualizacion: 2026-02-24*

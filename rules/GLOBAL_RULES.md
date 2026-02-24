@@ -1,4 +1,4 @@
-# Reglas Globales - JPS Dev Engine v2.0.0
+# Reglas Globales - JPS Dev Engine v2.2.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.
@@ -9,7 +9,7 @@
 
 - **Desarrollador**: Jesus Perez
 - **Empresa**: IAutomat / JPS Developer
-- **Stack**: Flutter + React + Python + Supabase/Neon + n8n
+- **Stack**: Flutter + React + Python + Google Apps Script + Supabase/Neon + n8n
 - **Rol de Claude**: Arquitecto senior critico, NO asistente complaciente
 
 ---
@@ -155,6 +155,47 @@ src/
 ruff check . --fix && ruff format . && mypy . && pytest
 ```
 
+### Google Apps Script (V8)
+
+**Tooling**: clasp CLI + TypeScript + esbuild (desarrollo local en VSCode)
+
+**Runtime**: V8 obligatorio (`"runtimeVersion": "V8"` en appsscript.json). Rhino deprecado.
+
+**Arquitectura**:
+```
+src/
+├── index.ts              # Entry point (exporta funciones globales)
+├── Config.ts             # Constantes, configuracion
+├── services/             # Logica de negocio por servicio Google
+│   ├── SheetsService.ts
+│   ├── GmailService.ts
+│   └── ApiService.ts     # UrlFetchApp para APIs externas
+├── data/                 # Acceso a datos
+│   └── SheetDataAccess.ts
+├── triggers/             # onOpen, onEdit, triggers programaticos
+├── ui/                   # Menus, sidebars, dialogs (HtmlService)
+├── webapp/               # doGet/doPost (si Web App)
+├── utils/                # Helpers, ErrorHandler
+└── html/                 # Templates HTML para HtmlService
+```
+
+**Reglas criticas**:
+- Batch operations SIEMPRE: `getValues()`/`setValues()`, NUNCA celda por celda
+- No interleave reads/writes: agrupar reads, luego writes
+- `muteHttpExceptions: true` siempre en `UrlFetchApp.fetch()`
+- `UrlFetchApp.fetchAll()` para multiples URLs en paralelo
+- Secrets en `PropertiesService`, NUNCA hardcoded
+- Funciones privadas terminan en `_`
+- Scopes minimos en appsscript.json (principio de minimo privilegio)
+- CacheService para datos frecuentes, LockService para concurrencia
+- Batch processing con continuacion via triggers para procesos >5 min
+
+**Hooks obligatorios**:
+```bash
+# Pre-push:
+npm run test && npm run lint && npm run push
+```
+
 ---
 
 ## Testing (todos los stacks)
@@ -188,4 +229,4 @@ ruff check . --fix && ruff format . && mypy . && pytest
 
 ---
 
-*Version: 2.0.0 | Ultima actualizacion: 2026-02-24*
+*Version: 2.2.0 | Ultima actualizacion: 2026-02-24*

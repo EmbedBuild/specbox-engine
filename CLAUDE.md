@@ -1,4 +1,4 @@
-# JPS Dev Engine v2.0.0
+# JPS Dev Engine v2.2.0
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -9,7 +9,7 @@ Este repositorio contiene el **sistema completo de programacion agentica** para 
 
 - **Commands** (`/prd`, `/plan`, `/adapt-ui`, `/optimize-agents`) — flujo completo de desarrollo
 - **Agent Teams** — configuracion para orquestacion multi-agente nativa de Claude Code
-- **Architecture** — patrones por stack (Flutter, React, Python)
+- **Architecture** — patrones por stack (Flutter, React, Python, Google Apps Script)
 - **Infrastructure** — patrones por servicio (Supabase, Neon, Stripe, Firebase, n8n)
 - **Design** — integracion con Google Stitch MCP para diseño UI
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
@@ -22,6 +22,7 @@ Este repositorio contiene el **sistema completo de programacion agentica** para 
 | Flutter | 3.38+ | Completo |
 | React | 19.x | Completo |
 | Python (FastAPI) | 3.12+ | Completo |
+| Google Apps Script | V8 | Completo |
 | Supabase | 2.x | Completo |
 | Neon (Postgres serverless) | - | Completo |
 | Stripe | latest | Completo |
@@ -70,6 +71,7 @@ jps_dev_engine/
 │   ├── qa-validation.md
 │   ├── supabase-specialist.md
 │   ├── n8n-specialist.md
+│   ├── appscript-specialist.md
 │   └── templates/
 ├── agent-teams/           ← Agent Teams nativo (Claude Code)
 │   ├── README.md
@@ -80,7 +82,8 @@ jps_dev_engine/
 ├── architecture/          ← Patrones por stack
 │   ├── flutter/
 │   ├── react/
-│   └── python/
+│   ├── python/
+│   └── google-apps-script/
 ├── design/                ← Integracion Stitch MCP
 │   └── stitch/
 ├── infra/                 ← Patrones por servicio

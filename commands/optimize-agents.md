@@ -33,6 +33,7 @@ Buscar en la raíz del proyecto:
 | `go.mod` | Go | Gin/Echo/Fiber, GORM/SQLx |
 | `Gemfile` | Ruby | Rails/Sinatra, ActiveRecord |
 | `*.csproj` o `*.sln` | .NET/C# | ASP.NET, EF Core |
+| `.clasp.json` o `appsscript.json` | Google Apps Script | Bound/Standalone/WebApp/Add-on, clasp, TypeScript |
 
 **Detección multi-stack**: Si el proyecto tiene múltiples archivos de configuración (ej: `pubspec.yaml` + `package.json` + `requirements.txt`), guardar TODOS como `$STACKS[]`. Esto es común en monorepos y proyectos como los de IAutomat.
 

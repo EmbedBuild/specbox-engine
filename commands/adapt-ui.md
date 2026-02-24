@@ -28,9 +28,10 @@ Si no se proporciona ruta, preguntar al usuario.
 # Verificar que existe
 ls [ruta-del-proyecto]
 
-# Verificar que es un proyecto válido (Flutter, React, etc.)
+# Verificar que es un proyecto válido (Flutter, React, Apps Script, etc.)
 # Flutter: buscar pubspec.yaml
 # React: buscar package.json
+# Apps Script: buscar .clasp.json o appsscript.json
 ```
 
 **Si no es válido** → Informar y abortar.
@@ -43,6 +44,7 @@ Buscar en orden de prioridad:
 |-----------|---------------|
 | **Flutter** | `lib/core/widgets/`, `lib/presentation/shared/widgets/`, `lib/shared/widgets/`, `lib/widgets/` |
 | **React** | `src/components/`, `src/shared/components/`, `src/ui/` |
+| **Apps Script** | `src/html/`, `src/ui/`, `html/`, `Templates/` |
 | **NiceGUI** | `components/`, `ui/` |
 
 ```bash

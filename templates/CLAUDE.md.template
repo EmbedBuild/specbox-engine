@@ -1,6 +1,6 @@
 # {PROJECT_NAME}
 
-> Generado con JPS Dev Engine v2.0.0
+> Generado con JPS Dev Engine v2.2.0
 
 ## Stack
 
@@ -44,6 +44,7 @@ Agentes disponibles en .claude/agents/:
 | AG-03 | DB Specialist | agents/db_specialist.md |
 | AG-04 | QA Validation | agents/qa_validation.md |
 | AG-05 | n8n Specialist | agents/n8n_specialist.md |
+| AG-07 | Apps Script Specialist | agents/appscript_specialist.md |
 
 ### Opcion B: Agent Teams (nativo Claude Code)
 
@@ -93,4 +94,4 @@ Implementacion → Usando agentes/teams
 ---
 
 *Generado: {DATE}*
-*Engine: jps_dev_engine v2.0.0*
+*Engine: jps_dev_engine v2.2.0*

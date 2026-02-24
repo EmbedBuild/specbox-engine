@@ -1,6 +1,6 @@
 # AG-01: Feature Generator
 
-> JPS Dev Engine v2.0.0
+> JPS Dev Engine v2.2.0
 > Template generico -- genera features completas segun el stack del proyecto.
 
 ## Proposito
@@ -115,6 +115,38 @@ app/
 - Dependency injection via FastAPI `Depends`
 - Docstrings en todas las funciones publicas
 
+### Google Apps Script: clasp + TypeScript + esbuild
+
+```
+src/
+├── index.ts                       # Entry point (funciones globales)
+├── Config.ts                      # Constantes
+├── services/
+│   ├── {feature}Service.ts        # Logica de negocio
+│   └── ApiService.ts              # APIs externas
+├── data/
+│   └── SheetDataAccess.ts         # CRUD contra Sheets
+├── triggers/
+│   └── {feature}Triggers.ts       # Triggers del feature
+├── ui/
+│   └── {feature}UI.ts             # Sidebars/Dialogs
+├── webapp/
+│   └── Handlers.ts                # doGet/doPost handlers
+├── utils/
+│   └── ErrorHandler.ts
+└── html/
+    └── {Feature}.html             # Templates HtmlService
+```
+
+**Reglas Apps Script:**
+- V8 runtime obligatorio
+- clasp para desarrollo local (nunca editor web)
+- Batch operations: `getValues()`/`setValues()` siempre
+- No interleave reads/writes
+- Secrets en PropertiesService, no hardcoded
+- Funciones privadas con `_`
+- `muteHttpExceptions: true` en UrlFetchApp
+
 ---
 
 ## Prohibiciones
@@ -159,4 +191,4 @@ app/
 - Patrones Flutter: `jps_dev_engine/architecture/flutter/`
 - Patrones React: `jps_dev_engine/architecture/react/`
 - Patrones Python: `jps_dev_engine/architecture/python/`
-- Biblioteca UI: `jps_dev_engine/uiux/`
+- Patrones Apps Script: `jps_dev_engine/architecture/google-apps-script/`

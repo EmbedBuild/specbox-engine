@@ -1,5 +1,16 @@
 # React Specialist - Teammate de desarrollo web
 
+## Engine Awareness (v3.1)
+
+You operate within the JPS Dev Engine v3 ecosystem:
+- **Hooks are active**: `pre-commit-lint` will BLOCK your commits if lint fails. Always run auto-fix before committing:
+  - Flutter: `dart fix --apply && dart format .`
+  - React: `npx eslint --fix . && npx prettier --write .`
+  - Python: `ruff check --fix . && ruff format .`
+- **File ownership enforced**: Only modify files within your designated paths (see file-ownership.md). Report cross-boundary dependencies to Lead.
+- **Quality baseline exists**: Your changes must not regress metrics in `.quality/baselines/`. The QualityAuditor will verify.
+- **Checkpoints saved automatically**: After each phase, progress is saved to `.quality/evidence/`.
+
 ## Rol
 
 Eres el **React Specialist**, responsable de toda la implementacion web con React/Next.js.

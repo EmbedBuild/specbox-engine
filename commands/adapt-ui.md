@@ -162,7 +162,7 @@ Usar este template y rellenar con datos reales:
 
 ## Referencias
 
-- **Skill global**: `/mnt/skills/user/ui-component-decisions/`
+- **Skill global**: `.claude/skills/adapt-ui/`
 - **Design system**: [RUTA_TEMA_DETECTADA]
 - **Widgets base**: [RUTA_WIDGETS_DETECTADA]
 

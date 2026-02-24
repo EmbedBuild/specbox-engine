@@ -84,7 +84,7 @@ find src -type d \( -name "html" -o -name "ui" \) 2>/dev/null    # Apps Script
 ### 2.1 Leer skill de decisiones UI
 
 ```
-Consultar: /mnt/skills/user/ui-component-decisions/SKILL.md
+Consultar: .claude/skills/adapt-ui/SKILL.md
 Si no existe: Usar criterios embebidos (ver Anexo A)
 ```
 
@@ -277,7 +277,7 @@ lib/
 
 - PRD: [link al work item en Plane]
 - UI Patterns: `doc/ui-reference/UI_PATTERNS.md` (si existe)
-- Skill UI: `/mnt/skills/user/ui-component-decisions/`
+- Skill UI: `.claude/skills/adapt-ui/`
 ```
 
 ---

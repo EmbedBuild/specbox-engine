@@ -2,6 +2,15 @@
 
 All notable changes to JPS Dev Engine are documented here.
 
+## [3.3.0] - 2026-02-25
+
+### Added
+- **Remote Telemetry**: Hooks report to remote MCP server via `mcp-report.sh` (fire-and-forget)
+- `mcp-report.sh` — reusable MCP client helper for streamable-http protocol (initialize → call tool)
+- `on-session-end.sh`, `implement-checkpoint.sh`, `implement-healing.sh` now report to remote MCP
+- `DEV_ENGINE_MCP_URL` env var controls remote reporting (empty = disabled, no new dependencies)
+- Project identification by git root basename, no absolute paths
+
 ## [3.2.0] - 2026-02-25
 
 ### Added

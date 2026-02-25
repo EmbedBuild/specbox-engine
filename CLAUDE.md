@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.2.0
+# JPS Dev Engine v3.3.0
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -68,7 +68,8 @@ jps_dev_engine/
 │   │   ├── optimize-agents/SKILL.md
 │   │   ├── quality-gate/SKILL.md
 │   │   └── explore/SKILL.md
-│   ├── hooks/             ← Hooks (v3.1)
+│   ├── hooks/             ← Hooks (v3.3)
+│   │   ├── mcp-report.sh
 │   │   ├── pre-commit-lint.sh
 │   │   ├── on-session-end.sh
 │   │   ├── implement-checkpoint.sh
@@ -158,6 +159,12 @@ Automatic enforcement — no need to remember running these manually:
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
 | post-implement-validate | Manual (called by /implement) | Checks baseline regression after implementation |
 
+## Remote Telemetry (v3.3)
+
+Hooks can report to a remote MCP server for centralized state tracking.
+Set `DEV_ENGINE_MCP_URL=https://mcp-dev-engine.jpsdeveloper.com/mcp` in your shell profile.
+Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
+
 ## Context Engineering (v3.2)
 
 - Skills with `context: fork` run in isolated subagents — they don't pollute your main session
@@ -179,5 +186,5 @@ Automatic enforcement — no need to remember running these manually:
 
 ## Engine Version
 
-Current: v3.2.0 "Skills Engine"
+Current: v3.3.0 "Connected Engine"
 Config: ENGINE_VERSION.yaml

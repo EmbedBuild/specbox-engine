@@ -1,4 +1,4 @@
-# Reglas Globales - JPS Dev Engine v3.2.0
+# Reglas Globales - JPS Dev Engine v3.3.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.
@@ -329,4 +329,4 @@ AG-08 emite veredicto GO/NO-GO antes de crear PR.
 
 ---
 
-*Version: 3.2.0 | Ultima actualizacion: 2026-02-25*
+*Version: 3.3.0 | Ultima actualizacion: 2026-02-25*

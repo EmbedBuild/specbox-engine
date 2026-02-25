@@ -1,4 +1,4 @@
-version: 3.1.2
+version: 3.2.0
 codename: "Skills Engine"
 release_date: 2026-02-25
 min_claude_code: "1.0.0"
@@ -26,6 +26,7 @@ features:
   - hooks-system
   - quality-gates
   - context-isolation
+  - context-budget-estimator
   - checkpoint-resume
   - implement-autopilot
   - evidence-system
@@ -34,6 +35,16 @@ features:
   - ratchet-baseline-updater
 
 changelog:
+  3.2.0:
+    date: 2026-02-25
+    changes:
+      - "feat: Context Engineering system — token budget per phase, pruning rules, context-budget.sh estimator"
+      - "feat: on-session-end.sh now tracks context tokens, files modified, healing events, active feature"
+      - "feat: analyze-sessions.sh with context metrics, averages, and budget health indicator"
+      - "docs: GLOBAL_RULES.md new section 'Context Engineering' with budgets and pruning rules"
+      - "docs: implement SKILL.md Task Isolation rewritten with explicit budgets and phase template"
+      - "fix: CLAUDE.md tree annotations (v3.0) → (v3.1)"
+
   3.1.2:
     date: 2026-02-25
     changes:

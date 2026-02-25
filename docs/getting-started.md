@@ -1,4 +1,4 @@
-# Getting Started - JPS Dev Engine v3.0.0
+# Getting Started - JPS Dev Engine v3.2.0
 
 ## Requisitos
 
@@ -23,7 +23,7 @@ cd ~/jps_dev_engine
 
 Esto instala:
 - **Commands** como symlinks en `~/.claude/commands/` (legacy)
-- **Skills** copiados a `~/.claude/skills/` (v3.0 — auto-discovery)
+- **Skills** copiados a `~/.claude/skills/` (v3.2 — auto-discovery)
 - **Hooks** copiados a `~/.claude/hooks/` (enforcement automatico)
 
 ### 3. Verificar instalacion
@@ -32,7 +32,7 @@ Esto instala:
 # Commands (legacy)
 ls -la ~/.claude/commands/
 
-# Skills (v3.0)
+# Skills (v3.2)
 ls -la ~/.claude/skills/
 # Deberias ver: prd, plan, implement, adapt-ui, optimize-agents, quality-gate, explore
 

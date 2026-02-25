@@ -2,6 +2,22 @@
 
 All notable changes to JPS Dev Engine are documented here.
 
+## [3.2.0] - 2026-02-25
+
+### Added
+- **Context Engineering System**: Token budget per phase (~8,700 tokens max), context pruning rules, and context saturation prevention in `/implement` Task Isolation
+- `context-budget.sh` — estimates token cost of files and directories with breakdown and threshold indicators
+- `on-session-end.sh` now tracks context metrics: estimated tokens consumed, files modified, healing events, active feature
+- `analyze-sessions.sh` rewritten with context metrics, per-session averages, and budget health indicator (green/yellow/red)
+- `GLOBAL_RULES.md` new section "Context Engineering" with budgets per operation type, pruning rules, and telemetry thresholds
+
+### Changed
+- `/implement` Task Isolation section rewritten with explicit context budget table, loading rules (include/exclude), phase task template, and saturation prevention protocol
+- `CLAUDE.md` section "Context Rules" renamed to "Context Engineering (v3.2)" with budget references
+
+### Fixed
+- CLAUDE.md tree: remaining `(v3.0)` annotations changed to `(v3.1)` on skills/ and .quality/ lines
+
 ## [3.1.2] - 2026-02-25
 
 ### Fixed

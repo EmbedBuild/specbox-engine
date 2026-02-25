@@ -1,6 +1,6 @@
 # n8n - Patrones de Infraestructura
 
-> jps_dev_engine v3.0.0 | Referencia de patrones para automatizaciones con n8n
+> jps_dev_engine v3.2.0 | Referencia de patrones para automatizaciones con n8n
 
 ---
 

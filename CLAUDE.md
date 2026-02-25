@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.1.2
+# JPS Dev Engine v3.2.0
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -60,7 +60,7 @@ jps_dev_engine/
 ├── ENGINE_VERSION.yaml    ← Version del engine
 ├── install.sh             ← Instala skills, hooks, commands
 ├── .claude/
-│   ├── skills/            ← Agent Skills (v3.0)
+│   ├── skills/            ← Agent Skills (v3.1)
 │   │   ├── prd/SKILL.md
 │   │   ├── plan/SKILL.md
 │   │   ├── implement/SKILL.md
@@ -115,7 +115,7 @@ jps_dev_engine/
 │   ├── settings.json.template
 │   ├── team-config.json.template
 │   └── quality-baseline.json.template
-├── .quality/              ← Telemetria y evidencia (v3.0)
+├── .quality/              ← Telemetria y evidencia (v3.1)
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
 └── docs/                  ← Documentacion del sistema
@@ -132,7 +132,7 @@ jps_dev_engine/
 3. Tras modificar una Skill, ejecutar `./install.sh` para actualizar en global
 4. Versionar cambios en ENGINE_VERSION.yaml
 
-## Available Skills (v3.1)
+## Available Skills (v3.2)
 
 Skills are auto-discoverable. Claude will use them when relevant. You can also invoke them explicitly.
 
@@ -146,7 +146,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /quality-gate | "check quality", "run gates", "coverage check" | direct | Lint+Read | |
 | /explore | "analyze codebase", "explore code", "understand architecture" | fork:Explore | Read-only | |
 
-## Hooks (v3.1)
+## Hooks (v3.2)
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -158,12 +158,15 @@ Automatic enforcement — no need to remember running these manually:
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
 | post-implement-validate | Manual (called by /implement) | Checks baseline regression after implementation |
 
-## Context Rules (v3.1)
+## Context Engineering (v3.2)
 
 - Skills with `context: fork` run in isolated subagents — they don't pollute your main session
-- /implement delegates phases to isolated Tasks to prevent context saturation
+- /implement delegates phases to isolated Tasks with a **context budget of ~8,700 tokens per phase**
 - Read-only Skills (explore, optimize-agents, adapt-ui) cannot modify files
 - File ownership per agent is documented in .claude/skills/implement/file-ownership.md
+- Context budget estimator: `.quality/scripts/context-budget.sh <path> [--detail]`
+- Session context metrics logged automatically via on-session-end hook
+- Full context engineering rules in `rules/GLOBAL_RULES.md` section "Context Engineering"
 
 ## Quality Scripts
 
@@ -171,9 +174,10 @@ Automatic enforcement — no need to remember running these manually:
 |--------|-------|---------|
 | `create-baseline.sh` | `.quality/scripts/create-baseline.sh [path]` | Generate initial quality baseline |
 | `update-baseline.sh` | `.quality/scripts/update-baseline.sh [path]` | Ratchet-safe baseline update (only improves) |
-| `analyze-sessions.sh` | `.quality/scripts/analyze-sessions.sh [--last N]` | Telemetry report: sessions, healing, checkpoints |
+| `analyze-sessions.sh` | `.quality/scripts/analyze-sessions.sh [--last N]` | Telemetry: sessions, context tokens, healing, checkpoints |
+| `context-budget.sh` | `.quality/scripts/context-budget.sh <path> [--detail]` | Estimate token cost of files/directories |
 
 ## Engine Version
 
-Current: v3.1.2 "Skills Engine"
+Current: v3.2.0 "Skills Engine"
 Config: ENGINE_VERSION.yaml

@@ -302,35 +302,89 @@ git commit -m "design: add Stitch designs for {feature}"
 
 ---
 
-## Execution Strategy: Task Isolation
+## Execution Strategy: Task Isolation with Context Budget
 
 CRITICAL: Each phase MUST be executed in an isolated Task to prevent context saturation.
 
-For each phase in the plan:
-1. Read the phase requirements from the plan file
-2. Spawn a Task with ONLY the context needed for that phase:
-   - The phase description and requirements
-   - Relevant file paths from the plan
-   - The stack's architecture rules (from architecture/{stack}/)
-   - Current checkpoint state
-3. The Task executes the phase and returns:
-   - Files created/modified (paths only)
-   - Validation result (lint pass/fail)
-   - Any errors encountered
-4. Main agent receives the summary, saves checkpoint, continues to next phase
+### Context Budget per Phase
 
-This pattern keeps the main agent's context clean. A 5-phase implementation
-consumes ~20% of the context vs ~80% without isolation.
+Each spawned Task has a context budget. The main agent MUST control what goes into each task.
 
-### How to spawn phase tasks:
+| Concepto | Budget máximo | Notas |
+|----------|--------------|-------|
+| Phase description | ~500 tokens | Del plan, solo la sección de la fase |
+| Architecture rules | ~2,000 tokens | Solo el overview del stack, no todos los docs |
+| Relevant source files | ~5,000 tokens | Solo archivos que la fase modifica |
+| Stack patterns | ~1,000 tokens | Patterns relevantes (ej: solo BLoC si es state mgmt) |
+| Checkpoint state | ~200 tokens | JSON minimal del checkpoint anterior |
+| **Total per task** | **~8,700 tokens** | **< 5% de la ventana de contexto** |
 
-For each phase, use this pattern:
-"Execute Phase {N}: {phase_name}.
- Read the plan at doc/plans/{plan_name}.md, section Phase {N}.
- Implement all tasks listed.
- Run validation: {stack_lint_command}.
- Save checkpoint: .claude/hooks/implement-checkpoint.sh {feature} {N} {phase_name}
- Report: files changed, validation result, errors if any."
+### Context Loading Rules
+
+**INCLUIR en el Task:**
+- Descripción de la fase (copiada literalmente del plan)
+- File ownership del agente asignado a esta fase
+- Archivos existentes que la fase va a MODIFICAR (contenido actual)
+- Reglas de arquitectura del stack detectado (solo el overview, no todos los docs)
+- Checkpoint de la fase anterior (si existe)
+
+**EXCLUIR del Task (nunca cargar):**
+- Código de fases anteriores ya completadas
+- Archivos que la fase no va a tocar
+- Logs, evidence, baselines, healing history
+- Otros planes, PRDs, o documentación no relacionada
+- Código generado (.g.dart, .freezed.dart, node_modules, build/)
+- README, CHANGELOG, o documentación del engine
+
+**EXCLUIR de la respuesta del Task (poda de retorno):**
+- Contenido completo de archivos creados (solo devolver paths)
+- Stack traces completos (solo primeras 10 líneas si hay error)
+- Output completo de lint (solo resumen: N errors, N warnings)
+
+### Phase Task Template
+
+Para cada fase, el main agent spawnea un Task con exactamente este formato:
+
+```
+Execute Phase {N}: {phase_name}
+
+CONTEXT:
+- Plan: {paste ONLY the phase section, not the full plan}
+- Stack: {stack_name}
+- Architecture: {paste overview paragraph, max 500 words}
+- Files to modify: {list paths}
+- Ownership: Only modify files in {ownership_paths}
+
+RULES:
+- Run lint after implementation: {stack_lint_command}
+- Save checkpoint: .claude/hooks/implement-checkpoint.sh {feature} {N} {phase_name}
+- If lint fails, apply self-healing (Level 1 first, then Level 2)
+
+RETURN FORMAT:
+- files_created: [list of paths]
+- files_modified: [list of paths]
+- lint_result: pass|fail (N errors, N warnings)
+- errors: [brief description if any, max 3 lines]
+- phase_status: complete|failed|needs_healing
+```
+
+### Context Saturation Prevention
+
+The main agent monitors its own context growth:
+1. After each phase completes, the main agent retains ONLY:
+   - Updated checkpoint JSON
+   - Phase summary (files changed, status) — max 5 lines per phase
+   - Cumulative error count
+2. Full phase details are persisted in checkpoint files, NOT in agent memory
+3. If a phase returns more than 20 lines of output, summarize to 5 lines before storing
+
+### Budget Verification (optional, pre-flight)
+
+Before spawning a Task, the main agent can estimate the context load:
+```bash
+.quality/scripts/context-budget.sh lib/features/{feature_name}/
+```
+If the result exceeds 30% of context window → split the phase into sub-phases.
 
 ---
 

@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.1.2
+# JPS Dev Engine v3.2.0
 
 Sistema de programacion agentica basado en **Agent Skills** para Claude Code.
 
@@ -71,7 +71,7 @@ Este es el flujo end-to-end que el engine proporciona. Cada paso tiene su propio
 
 ## Commands en Detalle
 
-> **v3.0:** Los commands han sido migrados a Agent Skills. Los archivos en `commands/` se mantienen como referencia. Las Skills en `.claude/skills/` son la version activa con auto-discovery, context isolation, y hooks.
+> **v3.2:** Los commands han sido migrados a Agent Skills. Los archivos en `commands/` se mantienen como referencia. Las Skills en `.claude/skills/` son la version activa con auto-discovery, context isolation, y hooks.
 
 ### `/prd` — Generar PRD
 
@@ -253,7 +253,7 @@ Analiza, puntua y optimiza el sistema multi-agente del proyecto. Soporta tanto s
 
 ---
 
-## Hooks System (v3.0)
+## Hooks System (v3.2)
 
 Enforcement automatico — no hace falta recordar ejecutarlos manualmente:
 
@@ -472,7 +472,7 @@ jps_dev_engine/
 ├── README.md                      # Este archivo
 ├── install.sh                     # Instalador de commands + skills + hooks
 │
-├── .claude/                       # Configuracion Claude Code (v3.0)
+├── .claude/                       # Configuracion Claude Code (v3.2)
 │   ├── settings.json              #   Hooks config
 │   ├── skills/                    #   Agent Skills (7 skills)
 │   │   ├── prd/SKILL.md
@@ -661,4 +661,4 @@ MIT
 
 ---
 
-v3.1.2 | 2026-02-25 | JPS Developer
+v3.2.0 | 2026-02-25 | JPS Developer

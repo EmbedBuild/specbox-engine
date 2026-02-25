@@ -1,6 +1,6 @@
 # Referencia de Commands y Skills
 
-> **v3.0:** Los commands han sido migrados a **Agent Skills** en `.claude/skills/`. Los archivos en `commands/` se mantienen como referencia. Las Skills son la version activa con auto-discovery, context isolation y hooks.
+> **v3.2:** Los commands han sido migrados a **Agent Skills** en `.claude/skills/`. Los archivos en `commands/` se mantienen como referencia. Las Skills son la version activa con auto-discovery, context isolation y hooks.
 
 ## Instalacion
 
@@ -12,10 +12,10 @@
 
 Instala:
 - **Commands** (legacy) como symlinks en `~/.claude/commands/`
-- **Skills** (v3.0) copiados a `~/.claude/skills/`
-- **Hooks** (v3.0) copiados a `~/.claude/hooks/`
+- **Skills** (v3.2) copiados a `~/.claude/skills/`
+- **Hooks** (v3.2) copiados a `~/.claude/hooks/`
 
-## Skills disponibles (v3.0)
+## Skills disponibles (v3.2)
 
 | Skill | Modo | Descripcion |
 |-------|------|-------------|
@@ -161,10 +161,11 @@ Las Skills con `fork` corren en subagentes aislados — no contaminan la sesion 
 
 ---
 
-## Quality Scripts (v3.1)
+## Quality Scripts (v3.2)
 
 Scripts utilitarios para gestión de calidad:
 
 - `create-baseline.sh` — Genera baseline de métricas (lint, coverage, tests)
 - `update-baseline.sh` — Actualiza baseline con política ratchet (solo mejora, nunca empeora)
-- `analyze-sessions.sh` — Reporte de telemetría: sesiones, self-healing, checkpoints activos
+- `analyze-sessions.sh` — Telemetría: sesiones, context tokens, healing, checkpoints
+- `context-budget.sh` — Estima coste en tokens de archivos/directorios

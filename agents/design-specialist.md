@@ -1,6 +1,6 @@
 # AG-06: Design Specialist (Google Stitch MCP)
 
-> JPS Dev Engine v3.0.0
+> JPS Dev Engine v3.2.0
 > Template generico -- especialista en generacion de disenos UI via Google Stitch MCP.
 
 ## Proposito

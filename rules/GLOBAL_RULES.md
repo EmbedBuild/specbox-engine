@@ -1,4 +1,4 @@
-# Reglas Globales - JPS Dev Engine v3.0.0
+# Reglas Globales - JPS Dev Engine v3.2.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.
@@ -198,6 +198,55 @@ npm run test && npm run lint && npm run push
 
 ---
 
+## Context Engineering
+
+### Principios
+
+1. **Budget antes de cargar**: Antes de leer archivos en una tarea, estimar el coste en tokens. Usar `.quality/scripts/context-budget.sh` si hay duda.
+2. **Mínimo necesario**: Cada tarea recibe SOLO el contexto que necesita. No cargar archivos "por si acaso".
+3. **Poda al devolver**: Las tareas devuelven resúmenes compactos, no contenido completo de archivos.
+4. **Fork por defecto**: Skills de lectura (explore, optimize-agents, adapt-ui) siempre corren en fork aislado.
+5. **Task Isolation obligatorio**: Las fases de /implement se ejecutan en Tasks aislados con presupuesto controlado.
+
+### Presupuestos por tipo de operación
+
+| Operación | Budget máximo | Contexto típico |
+|-----------|--------------|-----------------|
+| Fase de /implement | ~8,700 tokens | Plan section + architecture overview + source files |
+| /explore (fork) | ~15,000 tokens | Project scan + file analysis |
+| /plan (fork) | ~12,000 tokens | PRD + architecture + existing code analysis |
+| /prd (fork) | ~5,000 tokens | Feature description + project context |
+| /quality-gate | ~10,000 tokens | Source files + baseline + lint output |
+
+### Reglas de poda
+
+**Nunca cargar en una tarea:**
+- Archivos generados (.g.dart, .freezed.dart, .min.js)
+- Lock files (pubspec.lock, package-lock.json, poetry.lock)
+- Build artifacts (build/, dist/, .dart_tool/)
+- Logs, evidence, healing history (para eso está el MCP)
+- Documentación del engine (CLAUDE.md, README.md del engine)
+- Código de fases completadas (solo el checkpoint JSON)
+
+**Siempre incluir:**
+- Reglas de arquitectura del stack (overview.md del stack detectado)
+- File ownership del agente asignado
+- Checkpoint de la fase anterior
+
+### Telemetría de contexto
+
+Cada sesión registra tokens estimados consumidos. Consultar con:
+```bash
+.quality/scripts/analyze-sessions.sh --last 7
+```
+
+Umbrales de salud:
+- 🟢 < 15% de ventana por sesión (< 30K tokens) — saludable
+- 🟡 15-30% (30K-60K tokens) — aceptable, monitorear
+- 🔴 > 30% (> 60K tokens) — revisar Task Isolation, probablemente falta split
+
+---
+
 ## Quality Gates (todos los stacks)
 
 ### Políticas
@@ -280,4 +329,4 @@ AG-08 emite veredicto GO/NO-GO antes de crear PR.
 
 ---
 
-*Version: 3.0.0 | Ultima actualizacion: 2026-02-24*
+*Version: 3.2.0 | Ultima actualizacion: 2026-02-25*

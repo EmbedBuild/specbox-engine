@@ -1,5 +1,5 @@
 #!/bin/bash
-# JPS Dev Engine v3.0 - Installer
+# JPS Dev Engine - Installer
 # Instala commands, skills y hooks globales en ~/.claude/
 # Usage: ./install.sh [--uninstall] [--dry-run]
 
@@ -48,25 +48,61 @@ print_header
 
 # --- UNINSTALL ---
 if [ "$UNINSTALL" = true ]; then
-    echo -e "${YELLOW}Uninstalling JPS Dev Engine commands...${NC}"
+    echo -e "${YELLOW}Uninstalling JPS Dev Engine...${NC}"
 
+    # Remove commands (symlinks)
     for cmd in "$ENGINE_DIR"/commands/*.md; do
         [ -f "$cmd" ] || continue
         filename=$(basename "$cmd")
         target="$CLAUDE_COMMANDS_DIR/$filename"
-
         if [ -L "$target" ]; then
             if [ "$DRY_RUN" = true ]; then
-                echo -e "  Would remove: ${RED}$target${NC}"
+                echo -e "  Would remove command: ${RED}$filename${NC}"
             else
                 rm "$target"
-                echo -e "  Removed: ${RED}$target${NC}"
+                echo -e "  Removed command: ${RED}$filename${NC}"
+            fi
+        fi
+    done
+
+    # Remove skills (symlinks)
+    SKILLS_DIR="$HOME/.claude/skills"
+    for skill_dir in "$ENGINE_DIR"/.claude/skills/*/; do
+        [ -d "$skill_dir" ] || continue
+        skill_name=$(basename "$skill_dir")
+        target="$SKILLS_DIR/$skill_name"
+        if [ -L "$target" ]; then
+            if [ "$DRY_RUN" = true ]; then
+                echo -e "  Would remove skill: ${RED}$skill_name${NC}"
+            else
+                rm "$target"
+                echo -e "  Removed skill: ${RED}$skill_name${NC}"
+            fi
+        fi
+    done
+
+    # Remove hooks
+    HOOKS_DIR="$HOME/.claude/hooks"
+    for hook in "$ENGINE_DIR"/.claude/hooks/*.sh; do
+        [ -f "$hook" ] || continue
+        hook_name=$(basename "$hook")
+        target="$HOOKS_DIR/$hook_name"
+        if [ -f "$target" ]; then
+            if [ "$DRY_RUN" = true ]; then
+                echo -e "  Would remove hook: ${RED}$hook_name${NC}"
+            else
+                rm "$target"
+                echo -e "  Removed hook: ${RED}$hook_name${NC}"
             fi
         fi
     done
 
     echo ""
-    echo -e "${GREEN}Done.${NC}"
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "${YELLOW}(Dry run - no changes made)${NC}"
+    else
+        echo -e "${GREEN}Uninstall complete.${NC}"
+    fi
     exit 0
 fi
 
@@ -231,9 +267,21 @@ fi
 if [ "$DRY_RUN" = true ]; then
     echo -e "${YELLOW}(Dry run - no changes made)${NC}"
 else
+    # Build dynamic hooks list
+    HOOK_NAMES=""
+    for hook in "$ENGINE_DIR"/.claude/hooks/*.sh; do
+        [ -f "$hook" ] || continue
+        name=$(basename "$hook" .sh)
+        if [ -z "$HOOK_NAMES" ]; then
+            HOOK_NAMES="$name"
+        else
+            HOOK_NAMES="$HOOK_NAMES, $name"
+        fi
+    done
+
     echo -e "${GREEN}Installation complete.${NC}"
     echo -e "Commands: /prd, /plan, /implement, /adapt-ui, /optimize-agents"
     echo -e "Skills:   /prd, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore"
-    echo -e "Hooks:    pre-commit-lint, on-session-end, implement-checkpoint"
+    echo -e "Hooks:    $HOOK_NAMES"
 fi
 echo ""

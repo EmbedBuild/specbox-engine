@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.1.1
+# JPS Dev Engine v3.1.2
 
 Sistema de programacion agentica basado en **Agent Skills** para Claude Code.
 
@@ -661,4 +661,4 @@ MIT
 
 ---
 
-v3.1.1 | 2026-02-25 | JPS Developer
+v3.1.2 | 2026-02-25 | JPS Developer

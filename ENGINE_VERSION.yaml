@@ -1,4 +1,4 @@
-version: 3.1.1
+version: 3.1.2
 codename: "Skills Engine"
 release_date: 2026-02-25
 min_claude_code: "1.0.0"
@@ -34,6 +34,14 @@ features:
   - ratchet-baseline-updater
 
 changelog:
+  3.1.2:
+    date: 2026-02-25
+    changes:
+      - "fix: install.sh --uninstall now removes skills and hooks (was only removing commands)"
+      - "fix: install.sh summary generates dynamic hook list instead of hardcoded 3"
+      - "docs: CLAUDE.md section headers updated from (v3.0) to (v3.1)"
+      - "docs: CLAUDE.md tree now lists all 5 hooks"
+
   3.1.1:
     date: 2026-02-25
     changes:

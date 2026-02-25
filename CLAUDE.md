@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.1.1
+# JPS Dev Engine v3.1.2
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -68,10 +68,12 @@ jps_dev_engine/
 │   │   ├── optimize-agents/SKILL.md
 │   │   ├── quality-gate/SKILL.md
 │   │   └── explore/SKILL.md
-│   ├── hooks/             ← Hooks (v3.0)
+│   ├── hooks/             ← Hooks (v3.1)
 │   │   ├── pre-commit-lint.sh
 │   │   ├── on-session-end.sh
-│   │   └── implement-checkpoint.sh
+│   │   ├── implement-checkpoint.sh
+│   │   ├── implement-healing.sh
+│   │   └── post-implement-validate.sh
 │   └── settings.json      ← Hooks config
 ├── commands/              ← Commands (referencia legacy)
 │   ├── prd.md
@@ -130,7 +132,7 @@ jps_dev_engine/
 3. Tras modificar una Skill, ejecutar `./install.sh` para actualizar en global
 4. Versionar cambios en ENGINE_VERSION.yaml
 
-## Available Skills (v3.0)
+## Available Skills (v3.1)
 
 Skills are auto-discoverable. Claude will use them when relevant. You can also invoke them explicitly.
 
@@ -144,7 +146,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /quality-gate | "check quality", "run gates", "coverage check" | direct | Lint+Read | |
 | /explore | "analyze codebase", "explore code", "understand architecture" | fork:Explore | Read-only | |
 
-## Hooks (v3.0)
+## Hooks (v3.1)
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -156,7 +158,7 @@ Automatic enforcement — no need to remember running these manually:
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
 | post-implement-validate | Manual (called by /implement) | Checks baseline regression after implementation |
 
-## Context Rules (v3.0)
+## Context Rules (v3.1)
 
 - Skills with `context: fork` run in isolated subagents — they don't pollute your main session
 - /implement delegates phases to isolated Tasks to prevent context saturation
@@ -173,5 +175,5 @@ Automatic enforcement — no need to remember running these manually:
 
 ## Engine Version
 
-Current: v3.1.1 "Skills Engine"
+Current: v3.1.2 "Skills Engine"
 Config: ENGINE_VERSION.yaml

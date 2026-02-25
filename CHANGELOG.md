@@ -2,6 +2,17 @@
 
 All notable changes to JPS Dev Engine are documented here.
 
+## [3.1.2] - 2026-02-25
+
+### Fixed
+- `install.sh --uninstall` now removes skills (symlinks) and hooks in addition to commands
+- `install.sh` summary now generates dynamic hook list instead of hardcoding 3 of 5
+- `install.sh` header comment no longer hardcodes version number
+
+### Changed
+- CLAUDE.md section headers updated from `(v3.0)` to `(v3.1)` for Available Skills, Hooks, and Context Rules
+- CLAUDE.md tree structure now lists all 5 hooks (added `implement-healing.sh` and `post-implement-validate.sh`)
+
 ## [3.1.1] - 2026-02-25
 
 ### Added

@@ -23,3 +23,8 @@ printf '{"phase": %s, "level": %s, "action": "%s", "result": "%s", "timestamp": 
   >> ".quality/evidence/${FEATURE}/healing.jsonl"
 
 echo "[HEALING] Level ${LEVEL} action logged for ${FEATURE} phase ${PHASE}"
+
+# Report to MCP (fire-and-forget)
+PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+"$HOOKS_DIR/mcp-report.sh" "report_healing" "{\"project\": \"$PROJECT_NAME\", \"feature\": \"$FEATURE\", \"phase\": $PHASE, \"level\": $LEVEL, \"action\": \"$ACTION\", \"result\": \"$RESULT\", \"timestamp\": \"$TIMESTAMP\"}" &

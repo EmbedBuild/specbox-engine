@@ -1,6 +1,6 @@
 # AG-08: Quality Auditor
 
-> JPS Dev Engine v3.2.0
+> JPS Dev Engine v3.3.0
 > Agente independiente de auditoría de calidad.
 > NO es AG-04 (QA). AG-04 genera tests. AG-08 audita que todo sea real.
 
@@ -383,4 +383,4 @@ Para Agent Teams: configurar como `reviewer` type, no `implementer`.
 
 ---
 
-*JPS Dev Engine v3.2.0 — Quality Auditor*
+*JPS Dev Engine v3.3.0 — Quality Auditor*

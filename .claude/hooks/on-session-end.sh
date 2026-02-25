@@ -39,3 +39,8 @@ fi
 echo "{\"event\": \"session_end\", \"timestamp\": \"$TIMESTAMP\", \"pwd\": \"$(pwd)\", \"files_modified\": $FILES_MODIFIED, \"context_tokens_est\": $CONTEXT_TOKENS, \"healing_events\": $HEALING_EVENTS, \"active_feature\": \"$ACTIVE_FEATURE\"}" >> "$LOG_FILE"
 
 echo "[TELEMETRY] Session logged to $LOG_FILE (est. ${CONTEXT_TOKENS} tokens, ${FILES_MODIFIED} files)"
+
+# Report to MCP (fire-and-forget)
+PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+"$HOOKS_DIR/mcp-report.sh" "report_session" "{\"project\": \"$PROJECT_NAME\", \"timestamp\": \"$TIMESTAMP\", \"files_modified\": $FILES_MODIFIED, \"context_tokens_est\": $CONTEXT_TOKENS, \"healing_events\": $HEALING_EVENTS, \"active_feature\": \"$ACTIVE_FEATURE\"}" &

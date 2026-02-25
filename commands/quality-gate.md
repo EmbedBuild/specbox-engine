@@ -668,4 +668,4 @@ Solo bloquea si hay vulnerabilidades conocidas (CVE).
 
 ---
 
-*JPS Dev Engine v3.2.0 — Quality Gate System*
+*JPS Dev Engine v3.3.0 — Quality Gate System*

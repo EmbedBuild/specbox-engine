@@ -1,5 +1,5 @@
 {
-  "$schema": "JPS Dev Engine v3.2.0 - Agent Teams Configuration",
+  "$schema": "JPS Dev Engine v3.3.0 - Agent Teams Configuration",
   "team": {
     "name": "{PROJECT_NAME}",
     "description": "Equipo de desarrollo para {PROJECT_NAME}",

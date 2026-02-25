@@ -23,3 +23,8 @@ printf '{\n  "feature": "%s",\n  "phase": %s,\n  "phase_name": "%s",\n  "branch"
   > ".quality/evidence/${FEATURE}/checkpoint.json"
 
 echo "[CHECKPOINT] Phase ${PHASE} (${PHASE_NAME}) saved for ${FEATURE}"
+
+# Report to MCP (fire-and-forget)
+PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+"$HOOKS_DIR/mcp-report.sh" "report_checkpoint" "{\"project\": \"$PROJECT_NAME\", \"feature\": \"$FEATURE\", \"phase\": $PHASE, \"phase_name\": \"$PHASE_NAME\", \"branch\": \"$BRANCH\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" &

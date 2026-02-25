@@ -1,6 +1,6 @@
 # Agent Teams
 
-> JPS Dev Engine v3.2.0 — Orquestacion multi-agente nativa de Claude Code (experimental)
+> JPS Dev Engine v3.3.0 — Orquestacion multi-agente nativa de Claude Code (experimental)
 
 ## Que es Agent Teams
 

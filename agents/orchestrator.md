@@ -1,6 +1,6 @@
 # Orquestador de Agentes (Orchestrator)
 
-> JPS Dev Engine v3.3.0
+> JPS Dev Engine v3.4.0
 > Template generico -- personalizar por proyecto en `.claude/orchestrator.md`
 
 ## Proposito
@@ -20,6 +20,8 @@ Coordinar la ejecucion de subagentes especializados (AG-01 a AG-06) para impleme
 | AG-05 | n8n Specialist | `agents/n8n-specialist.md` | sonnet |
 | AG-06 | Design Specialist | `agents/design-specialist.md` | sonnet |
 | AG-08 | Quality Auditor | `agents/quality-auditor.md` | haiku |
+| AG-09a | Acceptance Tester | `agents/acceptance-tester.md` | sonnet |
+| AG-09b | Acceptance Validator | `agents/acceptance-validator.md` | sonnet |
 
 ---
 
@@ -63,7 +65,9 @@ Entrada: PRD o /plan de {feature}
 5. **AG-01** -- Generar estructura de la feature completa → **GATE** (lint + compile + tests)
 6. **AG-05** -- Configurar workflows si aplica → **GATE**
 7. **AG-04** -- Tests y validacion → **GATE** (coverage ≥ baseline)
-8. **AG-08** -- Quality Audit independiente → **GO/NO-GO**
+8. **AG-09a** -- Acceptance Tests → genera tests E2E + evidencia visual
+9. **AG-08** -- Quality Audit independiente → **GO/NO-GO**
+10. **AG-09b** -- Acceptance Validation → **ACCEPTED/REJECTED**
 
 ### Feature solo backend (API / DB)
 
@@ -72,7 +76,9 @@ Entrada: PRD o /plan de {feature}
 3. **AG-01** -- Logica de negocio y repositorios → **GATE**
 4. **AG-05** -- Workflows si aplica → **GATE**
 5. **AG-04** -- Tests → **GATE**
-6. **AG-08** -- Quality Audit → **GO/NO-GO**
+6. **AG-09a** -- Acceptance Tests → evidencia
+7. **AG-08** -- Quality Audit → **GO/NO-GO**
+8. **AG-09b** -- Acceptance Validation → **ACCEPTED/REJECTED**
 
 ### Feature solo UI (sin DB nueva)
 
@@ -81,7 +87,9 @@ Entrada: PRD o /plan de {feature}
 3. **AG-02** -- Componentes UI → **GATE**
 4. **AG-01** -- Estructura de la feature → **GATE**
 5. **AG-04** -- Tests → **GATE**
-6. **AG-08** -- Quality Audit → **GO/NO-GO**
+6. **AG-09a** -- Acceptance Tests → evidencia
+7. **AG-08** -- Quality Audit → **GO/NO-GO**
+8. **AG-09b** -- Acceptance Validation → **ACCEPTED/REJECTED**
 
 ---
 
@@ -92,8 +100,10 @@ Entrada: PRD o /plan de {feature}
 1. NUNCA ejecutar AG-01 sin antes tener la DB lista (AG-03) si la feature requiere datos
 2. NUNCA crear widgets sin haber consultado la biblioteca existente del proyecto
 3. SIEMPRE ejecutar AG-04 antes de AG-08 (primero tests, luego auditoria)
-4. SIEMPRE ejecutar AG-08 como ultima fase antes de crear PR
-5. SIEMPRE ejecutar QUALITY GATE entre cada fase (lint 0/0/0 + compile + tests pass)
+4. SIEMPRE ejecutar AG-09a antes de AG-08 (acceptance tests antes de quality audit)
+5. SIEMPRE ejecutar AG-09b despues de AG-08 (validacion funcional como ultimo gate antes de PR)
+6. AG-09b REQUIERE PRD con AC-XX. Si no hay PRD → saltar con WARNING (no bloquear)
+7. SIEMPRE ejecutar QUALITY GATE entre cada fase (lint 0/0/0 + compile + tests pass)
 6. Si lint no es 0/0/0 despues de una fase → PARAR, fix, re-check
 7. Si un agente falla, detener la ejecucion y reportar el error
 8. SIEMPRE generar evidence en .quality/evidence/{feature}/ para cada gate

@@ -1,6 +1,6 @@
 {
   "$schema": "https://claude.ai/schemas/team-config.json",
-  "$comment": "Configuracion de Agent Teams para jps_dev_engine v3.3.0. Copiar a .claude/team-config.json del proyecto destino y ajustar segun necesidad.",
+  "$comment": "Configuracion de Agent Teams para jps_dev_engine v3.4.0. Copiar a .claude/team-config.json del proyecto destino y ajustar segun necesidad.",
 
   "experimentalFeatures": {
     "agentTeams": true
@@ -206,6 +206,45 @@
         ],
         "read": ["**/*"]
       }
+    },
+
+    "acceptanceTester": {
+      "name": "AcceptanceTester",
+      "description": "Genera E2E/integration tests desde acceptance criteria (AC-XX) del PRD con evidencia visual.",
+      "promptFile": "team-prompts/acceptance-tester.md",
+      "model": "sonnet",
+      "canDelegate": false,
+      "canImplement": true,
+      "communicationScope": ["message"],
+      "fileOwnership": {
+        "write": [
+          "test/acceptance/**",
+          "tests/acceptance/**",
+          ".quality/evidence/**/acceptance/**"
+        ],
+        "read": [
+          "doc/prd/**",
+          "doc/plan/**",
+          "lib/**",
+          "src/**"
+        ]
+      }
+    },
+
+    "acceptanceValidator": {
+      "name": "AcceptanceValidator",
+      "description": "Validacion independiente de cumplimiento funcional. Emite ACCEPTED/CONDITIONAL/REJECTED.",
+      "promptFile": "team-prompts/acceptance-validator.md",
+      "model": "sonnet",
+      "canDelegate": false,
+      "canImplement": false,
+      "communicationScope": ["message", "broadcast"],
+      "fileOwnership": {
+        "write": [
+          ".quality/evidence/**"
+        ],
+        "read": ["**/*"]
+      }
     }
   },
 
@@ -258,7 +297,7 @@
   },
 
   "engineIntegration": {
-    "version": "3.1",
+    "version": "3.4",
     "skills": ["/prd", "/plan", "/implement", "/quality-gate", "/explore", "/adapt-ui", "/optimize-agents"],
     "hooks": ["pre-commit-lint", "on-session-end", "implement-checkpoint", "implement-healing"],
     "qualityBaseline": ".quality/baselines/{project}.json",
@@ -275,7 +314,9 @@
       "reactSpecialist",
       "pythonBackend",
       "dbInfra",
-      "qaReviewer"
+      "qaReviewer",
+      "acceptanceTester",
+      "acceptanceValidator"
     ]
   }
 }

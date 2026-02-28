@@ -1,6 +1,6 @@
 # Referencia de Commands y Skills
 
-> **v3.2:** Los commands han sido migrados a **Agent Skills** en `.claude/skills/`. Los archivos en `commands/` se mantienen como referencia. Las Skills son la version activa con auto-discovery, context isolation y hooks.
+> **v3.4:** Los commands han sido migrados a **Agent Skills** en `.claude/skills/`. Los archivos en `commands/` se mantienen como referencia. Las Skills son la version activa con auto-discovery, context isolation y hooks.
 
 ## Instalacion
 
@@ -12,10 +12,10 @@
 
 Instala:
 - **Commands** (legacy) como symlinks en `~/.claude/commands/`
-- **Skills** (v3.2) copiados a `~/.claude/skills/`
-- **Hooks** (v3.2) copiados a `~/.claude/hooks/`
+- **Skills** (v3.4) copiados a `~/.claude/skills/`
+- **Hooks** (v3.4) copiados a `~/.claude/hooks/`
 
-## Skills disponibles (v3.2)
+## Skills disponibles (v3.4)
 
 | Skill | Modo | Descripcion |
 |-------|------|-------------|
@@ -161,7 +161,7 @@ Las Skills con `fork` corren en subagentes aislados — no contaminan la sesion 
 
 ---
 
-## Quality Scripts (v3.2)
+## Quality Scripts (v3.4)
 
 Scripts utilitarios para gestión de calidad:
 

@@ -6,7 +6,8 @@
 |------|-------------|--------|--------------|
 | **Unit** | BLoCs, repositories, usecases | Siempre | `bloc_test`, `mockito` |
 | **Widget** | Layouts con múltiples screen sizes | Siempre | `flutter_test` |
-| **Golden** | Pantallas core | Features críticas | `golden_toolkit` |
+| **Golden** | Pantallas core | Features críticas | `alchemist` |
+| **Acceptance** | Criterios AC-XX del PRD | Siempre (si hay PRD) | `patrol` |
 
 ## Screen Sizes para Tests
 
@@ -262,39 +263,47 @@ void testAllScreenSizes(
 ```yaml
 # pubspec.yaml
 dev_dependencies:
-  golden_toolkit: ^0.15.0
+  alchemist: ^0.10.0
 ```
+
+> **Nota**: `golden_toolkit` está discontinuado. Usar `alchemist` (por Betterment) que ofrece
+> consistencia cross-platform con font Ahem para CI y goldens legibles para desarrollo local.
 
 ### Template
 
 ```dart
 // dashboard_golden_test.dart
+import 'package:alchemist/alchemist.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:golden_toolkit/golden_toolkit.dart';
 
 import 'package:my_app/presentation/features/dashboard/page/dashboard_page.dart';
 
 void main() {
-  group('Dashboard Golden Tests', () {
-    testGoldens('DashboardPage - all sizes', (tester) async {
-      final builder = DeviceBuilder()
-        ..overrideDevicesForAllScenarios(devices: [
-          Device.phone,
-          Device.tabletPortrait,
-          Device.tabletLandscape,
-        ])
-        ..addScenario(
-          widget: const DashboardPage(),
+  goldenTest(
+    'DashboardPage renders correctly',
+    fileName: 'dashboard_page',
+    builder: () => GoldenTestGroup(
+      scenarioConstraints: BoxConstraints(maxWidth: 400),
+      children: [
+        GoldenTestScenario(
           name: 'default state',
-        );
-
-      await tester.pumpDeviceBuilder(builder);
-      await screenMatchesGolden(tester, 'dashboard_page');
-    });
-  });
+          child: const DashboardPage(),
+        ),
+        GoldenTestScenario(
+          name: 'empty state',
+          child: const DashboardPage(isEmpty: true),
+        ),
+      ],
+    ),
+  );
 }
 ```
+
+### Goldens: CI vs Platform
+
+- **CI goldens** (`goldens/ci/`): Usan font Ahem (cuadros), consistentes en todos los OS. Tracked en git.
+- **Platform goldens** (`goldens/`): Legibles con fonts reales, solo para desarrollo local. `.gitignore`d.
 
 ### Generar/Actualizar Goldens
 
@@ -302,7 +311,7 @@ void main() {
 # Generar goldens
 flutter test --update-goldens
 
-# Ejecutar tests
+# Ejecutar tests (comparar contra goldens existentes)
 flutter test
 ```
 
@@ -341,6 +350,106 @@ test/
 │           │   └── {feature}_bloc_test.dart
 │           └── layouts/
 │               └── {feature}_layouts_test.dart
-└── goldens/
-    └── {feature}_golden_test.dart
+├── goldens/
+│   └── {feature}_golden_test.dart
+└── acceptance/
+    ├── ac_01_{description}_test.dart
+    └── ac_02_{description}_test.dart
 ```
+
+---
+
+## Acceptance Tests (Patrol)
+
+> Tests E2E que validan acceptance criteria (AC-XX) del PRD con evidencia visual.
+> Generados por AG-09a. Validados por AG-09b.
+
+### Setup
+
+```yaml
+# pubspec.yaml
+dev_dependencies:
+  patrol: ^4.0.0
+```
+
+```yaml
+# patrol.yaml (raíz del proyecto)
+app_name: {app_name}
+android:
+  package_name: {package_name}
+ios:
+  bundle_id: {bundle_id}
+```
+
+### Template: Acceptance Test
+
+```dart
+// test/acceptance/ac_01_crear_propiedad_test.dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:patrol/patrol.dart';
+
+import 'package:{app}/main.dart' as app;
+
+void main() {
+  patrolTest(
+    'AC-01: Usuario puede crear propiedad con nombre, dirección y foto',
+    ($) async {
+      app.main();
+      await $.pumpAndSettle();
+
+      // Navegar a crear propiedad
+      await $.tap(find.text('Nueva Propiedad'));
+      await $.pumpAndSettle();
+
+      // Completar formulario
+      await $.enterText(
+        find.byKey(const Key('name_field')),
+        'Depto Centro',
+      );
+      await $.enterText(
+        find.byKey(const Key('address_field')),
+        'Av. Libertador 1234',
+      );
+
+      // Interacción nativa (permiso de cámara)
+      await $.native.tap(NativeSelector(text: 'Allow'));
+
+      // Guardar
+      await $.tap(find.byKey(const Key('save_btn')));
+      await $.pumpAndSettle();
+
+      // Verificar resultado
+      expect(find.text('Depto Centro'), findsOneWidget);
+
+      // Capturar evidencia
+      await $.takeScreenshot('AC-01_crear_propiedad');
+    },
+  );
+}
+```
+
+### Ejecución
+
+```bash
+# Ejecutar acceptance tests
+flutter test test/acceptance/ --reporter expanded
+
+# Con Patrol (para interacciones nativas)
+patrol test test/acceptance/
+```
+
+### Evidencia
+
+Screenshots se guardan en `.quality/evidence/{feature}/acceptance/`:
+- `AC-01_{description}.png`
+- `AC-02_{description}.png`
+- `results.json` (resumen de ejecución)
+
+### Diferencia con otros tipos de test
+
+| Tipo | Qué valida | Quién genera | Evidencia |
+|------|-----------|-------------|-----------|
+| Unit (AG-04) | Lógica de código funciona | AG-04 | Coverage % |
+| Widget (AG-04) | UI renderiza correctamente | AG-04 | — |
+| Golden (AG-04) | UI no cambió visualmente | AG-04 | Diff images |
+| **Acceptance (AG-09a)** | **Feature cumple el PRD** | **AG-09a** | **Screenshots + report** |

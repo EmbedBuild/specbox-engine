@@ -12,6 +12,8 @@ Cuando /implement delega fases a sub-tareas, cada tarea solo debe modificar arch
 | AG-06 Design Specialist | doc/design/**, design/** |
 | AG-07 Apps Script Specialist | src/**, appsscript.json, .clasp.json |
 | AG-08 Quality Auditor | .quality/**, doc/plans/** (solo lectura del resto) |
+| AG-09a Acceptance Tester | test/acceptance/**, tests/acceptance/**, .quality/evidence/**/acceptance/** |
+| AG-09b Acceptance Validator | .quality/evidence/** (solo lectura del resto) |
 
 INSTRUCCION: Al delegar una fase, incluye en el prompt de la sub-tarea:
 "Solo modifica archivos dentro de: {ownership_paths}. Si necesitas modificar archivos fuera de tu ownership, repórtalo como dependencia pendiente."

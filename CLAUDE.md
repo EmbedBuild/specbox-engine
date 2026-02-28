@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.3.0
+# JPS Dev Engine v3.4.0
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -43,11 +43,17 @@ Esto instala Skills en `~/.claude/skills/`, hooks en `~/.claude/hooks/` y comman
 ## Flujo de desarrollo
 
 ```
-/prd → PRD + Trello/Plane
+/prd → PRD + Trello/Plane (con Definition Quality Gate)
   ↓
 /plan → Plan tecnico + Diseños Stitch (MCP) + HTML
   ↓
-/implement → Autopilot: rama + fases + design-to-code + QA + PR
+/implement → Autopilot: rama + fases + design-to-code + QA + Acceptance Gate + PR
+  ↓                                                         ↑
+  ├── AG-08 Quality Audit → GO/NO-GO ──────────────────────┤
+  ├── AG-09a Acceptance Tests → evidencia visual ──────────┤
+  └── AG-09b Acceptance Validator → ACCEPTED/REJECTED ─────┘
+  ↓
+Merge secuencial → pull main → siguiente card
   ↓
 /optimize-agents → Audita y optimiza sistema agentico del proyecto
 ```
@@ -60,7 +66,7 @@ jps_dev_engine/
 ├── ENGINE_VERSION.yaml    ← Version del engine
 ├── install.sh             ← Instala skills, hooks, commands
 ├── .claude/
-│   ├── skills/            ← Agent Skills (v3.1)
+│   ├── skills/            ← Agent Skills (v3.4)
 │   │   ├── prd/SKILL.md
 │   │   ├── plan/SKILL.md
 │   │   ├── implement/SKILL.md
@@ -92,7 +98,9 @@ jps_dev_engine/
 │   ├── design-specialist.md
 │   ├── n8n-specialist.md
 │   ├── appscript-specialist.md
-│   └── quality-auditor.md
+│   ├── quality-auditor.md
+│   ├── acceptance-tester.md
+│   └── acceptance-validator.md
 ├── agent-teams/           ← Agent Teams nativo (Claude Code)
 │   ├── README.md
 │   ├── templates/
@@ -133,21 +141,21 @@ jps_dev_engine/
 3. Tras modificar una Skill, ejecutar `./install.sh` para actualizar en global
 4. Versionar cambios en ENGINE_VERSION.yaml
 
-## Available Skills (v3.2)
+## Available Skills (v3.4)
 
 Skills are auto-discoverable. Claude will use them when relevant. You can also invoke them explicitly.
 
 | Skill | Trigger phrases | Mode | Tools | Notes |
 |-------|----------------|------|-------|-------|
-| /prd | "create PRD", "new feature", "write requirements" | fork:Plan | Full | |
+| /prd | "create PRD", "new feature", "write requirements" | fork:Plan | Full | Definition Quality Gate (Paso 2.5) valida AC-XX |
 | /plan | "plan feature", "technical plan", "analyze for implementation" | fork:Plan | Full | |
-| /implement | "implement plan", "execute plan", "autopilot" | direct | Full | Self-healing with 4-level auto-recovery |
+| /implement | "implement plan", "execute plan", "autopilot" | direct | Full | Self-healing + AG-09 acceptance gate + merge secuencial |
 | /adapt-ui | "scan UI", "map components", "detect widgets" | fork:Explore | Read-only | |
 | /optimize-agents | "audit agents", "optimize system", "agent score" | fork:Explore | Read-only | |
 | /quality-gate | "check quality", "run gates", "coverage check" | direct | Lint+Read | |
 | /explore | "analyze codebase", "explore code", "understand architecture" | fork:Explore | Read-only | |
 
-## Hooks (v3.2)
+## Hooks (v3.4)
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -165,7 +173,7 @@ Hooks can report to a remote MCP server for centralized state tracking.
 Set `DEV_ENGINE_MCP_URL=https://mcp-dev-engine.jpsdeveloper.com/mcp` in your shell profile.
 Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
 
-## Context Engineering (v3.2)
+## Context Engineering (v3.4)
 
 - Skills with `context: fork` run in isolated subagents — they don't pollute your main session
 - /implement delegates phases to isolated Tasks with a **context budget of ~8,700 tokens per phase**
@@ -184,7 +192,39 @@ Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
 | `analyze-sessions.sh` | `.quality/scripts/analyze-sessions.sh [--last N]` | Telemetry: sessions, context tokens, healing, checkpoints |
 | `context-budget.sh` | `.quality/scripts/context-budget.sh <path> [--detail]` | Estimate token cost of files/directories |
 
+## Agents (v3.4)
+
+| ID | Rol | Archivo | Modelo |
+|----|-----|---------|--------|
+| AG-01 | Feature Generator | `agents/feature-generator.md` | opus |
+| AG-02 | UI/UX Designer | `agents/uiux-designer.md` | opus |
+| AG-03 | DB Specialist | `agents/db-specialist.md` | sonnet |
+| AG-04 | QA Validation | `agents/qa-validation.md` | sonnet |
+| AG-05 | n8n Specialist | `agents/n8n-specialist.md` | sonnet |
+| AG-06 | Design Specialist | `agents/design-specialist.md` | sonnet |
+| AG-07 | Apps Script Specialist | `agents/appscript-specialist.md` | sonnet |
+| AG-08 | Quality Auditor | `agents/quality-auditor.md` | sonnet |
+| AG-09a | Acceptance Tester | `agents/acceptance-tester.md` | sonnet |
+| AG-09b | Acceptance Validator | `agents/acceptance-validator.md` | sonnet |
+
+## Acceptance Engine (v3.4 — nuevo)
+
+Pipeline completo de validación funcional:
+
+1. **Definition Quality Gate** (`/prd` Paso 2.5) — Rechaza acceptance criteria vagos/no-testables antes de crear work items. Evalúa especificidad, medibilidad y testabilidad (0-2 cada una).
+2. **AG-09a Acceptance Tester** (`/implement` Paso 7.5) — Genera E2E/integration tests desde AC-XX del PRD con evidencia visual (screenshots, traces, response logs).
+3. **AG-09b Acceptance Validator** (`/implement` Paso 7.7) — Validación independiente: verifica que cada AC-XX está implementado, testeado y evidenciado. Emite ACCEPTED/CONDITIONAL/REJECTED.
+4. **Merge Secuencial** (`/implement` Paso 8.5) — Auto-merge solo si AG-08=GO y AG-09=ACCEPTED. Pull main antes de siguiente card.
+
+Frameworks de acceptance testing por stack:
+
+| Stack | Framework | Evidencia | Tests en |
+|-------|-----------|-----------|----------|
+| Flutter | Patrol + Alchemist | Screenshots + goldens | `test/acceptance/` |
+| React | Playwright | Screenshots + traces | `tests/acceptance/` |
+| Python | pytest + httpx | Response JSON logs | `tests/acceptance/` |
+
 ## Engine Version
 
-Current: v3.3.0 "Connected Engine"
+Current: v3.4.0 "Acceptance Engine"
 Config: ENGINE_VERSION.yaml

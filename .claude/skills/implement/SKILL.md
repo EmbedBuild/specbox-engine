@@ -552,6 +552,147 @@ git commit -m "test({feature}): add tests with 85%+ coverage"
 
 ---
 
+## Paso 7.5: Acceptance Tests (AG-09a)
+
+> Generar y ejecutar tests que validen acceptance criteria del PRD.
+> Si no hay PRD disponible, saltar este paso con WARNING.
+
+### 7.5.1 Localizar PRD
+
+```
+¿Cómo encontrar el PRD?
+├── Plan referencia work item (PROYECTO-XX)
+│   └── plane:retrieve_work_item_by_identifier → extraer PRD del description
+├── Existe doc/prd/{feature}.md
+│   └── Leer directamente
+└── No se encuentra PRD
+    └── WARNING: "No PRD found. Skipping acceptance tests."
+    └── Saltar a Paso 7.6
+```
+
+### 7.5.2 Extraer Acceptance Criteria
+
+Parsear sección "Criterios de Aceptación > Funcionales":
+- Extraer cada AC-XX con su descripción
+- Ignorar sección "Técnicos"
+- Si no hay criterios AC-XX en el PRD → WARNING y saltar
+
+### 7.5.3 Generar Acceptance Tests
+
+Delegar a AG-09a (ver `agents/acceptance-tester.md`). Para cada AC-XX:
+
+**Flutter (Patrol):**
+- Archivo: `test/acceptance/ac_{NN}_{description_snake}_test.dart`
+- Framework: `patrol` + `alchemist` (si golden aplica)
+- Screenshot: `$.takeScreenshot('AC-{NN}_{description}')`
+- Evidencia en: `.quality/evidence/{feature}/acceptance/`
+
+**React (Playwright):**
+- Archivo: `tests/acceptance/ac-{NN}-{description-kebab}.spec.ts`
+- Framework: `@playwright/test`
+- Screenshot: `page.screenshot({path: '.quality/evidence/{feature}/acceptance/AC-{NN}.png'})`
+- Traces: `context.tracing.start()` / `stop()`
+
+**Python (pytest):**
+- Archivo: `tests/acceptance/test_ac_{NN}_{description_snake}.py`
+- Framework: `pytest` + `httpx.AsyncClient`
+- Evidence: request/response log a `.quality/evidence/{feature}/acceptance/AC-{NN}.json`
+
+### 7.5.4 Ejecutar Acceptance Tests
+
+```bash
+# Flutter
+flutter test test/acceptance/ --reporter expanded
+
+# React
+npx playwright test tests/acceptance/
+
+# Python
+pytest tests/acceptance/ -v
+```
+
+### 7.5.5 Generar Evidencia
+
+Guardar en `.quality/evidence/{feature}/acceptance/`:
+- Screenshots por criterio (AC-01.png, AC-02.png...)
+- Traces (solo Playwright)
+- `results.json` con resumen de ejecución
+
+### 7.5.6 Commit
+
+```bash
+git add test/acceptance/ tests/acceptance/ .quality/evidence/{feature}/acceptance/
+git commit -m "test({feature}): add acceptance tests for {N} criteria"
+```
+
+**NOTA**: Si los acceptance tests fallan, NO bloquear aquí. Reportar fallos y dejar que AG-09b decida el veredicto en Paso 7.7.
+
+---
+
+## Paso 7.6: Quality Audit (AG-08)
+
+> Ejecutar AG-08 Quality Auditor para verificar calidad de código.
+> Ver `agents/quality-auditor.md` para checks completos.
+
+Ejecutar audit completo:
+1. Test Quality Audit (tests reales, no triviales)
+2. Coverage Legitimacy Audit (sin exclusiones tramposas)
+3. Architecture Compliance Audit (capas respetadas)
+4. Convention Compliance Audit (patrones del stack)
+5. Dead Code Detection (no aumentó)
+
+Generar `.quality/evidence/{feature}/audit.json` y `.quality/evidence/{feature}/report.md`.
+
+Emitir veredicto: **GO / CONDITIONAL GO / NO-GO**
+
+Si **NO-GO** → Aplicar self-healing (ver Self-Healing Protocol) y re-auditar. Máximo 2 intentos.
+
+---
+
+## Paso 7.7: Acceptance Gate (AG-09b)
+
+> Validación independiente de que la feature cumple los acceptance criteria.
+> Si no hay PRD disponible (Paso 7.5 fue saltado), saltar este paso.
+
+### 7.7.1 Ejecutar AG-09b Acceptance Validator
+
+Delegar a AG-09b (ver `agents/acceptance-validator.md`). El validador recibe:
+- PRD con AC-XX (misma fuente que 7.5.1)
+- `git diff main..HEAD` (código implementado)
+- Resultados de tests unitarios (AG-04, Paso 7)
+- Resultados de acceptance tests (AG-09a, Paso 7.5)
+- Screenshots/evidencia generada
+- audit.json de AG-08 (Paso 7.6)
+
+### 7.7.2 Evaluar veredicto
+
+```
+ACCEPTED    → Continuar a Paso 8 (crear PR)
+CONDITIONAL → Healing (ver 7.7.3), luego re-validar
+REJECTED    → Healing (ver 7.7.3), luego re-validar
+```
+
+### 7.7.3 Healing de Acceptance
+
+Si CONDITIONAL o REJECTED:
+1. Leer `acceptance-report.json` → identificar criterios FAIL
+2. Para cada criterio FAIL:
+   - Falta código → implementar lo faltante
+   - Falta test → AG-09a regenera solo los fallidos
+   - Test falla → corregir implementación o test
+3. Re-ejecutar acceptance tests (solo los fallidos)
+4. Re-ejecutar validaciones: lint + compile + AG-09b
+5. **Máximo 2 intentos** de healing de acceptance
+6. Si tras 2 intentos sigue REJECTED → reportar al humano con `acceptance-report.md`
+
+### 7.7.4 Registrar healing
+
+```bash
+.claude/hooks/implement-healing.sh {feature} acceptance {level} "{action}" "{result}"
+```
+
+---
+
 ## Paso 8: Crear Pull Request
 
 ### 8.1 Push de la rama
@@ -590,11 +731,25 @@ gh pr create \
 
 {Si aplica: lista de pantallas generadas con links a HTMLs}
 
+## Acceptance Evidence
+
+{Generar tabla desde acceptance-report.json de AG-09b. Si no hay PRD/AC-XX, omitir sección.}
+
+| Criterio | Status | Evidencia |
+|----------|--------|-----------|
+| AC-01: {descripción} | ✅ PASS | [screenshot](evidence/AC-01.png) |
+| AC-02: {descripción} | ✅ PASS | [screenshot](evidence/AC-02.png) |
+| AC-XX: {descripción} | ⚠️ CONDITIONAL | [trace](evidence/AC-XX_trace.zip) |
+
+**AG-09 Verdict**: {ACCEPTED / CONDITIONAL / REJECTED}
+**AG-08 Verdict**: {GO / CONDITIONAL GO / NO-GO}
+
 ## Test Plan
 
 - [ ] Tests unitarios pasan con 85%+ coverage
 - [ ] Lint sin errores
 - [ ] Build exitoso
+- [ ] Acceptance tests pasan
 - [ ] {Criterios adicionales del plan}
 
 ## Plan Reference
@@ -611,7 +766,58 @@ EOF
 
 Si el plan referencia un work item de Plane/Trello:
 - Anadir link a la PR en un comentario del work item
-- Actualizar estado a "En Desarrollo" o "En Pruebas"
+- Actualizar estado a "En Pruebas"
+
+---
+
+## Paso 8.5: Merge Secuencial (Post-PR)
+
+> Si estamos en modo autopilot (ejecutando múltiples cards en secuencia),
+> merge antes de iniciar la siguiente card. Esto evita conflictos entre PRs.
+
+### 8.5.1 Verificar condiciones de auto-merge
+
+Auto-merge SOLO si se cumplen TODAS estas condiciones:
+- AG-08 verdict = **GO** o **CONDITIONAL GO**
+- AG-09b verdict = **ACCEPTED**
+- Todos los acceptance tests pasan
+- El usuario ha confirmado modo autopilot
+
+```
+¿Todas las condiciones se cumplen?
+├── SÍ → Paso 8.5.2 (auto-merge)
+└── NO → Pausar, notificar al usuario, esperar aprobación manual
+         → Cuando el usuario apruebe: continuar con 8.5.2
+```
+
+### 8.5.2 Merge
+
+```bash
+gh pr merge --squash --delete-branch
+```
+
+### 8.5.3 Actualizar main
+
+```bash
+git checkout main
+git pull origin main
+```
+
+### 8.5.4 Actualizar work item
+
+Si hay work item vinculado:
+- Actualizar estado a "Finalizado"
+
+### 8.5.5 Siguiente card
+
+Si hay más cards pendientes en el backlog del plan:
+```
+→ Volver a Paso 0 con la siguiente card
+→ El nuevo feature branch partirá del main actualizado (post-merge)
+→ CERO conflictos garantizados
+```
+
+Si no hay más cards → finalizar pipeline con resumen global.
 
 ---
 
@@ -764,7 +970,12 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 - [ ] Build sin errores
 - [ ] Tests con 85%+ coverage
 - [ ] Lint sin errores
-- [ ] PR creada con resumen completo
+- [ ] PRD con acceptance criteria (AC-XX) localizado
+- [ ] Acceptance tests generados (1 por criterio funcional)
+- [ ] Evidencia visual capturada (screenshots/traces)
+- [ ] AG-08 veredicto GO o CONDITIONAL GO
+- [ ] AG-09 veredicto ACCEPTED
+- [ ] PR creada con sección Acceptance Evidence
 - [ ] Work item actualizado (si aplica)
 - [ ] Self-healing log limpio (0 level 3+ events)
 - [ ] Healing budget no excedido (≤8 auto-heals total)
@@ -779,5 +990,10 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 | Diseños | `doc/design/{feature}/` |
 | Branch naming | `feature/{nombre-plan-kebab-case}` |
 | Coverage minimo | 85% |
-| Commits | Uno por fase + integracion + tests |
-| PR body | Summary + Changes + Stitch + Test Plan |
+| Commits | Uno por fase + integracion + tests + acceptance |
+| PR body | Summary + Changes + Stitch + Acceptance Evidence + Test Plan |
+| Acceptance tests | `test/acceptance/` o `tests/acceptance/` |
+| Evidencia acceptance | `.quality/evidence/{feature}/acceptance/` |
+| AG-08 veredicto | GO / CONDITIONAL GO / NO-GO |
+| AG-09 veredicto | ACCEPTED / CONDITIONAL / REJECTED |
+| Merge secuencial | Auto-merge si AG-08=GO + AG-09=ACCEPTED |

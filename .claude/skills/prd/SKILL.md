@@ -159,10 +159,13 @@ lib/
 
 ## Criterios de Aceptación
 
-- [ ] [Criterio específico 1]
-- [ ] [Criterio específico 2]
-- [ ] [Criterio específico 3]
-- [ ] [Criterio específico 4]
+### Funcionales
+- [ ] **AC-01**: [Criterio específico y testable ligado a F1]
+- [ ] **AC-02**: [Criterio específico y testable ligado a F1 o F2]
+- [ ] **AC-03**: [Criterio específico y testable ligado a F2]
+- [ ] **AC-04**: [Criterio específico y testable ligado a F3]
+
+### Técnicos (no validados por AG-09)
 - [ ] Proyecto compila sin errores
 - [ ] Tests con 85%+ coverage
 
@@ -241,13 +244,81 @@ lib/
 ---
 
 ## Criterios de Aceptación
-- [ ] [Criterio 1]
-- [ ] [Criterio 2]
+
+### Funcionales
+- [ ] **AC-01**: [Criterio específico y testable]
+- [ ] **AC-02**: [Criterio específico y testable]
+
+### Técnicos (no validados por AG-09)
 - [ ] Proyecto compila sin errores
 - [ ] Tests pasan
 
 ---
 *Generado: [fecha]*
+```
+
+---
+
+## Paso 2.5: Validar Calidad de Definición (BLOQUEANTE)
+
+> Antes de crear el Work Item, validar que los acceptance criteria permiten testing automatizado.
+> El Work Item NO se crea hasta que este gate pase.
+
+### 2.5.1 Asignar ID a cada criterio
+
+Numerar cada criterio funcional: AC-01, AC-02, AC-03...
+Excluir criterios técnicos genéricos ("compila sin errores", "85% coverage") — estos NO cuentan como funcionales.
+
+### 2.5.2 Evaluar cada criterio funcional
+
+Para cada AC-XX, evaluar 3 métricas (0-2):
+
+| Métrica | 0 (RECHAZAR) | 1 (ACEPTABLE) | 2 (IDEAL) |
+|---------|-------------|----------------|-----------|
+| **Especificidad** | Vago: "funciona bien", "gestiona datos", "el sistema debe ser robusto" | General: "mostrar lista de propiedades", "crear usuario" | Preciso: "listado paginado de 20 propiedades con foto thumbnail, nombre y precio en CLP" |
+| **Medibilidad** | Subjetivo: "es rápido", "user-friendly", "buena UX" | Parcial: "carga en poco tiempo", "responde rápido" | Cuantificado: "carga inicial < 2s en 4G", "100% de campos validados inline" |
+| **Testabilidad** | No verificable: "buena experiencia", "el usuario está satisfecho" | Solo manual: "el formulario valida campos" | Automatizable: "mostrar error inline rojo bajo el campo si email no contiene @ al perder foco" |
+
+### 2.5.3 Validar cobertura funcional
+
+- Cada Funcionalidad (F1, F2, F3...) DEBE tener al menos 1 criterio AC-XX asociado
+- Si una funcionalidad no tiene criterio → RECHAZAR
+- Ratio mínimo: criterios funcionales / funcionalidades ≥ 1.0
+
+### 2.5.4 Calcular veredicto
+
+```
+SI algún criterio tiene score 0 en cualquier métrica → RECHAZAR
+SI promedio general de los 3 scores < 1.5 → RECHAZAR
+SI alguna funcionalidad no tiene criterio AC-XX → RECHAZAR
+ELSE → APROBADO
+```
+
+### 2.5.5 Si RECHAZADO
+
+1. Mostrar tabla de evaluación por criterio:
+
+```
+| AC-XX | Especificidad | Medibilidad | Testabilidad | Veredicto |
+|-------|--------------|-------------|--------------|-----------|
+| AC-01 | 2 | 1 | 2 | OK |
+| AC-02 | 0 | 0 | 0 | RECHAZADO |
+```
+
+2. Para cada criterio rechazado, proponer una versión mejorada concreta
+3. Preguntar: "¿Acepta las mejoras sugeridas o prefiere redactar manualmente?"
+4. Aplicar correcciones y re-evaluar
+5. NO crear Work Item hasta que pase
+6. Máximo 3 iteraciones. Si tras 3 no pasa → pedir al usuario que defina los criterios manualmente
+
+### 2.5.6 Si APROBADO
+
+Continuar a Paso 3 con los AC-XX numerados incorporados al PRD.
+Reportar:
+```
+Definition Quality Gate: APROBADO
+Criterios funcionales: {N} (promedio: {score}/2.0)
+Cobertura: {N} funcionalidades cubiertas de {M}
 ```
 
 ---
@@ -322,14 +393,19 @@ Usar `plane:create_work_item`:
 - [ ] Sección "Interacciones UI" completa
 - [ ] Tabla de visualización de datos
 - [ ] Tabla de acciones con frecuencia/criticidad
-- [ ] Mínimo 4 criterios de aceptación
+- [ ] Mínimo 4 criterios de aceptación funcionales con ID (AC-XX)
+- [ ] Cada criterio: especificidad ≥ 1, medibilidad ≥ 1, testabilidad ≥ 1
+- [ ] Cada funcionalidad (F1, F2...) tiene ≥ 1 criterio AC-XX
+- [ ] Promedio de calidad de criterios ≥ 1.5/2.0
+- [ ] Definition Quality Gate (Paso 2.5) aprobado
 
 ### PRD Técnico:
 - [ ] Resumen ejecutivo claro
 - [ ] Al menos un cambio ANTES/DESPUÉS
 - [ ] Sección "Cambios de UI" si afecta interfaz
 - [ ] Plan por fases
-- [ ] Mínimo 4 criterios de aceptación
+- [ ] Mínimo 2 criterios de aceptación funcionales con ID (AC-XX)
+- [ ] Definition Quality Gate (Paso 2.5) aprobado
 
 ---
 

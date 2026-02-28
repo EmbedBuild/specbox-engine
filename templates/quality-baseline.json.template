@@ -47,6 +47,12 @@
     "policy": "info"
   },
 
+  "acceptance": {
+    "criteria_total": 0,
+    "criteria_passed": 0,
+    "policy": "info"
+  },
+
   "plan": {
     "sprints": [],
     "currentSprint": 0

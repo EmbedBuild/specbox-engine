@@ -1,4 +1,4 @@
-# Reglas Globales - JPS Dev Engine v3.3.0
+# Reglas Globales - JPS Dev Engine v3.4.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.
@@ -296,6 +296,37 @@ AG-04 genera tests. AG-08 verifica que:
 
 AG-08 emite veredicto GO/NO-GO antes de crear PR.
 
+### AG-09 Acceptance Validation (independiente de AG-04 y AG-08)
+
+AG-04 genera unit tests. AG-08 audita calidad de código. AG-09 valida cumplimiento funcional:
+- Los acceptance criteria del PRD (AC-XX) están implementados en código
+- Existen tests ejecutables por cada criterio (1 test por AC-XX)
+- Los tests producen evidencia visual (screenshots, traces, response logs)
+- La evidencia es coherente con lo que el criterio describe
+
+**AG-09a** (Acceptance Tester) genera los tests. **AG-09b** (Acceptance Validator) valida el cumplimiento.
+AG-09b emite veredicto ACCEPTED/CONDITIONAL/REJECTED antes de crear PR.
+
+### Acceptance Tests (todos los stacks)
+
+| Stack | Framework | Evidencia | Ubicación tests |
+|-------|-----------|-----------|-----------------|
+| Flutter | Patrol + Alchemist | Screenshots + goldens | test/acceptance/ |
+| React | Playwright | Screenshots + traces | tests/acceptance/ |
+| Python | pytest + httpx | Response JSON logs | tests/acceptance/ |
+
+Los acceptance tests son ADICIONALES a los unit tests de AG-04. No los reemplazan.
+Si no hay PRD con AC-XX disponible, el gate se salta con WARNING (no bloquea).
+
+### Definition Quality Gate (en /prd)
+
+Antes de crear un Work Item, los acceptance criteria se validan con 3 métricas:
+- **Especificidad** (0-2): rechaza criterios vagos como "funciona bien"
+- **Medibilidad** (0-2): rechaza criterios subjetivos como "es rápido"
+- **Testabilidad** (0-2): rechaza criterios no verificables como "buena experiencia"
+
+Si algún criterio tiene score 0 → el PRD se rechaza hasta corrección.
+
 ---
 
 ## Testing (todos los stacks)
@@ -312,6 +343,7 @@ AG-08 emite veredicto GO/NO-GO antes de crear PR.
 1. **Happy path** — Flujo normal esperado
 2. **Edge cases** — Valores limite, nulls, strings vacios, listas enormes
 3. **Fuzz testing** — Datos aleatorios con seed fijo para reproducibilidad
+4. **Acceptance tests** — 1 test por AC-XX del PRD con evidencia visual (si hay PRD)
 
 ---
 
@@ -329,4 +361,4 @@ AG-08 emite veredicto GO/NO-GO antes de crear PR.
 
 ---
 
-*Version: 3.3.0 | Ultima actualizacion: 2026-02-25*
+*Version: 3.4.0 | Ultima actualizacion: 2026-02-28*

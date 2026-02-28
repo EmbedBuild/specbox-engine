@@ -176,7 +176,7 @@ echo -e "  Updated: ${YELLOW}$updated${NC}"
 echo -e "  Unchanged: $skipped"
 echo ""
 
-## --- INSTALL SKILLS (v3.2) ---
+## --- INSTALL SKILLS (v3.4) ---
 
 SKILLS_DIR="$HOME/.claude/skills"
 echo -e "${GREEN}Installing skills to $SKILLS_DIR (symlinks)${NC}"
@@ -228,7 +228,7 @@ done
 echo -e "  Skills new: ${GREEN}$skills_installed${NC}, updated: ${YELLOW}$skills_updated${NC}"
 echo ""
 
-## --- INSTALL HOOKS (v3.2) ---
+## --- INSTALL HOOKS (v3.4) ---
 
 HOOKS_DIR="$HOME/.claude/hooks"
 if [ -d "$ENGINE_DIR/.claude/hooks" ]; then
@@ -245,7 +245,7 @@ if [ -d "$ENGINE_DIR/.claude/hooks" ]; then
     echo ""
 fi
 
-## --- INSTALL SETTINGS (v3.2) ---
+## --- INSTALL SETTINGS (v3.4) ---
 
 if [ -f "$ENGINE_DIR/.claude/settings.json" ]; then
     if [ -f "$HOME/.claude/settings.json" ]; then

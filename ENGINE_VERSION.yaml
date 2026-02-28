@@ -1,6 +1,6 @@
-version: 3.3.0
-codename: "Connected Engine"
-release_date: 2026-02-25
+version: 3.4.0
+codename: "Acceptance Engine"
+release_date: 2026-02-28
 min_claude_code: "1.0.0"
 
 stacks:
@@ -34,8 +34,25 @@ features:
   - telemetry-analysis
   - ratchet-baseline-updater
   - remote-telemetry-mcp
+  - acceptance-quality-gate
+  - acceptance-tests
+  - sequential-merge
 
 changelog:
+  3.4.0:
+    date: 2026-02-28
+    changes:
+      - "feat: Definition Quality Gate — rechaza acceptance criteria vagos/no-testables en /prd (Paso 2.5)"
+      - "feat: AG-09a Acceptance Tester — genera E2E/integration tests desde AC-XX del PRD"
+      - "feat: AG-09b Acceptance Validator — validación independiente de cumplimiento funcional"
+      - "feat: Acceptance Evidence en PR — tabla criterio/status/screenshot en body de PR"
+      - "feat: Merge Secuencial (Paso 8.5) — auto-merge + pull main antes de siguiente card"
+      - "feat: Patrol (Flutter E2E) + Alchemist (goldens) reemplazan golden_toolkit (discontinued)"
+      - "feat: Playwright para acceptance tests en React con traces + screenshots"
+      - "docs: GLOBAL_RULES.md sección AG-09 Acceptance Validation + Definition Quality Gate"
+      - "docs: architecture/flutter/testing-strategy.md actualizado con Patrol + Alchemist"
+      - "docs: orchestrator.md actualizado con AG-09a y AG-09b en flujos de ejecución"
+
   3.3.0:
     date: 2026-02-25
     changes:

@@ -1,5 +1,5 @@
 {
-  "$schema": "JPS Dev Engine v3.3.0 - Agent Teams Configuration",
+  "$schema": "JPS Dev Engine v3.4.0 - Agent Teams Configuration",
   "team": {
     "name": "{PROJECT_NAME}",
     "description": "Equipo de desarrollo para {PROJECT_NAME}",
@@ -90,6 +90,26 @@
         "Edge cases + fuzz testing"
       ],
       "fileOwnership": ["test/", "tests/", "__tests__/"]
+    },
+    "AcceptanceTester": {
+      "model": "sonnet",
+      "prompt": "agent-teams/prompts/acceptance-tester.md",
+      "responsibilities": [
+        "Generar E2E/integration tests desde AC-XX del PRD",
+        "Capturar evidencia visual (screenshots, traces)",
+        "Ejecutar tests y reportar resultados"
+      ],
+      "fileOwnership": ["test/acceptance/", "tests/acceptance/", ".quality/evidence/**/acceptance/"]
+    },
+    "AcceptanceValidator": {
+      "model": "sonnet",
+      "prompt": "agent-teams/prompts/acceptance-validator.md",
+      "responsibilities": [
+        "Validacion independiente de acceptance criteria",
+        "Verificar implementacion contra PRD",
+        "Emitir veredicto ACCEPTED/CONDITIONAL/REJECTED"
+      ],
+      "fileOwnership": [".quality/evidence/"]
     }
   },
   "communication": {

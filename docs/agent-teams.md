@@ -1,6 +1,6 @@
 # Agent Teams
 
-> JPS Dev Engine v3.3.0 — Orquestacion multi-agente nativa de Claude Code (experimental)
+> JPS Dev Engine v3.4.0 — Orquestacion multi-agente nativa de Claude Code (experimental)
 
 ## Que es Agent Teams
 
@@ -38,7 +38,7 @@ agent-teams/
 
 ## Engine Awareness
 
-Todos los prompts de teammates incluyen una seccion de integracion con el engine v3.2. Esto les da conocimiento de:
+Todos los prompts de teammates incluyen una seccion de integracion con el engine v3.4. Esto les da conocimiento de:
 
 - **Skills disponibles**: `/prd`, `/plan`, `/implement`, `/quality-gate`, etc.
 - **Hooks automaticos**: pre-commit-lint, session telemetry, checkpoints

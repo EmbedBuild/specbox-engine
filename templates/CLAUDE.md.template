@@ -1,6 +1,6 @@
 # {PROJECT_NAME}
 
-> Generado con JPS Dev Engine v3.3.0
+> Generado con JPS Dev Engine v3.4.0
 
 ## Stack
 
@@ -47,6 +47,9 @@ Agentes disponibles en .claude/agents/:
 | AG-05 | n8n Specialist | agents/n8n-specialist.md |
 | AG-06 | Design Specialist | agents/design-specialist.md |
 | AG-07 | Apps Script Specialist | agents/appscript-specialist.md |
+| AG-08 | Quality Auditor | agents/quality-auditor.md |
+| AG-09a | Acceptance Tester | agents/acceptance-tester.md |
+| AG-09b | Acceptance Validator | agents/acceptance-validator.md |
 
 ### Opcion B: Agent Teams (nativo Claude Code)
 
@@ -79,11 +82,15 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ## Flujo de Desarrollo
 
 ```
-/prd → PRD + Trello/Plane
+/prd → PRD + Trello/Plane (con Definition Quality Gate)
   |
 /plan → Plan tecnico + Diseños Stitch
   |
-/implement → Autopilot: rama + fases + design-to-code + QA + PR
+/implement → Autopilot: rama + fases + design-to-code + QA + Acceptance Gate + PR
+  |        → AG-08 Quality Audit (GO/NO-GO)
+  |        → AG-09a Acceptance Tests (evidencia visual)
+  |        → AG-09b Acceptance Validator (ACCEPTED/REJECTED)
+  |        → Merge secuencial → pull main → siguiente card
   |
 /optimize-agents → Validar configuracion agentica
 ```
@@ -97,4 +104,4 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ---
 
 *Generado: {DATE}*
-*Engine: jps_dev_engine v3.3.0*
+*Engine: jps_dev_engine v3.4.0*

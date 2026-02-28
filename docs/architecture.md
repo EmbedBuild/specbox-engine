@@ -1,6 +1,6 @@
 # Architecture Guide
 
-> JPS Dev Engine v3.3.0 — Guia de arquitectura multi-stack
+> JPS Dev Engine v3.4.0 — Guia de arquitectura multi-stack
 
 ## Stacks soportados
 

@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.3.0
+# JPS Dev Engine v3.4.0
 
 Sistema de programacion agentica basado en **Agent Skills** para Claude Code.
 
@@ -37,7 +37,8 @@ Este es el flujo end-to-end que el engine proporciona. Cada paso tiene su propio
 /prd ──────────> PRD + Work Item (Plane/Trello)
                    │
                    │  El PRD documenta requisitos, funcionalidades,
-                   │  interacciones UI y criterios de aceptacion.
+                   │  interacciones UI y criterios de aceptacion (AC-XX).
+                   │  Definition Quality Gate rechaza criterios vagos.
                    │
                    ▼
 /plan ─────────> Plan tecnico + Diseños Stitch (HTML)
@@ -48,15 +49,16 @@ Este es el flujo end-to-end que el engine proporciona. Cada paso tiene su propio
                    │  Se guarda en doc/plans/{nombre}_plan.md
                    │
                    ▼
-/implement ────> Autopilot: rama + codigo + QA + PR
+/implement ────> Autopilot: rama + codigo + QA + Acceptance Gate + PR
                    │
-                   │  Lee el plan, crea rama feature/, ejecuta todas
-                   │  las fases (incluyendo design-to-code si hay
-                   │  diseños Stitch), valida con tests y lint,
-                   │  y crea PR lista para review.
+                   │  Lee el plan, crea rama feature/, ejecuta fases,
+                   │  design-to-code, tests, AG-08 quality audit,
+                   │  AG-09a acceptance tests con evidencia visual,
+                   │  AG-09b acceptance validation (ACCEPTED/REJECTED),
+                   │  y crea PR con acceptance evidence.
                    │
                    ▼
-               PR lista para review en GitHub
+               Merge secuencial → pull main → siguiente card
 ```
 
 ### Comandos de soporte
@@ -111,7 +113,7 @@ Genera un plan tecnico detallado con analisis de componentes UI y diseños via G
 1. **Detecta origen** y extrae requisitos del PRD
 2. **Explora el proyecto**: stack, agentes disponibles, widgets existentes
 3. **Analiza componentes UI** (obligatorio): tabla de componentes requeridos vs existentes
-4. **Mapea agentes**: asigna AG-01 a AG-07 segun las fases
+4. **Mapea agentes**: asigna AG-01 a AG-09 segun las fases
 5. **Genera plan por fases**: DB → UI → Feature → Integracion → QA
 6. **Genera diseños en Stitch MCP**: crea pantallas HTML automaticamente si la feature tiene UI
 7. **Guarda plan** en `doc/plans/{nombre}_plan.md`
@@ -176,19 +178,22 @@ Paso 6: Integracion
 │  Commit: "chore({feature}): integration and wiring"
 │
 Paso 7: QA y Validacion
-│  Ejecutar tests (flutter test, jest, pytest, npm test)
-│  Verificar coverage >= 85%
-│  Si < 85%: generar tests adicionales (hasta 3 intentos)
-│  Lint final sin errores
+│  7.1-7.4: Tests unitarios, coverage >= 85%, lint sin errores
+│  7.5: AG-09a Acceptance Tests (genera E2E desde AC-XX del PRD)
+│  7.6: AG-08 Quality Audit (GO/NO-GO)
+│  7.7: AG-09b Acceptance Gate (ACCEPTED/CONDITIONAL/REJECTED)
 │  Commit: "test({feature}): add tests with 85%+ coverage"
 │
-Paso 8: Crear Pull Request
+Paso 8: Crear Pull Request + Merge Secuencial
    git push -u origin feature/{nombre}
    gh pr create con:
      - Resumen del plan
      - Cambios por fase
      - Diseños Stitch (si aplica)
+     - Acceptance Evidence (tabla AC-XX con screenshots)
      - Test plan con checklist
+   8.5: Auto-merge si AG-08=GO + AG-09=ACCEPTED
+        git checkout main && git pull → siguiente card
 ```
 
 **Output:** Rama con commits por fase + PR lista para review en GitHub
@@ -253,7 +258,7 @@ Analiza, puntua y optimiza el sistema multi-agente del proyecto. Soporta tanto s
 
 ---
 
-## Hooks System (v3.3)
+## Hooks System (v3.4)
 
 Enforcement automatico — no hace falta recordar ejecutarlos manualmente:
 
@@ -326,6 +331,8 @@ Cada stack tiene su carpeta en `architecture/` con:
 | AG-06 | Design Specialist | Google Stitch MCP | Generacion de diseños |
 | AG-07 | Apps Script Specialist | Google Apps Script | Proyectos GAS |
 | AG-08 | Quality Auditor | Verificacion independiente | Auditoria post-QA, GO/NO-GO |
+| AG-09a | Acceptance Tester | Genera tests E2E desde AC-XX | Paso 7.5 de /implement |
+| AG-09b | Acceptance Validator | Valida cumplimiento funcional | Paso 7.7, ACCEPTED/REJECTED |
 
 ### Agent Teams (Claude Code nativo)
 
@@ -371,7 +378,9 @@ Ahora: quality gates automaticos entre cada fase, con evidence persistente y un 
   ├─ [Fase 2: Feature] → GATE: lint 0/0/0 ✅ compile ✅ tests pass ✅
   ├─ [Fase 3: QA] → GATE: coverage ≥ baseline ✅
   ├─ [AG-08: Audit] → Verifica tests reales, arquitectura, convenciones
-  └─ [PR] → Con quality report y evidence adjunta
+  ├─ [AG-09a: Acceptance Tests] → Tests E2E desde AC-XX + screenshots
+  ├─ [AG-09b: Acceptance Gate] → ACCEPTED/CONDITIONAL/REJECTED
+  └─ [PR] → Con quality report + acceptance evidence adjunta
 ```
 
 ### Politicas
@@ -397,7 +406,9 @@ Ahora: quality gates automaticos entre cada fase, con evidence persistente y un 
 
 Cada feature genera `.quality/evidence/{feature}/` con:
 - Metricas pre/post por fase
-- Resultado del audit de AG-08
+- Resultado del audit de AG-08 (GO/NO-GO)
+- Acceptance tests de AG-09a (screenshots, traces)
+- Acceptance report de AG-09b (ACCEPTED/REJECTED)
 - Report legible con veredicto
 
 ---
@@ -472,7 +483,7 @@ jps_dev_engine/
 ├── README.md                      # Este archivo
 ├── install.sh                     # Instalador de commands + skills + hooks
 │
-├── .claude/                       # Configuracion Claude Code (v3.3)
+├── .claude/                       # Configuracion Claude Code (v3.4)
 │   ├── settings.json              #   Hooks config
 │   ├── skills/                    #   Agent Skills (7 skills)
 │   │   ├── prd/SKILL.md
@@ -498,7 +509,7 @@ jps_dev_engine/
 │   ├── optimize-agents.md         #   /optimize-agents — Audit agentico
 │   └── quality-gate.md            #   /quality-gate — Quality gates adaptativos
 │
-├── agents/                        # Templates de agentes (9 roles)
+├── agents/                        # Templates de agentes (11 roles)
 │   ├── orchestrator.md
 │   ├── feature-generator.md       #   AG-01
 │   ├── uiux-designer.md           #   AG-02
@@ -507,7 +518,9 @@ jps_dev_engine/
 │   ├── n8n-specialist.md          #   AG-05
 │   ├── design-specialist.md       #   AG-06
 │   ├── appscript-specialist.md    #   AG-07
-│   ├── quality-auditor.md         #   AG-08 (NEW)
+│   ├── quality-auditor.md         #   AG-08
+│   ├── acceptance-tester.md       #   AG-09a
+│   ├── acceptance-validator.md    #   AG-09b
 │   └── templates/
 │
 ├── agent-teams/                   # Agent Teams nativo (Claude Code)
@@ -593,7 +606,10 @@ Este ejemplo muestra como se usa el engine para implementar una feature completa
 6. Ejecuta Fase 3: BLoC + pages + layouts responsivos
 7. Ejecuta Fase 4: DI + rutas + build_runner
 8. Ejecuta Fase 5: tests con 87% coverage
-9. Push + crea PR con resumen completo
+9. AG-09a genera acceptance tests desde AC-XX del PRD
+10. AG-08 audita calidad → GO
+11. AG-09b valida cumplimiento funcional → ACCEPTED
+12. Push + crea PR con acceptance evidence
 
 ```
 ✅ Implementacion Completada
@@ -611,7 +627,8 @@ Diseños Stitch: 2 pantallas
 
 ### 4. Review y merge
 
-El desarrollador revisa la PR en GitHub y hace merge.
+Si AG-08=GO y AG-09b=ACCEPTED, el engine puede auto-merge y continuar con la siguiente card.
+Si hay criterios FAIL, la PR incluye acceptance evidence para que el desarrollador evalúe.
 
 ---
 
@@ -654,7 +671,7 @@ Los symlinks se actualizan automaticamente. Ejecuta `/optimize-agents audit` en 
 2. **Documentacion ejecutable** — Los commands SON la documentacion
 3. **Claude como arquitecto critico** — Cuestiona, no complace
 4. **Escalable desde dia 1** — Multi-stack, multi-servicio, multi-agente
-5. **Autopilot con control** — `/implement` automatiza, pero el humano revisa la PR
+5. **Autopilot con control** — `/implement` automatiza con acceptance evidence para review humano
 
 ---
 
@@ -664,4 +681,4 @@ MIT
 
 ---
 
-v3.3.0 | 2026-02-25 | JPS Developer
+v3.4.0 | 2026-02-28 | JPS Developer

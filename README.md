@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.4.0
+# JPS Dev Engine v3.5.0
 
 Sistema de programacion agentica basado en **Agent Skills** para Claude Code.
 
@@ -258,7 +258,7 @@ Analiza, puntua y optimiza el sistema multi-agente del proyecto. Soporta tanto s
 
 ---
 
-## Hooks System (v3.4)
+## Hooks System (v3.5)
 
 Enforcement automatico — no hace falta recordar ejecutarlos manualmente:
 
@@ -483,7 +483,7 @@ jps_dev_engine/
 ├── README.md                      # Este archivo
 ├── install.sh                     # Instalador de commands + skills + hooks
 │
-├── .claude/                       # Configuracion Claude Code (v3.4)
+├── .claude/                       # Configuracion Claude Code (v3.5)
 │   ├── settings.json              #   Hooks config
 │   ├── skills/                    #   Agent Skills (7 skills)
 │   │   ├── prd/SKILL.md
@@ -681,4 +681,4 @@ MIT
 
 ---
 
-v3.4.0 | 2026-02-28 | JPS Developer
+v3.5.0 | 2026-03-01 | JPS Developer

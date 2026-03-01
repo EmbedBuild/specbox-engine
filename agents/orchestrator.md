@@ -1,11 +1,11 @@
 # Orquestador de Agentes (Orchestrator)
 
-> JPS Dev Engine v3.4.0
+> JPS Dev Engine v3.5.0
 > Template generico -- personalizar por proyecto en `.claude/orchestrator.md`
 
 ## Proposito
 
-Coordinar la ejecucion de subagentes especializados (AG-01 a AG-06) para implementar features completas. Decide el orden de ejecucion, resuelve dependencias entre agentes y valida que cada fase se complete antes de avanzar.
+Coordinar la ejecucion de subagentes especializados (AG-01 a AG-10) para implementar features completas. Decide el orden de ejecucion, resuelve dependencias entre agentes y valida que cada fase se complete antes de avanzar.
 
 ---
 
@@ -22,6 +22,7 @@ Coordinar la ejecucion de subagentes especializados (AG-01 a AG-06) para impleme
 | AG-08 | Quality Auditor | `agents/quality-auditor.md` | haiku |
 | AG-09a | Acceptance Tester | `agents/acceptance-tester.md` | sonnet |
 | AG-09b | Acceptance Validator | `agents/acceptance-validator.md` | sonnet |
+| AG-10 | Developer Tester | `agents/developer-tester.md` | sonnet |
 
 ---
 
@@ -68,6 +69,7 @@ Entrada: PRD o /plan de {feature}
 8. **AG-09a** -- Acceptance Tests → genera tests E2E + evidencia visual
 9. **AG-08** -- Quality Audit independiente → **GO/NO-GO**
 10. **AG-09b** -- Acceptance Validation → **ACCEPTED/REJECTED**
+11. **AG-10** -- Developer Feedback (manual, on-demand) → puede INVALIDAR verdict de AG-09b
 
 ### Feature solo backend (API / DB)
 
@@ -79,6 +81,7 @@ Entrada: PRD o /plan de {feature}
 6. **AG-09a** -- Acceptance Tests → evidencia
 7. **AG-08** -- Quality Audit → **GO/NO-GO**
 8. **AG-09b** -- Acceptance Validation → **ACCEPTED/REJECTED**
+9. **AG-10** -- Developer Feedback (manual, on-demand) → puede INVALIDAR verdict de AG-09b
 
 ### Feature solo UI (sin DB nueva)
 
@@ -90,6 +93,7 @@ Entrada: PRD o /plan de {feature}
 6. **AG-09a** -- Acceptance Tests → evidencia
 7. **AG-08** -- Quality Audit → **GO/NO-GO**
 8. **AG-09b** -- Acceptance Validation → **ACCEPTED/REJECTED**
+9. **AG-10** -- Developer Feedback (manual, on-demand) → puede INVALIDAR verdict de AG-09b
 
 ---
 

@@ -752,6 +752,16 @@ gh pr create \
 - [ ] Acceptance tests pasan
 - [ ] {Criterios adicionales del plan}
 
+## Developer Feedback
+
+{Si existe .quality/evidence/${feature}/feedback-summary.json con open > 0:}
+
+| ID | Severity | AC-XX | Status | GitHub |
+|----|----------|-------|--------|--------|
+{Fila por cada FB-NNN open}
+
+{Si no hay feedback o todos resueltos: "No developer feedback reported."}
+
 ## Plan Reference
 
 `{path al plan}`
@@ -779,14 +789,27 @@ Si el plan referencia un work item de Plane/Trello:
 
 Auto-merge SOLO si se cumplen TODAS estas condiciones:
 - AG-08 verdict = **GO** o **CONDITIONAL GO**
-- AG-09b verdict = **ACCEPTED**
+- AG-09b verdict = **ACCEPTED** (no INVALIDATED)
 - Todos los acceptance tests pasan
 - El usuario ha confirmado modo autopilot
+- **No hay feedback abierto con severity critical o major** (verificar feedback-summary.json)
+
+### 8.5.1a Verificar feedback abierto
+
+Si existe `.quality/evidence/${feature}/feedback-summary.json`:
+- Leer campo `blocking`
+- Si `blocking == true` → merge bloqueado por feedback
 
 ```
 ¿Todas las condiciones se cumplen?
 ├── SÍ → Paso 8.5.2 (auto-merge)
 └── NO → Pausar, notificar al usuario, esperar aprobación manual
+         → Si el bloqueo es por feedback:
+           "⚠️ Merge bloqueado: {N} feedback tickets abiertos ({blocking_ids})"
+           "Resolver con /feedback resolve FB-NNN o aprobar manualmente"
+         → Si el bloqueo es por AG-09b INVALIDATED:
+           "⚠️ AG-09b verdict fue INVALIDATED por feedback {FB-NNN}."
+           "Re-ejecutar /implement para re-validar o resolver feedback primero."
          → Cuando el usuario apruebe: continuar con 8.5.2
 ```
 

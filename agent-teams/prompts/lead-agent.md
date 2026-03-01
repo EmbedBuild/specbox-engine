@@ -5,7 +5,7 @@
 Eres el **Lead Agent**, el coordinador del equipo de desarrollo. Tu funcion es
 planificar, delegar, monitorear y sintetizar. **NUNCA implementas codigo directamente.**
 
-## Engine Integration (v3.4)
+## Engine Integration (v3.5)
 
 This team operates within the JPS Dev Engine ecosystem. Key integrations:
 

@@ -176,7 +176,7 @@ echo -e "  Updated: ${YELLOW}$updated${NC}"
 echo -e "  Unchanged: $skipped"
 echo ""
 
-## --- INSTALL SKILLS (v3.4) ---
+## --- INSTALL SKILLS (v3.5) ---
 
 SKILLS_DIR="$HOME/.claude/skills"
 echo -e "${GREEN}Installing skills to $SKILLS_DIR (symlinks)${NC}"
@@ -228,7 +228,7 @@ done
 echo -e "  Skills new: ${GREEN}$skills_installed${NC}, updated: ${YELLOW}$skills_updated${NC}"
 echo ""
 
-## --- INSTALL HOOKS (v3.4) ---
+## --- INSTALL HOOKS (v3.5) ---
 
 HOOKS_DIR="$HOME/.claude/hooks"
 if [ -d "$ENGINE_DIR/.claude/hooks" ]; then
@@ -245,7 +245,7 @@ if [ -d "$ENGINE_DIR/.claude/hooks" ]; then
     echo ""
 fi
 
-## --- INSTALL SETTINGS (v3.4) ---
+## --- INSTALL SETTINGS (v3.5) ---
 
 if [ -f "$ENGINE_DIR/.claude/settings.json" ]; then
     if [ -f "$HOME/.claude/settings.json" ]; then
@@ -281,7 +281,7 @@ else
 
     echo -e "${GREEN}Installation complete.${NC}"
     echo -e "Commands: /prd, /plan, /implement, /adapt-ui, /optimize-agents"
-    echo -e "Skills:   /prd, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore"
+    echo -e "Skills:   /prd, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore, /feedback"
     echo -e "Hooks:    $HOOK_NAMES"
 fi
 echo ""

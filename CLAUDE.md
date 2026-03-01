@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.4.0
+# JPS Dev Engine v3.5.0
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -7,7 +7,7 @@
 
 Este repositorio contiene el **sistema completo de programacion agentica** para trabajar con Claude Code. Incluye:
 
-- **Commands** (`/prd`, `/plan`, `/implement`, `/adapt-ui`, `/optimize-agents`) — flujo completo de desarrollo
+- **Commands** (`/prd`, `/plan`, `/implement`, `/adapt-ui`, `/optimize-agents`, `/feedback`) — flujo completo de desarrollo
 - **Agent Teams** — configuracion para orquestacion multi-agente nativa de Claude Code
 - **Architecture** — patrones por stack (Flutter, React, Python, Google Apps Script)
 - **Infrastructure** — patrones por servicio (Supabase, Neon, Stripe, Firebase, n8n)
@@ -53,6 +53,8 @@ Esto instala Skills en `~/.claude/skills/`, hooks en `~/.claude/hooks/` y comman
   ├── AG-09a Acceptance Tests → evidencia visual ──────────┤
   └── AG-09b Acceptance Validator → ACCEPTED/REJECTED ─────┘
   ↓
+/feedback → Developer testing → FB-NNN + GitHub issue → puede INVALIDAR verdict
+  ↓
 Merge secuencial → pull main → siguiente card
   ↓
 /optimize-agents → Audita y optimiza sistema agentico del proyecto
@@ -66,14 +68,15 @@ jps_dev_engine/
 ├── ENGINE_VERSION.yaml    ← Version del engine
 ├── install.sh             ← Instala skills, hooks, commands
 ├── .claude/
-│   ├── skills/            ← Agent Skills (v3.4)
+│   ├── skills/            ← Agent Skills (v3.5)
 │   │   ├── prd/SKILL.md
 │   │   ├── plan/SKILL.md
 │   │   ├── implement/SKILL.md
 │   │   ├── adapt-ui/SKILL.md
 │   │   ├── optimize-agents/SKILL.md
 │   │   ├── quality-gate/SKILL.md
-│   │   └── explore/SKILL.md
+│   │   ├── explore/SKILL.md
+│   │   └── feedback/SKILL.md
 │   ├── hooks/             ← Hooks (v3.3)
 │   │   ├── mcp-report.sh
 │   │   ├── pre-commit-lint.sh
@@ -88,7 +91,8 @@ jps_dev_engine/
 │   ├── implement.md
 │   ├── adapt-ui.md
 │   ├── optimize-agents.md
-│   └── quality-gate.md
+│   ├── quality-gate.md
+│   └── feedback.md
 ├── agents/                ← Templates de agentes por rol
 │   ├── orchestrator.md
 │   ├── feature-generator.md
@@ -100,7 +104,8 @@ jps_dev_engine/
 │   ├── appscript-specialist.md
 │   ├── quality-auditor.md
 │   ├── acceptance-tester.md
-│   └── acceptance-validator.md
+│   ├── acceptance-validator.md
+│   └── developer-tester.md
 ├── agent-teams/           ← Agent Teams nativo (Claude Code)
 │   ├── README.md
 │   ├── templates/
@@ -141,7 +146,7 @@ jps_dev_engine/
 3. Tras modificar una Skill, ejecutar `./install.sh` para actualizar en global
 4. Versionar cambios en ENGINE_VERSION.yaml
 
-## Available Skills (v3.4)
+## Available Skills (v3.5)
 
 Skills are auto-discoverable. Claude will use them when relevant. You can also invoke them explicitly.
 
@@ -154,8 +159,9 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /optimize-agents | "audit agents", "optimize system", "agent score" | fork:Explore | Read-only | |
 | /quality-gate | "check quality", "run gates", "coverage check" | direct | Lint+Read | |
 | /explore | "analyze codebase", "explore code", "understand architecture" | fork:Explore | Read-only | |
+| /feedback | "report feedback", "found a bug", "this doesn't work" | direct | Full | AG-10 + GitHub issue + invalida acceptance |
 
-## Hooks (v3.4)
+## Hooks (v3.5)
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -173,7 +179,7 @@ Hooks can report to a remote MCP server for centralized state tracking.
 Set `DEV_ENGINE_MCP_URL=https://mcp-dev-engine.jpsdeveloper.com/mcp` in your shell profile.
 Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
 
-## Context Engineering (v3.4)
+## Context Engineering (v3.5)
 
 - Skills with `context: fork` run in isolated subagents — they don't pollute your main session
 - /implement delegates phases to isolated Tasks with a **context budget of ~8,700 tokens per phase**
@@ -192,7 +198,7 @@ Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
 | `analyze-sessions.sh` | `.quality/scripts/analyze-sessions.sh [--last N]` | Telemetry: sessions, context tokens, healing, checkpoints |
 | `context-budget.sh` | `.quality/scripts/context-budget.sh <path> [--detail]` | Estimate token cost of files/directories |
 
-## Agents (v3.4)
+## Agents (v3.5)
 
 | ID | Rol | Archivo | Modelo |
 |----|-----|---------|--------|
@@ -206,15 +212,17 @@ Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
 | AG-08 | Quality Auditor | `agents/quality-auditor.md` | sonnet |
 | AG-09a | Acceptance Tester | `agents/acceptance-tester.md` | sonnet |
 | AG-09b | Acceptance Validator | `agents/acceptance-validator.md` | sonnet |
+| AG-10 | Developer Tester | `agents/developer-tester.md` | sonnet |
 
-## Acceptance Engine (v3.4 — nuevo)
+## Acceptance Engine (v3.5)
 
-Pipeline completo de validación funcional:
+Pipeline completo de validacion funcional:
 
-1. **Definition Quality Gate** (`/prd` Paso 2.5) — Rechaza acceptance criteria vagos/no-testables antes de crear work items. Evalúa especificidad, medibilidad y testabilidad (0-2 cada una).
+1. **Definition Quality Gate** (`/prd` Paso 2.5) — Rechaza acceptance criteria vagos/no-testables antes de crear work items. Evalua especificidad, medibilidad y testabilidad (0-2 cada una).
 2. **AG-09a Acceptance Tester** (`/implement` Paso 7.5) — Genera E2E/integration tests desde AC-XX del PRD con evidencia visual (screenshots, traces, response logs).
-3. **AG-09b Acceptance Validator** (`/implement` Paso 7.7) — Validación independiente: verifica que cada AC-XX está implementado, testeado y evidenciado. Emite ACCEPTED/CONDITIONAL/REJECTED.
-4. **Merge Secuencial** (`/implement` Paso 8.5) — Auto-merge solo si AG-08=GO y AG-09=ACCEPTED. Pull main antes de siguiente card.
+3. **AG-09b Acceptance Validator** (`/implement` Paso 7.7) — Validacion independiente: verifica que cada AC-XX esta implementado, testeado y evidenciado. Emite ACCEPTED/CONDITIONAL/REJECTED.
+4. **AG-10 Developer Feedback** (`/feedback`) — Captura feedback de testing manual. Crea evidencia local (FB-NNN.json) + GitHub issue. Puede INVALIDAR verdict de AG-09b. Severity critical/major bloquea merge.
+5. **Merge Secuencial** (`/implement` Paso 8.5) — Auto-merge solo si AG-08=GO, AG-09=ACCEPTED y no hay feedback bloqueante. Pull main antes de siguiente card.
 
 Frameworks de acceptance testing por stack:
 
@@ -226,5 +234,5 @@ Frameworks de acceptance testing por stack:
 
 ## Engine Version
 
-Current: v3.4.0 "Acceptance Engine"
+Current: v3.5.0 "Feedback Loop"
 Config: ENGINE_VERSION.yaml

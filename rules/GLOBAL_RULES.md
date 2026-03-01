@@ -1,4 +1,4 @@
-# Reglas Globales - JPS Dev Engine v3.4.0
+# Reglas Globales - JPS Dev Engine v3.5.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.
@@ -326,6 +326,17 @@ Antes de crear un Work Item, los acceptance criteria se validan con 3 métricas:
 - **Testabilidad** (0-2): rechaza criterios no verificables como "buena experiencia"
 
 Si algún criterio tiene score 0 → el PRD se rechaza hasta corrección.
+
+### AG-10 Developer Feedback Loop (on-demand, post-implementation)
+
+AG-10 captura observaciones de testing manual del desarrollador:
+- Feedback estructurado con severity, expected vs actual, y linkage a AC-XX
+- Persistencia dual: `.quality/evidence/{feature}/feedback/FB-NNN.json` + GitHub issue
+- Feedback critical/major bloquea auto-merge (Paso 8.5)
+- Feedback puede invalidar un veredicto ACCEPTED previo de AG-09b (AC-XX → INVALIDATED)
+- Resolucion via `/feedback resolve` cambia AC-XX a NEEDS_REVALIDATION
+- AG-09b debe re-validar despues de resolucion de feedback antes de que el merge proceda
+- `feedback-summary.json` agrega estado por feature: total, open, resolved, blocking
 
 ---
 

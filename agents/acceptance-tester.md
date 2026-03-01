@@ -1,6 +1,6 @@
 # AG-09a: Acceptance Tester
 
-> JPS Dev Engine v3.4.0
+> JPS Dev Engine v3.5.0
 > Genera tests E2E/integration desde acceptance criteria del PRD.
 > NO es AG-04 (QA). AG-04 genera unit tests. AG-09a genera acceptance tests con evidencia visual.
 
@@ -242,4 +242,4 @@ pytest tests/acceptance/ -v
 
 ---
 
-*JPS Dev Engine v3.4.0 — Acceptance Tester*
+*JPS Dev Engine v3.5.0 — Acceptance Tester*

@@ -1,6 +1,6 @@
-version: 3.4.0
-codename: "Acceptance Engine"
-release_date: 2026-02-28
+version: 3.5.0
+codename: "Feedback Loop"
+release_date: 2026-03-01
 min_claude_code: "1.0.0"
 
 stacks:
@@ -37,8 +37,25 @@ features:
   - acceptance-quality-gate
   - acceptance-tests
   - sequential-merge
+  - developer-feedback
+  - feedback-github-integration
 
 changelog:
+  3.5.0:
+    date: 2026-03-01
+    changes:
+      - "feat: /feedback skill — captura feedback de testing manual como evidencia estructurada"
+      - "feat: AG-10 Developer Tester — procesa feedback humano, vincula a AC-XX del PRD"
+      - "feat: GitHub issue creation desde feedback via MCP (mcp__github__create_issue)"
+      - "feat: Feedback invalida verdict ACCEPTED — bloquea merge hasta resolucion"
+      - "feat: /feedback resolve — marca feedback resuelto, cierra GitHub issue, AC-XX → NEEDS_REVALIDATION"
+      - "feat: /feedback list — vista resumen de feedback por feature"
+      - "feat: feedback-summary.json con estado agregado y blocking status"
+      - "feat: /implement Paso 8.5 verifica feedback abierto antes de auto-merge"
+      - "feat: PR body incluye seccion Developer Feedback con tabla de tickets"
+      - "docs: orchestrator.md actualizado con AG-10 en flujos de ejecucion"
+      - "docs: CLAUDE.md actualizado con /feedback en skills y AG-10 en agents"
+
   3.4.0:
     date: 2026-02-28
     changes:

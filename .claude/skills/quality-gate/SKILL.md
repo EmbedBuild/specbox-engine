@@ -219,6 +219,38 @@ Cuando se ejecuta con `baseline`:
 
 ---
 
+## Paso 5.5: E2E Gate (opcional, si existe directorio e2e/ o playwright.config.ts)
+
+### Detección
+
+1. **Detectar config E2E:**
+   - Flutter: `ls e2e/playwright.config.ts`
+   - React: `ls playwright.config.ts` o `ls e2e/playwright.config.ts`
+
+2. **Si existe config:**
+   - Flutter: verificar `build/web/index.html` → si no existe SKIP con warning "Flutter web build required"
+   - React: verificar `npm run build` exitoso
+   - Ejecutar: `npx playwright test --reporter=json`
+   - Parse JSON: total, passing, failing
+   - Gate: `failing == 0` y `passing >= baseline.e2e.passing`
+   - Evidence: copiar JSON summary a `.quality/evidence/{feature}/e2e-results.json`
+
+3. **Si no existe config:** SKIP silencioso (E2E no configurado)
+
+### Output
+
+```
+| E2E | no-regression | ✅ PASS | X passing, 0 failing (3 viewports) |
+```
+
+o
+
+```
+| E2E | — | ⏭ SKIP | No playwright config found |
+```
+
+---
+
 ## Checklist
 
 - [ ] Stack detectado correctamente
@@ -226,5 +258,6 @@ Cuando se ejecuta con `baseline`:
 - [ ] Lint ejecutado con zero-tolerance
 - [ ] Tests ejecutados sin regresiones
 - [ ] Coverage comparado con baseline
+- [ ] E2E ejecutados (si config existe)
 - [ ] Evidence generado y guardado
 - [ ] Resultado reportado claramente

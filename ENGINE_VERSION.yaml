@@ -1,6 +1,6 @@
-version: 3.5.0
-codename: "Feedback Loop"
-release_date: 2026-03-01
+version: 3.6.0
+codename: "E2E Sentinel"
+release_date: 2026-03-02
 min_claude_code: "1.0.0"
 
 stacks:
@@ -39,8 +39,23 @@ features:
   - sequential-merge
   - developer-feedback
   - feedback-github-integration
+  - e2e-playwright
+  - e2e-testing-dashboard
 
 changelog:
+  3.6.0:
+    date: 2026-03-02
+    changes:
+      - "feat: E2E testing BaK — Playwright patterns for Flutter CanvasKit and React/Next.js"
+      - "feat: architecture/flutter/e2e-testing.md — complete CanvasKit E2E guide"
+      - "feat: architecture/react/e2e-testing.md — complete Next.js E2E guide"
+      - "feat: architecture/react/testing-strategy.md — dedicated React testing strategy"
+      - "feat: quality-baseline.json.template includes e2e section"
+      - "feat: quality-gate SKILL.md includes optional E2E gate"
+      - "feat: GLOBAL_RULES.md updated with E2E rules per stack (Flutter + React)"
+      - "docs: CanvasKit gotchas documented (accessibility tree, hash routing, keyboard input)"
+      - "docs: Flutter vs React E2E differences table"
+
   3.5.0:
     date: 2026-03-01
     changes:

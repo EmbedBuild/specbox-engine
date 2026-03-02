@@ -1,4 +1,4 @@
-# Getting Started - JPS Dev Engine v3.5.0
+# Getting Started - JPS Dev Engine v3.6.0
 
 ## Requisitos
 

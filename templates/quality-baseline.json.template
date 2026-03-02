@@ -53,6 +53,17 @@
     "policy": "info"
   },
 
+  "e2e": {
+    "total": 0,
+    "passing": 0,
+    "failing": 0,
+    "skipped": 0,
+    "viewports": ["desktop-chrome"],
+    "policy": "no-regression",
+    "reportPath": "doc/test_cases/reports/",
+    "command": "{E2E_COMMAND}"
+  },
+
   "plan": {
     "sprints": [],
     "currentSprint": 0

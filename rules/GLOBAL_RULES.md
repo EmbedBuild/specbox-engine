@@ -1,4 +1,4 @@
-# Reglas Globales - JPS Dev Engine v3.5.0
+# Reglas Globales - JPS Dev Engine v3.6.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.
@@ -71,6 +71,19 @@ dart fix --apply && dart analyze && flutter test --coverage
 dart run build_runner build --delete-conflicting-outputs && dart fix --apply
 ```
 
+### E2E Testing (Flutter Web)
+
+- **Framework:** Playwright contra CanvasKit web build
+- **Selectores:** SIEMPRE `getByRole()` semánticos (CanvasKit no genera DOM)
+- **Input:** `click()` + `keyboard.type({ delay: 10 })`, NUNCA `fill()`
+- **Navegación:** `window.location.hash`, NUNCA `page.goto('/route')` (pierde auth)
+- **Tab:** NUNCA usar Tab entre campos (pierde primer keystroke)
+- **Auth rápida:** Supabase API → localStorage injection → reload
+- **Evidence:** `evidenceStep()` con screenshot PASS/FAIL por paso
+- **Reporte:** HTML report en `doc/test_cases/reports/`
+- **Mínimo:** 30+ tests cubriendo auth, flujo principal, roles, edge cases, responsive
+- **Patrones:** Ver `architecture/flutter/e2e-testing.md`
+
 **Estructura de feature**:
 ```
 lib/presentation/features/{feature}/
@@ -124,6 +137,18 @@ src/
 # Pre-commit:
 npx eslint . --fix && npx tsc --noEmit && npx jest --passWithNoTests
 ```
+
+### E2E Testing (React/Next.js)
+
+- **Framework:** Playwright contra Next.js build
+- **Selectores:** `getByRole()` preferido, `getByTestId()` y CSS selectors también válidos
+- **Input:** `fill()` funciona normalmente (DOM real)
+- **Navegación:** `page.goto('/route')` funciona (no hash routing)
+- **Auth rápida:** Supabase API → cookie injection
+- **Evidence:** `evidenceStep()` con screenshot PASS/FAIL por paso (mismo helper que Flutter)
+- **Reporte:** HTML report en `doc/test_cases/reports/`
+- **Mínimo:** 30+ tests cubriendo auth, flujo principal, roles, edge cases, responsive
+- **Patrones:** Ver `architecture/react/e2e-testing.md`
 
 ### Python (3.12+ / FastAPI)
 
@@ -372,4 +397,4 @@ AG-10 captura observaciones de testing manual del desarrollador:
 
 ---
 
-*Version: 3.4.0 | Ultima actualizacion: 2026-02-28*
+*Version: 3.6.0 | Ultima actualizacion: 2026-03-02*

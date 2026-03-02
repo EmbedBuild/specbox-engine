@@ -453,3 +453,34 @@ Screenshots se guardan en `.quality/evidence/{feature}/acceptance/`:
 | Widget (AG-04) | UI renderiza correctamente | AG-04 | — |
 | Golden (AG-04) | UI no cambió visualmente | AG-04 | Diff images |
 | **Acceptance (AG-09a)** | **Feature cumple el PRD** | **AG-09a** | **Screenshots + report** |
+
+---
+
+## E2E Tests (Playwright Web)
+
+> Tests end-to-end contra Flutter web build con CanvasKit.
+> Validan flujos completos: auth, navegación, interacciones.
+> Generan HTML report con screenshots como evidencia.
+
+| Aspecto | Detalle |
+|---------|---------|
+| Framework | Playwright |
+| Renderer | CanvasKit (accessibility tree) |
+| Selectores | `getByRole()` semánticos, NO DOM queries |
+| Input | `click()` + `keyboard.type()`, NUNCA `fill()` |
+| Navegación | `window.location.hash`, NUNCA `page.goto('/route')` |
+| Auth | Supabase API → localStorage injection |
+| Evidence | Screenshots por paso (PASS/FAIL) en HTML report |
+
+Ver guía completa: `architecture/flutter/e2e-testing.md`
+
+### Cobertura E2E Mínima
+
+| Área | Tests mínimos |
+|------|--------------|
+| Auth (login/register) | 5-7 |
+| Flujo principal | 5-10 |
+| Settings/perfil | 3-5 |
+| Roles especializados | 5-8 |
+| Edge cases | 5-8 |
+| Responsive (3 viewports) | 10+ screenshots |

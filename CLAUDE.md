@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.5.0
+# JPS Dev Engine v3.6.0
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -234,5 +234,5 @@ Frameworks de acceptance testing por stack:
 
 ## Engine Version
 
-Current: v3.5.0 "Feedback Loop"
+Current: v3.6.0 "E2E Sentinel"
 Config: ENGINE_VERSION.yaml

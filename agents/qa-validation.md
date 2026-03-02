@@ -1,6 +1,6 @@
 # AG-04: QA & Validation
 
-> JPS Dev Engine v3.5.0
+> JPS Dev Engine v3.6.0
 > Template generico -- especialista en testing y validacion de calidad.
 
 ## Proposito

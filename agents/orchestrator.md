@@ -1,6 +1,6 @@
 # Orquestador de Agentes (Orchestrator)
 
-> JPS Dev Engine v3.5.0
+> JPS Dev Engine v3.6.0
 > Template generico -- personalizar por proyecto en `.claude/orchestrator.md`
 
 ## Proposito

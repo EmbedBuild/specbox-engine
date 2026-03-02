@@ -95,6 +95,16 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 /optimize-agents → Validar configuracion agentica
 ```
 
+## E2E Testing
+
+| Aspecto | Detalle |
+|---------|---------|
+| Framework | Playwright |
+| Config | `e2e/playwright.config.ts` (Flutter) o `playwright.config.ts` (React) |
+| Run | Ver `architecture/{stack}/e2e-testing.md` |
+| Report | `doc/test_cases/reports/` |
+| Patterns | `jps_dev_engine/architecture/{stack}/e2e-testing.md` |
+
 ## Hooks
 
 ```bash
@@ -104,4 +114,4 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ---
 
 *Generado: {DATE}*
-*Engine: jps_dev_engine v3.5.0*
+*Engine: jps_dev_engine v3.6.0*

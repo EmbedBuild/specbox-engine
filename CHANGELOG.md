@@ -2,6 +2,12 @@
 
 All notable changes to JPS Dev Engine are documented here.
 
+## [3.6.1] - 2026-03-03
+
+### Fixed
+- **mcp-report.sh**: Add `Accept: application/json, text/event-stream` header to Steps 2 (initialized notification) and 3 (tool call). FastMCP requires this header on all requests — was causing silent HTTP 406 rejection, preventing all hook telemetry from reaching the MCP server.
+- **Project name normalization**: All hooks now normalize project names with `tr '_' '-'` to match MCP registry convention (e.g., `tempo_zenon` → `tempo-zenon`). Affected hooks: `on-session-end.sh`, `implement-checkpoint.sh`, `implement-healing.sh`, `post-implement-validate.sh`.
+
 ## [3.3.0] - 2026-02-25
 
 ### Added

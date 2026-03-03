@@ -1,6 +1,6 @@
-version: 3.6.0
+version: 3.6.1
 codename: "E2E Sentinel"
-release_date: 2026-03-02
+release_date: 2026-03-03
 min_claude_code: "1.0.0"
 
 stacks:
@@ -43,6 +43,13 @@ features:
   - e2e-testing-dashboard
 
 changelog:
+  3.6.1:
+    date: 2026-03-03
+    changes:
+      - "fix: mcp-report.sh — add Accept header to Steps 2 and 3 (was causing HTTP 406 on FastMCP)"
+      - "fix: all hooks normalize project name with tr '_' '-' to match MCP registry"
+      - "fix: on-session-end.sh, implement-checkpoint.sh, implement-healing.sh, post-implement-validate.sh"
+
   3.6.0:
     date: 2026-03-02
     changes:

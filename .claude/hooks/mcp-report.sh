@@ -43,6 +43,7 @@ fi
   curl -s --max-time 5 --connect-timeout 2 \
     -X POST "$MCP_URL" \
     -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
     -H "Mcp-Session-Id: $SESSION_ID" \
     -d '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
     > /dev/null 2>&1 || exit 0
@@ -51,6 +52,7 @@ fi
   curl -s --max-time 5 --connect-timeout 2 \
     -X POST "$MCP_URL" \
     -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
     -H "Mcp-Session-Id: $SESSION_ID" \
     -d "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"$TOOL_NAME\",\"arguments\":$TOOL_ARGS}}" \
     > /dev/null 2>&1 || exit 0

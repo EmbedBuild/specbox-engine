@@ -8,7 +8,8 @@ if [ ! -d "$BASELINE_DIR" ]; then
   exit 0
 fi
 
-PROJECT_NAME="$(basename "$(pwd)")"
+# Normalize: replace underscores with hyphens to match MCP registry name
+PROJECT_NAME="$(basename "$(pwd)" | tr '_' '-')"
 BASELINE_FILE="$BASELINE_DIR/${PROJECT_NAME}.json"
 
 if [ ! -f "$BASELINE_FILE" ]; then

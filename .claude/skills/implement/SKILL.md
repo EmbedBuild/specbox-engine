@@ -349,16 +349,15 @@ Image Placeholders (generate with placeholder boxes):
 **OBLIGATORIO**: Antes de generar imagenes, informar al usuario:
 
 ```
-⚠️ VEG Image Generation — Costes estimados
+📷 VEG Image Generation — {N} imagenes
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Este paso genera {N} imagenes via MCP de pago.
+Provider configurado: {primary} ({fallback} como fallback)
 
-Coste estimado por provider:
-  • Freepik (Mystic): Pay-per-use (segun plan contratado)
-  • OpenAI GPT-Image-1: ~$0.02-0.19 por imagen → total ~${min}-${max}
-  • Gemini Imagen 4: ~$0.02-0.06 por imagen → total ~${min}-${max}
-
-Stock search (Freepik): Incluido en el plan, sin coste adicional por busqueda.
+Coste estimado:
+  • Canva (Pro/Premium): €0 adicional (incluido en suscripcion)
+  • Freepik (Mystic): Segun plan contratado
+  • OpenAI GPT-Image-1: ~$0.02-0.19/imagen → total ~${min}-${max}
+  • Gemini Imagen 4: ~$0.02-0.06/imagen → total ~${min}-${max}
 
 ¿Continuar con la generacion de imagenes? (s/n/skip)
   s = generar imagenes con MCP
@@ -366,6 +365,7 @@ Stock search (Freepik): Incluido en el plan, sin coste adicional por busqueda.
   skip = documentar prompts para generacion manual posterior
 ```
 
+Si el provider es `canva` y el usuario tiene suscripcion activa, el coste es €0 — mencionar explicitamente.
 Si el usuario elige `skip` o `n` → saltar a Paso 3.5.4 (registrar prompts pendientes).
 
 ### 3.5.1 Verificar MCP de imagenes (Health Check)
@@ -374,9 +374,11 @@ Si el usuario elige `skip` o `n` → saltar a Paso 3.5.4 (registrar prompts pend
 
 1. Leer `veg.image_provider` de `.claude/settings.local.json`
 2. Determinar el provider a usar:
+   - Si `primary: "canva"` → intentar Canva MCP
    - Si `primary: "freepik"` → intentar Freepik MCP
    - Si `primary: "lansespirit"` → intentar lansespirit MCP
 3. **Health check obligatorio** — intentar una operacion trivial:
+   - Canva: llamar `mcp__canva__search-designs` con query trivial (ej: "test")
    - Freepik: llamar `mcp__freepik__check_status` o `mcp__freepik__search_resources` con query trivial
    - lansespirit: llamar `mcp__image-gen__generate_image` con un prompt de test minimo
    - Si la llamada retorna "tool not found" o error de conexion → MCP no instalado
@@ -388,11 +390,14 @@ Si el usuario elige `skip` o `n` → saltar a Paso 3.5.4 (registrar prompts pend
    │   ├── Informar: "El MCP '{provider}' no esta configurado en este entorno.
    │   │   Para configurarlo, anadir a .vscode/mcp.json o .claude/settings.json:"
    │   │   {mostrar bloque JSON de configuracion del provider}
-   │   │   "Necesitas: {API_KEY requerida} con saldo activo."
+   │   │
+   │   │   Canva: Solo necesita suscripcion Pro/Premium. Auth via OAuth (browser popup).
+   │   │   Freepik: Necesita FREEPIK_API_KEY con plan activo.
+   │   │   lansespirit: Necesita OPENAI_API_KEY y/o GOOGLE_API_KEY con billing activo.
    │   └── Saltar a Paso 3.5.4 (registrar prompts pendientes)
-   ├── NO (auth error / 401 / 403) → API key invalida o sin saldo
-   │   ├── Informar: "El MCP responde pero la autenticacion fallo.
-   │   │   Verificar que {API_KEY} es valida y tiene creditos disponibles."
+   ├── NO (auth error / 401 / 403) → Sesion expirada o suscripcion inactiva
+   │   ├── Canva: "La sesion OAuth de Canva expiro. Reconectar en el navegador."
+   │   ├── Otros: "Verificar que la API key es valida y tiene creditos."
    │   └── Saltar a Paso 3.5.4
    └── NO (timeout / 500) → intentar fallback
        ├── Si hay fallback configurado → repetir health check con fallback
@@ -401,19 +406,49 @@ Si el usuario elige `skip` o `n` → saltar a Paso 3.5.4 (registrar prompts pend
 
 ### 3.5.2 Generar imagenes
 
+El flujo depende del provider configurado.
+
+#### Si provider = "canva" (RECOMENDADO — €0 con suscripcion)
+
 Para cada `[IMAGE: {id}]` identificado en los disenos Stitch:
 
 1. Leer el prompt base del VEG para ese tipo de seccion (hero, features, etc.)
 2. Contextualizar con el contenido especifico de la pantalla
-3. **Si stockSearchFirst = true** (default):
-   - Buscar primero en stock con el MCP (ej: Freepik `search_resources`)
-   - Si hay match profesional → descargar y usar
-   - Si no hay match → generar con IA
-4. **Generar** con el MCP configurado:
-   - Freepik: `generate_image` (Mystic AI)
-   - Fallback: lansespirit `generate_image` (OpenAI/Gemini Imagen 4)
-5. Guardar en: `doc/veg/{feature}/assets/{image_id}.{ext}`
-6. Registrar en: `doc/veg/{feature}/image_prompts.md`
+3. Construir prompt para Canva `generate-design`:
+   ```
+   Create a {width}x{height} design: {prompt del VEG}.
+   Style: {mood from Pilar 1}. Palette: {palette}. Type: {photography/illustration}.
+   This is a standalone visual asset, not a presentation.
+   ```
+4. Llamar `mcp__canva__generate-design` con el prompt
+5. Llamar `mcp__canva__export-design` para exportar como PNG
+6. Guardar en: `doc/veg/{feature}/assets/{image_id}.png`
+7. Registrar en: `doc/veg/{feature}/image_prompts.md`
+
+**Dimensiones por tipo de asset:**
+| Tipo | Dimensiones | Uso |
+|------|------------|-----|
+| Hero | 1920x1080 | Banner principal, above the fold |
+| Feature illustration | 800x800 | Secciones de features |
+| Background | 1920x1080 | Fondos de seccion |
+| Icon/badge | 512x512 | Iconos decorativos |
+| Social proof | 1200x630 | Testimonios, logos |
+
+#### Si provider = "freepik"
+
+Para cada `[IMAGE: {id}]`:
+1. **Si stockSearchFirst = true**: buscar en stock con `search_resources`
+   - Si hay match profesional → `download_resource` → usar
+   - Si no → generar con `generate_image` (Mystic AI)
+2. Guardar y registrar igual que arriba
+
+#### Si provider = "lansespirit" (fallback de pago)
+
+Para cada `[IMAGE: {id}]`:
+1. Generar con `generate_image` (OpenAI GPT-Image-1 o Gemini Imagen 4)
+   - Imagenes con texto legible → preferir OpenAI
+   - Fotorrealismo puro → preferir Gemini Imagen 4 (mas barato)
+2. Guardar y registrar igual que arriba
 
 ### 3.5.3 Reglas
 
@@ -422,6 +457,7 @@ Para cada `[IMAGE: {id}]` identificado en los disenos Stitch:
 - Si el MCP falla mid-generation: registrar prompt + continuar (imagen pendiente)
 - Retry: 1 intento. Si falla 2 veces → skip con log
 - Budget de contexto: Los prompts de imagen NO se incluyen en el contexto de los sub-agentes. Solo el orquestador ejecuta este paso.
+- Canva genera diseños con layers — el export como PNG aplana automaticamente. El resultado es una imagen usable directamente.
 
 ### 3.5.4 Registrar imagenes pendientes (fallback manual)
 
@@ -433,7 +469,7 @@ Si el MCP no estaba disponible, fallo, o el usuario eligio `skip`:
 # Imagenes Pendientes — {feature}
 
 > Generadas por VEG pero no producidas por MCP.
-> Usar estos prompts para generar manualmente en Freepik, Midjourney, DALL-E, etc.
+> Usar estos prompts para generar manualmente en Canva, Midjourney, DALL-E, Freepik, etc.
 
 | ID | Tipo | Prompt | Aspect Ratio | Prioridad |
 |----|------|--------|-------------|-----------|
@@ -450,6 +486,7 @@ Si el MCP no estaba disponible, fallo, o el usuario eligio `skip`:
 
 | Provider | Coste/imagen | Total ({N} imagenes) |
 |----------|-------------|---------------------|
+| Canva (Pro/Premium) | €0 | €0 |
 | Freepik Mystic | Segun plan | Segun plan |
 | OpenAI GPT-Image-1 | $0.02-0.19 | ${min}-${max} |
 | Gemini Imagen 4 | $0.02-0.06 | ${min}-${max} |
@@ -1319,7 +1356,7 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 - [ ] Stack detectado
 - [ ] VEGs cargados del plan (si aplica)
 - [ ] Disenos Stitch generados con directivas VEG (si aplica)
-- [ ] Usuario informado de costes de imagenes antes de generar (Paso 3.5.0)
+- [ ] Usuario informado de costes antes de generar (Paso 3.5.0 — €0 con Canva)
 - [ ] MCP health check ejecutado antes de generar imagenes (Paso 3.5.1)
 - [ ] Imagenes generadas con MCP o PENDING_IMAGES.md creado (Paso 3.5.4)
 - [ ] Motion dependencies instaladas antes de design-to-code (Paso 4.0)

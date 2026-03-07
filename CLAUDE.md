@@ -264,7 +264,7 @@ Sistema que genera decisiones visuales intencionales (imagenes, animaciones, dir
 
 | Pilar | Que genera | Herramienta |
 |-------|-----------|-------------|
-| **Pilar 1: Imagenes** | Prompts + generacion via MCP | Freepik MCP (primary) + lansespirit (fallback) |
+| **Pilar 1: Imagenes** | Prompts + generacion via MCP | Canva MCP (primary, €0) + lansespirit (fallback) |
 | **Pilar 2: Motion** | Catalogo de animaciones por nivel | `flutter_animate` (Flutter) / `motion` (React) |
 | **Pilar 3: Diseno** | Directivas para Stitch | Density, whitespace, hierarchy, CTA, typography |
 
@@ -298,15 +298,14 @@ Sistema que genera decisiones visuales intencionales (imagenes, animaciones, dir
 
 ### Costes de Image Generation
 
-Las APIs de generacion de imagenes son de **pago**:
+| Provider | Coste/imagen | Auth |
+|----------|-------------|------|
+| **Canva (primary)** | **€0** con Pro/Premium | OAuth (browser) |
+| Freepik (alternativo) | Segun plan contratado | `FREEPIK_API_KEY` |
+| OpenAI GPT-Image-1 (fallback) | $0.02-0.19 | `OPENAI_API_KEY` |
+| Gemini Imagen 4 (fallback) | $0.02-0.06 | `GOOGLE_API_KEY` |
 
-| Provider | Coste/imagen | API Key requerida |
-|----------|-------------|-------------------|
-| Freepik (Mystic) | Segun plan contratado | `FREEPIK_API_KEY` |
-| OpenAI GPT-Image-1 | $0.02-0.19 | `OPENAI_API_KEY` |
-| Gemini Imagen 4 | $0.02-0.06 | `GOOGLE_API_KEY` |
-
-Stock search (Freepik) esta incluido en el plan sin coste adicional por busqueda.
+Canva como primary cubre el 90%+ de las imagenes sin coste adicional. Fallback de pago solo para fotorrealismo hiperrealista.
 Configuracion MCP de providers en `templates/settings.json.template` → seccion `veg.mcpServers`.
 
 ### Archivos VEG

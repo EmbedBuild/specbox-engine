@@ -8,15 +8,17 @@
 
 ## 1. Provider de imagenes
 
-| Rol | Provider | MCP | Transporte |
-|-----|----------|-----|------------|
-| **Primario** | Freepik (Mystic + Stock) | freepik-company/freepik-mcp | Remote HTTP |
-| **Fallback** | OpenAI GPT-Image-1 + Gemini Imagen 4 | lansespirit/image-gen-mcp | stdio/SSE/HTTP |
-| **Prototipado** | Hugging Face | huggingface.co/mcp | Remote HTTP |
+| Rol | Provider | MCP | Transporte | Coste |
+|-----|----------|-----|------------|-------|
+| **Primario** | Canva (Design Model + Magic Media) | MCP oficial Canva | Remote HTTP | **€0** (con Pro/Premium) |
+| **Fallback** | OpenAI GPT-Image-1 + Gemini Imagen 4 | lansespirit/image-gen-mcp | stdio/SSE/HTTP | $0.02-0.19/img |
+| **Alternativo** | Freepik (Mystic + Stock) | freepik-company/freepik-mcp | Remote HTTP | Plan de pago |
 
-**Estrategia:** Stock-first (buscar antes de generar) + generacion AI cuando no hay match + fallback multi-provider.
+**Estrategia:** Canva-first (generate-design → export PNG) + fallback a lansespirit para fotorrealismo hiperrealista o si Canva no esta disponible.
 
-**Abstraccion del Engine:** El skill `/implement` NO referencia providers concretos. Usa un concepto abstracto de "MCP de imagenes configurado" que se resuelve en runtime segun la config del proyecto en `.claude/settings.local.json`.
+**Cambio vs decision original (2026-03-07):** Se reemplazo Freepik como primary por Canva MCP. Razon: el usuario tiene suscripcion Canva Premium activa — €0 adicional vs Freepik que requiere plan de pago independiente (€5-143/mes). Freepik se mantiene como alternativo para proyectos que lo prefieran.
+
+**Abstraccion del Engine:** El skill `/implement` soporta multiples providers via config. El provider se resuelve en runtime segun `veg.image_provider.primary` en `.claude/settings.local.json`.
 
 ---
 
@@ -86,21 +88,19 @@ React (`package.json`):
 
 ## 4. Costes de Image Generation
 
-**IMPORTANTE: Las APIs de generacion de imagenes son de pago.**
-
-| Provider | Coste/imagen | API Key | Como obtener |
-|----------|-------------|---------|-------------|
-| Freepik (Mystic) | Segun plan contratado | `FREEPIK_API_KEY` | https://www.freepik.com/api — Plan de pago obligatorio para generacion |
+| Provider | Coste/imagen | Auth | Como obtener |
+|----------|-------------|------|-------------|
+| **Canva (PRIMARY)** | **€0** (con suscripcion) | OAuth (browser) | https://www.canva.com — Pro €12/mes o Premium (ya contratado) |
+| Freepik (alternativo) | Segun plan | `FREEPIK_API_KEY` | https://www.freepik.com/api — Essential €5/mes a Pro €143/mes |
 | OpenAI GPT-Image-1 | $0.02-0.19 | `OPENAI_API_KEY` | https://platform.openai.com — Billing activo requerido |
 | Gemini Imagen 4 | $0.02-0.06 | `GOOGLE_API_KEY` | https://aistudio.google.com — Billing activo requerido |
 
-**Estimacion por proyecto tipico:**
-- 5 pantallas × 3 imagenes = 15 imagenes
-- Con OpenAI: $0.30-$2.85 por feature
-- Con Gemini: $0.30-$0.90 por feature
-- Con Freepik stock (sin generacion): $0 (incluido en plan)
+**Estimacion por proyecto tipico (5 pantallas × 3 imagenes = 15 imagenes):**
+- Con Canva (primary): **€0** — incluido en suscripcion
+- Con OpenAI (fallback): $0.30-$2.85
+- Con Gemini (fallback): $0.30-$0.90
 
-**Stock search no tiene coste adicional** — Freepik `search_resources` esta incluido.
+**Ventaja clave:** Al usar Canva como primary, el 90%+ de las imagenes se generan sin coste adicional. Solo se recurre al fallback de pago para fotorrealismo hiperrealista que Canva no logra.
 
 ## 5. Riesgos identificados y mitigaciones
 

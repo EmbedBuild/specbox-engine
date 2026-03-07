@@ -55,20 +55,27 @@
   "veg": {
     "enabled": true,
     "image_provider": {
-      "primary": "freepik",
+      "primary": "canva",
       "fallback": "lansespirit",
       "maxImagesPerScreen": 5,
       "defaultAspectRatio": "16:9",
-      "stockSearchFirst": true,
-      "_setup_instructions": "See veg.mcpServers below for required MCP config. Each provider needs an active API key with credits.",
-      "_cost_warning": "Image generation costs money: Freepik (plan-based), OpenAI ($0.02-0.19/img), Gemini ($0.02-0.06/img)"
+      "stockSearchFirst": false,
+      "_setup_instructions": "Primary: Canva MCP (free with Canva Pro/Premium). Fallback: lansespirit (paid per image). See veg.mcpServers below.",
+      "_cost_warning": "Canva: €0 with Pro/Premium subscription. Fallback: OpenAI ($0.02-0.19/img), Gemini ($0.02-0.06/img)"
     },
     "mcpServers": {
       "_comment": "Copy the provider(s) you want into .vscode/mcp.json or claude_desktop_config.json",
+      "canva": {
+        "command": "npx",
+        "args": ["-y", "mcp-remote@latest", "https://mcp.canva.com/mcp"],
+        "_requires": "Canva Pro or Premium subscription. Auth via OAuth (browser popup). No API key needed.",
+        "_cost": "€0 additional — included in Canva subscription"
+      },
       "freepik": {
         "command": "npx",
         "args": ["-y", "mcp-remote", "https://api.freepik.com/mcp", "--header", "x-freepik-api-key:${FREEPIK_API_KEY}"],
-        "_requires": "FREEPIK_API_KEY — Get at https://www.freepik.com/api — Paid plan required for generation"
+        "_requires": "FREEPIK_API_KEY — Get at https://www.freepik.com/api — Paid plan required for generation",
+        "_cost": "Pay-per-use (Essential €5/mo, Premium €10/mo, Premium+ €22.50/mo)"
       },
       "image-gen": {
         "command": "python",
@@ -77,7 +84,8 @@
           "OPENAI_API_KEY": "${OPENAI_API_KEY}",
           "GOOGLE_API_KEY": "${GOOGLE_API_KEY}"
         },
-        "_requires": "pip install image-gen-mcp — Needs OPENAI_API_KEY and/or GOOGLE_API_KEY with active billing"
+        "_requires": "pip install image-gen-mcp — Needs OPENAI_API_KEY and/or GOOGLE_API_KEY with active billing",
+        "_cost": "OpenAI: $0.02-0.19/img, Gemini: $0.02-0.06/img"
       }
     },
     "motion": {

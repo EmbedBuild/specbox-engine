@@ -112,9 +112,11 @@ Leer el archivo del plan completo y extraer:
 | Agentes involucrados | Referencias a AG-XX en las fases | No |
 | Comandos finales | Seccion `## Comandos Finales` | No |
 | Diseños Stitch | Referencias a `doc/design/` o pantallas Stitch | No |
+| VEGs | `doc/veg/{feature}/*.md` — artefactos Visual Experience Generation | No |
+| Modo VEG | Seccion "Visual Experience Generation" del plan | No |
 | Trello US/UC | Origen US-XX o UC-XXX + board_id | No |
 
-### 0.3 Detectar si requiere diseño
+### 0.3 Detectar si requiere diseño y VEG
 
 **Regla de decision:**
 
@@ -127,6 +129,13 @@ Leer el archivo del plan completo y extraer:
 │   └── Mismo flujo: verificar existencia → generar si faltan
 └── NO: No hay referencias a diseño
     └── Saltar directamente a Paso 5 (implementacion)
+
+¿El plan tiene seccion "Visual Experience Generation"?
+├── SI: Cargar VEGs de doc/veg/{feature}/*.md
+│   ├── Leer modo VEG (1/2/3) y archivos generados
+│   ├── Activar pasos VEG: enriquecer Stitch (3), generar imagenes (3.5), inyectar motion (4)
+│   └── Preparar resumen VEG compacto (~400 tokens) para sub-agentes
+└── NO: Pipeline legacy (sin cambios)
 ```
 
 ### 0.4 Detectar stack tecnologico
@@ -306,6 +315,22 @@ mcp__stitch__generate_screen_from_text(
 5. Guardar en `doc/design/{feature}/{screen_name}.html`
 6. Registrar prompts en `doc/design/{feature}/{feature}_stitch_prompts.md`
 
+**Si hay VEG activo**: Enriquecer cada prompt Stitch con las directivas del Pilar 3 (Diseno):
+
+```
+Visual Direction (from VEG - {target_name}):
+- Density: {density}, Whitespace: {whitespace}
+- Visual hierarchy: {style}, CTA prominence: {prominence}
+- Typography: headings {weight}, body {spacing}, hero {scale}
+- Section separation: {separation_style}
+- Mood: {mood} — this should FEEL {JTBD emocional}
+- Data presentation: {data_style}
+
+Image Placeholders (generate with placeholder boxes):
+- Hero: [{type}] {description from VEG Pilar 1}
+- (mark each with [IMAGE: {id}] for later replacement)
+```
+
 **Reglas:**
 - Una pantalla a la vez (la API tarda minutos)
 - NO preguntar entre pantallas (modo autopilot) — generar todas las que falten
@@ -314,7 +339,45 @@ mcp__stitch__generate_screen_from_text(
 
 ---
 
-## Paso 4: Design-to-Code (si hay diseños)
+## Paso 3.5: Generar Imagenes con MCP (si hay VEG activo)
+
+> Prerequisito: VEG activo con prompts de imagen definidos (Pilar 1).
+> Si el MCP de imagenes no esta configurado → registrar prompts pendientes y continuar.
+
+### 3.5.1 Verificar MCP de imagenes
+
+Leer `veg.image_provider` de `.claude/settings.local.json`:
+- Si `primary: "freepik"` → usar Freepik MCP (stock search + generacion)
+- Si `primary` no disponible → intentar `fallback`
+- Si ningun MCP disponible → WARNING, documentar prompts y continuar
+
+### 3.5.2 Generar imagenes
+
+Para cada `[IMAGE: {id}]` identificado en los disenos Stitch:
+
+1. Leer el prompt base del VEG para ese tipo de seccion (hero, features, etc.)
+2. Contextualizar con el contenido especifico de la pantalla
+3. **Si stockSearchFirst = true** (default):
+   - Buscar primero en stock con el MCP (ej: Freepik `search_resources`)
+   - Si hay match profesional → descargar y usar
+   - Si no hay match → generar con IA
+4. **Generar** con el MCP configurado:
+   - Freepik: `generate_image` (Mystic AI)
+   - Fallback: lansespirit `generate_image` (OpenAI/Gemini Imagen 4)
+5. Guardar en: `doc/veg/{feature}/assets/{image_id}.{ext}`
+6. Registrar en: `doc/veg/{feature}/image_prompts.md`
+
+### 3.5.3 Reglas
+
+- Maximo de imagenes por pantalla: `veg.image_provider.maxImagesPerScreen` (default 5)
+- Prioridad: hero > feature illustrations > social proof > backgrounds > decorativas
+- Si el MCP falla: registrar prompt + continuar (imagen pendiente manual)
+- Retry: 1 intento. Si falla 2 veces → skip con log
+- Budget de contexto: Los prompts de imagen NO se incluyen en el contexto de los sub-agentes. Solo el orquestador ejecuta este paso.
+
+---
+
+## Paso 4: Design-to-Code (si hay disenos)
 
 > Convertir los HTML de Stitch a codigo del stack del proyecto.
 
@@ -326,7 +389,26 @@ ls doc/design/{feature}/*.html
 
 ### 4.2 Conversion por stack
 
-Para cada HTML de diseño:
+**Si hay VEG activo**, incluir el Motion Catalog (Pilar 2) en el contexto del sub-agente AG-02:
+
+```
+VEG Motion Catalog:
+  page_enter: {animation} {duration}ms {easing}
+  scroll_reveal: {animation} stagger {delay}ms
+  hover_buttons: {animation} {duration}ms
+  loading: {style}
+  transitions_pages: {type} {duration}ms
+  feedback_success: {animation}
+  feedback_error: {animation}
+  motion_level: {subtle / moderate / expressive}
+
+Motion level rules:
+  - subtle: ONLY page_enter + loading. Skip scroll, hover, feedback.
+  - moderate: All except feedback animations.
+  - expressive: Full catalog.
+```
+
+Para cada HTML de diseno:
 
 #### Flutter
 1. Leer HTML y extraer: layout, componentes, colores, espaciado, tipografia
@@ -337,6 +419,11 @@ Para cada HTML de diseño:
    - `AppColors` y `AppSpacing` (nunca hardcodear)
    - Responsividad: mobile/tablet/desktop layouts
    - Clases separadas (NUNCA metodos `_buildX()`)
+4. **Si hay VEG Motion**: Aplicar animaciones usando `flutter_animate`:
+   - Importar `package:flutter_animate/flutter_animate.dart`
+   - Usar `.animate()` chainable para cada tipo de animacion del catalogo
+   - Loading states: usar el estilo VEG (skeleton = shimmer + Container, shimmer = `.shimmer()`)
+   - NO anadir animaciones que no esten en el catalogo VEG
 
 #### React
 1. Leer HTML y extraer: estructura JSX, clases CSS, componentes
@@ -347,6 +434,12 @@ Para cada HTML de diseño:
    - Server Components por defecto, `'use client'` solo si necesita interactividad
    - Tailwind CSS para estilos
    - TypeScript obligatorio
+4. **Si hay VEG Motion**: Aplicar animaciones usando `motion` (ex Framer Motion):
+   - Importar `{ motion, AnimatePresence }` de `"motion/react"`
+   - Definir variants como constantes reutilizables
+   - `whileInView` para scroll_reveal, `whileHover` para hover effects
+   - `AnimatePresence` para page transitions y exit animations
+   - NO anadir animaciones que no esten en el catalogo VEG
 
 #### Google Apps Script
 1. Leer HTML y extraer: estructura, estilos, interacciones
@@ -564,6 +657,19 @@ Segun el stack:
 | React | Actualizar App Router, registrar stores |
 | Python | Registrar routers en main.py, actualizar DI |
 | Apps Script | Exportar funciones en index.ts, actualizar appsscript.json scopes |
+
+### 6.1b Registrar assets VEG (si hay imagenes generadas)
+
+Si el Paso 3.5 genero imagenes en `doc/veg/{feature}/assets/`:
+
+| Stack | Accion |
+|-------|--------|
+| Flutter | Copiar a `assets/images/veg/` + registrar en `pubspec.yaml` assets |
+| React | Copiar a `public/images/veg/` o `src/assets/veg/` + importar en componentes |
+| Python | Copiar a `static/images/veg/` (si tiene frontend) |
+| Apps Script | Subir a Google Drive o embeber como base64 en HTML |
+
+Referenciar las imagenes en los widgets/componentes generados en Paso 4, reemplazando los placeholders `[IMAGE: {id}]` con las rutas reales.
 
 ### 6.2 Build final
 
@@ -1098,8 +1204,11 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 - [ ] Plan leido y parseado correctamente
 - [ ] Rama creada desde main
 - [ ] Stack detectado
-- [ ] Diseños Stitch generados (si aplica)
-- [ ] Design-to-code ejecutado (si aplica)
+- [ ] VEGs cargados del plan (si aplica)
+- [ ] Disenos Stitch generados con directivas VEG (si aplica)
+- [ ] Imagenes generadas con MCP o prompts documentados (Paso 3.5, si VEG activo)
+- [ ] Design-to-code ejecutado con Motion Catalog (si VEG activo)
+- [ ] Assets VEG registrados en el proyecto (Paso 6.1b, si aplica)
 - [ ] Todas las fases del plan implementadas
 - [ ] Commits parciales por fase
 - [ ] Integracion completada (DI, routing, config)

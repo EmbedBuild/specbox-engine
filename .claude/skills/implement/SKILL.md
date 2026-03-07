@@ -344,12 +344,60 @@ Image Placeholders (generate with placeholder boxes):
 > Prerequisito: VEG activo con prompts de imagen definidos (Pilar 1).
 > Si el MCP de imagenes no esta configurado → registrar prompts pendientes y continuar.
 
-### 3.5.1 Verificar MCP de imagenes
+### 3.5.0 Advertencia de costes
 
-Leer `veg.image_provider` de `.claude/settings.local.json`:
-- Si `primary: "freepik"` → usar Freepik MCP (stock search + generacion)
-- Si `primary` no disponible → intentar `fallback`
-- Si ningun MCP disponible → WARNING, documentar prompts y continuar
+**OBLIGATORIO**: Antes de generar imagenes, informar al usuario:
+
+```
+⚠️ VEG Image Generation — Costes estimados
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Este paso genera {N} imagenes via MCP de pago.
+
+Coste estimado por provider:
+  • Freepik (Mystic): Pay-per-use (segun plan contratado)
+  • OpenAI GPT-Image-1: ~$0.02-0.19 por imagen → total ~${min}-${max}
+  • Gemini Imagen 4: ~$0.02-0.06 por imagen → total ~${min}-${max}
+
+Stock search (Freepik): Incluido en el plan, sin coste adicional por busqueda.
+
+¿Continuar con la generacion de imagenes? (s/n/skip)
+  s = generar imagenes con MCP
+  n = cancelar VEG imagenes completamente
+  skip = documentar prompts para generacion manual posterior
+```
+
+Si el usuario elige `skip` o `n` → saltar a Paso 3.5.4 (registrar prompts pendientes).
+
+### 3.5.1 Verificar MCP de imagenes (Health Check)
+
+**No basta con leer la config — hay que probar que el MCP responde.**
+
+1. Leer `veg.image_provider` de `.claude/settings.local.json`
+2. Determinar el provider a usar:
+   - Si `primary: "freepik"` → intentar Freepik MCP
+   - Si `primary: "lansespirit"` → intentar lansespirit MCP
+3. **Health check obligatorio** — intentar una operacion trivial:
+   - Freepik: llamar `mcp__freepik__check_status` o `mcp__freepik__search_resources` con query trivial
+   - lansespirit: llamar `mcp__image-gen__generate_image` con un prompt de test minimo
+   - Si la llamada retorna "tool not found" o error de conexion → MCP no instalado
+4. **Decision:**
+   ```
+   Health check OK?
+   ├── SI → Continuar con generacion
+   ├── NO (tool not found) → MCP no instalado
+   │   ├── Informar: "El MCP '{provider}' no esta configurado en este entorno.
+   │   │   Para configurarlo, anadir a .vscode/mcp.json o .claude/settings.json:"
+   │   │   {mostrar bloque JSON de configuracion del provider}
+   │   │   "Necesitas: {API_KEY requerida} con saldo activo."
+   │   └── Saltar a Paso 3.5.4 (registrar prompts pendientes)
+   ├── NO (auth error / 401 / 403) → API key invalida o sin saldo
+   │   ├── Informar: "El MCP responde pero la autenticacion fallo.
+   │   │   Verificar que {API_KEY} es valida y tiene creditos disponibles."
+   │   └── Saltar a Paso 3.5.4
+   └── NO (timeout / 500) → intentar fallback
+       ├── Si hay fallback configurado → repetir health check con fallback
+       └── Si no hay fallback → Paso 3.5.4
+   ```
 
 ### 3.5.2 Generar imagenes
 
@@ -371,15 +419,72 @@ Para cada `[IMAGE: {id}]` identificado en los disenos Stitch:
 
 - Maximo de imagenes por pantalla: `veg.image_provider.maxImagesPerScreen` (default 5)
 - Prioridad: hero > feature illustrations > social proof > backgrounds > decorativas
-- Si el MCP falla: registrar prompt + continuar (imagen pendiente manual)
+- Si el MCP falla mid-generation: registrar prompt + continuar (imagen pendiente)
 - Retry: 1 intento. Si falla 2 veces → skip con log
 - Budget de contexto: Los prompts de imagen NO se incluyen en el contexto de los sub-agentes. Solo el orquestador ejecuta este paso.
+
+### 3.5.4 Registrar imagenes pendientes (fallback manual)
+
+Si el MCP no estaba disponible, fallo, o el usuario eligio `skip`:
+
+1. Crear `doc/veg/{feature}/PENDING_IMAGES.md`:
+
+```markdown
+# Imagenes Pendientes — {feature}
+
+> Generadas por VEG pero no producidas por MCP.
+> Usar estos prompts para generar manualmente en Freepik, Midjourney, DALL-E, etc.
+
+| ID | Tipo | Prompt | Aspect Ratio | Prioridad |
+|----|------|--------|-------------|-----------|
+| hero | photography | "{prompt completo}" | 16:9 | Alta |
+| feature-1 | illustration | "{prompt completo}" | 1:1 | Media |
+
+## Como completar
+
+1. Generar cada imagen con el provider de tu preferencia
+2. Guardar en `doc/veg/{feature}/assets/{id}.{ext}`
+3. Ejecutar `/implement` de nuevo — detectara las imagenes y las integrara (Paso 6.1b)
+
+## Coste estimado si se usa API
+
+| Provider | Coste/imagen | Total ({N} imagenes) |
+|----------|-------------|---------------------|
+| Freepik Mystic | Segun plan | Segun plan |
+| OpenAI GPT-Image-1 | $0.02-0.19 | ${min}-${max} |
+| Gemini Imagen 4 | $0.02-0.06 | ${min}-${max} |
+```
+
+2. Mantener placeholders `[IMAGE: {id}]` en los diseños — el Paso 6.1b los reemplazara cuando las imagenes existan.
+3. Log en consola: `⚠️ {N} imagenes pendientes. Ver doc/veg/{feature}/PENDING_IMAGES.md`
 
 ---
 
 ## Paso 4: Design-to-Code (si hay disenos)
 
 > Convertir los HTML de Stitch a codigo del stack del proyecto.
+
+### 4.0 Instalar dependencias VEG Motion (si hay VEG activo)
+
+**OBLIGATORIO antes de escribir codigo con animaciones.** Verificar e instalar:
+
+```
+¿El VEG tiene motion habilitado (motion_level != none)?
+├── SI → Verificar e instalar dependencias:
+│   ├── Flutter:
+│   │   ├── Leer pubspec.yaml → ¿tiene flutter_animate?
+│   │   ├── NO → ejecutar: flutter pub add flutter_animate
+│   │   └── SI → verificar version compatible (^4.5.2)
+│   ├── React:
+│   │   ├── Leer package.json → ¿tiene motion?
+│   │   ├── NO → ejecutar: npm install motion
+│   │   └── SI → verificar version compatible (^12.35.0)
+│   └── Python / Apps Script → N/A (sin motion library)
+└── NO → Saltar (no hay animaciones que implementar)
+```
+
+Si la instalacion falla → WARNING, continuar design-to-code SIN animaciones.
+Registrar en log: `⚠️ No se pudo instalar {package}. Design-to-code sin VEG Motion.`
 
 ### 4.1 Listar HTMLs disponibles
 
@@ -424,6 +529,10 @@ Para cada HTML de diseno:
    - Usar `.animate()` chainable para cada tipo de animacion del catalogo
    - Loading states: usar el estilo VEG (skeleton = shimmer + Container, shimmer = `.shimmer()`)
    - NO anadir animaciones que no esten en el catalogo VEG
+   - **Mobile hover enforcement**: Si el proyecto es mobile-first o el VEG target es mobile:
+     - NO usar MouseRegion para hover effects
+     - Reemplazar hover → GestureDetector con onTapDown/onTapUp para feedback tactil
+     - Si se necesita hover en desktop: usar LayoutBuilder para detectar plataforma
 
 #### React
 1. Leer HTML y extraer: estructura JSX, clases CSS, componentes
@@ -440,6 +549,10 @@ Para cada HTML de diseno:
    - `whileInView` para scroll_reveal, `whileHover` para hover effects
    - `AnimatePresence` para page transitions y exit animations
    - NO anadir animaciones que no esten en el catalogo VEG
+   - **Mobile hover enforcement**: Si el proyecto es mobile-first o el VEG target es mobile:
+     - Reemplazar `whileHover` → `whileTap` en todos los componentes interactivos
+     - Si se necesita hover en desktop: usar media query `@media (hover: hover)` para aplicar condicionalmente
+     - NUNCA dejar `whileHover` sin alternativa `whileTap` en un proyecto responsive
 
 #### Google Apps Script
 1. Leer HTML y extraer: estructura, estilos, interacciones
@@ -1206,8 +1319,12 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 - [ ] Stack detectado
 - [ ] VEGs cargados del plan (si aplica)
 - [ ] Disenos Stitch generados con directivas VEG (si aplica)
-- [ ] Imagenes generadas con MCP o prompts documentados (Paso 3.5, si VEG activo)
+- [ ] Usuario informado de costes de imagenes antes de generar (Paso 3.5.0)
+- [ ] MCP health check ejecutado antes de generar imagenes (Paso 3.5.1)
+- [ ] Imagenes generadas con MCP o PENDING_IMAGES.md creado (Paso 3.5.4)
+- [ ] Motion dependencies instaladas antes de design-to-code (Paso 4.0)
 - [ ] Design-to-code ejecutado con Motion Catalog (si VEG activo)
+- [ ] Mobile hover→tap enforcement aplicado (si proyecto responsive/mobile)
 - [ ] Assets VEG registrados en el proyecto (Paso 6.1b, si aplica)
 - [ ] Todas las fases del plan implementadas
 - [ ] Commits parciales por fase

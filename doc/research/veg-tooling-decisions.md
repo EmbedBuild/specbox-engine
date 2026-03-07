@@ -84,21 +84,43 @@ React (`package.json`):
 
 ---
 
-## 4. Riesgos identificados y mitigaciones
+## 4. Costes de Image Generation
+
+**IMPORTANTE: Las APIs de generacion de imagenes son de pago.**
+
+| Provider | Coste/imagen | API Key | Como obtener |
+|----------|-------------|---------|-------------|
+| Freepik (Mystic) | Segun plan contratado | `FREEPIK_API_KEY` | https://www.freepik.com/api — Plan de pago obligatorio para generacion |
+| OpenAI GPT-Image-1 | $0.02-0.19 | `OPENAI_API_KEY` | https://platform.openai.com — Billing activo requerido |
+| Gemini Imagen 4 | $0.02-0.06 | `GOOGLE_API_KEY` | https://aistudio.google.com — Billing activo requerido |
+
+**Estimacion por proyecto tipico:**
+- 5 pantallas × 3 imagenes = 15 imagenes
+- Con OpenAI: $0.30-$2.85 por feature
+- Con Gemini: $0.30-$0.90 por feature
+- Con Freepik stock (sin generacion): $0 (incluido en plan)
+
+**Stock search no tiene coste adicional** — Freepik `search_resources` esta incluido.
+
+## 5. Riesgos identificados y mitigaciones
 
 | Riesgo | Probabilidad | Impacto | Mitigacion |
 |--------|-------------|---------|------------|
-| MCP de imagenes no disponible | Media | Bajo | Degradacion graceful: documentar prompts, continuar sin imagenes |
+| MCP de imagenes no instalado | Alta (proyecto nuevo) | Bajo | Health check (Paso 3.5.1) + PENDING_IMAGES.md + instrucciones de setup |
+| MCP instalado pero sin API key/saldo | Media | Bajo | Health check detecta 401/403, informa al usuario con link de setup |
+| Usuario no sabe que cuesta dinero | Alta (primera vez) | Medio | Advertencia obligatoria con estimacion (Paso 3.5.0) |
 | Freepik API rate limits | Baja | Medio | Fallback a lansespirit automatico |
+| VEG derivado incorrecto para el target | Media | Alto | Preview obligatorio con confirmacion (Paso 2.5b.3) |
+| Motion deps no instaladas | Media | Medio | Auto-install en Paso 4.0 antes de design-to-code |
 | flutter_animate deprecated | Muy baja | Alto | Built-in Flutter como fallback (mas verboso) |
 | motion (React) breaking changes | Baja | Medio | Variants son objetos JS puros, migran facilmente |
-| Hover en mobile | Cierta | Bajo | Sub-agente AG-02 usa whileTap en mobile |
+| Hover en mobile no funciona | Cierta | Medio | Enforcement hover→tap en Paso 4.2 (Flutter: GestureDetector, React: whileTap + @media(hover:hover)) |
 | Stagger con listas largas | Media | Bajo | Limitar a 10-15 items visibles |
 | Shared-element complejo | Media | Medio | Solo activar en motion level "expressive" |
 
 ---
 
-## 5. Decision de versionado
+## 6. Decision de versionado
 
 - Esta feature se libera como **v3.9.0 "Visual Experience Generation"**
 - Backward compatible: sin targets en PRD → VEG se salta
@@ -106,7 +128,7 @@ React (`package.json`):
 
 ---
 
-## 6. Archivos a crear/modificar (resumen)
+## 7. Archivos a crear/modificar (resumen)
 
 ### Crear:
 - `doc/templates/veg-template.md` — Template del artefacto VEG

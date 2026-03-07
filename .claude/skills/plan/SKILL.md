@@ -225,7 +225,55 @@ Para cada VEG a generar:
 
 9. Guardar en `doc/veg/{feature}/veg-{slug}.md` usando template de `doc/templates/veg-template.md`
 
-### 2.5b.3 Incluir VEG en el output del plan
+### 2.5b.3 Preview y confirmacion del VEG
+
+**OBLIGATORIO**: Presentar al usuario un resumen del VEG derivado antes de continuar.
+
+```
+📋 VEG Preview — {feature}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Modo: {1-Uniforme / 2-Por Perfil / 3-Por ICP}
+Target: {nombre del target/ICP}
+Arquetipo base: {Corporate / Startup / Creative / Consumer / Gen-Z / Gobierno}
+
+Pilar 1 — Imagenes:
+  Tipo: {photography / illustration_flat / illustration_3d / mixed}
+  Mood: {professional / energy / premium / confidence / playful / calm}
+  Paleta: {cool / vibrant / muted / warm / neutral}
+
+Pilar 2 — Motion:
+  Nivel: {subtle / moderate / expressive}
+  Page enter: {animation} {duration}ms
+  Loading: {style}
+
+Pilar 3 — Diseno:
+  Densidad: {compact / balanced / spacious}
+  Whitespace: {tight / moderate / generous}
+  Jerarquia: {card-based / full-bleed / editorial / dashboard}
+  CTA: {subtle / medium / high}
+
+⚠️ Costes de imagenes (Paso 3.5 de /implement):
+  Las imagenes se generan via MCP de pago. Coste estimado:
+  {N} imagenes × $0.02-0.19 = ${min}-${max} (segun provider)
+  Puedes elegir "skip" en /implement para solo documentar prompts.
+
+¿El VEG derivado es correcto? (s/n/ajustar)
+  s = continuar con este VEG
+  n = descartar VEG, usar pipeline legacy
+  ajustar = indicar que cambiar (ej: "cambiar motion a subtle", "usar photography en vez de illustration")
+```
+
+Si el usuario dice `ajustar`:
+1. Aplicar los cambios indicados al VEG
+2. Mostrar preview actualizado
+3. Repetir hasta confirmacion
+
+Si el usuario dice `n`:
+1. Descartar VEG generado
+2. Continuar con pipeline legacy (sin VEG)
+3. No generar archivos en `doc/veg/`
+
+### 2.5b.4 Incluir VEG en el output del plan
 
 Anadir seccion al plan generado:
 
@@ -708,6 +756,8 @@ Empty state → Ilustración + CTA
 - [ ] Agentes mapeados (si existen)
 - [ ] Archivo guardado en `doc/plans/`
 - [ ] VEG generado si PRD tiene seccion Audiencia (Paso 2.5b)
+- [ ] VEG preview mostrado al usuario y confirmado (Paso 2.5b.3)
+- [ ] Costes de imagenes advertidos al usuario en preview
 - [ ] VEGs guardados en `doc/veg/{feature}/` con los 3 pilares
 - [ ] Resumen VEG compacto (<400 tokens) incluido en el plan
 - [ ] Pantallas Stitch generadas via MCP (si aplica UI)

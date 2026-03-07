@@ -275,17 +275,39 @@ Sistema que genera decisiones visuales intencionales (imagenes, animaciones, dir
 ### Integracion en el Pipeline
 
 - `/prd` → Captura seccion Audiencia (targets, JTBD, ICPs) + detecta modo VEG
-- `/plan` → Genera artefactos VEG por target + enriquece prompts Stitch
-- `/implement` → Paso 3.5 genera imagenes via MCP + Paso 4.2 inyecta Motion Catalog a AG-02
+- `/plan` → Genera artefactos VEG por target + **preview y confirmacion con usuario** (Paso 2.5b.3) + enriquece prompts Stitch
+- `/implement` → Health check MCP (3.5.1) + advertencia costes (3.5.0) + genera imagenes (3.5.2) + auto-instala motion deps (4.0) + inyecta Motion Catalog a AG-02 (4.2)
 - AG-06 recibe Pilar 3 para enriquecer prompts Stitch
-- AG-02 recibe Pilar 2 (Motion Catalog) para design-to-code
+- AG-02 recibe Pilar 2 (Motion Catalog) para design-to-code con hover→tap enforcement en mobile
 - Resumen compacto (~400 tokens) inyectado en contexto de sub-agentes
+
+### Safety Gates
+
+- **Costes**: Advertencia obligatoria antes de generar imagenes con estimacion por provider
+- **MCP Health Check**: Verifica que el MCP responde antes de entrar al loop de generacion
+- **VEG Preview**: El usuario confirma el VEG derivado antes de que afecte al pipeline
+- **Pending Images**: Si MCP falla → `PENDING_IMAGES.md` con prompts + instrucciones de retoma manual
+- **Motion auto-install**: Verifica e instala `flutter_animate`/`motion` antes de design-to-code
 
 ### Degradacion Graceful
 
 - Sin targets en PRD → pipeline legacy, sin cambios
-- Sin MCP de imagenes → documenta prompts, continua sin imagenes
+- Sin MCP de imagenes → health check detecta, genera `PENDING_IMAGES.md` con prompts para uso manual
 - Sin VEG config → usa defaults de `templates/settings.json.template`
+- MCP config template incluido en `templates/settings.json.template` seccion `veg.mcpServers`
+
+### Costes de Image Generation
+
+Las APIs de generacion de imagenes son de **pago**:
+
+| Provider | Coste/imagen | API Key requerida |
+|----------|-------------|-------------------|
+| Freepik (Mystic) | Segun plan contratado | `FREEPIK_API_KEY` |
+| OpenAI GPT-Image-1 | $0.02-0.19 | `OPENAI_API_KEY` |
+| Gemini Imagen 4 | $0.02-0.06 | `GOOGLE_API_KEY` |
+
+Stock search (Freepik) esta incluido en el plan sin coste adicional por busqueda.
+Configuracion MCP de providers en `templates/settings.json.template` → seccion `veg.mcpServers`.
 
 ### Archivos VEG
 

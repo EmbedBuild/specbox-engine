@@ -1,6 +1,6 @@
 {
   "$schema": "https://claude.ai/schemas/team-config.json",
-  "$comment": "Configuracion de Agent Teams para jps_dev_engine v3.6.0. Copiar a .claude/team-config.json del proyecto destino y ajustar segun necesidad.",
+  "$comment": "Configuracion de Agent Teams para SDD-JPS Engine v3.8.0. Copiar a .claude/team-config.json del proyecto destino y ajustar segun necesidad.",
 
   "experimentalFeatures": {
     "agentTeams": true

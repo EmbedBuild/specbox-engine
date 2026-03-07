@@ -1,5 +1,7 @@
 version: 3.8.0
 codename: "Spec-Driven"
+brand: "SDD-JPS Engine"
+brand_full: "Spec-Driven Development Engine by JPS"
 release_date: 2026-03-07
 min_claude_code: "1.0.0"
 

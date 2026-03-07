@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.7.0
+# SDD-JPS Engine v3.8.0
 
 Sistema de programacion agentica basado en **Agent Skills** para Claude Code.
 

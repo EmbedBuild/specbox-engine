@@ -1,4 +1,4 @@
-# Getting Started - JPS Dev Engine v3.6.0
+# Getting Started - SDD-JPS Engine v3.8.0
 
 ## Requisitos
 

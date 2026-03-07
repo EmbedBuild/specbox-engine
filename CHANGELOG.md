@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to JPS Dev Engine are documented here.
+All notable changes to SDD-JPS Engine are documented here.
 
 ## [3.6.1] - 2026-03-03
 

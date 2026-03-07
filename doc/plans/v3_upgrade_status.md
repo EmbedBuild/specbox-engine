@@ -1,4 +1,4 @@
-# JPS Dev Engine — Upgrade v3.0.0 Status
+# SDD-JPS Engine — Upgrade v3.0.0 Status
 
 ## Inicio: 2026-02-24
 ## Rama: feat/v3.0-improvements

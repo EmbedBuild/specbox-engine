@@ -1,5 +1,5 @@
 {
-  "$schema": "JPS Dev Engine v3.7.0 - Agent Teams Configuration (Orchestrator Isolation)",
+  "$schema": "SDD-JPS Engine v3.8.0 - Agent Teams Configuration (Orchestrator Isolation)",
   "team": {
     "name": "{PROJECT_NAME}",
     "description": "Equipo de desarrollo para {PROJECT_NAME}",

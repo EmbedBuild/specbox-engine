@@ -429,4 +429,4 @@ cd e2e && npx playwright test --project=desktop-chrome
 
 ---
 
-*Referencia: JPS Dev Engine v3.6.0 "E2E Sentinel"*
+*Referencia: SDD-JPS Engine v3.8.0 "E2E Sentinel"*

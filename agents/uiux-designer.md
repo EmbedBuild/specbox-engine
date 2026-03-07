@@ -1,6 +1,6 @@
 # AG-02: UI/UX Designer
 
-> JPS Dev Engine v3.6.0
+> SDD-JPS Engine v3.8.0
 > Template generico -- especialista en componentes UI y diseno responsivo.
 
 ## Proposito

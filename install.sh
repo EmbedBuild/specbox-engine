@@ -1,5 +1,5 @@
 #!/bin/bash
-# JPS Dev Engine - Installer
+# SDD-JPS Engine - Installer
 # Instala commands, skills y hooks globales en ~/.claude/
 # Usage: ./install.sh [--uninstall] [--dry-run]
 
@@ -19,7 +19,7 @@ NC='\033[0m'
 print_header() {
     echo ""
     echo -e "${BLUE}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  JPS Dev Engine Installer ${VERSION}         ║${NC}"
+    echo -e "${BLUE}║  SDD-JPS Engine Installer ${VERSION}         ║${NC}"
     echo -e "${BLUE}╚══════════════════════════════════════════╝${NC}"
     echo ""
 }
@@ -48,7 +48,7 @@ print_header
 
 # --- UNINSTALL ---
 if [ "$UNINSTALL" = true ]; then
-    echo -e "${YELLOW}Uninstalling JPS Dev Engine...${NC}"
+    echo -e "${YELLOW}Uninstalling SDD-JPS Engine...${NC}"
 
     # Remove commands (symlinks)
     for cmd in "$ENGINE_DIR"/commands/*.md; do

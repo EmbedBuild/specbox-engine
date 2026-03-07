@@ -1,13 +1,13 @@
 # MCP Dev Engine — 3 Tools Nuevas para v3.4.0 "Acceptance Engine"
 
 > Prompt para implementar en el repositorio del MCP server (mcp-dev-engine).
-> Estas tools se invocan desde los hooks del JPS Dev Engine v3.4.0 via `mcp-report.sh`.
+> Estas tools se invocan desde los hooks del SDD-JPS Engine v3.4.0 via `mcp-report.sh`.
 
 ---
 
 ## Contexto
 
-El JPS Dev Engine v3.4.0 introduce un pipeline de validación funcional completo:
+El SDD-JPS Engine v3.4.0 introduce un pipeline de validación funcional completo:
 
 1. **Definition Quality Gate** — `/prd` rechaza acceptance criteria vagos/no-testables
 2. **AG-09a Acceptance Tester** — Genera E2E tests desde AC-XX del PRD con evidencia visual
@@ -306,4 +306,4 @@ Las invocaciones desde hooks son fire-and-forget. Si el MCP no está disponible,
 
 ---
 
-*JPS Dev Engine v3.4.0 "Acceptance Engine" — MCP Tools Specification*
+*SDD-JPS Engine v3.4.0 "Acceptance Engine" — MCP Tools Specification*

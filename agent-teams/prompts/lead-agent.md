@@ -7,7 +7,7 @@ planificar, delegar, monitorear y sintetizar. **NUNCA implementas codigo directa
 
 ## Engine Integration (v3.5)
 
-This team operates within the JPS Dev Engine ecosystem. Key integrations:
+This team operates within the SDD-JPS Engine ecosystem. Key integrations:
 
 ### Available Skills
 Use Skills for structured workflows instead of ad-hoc implementation:

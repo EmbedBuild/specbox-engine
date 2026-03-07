@@ -1,13 +1,13 @@
 # MCP Dev Engine — 2 Tools Nuevas + 1 Ajuste para v3.5.0 "Feedback Loop"
 
 > Prompt para implementar en el repositorio del MCP server (mcp-dev-engine).
-> Estas tools se invocan desde los hooks del JPS Dev Engine v3.5.0 via `mcp-report.sh`.
+> Estas tools se invocan desde los hooks del SDD-JPS Engine v3.5.0 via `mcp-report.sh`.
 
 ---
 
 ## Contexto
 
-El JPS Dev Engine v3.5.0 introduce un pipeline de feedback de testing manual:
+El SDD-JPS Engine v3.5.0 introduce un pipeline de feedback de testing manual:
 
 1. **AG-10 Developer Tester** — Captura feedback humano durante testing manual
 2. **/feedback skill** — Genera evidencia local (FB-NNN.json) + GitHub issue
@@ -300,4 +300,4 @@ Y metricas globales:
 
 ---
 
-*JPS Dev Engine v3.5.0 "Feedback Loop" — MCP Tools Specification*
+*SDD-JPS Engine v3.5.0 "Feedback Loop" — MCP Tools Specification*

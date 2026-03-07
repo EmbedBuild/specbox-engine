@@ -859,7 +859,7 @@ gh pr create \
 `{path al plan}`
 
 ---
-🤖 Implementado con [JPS Dev Engine](https://github.com/jesusperezdeveloper/jps_dev_engine) `/implement`
+🤖 Implementado con [SDD-JPS Engine](https://github.com/jesusperezdeveloper/jps_dev_engine) `/implement`
 EOF
 )"
 ```

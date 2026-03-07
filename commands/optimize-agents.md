@@ -156,7 +156,7 @@ Para cada comando, extraer:
 - **¿Tiene checkpoints?** (buscar "CHECKPOINT", "verificar", "validate", "analyze")
 - **¿Usa subagents?** (buscar "Task tool", "subagent", "agent team")
 
-### 0.6 Detectar JPS Dev Engine y Comparar Versiones
+### 0.6 Detectar SDD-JPS Engine y Comparar Versiones
 
 **Localizar el engine**: Buscar `jps_dev_engine` en estas ubicaciones (en orden):
 1. `~/jps_dev_engine/`
@@ -668,7 +668,7 @@ Imprimir directamente en la conversación:
   Stack: [stacks detectados]
   Infra: [infra detectada]
   System: [LEGACY_ONLY | NATIVE_ONLY | HYBRID | NO_AGENTS]
-  Engine: JPS Dev Engine v[VERSION] [o "not found"]
+  Engine: SDD-JPS Engine v[VERSION] [o "not found"]
   Agents: [N] detected ([N] active, [N] deprecated)
   Teams: [N native teams] ([N active tasks], [N stuck])
   Date: [fecha]
@@ -808,7 +808,7 @@ Estado actual del equipo: [métricas]
 7. ENGINE SYNC                                 [info]
 ────────────────────────────────────────────────────────────
 
-Engine: JPS Dev Engine v[VERSION] — [ruta del engine]
+Engine: SDD-JPS Engine v[VERSION] — [ruta del engine]
 
 Commands (symlinks):
   /prd              [✅ Linked / ⚠️ Copia suelta — ejecutar ./install.sh]
@@ -830,7 +830,7 @@ Para actualizar, copiar desde el engine:
   [comando por cada archivo outdated]
 
 [Si no se encontró el engine:]
-⚠️ JPS Dev Engine no encontrado.
+⚠️ SDD-JPS Engine no encontrado.
   Instalar: git clone <repo-url> ~/jps_dev_engine && cd ~/jps_dev_engine && ./install.sh
 
 ════════════════════════════════════════════════════════════

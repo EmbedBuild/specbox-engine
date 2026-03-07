@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.0.0 — Upgrade Report
+# SDD-JPS Engine v3.0.0 — Upgrade Report
 
 ## Fecha: 2026-02-24
 ## Upgrade: v2.3.0 → v3.0.0

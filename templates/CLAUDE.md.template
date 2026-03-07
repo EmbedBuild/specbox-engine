@@ -1,6 +1,6 @@
 # {PROJECT_NAME}
 
-> Generado con JPS Dev Engine v3.7.0
+> Generado con SDD-JPS Engine v3.8.0
 
 ## Stack
 
@@ -232,4 +232,4 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ---
 
 *Generado: {DATE}*
-*Engine: jps_dev_engine v3.7.0*
+*Engine: SDD-JPS Engine v3.8.0*

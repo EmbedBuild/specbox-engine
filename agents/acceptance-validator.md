@@ -1,6 +1,6 @@
 # AG-09b: Acceptance Validator
 
-> JPS Dev Engine v3.6.0
+> SDD-JPS Engine v3.8.0
 > Agente independiente de validación de acceptance criteria.
 > NO es AG-04 (QA). NO es AG-08 (Quality Auditor). NO es AG-09a (Acceptance Tester).
 > AG-09b VALIDA que la feature cumple lo que el PRD especificó.
@@ -279,4 +279,4 @@ US-XX (User Story)
 
 ---
 
-*JPS Dev Engine v3.6.0 — Acceptance Validator*
+*SDD-JPS Engine v3.8.0 — Acceptance Validator*

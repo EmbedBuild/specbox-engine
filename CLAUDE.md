@@ -1,5 +1,6 @@
-# JPS Dev Engine v3.8.0
+# SDD-JPS Engine v3.8.0
 
+> **Spec-Driven Development Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
 
@@ -244,4 +245,5 @@ Frameworks de acceptance testing por stack:
 ## Engine Version
 
 Current: v3.8.0 "Spec-Driven"
+Brand: SDD-JPS Engine (Spec-Driven Development Engine by JPS)
 Config: ENGINE_VERSION.yaml

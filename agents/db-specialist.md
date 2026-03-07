@@ -1,6 +1,6 @@
 # AG-03: DB Specialist
 
-> JPS Dev Engine v3.6.0
+> SDD-JPS Engine v3.8.0
 > Template generico -- especialista en bases de datos y servicios backend.
 
 ## Proposito

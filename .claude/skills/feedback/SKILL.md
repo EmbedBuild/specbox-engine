@@ -251,7 +251,7 @@ Max 100 caracteres. Truncar description si necesario.
 {Si no: "No direct impact on acceptance criteria."}
 
 ---
-Filed by [JPS Dev Engine](https://github.com/jesusperezdeveloper/jps_dev_engine) `/feedback`
+Filed by [SDD-JPS Engine](https://github.com/jesusperezdeveloper/jps_dev_engine) `/feedback`
 ```
 
 ### 5.3 Labels
@@ -398,7 +398,7 @@ Si `github_issue` no es null:
 ```bash
 gh issue comment {number} --body "✅ Resolved: {resolution}
 
-Marked as resolved by JPS Dev Engine \`/feedback resolve\`"
+Marked as resolved by SDD-JPS Engine \`/feedback resolve\`"
 
 gh issue close {number}
 ```

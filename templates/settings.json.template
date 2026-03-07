@@ -51,5 +51,30 @@
     "defaultState": "Backlog",
     "projectId": "{PLANE_PROJECT_ID}",
     "defaultAssignee": "{USER_ID}"
+  },
+  "veg": {
+    "enabled": true,
+    "image_provider": {
+      "primary": "freepik",
+      "fallback": "lansespirit",
+      "maxImagesPerScreen": 5,
+      "defaultAspectRatio": "16:9",
+      "stockSearchFirst": true
+    },
+    "motion": {
+      "enabled": true,
+      "flutter": {
+        "package": "flutter_animate",
+        "version": "^4.5.2"
+      },
+      "react": {
+        "library": "motion",
+        "version": "^12.35.0"
+      }
+    },
+    "defaults": {
+      "fallback_mode": "uniform",
+      "fallback_motion_level": "moderate"
+    }
   }
 }

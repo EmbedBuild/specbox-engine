@@ -1,4 +1,4 @@
-version: 3.8.0
+version: 3.8.1
 codename: "Spec-Driven"
 brand: "SDD-JPS Engine"
 brand_full: "Spec-Driven Development Engine by JPS"
@@ -51,6 +51,13 @@ features:
   - us-uc-ac-hierarchy
 
 changelog:
+  3.8.1:
+    date: 2026-03-07
+    changes:
+      - "brand: Rebrand to SDD-JPS Engine (Spec-Driven Development Engine by JPS)"
+      - "brand: 50 files updated — display text only, all filesystem paths preserved"
+      - "brand: ENGINE_VERSION.yaml includes brand and brand_full fields"
+
   3.8.0:
     date: 2026-03-07
     changes:

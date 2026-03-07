@@ -1,4 +1,4 @@
-version: 3.9.0
+version: 3.9.1
 codename: "Visual Experience Generation"
 brand: "SDD-JPS Engine"
 brand_full: "Spec-Driven Development Engine by JPS"
@@ -52,6 +52,13 @@ features:
   - veg-visual-experience-generation
 
 changelog:
+  3.9.1:
+    date: 2026-03-07
+    changes:
+      - "fix: bump all remaining v3.8.x references to v3.9.0 across 27 files (agents, docs, infra, architecture)"
+      - "fix: templates (CLAUDE.md, team-config, settings) updated to v3.9.0 for upgrade_project compatibility"
+      - "docs: knowledge guide updated to v3.9.0 with VEG section for non-technical audience"
+
   3.9.0:
     date: 2026-03-07
     changes:

@@ -1,4 +1,4 @@
-# SDD-JPS Engine v3.8.0
+# SDD-JPS Engine v3.9.0
 
 > **Spec-Driven Development Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -12,7 +12,7 @@ Este repositorio contiene el **sistema completo de programacion agentica** para 
 - **Agent Teams** — configuracion para orquestacion multi-agente nativa de Claude Code
 - **Architecture** — patrones por stack (Flutter, React, Python, Google Apps Script)
 - **Infrastructure** — patrones por servicio (Supabase, Neon, Stripe, Firebase, n8n)
-- **Design** — integracion con Google Stitch MCP para diseño UI
+- **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
 
@@ -30,6 +30,7 @@ Este repositorio contiene el **sistema completo de programacion agentica** para 
 | Firebase | latest | Completo |
 | n8n | latest | Completo |
 | Google Stitch MCP | - | Completo |
+| VEG (Visual Experience Generation) | v3.9 | Completo |
 
 ## Instalacion
 
@@ -49,7 +50,7 @@ Spec-Driven (Trello):
   ↓
 /prd → Enriquece spec firmado + PRD + evidencia PDF → Trello
   ↓
-/plan → Plan tecnico por UC + Diseños Stitch (MCP) + evidencia PDF → Trello
+/plan → Plan tecnico por UC + VEG + Diseños Stitch (MCP) + evidencia PDF → Trello
   ↓
 /implement → find_next_uc → start_uc → rama + fases + QA + Acceptance Gate + PR
   ↓                                                         ↑
@@ -125,8 +126,13 @@ jps_dev_engine/
 │   ├── react/
 │   ├── python/
 │   └── google-apps-script/
-├── design/                ← Integracion Stitch MCP
+├── design/                ← Integracion Stitch MCP + VEG
 │   └── stitch/
+├── doc/
+│   ├── templates/         ← VEG templates y arquetipos
+│   │   ├── veg-template.md
+│   │   └── veg-archetypes.md
+│   └── research/          ← Investigacion de tooling VEG
 ├── infra/                 ← Patrones por servicio
 │   ├── supabase/
 │   ├── neon/
@@ -162,7 +168,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | Skill | Trigger phrases | Mode | Tools | Notes |
 |-------|----------------|------|-------|-------|
 | /prd | "create PRD", "new feature", "write requirements" | fork:Plan | Full | Definition Quality Gate (Paso 2.5) valida AC-XX |
-| /plan | "plan feature", "technical plan", "analyze for implementation" | fork:Plan | Full | |
+| /plan | "plan feature", "technical plan", "analyze for implementation" | fork:Plan | Full | VEG generation (Paso 2.5b) |
 | /implement | "implement plan", "execute plan", "autopilot" | direct | Full | Self-healing + AG-09 acceptance gate + merge secuencial |
 | /adapt-ui | "scan UI", "map components", "detect widgets" | fork:Explore | Read-only | |
 | /optimize-agents | "audit agents", "optimize system", "agent score" | fork:Explore | Read-only | |
@@ -242,8 +248,54 @@ Frameworks de acceptance testing por stack:
 | React | Playwright | Screenshots + traces | `tests/acceptance/` |
 | Python | pytest + httpx | Response JSON logs | `tests/acceptance/` |
 
+## Visual Experience Generation — VEG (v3.9)
+
+Sistema que genera decisiones visuales intencionales (imagenes, animaciones, directivas de diseno) adaptadas a la audiencia del producto. Rompe el patron de UI generica al derivar automaticamente estilos desde el target/ICP del PRD.
+
+### 3 Modos de Operacion
+
+| Modo | Cuando | Resultado |
+|------|--------|-----------|
+| **Modo 1: Uniform** | 1 audiencia homogenea | 1 VEG aplicado a todas las pantallas |
+| **Modo 2: Per Profile** | Multiples perfiles de usuario | N VEGs, uno por target profile |
+| **Modo 3: Per ICP+JTBD** | Landings por segmento | N VEGs con JTBD racional + emocional por ICP |
+
+### 3 Pilares
+
+| Pilar | Que genera | Herramienta |
+|-------|-----------|-------------|
+| **Pilar 1: Imagenes** | Prompts + generacion via MCP | Freepik MCP (primary) + lansespirit (fallback) |
+| **Pilar 2: Motion** | Catalogo de animaciones por nivel | `flutter_animate` (Flutter) / `motion` (React) |
+| **Pilar 3: Diseno** | Directivas para Stitch | Density, whitespace, hierarchy, CTA, typography |
+
+### Arquetipos
+
+6 arquetipos base derivados del target (Corporate, Startup, Creative, Consumer, Gen-Z, Gobierno). El JTBD emocional puede sobreescribir max 2 pilares. Definidos en `doc/templates/veg-archetypes.md`.
+
+### Integracion en el Pipeline
+
+- `/prd` → Captura seccion Audiencia (targets, JTBD, ICPs) + detecta modo VEG
+- `/plan` → Genera artefactos VEG por target + enriquece prompts Stitch
+- `/implement` → Paso 3.5 genera imagenes via MCP + Paso 4.2 inyecta Motion Catalog a AG-02
+- AG-06 recibe Pilar 3 para enriquecer prompts Stitch
+- AG-02 recibe Pilar 2 (Motion Catalog) para design-to-code
+- Resumen compacto (~400 tokens) inyectado en contexto de sub-agentes
+
+### Degradacion Graceful
+
+- Sin targets en PRD → pipeline legacy, sin cambios
+- Sin MCP de imagenes → documenta prompts, continua sin imagenes
+- Sin VEG config → usa defaults de `templates/settings.json.template`
+
+### Archivos VEG
+
+- Templates: `doc/templates/veg-template.md`, `doc/templates/veg-archetypes.md`
+- Research: `doc/research/veg-image-providers.md`, `doc/research/veg-motion-strategy.md`
+- Decisiones: `doc/research/veg-tooling-decisions.md`
+- Por feature: `doc/veg/{feature}/` (generado por /plan)
+
 ## Engine Version
 
-Current: v3.8.0 "Spec-Driven"
+Current: v3.9.0 "Visual Experience Generation"
 Brand: SDD-JPS Engine (Spec-Driven Development Engine by JPS)
 Config: ENGINE_VERSION.yaml

@@ -1,5 +1,5 @@
-version: 3.8.1
-codename: "Spec-Driven"
+version: 3.9.0
+codename: "Visual Experience Generation"
 brand: "SDD-JPS Engine"
 brand_full: "Spec-Driven Development Engine by JPS"
 release_date: 2026-03-07
@@ -49,8 +49,38 @@ features:
   - spec-driven-pipeline
   - trello-domain-mcp
   - us-uc-ac-hierarchy
+  - veg-visual-experience-generation
 
 changelog:
+  3.9.0:
+    date: 2026-03-07
+    changes:
+      - "feat: VEG (Visual Experience Generation) — 3-mode visual customization system"
+      - "feat: VEG Pilar 1 (Images) — MCP-agnostic image generation with stock-first strategy"
+      - "feat: VEG Pilar 2 (Motion) — flutter_animate (Flutter) + motion/Framer Motion (React)"
+      - "feat: VEG Pilar 3 (Design) — density/whitespace/hierarchy/typography directives for Stitch"
+      - "feat: VEG Mode 1 (Uniform) — single VEG for homogeneous audience"
+      - "feat: VEG Mode 2 (Per Profile) — VEG variants per user profile"
+      - "feat: VEG Mode 3 (Per ICP+JTBD) — personalized VEG per ICP with rational+emotional JTBD"
+      - "feat: /prd Audiencia section — targets, ICPs, JTBD definitions feed VEG"
+      - "feat: /prd VEG Readiness validation in Definition Quality Gate (Paso 2.5.6)"
+      - "feat: /plan Paso 2.5b — VEG generation with archetype-based derivation"
+      - "feat: /plan Stitch prompts enriched with VEG Pilar 3 visual directives"
+      - "feat: /implement Paso 0.3 — detect and load VEG artifacts from plan"
+      - "feat: /implement Paso 3.5 — image generation with configured MCP provider"
+      - "feat: /implement Paso 4 — inject VEG Motion Catalog into AG-02 context"
+      - "feat: /implement Paso 6.1b — register VEG image assets in project structure"
+      - "feat: AG-06 VEG Integration — reads VEG before Stitch, enriches prompts"
+      - "feat: AG-02 VEG Motion Integration — applies motion catalog by level"
+      - "feat: Orchestrator VEG Orchestration — mode detection, image gen, context injection"
+      - "feat: 6 archetype derivation rules (Corporate, Startup, Creative, Consumer, Gen-Z, Government)"
+      - "feat: JTBD emotional override rules (max 2 pillar adjustments)"
+      - "feat: Image providers: Freepik MCP (primary) + lansespirit (fallback)"
+      - "feat: Graceful degradation — no targets = legacy pipeline, no MCP = document prompts"
+      - "docs: VEG template with 3 pillars and ~400 token compact summary"
+      - "docs: VEG archetypes with full YAML configs per target profile"
+      - "docs: Research documents for image providers and motion strategies"
+
   3.8.1:
     date: 2026-03-07
     changes:

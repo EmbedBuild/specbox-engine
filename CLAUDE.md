@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.7.0
+# JPS Dev Engine v3.8.0
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -43,11 +43,14 @@ Esto instala Skills en `~/.claude/skills/`, hooks en `~/.claude/hooks/` y comman
 ## Flujo de desarrollo
 
 ```
-/prd → PRD + Trello/Plane (con Definition Quality Gate)
+Spec-Driven (Trello):
+  US-XX (User Story) → UC-XXX (Use Cases) → AC-XX (Acceptance Criteria)
   ↓
-/plan → Plan tecnico + Diseños Stitch (MCP) + HTML
+/prd → Enriquece spec firmado + PRD + evidencia PDF → Trello
   ↓
-/implement → Autopilot: rama + fases + design-to-code + QA + Acceptance Gate + PR
+/plan → Plan tecnico por UC + Diseños Stitch (MCP) + evidencia PDF → Trello
+  ↓
+/implement → find_next_uc → start_uc → rama + fases + QA + Acceptance Gate + PR
   ↓                                                         ↑
   ├── AG-08 Quality Audit → GO/NO-GO ──────────────────────┤
   ├── AG-09a Acceptance Tests → evidencia visual ──────────┤
@@ -55,9 +58,12 @@ Esto instala Skills en `~/.claude/skills/`, hooks en `~/.claude/hooks/` y comman
   ↓
 /feedback → Developer testing → FB-NNN + GitHub issue → puede INVALIDAR verdict
   ↓
-Merge secuencial → pull main → siguiente card
+complete_uc → Merge secuencial → pull main → find_next_uc (siguiente UC)
   ↓
 /optimize-agents → Audita y optimiza sistema agentico del proyecto
+
+Freeform (Plane / texto):
+  /prd → PRD + Plane    →  /plan → Plan tecnico  →  /implement → Autopilot
 ```
 
 ## Estructura del repositorio
@@ -216,15 +222,16 @@ Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
 | AG-09b | Acceptance Validator | `agents/acceptance-validator.md` | sonnet |
 | AG-10 | Developer Tester | `agents/developer-tester.md` | sonnet |
 
-## Acceptance Engine (v3.5)
+## Acceptance Engine (v3.8)
 
-Pipeline completo de validacion funcional:
+Pipeline completo de validacion funcional con jerarquia US → UC → AC:
 
 1. **Definition Quality Gate** (`/prd` Paso 2.5) — Rechaza acceptance criteria vagos/no-testables antes de crear work items. Evalua especificidad, medibilidad y testabilidad (0-2 cada una).
 2. **AG-09a Acceptance Tester** (`/implement` Paso 7.5) — Genera E2E/integration tests desde AC-XX del PRD con evidencia visual (screenshots, traces, response logs).
-3. **AG-09b Acceptance Validator** (`/implement` Paso 7.7) — Validacion independiente: verifica que cada AC-XX esta implementado, testeado y evidenciado. Emite ACCEPTED/CONDITIONAL/REJECTED.
+3. **AG-09b Acceptance Validator** (`/implement` Paso 7.7) — Validacion independiente por UC: verifica que cada AC-XX del UC esta implementado, testeado y evidenciado. Emite ACCEPTED/CONDITIONAL/REJECTED. US se considera ACCEPTED cuando todos sus UCs pasan.
 4. **AG-10 Developer Feedback** (`/feedback`) — Captura feedback de testing manual. Crea evidencia local (FB-NNN.json) + GitHub issue. Puede INVALIDAR verdict de AG-09b. Severity critical/major bloquea merge.
-5. **Merge Secuencial** (`/implement` Paso 8.5) — Auto-merge solo si AG-08=GO, AG-09=ACCEPTED y no hay feedback bloqueante. Pull main antes de siguiente card.
+5. **Merge Secuencial** (`/implement` Paso 8.5) — Auto-merge solo si AG-08=GO, AG-09=ACCEPTED y no hay feedback bloqueante. `complete_uc` → pull main → `find_next_uc` para siguiente UC.
+6. **Evidence Pipeline** — PRD→US card, Plan→US card, AG-09→UC card, Delivery→US card (Markdown→PDF→Trello attachment).
 
 Frameworks de acceptance testing por stack:
 
@@ -236,5 +243,5 @@ Frameworks de acceptance testing por stack:
 
 ## Engine Version
 
-Current: v3.7.0 "Context Fortress"
+Current: v3.8.0 "Spec-Driven"
 Config: ENGINE_VERSION.yaml

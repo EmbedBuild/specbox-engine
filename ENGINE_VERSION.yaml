@@ -1,5 +1,5 @@
-version: 3.7.0
-codename: "Context Fortress"
+version: 3.8.0
+codename: "Spec-Driven"
 release_date: 2026-03-07
 min_claude_code: "1.0.0"
 
@@ -44,8 +44,27 @@ features:
   - engram-persistent-memory
   - orchestrator-isolation
   - gga-cached-validation
+  - spec-driven-pipeline
+  - trello-domain-mcp
+  - us-uc-ac-hierarchy
 
 changelog:
+  3.8.0:
+    date: 2026-03-07
+    changes:
+      - "feat: Spec-Driven pipeline — US-XX → UC-XXX → AC-XX hierarchy as source of truth"
+      - "feat: /prd dual mode — spec-driven (Trello) enriches client-signed spec, freeform creates from scratch"
+      - "feat: /prd US/UC/AC vocabulary replaces F1/F2/F3 throughout, Alcance/NFRs/Riesgos sections added"
+      - "feat: /plan Trello input — reads US/UC/AC from domain MCP, attaches plan evidence as PDF"
+      - "feat: /plan Alternativas y Tradeoffs section in plan template"
+      - "feat: /implement UC execution cycle — find_next_uc → start_uc → implement → complete_uc → merge → next"
+      - "feat: /implement Trello integration — move_us, mark_ac_batch, attach_evidence at merge"
+      - "feat: AG-09b validates per UC — each run validates one UC, US ACCEPTED when all UCs pass"
+      - "feat: AG-09b Trello reporting — mark_ac_batch, attach ag09 report, delivery report for last UC"
+      - "feat: Evidence pipeline — PRD→US, Plan→US, AG-09→UC, Delivery→US as PDF attachments"
+      - "feat: NFR (Non-Functional Requirements) — performance/security/accessibility validated by AG-08/AG-09a"
+      - "feat: dev-engine-trello domain MCP — 15 business tools (get_us, list_uc, start_uc, complete_uc, etc.)"
+
   3.7.0:
     date: 2026-03-07
     changes:

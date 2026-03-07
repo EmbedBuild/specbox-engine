@@ -43,7 +43,8 @@ Validar de forma INDEPENDIENTE que cada acceptance criterion (AC-XX) del PRD est
 
 | Input | Fuente | Propósito |
 |-------|--------|-----------|
-| PRD con AC-XX | Plane o doc/prd/ | Fuente de verdad de requisitos |
+| PRD con AC-XX | Trello (get_uc) / Plane / doc/prd/ | Fuente de verdad de requisitos |
+| US/UC context | Trello (get_us, list_uc) | Jerarquia US → UC → AC |
 | Código implementado | `git diff main..HEAD` | Verificar implementación |
 | Tests unitarios | AG-04 output | Verificar cobertura de test |
 | Acceptance tests | AG-09a output | Verificar tests funcionales |
@@ -94,7 +95,10 @@ Generar en `.quality/evidence/{feature}/acceptance-report.json`:
 ```json
 {
   "feature": "{feature}",
-  "prd_source": "PROYECTO-XX",
+  "prd_source": "US-XX (Trello) | PROYECTO-XX (Plane) | doc/prd/",
+  "us_id": "US-XX",
+  "uc_id": "UC-XXX",
+  "board_id": "trello_board_id (if Trello)",
   "date": "ISO timestamp",
   "validator": "AG-09b",
   "criteria": [
@@ -188,13 +192,13 @@ Generar en `.quality/evidence/{feature}/acceptance-report.md`:
 
 ### CONDITIONAL
 - ≥ 80% de criterios en PASS
-- Ningún criterio ligado a la funcionalidad principal (F1) en FAIL
-- Los criterios FAIL son de funcionalidades secundarias o edge cases
+- Ningún criterio del UC principal (el que se está implementando) en FAIL
+- Los criterios FAIL son de edge cases o funcionalidades secundarias
 - Se incluye lista de mejoras en la PR
 
 ### REJECTED
 - < 80% de criterios en PASS
-- O cualquier criterio ligado a funcionalidad principal (F1) en FAIL
+- O cualquier criterio del UC principal en FAIL
 - O falta evidencia visual para criterios PASS
 
 ---
@@ -213,6 +217,35 @@ Cuando AG-09b emite CONDITIONAL o REJECTED:
 5. Re-ejecuta AG-09b
 6. Máximo 2 intentos de healing
 7. Si tras 2 intentos sigue REJECTED → reportar al humano
+
+---
+
+## Reporte a Trello (si origen es Trello)
+
+Después de emitir veredicto, reportar resultados al board:
+
+1. `mark_ac_batch(board_id, uc_id, results)` — marcar cada AC como passed/failed en el checklist del UC
+2. `attach_evidence(board_id, uc_id, "uc", "ag09", acceptance_report_md)` — adjuntar informe como PDF
+3. Si ACCEPTED y es el último UC de la US:
+   - `get_us_progress(board_id, us_id)` — verificar progreso global de la US
+   - `attach_evidence(board_id, us_id, "us", "delivery", delivery_report_md)` — delivery report a la US
+
+---
+
+## Validación por UC (cobertura jerárquica)
+
+Cuando el origen es Trello, AG-09b valida a nivel de UC, no solo por AC:
+
+```
+US-XX (User Story)
+  ├── UC-001: [N] ACs → AG-09b valida cuando UC-001 completa
+  ├── UC-002: [M] ACs → AG-09b valida cuando UC-002 completa
+  └── UC-003: [P] ACs → AG-09b valida cuando UC-003 completa
+```
+
+- Cada ejecución de AG-09b valida UN UC con todos sus ACs
+- El veredicto es por UC, no por US completa
+- La US se considera ACCEPTED cuando todos sus UCs tienen veredicto ACCEPTED
 
 ---
 

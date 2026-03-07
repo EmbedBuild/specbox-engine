@@ -34,6 +34,8 @@ Autopilot de implementacion: lee un plan, crea rama, ejecuta todas las fases, ge
 ```
 
 **Origenes soportados:**
+- `US-XX` → User Story de Trello (ejecuta todos los UCs en secuencia)
+- `UC-XXX` → Use Case individual de Trello
 - `nombre_del_plan` → Busca `doc/plans/{nombre}_plan.md`
 - `doc/plans/mi_plan.md` → Path directo al archivo del plan
 - Sin argumento → Lista planes disponibles en `doc/plans/` y pregunta cual ejecutar
@@ -45,11 +47,48 @@ Autopilot de implementacion: lee un plan, crea rama, ejecuta todas las fases, ge
 ### 0.1 Localizar el plan
 
 ```
-¿Que recibi?
+Que recibi?
+├── US-XX → Modo Trello: ejecutar bloque de UCs de la US
+├── UC-XXX → Modo Trello: ejecutar un UC individual
 ├── nombre_del_plan → Buscar doc/plans/{nombre}_plan.md
 ├── path directo → Leer directamente
 └── sin argumento → Listar doc/plans/*.md y preguntar
 ```
+
+### 0.1a Si es US-XX o UC-XXX (Trello spec-driven):
+
+1. Obtener board_id de `.claude/settings.local.json` → `trello.boardId`
+2. Si US-XX:
+   - Llamar `get_us(board_id, us_id)` → datos de la US
+   - Llamar `list_uc(board_id, us_id)` → listar UCs hijos
+   - Llamar `find_next_uc(board_id)` → determinar primer UC a ejecutar
+   - Buscar plan adjunto: `get_evidence(board_id, us_id, "us", "plan")`
+   - Si hay plan en `doc/plans/` → cargar plan local
+   - Si no hay plan → ERROR: "Ejecuta /plan US-XX primero"
+3. Si UC-XXX:
+   - Llamar `get_uc(board_id, uc_id)` → datos completos del UC
+   - Derivar us_id del UC → buscar plan de la US padre
+4. Parsear plan y filtrar solo las fases relevantes para el UC actual
+5. Llamar `start_uc(board_id, uc_id)` → mover a In Progress + timestamp
+
+**Flujo de ejecucion por US (bloque de UCs):**
+```
+US-XX recibida
+  ├── Cargar plan de la US
+  ├── find_next_uc → UC-001 (Ready)
+  │   ├── start_uc(UC-001) → In Progress
+  │   ├── Implementar (Pasos 1-7.7)
+  │   ├── complete_uc(UC-001) → Done
+  │   ├── Merge secuencial (Paso 8.5)
+  │   └── Pull main
+  ├── find_next_uc → UC-002 (Ready)
+  │   ├── start_uc(UC-002) → In Progress
+  │   ├── ... (mismo ciclo)
+  │   └── Pull main
+  └── No mas UCs en Ready → Finalizar
+```
+
+### 0.1b Si es plan local:
 
 ```bash
 # Listar planes disponibles
@@ -73,6 +112,7 @@ Leer el archivo del plan completo y extraer:
 | Agentes involucrados | Referencias a AG-XX en las fases | No |
 | Comandos finales | Seccion `## Comandos Finales` | No |
 | Diseños Stitch | Referencias a `doc/design/` o pantallas Stitch | No |
+| Trello US/UC | Origen US-XX o UC-XXX + board_id | No |
 
 ### 0.3 Detectar si requiere diseño
 
@@ -880,19 +920,40 @@ git pull origin main
 
 ### 8.5.4 Actualizar work item
 
-Si hay work item vinculado:
+#### Si origen es Trello:
+1. Llamar `complete_uc(board_id, uc_id, evidence)` — mueve UC a Done + actualiza checklist US
+2. Si `us_all_done == true` (todos los UCs de la US completados):
+   - Llamar `move_us(board_id, us_id, "done")` — mover US a Done
+   - Adjuntar delivery report: `attach_evidence(board_id, us_id, "us", "delivery", report_md)`
+3. Reportar acceptance tests a Trello: `mark_ac_batch(board_id, uc_id, results)`
+
+#### Si origen es Plane:
 - Actualizar estado a "Finalizado"
 
-### 8.5.5 Siguiente card
+### 8.5.5 Siguiente UC/card
 
-Si hay más cards pendientes en el backlog del plan:
+#### Si origen es Trello (US-XX mode):
+```
+→ Llamar find_next_uc(board_id) para obtener siguiente UC en Ready
+→ Si hay UC disponible:
+  → start_uc(board_id, uc_id) — mueve a In Progress
+  → Volver a Paso 0.1a con el nuevo UC
+  → El nuevo feature branch parte del main actualizado (post-merge)
+  → CERO conflictos garantizados
+→ Si no hay mas UCs en Ready:
+  → Verificar si todos los UCs de la US estan en Done
+  → Si todos Done → move_us a Done + delivery report
+  → Finalizar pipeline con resumen global
+```
+
+#### Si origen es plan local:
 ```
 → Volver a Paso 0 con la siguiente card
-→ El nuevo feature branch partirá del main actualizado (post-merge)
+→ El nuevo feature branch parte del main actualizado (post-merge)
 → CERO conflictos garantizados
 ```
 
-Si no hay más cards → finalizar pipeline con resumen global.
+Si no hay mas cards → finalizar pipeline con resumen global.
 
 ---
 
@@ -1072,3 +1133,20 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 | AG-08 veredicto | GO / CONDITIONAL GO / NO-GO |
 | AG-09 veredicto | ACCEPTED / CONDITIONAL / REJECTED |
 | Merge secuencial | Auto-merge si AG-08=GO + AG-09=ACCEPTED |
+
+---
+
+## Referencia MCP Trello (dev-engine-trello)
+
+| Tool | Uso en /implement |
+|------|-------------------|
+| `get_us(board_id, us_id)` | Paso 0: cargar datos de la US |
+| `list_uc(board_id, us_id)` | Paso 0: listar UCs hijos |
+| `get_uc(board_id, uc_id)` | Paso 0: detalle completo del UC (ACs, pantallas) |
+| `find_next_uc(board_id)` | Paso 0/8.5: determinar siguiente UC a implementar |
+| `start_uc(board_id, uc_id)` | Paso 0: mover UC a In Progress + timestamp |
+| `complete_uc(board_id, uc_id, evidence)` | Paso 8.5: mover UC a Done + actualizar US checklist |
+| `move_us(board_id, us_id, target)` | Paso 8.5: mover US cuando todos UCs Done |
+| `mark_ac_batch(board_id, uc_id, results)` | Paso 8.5: reportar resultados de ACs a Trello |
+| `attach_evidence(board_id, id, type, kind, md)` | Paso 8.5: adjuntar delivery report como PDF |
+| `get_evidence(board_id, id, type)` | Paso 0: buscar plan/PRD adjunto |

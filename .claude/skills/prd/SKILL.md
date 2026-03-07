@@ -4,168 +4,261 @@ description: >
   Generate structured Product Requirements Documents from feature descriptions.
   Use when the user says "create PRD", "new feature", "write requirements",
   "define feature", or references creating specifications for implementation.
-  Supports Plane and Trello work item creation.
+  Supports Trello (spec-driven) and Plane work item creation.
 context: fork
 agent: Plan
 ---
 
 # /prd (Global)
 
-Genera un PRD (Product Requirements Document) y crea un Work Item en Plane.
+Genera un PRD (Product Requirements Document) y crea Work Items en Trello o Plane.
 
 ## Uso
 
 ```
-/prd [título] [descripción de requerimientos]
+/prd [titulo] [descripcion de requerimientos]
+/prd US-01                    # Spec-driven: enriquece desde Trello
+/prd board:BOARD_ID           # Spec-driven: lista US del board para elegir
 ```
 
 ---
 
-## Paso 0: Detectar Proyecto de Plane
+## Paso 0: Detectar Modo y Origen
 
-1. Buscar en `.claude/settings.local.json` → `plane.defaultProject`
-2. Buscar en CLAUDE.md menciones a proyectos de Plane
-3. Si no se encuentra → Preguntar y usar `plane:list_projects`
-4. Detectar estado inicial preferido (Backlog o To-Do)
+### 0.1 Detectar modo
 
-### Configuración por proyecto
+```
+Que recibi?
+├── US-XX (ej: "US-01") → Modo SPEC-DRIVEN (Trello)
+├── board:BOARD_ID → Modo SPEC-DRIVEN (listar US, elegir)
+├── PROYECTO-N (ej: "MCPROFIT-42") → Modo FREEFORM (Plane)
+└── Texto libre → Modo FREEFORM (detectar destino)
+```
 
-El archivo `.claude/settings.local.json` puede contener:
+### 0.2 Detectar configuracion del proyecto
+
+Buscar en `.claude/settings.local.json`:
 
 ```json
 {
+  "trello": {
+    "boardId": "BOARD_ID_AQUI"
+  },
   "plane": {
     "defaultProject": "MCPROFIT",
+    "projectId": "uuid",
     "defaultState": "Backlog",
-    "projectId": "a6a688dd-03e2-4863-bcd8-c9cb64607cd3",
     "defaultAssignee": "d325686f-2d7c-491f-9e28-dffbf4e23c55"
   }
 }
 ```
 
-### Asignee por defecto
+**Prioridad de destino:**
+1. Si el input es US-XX o board:ID → Trello
+2. Si el input es PROYECTO-N → Plane
+3. Si hay `trello.boardId` → Trello
+4. Si hay `plane.defaultProject` → Plane
+5. Si ninguno → Preguntar al usuario
 
-**OBLIGATORIO**: Todas las tareas creadas con `/prd` se asignan automáticamente a:
+### 0.3 Asignee por defecto (Plane)
+
+**OBLIGATORIO** para Plane: Todas las tareas se asignan a:
 - **Usuario**: Jesus Perez Sanchez (jesus.perez.developer@gmail.com)
 - **ID**: `d325686f-2d7c-491f-9e28-dffbf4e23c55`
 
 ---
 
-## Paso 1: Detectar Tipo de PRD
+## Modo SPEC-DRIVEN (Trello)
 
-### PRD Feature
-**Detectar**: "nueva", "añadir", "crear", "implementar", "feature", "funcionalidad", "como [usuario] quiero"
+> El documento del cliente (US/UC/AC) ya existe en Trello.
+> El PRD ENRIQUECE pero nunca reinventa lo que el cliente firmo.
 
-### PRD Técnico (Refactor)
+### S1: Cargar datos desde Trello
+
+```
+1. Obtener board_id de settings o del input
+2. Llamar get_us(board_id, us_id) via MCP dev-engine-trello
+3. Llamar list_uc(board_id, us_id) para obtener todos los UCs hijos
+4. Para cada UC: llamar get_uc(board_id, uc_id) para detalle completo
+```
+
+**Datos que se obtienen automaticamente:**
+- US: nombre, descripcion, horas estimadas, pantallas
+- UCs: nombre, actor, horas, pantallas, estado
+- ACs: ID (AC-XX), texto, estado (done/pending)
+
+### S2: Enriquecer con contexto tecnico
+
+El PRD spec-driven NO repite la info del cliente. Anade:
+1. **Contexto tecnico**: stack, dependencias, integraciones
+2. **Interacciones UI**: volumenes, frecuencias, criticidad (del analisis)
+3. **NFRs**: rendimiento, seguridad, accesibilidad
+4. **Riesgos**: dependencias externas, complejidad, incertidumbres
+5. **Alcance**: que SI incluye y que NO incluye explicitamente
+
+### S3: Generar PRD Spec-Driven
+
+Usar **Template: PRD Spec-Driven** (ver abajo).
+
+### S4: Validar Calidad de Definicion (Paso 2.5)
+
+Ejecutar el Definition Quality Gate sobre los AC-XX que vienen de Trello.
+Si algun criterio no pasa → proponer mejoras al usuario ANTES de continuar.
+
+### S5: Adjuntar evidencia a Trello
+
+```
+1. Llamar attach_evidence(board_id, us_id, "us", "prd", markdown_content)
+   → Genera PDF y lo adjunta a la card US en Trello
+2. Confirmar al usuario
+```
+
+---
+
+## Modo FREEFORM (Plane o Trello nuevo)
+
+> No hay spec previa. Se genera el PRD desde cero a partir de descripcion del usuario.
+
+### Paso 1: Detectar Tipo de PRD
+
+#### PRD Feature
+**Detectar**: "nueva", "anadir", "crear", "implementar", "feature", "funcionalidad", "como [usuario] quiero"
+
+#### PRD Tecnico (Refactor)
 **Detectar**: "refactor", "simplificar", "migrar", "eliminar", "cambiar", "reorganizar"
 
----
+### Paso 2: Recopilar Informacion
 
-## Paso 2: Recopilar Información
+#### Preguntas obligatorias para PRD Feature:
+1. Que problema resuelve?
+2. Quien es el usuario objetivo?
+3. Cuales son las User Stories principales? (minimo 1 US con sus UCs)
 
-### Preguntas obligatorias para PRD Feature:
-1. ¿Qué problema resuelve?
-2. ¿Quién es el usuario objetivo?
-3. ¿Qué funcionalidades principales necesita? (mínimo 3)
-
-### Preguntas para sección UI (CRÍTICO):
-Para cada funcionalidad, determinar:
-- **Datos**: ¿Qué datos muestra? ¿Cuántos items típicamente?
-- **Acciones**: ¿Qué puede hacer el usuario? (ver, filtrar, seleccionar, crear, editar, eliminar)
-- **Frecuencia**: ¿Con qué frecuencia se usa? (diaria, ocasional, rara)
-- **Criticidad**: ¿Qué pasa si el usuario se equivoca? (reversible, irreversible, costoso)
+#### Preguntas para seccion UI (CRITICO):
+Para cada Use Case, determinar:
+- **Datos**: Que datos muestra? Cuantos items tipicamente?
+- **Acciones**: Que puede hacer el usuario? (ver, filtrar, seleccionar, crear, editar, eliminar)
+- **Frecuencia**: Con que frecuencia se usa? (diaria, ocasional, rara)
+- **Criticidad**: Que pasa si el usuario se equivoca? (reversible, irreversible, costoso)
 
 ---
 
-## Template: PRD Feature
+## Template: PRD Spec-Driven
 
 ```markdown
-# PRD: [Título]
+# PRD: [US-XX] [Nombre de la User Story]
 
-## Descripción
-[1-2 párrafos: qué es y qué problema resuelve]
+> Origen: Trello board [board_name] | US-XX
+> Generado: [fecha]
 
-## Objetivo
-[Una oración clara]
+## Resumen
 
-## Usuario Objetivo
-[Rol del usuario]
+[1-2 parrafos: objetivo de la US y que problema resuelve para el usuario]
+
+## Alcance
+
+### Incluye
+- [Funcionalidad explicita 1]
+- [Funcionalidad explicita 2]
+
+### No incluye
+- [Exclusion explicita 1 — evita scope creep]
+- [Exclusion explicita 2]
 
 ---
 
-## Funcionalidades
+## User Story
 
-### F1: [Nombre funcionalidad]
-- **Descripción**: [Qué hace]
-- **Datos**: [Qué datos muestra/maneja]
-- **Volumen**: [Cantidad típica de items: 1-5 | 5-20 | 20-100 | 100+]
+**ID**: [US-XX]
+**Nombre**: [nombre]
+**Actor**: [usuario objetivo]
+**Horas estimadas**: [N]h
+**Pantallas**: [lista]
 
-### F2: [Nombre funcionalidad]
+> Como [actor], quiero [objetivo], para [beneficio].
+
+---
+
+## Use Cases
+
+### UC-XXX: [Nombre]
+- **Actor**: [actor]
+- **Horas**: [N]h
+- **Pantallas**: [pantallas]
+- **Estado**: [backlog/ready/in_progress/review/done]
+
+#### Acceptance Criteria
+- [ ] **AC-01**: [Criterio especifico y testable]
+- [ ] **AC-02**: [Criterio especifico y testable]
+
+### UC-XXX: [Nombre]
 ...
 
 ---
 
 ## Interacciones UI
 
-> Esta sección alimenta el análisis de componentes en /plan
+> Esta seccion alimenta el analisis de componentes en /plan
 
-### Visualización de datos
+### Visualizacion de datos
 | Dato | Volumen | Atributos visibles | Acciones por item |
 |------|---------|-------------------|-------------------|
-| [ej: Propiedades] | [20-100] | [nombre, dirección, precio] | [ver, editar, eliminar] |
+| [ej: Propiedades] | [20-100] | [nombre, direccion, precio] | [ver, editar, eliminar] |
 
 ### Acciones del usuario
-| Acción | Frecuencia | Criticidad | Requiere confirmación |
-|--------|------------|------------|----------------------|
-| [ej: Crear propiedad] | Ocasional | Media | No |
-| [ej: Eliminar propiedad] | Rara | Alta | Sí |
-
-### Selecciones/Filtros
-| Filtro | Opciones | Selección | Frecuencia |
-|--------|----------|-----------|------------|
-| [ej: Tipo propiedad] | [5-7] | Única | Frecuente |
-| [ej: Estado] | [3-4] | Múltiple | Ocasional |
+| Accion | UC asociado | Frecuencia | Criticidad | Requiere confirmacion |
+|--------|-------------|------------|------------|----------------------|
+| [ej: Crear propiedad] | UC-001 | Ocasional | Media | No |
 
 ### Formularios
-| Formulario | Campos | Contexto |
-|------------|--------|----------|
-| [ej: Nueva propiedad] | [8-12] | Modal / Página dedicada |
+| Formulario | UC asociado | Campos | Contexto |
+|------------|-------------|--------|----------|
+| [ej: Nueva propiedad] | UC-002 | [8-12] | Modal / Pagina dedicada |
 
 ---
 
-## Stack Técnico (estimado)
+## Requisitos No Funcionales (NFRs)
+
+| NFR | Criterio | Medicion |
+|-----|----------|----------|
+| Rendimiento | Carga inicial < 2s en 4G | Lighthouse / DevTools |
+| Seguridad | RLS por tenant | Test de aislamiento |
+| Accesibilidad | WCAG 2.1 AA | axe-core audit |
+| Offline | [Si aplica] | Test sin conexion |
+
+---
+
+## Riesgos
+
+| Riesgo | Probabilidad | Impacto | Mitigacion |
+|--------|-------------|---------|------------|
+| [Dependencia externa X] | Media | Alto | [Plan B] |
+| [Complejidad de integracion] | Alta | Medio | [Spike previo] |
+
+---
+
+## Stack Tecnico (estimado)
 
 - **Modelo**: [Nuevo / Existente: nombre]
 - **Repository**: [nombre]_repository
-- **BLoC**: [nombre]_bloc
-- **Páginas**: [lista]
+- **State**: [BLoC/Store/Context]
+- **Paginas**: [lista]
 
 ## Archivos Principales
-```
-lib/
-├── data/models/[nombre]_model.dart
-├── domain/repositories/[nombre]_repository.dart
-├── data/repositories/[nombre]_repository_impl.dart
-└── presentation/features/[nombre]/
-    ├── bloc/
-    ├── page/
-    └── widgets/
-```
-
-## Dependencias
-- [Features o servicios requeridos]
+[Estructura estimada segun stack detectado]
 
 ---
 
-## Criterios de Aceptación
+## Criterios de Aceptacion (consolidado)
 
-### Funcionales
-- [ ] **AC-01**: [Criterio específico y testable ligado a F1]
-- [ ] **AC-02**: [Criterio específico y testable ligado a F1 o F2]
-- [ ] **AC-03**: [Criterio específico y testable ligado a F2]
-- [ ] **AC-04**: [Criterio específico y testable ligado a F3]
+### Funcionales (validados por AG-09)
+[Copiar todos los AC-XX de los UCs arriba, consolidados]
 
-### Técnicos (no validados por AG-09)
+- [ ] **AC-01**: [Criterio — de UC-XXX]
+- [ ] **AC-02**: [Criterio — de UC-XXX]
+...
+
+### Tecnicos (no validados por AG-09)
 - [ ] Proyecto compila sin errores
 - [ ] Tests con 85%+ coverage
 
@@ -177,19 +270,151 @@ lib/
 
 ---
 
-## Template: PRD Técnico
+## Template: PRD Feature (Freeform)
 
 ```markdown
-# PRD: [Título]
+# PRD: [Titulo]
+
+## Descripcion
+[1-2 parrafos: que es y que problema resuelve]
+
+## Objetivo
+[Una oracion clara]
+
+## Usuario Objetivo
+[Rol del usuario]
+
+## Alcance
+
+### Incluye
+- [Funcionalidad explicita]
+
+### No incluye
+- [Exclusion explicita]
+
+---
+
+## User Stories y Use Cases
+
+### US-01: [Nombre de la User Story]
+
+> Como [actor], quiero [objetivo], para [beneficio].
+
+#### UC-001: [Nombre del Use Case]
+- **Actor**: [actor]
+- **Horas estimadas**: [N]h
+- **Pantallas**: [lista]
+
+**Acceptance Criteria:**
+- [ ] **AC-01**: [Criterio especifico y testable]
+- [ ] **AC-02**: [Criterio especifico y testable]
+
+#### UC-002: [Nombre del Use Case]
+...
+
+### US-02: [Nombre]
+...
+
+---
+
+## Interacciones UI
+
+> Esta seccion alimenta el analisis de componentes en /plan
+
+### Visualizacion de datos
+| Dato | Volumen | Atributos visibles | Acciones por item |
+|------|---------|-------------------|-------------------|
+| [ej: Propiedades] | [20-100] | [nombre, direccion, precio] | [ver, editar, eliminar] |
+
+### Acciones del usuario
+| Accion | UC asociado | Frecuencia | Criticidad | Requiere confirmacion |
+|--------|-------------|------------|------------|----------------------|
+| [ej: Crear propiedad] | UC-001 | Ocasional | Media | No |
+
+### Selecciones/Filtros
+| Filtro | Opciones | Seleccion | Frecuencia |
+|--------|----------|-----------|------------|
+| [ej: Tipo propiedad] | [5-7] | Unica | Frecuente |
+
+### Formularios
+| Formulario | UC asociado | Campos | Contexto |
+|------------|-------------|--------|----------|
+| [ej: Nueva propiedad] | UC-002 | [8-12] | Modal / Pagina dedicada |
+
+---
+
+## Requisitos No Funcionales (NFRs)
+
+| NFR | Criterio | Medicion |
+|-----|----------|----------|
+| Rendimiento | [Criterio medible] | [Como se mide] |
+| Seguridad | [Criterio medible] | [Como se mide] |
+
+---
+
+## Riesgos
+
+| Riesgo | Probabilidad | Impacto | Mitigacion |
+|--------|-------------|---------|------------|
+| [Riesgo identificado] | [B/M/A] | [B/M/A] | [Plan] |
+
+---
+
+## Stack Tecnico (estimado)
+
+- **Modelo**: [Nuevo / Existente: nombre]
+- **Repository**: [nombre]_repository
+- **State**: [BLoC/Store/Context]
+- **Paginas**: [lista]
+
+## Archivos Principales
+[Estructura estimada segun stack]
+
+## Dependencias
+- [Features o servicios requeridos]
+
+---
+
+## Criterios de Aceptacion (consolidado)
+
+### Funcionales
+- [ ] **AC-01**: [Criterio especifico y testable — de UC-001]
+- [ ] **AC-02**: [Criterio especifico y testable — de UC-001]
+- [ ] **AC-03**: [Criterio especifico y testable — de UC-002]
+
+### Tecnicos (no validados por AG-09)
+- [ ] Proyecto compila sin errores
+- [ ] Tests con 85%+ coverage
+
+---
+**Prioridad**: [urgent/high/medium/low/none]
+**Complejidad**: [Baja/Media/Alta]
+*Generado: [fecha]*
+```
+
+---
+
+## Template: PRD Tecnico
+
+```markdown
+# PRD: [Titulo]
 
 ## Resumen Ejecutivo
-[2-3 párrafos: objetivo del refactor y por qué es necesario]
+[2-3 parrafos: objetivo del refactor y por que es necesario]
+
+## Alcance
+
+### Incluye
+- [Cambio explicito]
+
+### No incluye
+- [Exclusion explicita]
 
 ---
 
 ## Objetivos
-1. **[Objetivo 1]** - [Descripción]
-2. **[Objetivo 2]** - [Descripción]
+1. **[Objetivo 1]** - [Descripcion]
+2. **[Objetivo 2]** - [Descripcion]
 
 ---
 
@@ -214,22 +439,17 @@ lib/
 |-------------------|--------|------------------|
 | [widget_x] | Reemplazar | [widget_y] |
 
-### Nuevas interacciones
-| Interacción | Volumen | Frecuencia | Criticidad |
-|-------------|---------|------------|------------|
-| [descripción] | [N items] | [freq] | [nivel] |
-
 ---
 
 ## A Eliminar
-- [ ] [Elemento] - [Razón]
+- [ ] [Elemento] - [Razon]
 
 ## A Mantener
 - [Elemento]
 
 ---
 
-## Plan de Implementación (alto nivel)
+## Plan de Implementacion (alto nivel)
 
 ### Fase 1: [Nombre]
 - [Tarea]
@@ -239,17 +459,25 @@ lib/
 
 ### Fase 3: Cleanup
 - Eliminar archivos no usados
-- Validar compilación
+- Validar compilacion
 
 ---
 
-## Criterios de Aceptación
+## Riesgos
+
+| Riesgo | Probabilidad | Impacto | Mitigacion |
+|--------|-------------|---------|------------|
+| [Riesgo identificado] | [B/M/A] | [B/M/A] | [Plan] |
+
+---
+
+## Criterios de Aceptacion
 
 ### Funcionales
-- [ ] **AC-01**: [Criterio específico y testable]
-- [ ] **AC-02**: [Criterio específico y testable]
+- [ ] **AC-01**: [Criterio especifico y testable]
+- [ ] **AC-02**: [Criterio especifico y testable]
 
-### Técnicos (no validados por AG-09)
+### Tecnicos (no validados por AG-09)
 - [ ] Proyecto compila sin errores
 - [ ] Tests pasan
 
@@ -259,7 +487,7 @@ lib/
 
 ---
 
-## Paso 2.5: Validar Calidad de Definición (BLOQUEANTE)
+## Paso 2.5: Validar Calidad de Definicion (BLOQUEANTE)
 
 > Antes de crear el Work Item, validar que los acceptance criteria permiten testing automatizado.
 > El Work Item NO se crea hasta que este gate pase.
@@ -267,49 +495,50 @@ lib/
 ### 2.5.1 Asignar ID a cada criterio
 
 Numerar cada criterio funcional: AC-01, AC-02, AC-03...
-Excluir criterios técnicos genéricos ("compila sin errores", "85% coverage") — estos NO cuentan como funcionales.
+En modo spec-driven, los IDs ya vienen de Trello — mantenerlos.
+Excluir criterios tecnicos genericos ("compila sin errores", "85% coverage") — estos NO cuentan como funcionales.
 
 ### 2.5.2 Evaluar cada criterio funcional
 
-Para cada AC-XX, evaluar 3 métricas (0-2):
+Para cada AC-XX, evaluar 3 metricas (0-2):
 
-| Métrica | 0 (RECHAZAR) | 1 (ACEPTABLE) | 2 (IDEAL) |
+| Metrica | 0 (RECHAZAR) | 1 (ACEPTABLE) | 2 (IDEAL) |
 |---------|-------------|----------------|-----------|
-| **Especificidad** | Vago: "funciona bien", "gestiona datos", "el sistema debe ser robusto" | General: "mostrar lista de propiedades", "crear usuario" | Preciso: "listado paginado de 20 propiedades con foto thumbnail, nombre y precio en CLP" |
-| **Medibilidad** | Subjetivo: "es rápido", "user-friendly", "buena UX" | Parcial: "carga en poco tiempo", "responde rápido" | Cuantificado: "carga inicial < 2s en 4G", "100% de campos validados inline" |
-| **Testabilidad** | No verificable: "buena experiencia", "el usuario está satisfecho" | Solo manual: "el formulario valida campos" | Automatizable: "mostrar error inline rojo bajo el campo si email no contiene @ al perder foco" |
+| **Especificidad** | Vago: "funciona bien", "gestiona datos" | General: "mostrar lista de propiedades" | Preciso: "listado paginado de 20 propiedades con foto thumbnail, nombre y precio" |
+| **Medibilidad** | Subjetivo: "es rapido", "user-friendly" | Parcial: "carga en poco tiempo" | Cuantificado: "carga inicial < 2s en 4G" |
+| **Testabilidad** | No verificable: "buena experiencia" | Solo manual: "el formulario valida campos" | Automatizable: "mostrar error inline rojo bajo el campo si email no contiene @ al perder foco" |
 
 ### 2.5.3 Validar cobertura funcional
 
-- Cada Funcionalidad (F1, F2, F3...) DEBE tener al menos 1 criterio AC-XX asociado
-- Si una funcionalidad no tiene criterio → RECHAZAR
-- Ratio mínimo: criterios funcionales / funcionalidades ≥ 1.0
+- Cada Use Case (UC-XXX) DEBE tener al menos 1 criterio AC-XX asociado
+- Si un UC no tiene criterio → RECHAZAR
+- Ratio minimo: criterios funcionales / use cases >= 1.0
 
 ### 2.5.4 Calcular veredicto
 
 ```
-SI algún criterio tiene score 0 en cualquier métrica → RECHAZAR
+SI algun criterio tiene score 0 en cualquier metrica → RECHAZAR
 SI promedio general de los 3 scores < 1.5 → RECHAZAR
-SI alguna funcionalidad no tiene criterio AC-XX → RECHAZAR
+SI algun Use Case no tiene criterio AC-XX → RECHAZAR
 ELSE → APROBADO
 ```
 
 ### 2.5.5 Si RECHAZADO
 
-1. Mostrar tabla de evaluación por criterio:
+1. Mostrar tabla de evaluacion por criterio:
 
 ```
-| AC-XX | Especificidad | Medibilidad | Testabilidad | Veredicto |
-|-------|--------------|-------------|--------------|-----------|
-| AC-01 | 2 | 1 | 2 | OK |
-| AC-02 | 0 | 0 | 0 | RECHAZADO |
+| AC-XX | UC | Especificidad | Medibilidad | Testabilidad | Veredicto |
+|-------|-----|--------------|-------------|--------------|-----------|
+| AC-01 | UC-001 | 2 | 1 | 2 | OK |
+| AC-02 | UC-002 | 0 | 0 | 0 | RECHAZADO |
 ```
 
-2. Para cada criterio rechazado, proponer una versión mejorada concreta
-3. Preguntar: "¿Acepta las mejoras sugeridas o prefiere redactar manualmente?"
+2. Para cada criterio rechazado, proponer una version mejorada concreta
+3. Preguntar: "Acepta las mejoras sugeridas o prefiere redactar manualmente?"
 4. Aplicar correcciones y re-evaluar
 5. NO crear Work Item hasta que pase
-6. Máximo 3 iteraciones. Si tras 3 no pasa → pedir al usuario que defina los criterios manualmente
+6. Maximo 3 iteraciones. Si tras 3 no pasa → pedir al usuario que defina los criterios manualmente
 
 ### 2.5.6 Si APROBADO
 
@@ -318,28 +547,39 @@ Reportar:
 ```
 Definition Quality Gate: APROBADO
 Criterios funcionales: {N} (promedio: {score}/2.0)
-Cobertura: {N} funcionalidades cubiertas de {M}
+Cobertura: {N} Use Cases cubiertos de {M}
 ```
 
 ---
 
-## Paso 3: Crear Work Item en Plane
+## Paso 3: Crear Work Items
 
-### Detectar configuración del proyecto
+### 3a: Destino Trello (spec-driven o freeform)
+
+En modo spec-driven, la US ya existe en Trello. Solo adjuntar evidencia (Paso S5).
+
+En modo freeform con destino Trello:
+1. Obtener board_id de settings
+2. Llamar import_spec via MCP dev-engine-trello con la estructura US/UC/AC generada
+3. Esto crea automaticamente: cards US + cards UC + checklists AC + custom fields
+
+### 3b: Destino Plane
+
+#### Detectar configuracion del proyecto
 
 1. Leer `.claude/settings.local.json` para obtener `plane.projectId`
 2. Si no existe, usar `plane:list_projects` y preguntar al usuario
 3. Obtener estados con `plane:list_states` para encontrar "Backlog" o "To-Do"
 4. Obtener labels con `plane:list_labels` para asignar etiquetas apropiadas
 
-### Crear el Work Item
+#### Crear el Work Item
 
 Usar `plane:create_work_item`:
 
 ```json
 {
   "project_id": "[projectId del settings o detectado]",
-  "name": "[Título del PRD]",
+  "name": "[Titulo del PRD]",
   "description_html": "[PRD completo en HTML]",
   "description_stripped": "[PRD en texto plano]",
   "priority": "[urgent|high|medium|low|none]",
@@ -349,23 +589,58 @@ Usar `plane:create_work_item`:
 }
 ```
 
-> **IMPORTANTE**: El campo `assignees` SIEMPRE incluye el ID de Jesus Perez (jesus.perez.developer@gmail.com)
+> **IMPORTANTE**: El campo `assignees` SIEMPRE incluye el ID de Jesus Perez
 
-### Mapeo de prioridades
+#### Mapeo de prioridades
 
 | PRD | Plane Priority |
 |-----|----------------|
 | Alta | high |
 | Media | medium |
 | Baja | low |
-| Crítica | urgent |
+| Critica | urgent |
 
 ---
 
 ## Paso 4: Confirmar
 
+### Si destino es Trello (spec-driven):
+
 ```
-## ✅ PRD Creado en Plane
+PRD Generado y adjuntado a Trello
+
+**Board**: [nombre del board]
+**User Story**: [US-XX] [nombre]
+**PDF adjuntado**: Si
+
+### Resumen:
+- **Use Cases**: [N]
+- **Acceptance Criteria**: [N] (promedio calidad: {score}/2.0)
+- **Interacciones UI documentadas**: [N]
+- **NFRs**: [N]
+- **Riesgos**: [N]
+
+### Siguiente paso:
+/plan US-XX
+```
+
+### Si destino es Trello (freeform):
+
+```
+PRD Creado en Trello
+
+**Board**: [nombre del board]
+**User Stories creadas**: [N]
+**Use Cases creados**: [N]
+
+### Siguiente paso:
+/plan US-XX
+```
+
+### Si destino es Plane:
+
+```
+PRD Creado en Plane
 
 **Proyecto**: [nombre del proyecto]
 **Work Item**: [nombre]
@@ -374,54 +649,75 @@ Usar `plane:create_work_item`:
 **Prioridad**: [prioridad]
 
 ### Resumen:
-- **Funcionalidades**: [N]
+- **User Stories**: [N]
+- **Use Cases**: [N]
+- **Acceptance Criteria**: [N]
 - **Interacciones UI documentadas**: [N]
-- **Criterios de aceptación**: [N]
 
 ### Siguiente paso:
-/plan MCPROFIT-[número]
+/plan MCPROFIT-[numero]
 ```
 
 ---
 
 ## Checklist de Calidad
 
-### PRD Feature:
-- [ ] Título claro (max 60 chars)
-- [ ] Descripción explica el problema
-- [ ] Mínimo 3 funcionalidades
-- [ ] Sección "Interacciones UI" completa
-- [ ] Tabla de visualización de datos
-- [ ] Tabla de acciones con frecuencia/criticidad
-- [ ] Mínimo 4 criterios de aceptación funcionales con ID (AC-XX)
-- [ ] Cada criterio: especificidad ≥ 1, medibilidad ≥ 1, testabilidad ≥ 1
-- [ ] Cada funcionalidad (F1, F2...) tiene ≥ 1 criterio AC-XX
-- [ ] Promedio de calidad de criterios ≥ 1.5/2.0
+### PRD Feature (spec-driven o freeform):
+- [ ] Titulo claro (max 60 chars)
+- [ ] Descripcion explica el problema
+- [ ] Seccion Alcance (incluye + no incluye)
+- [ ] Minimo 1 User Story con Use Cases
+- [ ] Cada UC tiene minimo 1 AC-XX
+- [ ] Seccion "Interacciones UI" completa
+- [ ] Tabla de acciones con UC asociado, frecuencia y criticidad
+- [ ] Seccion NFRs con criterios medibles
+- [ ] Seccion Riesgos con mitigacion
+- [ ] Cada criterio: especificidad >= 1, medibilidad >= 1, testabilidad >= 1
+- [ ] Promedio de calidad de criterios >= 1.5/2.0
 - [ ] Definition Quality Gate (Paso 2.5) aprobado
 
-### PRD Técnico:
+### PRD Tecnico:
 - [ ] Resumen ejecutivo claro
-- [ ] Al menos un cambio ANTES/DESPUÉS
-- [ ] Sección "Cambios de UI" si afecta interfaz
+- [ ] Seccion Alcance (incluye + no incluye)
+- [ ] Al menos un cambio ANTES/DESPUES
+- [ ] Seccion "Cambios de UI" si afecta interfaz
 - [ ] Plan por fases
-- [ ] Mínimo 2 criterios de aceptación funcionales con ID (AC-XX)
+- [ ] Seccion Riesgos
+- [ ] Minimo 2 criterios de aceptacion funcionales con ID (AC-XX)
 - [ ] Definition Quality Gate (Paso 2.5) aprobado
 
 ---
 
-## Referencia MCP Plane
+## Jerarquia Conceptual
 
-### Herramientas principales:
-- `plane:list_projects` - Listar proyectos del workspace
-- `plane:list_states` - Listar estados de un proyecto
-- `plane:list_labels` - Listar etiquetas de un proyecto
-- `plane:create_work_item` - Crear nuevo work item
-- `plane:retrieve_work_item_by_identifier` - Obtener work item por identificador (ej: MCPROFIT-42)
+```
+US-XX (User Story) = unidad presupuestable, valor para el cliente
+  └── UC-XXX (Use Case) = unidad atomica de desarrollo
+        └── AC-XX (Acceptance Criteria) = verificacion contractual
+```
 
-### Estados típicos de un proyecto:
-- **Backlog** (group: backlog) - Estado inicial para nuevos PRDs
-- **To-Do** (group: unstarted) - Listo para comenzar
-- **En Desarrollo** (group: started) - En progreso
-- **En Pruebas** (group: started) - En validación
-- **Finalizado** (group: completed) - Completado
-- **Cancelled** (group: cancelled) - Cancelado
+- **US** → se mapea a una card en Trello (label azul) o work item en Plane
+- **UC** → se mapea a una card hija en Trello (label verde) vinculada via us_id
+- **AC** → se mapea a checkitems en el checklist "Criterios de Aceptacion" del UC
+- La US es lo que se presupuesta y el cliente firma
+- El UC es lo que el agente implementa (1 UC = 1 ciclo /implement)
+- El AC es lo que AG-09 valida
+
+---
+
+## Referencia MCP
+
+### Trello (dev-engine-trello):
+- `get_us(board_id, us_id)` — Detalle completo de US con UCs hijos
+- `get_uc(board_id, uc_id)` — Detalle completo de UC con ACs
+- `list_us(board_id)` — Listar todas las US del board
+- `list_uc(board_id, us_id)` — Listar UCs de una US
+- `import_spec(board_id, spec)` — Importar estructura US/UC/AC completa
+- `attach_evidence(board_id, target_id, target_type, evidence_type, markdown)` — Adjuntar PDF
+
+### Plane:
+- `plane:list_projects` — Listar proyectos del workspace
+- `plane:list_states` — Listar estados de un proyecto
+- `plane:list_labels` — Listar etiquetas de un proyecto
+- `plane:create_work_item` — Crear nuevo work item
+- `plane:retrieve_work_item_by_identifier` — Obtener work item por identificador

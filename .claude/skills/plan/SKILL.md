@@ -11,7 +11,7 @@ agent: Plan
 
 # /plan (Global)
 
-Genera un plan de implementación detallado con análisis de componentes UI.
+Genera un plan de implementacion detallado con analisis de componentes UI.
 
 ## Uso
 
@@ -19,9 +19,11 @@ Genera un plan de implementación detallado con análisis de componentes UI.
 /plan [origen]
 ```
 
-**Orígenes soportados:**
+**Origenes soportados:**
+- `US-XX` → User Story de Trello (spec-driven)
+- `board:BOARD_ID` → Listar US de un board Trello para elegir
 - `MCPROFIT-42` → Work Item de Plane por identificador
-- `"descripción de feature"` → Texto directo
+- `"descripcion de feature"` → Texto directo
 - `feature:nombre` → Analiza feature existente en el proyecto
 
 ---
@@ -29,28 +31,44 @@ Genera un plan de implementación detallado con análisis de componentes UI.
 ## Paso 0: Detectar Origen y Extraer Requisitos
 
 ```
-¿Qué recibí?
+Que recibi?
+├── US-XX (ej: "US-01") → Obtener datos de Trello
+├── board:BOARD_ID → Listar US del board, elegir una
 ├── PROYECTO-N (ej: "MCPROFIT-42") → Obtener PRD de Plane
 ├── Texto entre comillas → Tratar como mini-PRD
-└── feature:nombre → Analizar código existente en lib/
+└── feature:nombre → Analizar codigo existente en lib/
 ```
+
+### Si es US-XX (Trello spec-driven):
+1. Obtener board_id de `.claude/settings.local.json` → `trello.boardId`
+2. Llamar `get_us(board_id, us_id)` via MCP dev-engine-trello
+3. Llamar `list_uc(board_id, us_id)` para obtener todos los UCs hijos
+4. Para cada UC: `get_uc(board_id, uc_id)` para detalle completo (ACs, pantallas, actor)
+5. Buscar PRD adjunto: `get_evidence(board_id, us_id, "us", "prd")`
+6. Si hay PRD adjunto → parsear secciones (Interacciones UI, NFRs, Riesgos)
+7. Si no hay PRD → usar datos directos de Trello (nombre, descripcion, UCs, ACs)
+
+**Datos disponibles desde Trello:**
+- US: nombre, descripcion, horas, pantallas, estado
+- UCs: nombre, actor, horas, pantallas, ACs con estado
+- Evidencia: PDFs adjuntos (PRD, plans anteriores)
 
 ### Si es identificador de Plane (PROYECTO-N):
 1. Usar `plane:retrieve_work_item_by_identifier` con:
    - `project_identifier`: "MCPROFIT" (extraer del identificador)
-   - `issue_identifier`: 42 (número extraído)
-2. Extraer descripción del work item (contiene el PRD)
-3. Parsear secciones: Funcionalidades, Interacciones UI, Criterios
+   - `issue_identifier`: 42 (numero extraido)
+2. Extraer descripcion del work item (contiene el PRD)
+3. Parsear secciones: User Stories, Use Cases, Interacciones UI, Criterios
 
 ### Si es texto directo:
-1. Generar PRD mínimo internamente:
+1. Generar PRD minimo internamente:
    - Inferir funcionalidades del texto
-   - Preguntar datos faltantes para sección UI si es ambiguo
+   - Preguntar datos faltantes para seccion UI si es ambiguo
 2. Continuar con el flujo
 
 ### Si es feature existente:
 1. Buscar en `lib/presentation/features/{nombre}/`
-2. Analizar código para extraer: modelos, estados, widgets
+2. Analizar codigo para extraer: modelos, estados, widgets
 3. Identificar gaps o mejoras posibles
 
 ---
@@ -189,8 +207,8 @@ Generar plan sin referencias a agentes (tareas genéricas)
 # Plan: [Título del PRD]
 
 > Generado: [fecha]
-> Origen: [MCPROFIT-N / texto / feature]
-> Estado: 🟡 Pendiente
+> Origen: [US-XX (Trello) / MCPROFIT-N (Plane) / texto / feature]
+> Estado: Pendiente
 
 ---
 
@@ -260,6 +278,15 @@ dart run build_runner build --delete-conflicting-outputs
 dart fix --apply && dart analyze
 flutter test --coverage
 ```
+
+---
+
+## Alternativas y Tradeoffs
+
+| Decision | Opcion elegida | Alternativa descartada | Razon |
+|----------|---------------|----------------------|-------|
+| [ej: State mgmt] | [BLoC] | [Riverpod] | [Consistencia con proyecto] |
+| [ej: Navegacion] | [GoRouter] | [Auto Route] | [Ya integrado] |
 
 ---
 
@@ -449,11 +476,17 @@ Después de cada pantalla generada, preguntar:
 
 ---
 
-## Paso 7: Actualizar Work Item en Plane (Opcional)
+## Paso 7: Actualizar Work Item y Adjuntar Evidencia
 
-Si el origen fue un identificador de Plane, actualizar el work item con:
+### Si origen es Trello (US-XX):
+1. Adjuntar plan como PDF a la card US en Trello:
+   ```
+   attach_evidence(board_id, us_id, "us", "plan", plan_markdown)
+   ```
+2. Esto genera un PDF y lo sube como attachment a la card
 
-1. Añadir link al plan generado en comentario
+### Si origen es Plane (PROYECTO-N):
+1. Anadir link al plan generado en comentario
 2. Cambiar estado a "To-Do" si estaba en "Backlog"
 
 Usar `plane:create_work_item_comment`:
@@ -461,7 +494,7 @@ Usar `plane:create_work_item_comment`:
 {
   "project_id": "[projectId]",
   "work_item_id": "[workItemId]",
-  "comment_html": "📋 Plan generado: `doc/plans/[nombre]_plan.md`"
+  "comment_html": "Plan generado: `doc/plans/[nombre]_plan.md`"
 }
 ```
 
@@ -558,12 +591,22 @@ Empty state → Ilustración + CTA
 - [ ] Pantallas Stitch generadas via MCP (si aplica UI)
 - [ ] HTMLs guardados en `doc/design/{feature}/`
 - [ ] Prompts de Stitch registrados para trazabilidad
+- [ ] Seccion Alternativas/Tradeoffs incluida
+- [ ] Plan adjuntado como evidencia a Trello (si spec-driven)
 
 ---
 
-## Referencia MCP Plane
+## Referencia MCP
 
-### Herramientas principales:
+### Trello (dev-engine-trello):
+- `get_us(board_id, us_id)` — Detalle completo de US con UCs hijos
+- `get_uc(board_id, uc_id)` — Detalle completo de UC con ACs
+- `list_us(board_id)` — Listar todas las US del board
+- `list_uc(board_id, us_id)` — Listar UCs de una US
+- `get_evidence(board_id, target_id, target_type)` — Obtener evidencia adjunta
+- `attach_evidence(board_id, target_id, target_type, evidence_type, markdown)` — Adjuntar PDF
+
+### Plane — Herramientas principales:
 - `plane:list_projects` - Listar proyectos del workspace
 - `plane:retrieve_work_item_by_identifier` - Obtener work item por identificador (ej: MCPROFIT-42)
 - `plane:retrieve_work_item` - Obtener work item por UUID

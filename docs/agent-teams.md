@@ -1,6 +1,6 @@
 # Agent Teams
 
-> SDD-JPS Engine v3.8.0 — Orquestacion multi-agente nativa de Claude Code (experimental)
+> SDD-JPS Engine v3.9.0 — Orquestacion multi-agente nativa de Claude Code (experimental)
 
 ## Que es Agent Teams
 

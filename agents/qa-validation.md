@@ -1,6 +1,6 @@
 # AG-04: QA & Validation
 
-> SDD-JPS Engine v3.8.0
+> SDD-JPS Engine v3.9.0
 > Template generico -- especialista en testing y validacion de calidad.
 
 ## Proposito

@@ -1,4 +1,4 @@
-# Reglas Globales - SDD-JPS Engine v3.8.0
+# Reglas Globales - SDD-JPS Engine v3.9.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.

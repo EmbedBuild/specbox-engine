@@ -1,6 +1,6 @@
 # n8n - Patrones de Infraestructura
 
-> SDD-JPS Engine v3.8.0 | Referencia de patrones para automatizaciones con n8n
+> SDD-JPS Engine v3.9.0 | Referencia de patrones para automatizaciones con n8n
 
 ---
 

@@ -1,6 +1,6 @@
 # Stripe - Patrones de Infraestructura
 
-> SDD-JPS Engine v3.8.0 | Referencia de patrones para integracion de pagos con Stripe
+> SDD-JPS Engine v3.9.0 | Referencia de patrones para integracion de pagos con Stripe
 
 ---
 

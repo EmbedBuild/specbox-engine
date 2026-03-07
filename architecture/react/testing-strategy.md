@@ -374,4 +374,4 @@ e2e/
 
 ---
 
-*Referencia: SDD-JPS Engine v3.8.0 "E2E Sentinel"*
+*Referencia: SDD-JPS Engine v3.9.0 "E2E Sentinel"*

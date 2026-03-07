@@ -116,13 +116,32 @@ Si dos teammates necesitan modificar el mismo archivo:
 3. Si es un caso frecuente, proponer reestructurar la File Ownership
 4. Documentar la decision en `doc/status/`
 
+## VEG Orchestration
+
+Al iniciar /implement de una feature con VEG:
+
+1. Verificar si el plan incluye seccion "Visual Experience Generation"
+2. Si SI:
+   - Cargar modo VEG (1/2/3) y archivos de `doc/veg/{feature}/`
+   - Instruir a DesignSpecialist con el VEG activo (Pilar 3 para Stitch)
+   - Instruir a FlutterSpecialist/ReactSpecialist con el Motion Catalog (Pilar 2)
+   - Ejecutar generacion de imagenes (Paso 3.5) directamente — no delegar
+   - Incluir resumen VEG compacto (~400 tokens) en el contexto de cada teammate
+3. Si NO: pipeline legacy, sin cambios
+
+Decisiones:
+- Modo 2 (perfiles): Stitch para target principal, luego variantes
+- Modo 3 (ICPs): pantallas independientes por ICP
+- MCP imagenes no disponible: WARNING, documentar prompts, continuar
+
 ## Al iniciar una sesion
 
 1. Leer el PRD o tarea del usuario
 2. Leer el plan existente si hay uno en `doc/plan/`
-3. Evaluar que teammates se necesitan
-4. Crear el Task Board con la descomposicion
-5. Comenzar a delegar en paralelo donde sea posible
+3. **Verificar si hay VEGs en `doc/veg/{feature}/`**
+4. Evaluar que teammates se necesitan
+5. Crear el Task Board con la descomposicion
+6. Comenzar a delegar en paralelo donde sea posible
 
 ## Al finalizar una sesion
 

@@ -133,6 +133,7 @@ Si algun criterio no pasa → proponer mejoras al usuario ANTES de continuar.
 1. Que problema resuelve?
 2. Quien es el usuario objetivo?
 3. Cuales son las User Stories principales? (minimo 1 US con sus UCs)
+4. A quien va dirigida la app? (targets/audiencia — activa VEG si se responde)
 
 #### Preguntas para seccion UI (CRITICO):
 Para cada Use Case, determinar:
@@ -214,6 +215,37 @@ Para cada Use Case, determinar:
 | Formulario | UC asociado | Campos | Contexto |
 |------------|-------------|--------|----------|
 | [ej: Nueva propiedad] | UC-002 | [8-12] | Modal / Pagina dedicada |
+
+---
+
+## Audiencia (alimenta VEG)
+
+> Esta seccion es OPCIONAL. Si se incluye, activa Visual Experience Generation en /plan.
+> Sin esta seccion, el pipeline funciona en modo legacy (sin VEG).
+
+### Targets de la aplicacion
+{Descripcion general de a quien va dirigida}
+
+### Target 1: {Nombre}
+- **Perfil**: {quien es, edad, rol, nivel tecnico}
+- **Contexto de uso**: {cuando, donde, con que frecuencia}
+- **JTBD Racional**: {que problema necesita resolver}
+- **JTBD Emocional**: {como quiere sentirse al usar la app}
+- **Referentes**: {apps/webs que usa y le gustan}
+- **Expectativa visual**: {que tipo de UI esperaria}
+
+### Target 2: {Nombre}
+...
+
+### ICPs para Landings (si aplica)
+{Solo cuando el feature incluye landings o campanas dirigidas}
+
+#### ICP 1: {Nombre}
+- **Perfil completo**: {demografia, psicografia, cargo, sector}
+- **JTBD Racional**: {necesidad funcional especifica}
+- **JTBD Emocional**: {necesidad emocional especifica}
+- **Objeciones principales**: {que le frena}
+- **Trigger de conversion**: {que le convence}
 
 ---
 
@@ -340,6 +372,37 @@ Para cada Use Case, determinar:
 | Formulario | UC asociado | Campos | Contexto |
 |------------|-------------|--------|----------|
 | [ej: Nueva propiedad] | UC-002 | [8-12] | Modal / Pagina dedicada |
+
+---
+
+## Audiencia (alimenta VEG)
+
+> Esta seccion es OPCIONAL. Si se incluye, activa Visual Experience Generation en /plan.
+> Sin esta seccion, el pipeline funciona en modo legacy (sin VEG).
+
+### Targets de la aplicacion
+{Descripcion general de a quien va dirigida}
+
+### Target 1: {Nombre}
+- **Perfil**: {quien es, edad, rol, nivel tecnico}
+- **Contexto de uso**: {cuando, donde, con que frecuencia}
+- **JTBD Racional**: {que problema necesita resolver}
+- **JTBD Emocional**: {como quiere sentirse al usar la app}
+- **Referentes**: {apps/webs que usa y le gustan}
+- **Expectativa visual**: {que tipo de UI esperaria}
+
+### Target 2: {Nombre}
+...
+
+### ICPs para Landings (si aplica)
+{Solo cuando el feature incluye landings o campanas dirigidas}
+
+#### ICP 1: {Nombre}
+- **Perfil completo**: {demografia, psicografia, cargo, sector}
+- **JTBD Racional**: {necesidad funcional especifica}
+- **JTBD Emocional**: {necesidad emocional especifica}
+- **Objeciones principales**: {que le frena}
+- **Trigger de conversion**: {que le convence}
 
 ---
 
@@ -540,7 +603,30 @@ ELSE → APROBADO
 5. NO crear Work Item hasta que pase
 6. Maximo 3 iteraciones. Si tras 3 no pasa → pedir al usuario que defina los criterios manualmente
 
-### 2.5.6 Si APROBADO
+### 2.5.6 Validar seccion Audiencia (para VEG)
+
+Evaluar la seccion "Audiencia" del PRD:
+
+```
+Hay seccion Audiencia?
+├── NO → WARNING (no bloqueante): VEG se desactiva en /plan, pipeline legacy
+├── SI → Hay al menos 1 target?
+│   ├── NO → WARNING: VEG desactivado
+│   └── SI → Hay ICPs con JTBD?
+│       ├── SI → Validar que cada ICP tiene JTBD racional Y emocional
+│       │   ├── Faltan JTBDs → RECHAZAR para Modo 3 (ICP), aceptar para Modo 1/2
+│       │   └── Completos → OK para cualquier modo VEG
+│       └── NO → OK para Modo 1 (uniforme) o Modo 2 (por perfil)
+```
+
+Incluir en el reporte:
+```
+VEG Readiness: {ENABLED (Modo X) / DISABLED (sin targets)}
+Targets definidos: {N}
+ICPs definidos: {N}
+```
+
+### 2.5.7 Si APROBADO
 
 Continuar a Paso 3 con los AC-XX numerados incorporados al PRD.
 Reportar:
@@ -548,6 +634,7 @@ Reportar:
 Definition Quality Gate: APROBADO
 Criterios funcionales: {N} (promedio: {score}/2.0)
 Cobertura: {N} Use Cases cubiertos de {M}
+VEG Readiness: {ENABLED (Modo X) / DISABLED}
 ```
 
 ---
@@ -670,11 +757,14 @@ PRD Creado en Plane
 - [ ] Cada UC tiene minimo 1 AC-XX
 - [ ] Seccion "Interacciones UI" completa
 - [ ] Tabla de acciones con UC asociado, frecuencia y criticidad
+- [ ] Seccion "Audiencia" con targets (opcional — activa VEG)
+- [ ] Si hay ICPs para Modo 3: JTBD racional Y emocional definidos
 - [ ] Seccion NFRs con criterios medibles
 - [ ] Seccion Riesgos con mitigacion
 - [ ] Cada criterio: especificidad >= 1, medibilidad >= 1, testabilidad >= 1
 - [ ] Promedio de calidad de criterios >= 1.5/2.0
 - [ ] Definition Quality Gate (Paso 2.5) aprobado
+- [ ] VEG Readiness evaluado (Paso 2.5.6)
 
 ### PRD Tecnico:
 - [ ] Resumen ejecutivo claro

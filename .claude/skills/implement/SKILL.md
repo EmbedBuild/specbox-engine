@@ -112,9 +112,11 @@ Leer el archivo del plan completo y extraer:
 | Agentes involucrados | Referencias a AG-XX en las fases | No |
 | Comandos finales | Seccion `## Comandos Finales` | No |
 | Diseños Stitch | Referencias a `doc/design/` o pantallas Stitch | No |
+| VEGs | `doc/veg/{feature}/*.md` — artefactos Visual Experience Generation | No |
+| Modo VEG | Seccion "Visual Experience Generation" del plan | No |
 | Trello US/UC | Origen US-XX o UC-XXX + board_id | No |
 
-### 0.3 Detectar si requiere diseño
+### 0.3 Detectar si requiere diseño y VEG
 
 **Regla de decision:**
 
@@ -127,6 +129,13 @@ Leer el archivo del plan completo y extraer:
 │   └── Mismo flujo: verificar existencia → generar si faltan
 └── NO: No hay referencias a diseño
     └── Saltar directamente a Paso 5 (implementacion)
+
+¿El plan tiene seccion "Visual Experience Generation"?
+├── SI: Cargar VEGs de doc/veg/{feature}/*.md
+│   ├── Leer modo VEG (1/2/3) y archivos generados
+│   ├── Activar pasos VEG: enriquecer Stitch (3), generar imagenes (3.5), inyectar motion (4)
+│   └── Preparar resumen VEG compacto (~400 tokens) para sub-agentes
+└── NO: Pipeline legacy (sin cambios)
 ```
 
 ### 0.4 Detectar stack tecnologico
@@ -306,6 +315,22 @@ mcp__stitch__generate_screen_from_text(
 5. Guardar en `doc/design/{feature}/{screen_name}.html`
 6. Registrar prompts en `doc/design/{feature}/{feature}_stitch_prompts.md`
 
+**Si hay VEG activo**: Enriquecer cada prompt Stitch con las directivas del Pilar 3 (Diseno):
+
+```
+Visual Direction (from VEG - {target_name}):
+- Density: {density}, Whitespace: {whitespace}
+- Visual hierarchy: {style}, CTA prominence: {prominence}
+- Typography: headings {weight}, body {spacing}, hero {scale}
+- Section separation: {separation_style}
+- Mood: {mood} — this should FEEL {JTBD emocional}
+- Data presentation: {data_style}
+
+Image Placeholders (generate with placeholder boxes):
+- Hero: [{type}] {description from VEG Pilar 1}
+- (mark each with [IMAGE: {id}] for later replacement)
+```
+
 **Reglas:**
 - Una pantalla a la vez (la API tarda minutos)
 - NO preguntar entre pantallas (modo autopilot) — generar todas las que falten
@@ -314,9 +339,189 @@ mcp__stitch__generate_screen_from_text(
 
 ---
 
-## Paso 4: Design-to-Code (si hay diseños)
+## Paso 3.5: Generar Imagenes con MCP (si hay VEG activo)
+
+> Prerequisito: VEG activo con prompts de imagen definidos (Pilar 1).
+> Si el MCP de imagenes no esta configurado → registrar prompts pendientes y continuar.
+
+### 3.5.0 Advertencia de costes
+
+**OBLIGATORIO**: Antes de generar imagenes, informar al usuario:
+
+```
+📷 VEG Image Generation — {N} imagenes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Provider configurado: {primary} ({fallback} como fallback)
+
+Coste estimado:
+  • Canva (Pro/Premium): €0 adicional (incluido en suscripcion)
+  • Freepik (Mystic): Segun plan contratado
+  • OpenAI GPT-Image-1: ~$0.02-0.19/imagen → total ~${min}-${max}
+  • Gemini Imagen 4: ~$0.02-0.06/imagen → total ~${min}-${max}
+
+¿Continuar con la generacion de imagenes? (s/n/skip)
+  s = generar imagenes con MCP
+  n = cancelar VEG imagenes completamente
+  skip = documentar prompts para generacion manual posterior
+```
+
+Si el provider es `canva` y el usuario tiene suscripcion activa, el coste es €0 — mencionar explicitamente.
+Si el usuario elige `skip` o `n` → saltar a Paso 3.5.4 (registrar prompts pendientes).
+
+### 3.5.1 Verificar MCP de imagenes (Health Check)
+
+**No basta con leer la config — hay que probar que el MCP responde.**
+
+1. Leer `veg.image_provider` de `.claude/settings.local.json`
+2. Determinar el provider a usar:
+   - Si `primary: "canva"` → intentar Canva MCP
+   - Si `primary: "freepik"` → intentar Freepik MCP
+   - Si `primary: "lansespirit"` → intentar lansespirit MCP
+3. **Health check obligatorio** — intentar una operacion trivial:
+   - Canva: llamar `mcp__canva__search-designs` con query trivial (ej: "test")
+   - Freepik: llamar `mcp__freepik__check_status` o `mcp__freepik__search_resources` con query trivial
+   - lansespirit: llamar `mcp__image-gen__generate_image` con un prompt de test minimo
+   - Si la llamada retorna "tool not found" o error de conexion → MCP no instalado
+4. **Decision:**
+   ```
+   Health check OK?
+   ├── SI → Continuar con generacion
+   ├── NO (tool not found) → MCP no instalado
+   │   ├── Informar: "El MCP '{provider}' no esta configurado en este entorno.
+   │   │   Para configurarlo, anadir a .vscode/mcp.json o .claude/settings.json:"
+   │   │   {mostrar bloque JSON de configuracion del provider}
+   │   │
+   │   │   Canva: Solo necesita suscripcion Pro/Premium. Auth via OAuth (browser popup).
+   │   │   Freepik: Necesita FREEPIK_API_KEY con plan activo.
+   │   │   lansespirit: Necesita OPENAI_API_KEY y/o GOOGLE_API_KEY con billing activo.
+   │   └── Saltar a Paso 3.5.4 (registrar prompts pendientes)
+   ├── NO (auth error / 401 / 403) → Sesion expirada o suscripcion inactiva
+   │   ├── Canva: "La sesion OAuth de Canva expiro. Reconectar en el navegador."
+   │   ├── Otros: "Verificar que la API key es valida y tiene creditos."
+   │   └── Saltar a Paso 3.5.4
+   └── NO (timeout / 500) → intentar fallback
+       ├── Si hay fallback configurado → repetir health check con fallback
+       └── Si no hay fallback → Paso 3.5.4
+   ```
+
+### 3.5.2 Generar imagenes
+
+El flujo depende del provider configurado.
+
+#### Si provider = "canva" (RECOMENDADO — €0 con suscripcion)
+
+Para cada `[IMAGE: {id}]` identificado en los disenos Stitch:
+
+1. Leer el prompt base del VEG para ese tipo de seccion (hero, features, etc.)
+2. Contextualizar con el contenido especifico de la pantalla
+3. Construir prompt para Canva `generate-design`:
+   ```
+   Create a {width}x{height} design: {prompt del VEG}.
+   Style: {mood from Pilar 1}. Palette: {palette}. Type: {photography/illustration}.
+   This is a standalone visual asset, not a presentation.
+   ```
+4. Llamar `mcp__canva__generate-design` con el prompt
+5. Llamar `mcp__canva__export-design` para exportar como PNG
+6. Guardar en: `doc/veg/{feature}/assets/{image_id}.png`
+7. Registrar en: `doc/veg/{feature}/image_prompts.md`
+
+**Dimensiones por tipo de asset:**
+| Tipo | Dimensiones | Uso |
+|------|------------|-----|
+| Hero | 1920x1080 | Banner principal, above the fold |
+| Feature illustration | 800x800 | Secciones de features |
+| Background | 1920x1080 | Fondos de seccion |
+| Icon/badge | 512x512 | Iconos decorativos |
+| Social proof | 1200x630 | Testimonios, logos |
+
+#### Si provider = "freepik"
+
+Para cada `[IMAGE: {id}]`:
+1. **Si stockSearchFirst = true**: buscar en stock con `search_resources`
+   - Si hay match profesional → `download_resource` → usar
+   - Si no → generar con `generate_image` (Mystic AI)
+2. Guardar y registrar igual que arriba
+
+#### Si provider = "lansespirit" (fallback de pago)
+
+Para cada `[IMAGE: {id}]`:
+1. Generar con `generate_image` (OpenAI GPT-Image-1 o Gemini Imagen 4)
+   - Imagenes con texto legible → preferir OpenAI
+   - Fotorrealismo puro → preferir Gemini Imagen 4 (mas barato)
+2. Guardar y registrar igual que arriba
+
+### 3.5.3 Reglas
+
+- Maximo de imagenes por pantalla: `veg.image_provider.maxImagesPerScreen` (default 5)
+- Prioridad: hero > feature illustrations > social proof > backgrounds > decorativas
+- Si el MCP falla mid-generation: registrar prompt + continuar (imagen pendiente)
+- Retry: 1 intento. Si falla 2 veces → skip con log
+- Budget de contexto: Los prompts de imagen NO se incluyen en el contexto de los sub-agentes. Solo el orquestador ejecuta este paso.
+- Canva genera diseños con layers — el export como PNG aplana automaticamente. El resultado es una imagen usable directamente.
+
+### 3.5.4 Registrar imagenes pendientes (fallback manual)
+
+Si el MCP no estaba disponible, fallo, o el usuario eligio `skip`:
+
+1. Crear `doc/veg/{feature}/PENDING_IMAGES.md`:
+
+```markdown
+# Imagenes Pendientes — {feature}
+
+> Generadas por VEG pero no producidas por MCP.
+> Usar estos prompts para generar manualmente en Canva, Midjourney, DALL-E, Freepik, etc.
+
+| ID | Tipo | Prompt | Aspect Ratio | Prioridad |
+|----|------|--------|-------------|-----------|
+| hero | photography | "{prompt completo}" | 16:9 | Alta |
+| feature-1 | illustration | "{prompt completo}" | 1:1 | Media |
+
+## Como completar
+
+1. Generar cada imagen con el provider de tu preferencia
+2. Guardar en `doc/veg/{feature}/assets/{id}.{ext}`
+3. Ejecutar `/implement` de nuevo — detectara las imagenes y las integrara (Paso 6.1b)
+
+## Coste estimado si se usa API
+
+| Provider | Coste/imagen | Total ({N} imagenes) |
+|----------|-------------|---------------------|
+| Canva (Pro/Premium) | €0 | €0 |
+| Freepik Mystic | Segun plan | Segun plan |
+| OpenAI GPT-Image-1 | $0.02-0.19 | ${min}-${max} |
+| Gemini Imagen 4 | $0.02-0.06 | ${min}-${max} |
+```
+
+2. Mantener placeholders `[IMAGE: {id}]` en los diseños — el Paso 6.1b los reemplazara cuando las imagenes existan.
+3. Log en consola: `⚠️ {N} imagenes pendientes. Ver doc/veg/{feature}/PENDING_IMAGES.md`
+
+---
+
+## Paso 4: Design-to-Code (si hay disenos)
 
 > Convertir los HTML de Stitch a codigo del stack del proyecto.
+
+### 4.0 Instalar dependencias VEG Motion (si hay VEG activo)
+
+**OBLIGATORIO antes de escribir codigo con animaciones.** Verificar e instalar:
+
+```
+¿El VEG tiene motion habilitado (motion_level != none)?
+├── SI → Verificar e instalar dependencias:
+│   ├── Flutter:
+│   │   ├── Leer pubspec.yaml → ¿tiene flutter_animate?
+│   │   ├── NO → ejecutar: flutter pub add flutter_animate
+│   │   └── SI → verificar version compatible (^4.5.2)
+│   ├── React:
+│   │   ├── Leer package.json → ¿tiene motion?
+│   │   ├── NO → ejecutar: npm install motion
+│   │   └── SI → verificar version compatible (^12.35.0)
+│   └── Python / Apps Script → N/A (sin motion library)
+└── NO → Saltar (no hay animaciones que implementar)
+```
+
+Si la instalacion falla → WARNING, continuar design-to-code SIN animaciones.
+Registrar en log: `⚠️ No se pudo instalar {package}. Design-to-code sin VEG Motion.`
 
 ### 4.1 Listar HTMLs disponibles
 
@@ -326,7 +531,26 @@ ls doc/design/{feature}/*.html
 
 ### 4.2 Conversion por stack
 
-Para cada HTML de diseño:
+**Si hay VEG activo**, incluir el Motion Catalog (Pilar 2) en el contexto del sub-agente AG-02:
+
+```
+VEG Motion Catalog:
+  page_enter: {animation} {duration}ms {easing}
+  scroll_reveal: {animation} stagger {delay}ms
+  hover_buttons: {animation} {duration}ms
+  loading: {style}
+  transitions_pages: {type} {duration}ms
+  feedback_success: {animation}
+  feedback_error: {animation}
+  motion_level: {subtle / moderate / expressive}
+
+Motion level rules:
+  - subtle: ONLY page_enter + loading. Skip scroll, hover, feedback.
+  - moderate: All except feedback animations.
+  - expressive: Full catalog.
+```
+
+Para cada HTML de diseno:
 
 #### Flutter
 1. Leer HTML y extraer: layout, componentes, colores, espaciado, tipografia
@@ -337,6 +561,15 @@ Para cada HTML de diseño:
    - `AppColors` y `AppSpacing` (nunca hardcodear)
    - Responsividad: mobile/tablet/desktop layouts
    - Clases separadas (NUNCA metodos `_buildX()`)
+4. **Si hay VEG Motion**: Aplicar animaciones usando `flutter_animate`:
+   - Importar `package:flutter_animate/flutter_animate.dart`
+   - Usar `.animate()` chainable para cada tipo de animacion del catalogo
+   - Loading states: usar el estilo VEG (skeleton = shimmer + Container, shimmer = `.shimmer()`)
+   - NO anadir animaciones que no esten en el catalogo VEG
+   - **Mobile hover enforcement**: Si el proyecto es mobile-first o el VEG target es mobile:
+     - NO usar MouseRegion para hover effects
+     - Reemplazar hover → GestureDetector con onTapDown/onTapUp para feedback tactil
+     - Si se necesita hover en desktop: usar LayoutBuilder para detectar plataforma
 
 #### React
 1. Leer HTML y extraer: estructura JSX, clases CSS, componentes
@@ -347,6 +580,16 @@ Para cada HTML de diseño:
    - Server Components por defecto, `'use client'` solo si necesita interactividad
    - Tailwind CSS para estilos
    - TypeScript obligatorio
+4. **Si hay VEG Motion**: Aplicar animaciones usando `motion` (ex Framer Motion):
+   - Importar `{ motion, AnimatePresence }` de `"motion/react"`
+   - Definir variants como constantes reutilizables
+   - `whileInView` para scroll_reveal, `whileHover` para hover effects
+   - `AnimatePresence` para page transitions y exit animations
+   - NO anadir animaciones que no esten en el catalogo VEG
+   - **Mobile hover enforcement**: Si el proyecto es mobile-first o el VEG target es mobile:
+     - Reemplazar `whileHover` → `whileTap` en todos los componentes interactivos
+     - Si se necesita hover en desktop: usar media query `@media (hover: hover)` para aplicar condicionalmente
+     - NUNCA dejar `whileHover` sin alternativa `whileTap` en un proyecto responsive
 
 #### Google Apps Script
 1. Leer HTML y extraer: estructura, estilos, interacciones
@@ -564,6 +807,19 @@ Segun el stack:
 | React | Actualizar App Router, registrar stores |
 | Python | Registrar routers en main.py, actualizar DI |
 | Apps Script | Exportar funciones en index.ts, actualizar appsscript.json scopes |
+
+### 6.1b Registrar assets VEG (si hay imagenes generadas)
+
+Si el Paso 3.5 genero imagenes en `doc/veg/{feature}/assets/`:
+
+| Stack | Accion |
+|-------|--------|
+| Flutter | Copiar a `assets/images/veg/` + registrar en `pubspec.yaml` assets |
+| React | Copiar a `public/images/veg/` o `src/assets/veg/` + importar en componentes |
+| Python | Copiar a `static/images/veg/` (si tiene frontend) |
+| Apps Script | Subir a Google Drive o embeber como base64 en HTML |
+
+Referenciar las imagenes en los widgets/componentes generados en Paso 4, reemplazando los placeholders `[IMAGE: {id}]` con las rutas reales.
 
 ### 6.2 Build final
 
@@ -1098,8 +1354,15 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 - [ ] Plan leido y parseado correctamente
 - [ ] Rama creada desde main
 - [ ] Stack detectado
-- [ ] Diseños Stitch generados (si aplica)
-- [ ] Design-to-code ejecutado (si aplica)
+- [ ] VEGs cargados del plan (si aplica)
+- [ ] Disenos Stitch generados con directivas VEG (si aplica)
+- [ ] Usuario informado de costes antes de generar (Paso 3.5.0 — €0 con Canva)
+- [ ] MCP health check ejecutado antes de generar imagenes (Paso 3.5.1)
+- [ ] Imagenes generadas con MCP o PENDING_IMAGES.md creado (Paso 3.5.4)
+- [ ] Motion dependencies instaladas antes de design-to-code (Paso 4.0)
+- [ ] Design-to-code ejecutado con Motion Catalog (si VEG activo)
+- [ ] Mobile hover→tap enforcement aplicado (si proyecto responsive/mobile)
+- [ ] Assets VEG registrados en el proyecto (Paso 6.1b, si aplica)
 - [ ] Todas las fases del plan implementadas
 - [ ] Commits parciales por fase
 - [ ] Integracion completada (DI, routing, config)

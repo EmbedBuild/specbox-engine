@@ -178,6 +178,130 @@ find lib/core/widgets lib/presentation/shared/widgets -name "*.dart" 2>/dev/null
 
 ---
 
+## Paso 2.5b: Visual Experience Generation (VEG)
+
+> Este paso genera artefactos VEG que condicionan los diseños Stitch y el design-to-code.
+> Se ejecuta SOLO si el PRD tiene seccion "Audiencia" con al menos 1 target.
+> Si no hay targets → saltar a Paso 3 (pipeline legacy, backward compatible).
+
+### 2.5b.1 Determinar modo VEG
+
+Leer la seccion "Audiencia" del PRD y decidir:
+
+```
+Hay ICPs con JTBD definidos para landings?
+├── SI → Modo 3: VEG por ICP + JTBD
+│   └── Generar 1 VEG por ICP
+├── NO → Hay multiples targets con expectativas visuales distintas?
+│   ├── SI → Modo 2: VEG por Perfil
+│   │   └── Generar 1 VEG por target
+│   └── NO → Hay al menos 1 target definido?
+│       ├── SI → Modo 1: VEG Uniforme
+│       │   └── Generar 1 VEG unico
+│       └── NO → Sin VEG (pipeline legacy)
+```
+
+### 2.5b.2 Generar VEG(s)
+
+Para cada VEG a generar:
+
+1. Tomar el perfil del target/ICP como entrada
+2. Cruzar con:
+   - Tipo de producto (SaaS, e-commerce, app interna, landing...)
+   - Stack del proyecto (Flutter = flutter_animate, React = motion)
+   - Branding del proyecto (si existe en settings o design system)
+   - Plataforma (mobile-first vs desktop-first)
+3. Consultar tabla de arquetipos en `doc/templates/veg-archetypes.md`
+4. Identificar el arquetipo base mas cercano por senales del target
+5. Aplicar defaults del arquetipo
+6. Si hay JTBD emocional: evaluar si contradice algun pilar y ajustar (max 2 cambios)
+7. Si hay referentes visuales: cruzar con defaults y ajustar mood/type si difieren
+8. Generar prompts de imagen contextualizados:
+   - Combinar: mood del pilar 1 + tipo de imagen + contexto del producto + JTBD
+   - Ejemplo: Target "CTO enterprise" + producto "analytics SaaS" + JTBD emocional "sentirse en control"
+     → Hero prompt: "Professional executive reviewing holographic data dashboard,
+       blue ambient lighting, modern office, photorealistic, cinematic composition,
+       sense of control and clarity"
+
+9. Guardar en `doc/veg/{feature}/veg-{slug}.md` usando template de `doc/templates/veg-template.md`
+
+### 2.5b.3 Preview y confirmacion del VEG
+
+**OBLIGATORIO**: Presentar al usuario un resumen del VEG derivado antes de continuar.
+
+```
+📋 VEG Preview — {feature}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Modo: {1-Uniforme / 2-Por Perfil / 3-Por ICP}
+Target: {nombre del target/ICP}
+Arquetipo base: {Corporate / Startup / Creative / Consumer / Gen-Z / Gobierno}
+
+Pilar 1 — Imagenes:
+  Tipo: {photography / illustration_flat / illustration_3d / mixed}
+  Mood: {professional / energy / premium / confidence / playful / calm}
+  Paleta: {cool / vibrant / muted / warm / neutral}
+
+Pilar 2 — Motion:
+  Nivel: {subtle / moderate / expressive}
+  Page enter: {animation} {duration}ms
+  Loading: {style}
+
+Pilar 3 — Diseno:
+  Densidad: {compact / balanced / spacious}
+  Whitespace: {tight / moderate / generous}
+  Jerarquia: {card-based / full-bleed / editorial / dashboard}
+  CTA: {subtle / medium / high}
+
+⚠️ Costes de imagenes (Paso 3.5 de /implement):
+  Las imagenes se generan via MCP de pago. Coste estimado:
+  {N} imagenes × $0.02-0.19 = ${min}-${max} (segun provider)
+  Puedes elegir "skip" en /implement para solo documentar prompts.
+
+¿El VEG derivado es correcto? (s/n/ajustar)
+  s = continuar con este VEG
+  n = descartar VEG, usar pipeline legacy
+  ajustar = indicar que cambiar (ej: "cambiar motion a subtle", "usar photography en vez de illustration")
+```
+
+Si el usuario dice `ajustar`:
+1. Aplicar los cambios indicados al VEG
+2. Mostrar preview actualizado
+3. Repetir hasta confirmacion
+
+Si el usuario dice `n`:
+1. Descartar VEG generado
+2. Continuar con pipeline legacy (sin VEG)
+3. No generar archivos en `doc/veg/`
+
+### 2.5b.4 Incluir VEG en el output del plan
+
+Anadir seccion al plan generado:
+
+```markdown
+## Visual Experience Generation
+
+**Modo**: {1-Uniforme / 2-Por Perfil / 3-Por ICP}
+**Justificacion**: {por que este modo}
+
+### VEGs Generados
+
+| Target/ICP | Archivo | Modo |
+|------------|---------|------|
+| {nombre} | doc/veg/{feature}/veg-{slug}.md | {modo} |
+
+### VEG Activo para Stitch
+{Indicar cual VEG se usara para la generacion Stitch.
+En Modo 1: el unico. En Modo 2/3: el del target principal o todos si se generan variantes.}
+
+### Resumen VEG Compacto (para sub-agentes)
+
+> Este bloque (~400 tokens) se inyecta en el contexto de AG-02 y AG-06.
+
+{Pegar el bloque "Resumen para inyeccion" del VEG activo}
+```
+
+---
+
 ## Paso 3: Detectar Agentes/Skills Disponibles
 
 ### Si existe `.claude/orchestrator.md`:
@@ -397,16 +521,52 @@ Design System:
 
 Screen: [Nombre de la pantalla]
 
-[Descripción detallada de qué muestra la pantalla, qué elementos tiene,
-qué acciones puede hacer el usuario, qué datos se muestran]
+[Descripcion detallada de que muestra la pantalla, que elementos tiene,
+que acciones puede hacer el usuario, que datos se muestran]
 
 Components:
-- [Lista de componentes del análisis UI]
+- [Lista de componentes del analisis UI]
 
 States to show:
 - Loaded state with sample data
 - Empty state with illustration + CTA
 - [Loading state if complex]
+
+Layout: Desktop (1280px wide)
+Icons: Material Symbols
+```
+
+**Si hay VEG activo (Paso 2.5b), ENRIQUECER el prompt con directivas visuales:**
+
+```
+Design a [screen description] for [App Name].
+
+Design System:
+- Theme: Light Mode
+- [colores, tipografia del proyecto]
+
+Visual Direction (from VEG - {target_name}):
+- Density: {density}, Whitespace: {whitespace}
+- Visual hierarchy: {style}, CTA prominence: {prominence}
+- Typography: headings {weight}, body {spacing}, hero {scale}
+- Section separation: {separation_style}
+- Mood: {mood} — this should FEEL {JTBD emocional}
+- Data presentation: {data_style}
+
+Image Placeholders (generate with placeholder boxes):
+- Hero: [{type}] {brief description of what the image should convey}
+- Section 2: [{type}] {description}
+- (mark each with [IMAGE: {id}] for later replacement)
+
+Screen: [Nombre de la pantalla]
+[Descripcion funcional]
+
+Components:
+- [Lista de componentes]
+
+States to show:
+- Loaded state with sample data
+- Empty state with illustration + CTA
 
 Layout: Desktop (1280px wide)
 Icons: Material Symbols
@@ -520,17 +680,24 @@ Usar `plane:create_work_item_comment`:
 | ✅ Existentes | [N] |
 | ❌ A crear | [N] |
 
-### Diseños Stitch:
-| Pantalla | Screen ID | Estado |
-|----------|-----------|--------|
-| [nombre] | [id] | ✅ Generado |
-| [nombre] | [id] | ✅ Generado |
+### Visual Experience Generation:
+| Campo | Valor |
+|-------|-------|
+| Modo VEG | {1-Uniforme / 2-Por Perfil / 3-Por ICP / Desactivado} |
+| VEGs generados | {N} |
+| Archivos | `doc/veg/[feature]/` |
+
+### Disenos Stitch:
+| Pantalla | Screen ID | Estado | VEG aplicado |
+|----------|-----------|--------|--------------|
+| [nombre] | [id] | Generado | {Si/No} |
+| [nombre] | [id] | Generado | {Si/No} |
 
 **HTMLs guardados en**: `doc/design/[feature]/`
 **Prompts registrados en**: `doc/design/[feature]/[feature]_stitch_prompts.md`
 
 ### Siguiente paso:
-1. Revisar diseños HTML generados
+1. Revisar disenos HTML generados
 2. Ejecutar `/design-to-code [feature]`
 ```
 
@@ -588,7 +755,13 @@ Empty state → Ilustración + CTA
 - [ ] Fases ordenadas lógicamente
 - [ ] Agentes mapeados (si existen)
 - [ ] Archivo guardado en `doc/plans/`
+- [ ] VEG generado si PRD tiene seccion Audiencia (Paso 2.5b)
+- [ ] VEG preview mostrado al usuario y confirmado (Paso 2.5b.3)
+- [ ] Costes de imagenes advertidos al usuario en preview
+- [ ] VEGs guardados en `doc/veg/{feature}/` con los 3 pilares
+- [ ] Resumen VEG compacto (<400 tokens) incluido en el plan
 - [ ] Pantallas Stitch generadas via MCP (si aplica UI)
+- [ ] Prompts Stitch enriquecidos con VEG (si aplica)
 - [ ] HTMLs guardados en `doc/design/{feature}/`
 - [ ] Prompts de Stitch registrados para trazabilidad
 - [ ] Seccion Alternativas/Tradeoffs incluida

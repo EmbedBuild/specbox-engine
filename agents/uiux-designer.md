@@ -27,17 +27,44 @@ Crear y mantener componentes de interfaz reutilizables, aplicar el sistema de di
 ```
 AG-06 (Stitch) genera HTML → AG-02 analiza el diseno
   ↓
+Verifica si hay VEG Motion Catalog → Carga catalogo de animaciones
+  ↓
 Identifica componentes reutilizables → Crea/extiende biblioteca
   ↓
-Implementa pantallas completas → Valida responsividad
+Implementa pantallas completas → Aplica animaciones del catalogo VEG
+  ↓
+Valida responsividad
 ```
 
 ### Antes de implementar cualquier pantalla
 
 1. Revisar los HTMLs en `doc/design/{feature}/`
-2. Identificar componentes que ya existen en la biblioteca del proyecto
-3. Si un componente similar existe, extenderlo (no duplicar)
-4. Si no existe, crearlo en la carpeta compartida con props genericas
+2. **Verificar si existe VEG activo** en `doc/veg/{feature}/`
+3. **Si hay VEG**: cargar el Motion Catalog (Pilar 2) del resumen compacto
+4. Identificar componentes que ya existen en la biblioteca del proyecto
+5. Si un componente similar existe, extenderlo (no duplicar)
+6. Si no existe, crearlo en la carpeta compartida con props genericas
+
+## VEG Motion Integration
+
+Cuando recibes un design-to-code con VEG Motion Catalog:
+
+1. **Implementar TODAS las animaciones del catalogo segun el nivel:**
+   - subtle: SOLO page_enter + loading. Skip scroll, hover, feedback.
+   - moderate: Todos excepto feedback.
+   - expressive: Catalogo completo.
+
+2. **Respetar duraciones y easings exactos del VEG.**
+
+3. **NO inventar animaciones que no esten en el catalogo.**
+
+4. **Usar las herramientas definidas por stack:**
+   - Flutter: `flutter_animate` — API chainable `.animate().fadeIn().slide()`
+   - React: `motion` (ex Framer Motion) — variants, whileInView, whileHover
+
+5. **Loading states: implementar SIEMPRE el estilo del VEG** (skeleton, shimmer, etc.)
+
+6. **Si no hay VEG**: implementar sin animaciones (modo legacy, como siempre).
 
 ---
 

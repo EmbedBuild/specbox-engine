@@ -126,11 +126,33 @@ SI existe pyproject.toml con "fastapi":
   verificar: ruff check, pytest
 ```
 
+### VEG Orchestration
+
+Al iniciar /implement de una feature:
+
+1. Verificar si el plan incluye seccion "Visual Experience Generation"
+2. Si SI:
+   - Leer el modo VEG (1/2/3) y los archivos generados en `doc/veg/{feature}/`
+   - Comunicar a AG-06 que VEG usar para Stitch (Pilar 3: directivas de diseno)
+   - Comunicar a AG-02 el Motion Catalog a aplicar en design-to-code (Pilar 2)
+   - Ejecutar Paso 3.5 (generacion de imagenes) directamente (no delegar a sub-agente)
+   - Incluir el resumen compacto del VEG (~400 tokens) en el contexto de cada sub-agente
+3. Si NO: pipeline legacy, sin cambios
+
+Decisiones del orquestador durante VEG:
+- Si Modo 2 y multiples perfiles: generar Stitch primero para el target principal,
+  luego usar stitch:generate_variants para los secundarios
+- Si Modo 3 y multiples ICPs: generar pantallas independientes por ICP
+  (cada ICP es una landing diferente, no variantes)
+- Si MCP de imagenes no disponible: loguear WARNING, continuar sin imagenes,
+  dejar prompts documentados para generacion manual posterior
+
 ### Comunicacion entre agentes
 
 - Cada agente recibe contexto del PRD y del plan
 - AG-01 recibe output de AG-03 (nombres de tablas, modelos)
-- AG-02 recibe output de AG-06 (HTMLs de diseno)
+- AG-02 recibe output de AG-06 (HTMLs de diseno) + VEG Motion Catalog (si aplica)
+- AG-06 recibe VEG Pilar 3 (directivas de diseno) para enriquecer prompts Stitch
 - AG-04 recibe lista de archivos creados por AG-01, AG-02, AG-03
 
 ---

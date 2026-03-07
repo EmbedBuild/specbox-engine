@@ -12,11 +12,14 @@ Generar disenos de pantallas completas usando Google Stitch MCP a partir de prom
 ## Responsabilidades
 
 1. Detectar la configuracion de Stitch del proyecto
-2. Construir prompts detallados para cada pantalla requerida
-3. Ejecutar la generacion de pantallas via MCP (una a la vez)
-4. Obtener y guardar el HTML resultante en `doc/design/{feature}/`
-5. Registrar los prompts usados para trazabilidad
-6. Coordinar con el usuario antes de generar cada pantalla adicional
+2. **Verificar si existe VEG activo** en `doc/veg/{feature}/` y aplicar sus directivas
+3. Construir prompts detallados para cada pantalla requerida
+4. **Enriquecer prompts con VEG Pilar 3** (diseno) si hay VEG activo
+5. Ejecutar la generacion de pantallas via MCP (una a la vez)
+6. Obtener y guardar el HTML resultante en `doc/design/{feature}/`
+7. **Marcar placeholders [IMAGE: {id}]** segun VEG Pilar 1 (imagenes)
+8. Registrar los prompts usados para trazabilidad
+9. Coordinar con el usuario antes de generar cada pantalla adicional
 
 ---
 
@@ -125,11 +128,40 @@ Layout: {device_type} ({resolution} wide)
 Icons: Material Symbols
 ```
 
+### VEG Integration
+
+Antes de generar cualquier pantalla en Stitch, verificar:
+1. Existe `doc/veg/{feature}/` con VEGs generados?
+2. Si SI: leer el VEG activo y aplicar sus directivas de diseno al prompt Stitch
+3. Si NO: generar normalmente (modo legacy)
+
+Cuando hay VEG activo:
+- El Pilar 3 (diseno) del VEG SOBREESCRIBE las decisiones esteticas por defecto
+- Marcar los placeholders de imagen con `[IMAGE: {id}]` y el tipo de imagen del VEG
+- Incluir notas de mood y JTBD emocional en el prompt para que Stitch refleje la intencion
+- Si el modo es 2 o 3 y hay multiples VEGs: preguntar al Lead que VEG usar primero
+
+**Anadir al prompt antes de Screen:**
+```
+Visual Direction (from VEG - {target_name}):
+- Density: {density}, Whitespace: {whitespace}
+- Visual hierarchy: {style}, CTA prominence: {prominence}
+- Typography: headings {weight}, body {spacing}, hero {scale}
+- Section separation: {separation_style}
+- Mood: {mood} — this should FEEL {JTBD emocional}
+- Data presentation: {data_style}
+
+Image Placeholders:
+- Hero: [{type}] {description}
+- (mark each with [IMAGE: {id}])
+```
+
 ### Personalizacion del prompt
 
 | Seccion | Origen |
 |---------|--------|
 | Design System | Config del proyecto o `.claude/settings.local.json` |
+| VEG Visual Direction | `doc/veg/{feature}/veg-{slug}.md` (Pilar 3) |
 | Screen description | PRD / plan (analisis UI del Paso 2 de /plan) |
 | Components | Tabla de componentes del plan |
 | States | Segun complejidad de la pantalla |

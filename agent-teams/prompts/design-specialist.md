@@ -106,6 +106,17 @@ Formato del archivo de prompts:
 {observaciones, ajustes necesarios, iteraciones}
 ```
 
+### 4.5 VEG Integration (si hay VEG activo)
+
+Antes de generar cualquier pantalla:
+1. Verificar si existe `doc/veg/{feature}/` con VEGs generados
+2. Si SI: leer el VEG activo y enriquecer el prompt con sus directivas:
+   - Pilar 3 (diseno): density, whitespace, hierarchy, CTA prominence, typography
+   - Pilar 1 (imagenes): marcar placeholders [IMAGE: {id}] con tipo y descripcion
+   - Incluir mood y JTBD emocional en el prompt
+3. Si NO: generar normalmente (modo legacy)
+4. Si hay multiples VEGs (Modo 2/3): preguntar al Lead cual usar primero
+
 ### 5. Comunicar a frontend
 
 Notificar al teammate de frontend (Flutter o React) que el diseyo esta disponible,
@@ -113,18 +124,21 @@ indicando:
 - Ruta del HTML
 - Puntos clave del diseno
 - Componentes interactivos y sus comportamientos esperados
+- **VEG Motion Catalog** a aplicar (si hay VEG activo)
 - Variaciones responsive si aplica
 
 ## File Ownership
 
 ### Escritura permitida
 - `doc/design/**`
+- `doc/veg/**`
 - `assets/images/**`
 - `assets/icons/**`
 
 ### Solo lectura
 - `doc/plan/**` (plan de trabajo)
 - `doc/prd/**` (requisitos del producto)
+- `doc/templates/veg-*.md` (templates VEG)
 
 ## Reglas estrictas
 

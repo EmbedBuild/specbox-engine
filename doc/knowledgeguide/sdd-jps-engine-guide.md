@@ -2,7 +2,7 @@
 
 > Documento preparado para Juan Valenzuela
 > Fecha: 7 de marzo de 2026
-> Version: 3.8.1 "Spec-Driven"
+> Version: 3.9.0 "Visual Experience Generation"
 
 ---
 
@@ -185,6 +185,22 @@ No necesitas saber que tecnologia usa cada proyecto. Lo relevante es que **el pr
 
 ---
 
+## Experiencia visual personalizada (VEG)
+
+Desde la v3.9, el engine genera automaticamente **decisiones visuales adaptadas a la audiencia** del producto. Esto se llama VEG (Visual Experience Generation).
+
+**En lenguaje simple:** cuando el PRD define quien es el publico objetivo (ej: "directivos de empresa" vs "jovenes Gen-Z"), el sistema automaticamente ajusta:
+
+- **Imagenes** — genera ilustraciones y graficos con el tono visual adecuado (corporativo, creativo, juvenil, etc.)
+- **Animaciones** — elige el nivel de movimiento en la interfaz (sutil para gobierno, expresivo para consumidor joven)
+- **Estilo de diseno** — densidad de informacion, tipografia, colores, espaciado
+
+**Esto es automatico.** Si el PRD tiene seccion de Audiencia, el VEG se activa solo. Si no la tiene, todo funciona como antes.
+
+**Coste:** Las imagenes se generan con Canva (incluido en la suscripcion, €0 adicional). Solo si se necesita fotorrealismo hiperrealista se usa un servicio de pago ($0.02-0.19 por imagen).
+
+---
+
 ## Resumen ejecutivo
 
 | Aspecto | Antes | Con SDD-JPS Engine |
@@ -217,4 +233,4 @@ R: Depende del tamano de la US. Pero cada UC (pieza atomica) se construye, valid
 
 ---
 
-*SDD-JPS Engine v3.8.1 — Spec-Driven Development Engine by JPS*
+*SDD-JPS Engine v3.9.0 — Spec-Driven Development Engine by JPS*

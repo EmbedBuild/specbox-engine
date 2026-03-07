@@ -1,6 +1,6 @@
 # {PROJECT_NAME}
 
-> Generado con SDD-JPS Engine v3.8.0
+> Generado con SDD-JPS Engine v3.9.0
 
 ## Stack
 
@@ -192,19 +192,20 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 | Comando | Proposito |
 |---------|-----------|
 | /prd | Genera PRD + work item |
-| /plan | Plan de implementacion + diseños Stitch |
+| /plan | Plan de implementacion + diseños Stitch + VEG (si hay targets) |
 | /implement | Autopilot: rama + fases + design-to-code + QA + PR |
 | /adapt-ui | Escanea y mapea widgets existentes |
 | /optimize-agents | Audita y optimiza sistema agentico |
+| /feedback | Reporta bugs de testing manual → bloquea merge |
 
 ## Flujo de Desarrollo
 
 ```
 /prd → PRD + Trello/Plane (con Definition Quality Gate)
   |
-/plan → Plan tecnico + Diseños Stitch
+/plan → Plan tecnico + Diseños Stitch + VEG (si hay targets en PRD)
   |
-/implement → Autopilot: rama + fases + design-to-code + QA + Acceptance Gate + PR
+/implement → Autopilot: rama + imagenes VEG + design-to-code + QA + Acceptance Gate + PR
   |        → AG-08 Quality Audit (GO/NO-GO)
   |        → AG-09a Acceptance Tests (evidencia visual)
   |        → AG-09b Acceptance Validator (ACCEPTED/REJECTED)
@@ -212,6 +213,34 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
   |
 /optimize-agents → Validar configuracion agentica
 ```
+
+## Visual Experience Generation — VEG (v3.9)
+
+Sistema que genera decisiones visuales intencionales (imagenes, animaciones, directivas de diseno) adaptadas a la audiencia del producto. Se activa automaticamente cuando el PRD incluye seccion Audiencia con targets.
+
+### Activacion
+
+- Incluir seccion **Audiencia** en el PRD (targets, JTBD, ICPs)
+- `/plan` detecta targets → genera artefactos VEG en `doc/veg/{feature}/`
+- `/implement` usa VEG para generar imagenes, instalar motion deps, y enriquecer design-to-code
+
+### 3 Pilares
+
+| Pilar | Que genera | Herramienta |
+|-------|-----------|-------------|
+| **Imagenes** | Prompts + generacion via MCP | Canva MCP (primary, €0) + lansespirit (fallback) |
+| **Motion** | Catalogo de animaciones por nivel | `flutter_animate` (Flutter) / `motion` (React) |
+| **Diseno** | Directivas para Stitch | Density, whitespace, hierarchy, CTA, typography |
+
+### Configuracion
+
+La seccion `veg` en `.claude/settings.local.json` controla providers y motion. Ver `templates/settings.json.template` para referencia completa de opciones.
+
+Config de MCP de imagenes: ver `veg.mcpServers` en settings template. Canva MCP se configura globalmente en `~/.claude/mcp.json`.
+
+### Sin targets = sin VEG
+
+Si el PRD no tiene seccion Audiencia, el pipeline funciona como siempre (legacy). VEG es opt-in y backward compatible.
 
 ## E2E Testing
 
@@ -232,4 +261,4 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ---
 
 *Generado: {DATE}*
-*Engine: SDD-JPS Engine v3.8.0*
+*Engine: SDD-JPS Engine v3.9.0*

@@ -1,0 +1,10 @@
+{
+  "servers": {
+    "engram": {
+      "command": "engram",
+      "args": ["mcp", "--tools=agent"],
+      "env": {},
+      "description": "Engram MCP — memoria persistente FTS5 para sobrevivir compactacion de contexto"
+    }
+  }
+}

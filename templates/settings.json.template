@@ -11,6 +11,36 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": {
+          "tool_name": "Bash",
+          "command_pattern": "git commit"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-commit-lint.sh",
+            "blocking": true,
+            "timeout": 60000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/on-session-end.sh",
+            "blocking": false,
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  },
   "stitch": {
     "projectId": "{STITCH_PROJECT_ID}",
     "deviceType": "DESKTOP",

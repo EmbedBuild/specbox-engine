@@ -1,6 +1,6 @@
-version: 3.6.1
-codename: "E2E Sentinel"
-release_date: 2026-03-03
+version: 3.7.0
+codename: "Context Fortress"
+release_date: 2026-03-07
 min_claude_code: "1.0.0"
 
 stacks:
@@ -41,8 +41,27 @@ features:
   - feedback-github-integration
   - e2e-playwright
   - e2e-testing-dashboard
+  - engram-persistent-memory
+  - orchestrator-isolation
+  - gga-cached-validation
 
 changelog:
+  3.7.0:
+    date: 2026-03-07
+    changes:
+      - "feat: Engram persistent memory (FTS5) — survive context compaction with mem_save/mem_search/mem_context"
+      - "feat: CLAUDE.md.template includes mandatory Engram check, OS-specific install instructions, Surviving Compaction protocol"
+      - "feat: on-session-end.sh persists session summary to Engram via CLI"
+      - "feat: .vscode/mcp.json registers Engram MCP server with --tools=agent"
+      - "feat: Strict Orchestrator Isolation — main thread stays under 15% token budget, delegates all work to sub-agents"
+      - "feat: team-config.json.template with orchestrator node (canImplement:false, canWriteCode:false)"
+      - "feat: implement.md and SKILL.md rewritten with Phase Task Template and delegation protocol"
+      - "feat: GLOBAL_RULES.md with Orchestrator Isolation section and token budget rules"
+      - "feat: GGA (Gentleman Guardian Angel) cached lint validation — pre-commit hook skips unmodified files"
+      - "feat: .gga config with PROVIDER=claude, STRICT_MODE=true, RULES_FILE=rules/GLOBAL_RULES.md"
+      - "feat: pre-commit-lint.sh tries gga run first, falls back to direct lint"
+      - "feat: install.sh installs GGA via brew install gentleman-programming/tap/gga"
+
   3.6.1:
     date: 2026-03-03
     changes:

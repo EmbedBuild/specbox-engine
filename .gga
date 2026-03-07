@@ -1,0 +1,19 @@
+# GGA (Gentleman Guardian Angel) Configuration
+# Cached code review with AI — skips unmodified files automatically.
+# See: https://github.com/Gentleman-Programming/gentleman-guardian-angel
+# Install: brew install gentleman-programming/tap/gga
+
+# AI provider for code review
+PROVIDER="claude"
+
+# File patterns to review (comma-separated globs)
+FILE_PATTERNS="*.dart,*.ts,*.tsx,*.js,*.jsx,*.py,*.gs"
+
+# Patterns to exclude from review
+EXCLUDE_PATTERNS="*.test.ts,*.spec.ts,*.test.tsx,*.spec.tsx,*.d.ts,*.g.dart,*.freezed.dart"
+
+# Rules file for coding standards
+RULES_FILE="rules/GLOBAL_RULES.md"
+
+# Strict mode: fail on any issue (not just errors)
+STRICT_MODE="true"

@@ -1,4 +1,4 @@
-# JPS Dev Engine v3.6.0
+# JPS Dev Engine v3.7.0
 
 > Sistema de programacion agentica para Claude Code.
 > Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
@@ -66,7 +66,9 @@ Merge secuencial → pull main → siguiente card
 jps_dev_engine/
 ├── CLAUDE.md              ← Este archivo
 ├── ENGINE_VERSION.yaml    ← Version del engine
-├── install.sh             ← Instala skills, hooks, commands
+├── install.sh             ← Instala skills, hooks, commands, GGA
+├── .gga                   ← Config de Gentleman Guardian Angel (cached lint)
+├── .vscode/mcp.json       ← Servidor MCP de Engram (memoria persistente)
 ├── .claude/
 │   ├── skills/            ← Agent Skills (v3.5)
 │   │   ├── prd/SKILL.md
@@ -167,8 +169,8 @@ Automatic enforcement — no need to remember running these manually:
 
 | Hook | Event | Behavior |
 |------|-------|----------|
-| pre-commit-lint | PostToolUse (git commit) | BLOCKING: fails commit if lint has errors |
-| on-session-end | Stop | Logs session telemetry to .quality/logs/ |
+| pre-commit-lint | PostToolUse (git commit) | BLOCKING: runs `gga run` (cached lint, skips unmodified files). Falls back to direct lint if GGA not installed |
+| on-session-end | Stop | Logs session telemetry to .quality/logs/ + persists summary to Engram |
 | implement-checkpoint | Manual (called by /implement) | Saves phase progress for resume |
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
 | post-implement-validate | Manual (called by /implement) | Checks baseline regression after implementation |
@@ -234,5 +236,5 @@ Frameworks de acceptance testing por stack:
 
 ## Engine Version
 
-Current: v3.6.0 "E2E Sentinel"
+Current: v3.7.0 "Context Fortress"
 Config: ENGINE_VERSION.yaml

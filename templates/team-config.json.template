@@ -1,23 +1,33 @@
 {
-  "$schema": "JPS Dev Engine v3.5.0 - Agent Teams Configuration",
+  "$schema": "JPS Dev Engine v3.7.0 - Agent Teams Configuration (Orchestrator Isolation)",
   "team": {
     "name": "{PROJECT_NAME}",
     "description": "Equipo de desarrollo para {PROJECT_NAME}",
     "maxConcurrentTeammates": 3
   },
+  "orchestrator": {
+    "model": "opus",
+    "prompt": "agent-teams/prompts/orchestrator.md",
+    "maxContextBudget": "15%",
+    "responsibilities": [
+      "Parsear planes y extraer fases",
+      "Delegar cada fase a un sub-agente limpio via Task tool",
+      "Recibir reportes estructurados de sub-agentes",
+      "Consolidar resumenes en Engram (mem_save)",
+      "Guardar checkpoints entre fases",
+      "Decidir self-healing si una fase falla",
+      "Crear rama, commits parciales y PR",
+      "NUNCA leer archivos fuente del proyecto",
+      "NUNCA escribir ni editar codigo directamente",
+      "NUNCA ejecutar lint, tests o build directamente"
+    ],
+    "fileOwnership": ["doc/plans/", ".quality/evidence/"],
+    "canDelegate": true,
+    "canImplement": false,
+    "canReadSourceFiles": false,
+    "canWriteCode": false
+  },
   "roles": {
-    "Lead": {
-      "model": "opus",
-      "prompt": "agent-teams/prompts/lead-agent.md",
-      "responsibilities": [
-        "Planificacion y coordinacion",
-        "Revision de PRs",
-        "Decisiones de arquitectura"
-      ],
-      "fileOwnership": ["doc/plans/", "CLAUDE.md"],
-      "canDelegate": true,
-      "canImplement": false
-    },
     "DesignSpecialist": {
       "model": "sonnet",
       "prompt": "agent-teams/prompts/design-specialist.md",
@@ -114,10 +124,16 @@
   },
   "communication": {
     "patterns": {
-      "request": "Lead → Specialist (asignacion de tarea)",
-      "report": "Specialist → Lead (tarea completada)",
-      "broadcast": "Lead → All (cambio de plan)",
-      "debate": "Specialist ↔ Specialist (decision tecnica)"
+      "delegate": "Orchestrator → Task(Specialist): contexto minimo + Phase Task Template",
+      "report": "Task(Specialist) → Orchestrator: reporte estructurado (files, lint, status, errors)",
+      "persist": "Orchestrator → Engram: mem_save con resumen de fase",
+      "heal": "Orchestrator → Task(Specialist): healing prompt si phase_status == failed"
+    },
+    "rules": {
+      "isolation": "Cada sub-agente recibe contexto limpio, sin estado de fases anteriores",
+      "budgetPerTask": "~8,700 tokens max de contexto inyectado",
+      "orchestratorBudget": "<15% de la ventana de contexto total",
+      "reportFormat": "files_created, files_modified, lint_result, phase_status, errors (max 3 lines)"
     }
   },
   "qualityGates": {
@@ -131,9 +147,11 @@
   },
   "notes": {
     "activateRoles": "Activar solo los roles necesarios para el proyecto",
-    "flutterOnly": "Si el proyecto es solo Flutter, usar: Lead + DesignSpecialist + FlutterSpecialist + DBInfra + QAReviewer",
-    "reactOnly": "Si el proyecto es solo React, usar: Lead + DesignSpecialist + ReactSpecialist + DBInfra + QAReviewer",
-    "appsScriptOnly": "Si el proyecto es solo Apps Script, usar: Lead + AppScriptSpecialist + QAReviewer",
-    "fullStack": "Para full-stack, activar todos los roles relevantes"
+    "orchestratorRule": "El Orchestrator NUNCA implementa codigo. Solo planifica, delega, consolida y persiste en Engram.",
+    "flutterOnly": "Orchestrator + DesignSpecialist + FlutterSpecialist + DBInfra + QAReviewer + AcceptanceTester + AcceptanceValidator",
+    "reactOnly": "Orchestrator + DesignSpecialist + ReactSpecialist + DBInfra + QAReviewer + AcceptanceTester + AcceptanceValidator",
+    "appsScriptOnly": "Orchestrator + AppScriptSpecialist + QAReviewer",
+    "fullStack": "Orchestrator + todos los roles relevantes",
+    "contextBudget": "Cada Task recibe max ~8,700 tokens. Si una fase excede 30% de ventana, splitear en sub-fases."
   }
 }

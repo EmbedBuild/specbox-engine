@@ -245,6 +245,69 @@ if [ -d "$ENGINE_DIR/.claude/hooks" ]; then
     echo ""
 fi
 
+## --- INSTALL GGA (Gentleman Guardian Angel) ---
+
+echo -e "${GREEN}Checking GGA (cached lint validation)...${NC}"
+
+if command -v gga &>/dev/null; then
+    GGA_VERSION=$(gga --version 2>/dev/null || echo "unknown")
+    echo -e "  ${GREEN}GGA already installed: $GGA_VERSION${NC}"
+else
+    echo -e "  ${YELLOW}GGA not found. Installing...${NC}"
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "  Would run: brew install gentleman-programming/tap/gga"
+    else
+        # Detect OS and install GGA
+        OS_NAME="$(uname -s)"
+        case "$OS_NAME" in
+            Darwin)
+                if command -v brew &>/dev/null; then
+                    brew install gentleman-programming/tap/gga 2>/dev/null || {
+                        echo -e "  ${RED}Failed to install GGA. Install manually:${NC}"
+                        echo -e "    brew install gentleman-programming/tap/gga"
+                    }
+                else
+                    echo -e "  ${YELLOW}Homebrew not found. Install GGA manually:${NC}"
+                    echo -e "    # Install Homebrew first: https://brew.sh"
+                    echo -e "    brew install gentleman-programming/tap/gga"
+                    echo -e "    # Or clone and install:"
+                    echo -e "    git clone https://github.com/Gentleman-Programming/gentleman-guardian-angel.git && cd gga && ./install.sh"
+                fi
+                ;;
+            Linux)
+                if command -v brew &>/dev/null; then
+                    brew install gentleman-programming/tap/gga 2>/dev/null || {
+                        echo -e "  ${RED}Failed to install GGA. Install manually:${NC}"
+                        echo -e "    git clone https://github.com/Gentleman-Programming/gentleman-guardian-angel.git && cd gga && ./install.sh"
+                    }
+                else
+                    echo -e "  ${YELLOW}Install GGA manually:${NC}"
+                    echo -e "    git clone https://github.com/Gentleman-Programming/gentleman-guardian-angel.git && cd gga && ./install.sh"
+                fi
+                ;;
+            MINGW*|MSYS*|CYGWIN*)
+                echo -e "  ${YELLOW}Install GGA manually:${NC}"
+                echo -e "    git clone https://github.com/Gentleman-Programming/gentleman-guardian-angel.git && cd gga && ./install.sh"
+                ;;
+        esac
+
+        if command -v gga &>/dev/null; then
+            echo -e "  ${GREEN}GGA installed successfully${NC}"
+        fi
+    fi
+fi
+
+# Install .gga config if target project has none
+if [ -f "$ENGINE_DIR/.gga" ] && [ ! -f ".gga" ] && [ "$ENGINE_DIR" != "$(pwd)" ]; then
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "  Would copy .gga config to project root"
+    else
+        cp "$ENGINE_DIR/.gga" ".gga"
+        echo -e "  ${GREEN}.gga config copied to project root${NC}"
+    fi
+fi
+echo ""
+
 ## --- INSTALL SETTINGS (v3.5) ---
 
 if [ -f "$ENGINE_DIR/.claude/settings.json" ]; then

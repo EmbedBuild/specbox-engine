@@ -1,4 +1,4 @@
-# Reglas Globales - JPS Dev Engine v3.6.0
+# Reglas Globales - JPS Dev Engine v3.7.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.
@@ -219,6 +219,60 @@ src/
 ```bash
 # Pre-push:
 npm run test && npm run lint && npm run push
+```
+
+---
+
+## Aislamiento Estricto del Orquestador
+
+### Regla Absoluta
+
+**El Orquestador (hilo principal de Claude) NUNCA debe escribir ni implementar codigo directamente.**
+
+Su unica funcion es:
+1. **Planificar**: Parsear el plan, determinar fases y dependencias.
+2. **Delegar**: Lanzar un sub-agente (Task) limpio por cada fase, pasandole SOLO el contexto minimo.
+3. **Consolidar**: Recibir el reporte estructurado del sub-agente, guardar resumen en Engram, y decidir si continuar o activar self-healing.
+4. **Reportar**: Generar el resumen final y crear la PR.
+
+### Presupuesto de tokens del Orquestador
+
+El orquestador debe mantenerse **por debajo del 15% de consumo de tokens** de la ventana de contexto.
+Esto se logra mediante:
+
+- **Delegacion total**: Toda lectura de archivos fuente, escritura de codigo, ejecucion de lint/tests
+  y generacion de diseños se ejecuta dentro de sub-agentes con contextos limpios.
+- **Resumenes compactos**: El orquestador solo retiene del sub-agente un resumen de max 5 lineas
+  (archivos creados/modificados, status lint, errores si los hay).
+- **Persistencia externa**: El estado detallado se guarda en checkpoints y Engram, no en el contexto.
+- **Poda agresiva**: Tras cada fase, el orquestador descarta todo el contexto del sub-agente
+  excepto el resumen y el checkpoint.
+
+### Prohibiciones del Orquestador
+
+| Accion | Permitido | Quien la hace |
+|--------|:---------:|---------------|
+| Leer archivos fuente del proyecto | NO | Sub-agente de la fase |
+| Escribir/editar codigo | NO | Sub-agente de la fase |
+| Ejecutar lint, tests, build | NO | Sub-agente de la fase |
+| Generar diseños Stitch | NO | Sub-agente Design (AG-06) |
+| Leer el plan completo | SI (una vez) | Orquestador en Paso 0 |
+| Parsear fases y extraer contexto | SI | Orquestador |
+| Crear rama y commits | SI | Orquestador |
+| Crear PR | SI | Orquestador |
+| Guardar en Engram | SI | Orquestador |
+| Decidir self-healing | SI | Orquestador (delega fix al sub-agente) |
+
+### Flujo de delegacion
+
+```
+Orquestador: Lee plan → Extrae fases
+  |
+  ├─ Fase 1 → Task(AG-03): {contexto minimo} → Reporte → mem_save → checkpoint
+  ├─ Fase 2 → Task(AG-02): {contexto minimo} → Reporte → mem_save → checkpoint
+  ├─ Fase N → Task(AG-XX): {contexto minimo} → Reporte → mem_save → checkpoint
+  |
+  └─ Orquestador: Consolida resumenes → Crea PR → mem_session_summary
 ```
 
 ---

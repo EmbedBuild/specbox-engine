@@ -40,6 +40,64 @@ echo "{\"event\": \"session_end\", \"timestamp\": \"$TIMESTAMP\", \"pwd\": \"$(p
 
 echo "[TELEMETRY] Session logged to $LOG_FILE (est. ${CONTEXT_TOKENS} tokens, ${FILES_MODIFIED} files)"
 
+# Persist session summary to Engram (REQUERIDO)
+# Uses mem_session_summary to store structured session data in FTS5-indexed memory
+if command -v engram &>/dev/null; then
+  ENGRAM_SUMMARY="Session ended at $TIMESTAMP | Project: $(basename "$(pwd)") | Files modified: $FILES_MODIFIED | Context tokens: $CONTEXT_TOKENS | Healing events: $HEALING_EVENTS | Active feature: $ACTIVE_FEATURE"
+  engram save "session-summary" "$ENGRAM_SUMMARY" 2>/dev/null &
+  echo "[ENGRAM] Session summary persisted to Engram memory"
+else
+  # Detect OS and suggest appropriate install method
+  OS_NAME="$(uname -s)"
+  echo ""
+  echo "============================================================"
+  echo "  ERROR: ENGRAM NO INSTALADO"
+  echo "============================================================"
+  echo "  Engram es requerido para la memoria persistente del engine."
+  echo "  Sin el, las compactaciones de contexto causan perdida de estado."
+  echo ""
+  case "$OS_NAME" in
+    Darwin)
+      echo "  SO detectado: macOS"
+      echo ""
+      echo "  Instalar:"
+      echo "    # Apple Silicon (M1/M2/M3/M4):"
+      echo "    curl -sL https://github.com/Gentleman-Programming/engram/releases/latest/download/engram_1.7.1_darwin_arm64.tar.gz | tar xz"
+      echo "    # Intel:"
+      echo "    curl -sL https://github.com/Gentleman-Programming/engram/releases/latest/download/engram_1.7.1_darwin_amd64.tar.gz | tar xz"
+      echo "    mv engram ~/.local/bin/"
+      ;;
+    Linux)
+      echo "  SO detectado: Linux"
+      echo ""
+      echo "  Instalar:"
+      echo "    # x86_64:"
+      echo "    curl -sL https://github.com/Gentleman-Programming/engram/releases/latest/download/engram_1.7.1_linux_amd64.tar.gz | tar xz"
+      echo "    # arm64:"
+      echo "    curl -sL https://github.com/Gentleman-Programming/engram/releases/latest/download/engram_1.7.1_linux_arm64.tar.gz | tar xz"
+      echo "    mv engram ~/.local/bin/"
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      echo "  SO detectado: Windows"
+      echo ""
+      echo "  Instalar:"
+      echo "    Descargar desde: https://github.com/Gentleman-Programming/engram/releases/latest"
+      echo "    Archivo: engram_1.7.1_windows_amd64.zip o engram_1.7.1_windows_arm64.zip"
+      echo "    Descomprimir y mover engram.exe a una carpeta en el PATH"
+      ;;
+    *)
+      echo "  SO detectado: $OS_NAME"
+      echo ""
+      echo "  Descargar desde: https://github.com/Gentleman-Programming/engram/releases/latest"
+      ;;
+  esac
+  echo ""
+  echo "  Verificar: engram save \"test\" \"hello engram\""
+  echo "  MCP config: .vscode/mcp.json"
+  echo "============================================================"
+  echo ""
+fi
+
 # Report to MCP (fire-and-forget)
 # Normalize: replace underscores with hyphens to match MCP registry name
 PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null | tr '_' '-' || echo "unknown")

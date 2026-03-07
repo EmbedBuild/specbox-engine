@@ -1,6 +1,6 @@
 # {PROJECT_NAME}
 
-> Generado con JPS Dev Engine v3.5.0
+> Generado con JPS Dev Engine v3.7.0
 
 ## Stack
 
@@ -15,6 +15,124 @@
 {ARCHITECTURE_DESCRIPTION}
 
 Ver patrones detallados en: jps_dev_engine/architecture/{stack}/
+
+## Memoria Persistente (Engram) — REQUERIDO
+
+Este proyecto usa Engram como memoria persistente FTS5 para sobrevivir compactaciones de contexto.
+Engram es una **dependencia obligatoria** del engine.
+
+### Verificacion al inicio de sesion
+
+**REGLA INNEGOCIABLE:** Al inicio de cada sesion, verifica que las tools de Engram (`mem_save`,
+`mem_search`, `mem_context`) estan disponibles. Si NO lo estan, **PARA INMEDIATAMENTE**.
+
+Detecta el sistema operativo del usuario y muestra las instrucciones de instalacion correspondientes:
+
+> Engram es un binario Go precompilado (~5 MB). NO se instala con pip/npm.
+> Releases: https://github.com/Gentleman-Programming/engram/releases
+
+**macOS:**
+```
+ENGRAM NO DETECTADO — Sesion detenida.
+
+Engram es requerido para la memoria persistente del engine.
+Sin el, las compactaciones de contexto causan perdida irreversible de estado.
+
+SO detectado: macOS
+
+Pasos para instalar:
+
+1. Descargar el binario desde GitHub Releases:
+   # Apple Silicon (M1/M2/M3/M4):
+   curl -sL https://github.com/Gentleman-Programming/engram/releases/latest/download/engram_1.7.1_darwin_arm64.tar.gz | tar xz
+   # Intel:
+   curl -sL https://github.com/Gentleman-Programming/engram/releases/latest/download/engram_1.7.1_darwin_amd64.tar.gz | tar xz
+
+2. Mover al PATH:
+   mv engram ~/.local/bin/   # o /usr/local/bin/ con sudo
+
+3. Verificar que el servidor MCP esta registrado en .vscode/mcp.json:
+   {
+     "servers": {
+       "engram": {
+         "command": "engram",
+         "args": ["mcp", "--tools=agent"]
+       }
+     }
+   }
+
+4. Reiniciar Claude Code para que cargue el servidor MCP.
+
+5. Verificar:
+   engram save "test" "hello engram"
+   engram search "hello"
+```
+
+**Linux:**
+```
+SO detectado: Linux
+
+1. Descargar:
+   # x86_64:
+   curl -sL https://github.com/Gentleman-Programming/engram/releases/latest/download/engram_1.7.1_linux_amd64.tar.gz | tar xz
+   # arm64:
+   curl -sL https://github.com/Gentleman-Programming/engram/releases/latest/download/engram_1.7.1_linux_arm64.tar.gz | tar xz
+
+2. mv engram ~/.local/bin/
+
+3-5. (mismos pasos que macOS)
+```
+
+**Windows:**
+```
+SO detectado: Windows
+
+1. Descargar desde GitHub Releases:
+   https://github.com/Gentleman-Programming/engram/releases/latest
+   Archivo: engram_1.7.1_windows_amd64.zip o engram_1.7.1_windows_arm64.zip
+
+2. Descomprimir y mover engram.exe a una carpeta en el PATH.
+
+3-5. (mismos pasos que macOS)
+```
+
+**NO continues trabajando sin Engram.** No hay fallback — es infraestructura critica.
+
+### Protocolo "Surviving Compaction"
+
+Si detectas que has sufrido una compactacion de contexto (pierdes memoria de lo que estabas haciendo,
+no reconoces archivos mencionados previamente, o el historial parece truncado), tu PRIMERA accion
+antes de hacer cualquier otra cosa debe ser:
+
+1. Ejecutar `mem_context` con el proyecto actual para recuperar el estado de sesiones previas.
+2. Ejecutar `mem_search` con keywords relevantes si `mem_context` no devuelve suficiente detalle.
+3. Solo despues de recuperar el contexto, continuar con la tarea en curso.
+
+**NUNCA** intentes continuar "de memoria" tras una compactacion. Siempre consulta Engram primero.
+
+### Protocolo de Persistencia Activa
+
+Durante el trabajo normal (sin compactacion), persiste informacion critica en Engram:
+
+- Al iniciar una feature: `mem_save` con titulo descriptivo, plan y archivos clave.
+- Al completar cada fase de /implement: `mem_save` con el resumen de la fase completada.
+- Al encontrar un problema complejo: `mem_save` con el diagnostico y la solucion.
+- Al iniciar sesion: ejecutar `mem_session_start` para registrar nueva sesion.
+- Al finalizar sesion: se ejecuta automaticamente `mem_session_summary` via hook.
+
+### Tools Engram (MCP)
+
+| Tool | Uso |
+|------|-----|
+| `mem_save` | Guardar observacion estructurada (title, content, type, project) |
+| `mem_search` | Buscar en memoria por keywords (FTS5 full-text search) |
+| `mem_context` | Recuperar contexto reciente de sesiones previas |
+| `mem_update` | Modificar una observacion existente por ID |
+| `mem_session_start` | Iniciar nueva sesion de trabajo |
+| `mem_session_end` | Finalizar sesion con resumen opcional |
+| `mem_session_summary` | Persistir resumen estructurado de fin de sesion |
+| `mem_timeline` | Ver contexto cronologico alrededor de una observacion |
+| `mem_stats` | Estadisticas del sistema de memoria |
 
 ## Reglas del Proyecto
 
@@ -114,4 +232,4 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ---
 
 *Generado: {DATE}*
-*Engine: jps_dev_engine v3.6.0*
+*Engine: jps_dev_engine v3.7.0*

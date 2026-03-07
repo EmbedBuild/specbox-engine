@@ -157,44 +157,73 @@ git branch --show-current
 
 ---
 
-## Paso 2: Detectar Agentes y Sistema de Ejecucion
+## Paso 2: Orquestacion por Sub-Agentes (Aislamiento Estricto)
 
-### 2.1 Detectar sistema de agentes
+> **REGLA**: El orquestador NUNCA implementa codigo. Solo planifica, delega y consolida.
+> Ver `rules/GLOBAL_RULES.md` seccion "Aislamiento Estricto del Orquestador".
+
+### 2.1 Mapeo de fases a sub-agentes
+
+Cada fase del plan se ejecuta en un **sub-agente (Task) con contexto limpio e independiente**.
+
+| Fase del plan | Sub-agente | Contexto que recibe |
+|---------------|------------|---------------------|
+| Preparacion DB | AG-03 DB Specialist | Schema del plan + patrones infra/{db}/ |
+| Diseño UI | AG-06 Design Specialist | Pantallas del plan + config Stitch |
+| Design-to-code | AG-02 UI/UX Designer | HTMLs generados + patrones del stack |
+| Feature Structure | AG-01 Feature Generator | Seccion de la fase + arquitectura del stack |
+| Apps Script | AG-07 Apps Script | Seccion de la fase + patrones GAS |
+| n8n / Workflows | AG-05 n8n Specialist | Seccion de la fase + patrones n8n |
+| QA / Tests | AG-04 QA Validation | Archivos creados en fases previas (paths) |
+| Quality Audit | AG-08 Quality Auditor | Evidence + baseline |
+| Acceptance Tests | AG-09a Acceptance Tester | PRD con AC-XX + codigo implementado |
+| Acceptance Gate | AG-09b Acceptance Validator | Evidence de AG-09a + audit de AG-08 |
+
+### 2.2 Orden de ejecucion (secuencial)
 
 ```
-¿Que sistema tiene el proyecto?
-├── .claude/settings.json con AGENT_TEAMS → Usar Agent Teams
-├── .claude/agents/ con orchestrator → Usar subagentes
-└── Ninguno → Ejecutar sin agentes (Claude directo)
+Orquestador: Parsea plan → Extrae fases → Persiste plan en Engram
+  |
+  ├─ Task(AG-03): DB/Infra → reporte → mem_save → checkpoint
+  ├─ Task(AG-06): Diseño Stitch (si aplica) → reporte → checkpoint
+  ├─ Task(AG-02): Design-to-code (si aplica) → reporte → checkpoint
+  ├─ Task(AG-01): Feature → reporte → mem_save → checkpoint
+  ├─ Task(AG-07): Apps Script (si aplica) → reporte → checkpoint
+  ├─ Task(AG-05): n8n (si aplica) → reporte → checkpoint
+  ├─ Task(Orq.): Integracion (DI, routing) → commit
+  ├─ Task(AG-04): QA → reporte → checkpoint
+  ├─ Task(AG-08): Quality Audit → veredicto GO/NO-GO
+  ├─ Task(AG-09a): Acceptance Tests → evidencia
+  ├─ Task(AG-09b): Acceptance Gate → veredicto ACCEPTED/REJECTED
+  |
+  └─ Orquestador: Consolida → Push → PR → mem_session_summary
 ```
 
-### 2.2 Mapeo de agentes a fases
+### 2.3 Protocolo de delegacion por fase
 
-| Fase del plan | Agente Legacy | Agent Teams Rol |
-|---------------|---------------|-----------------|
-| Preparacion DB | AG-03 DB Specialist | DBInfra |
-| Componentes UI | AG-02 UI/UX Designer | UIDesigner |
-| Feature Structure | AG-01 Feature Generator | FeatureDev |
-| Apps Script | AG-07 Apps Script | AppScriptSpecialist |
-| n8n / Workflows | AG-05 n8n Specialist | Automation |
-| QA / Tests | AG-04 QA Validation | QAReviewer |
-
-### 2.3 Orden de ejecucion
+Para cada fase, el orquestador ejecuta:
 
 ```
-Fase DB/Infra (AG-03)         → Primero: tablas, schemas, RLS
-  ↓
-Fase Diseño (AG-02/Stitch)    → Si aplica: generar + design-to-code
-  ↓
-Fase Feature (AG-01)          → Estructura, modelos, logica
-  ↓
-Fase Apps Script (AG-07)      → Si aplica: scripts GAS
-  ↓
-Fase n8n (AG-05)              → Si aplica: workflows
-  ↓
-Fase Integracion              → DI, rutas, build
-  ↓
-Fase QA (AG-04)               → Tests, coverage, lint
+1. PREPARAR contexto (max ~8,700 tokens):
+   - Extraer SOLO la seccion de la fase del plan
+   - Cargar overview de arquitectura del stack (~500 words max)
+   - Listar archivos que la fase va a modificar (paths, no contenido)
+   - Incluir checkpoint de la fase anterior
+
+2. LANZAR sub-agente (Task tool):
+   - Contexto limpio e independiente
+   - Acceso completo a Read/Write/Edit/Bash
+   - Ejecuta lint, build, tests dentro de su contexto
+
+3. RECIBIR reporte estructurado:
+   - files_created, files_modified, lint_result, phase_status, errors
+
+4. CONSOLIDAR:
+   - mem_save con tags "phase,{N},{feature}"
+   - checkpoint.json
+   - Si failed → Self-Healing
+   - Si complete → commit + siguiente fase
+   - DESCARTAR contexto del sub-agente excepto resumen
 ```
 
 ---
@@ -388,25 +417,48 @@ If the result exceeds 30% of context window → split the phase into sub-phases.
 
 ---
 
-## Paso 5: Ejecutar Fases de Implementacion
+## Paso 5: Ejecutar Fases de Implementacion (Delegacion a Sub-Agentes)
 
-> Ejecutar cada fase del plan en orden. Cada fase se implementa completamente antes de pasar a la siguiente.
+> Cada fase se delega a un sub-agente limpio. El orquestador NO ejecuta codigo.
+> Ver Paso 2.3 para el protocolo de delegacion.
 
 ### 5.1 Para cada fase del plan
 
-Leer las tareas de la fase y ejecutarlas:
+El orquestador lanza un Task por fase con el Phase Task Template:
 
 ```
-Fase N: [Nombre]
-├── Tarea 1: [descripcion] → Ejecutar
-├── Tarea 2: [descripcion] → Ejecutar
-└── Tarea 3: [descripcion] → Ejecutar
-    ↓
-Verificar que la fase compila/funciona
-    ↓
-Commit parcial: "feat({feature}): {descripcion de la fase}"
-    ↓
-Siguiente fase
+Execute Phase {N}: {phase_name}
+
+CONTEXT:
+- Plan: {SOLO la seccion de esta fase, no el plan completo}
+- Stack: {stack_name}
+- Architecture: {overview del stack, max 500 words}
+- Files to modify: {list paths}
+- Ownership: Only modify files in {ownership_paths}
+- Previous checkpoint: {checkpoint JSON de fase N-1}
+
+RULES:
+- Run lint after implementation: {stack_lint_command}
+- Quality gate: lint 0/0/0 (BLOQUEANTE), compile (BLOQUEANTE), tests pass (BLOQUEANTE)
+- Save checkpoint: .claude/hooks/implement-checkpoint.sh {feature} {N} {phase_name}
+- If lint fails, apply self-healing (Level 1 first, then Level 2)
+
+RETURN FORMAT (OBLIGATORIO):
+- files_created: [list of paths]
+- files_modified: [list of paths]
+- lint_result: pass|fail (N errors, N warnings)
+- gate_result: {lint, compile, tests} each pass|fail
+- errors: [brief description if any, max 3 lines]
+- phase_status: complete|failed|needs_healing
+```
+
+### 5.1.1 Post-Task (orquestador)
+
+```
+¿phase_status?
+├── complete → Commit parcial + mem_save resumen + siguiente fase
+├── needs_healing → Lanzar nuevo Task de healing (ver Self-Healing Protocol)
+└── failed → Guardar checkpoint failed + escalar a humano
 ```
 
 ### 5.2 Reglas por stack durante implementacion

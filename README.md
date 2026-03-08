@@ -1,8 +1,38 @@
-# SDD-JPS Engine v3.9.0
+# SDD-JPS Engine v4.0.1 — Hardened Autopilot
 
-Sistema de programacion agentica basado en **Agent Skills** para Claude Code.
+**Spec-Driven Development Engine by JPS** — Sistema de programacion agentica para Claude Code.
 
-Repositorio canonico que contiene Skills auto-descubribles, hooks de calidad, patrones de arquitectura, templates de agentes, configuracion de Agent Teams y patrones de infraestructura para desarrollo profesional con Claude Code.
+Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 73+ tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello para desarrollo profesional con Claude Code.
+
+---
+
+## Tabla de Contenidos
+
+- [Quick Start](#quick-start)
+- [Flujo Completo de Desarrollo](#flujo-completo-de-desarrollo)
+- [Skills (Comandos)](#skills-comandos)
+- [Sistema de Agentes](#sistema-de-agentes)
+- [Stacks Soportados](#stacks-soportados)
+- [Servicios de Infraestructura](#servicios-de-infraestructura)
+- [Quality Gate System](#quality-gate-system)
+- [Hooks System](#hooks-system)
+- [Self-Healing Protocol](#self-healing-protocol)
+- [VEG — Visual Experience Generation](#veg--visual-experience-generation)
+- [Spec-Driven Pipeline (Trello)](#spec-driven-pipeline-trello)
+- [Hardened Autopilot Guards (v4.0.1)](#hardened-autopilot-guards-v401)
+- [MCP Server](#mcp-server)
+- [Sala de Maquinas (Dashboard)](#sala-de-maquinas-dashboard)
+- [Google Stitch MCP](#google-stitch-mcp)
+- [Context Engineering](#context-engineering)
+- [Engram — Persistent Memory](#engram--persistent-memory)
+- [Templates para Nuevos Proyectos](#templates-para-nuevos-proyectos)
+- [Estructura del Repositorio](#estructura-del-repositorio)
+- [Ejemplo: Flujo Completo](#ejemplo-flujo-completo)
+- [Uso en Proyecto Existente](#uso-en-proyecto-existente)
+- [Configuracion por Proyecto](#configuracion-por-proyecto)
+- [Actualizacion](#actualizacion)
+- [Filosofia](#filosofia)
+- [Licencia](#licencia)
 
 ---
 
@@ -13,306 +43,257 @@ Repositorio canonico que contiene Skills auto-descubribles, hooks de calidad, pa
 git clone <repo-url> ~/sdd-jps-engine
 cd ~/sdd-jps-engine
 
-# 2. Instalar commands globales
+# 2. Instalar skills + hooks + commands globales
 ./install.sh
 
-# 3. Verificar commands
-ls -la ~/.claude/commands/
-# Deberias ver: prd.md, plan.md, implement.md, adapt-ui.md, optimize-agents.md
-
-# 4. Verificar skills
+# 3. Verificar skills
 ls -la ~/.claude/skills/
-# Deberias ver: prd, plan, implement, adapt-ui, optimize-agents, quality-gate, explore
+# Deberias ver: prd, plan, implement, adapt-ui, optimize-agents, quality-gate, explore, feedback
+
+# 4. Verificar hooks
+ls -la ~/.claude/hooks/
+# Deberias ver: pre-commit-lint.sh, on-session-end.sh, implement-checkpoint.sh, etc.
+
+# 5. Iniciar MCP server (opcional — para telemetria y dashboard)
+pip install -e .
+sdd-jps-engine
 ```
 
-Los commands y skills quedan disponibles globalmente en Claude Code. Las Skills se auto-descubren cuando son relevantes.
+Las Skills se auto-descubren cuando son relevantes. Los hooks se ejecutan automaticamente por Claude Code.
 
 ---
 
 ## Flujo Completo de Desarrollo
 
-Este es el flujo end-to-end que el engine proporciona. Cada paso tiene su propio comando y puede ejecutarse de forma independiente, pero el flujo completo es donde el sistema brilla:
-
 ```
-/prd ──────────> PRD + Work Item (Plane/Trello)
+/prd ──────────> PRD + Work Item (Trello)
                    │
-                   │  El PRD documenta requisitos, funcionalidades,
-                   │  interacciones UI y criterios de aceptacion (AC-XX).
-                   │  Definition Quality Gate rechaza criterios vagos.
+                   │  Documenta requisitos, US/UC/AC,
+                   │  audiencia, VEG, NFRs.
+                   │  Definition Quality Gate rechaza
+                   │  criterios vagos o no-testables.
                    │
                    ▼
-/plan ─────────> Plan tecnico + Diseños Stitch (HTML)
+/plan ─────────> Plan tecnico + Diseños Stitch (HTML) + VEG
                    │
-                   │  El plan desglosa el trabajo en fases ordenadas,
-                   │  analiza componentes UI, mapea agentes y genera
-                   │  diseños de pantalla via Google Stitch MCP.
-                   │  Se guarda en doc/plans/{nombre}_plan.md
+                   │  Desglosa en fases, analiza UI,
+                   │  genera diseños Stitch MCP,
+                   │  genera VEG (imagenes/motion/design),
+                   │  guarda en doc/plans/ + doc/design/
                    │
                    ▼
 /implement ────> Autopilot: rama + codigo + QA + Acceptance Gate + PR
                    │
-                   │  Lee el plan, crea rama feature/, ejecuta fases,
-                   │  design-to-code, tests, AG-08 quality audit,
-                   │  AG-09a acceptance tests con evidencia visual,
-                   │  AG-09b acceptance validation (ACCEPTED/REJECTED),
-                   │  y crea PR con acceptance evidence.
+                   │  Crea rama feature/, ejecuta fases,
+                   │  design-to-code, genera imagenes VEG,
+                   │  inyecta motion, tests, AG-08 audit,
+                   │  AG-09a acceptance tests, AG-09b validation,
+                   │  crea PR con acceptance evidence.
                    │
                    ▼
-               Merge secuencial → pull main → siguiente card
+               Merge secuencial → pull main → siguiente UC
+```
+
+### Flujo Spec-Driven (Trello)
+
+```
+/prd ──> PRD + Trello Board (US/UC/AC cards)
+           │
+/plan ──> Plan tecnico + Stitch + VEG
+           │  (adjunta plan como evidencia PDF a la US)
+           │
+/implement US-01 ──> Autopilot por UC:
+           │
+           ├── find_next_uc → UC-001 (Ready)
+           │   ├── start_uc(UC-001) → In Progress
+           │   ├── git checkout -b feature/...
+           │   ├── Implementar fases
+           │   ├── AG-08 + AG-09a + AG-09b
+           │   ├── gh pr create
+           │   ├── Auto-merge (si GO + ACCEPTED)
+           │   ├── complete_uc(UC-001) → Done
+           │   └── git pull main
+           │
+           ├── find_next_uc → UC-002 (Ready)
+           │   ├── start_uc(UC-002) → In Progress
+           │   ├── ... (mismo ciclo, rama nueva)
+           │   └── git pull main
+           │
+           └── No mas UCs → move_us(US-01, "done")
 ```
 
 ### Comandos de soporte
 
-```
-/adapt-ui ──────────> Escanea widgets del proyecto, genera mapeo UI
-/optimize-agents ───> Audita y optimiza sistema agentico (score /100)
-/quality-gate ──────> Quality gates adaptativos con evidence auditable
-```
+| Comando | Proposito |
+|---------|-----------|
+| `/adapt-ui` | Escanea widgets/componentes del proyecto, genera mapeo UI |
+| `/optimize-agents` | Audita y optimiza sistema agentico (score /100) |
+| `/quality-gate` | Quality gates adaptativos con evidence auditable |
+| `/explore` | Exploracion read-only del codebase |
+| `/feedback` | Captura feedback de testing manual, bloquea merge si no resuelto |
 
 ---
 
-## Commands en Detalle
+## Skills (Comandos)
 
-> **v3.3:** Los commands han sido migrados a Agent Skills. Los archivos en `commands/` se mantienen como referencia. Las Skills en `.claude/skills/` son la version activa con auto-discovery, context isolation, y hooks.
+> Desde v3.0, los commands se migraron a Agent Skills con YAML frontmatter, auto-discovery, context isolation, y hooks. Los archivos en `commands/` se mantienen como referencia.
 
 ### `/prd` — Generar PRD
 
-**Archivo**: `commands/prd.md`
-
-Genera un Product Requirements Document estructurado y opcionalmente crea un Work Item en Plane o Trello.
+Genera un Product Requirements Document estructurado con US/UC/AC hierarchy.
 
 ```
 /prd "titulo" "descripcion de requerimientos"
 ```
 
 **Que hace:**
-1. Detecta tipo de PRD (feature nueva o refactor tecnico)
-2. Recopila informacion: funcionalidades, interacciones UI, criterios
-3. Genera PRD con template estructurado (funcionalidades, visualizacion de datos, acciones, formularios)
-4. Crea Work Item en Plane/Trello con prioridad y asignacion
+1. Detecta tipo de PRD (feature nueva o refactor)
+2. Recopila info: funcionalidades, interacciones UI, criterios
+3. Genera PRD con template estructurado (US-XX, UC-XXX, AC-XX)
+4. **Definition Quality Gate**: Rechaza criterios vagos o no-testables
+5. Detecta audiencia y genera VEG Readiness
+6. Crea Work Item en Trello con US/UC/AC cards
+7. Adjunta PRD como evidencia PDF a la US
 
-**Output:** PRD en markdown + Work Item creado (ej: `PROYECTO-42`)
+**Output:** `doc/prd/PRD_{nombre}.md` + Trello board con cards
 
-**Siguiente paso:** `/plan PROYECTO-42`
+**Modos:**
+- **Spec-Driven (Trello)**: Enriquece especificacion firmada por cliente
+- **Freeform**: Crea PRD desde cero a partir de descripcion
 
 ---
 
 ### `/plan` — Generar Plan de Implementacion
 
-**Archivo**: `commands/plan.md`
-
-Genera un plan tecnico detallado con analisis de componentes UI y diseños via Google Stitch MCP.
+Genera plan tecnico con analisis UI, diseños Stitch, y VEG.
 
 ```
-/plan PROYECTO-42           # Desde work item de Plane
-/plan "descripcion"         # Desde texto directo
-/plan feature:nombre        # Analizar feature existente
+/plan US-01                    # Desde User Story de Trello
+/plan PROYECTO-42              # Desde work item de Plane
+/plan "descripcion"            # Desde texto directo
 ```
 
 **Que hace:**
-1. **Detecta origen** y extrae requisitos del PRD
-2. **Explora el proyecto**: stack, agentes disponibles, widgets existentes
-3. **Analiza componentes UI** (obligatorio): tabla de componentes requeridos vs existentes
-4. **Mapea agentes**: asigna AG-01 a AG-09 segun las fases
-5. **Genera plan por fases**: DB → UI → Feature → Integracion → QA
-6. **Genera diseños en Stitch MCP**: crea pantallas HTML automaticamente si la feature tiene UI
-7. **Guarda plan** en `doc/plans/{nombre}_plan.md`
-8. **Guarda HTMLs** en `doc/design/{feature}/`
+1. Detecta origen y extrae requisitos del PRD
+2. Explora el proyecto: stack, agentes, widgets existentes
+3. Analiza componentes UI (obligatorio)
+4. Mapea agentes AG-01 a AG-09 segun fases
+5. Genera plan por fases: DB → UI → Feature → Integracion → QA
+6. Genera VEG (Paso 2.5b): imagenes, motion, design
+7. Genera diseños en Stitch MCP: pantallas HTML
+8. Guarda plan en `doc/plans/` + HTMLs en `doc/design/` + VEG en `doc/veg/`
+9. Adjunta plan como evidencia PDF a la US en Trello
 
-**Output:** Plan en `doc/plans/` + HTMLs de diseño en `doc/design/`
-
-**Siguiente paso:** `/implement {nombre_del_plan}`
+**Output:** Plan + Stitch HTMLs + VEG artifacts
 
 ---
 
 ### `/implement` — Autopilot de Implementacion
 
-**Archivo**: `commands/implement.md`
-
-Lee un plan y ejecuta todo el proceso de implementacion de forma autonoma: crea rama, implementa cada fase, genera diseños si faltan, convierte diseños a codigo, ejecuta tests, y crea PR.
+Lee un plan y ejecuta el proceso completo de implementacion de forma autonoma.
 
 ```
+/implement US-01                    # Ejecuta todos los UCs de la US en secuencia
+/implement UC-001                   # Ejecuta un UC individual
 /implement nombre_del_plan          # Busca doc/plans/{nombre}_plan.md
-/implement doc/plans/mi_plan.md     # Path directo al plan
-/implement                          # Lista planes disponibles y pregunta
+/implement doc/plans/mi_plan.md     # Path directo
+/implement                          # Lista planes y pregunta
 ```
 
-**Flujo interno detallado:**
+**Flujo interno:**
 
-```
-Paso 0: Cargar Plan
-│  Lee doc/plans/{nombre}_plan.md
-│  Parsea: titulo, fases, componentes UI, agentes, diseños
-│  Verifica working tree limpio (git status)
-│
-Paso 1: Crear Rama
-│  git checkout -b feature/{nombre-plan-kebab-case} main
-│
-Paso 2: Detectar Sistema de Agentes
-│  Agent Teams nativo / Subagentes legacy / Claude directo
-│  Mapea agentes a fases del plan
-│
-Paso 3: Generar Diseños Stitch (si faltan)
-│  ¿El plan referencia doc/design/ pero no existen HTMLs?
-│  → Genera automaticamente con mcp__stitch__generate_screen_from_text
-│  → Guarda HTMLs en doc/design/{feature}/
-│  → Registra prompts en {feature}_stitch_prompts.md
-│
-Paso 4: Design-to-Code (si hay diseños)
-│  Lee HTMLs de doc/design/{feature}/
-│  Convierte a codigo del stack:
-│    Flutter → Widgets + Layouts (mobile/tablet/desktop)
-│    React → Components + Server/Client Components
-│    Apps Script → Templates HtmlService
-│  Commit: "design: add Stitch designs for {feature}"
-│
-Paso 5: Ejecutar Fases del Plan
-│  Para cada fase:
-│    → Implementar todas las tareas de la fase
-│    → Ejecutar validacion del stack (dart analyze, eslint, ruff, etc.)
-│    → Commit parcial: "feat({feature}): {descripcion fase}"
-│
-Paso 6: Integracion
-│  Registrar en DI / Routing / Config segun stack
-│  Build final
-│  Commit: "chore({feature}): integration and wiring"
-│
-Paso 7: QA y Validacion
-│  7.1-7.4: Tests unitarios, coverage >= 85%, lint sin errores
-│  7.5: AG-09a Acceptance Tests (genera E2E desde AC-XX del PRD)
-│  7.6: AG-08 Quality Audit (GO/NO-GO)
-│  7.7: AG-09b Acceptance Gate (ACCEPTED/CONDITIONAL/REJECTED)
-│  Commit: "test({feature}): add tests with 85%+ coverage"
-│
-Paso 8: Crear Pull Request + Merge Secuencial
-   git push -u origin feature/{nombre}
-   gh pr create con:
-     - Resumen del plan
-     - Cambios por fase
-     - Diseños Stitch (si aplica)
-     - Acceptance Evidence (tabla AC-XX con screenshots)
-     - Test plan con checklist
-   8.5: Auto-merge si AG-08=GO + AG-09=ACCEPTED
-        git checkout main && git pull → siguiente card
-```
-
-**Output:** Rama con commits por fase + PR lista para review en GitHub
+| Paso | Descripcion | Enforcement |
+|------|-------------|-------------|
+| 0 | Cargar y validar plan | — |
+| 0.1a | Si Trello: cargar US/UC, `start_uc` | — |
+| 0.3 | Detectar VEG | — |
+| 0.5 | Pre-flight: working tree, rama, fetch | HARD BLOCK |
+| **0.5b** | **Guardia anti-main** | **ERROR FATAL** (v4.0.1) |
+| **0.5c** | **Validacion start_uc** | **ERROR FATAL** (v4.0.1) |
+| 1 | Crear rama feature/ | — |
+| 2 | Orquestacion por sub-agentes | — |
+| 3 | Generar diseños Stitch (si faltan) | — |
+| 3.5 | Generar imagenes VEG (si activo) | Cost warning |
+| **3.5.5** | **Prohibicion placeholders CSS** | **REGLA** (v4.0.1) |
+| 4 | Design-to-code + motion | — |
+| 5 | Ejecutar fases del plan | Lint gates |
+| 6 | Integracion | Build check |
+| 7 | QA + Acceptance Gate | AG-08, AG-09a/b |
+| 8 | Crear PR | — |
+| **8.5.0** | **Validacion pre-merge** | **HARD BLOCK** (v4.0.1) |
+| 8.5 | Merge secuencial + siguiente UC | Auto-merge conditions |
 
 **Manejo de errores:**
-- Error de compilacion → intenta fix automatico, si persiste reporta y para
-- Error en Stitch → reintenta una vez, si falla continua sin ese diseño
-- Coverage < 85% → genera tests adicionales (3 intentos), si no alcanza crea PR con nota
-- Conflictos de merge → reporta al usuario, no resuelve automaticamente
+- Compilacion → auto-fix (3 intentos), si persiste → healing protocol
+- Stitch → reintenta una vez, si falla → continua sin diseño
+- Coverage < 85% → genera tests adicionales (3 intentos)
+- Conflictos → reporta al usuario, no resuelve automaticamente
 
 ---
 
 ### `/adapt-ui` — Mapeo de Componentes UI
 
-**Archivo**: `commands/adapt-ui.md`
-
-Escanea la estructura de widgets/componentes del proyecto y genera un archivo de mapeo UI.
-
 ```
-/adapt-ui /path/al/proyecto              # Solo detectar
-/adapt-ui /path/al/proyecto --normalize  # Detectar + mover widgets a core
+/adapt-ui /path/al/proyecto              # Detectar
+/adapt-ui /path/al/proyecto --normalize  # Detectar + mover a core
 ```
 
-**Que hace:**
-1. Detecta framework (Flutter, React, Apps Script, etc.)
-2. Localiza todas las carpetas de widgets/componentes
-3. Detecta widgets dispersos (candidatos a centralizar)
-4. Categoriza por tipo: Navigation, Data Display, Selection, Data Entry, Actions, Feedback
-5. Detecta design tokens (colores, spacing, theme)
-6. Genera `.claude/ui-adapter.md` con mapeo completo
-7. Opcionalmente normaliza ubicaciones (mueve widgets a `core/`)
-
-**Output:** `.claude/ui-adapter.md`
+Escanea widgets/componentes, detecta framework, categoriza por tipo (Navigation, Data Display, Selection, Data Entry, Actions, Feedback), detecta design tokens, genera `.claude/ui-adapter.md`.
 
 ---
 
 ### `/optimize-agents` — Auditar Sistema Agentico
 
-**Archivo**: `commands/optimize-agents.md`
-
-Analiza, puntua y optimiza el sistema multi-agente del proyecto. Soporta tanto subagentes legacy como Agent Teams nativos.
-
 ```
-/optimize-agents audit       # Analisis completo con score (default)
-/optimize-agents report      # Reporte ejecutivo en doc/plans/
-/optimize-agents apply       # Aplicar recomendaciones con confirmacion
-/optimize-agents team-init   # Inicializar Agent Teams desde cero
+/optimize-agents audit       # Analisis completo (default)
+/optimize-agents report      # Reporte ejecutivo
+/optimize-agents apply       # Aplicar recomendaciones
+/optimize-agents team-init   # Inicializar Agent Teams
 /optimize-agents migrate     # Migrar legacy → Agent Teams
 ```
 
-**Dimensiones de analisis (100 puntos):**
-1. Documentation Sync (25pts) — CLAUDE.md vs codigo real
-2. Validation Strategy (15pts) — hooks y gates de calidad
-3. Model Optimization (10pts) — asignacion de modelos por complejidad
-4. Team Coordination (20pts) — coordinacion entre agentes
-5. Deprecation Hygiene (15pts) — limpieza de codigo obsoleto
-6. Agent Teams Readiness (15pts) — preparacion para Agent Teams
+**Dimensiones (100 puntos):**
 
-**Incluye Engine Sync:** detecta version del engine y compara archivos copiados vs originales.
+| Dimension | Puntos | Que evalua |
+|-----------|--------|------------|
+| Documentation Sync | 25 | CLAUDE.md vs codigo real |
+| Validation Strategy | 15 | Hooks y gates de calidad |
+| Model Optimization | 10 | Asignacion de modelos por complejidad |
+| Team Coordination | 20 | Coordinacion entre agentes |
+| Deprecation Hygiene | 15 | Limpieza de codigo obsoleto |
+| Agent Teams Readiness | 15 | Preparacion para Agent Teams |
 
-**Output:** Score /100 con recomendaciones priorizadas.
-
----
-
-## Hooks System (v3.5)
-
-Enforcement automatico — no hace falta recordar ejecutarlos manualmente:
-
-| Hook | Evento | Comportamiento |
-|------|--------|----------------|
-| pre-commit-lint | PostToolUse (git commit) | BLOQUEANTE: falla el commit si lint tiene errores |
-| on-session-end | Stop | Registra telemetria de sesion en .quality/logs/ |
-| implement-checkpoint | Manual (llamado por /implement) | Guarda progreso de fase para resume |
-
-Configuracion en `.claude/settings.json`. Los hooks se ejecutan automaticamente por Claude Code.
+Incluye **Engine Sync**: detecta version del engine y compara archivos del proyecto con los originales.
 
 ---
 
-## Self-Healing Protocol (v3.1)
+### `/quality-gate` — Quality Gates Adaptativos
 
-Cuando `/implement` encuentra errores durante la ejecución, el sistema intenta auto-recuperarse antes de pedir intervención humana:
-
-| Nivel | Acción | Ejemplo |
-|-------|--------|---------|
-| **1: Auto-Fix** | Ejecuta auto-fix del stack | `dart fix --apply`, `eslint --fix` |
-| **2: Diagnóstico** | Analiza error y aplica fix específico | Import faltante, tipo incorrecto |
-| **3: Rollback** | Revierte fase y reintenta desde cero | `git stash` + fresh attempt |
-| **4: Humano** | Genera error report y pausa | `.quality/evidence/{feature}/error_report.md` |
-
-Todos los intentos se registran en `.quality/evidence/{feature}/healing.jsonl` para auditoría.
+```
+/quality-gate           # Audit: escanea y genera baseline
+/quality-gate check     # Valida contra baseline
+/quality-gate plan      # Plan progresivo de mejora
+/quality-gate fix       # Ejecuta siguiente paso del plan
+/quality-gate report    # Report completo
+```
 
 ---
 
-## Stacks Soportados
+### `/explore` — Exploracion Read-Only
 
-| Stack | Version | Arquitectura | Estado |
-|-------|---------|-------------|--------|
-| **Flutter** | 3.38+ | Clean Architecture, BLoC+Freezed, Responsive (3 layouts), DataSource pattern | Completo |
-| **React** | 19.x | Next.js 15 App Router, Server Components, TanStack Query, Zustand, Tailwind CSS | Completo |
-| **Python** | 3.12+ | FastAPI, SQLAlchemy 2 async, Pydantic v2, Repository pattern | Completo |
-| **Google Apps Script** | V8 | clasp + TypeScript + esbuild, batch operations, PropertiesService | Completo |
-
-Cada stack tiene su carpeta en `architecture/` con:
-- `overview.md` — Vision general, principios, herramientas
-- `folder-structure.md` — Estructura de carpetas detallada
-- `patterns.md` — Patrones de codigo con ejemplos
-- `testing-strategy.md` — Estrategia de testing, herramientas, mocks
+Exploracion del codebase sin capacidad de modificar archivos. Modo fork con Explore agent.
 
 ---
 
-## Servicios de Infraestructura
+### `/feedback` — Feedback de Testing Manual
 
-| Servicio | Carpeta | Contenido |
-|----------|---------|-----------|
-| **Supabase** | `infra/supabase/` | MCP tools, RLS policies, migrations, Realtime, DataSource pattern |
-| **Neon** | `infra/neon/` | Connection pooling, branching, Drizzle ORM, serverless |
-| **Stripe** | `infra/stripe/` | Webhooks, Checkout Sessions, Subscriptions, Customer Portal |
-| **Firebase** | `infra/firebase/` | Firestore rules, Auth, Cloud Functions, Storage |
-| **n8n** | `infra/n8n/` | Workflow patterns, triggers, webhooks, error handling |
+```
+/feedback "descripcion del bug"       # Captura feedback
+/feedback list                         # Lista feedback por feature
+/feedback resolve FB-NNN               # Marca resuelto
+```
+
+Crea GitHub issues, vincula a AC-XX del PRD, bloquea merge si no resuelto.
 
 ---
 
@@ -320,30 +301,48 @@ Cada stack tiene su carpeta en `architecture/` con:
 
 ### Agentes Disponibles
 
-| ID | Agente | Rol | Cuando se usa |
-|----|--------|-----|---------------|
-| — | Orchestrator | Coordinador de subagentes | Siempre (si hay orquestacion) |
-| AG-01 | Feature Generator | Genera features completas | Fase de estructura y logica |
-| AG-02 | UI/UX Designer | Diseño de interfaces | Fase UI + design-to-code |
-| AG-03 | DB Specialist | Supabase, Neon, Firebase | Fase de preparacion DB |
-| AG-04 | QA Validation | Testing (85%+ coverage) | Fase final de validacion |
-| AG-05 | n8n Specialist | Workflows de automatizacion | Si hay integracion n8n |
-| AG-06 | Design Specialist | Google Stitch MCP | Generacion de diseños |
-| AG-07 | Apps Script Specialist | Google Apps Script | Proyectos GAS |
-| AG-08 | Quality Auditor | Verificacion independiente | Auditoria post-QA, GO/NO-GO |
-| AG-09a | Acceptance Tester | Genera tests E2E desde AC-XX | Paso 7.5 de /implement |
-| AG-09b | Acceptance Validator | Valida cumplimiento funcional | Paso 7.7, ACCEPTED/REJECTED |
+| ID | Agente | Rol | Cuando |
+|----|--------|-----|--------|
+| — | **Orchestrator** | Coordinador. NUNCA escribe codigo. | Siempre |
+| AG-01 | Feature Generator | Genera estructura completa por stack | Fase de logica |
+| AG-02 | UI/UX Designer | Interfaces, responsiveness, VEG Motion | Fase UI |
+| AG-03 | DB Specialist | Supabase, Neon, Firebase, migrations | Fase DB |
+| AG-04 | QA Validation | Tests unitarios, 85%+ coverage | Fase QA |
+| AG-05 | n8n Specialist | Workflows de automatizacion | Si hay n8n |
+| AG-06 | Design Specialist | Google Stitch MCP, VEG enrichment | Diseños |
+| AG-07 | Apps Script Specialist | Google Apps Script (clasp, V8) | Proyectos GAS |
+| AG-08 | Quality Auditor | Verificacion independiente, GO/NO-GO | Post-QA |
+| AG-09a | Acceptance Tester | Genera .feature + step definitions | Paso 7.5 |
+| AG-09b | Acceptance Validator | Valida cumplimiento, ACCEPTED/REJECTED | Paso 7.7 |
+| AG-10 | Developer Tester | Procesa feedback humano, GitHub issues | /feedback |
+
+### Aislamiento Estricto del Orquestador
+
+El Orquestador (main Claude thread) **NUNCA escribe codigo directamente**:
+
+| Accion | Orquestador | Sub-agente |
+|--------|:-----------:|:----------:|
+| Leer codigo fuente | ❌ | ✅ |
+| Escribir/editar codigo | ❌ | ✅ |
+| Ejecutar lint/tests/build | ❌ | ✅ |
+| Generar diseños Stitch | ❌ | AG-06 |
+| Leer plan (1 vez) | ✅ | — |
+| Crear rama y commits | ✅ | — |
+| Crear PR | ✅ | — |
+| Gestionar Trello state | ✅ | — |
+| Decidir self-healing | ✅ | (delega fix) |
+
+**Token budget del Orquestador**: Max 15% del context window (~30K tokens).
 
 ### Agent Teams (Claude Code nativo)
 
-Configuracion para la feature experimental de Agent Teams de Claude Code:
+Configuracion para la feature experimental de Agent Teams:
 
 ```
 agent-teams/
-├── README.md                          # Documentacion completa
-├── templates/
-│   └── team-config.template.json      # Config base con todos los roles
-├── prompts/                           # Prompts por rol
+├── README.md
+├── templates/team-config.template.json
+├── prompts/                    # Prompts por rol
 │   ├── lead.md
 │   ├── flutter-dev.md
 │   ├── react-dev.md
@@ -351,22 +350,39 @@ agent-teams/
 │   ├── qa-reviewer.md
 │   ├── ui-designer.md
 │   └── appscript-specialist.md
-└── hooks/                             # Hooks de calidad
+└── hooks/
 ```
 
-Cada rol tiene: modelo asignado, prompt especializado, file ownership y quality gates.
+---
+
+## Stacks Soportados
+
+| Stack | Version | Arquitectura | Docs |
+|-------|---------|-------------|------|
+| **Flutter** | 3.38+ | Clean Architecture, BLoC+Freezed, Responsive (3 layouts), DataSource | 6 docs |
+| **React** | 19.x | App Router / SPA, Server Components, TanStack Query, Tailwind CSS | 3 docs |
+| **Python** | 3.12+ | FastAPI, SQLAlchemy 2 async, Pydantic v2, Repository pattern | 2 docs |
+| **Google Apps Script** | V8 | clasp + TypeScript + esbuild, batch operations, PropertiesService | 4 docs |
+
+Cada stack tiene su carpeta en `architecture/` con overview, folder-structure, patterns, testing-strategy, y e2e-testing (Flutter/React).
+
+---
+
+## Servicios de Infraestructura
+
+| Servicio | Carpeta | Contenido |
+|----------|---------|-----------|
+| **Supabase** | `infra/supabase/` | MCP tools, RLS policies, migrations, Realtime, DataSource |
+| **Neon** | `infra/neon/` | Connection pooling, branching, Drizzle ORM, serverless |
+| **Stripe** | `infra/stripe/` | Webhooks, Checkout, Subscriptions, Customer Portal |
+| **Firebase** | `infra/firebase/` | Firestore rules, Auth, Cloud Functions, Storage |
+| **n8n** | `infra/n8n/` | Workflow patterns, triggers, webhooks, error handling |
 
 ---
 
 ## Quality Gate System
 
-Sistema de quality gates adaptativos con baseline auto-descubierto y evidencia auditable.
-
-### Problema que resuelve
-
-Antes: el pipeline confiaba en que Claude "recordara" hacer lint/test entre fases. No habia enforcement real ni evidencia auditable.
-
-Ahora: quality gates automaticos entre cada fase, con evidence persistente y un auditor independiente (AG-08).
+Quality gates automaticos entre cada fase de `/implement`, con evidence persistente y auditor independiente (AG-08).
 
 ### Flujo con quality gates
 
@@ -375,73 +391,357 @@ Ahora: quality gates automaticos entre cada fase, con evidence persistente y un 
   │
   ├─ [Pre-flight] Verificar/crear baseline → .quality/baseline.json
   ├─ [Fase 1: DB] → GATE: lint 0/0/0 ✅ compile ✅
-  ├─ [Fase 2: Feature] → GATE: lint 0/0/0 ✅ compile ✅ tests pass ✅
-  ├─ [Fase 3: QA] → GATE: coverage ≥ baseline ✅
-  ├─ [AG-08: Audit] → Verifica tests reales, arquitectura, convenciones
-  ├─ [AG-09a: Acceptance Tests] → Tests E2E desde AC-XX + screenshots
-  ├─ [AG-09b: Acceptance Gate] → ACCEPTED/CONDITIONAL/REJECTED
-  └─ [PR] → Con quality report + acceptance evidence adjunta
+  ├─ [Fase 2: Feature] → GATE: lint 0/0/0 ✅ compile ✅ tests ✅
+  ├─ [Fase 3: QA] → GATE: coverage >= baseline ✅
+  ├─ [AG-08: Audit] → GO / CONDITIONAL GO / NO-GO
+  ├─ [AG-09a: Tests] → .feature + step definitions + screenshots
+  ├─ [AG-09b: Gate] → ACCEPTED / CONDITIONAL / REJECTED
+  └─ [PR] → Quality report + acceptance evidence
 ```
 
 ### Politicas
 
 | Metrica | Politica | Descripcion |
 |---------|----------|-------------|
-| Lint | zero-tolerance | 0/0/0 siempre. BLOQUEANTE |
-| Coverage | ratchet | Nunca baja. Sube progresivamente |
-| Tests | no-regression | Nunca menos passing. Failing = 0 |
-| Architecture | ratchet | Nunca mas violaciones |
-
-### Comandos
-
-```bash
-/quality-gate           # Audit: escanea y genera baseline
-/quality-gate check     # Valida contra baseline (GO/NO-GO)
-/quality-gate plan      # Plan progresivo de mejora
-/quality-gate fix       # Ejecuta siguiente paso del plan
-/quality-gate report    # Report completo
-```
+| **Lint** | zero-tolerance | 0 errores / 0 warnings / 0 info. BLOQUEANTE |
+| **Coverage** | ratchet | Nunca baja. Sube progresivamente |
+| **Tests** | no-regression | Nunca menos passing. Failing = 0 |
+| **Architecture** | ratchet | Nunca mas violaciones |
 
 ### Evidence auditable
 
 Cada feature genera `.quality/evidence/{feature}/` con:
 - Metricas pre/post por fase
-- Resultado del audit de AG-08 (GO/NO-GO)
-- Acceptance tests de AG-09a (screenshots, traces)
-- Acceptance report de AG-09b (ACCEPTED/REJECTED)
-- Report legible con veredicto
+- Resultado AG-08 (GO/NO-GO)
+- Acceptance tests AG-09a (screenshots, traces, .feature files)
+- Acceptance report AG-09b (ACCEPTED/REJECTED)
+- Report con veredicto legible
 
 ---
 
-## Integracion con Google Stitch MCP
+## Hooks System
 
-El engine se integra con Google Stitch para generacion automatica de diseños UI:
+Enforcement automatico — no hace falta recordar ejecutarlos:
 
-| Herramienta MCP | Uso |
-|-----------------|-----|
-| `mcp__stitch__list_projects` | Listar proyectos Stitch |
-| `mcp__stitch__get_project` | Detalles de un proyecto |
-| `mcp__stitch__list_screens` | Listar pantallas generadas |
-| `mcp__stitch__get_screen` | Obtener HTML de una pantalla |
-| `mcp__stitch__generate_screen_from_text` | Generar pantalla desde prompt |
+| Hook | Evento | Comportamiento |
+|------|--------|----------------|
+| `pre-commit-lint.sh` | PostToolUse (git commit) | **BLOQUEANTE**: falla commit si lint tiene errores |
+| `on-session-end.sh` | Stop | Registra telemetria en .quality/logs/ + Engram |
+| `implement-checkpoint.sh` | Manual (/implement) | Guarda progreso de fase para resume |
+| `implement-healing.sh` | Manual (/implement) | Registra eventos de self-healing |
+| `post-implement-validate.sh` | Manual (/implement) | Detecta regresion de baseline |
+| `mcp-report.sh` | Utility | Cliente MCP reutilizable para telemetria remota |
 
-**Reglas:**
-- Siempre Light Mode
-- Una pantalla a la vez (la API tarda minutos)
-- `GEMINI_3_PRO` para pantallas complejas, `GEMINI_3_FLASH` para simples
-- HTMLs guardados en `doc/design/{feature}/`
-- Prompts registrados en `doc/design/{feature}/{feature}_stitch_prompts.md`
+Configuracion en `.claude/settings.json`. Telemetria remota controlada por `DEV_ENGINE_MCP_URL` env var.
 
-**Configuracion por proyecto** en `.claude/settings.local.json`:
+---
+
+## Self-Healing Protocol
+
+Cuando `/implement` encuentra errores, el sistema intenta auto-recuperarse:
+
+| Nivel | Accion | Ejemplo |
+|-------|--------|---------|
+| **1: Auto-Fix** | Ejecuta auto-fix del stack | `dart fix --apply`, `eslint --fix`, `ruff check --fix` |
+| **2: Diagnostico** | Analiza error, aplica fix especifico | Import faltante, tipo incorrecto |
+| **3: Rollback** | Revierte fase, reintenta desde cero | `git stash` + fresh attempt |
+| **4: Humano** | Genera error report y pausa | `.quality/evidence/{feature}/error_report.md` |
+
+Todos los intentos se registran en `.quality/evidence/{feature}/healing.jsonl`.
+
+---
+
+## VEG — Visual Experience Generation
+
+Sistema de 3 modos para generar decisiones visuales (imagenes, motion, design) adaptadas a la audiencia del proyecto.
+
+### Modos
+
+| Modo | Nombre | Cuando |
+|------|--------|--------|
+| 1 | **Uniform** | Audiencia homogenea (mismo VEG para todo) |
+| 2 | **Per Profile** | Variantes por perfil de usuario |
+| 3 | **Per ICP+JTBD** | Personalizado por ICP con JTBD racional y emocional |
+
+### 3 Pilares
+
+| Pilar | Contenido | Integracion |
+|-------|-----------|-------------|
+| **Pilar 1: Imagenes** | Tipo, mood, paleta, prompts por seccion | Paso 3.5 genera con MCP (Canva/Freepik/etc.) |
+| **Pilar 2: Motion** | Nivel (1-3), page enter, scroll reveal, hover | Paso 4 inyecta catalogo en AG-02 |
+| **Pilar 3: Design** | Densidad, whitespace, tipografia, CTA, sombras | Paso 3 enriquece prompts Stitch |
+
+### 6 Arquetipos
+
+| Arquetipo | Target | Ejemplo |
+|-----------|--------|---------|
+| Corporate | Decision-makers empresariales | iAutomat.com |
+| Startup | Early adopters tecnicos | SaaS dashboard |
+| Creative | Artistas y disenadores | Portfolio creativo |
+| Consumer | Usuarios finales masivos | App de delivery |
+| Gen-Z | Audiencia joven digital-native | Red social |
+| Government | Instituciones publicas | Portal de tramites |
+
+### Image Generation Pipeline (Paso 3.5)
+
+```
+1. Leer VEG Pilar 1 → prompts por seccion
+2. Advertencia de costes (OBLIGATORIO)
+3. Health check del MCP (Canva/Freepik/etc.)
+4. Generar imagenes con MCP
+5. Guardar en doc/veg/{feature}/assets/
+6. Registrar en image_prompts.md
+```
+
+**Providers soportados:**
+
+| Provider | Coste | Calidad |
+|----------|-------|---------|
+| **Canva** (Pro/Premium) | €0 adicional | Alta (Magic Media) |
+| Freepik (Mystic) | Segun plan | Alta (stock + AI) |
+| lansespirit (OpenAI/Gemini) | $0.02-0.19/img | Muy alta |
+
+**Si MCP no disponible**: Crea `PENDING_IMAGES.md` con prompts para generacion manual.
+
+### Prohibicion de Placeholders CSS (v4.0.1)
+
+> Cuando el VEG especifica imagenes (Pilar 1), **NUNCA** usar gradientes CSS, iconos SVG inline, o iniciales de texto como sustituto. Solo imagenes reales o `<img>` con paths pendientes.
+
+---
+
+## Spec-Driven Pipeline (Trello)
+
+Pipeline basado en especificacion con Trello como fuente de verdad.
+
+### Jerarquia
+
+```
+Board (proyecto)
+├── US-01: User Story (card en lista workflow)
+│   ├── UC-001: Use Case (card hija)
+│   │   ├── AC-01: Acceptance Criterion (checklist item)
+│   │   ├── AC-02: ...
+│   │   └── AC-03: ...
+│   ├── UC-002: ...
+│   └── UC-003: ...
+├── US-02: ...
+└── ...
+```
+
+### Workflow States
+
+```
+Backlog → Ready → In Progress → Review → Done
+```
+
+### Tools MCP para Trello
+
+| Tool | Proposito |
+|------|-----------|
+| `setup_board` | Crear board con listas workflow |
+| `import_spec` | Importar US/UC/AC desde JSON |
+| `get_us` / `list_us` | Leer User Stories |
+| `get_uc` / `list_uc` | Leer Use Cases |
+| `find_next_uc` | Siguiente UC en Ready |
+| `start_uc` | Mover UC a In Progress |
+| `complete_uc` | Mover UC a Done |
+| `move_us` / `move_uc` | Cambiar estado |
+| `mark_ac` / `mark_ac_batch` | Marcar criterios de aceptacion |
+| `attach_evidence` | Adjuntar PDF de evidencia |
+| `get_evidence` | Buscar evidencia adjunta |
+| `get_board_status` | Estado completo del board |
+| `get_delivery_report` | Reporte de entrega |
+
+### Configuracion
+
+En `.claude/project-config.json` (PREFERIDO):
+
 ```json
 {
+  "trello": {
+    "boardId": "ID_DEL_BOARD"
+  },
   "stitch": {
-    "projectId": "ID_PROYECTO",
+    "projectId": "ID_PROYECTO_STITCH",
     "deviceType": "DESKTOP",
     "modelId": "GEMINI_3_PRO"
   }
 }
 ```
+
+> **Nota v4.0.1**: `.claude/project-config.json` es la ubicacion preferida porque Claude Code rechaza campos custom en `settings.local.json`.
+
+---
+
+## Hardened Autopilot Guards (v4.0.1)
+
+La v4.0.1 introduce **HARD BLOCKS** que previenen las violaciones de protocolo mas criticas durante la implementacion autonoma. Estas validaciones detienen el pipeline inmediatamente si se detecta una inconsistencia.
+
+### Paso 0.5b: Guardia anti-main (ERROR FATAL)
+
+```
+¿Estamos implementando codigo directamente en main/master?
+├── En Paso 0: OK (el Paso 1 creara la rama)
+├── En Paso 5+: ❌ ERROR FATAL — PARAR INMEDIATAMENTE
+└── Razon: Sin rama feature/ → sin PR → sin acceptance evidence → sin review
+```
+
+### Paso 0.5c: Validacion Trello state (ERROR FATAL)
+
+```
+¿Se llamo start_uc antes de implementar? (solo Trello spec-driven)
+├── SI y status == "in_progress": OK
+├── SI pero status incorrecto: Recovery automatico (reintentar start_uc)
+└── NO: ❌ ERROR FATAL — llamar start_uc o PARAR
+```
+
+### Paso 3.5.5: Prohibicion de placeholders CSS
+
+```
+¿El VEG tiene Pilar 1 (Imagenes)?
+├── SI: PROHIBIDO usar gradientes CSS, iconos SVG, o iniciales como sustituto
+└── NO: Libre de usar cualquier tecnica visual
+```
+
+### Paso 8.5.0: Validacion pre-merge (4 checks BLOQUEANTES)
+
+| Check | Que valida | Si falla |
+|-------|-----------|----------|
+| 1 | Rama actual es `feature/*` | ERROR FATAL |
+| 2 | PR abierta existe (`gh pr view`) | ERROR FATAL |
+| 3 | UC en estado `in_progress` (Trello) | Recovery + WARNING |
+| 4 | `veg_images_pending == false` | Merge bloqueado, espera usuario |
+
+### Por que estos guards son necesarios
+
+Antes de v4.0.1, estas validaciones eran "soft requirements" — documentadas en el skill pero no validadas en runtime. El agente podia:
+- Implementar todo en main sin crear rama
+- Crear PR sin haber llamado start_uc
+- Auto-merge con imagenes placeholder degradando calidad visual
+- Saltarse complete_uc dejando el board Trello inconsistente
+
+Ahora son **HARD BLOCKS** que detienen el pipeline.
+
+---
+
+## MCP Server
+
+Servidor MCP unificado con 73+ tools en un solo endpoint.
+
+### Arquitectura
+
+```
+server/
+├── server.py              # FastMCP main server
+├── dashboard_api.py       # REST API para dashboard
+├── auth_gateway.py        # Credenciales per-session
+├── trello_client.py       # Async httpx con retry
+├── board_helpers.py       # Card parsing, custom fields
+├── models.py              # Pydantic models (US, UC, AC)
+├── pdf_generator.py       # Markdown → PDF
+├── tools/                 # 10 modulos de tools
+│   ├── engine.py          # 3 tools: version, status, rules
+│   ├── plans.py           # 3 tools: list, read, architecture
+│   ├── quality.py         # 4 tools: baseline, logs, evidence
+│   ├── skills.py          # 2 tools: list, read
+│   ├── features.py        # 7 tools: in-progress, designs
+│   ├── telemetry.py       # 8 tools: sessions, events, dashboard
+│   ├── hooks.py           # 3 tools: list, config, source
+│   ├── onboarding.py      # 10+ tools: register, onboard, upgrade
+│   ├── state.py           # 20 tools: report, checkpoint, healing
+│   └── spec_driven.py     # 21 tools: Trello domain (US/UC/AC)
+├── resources/             # 8 MCP Resources
+└── dashboard/             # React 19 + Vite frontend
+```
+
+### Ejecucion
+
+```bash
+# Instalar dependencias
+pip install -e .
+
+# Ejecutar servidor
+sdd-jps-engine
+
+# Docker
+docker compose up
+```
+
+**Dependencias**: Python 3.12+, FastMCP 3.0.0+, httpx, pydantic, fpdf2, structlog.
+
+---
+
+## Sala de Maquinas (Dashboard)
+
+Dashboard embebido (React 19 + Vite) para visualizar estado global de todos los proyectos.
+
+**Features:**
+- Estado de proyectos onboarded
+- Telemetria de sesiones
+- Self-healing events y resolution rates
+- Quality baselines y evidencia
+- Spec-Driven: estado de boards Trello
+- Acceptance tests y validaciones
+- E2E test results
+
+---
+
+## Google Stitch MCP
+
+Generacion automatica de diseños UI via Google Stitch.
+
+| Herramienta MCP | Uso |
+|-----------------|-----|
+| `mcp__stitch__list_projects` | Listar proyectos Stitch |
+| `mcp__stitch__get_project` | Detalles de un proyecto |
+| `mcp__stitch__list_screens` | Listar pantallas |
+| `mcp__stitch__get_screen` | Obtener HTML de pantalla |
+| `mcp__stitch__generate_screen_from_text` | Generar pantalla desde prompt |
+
+**Reglas:**
+- Siempre Light Mode
+- Una pantalla a la vez (la API tarda minutos)
+- `GEMINI_3_PRO` para complejas, `GEMINI_3_FLASH` para simples
+- HTMLs en `doc/design/{feature}/`
+- Prompts en `doc/design/{feature}/{feature}_stitch_prompts.md`
+
+---
+
+## Context Engineering
+
+Sistema de gestion de contexto para mantener el orquestador dentro de limites.
+
+| Operacion | Budget max |
+|-----------|-----------|
+| Fase de implementacion | ~8,700 tokens |
+| Resumen de sub-agente | Max 5 lineas |
+| Plan (lectura unica) | Sin limite |
+| Checkpoint | ~200 tokens |
+
+**Reglas de pruning:**
+- Agressive pruning despues de cada fase
+- External persistence (checkpoints, Engram)
+- Compact summaries por defecto
+- Fork isolation para sub-agentes
+
+---
+
+## Engram — Persistent Memory
+
+Memoria persistente FTS5 para sobrevivir compactaciones de contexto.
+
+```
+mem_save    → Guardar informacion
+mem_search  → Buscar por keywords
+mem_context → Recuperar contexto del proyecto
+```
+
+**Protocolo "Surviving Compaction":**
+1. `mem_context` con proyecto actual
+2. `mem_search` con keywords relevantes
+3. Solo despues de recuperar → continuar
+
+**Instalacion**: Binario Go precompilado (~5 MB) desde [GitHub releases](https://github.com/Gentleman-Programming/engram/releases).
 
 ---
 
@@ -449,28 +749,18 @@ El engine se integra con Google Stitch para generacion automatica de diseños UI
 
 | Template | Proposito |
 |----------|-----------|
-| `CLAUDE.md.template` | Instrucciones del proyecto para Claude Code |
-| `settings.json.template` | Permisos y configuracion de Claude Code |
-| `team-config.json.template` | Configuracion de Agent Teams con todos los roles |
+| `CLAUDE.md.template` | Instrucciones Claude Code + Engram + VEG |
+| `settings.json.template` | Permisos, hooks, MCP config |
+| `team-config.json.template` | Agent Teams con todos los roles |
+| `quality-baseline.json.template` | Baseline de calidad inicial |
 
-### Configurar un proyecto nuevo
+### Onboarding automatico
 
-1. Copiar `templates/CLAUDE.md.template` → `{proyecto}/CLAUDE.md`
-2. Rellenar los placeholders (`{PROJECT_NAME}`, `{STACK}`, etc.)
-3. Copiar agentes necesarios a `{proyecto}/.claude/agents/`
-4. Ejecutar `/optimize-agents audit` para verificar configuracion
-
----
-
-## Reglas Globales
-
-El archivo `rules/GLOBAL_RULES.md` define reglas que aplican a **todos** los proyectos:
-
-- **Comportamiento de Claude**: Arquitecto senior critico, no asistente complaciente
-- **Prohibiciones universales**: No produccion sin confirmacion, no codigo sin tests, no commits sin validacion
-- **Reglas por stack**: State management, arquitectura, hooks obligatorios por stack
-- **Testing**: 85% coverage minimo, happy path + edge cases + fuzz
-- **Checklist de feature**: Plan → Estructura → Modelo → Repository → UI → Tests → Lint
+```
+# Via MCP
+onboard_project(path, name)   # Auto-detecta stack, genera CLAUDE.md, configura hooks
+upgrade_project(name)          # Actualiza al ultimo template del engine
+```
 
 ---
 
@@ -478,178 +768,270 @@ El archivo `rules/GLOBAL_RULES.md` define reglas que aplican a **todos** los pro
 
 ```
 sdd-jps-engine/
-├── CLAUDE.md                      # Descripcion del engine para Claude
-├── ENGINE_VERSION.yaml            # Version, stacks, servicios, changelog
-├── README.md                      # Este archivo
-├── install.sh                     # Instalador de commands + skills + hooks
+├── CLAUDE.md                          # Instrucciones del engine para Claude
+├── ENGINE_VERSION.yaml                # Version 4.0.1, stacks, servicios, changelog
+├── README.md                          # Este archivo
+├── CHANGELOG.md                       # Historial de cambios desde v1.0.0
+├── LICENSE                            # MIT
+├── install.sh                         # Instalador de skills + hooks + commands
+├── pyproject.toml                     # Python project config (FastMCP 3.0.0+)
+├── Dockerfile                         # Multi-stage (Node 20 + Python 3.12)
+├── docker-compose.yml                 # Docker Compose config
 │
-├── .claude/                       # Configuracion Claude Code (v3.5)
-│   ├── settings.json              #   Hooks config
-│   ├── skills/                    #   Agent Skills (7 skills)
-│   │   ├── prd/SKILL.md
-│   │   ├── plan/SKILL.md
-│   │   ├── implement/SKILL.md
-│   │   ├── adapt-ui/SKILL.md
-│   │   ├── optimize-agents/SKILL.md
-│   │   ├── quality-gate/SKILL.md
-│   │   └── explore/SKILL.md
-│   └── hooks/                     #   Hook scripts
-│       ├── mcp-report.sh
-│       ├── pre-commit-lint.sh
-│       ├── on-session-end.sh
-│       ├── implement-checkpoint.sh
-│       ├── implement-healing.sh
-│       └── post-implement-validate.sh
+├── .claude/                           # Configuracion Claude Code
+│   ├── settings.json                  #   Hooks config
+│   ├── skills/                        #   8 Agent Skills
+│   │   ├── prd/SKILL.md              #     PRD generator
+│   │   ├── plan/SKILL.md             #     Plan + Stitch + VEG
+│   │   ├── implement/SKILL.md        #     Autopilot (1500+ lineas)
+│   │   ├── adapt-ui/SKILL.md         #     UI component scanner
+│   │   ├── optimize-agents/SKILL.md  #     Agent system auditor
+│   │   ├── quality-gate/SKILL.md     #     Quality gates
+│   │   ├── explore/SKILL.md          #     Read-only exploration
+│   │   └── feedback/SKILL.md         #     Developer feedback
+│   └── hooks/                         #   6 Hook scripts
+│       ├── mcp-report.sh             #     MCP client helper
+│       ├── pre-commit-lint.sh        #     Lint on commit (BLOQUEANTE)
+│       ├── on-session-end.sh         #     Session telemetry
+│       ├── implement-checkpoint.sh   #     Phase checkpointing
+│       ├── implement-healing.sh      #     Healing event logging
+│       └── post-implement-validate.sh #    Baseline regression
 │
-├── commands/                      # Commands legacy (referencia)
-│   ├── prd.md                     #   /prd — PRD + Work Item
-│   ├── plan.md                    #   /plan — Plan tecnico + Stitch
-│   ├── implement.md               #   /implement — Autopilot end-to-end
-│   ├── adapt-ui.md                #   /adapt-ui — Mapeo de widgets
-│   ├── optimize-agents.md         #   /optimize-agents — Audit agentico
-│   └── quality-gate.md            #   /quality-gate — Quality gates adaptativos
+├── server/                            # MCP Server + Dashboard
+│   ├── server.py                      #   FastMCP main
+│   ├── dashboard_api.py               #   REST API
+│   ├── auth_gateway.py                #   Per-session credentials
+│   ├── trello_client.py               #   Async Trello client
+│   ├── board_helpers.py               #   Card parsing
+│   ├── models.py                      #   Pydantic models
+│   ├── pdf_generator.py               #   Markdown → PDF
+│   ├── tools/                         #   10 modules, 73+ tools
+│   │   ├── engine.py                  #     Version, status, rules
+│   │   ├── plans.py                   #     Plans management
+│   │   ├── quality.py                 #     Quality baselines
+│   │   ├── skills.py                  #     Skill discovery
+│   │   ├── features.py               #     Feature tracking
+│   │   ├── telemetry.py              #     Sessions, events
+│   │   ├── hooks.py                   #     Hook config
+│   │   ├── onboarding.py             #     Project onboarding
+│   │   ├── state.py                   #     State reporting
+│   │   └── spec_driven.py            #     Trello domain (21 tools)
+│   ├── resources/                     #   8 MCP Resources
+│   └── dashboard/                     #   Sala de Maquinas (React 19 + Vite)
+│       └── src/
 │
-├── agents/                        # Templates de agentes (11 roles)
-│   ├── orchestrator.md
-│   ├── feature-generator.md       #   AG-01
-│   ├── uiux-designer.md           #   AG-02
-│   ├── db-specialist.md           #   AG-03
-│   ├── qa-validation.md           #   AG-04
-│   ├── n8n-specialist.md          #   AG-05
-│   ├── design-specialist.md       #   AG-06
-│   ├── appscript-specialist.md    #   AG-07
-│   ├── quality-auditor.md         #   AG-08
-│   ├── acceptance-tester.md       #   AG-09a
-│   ├── acceptance-validator.md    #   AG-09b
+├── commands/                          # Commands legacy (referencia)
+│   ├── prd.md
+│   ├── plan.md
+│   ├── implement.md
+│   ├── adapt-ui.md
+│   ├── optimize-agents.md
+│   ├── quality-gate.md
+│   └── feedback.md
+│
+├── agents/                            # 12 Agent templates
+│   ├── orchestrator.md                #   Coordinador principal
+│   ├── feature-generator.md           #   AG-01
+│   ├── uiux-designer.md              #   AG-02
+│   ├── db-specialist.md              #   AG-03
+│   ├── qa-validation.md              #   AG-04
+│   ├── n8n-specialist.md             #   AG-05
+│   ├── design-specialist.md          #   AG-06
+│   ├── appscript-specialist.md       #   AG-07
+│   ├── quality-auditor.md            #   AG-08
+│   ├── acceptance-tester.md          #   AG-09a
+│   ├── acceptance-validator.md       #   AG-09b
+│   ├── developer-tester.md           #   AG-10
 │   └── templates/
 │
-├── agent-teams/                   # Agent Teams nativo (Claude Code)
+├── agent-teams/                       # Agent Teams nativo (Claude Code)
 │   ├── README.md
-│   ├── templates/
-│   │   └── team-config.template.json
-│   ├── prompts/                   #   Prompts por rol
-│   └── hooks/                     #   Hooks de calidad
+│   ├── templates/team-config.template.json
+│   ├── prompts/                       #   Prompts por rol
+│   └── hooks/
 │
-├── architecture/                  # Patrones por stack
-│   ├── flutter/                   #   Clean Arch, BLoC, Responsive
-│   ├── react/                     #   Next.js, Server Components
-│   ├── python/                    #   FastAPI, SQLAlchemy
-│   └── google-apps-script/        #   clasp, TypeScript, V8
+├── architecture/                      # Patrones por stack (15 docs)
+│   ├── flutter/                       #   6 docs: overview, folder, bloc, responsive, testing, e2e
+│   ├── react/                         #   3 docs: overview, testing, e2e
+│   ├── python/                        #   2 docs: overview, testing
+│   └── google-apps-script/            #   4 docs: overview, folder, patterns, testing
 │
-├── design/                        # Integracion Google Stitch MCP
+├── design/                            # Google Stitch MCP integration
 │   └── stitch/
 │       ├── README.md
 │       └── prompt-template.md
 │
-├── infra/                         # Patrones por servicio
-│   ├── supabase/
-│   ├── neon/
-│   ├── stripe/
-│   ├── firebase/
-│   └── n8n/
+├── infra/                             # Patrones por servicio (5 servicios)
+│   ├── supabase/patterns.md
+│   ├── neon/patterns.md
+│   ├── stripe/patterns.md
+│   ├── firebase/patterns.md
+│   └── n8n/patterns.md
 │
-├── templates/                     # Templates para nuevos proyectos
+├── templates/                         # Templates para nuevos proyectos
 │   ├── CLAUDE.md.template
 │   ├── settings.json.template
-│   └── team-config.json.template
+│   ├── team-config.json.template
+│   └── quality-baseline.json.template
 │
-├── rules/                         # Reglas globales
-│   └── GLOBAL_RULES.md
+├── rules/                             # Reglas globales
+│   └── GLOBAL_RULES.md               #   525 lineas: comportamiento, stacks, quality, BDD
 │
-└── docs/                          # Documentacion del sistema
-    ├── getting-started.md
-    ├── commands.md
-    ├── agent-teams.md
-    └── architecture.md
+├── doc/                               # Documentacion interna
+│   ├── templates/                     #   VEG template, archetypes, Gherkin template
+│   ├── plans/                         #   Planes del propio engine
+│   ├── research/                      #   VEG providers, motion strategy, tooling
+│   └── knowledgeguide/                #   Guia para audiencia no-tecnica
+│
+├── docs/                              # Documentacion publica
+│   ├── getting-started.md
+│   ├── commands.md
+│   ├── agent-teams.md
+│   └── architecture.md
+│
+└── tests/                             # 208 tests unificados
 ```
 
 ---
 
-## Ejemplo: Flujo Completo de una Feature
+## Ejemplo: Flujo Completo
 
-Este ejemplo muestra como se usa el engine para implementar una feature completa desde cero:
-
-### 1. Crear el PRD
+### 1. Crear PRD + Board Trello
 
 ```
 > /prd "Sistema de gestion de staff" "Necesitamos una pantalla para
   gestionar el personal: ver lista, crear, editar, eliminar.
-  Cada miembro tiene nombre, email, rol y estado activo/inactivo.
-  Filtrar por rol y buscar por nombre."
+  Cada miembro tiene nombre, email, rol y estado activo/inactivo."
 ```
 
-**Resultado:** PRD estructurado + Work Item `PROYECTO-15` en Plane
+**Resultado:**
+- `doc/prd/PRD_staff_management.md` con US-01, UC-001..003, AC-01..09
+- Board Trello con cards US y UC creadas
+- Definition Quality Gate: todos los AC verificados como testables
 
-### 2. Generar el plan
+### 2. Generar Plan + Diseños
 
 ```
-> /plan PROYECTO-15
+> /plan US-01
 ```
 
 **Resultado:**
 - `doc/plans/staff_management_plan.md` con 5 fases
-- `doc/design/staff_management/staff_list.html` (diseño Stitch)
-- `doc/design/staff_management/staff_form.html` (diseño Stitch)
+- `doc/design/staff_management/*.html` (pantallas Stitch)
+- `doc/veg/staff_management/veg-*.md` (VEG artifacts)
+- Plan adjunto como PDF a la US en Trello
 
 ### 3. Implementar
 
 ```
-> /implement staff_management
+> /implement US-01
 ```
 
-**Resultado (automatico):**
-1. Crea rama `feature/staff-management`
-2. Verifica que los HTMLs de Stitch existen
-3. Convierte diseños a widgets Flutter (o React/etc.)
-4. Ejecuta Fase 1: tablas en Supabase + RLS
-5. Ejecuta Fase 2: modelos Freezed + repository
-6. Ejecuta Fase 3: BLoC + pages + layouts responsivos
-7. Ejecuta Fase 4: DI + rutas + build_runner
-8. Ejecuta Fase 5: tests con 87% coverage
-9. AG-09a genera acceptance tests desde AC-XX del PRD
-10. AG-08 audita calidad → GO
-11. AG-09b valida cumplimiento funcional → ACCEPTED
-12. Push + crea PR con acceptance evidence
+**Resultado (automatico, por UC):**
 
 ```
-✅ Implementacion Completada
+UC-001: CRUD Backend
+  ├── start_uc(UC-001)
+  ├── git checkout -b feature/staff-crud-backend
+  ├── Fase 1: tablas Supabase + RLS
+  ├── Fase 2: models + repository
+  ├── AG-08: GO ✅
+  ├── AG-09b: ACCEPTED ✅
+  ├── gh pr create + auto-merge
+  ├── complete_uc(UC-001)
+  └── git pull main
 
-Plan: doc/plans/staff_management_plan.md
-Rama: feature/staff-management
-PR: https://github.com/user/repo/pull/3
+UC-002: UI Staff List
+  ├── start_uc(UC-002)
+  ├── git checkout -b feature/staff-ui-list
+  ├── Stitch designs → code
+  ├── VEG images → Canva MCP
+  ├── VEG motion → Framer Motion
+  ├── AG-08: GO ✅
+  ├── AG-09b: ACCEPTED ✅
+  ├── gh pr create + auto-merge
+  ├── complete_uc(UC-002)
+  └── git pull main
 
-Archivos creados: 23
-Tests: 45 pasando
-Coverage: 87%
-Commits: 7
-Diseños Stitch: 2 pantallas
+No mas UCs → move_us(US-01, "done") + delivery report
 ```
 
-### 4. Review y merge
+### 4. Review (si no auto-merge)
 
-Si AG-08=GO y AG-09b=ACCEPTED, el engine puede auto-merge y continuar con la siguiente card.
-Si hay criterios FAIL, la PR incluye acceptance evidence para que el desarrollador evalúe.
+La PR incluye:
+- Resumen del plan
+- Cambios por fase
+- Acceptance evidence (tabla AC-XX con status y screenshots)
+- AG-08 verdict + AG-09b verdict
+- Test plan con checklist
+- VEG images status
 
 ---
 
-## Uso en un Proyecto Existente
+## Uso en Proyecto Existente
 
-1. **Instalar commands** (si no lo has hecho): `./install.sh`
-2. **Copiar CLAUDE.md template** al proyecto y personalizar
-3. **Copiar agentes** que necesites a `.claude/agents/`
-4. **Ejecutar `/optimize-agents audit`** para evaluar la configuracion actual
-5. **Seguir recomendaciones** del audit para mejorar
+### Opcion A: Instalacion manual
 
-Ver guia completa en [docs/getting-started.md](docs/getting-started.md).
+```bash
+# 1. Instalar skills + hooks
+cd ~/sdd-jps-engine && ./install.sh
+
+# 2. Copiar CLAUDE.md template
+cp ~/sdd-jps-engine/templates/CLAUDE.md.template ./CLAUDE.md
+# Editar placeholders
+
+# 3. Copiar agentes necesarios
+mkdir -p .claude/agents
+cp ~/sdd-jps-engine/agents/{orchestrator,feature-generator,qa-validation}.md .claude/agents/
+
+# 4. Audit
+/optimize-agents audit
+```
+
+### Opcion B: Onboarding automatico (via MCP)
+
+```
+onboard_project("/path/to/project", "mi-proyecto")
+```
+
+Auto-detecta stack, genera CLAUDE.md, configura hooks, crea baseline.
 
 ### Documentacion
 
 | Documento | Contenido |
 |-----------|-----------|
 | [docs/getting-started.md](docs/getting-started.md) | Guia de inicio rapido |
-| [docs/commands.md](docs/commands.md) | Referencia de commands y Skills |
-| [docs/agent-teams.md](docs/agent-teams.md) | Orquestacion multi-agente con Agent Teams |
+| [docs/commands.md](docs/commands.md) | Referencia de Skills |
+| [docs/agent-teams.md](docs/agent-teams.md) | Orquestacion multi-agente |
 | [docs/architecture.md](docs/architecture.md) | Guia de arquitectura multi-stack |
+
+---
+
+## Configuracion por Proyecto
+
+### `.claude/project-config.json` (RECOMENDADO)
+
+```json
+{
+  "trello": {
+    "boardId": "ID_DEL_BOARD"
+  },
+  "stitch": {
+    "projectId": "ID_PROYECTO_STITCH",
+    "deviceType": "DESKTOP",
+    "modelId": "GEMINI_3_PRO"
+  },
+  "veg": {
+    "image_provider": {
+      "primary": "canva",
+      "fallback": "lansespirit",
+      "maxImagesPerScreen": 5
+    }
+  }
+}
+```
+
+> **Por que no `settings.local.json`?** Claude Code valida el schema de `settings.local.json` y rechaza campos custom como `trello` o `stitch`. Usar `project-config.json` evita este problema.
 
 ---
 
@@ -661,17 +1043,32 @@ git pull
 ./install.sh
 ```
 
-Los symlinks se actualizan automaticamente. Ejecuta `/optimize-agents audit` en tus proyectos para verificar que estan al dia con la nueva version del engine.
+Los symlinks se actualizan automaticamente. Ejecuta `/optimize-agents audit` en tus proyectos para verificar compatibilidad.
+
+### Version Matrix
+
+```
+# Ver que proyectos necesitan upgrade
+get_version_matrix()
+
+# Upgrade individual
+upgrade_project("mi-proyecto")
+
+# Upgrade masivo
+upgrade_all_projects()
+```
 
 ---
 
 ## Filosofia
 
 1. **Consistencia > Velocidad** — Mejor hacer las cosas bien que rapido
-2. **Documentacion ejecutable** — Los commands SON la documentacion
+2. **Documentacion ejecutable** — Los Skills SON la documentacion
 3. **Claude como arquitecto critico** — Cuestiona, no complace
 4. **Escalable desde dia 1** — Multi-stack, multi-servicio, multi-agente
 5. **Autopilot con control** — `/implement` automatiza con acceptance evidence para review humano
+6. **Enforcement > Documentacion** — Los HARD BLOCKS previenen violaciones, no las advertencias (v4.0.1)
+7. **Calidad visual no negociable** — VEG Pilar 1 exige imagenes reales, no placeholders (v4.0.1)
 
 ---
 
@@ -681,4 +1078,4 @@ MIT
 
 ---
 
-v3.6.0 | 2026-03-02 | JPS Developer
+v4.0.1 | 2026-03-09 | JPS Developer

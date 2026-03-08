@@ -2,6 +2,90 @@
 
 All notable changes to SDD-JPS Engine are documented here.
 
+## [4.0.1] - 2026-03-09
+
+### Added
+- **HARD BLOCK: Anti-main implementation guard** (Paso 0.5b) — Implementar directamente en main/master es ahora un ERROR FATAL que detiene el pipeline inmediatamente. Previene la violacion mas critica del protocolo de ramas.
+- **HARD BLOCK: Pre-merge validation** (Paso 8.5.0) — 4 validaciones bloqueantes antes de cualquier merge: rama feature/ existente, PR abierta, estado UC correcto en Trello, y flag VEG images.
+- **HARD BLOCK: Trello state validation** (Paso 0.5c) — Verifica que `start_uc` fue llamado exitosamente antes de permitir implementacion. Incluye recovery automatico si el estado es inconsistente.
+- **VEG images pending flag** — Cuando las imagenes VEG no se generan (MCP no disponible o skip), se activa `veg_images_pending = true` que:
+  - Limita AG-08 verdict a CONDITIONAL GO maximo
+  - Bloquea auto-merge
+  - Anade banner visible en el PR body
+- **CSS placeholder prohibition** (Paso 3.5.5) — Regla explicita que prohibe sustituir imagenes VEG por gradientes CSS, iconos SVG inline, o iniciales de texto. Solo se permiten imagenes reales o placeholders `<img>` apuntando a paths pendientes.
+- **project-config.json support** (Paso 0.1a) — `.claude/project-config.json` es ahora la ubicacion preferida para `trello.boardId` y `stitch` config, ya que Claude Code rechaza campos custom en `settings.local.json`.
+
+### Changed
+- **Auto-merge conditions** (Paso 8.5.1) — Nueva condicion: `veg_images_pending == false` requerido para auto-merge.
+- **README.md** — Reescrito completamente con documentacion exhaustiva de v4.0.1.
+
+### Fixed
+- **Protocol compliance gap** — Las validaciones de rama, PR, y Trello state que antes eran "soft requirements" (documentadas pero no validadas) ahora son HARD BLOCKS que detienen el pipeline.
+
+## [4.0.0] - 2026-03-08
+
+### Added
+- **Monorepo unification** — Fusion de jps_dev_engine + dev_engine_mcp + dev-engine-trello-mcp en un solo repositorio
+- **MCP unificado** — 73+ tools en un solo endpoint (engine + spec-driven + telemetria)
+- **Gherkin en espanol** — Mecanismo estandar de validacion de AC con BDD
+- **AG-09a reescrito** — Genera .feature + step definitions por stack
+- **AG-09b adaptado** — Valida desde .feature + JSON Cucumber report
+- **PDF de evidencia** — Escenarios + screenshots adjuntos a card UC en Trello
+- **Template .feature estandar** — doc/templates/gherkin-feature-template.md
+- **Frameworks BDD por stack** — bdd_widget_test, playwright-bdd, pytest-bdd, jest-cucumber
+- **setup_board** — Integrado en onboard_project como paso opcional
+- **archive_project** — Ocultar proyectos obsoletos del dashboard
+- **Sala de Maquinas embebida** — React 19 + Vite dashboard en el monorepo
+- **Dockerfile multi-stage** — Node dashboard + Python server unificado
+- **Backward compatibility** — Symlink ~/jps_dev_engine → ~/sdd-jps-engine
+
+## [3.9.1] - 2026-03-07
+
+### Fixed
+- Bump all remaining v3.8.x references to v3.9.0 across 27 files
+- Templates updated to v3.9.0 for upgrade_project compatibility
+- Knowledge guide updated to v3.9.0 with VEG section
+
+## [3.9.0] - 2026-03-07
+
+### Added
+- **VEG (Visual Experience Generation)** — 3-mode visual customization system
+- VEG Pilar 1 (Images) — MCP-agnostic image generation with stock-first strategy
+- VEG Pilar 2 (Motion) — flutter_animate (Flutter) + motion/Framer Motion (React)
+- VEG Pilar 3 (Design) — density/whitespace/hierarchy/typography directives for Stitch
+- VEG Mode 1 (Uniform), Mode 2 (Per Profile), Mode 3 (Per ICP+JTBD)
+- /prd Audiencia section with targets, ICPs, JTBD definitions
+- /plan VEG generation with archetype-based derivation
+- /implement Pasos 0.3, 3.5, 4, 6.1b for VEG pipeline
+- 6 archetype derivation rules (Corporate, Startup, Creative, Consumer, Gen-Z, Government)
+- Image providers: Canva MCP (primary, €0), Freepik, lansespirit (fallback)
+- Safety gates: MCP health check, cost warning, PENDING_IMAGES.md fallback
+
+## [3.8.1] - 2026-03-07
+
+### Changed
+- **Rebrand** to SDD-JPS Engine (Spec-Driven Development Engine by JPS)
+- 50 files updated with new brand — display text only, filesystem paths preserved
+
+## [3.8.0] - 2026-03-07
+
+### Added
+- **Spec-Driven pipeline** — US-XX → UC-XXX → AC-XX hierarchy as source of truth
+- /prd dual mode: spec-driven (Trello) and freeform
+- /plan Trello input: reads US/UC/AC from domain MCP, attaches plan as PDF
+- /implement UC execution cycle: find_next_uc → start_uc → implement → complete_uc → merge
+- AG-09b per-UC validation with Trello reporting
+- Evidence pipeline: PRD→US, Plan→US, AG-09→UC, Delivery→US as PDF
+- dev-engine-trello domain MCP with 15 business tools
+
+## [3.7.0] - 2026-03-07
+
+### Added
+- **Engram persistent memory** (FTS5) for context compaction survival
+- Strict Orchestrator Isolation — main thread under 15% token budget
+- GGA (Gentleman Guardian Angel) cached lint validation
+- implement.md and SKILL.md rewritten with Phase Task Template
+
 ## [3.6.1] - 2026-03-03
 
 ### Fixed

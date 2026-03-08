@@ -1,5 +1,5 @@
-version: 4.0.0
-codename: "Monorepo + Gherkin Acceptance"
+version: 4.0.1
+codename: "Hardened Autopilot"
 brand: "SDD-JPS Engine"
 brand_full: "Spec-Driven Development Engine by JPS"
 release_date: 2026-03-08
@@ -61,8 +61,28 @@ features:
   - spec-driven-onboarding
   - project-archiving
   - unified-mcp-endpoint
+  # New (v4.0.1)
+  - hardened-autopilot-guards
+  - anti-main-implementation-block
+  - trello-state-validation
+  - veg-images-pending-flag
+  - project-config-json-support
+  - css-placeholder-prohibition
 
 changelog:
+  4.0.1:
+    date: 2026-03-09
+    changes:
+      - "fix: HARD BLOCK — implementar en main/master ahora es ERROR FATAL (Paso 0.5b)"
+      - "fix: HARD BLOCK — validacion pre-merge verifica rama feature/, PR abierta, y estado UC (Paso 8.5.0)"
+      - "fix: HARD BLOCK — start_uc validado antes de implementar en modo Trello spec-driven (Paso 0.5c)"
+      - "feat: veg_images_pending flag — AG-08 limitado a CONDITIONAL GO, auto-merge bloqueado si imagenes pendientes"
+      - "feat: Prohibicion de placeholders CSS como sustituto de imagenes VEG (Paso 3.5.5)"
+      - "feat: project-config.json como ubicacion preferida para trello.boardId y stitch config (Paso 0.1a)"
+      - "feat: Auto-merge condicion nueva — veg_images_pending == false requerido (Paso 8.5.1)"
+      - "docs: README.md reescrito con documentacion completa v4.0.1"
+      - "docs: CHANGELOG.md actualizado con todas las versiones desde v1.0.0 a v4.0.1"
+
   4.0.0:
     date: 2026-03-08
     changes:

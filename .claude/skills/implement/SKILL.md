@@ -57,7 +57,10 @@ Que recibi?
 
 ### 0.1a Si es US-XX o UC-XXX (Trello spec-driven):
 
-1. Obtener board_id de `.claude/settings.local.json` → `trello.boardId`
+1. Obtener board_id (buscar en orden de prioridad):
+   - `.claude/project-config.json` → `trello.boardId` (PREFERIDO — Claude Code rechaza campos custom en settings.local.json)
+   - `.claude/settings.local.json` → `trello.boardId` (fallback legacy)
+   - Si no existe en ninguno → ERROR: "Configura trello.boardId en .claude/project-config.json"
 2. Si US-XX:
    - Llamar `get_us(board_id, us_id)` → datos de la US
    - Llamar `list_uc(board_id, us_id)` → listar UCs hijos
@@ -148,7 +151,7 @@ cat pyproject.toml 2>/dev/null | grep -E "fastapi|django"        # Python
 ls .clasp.json appsscript.json 2>/dev/null                       # Google Apps Script
 ```
 
-### 0.5 Validacion pre-vuelo
+### 0.5 Validacion pre-vuelo (HARD BLOCKS)
 
 Antes de ejecutar, verificar:
 
@@ -171,6 +174,51 @@ git fetch origin
 **Si hay cambios sin commitear** → Advertir al usuario y preguntar si continuar (puede perder contexto).
 
 **Si no esta en main** → Advertir y preguntar si crear la rama desde la rama actual o desde main.
+
+### 0.5b Guardia anti-implementacion-en-main (BLOQUEANTE)
+
+> **REGLA INNEGOCIABLE**: Nunca se puede implementar directamente en main/master.
+
+Esta validacion se ejecuta ANTES del Paso 1 y se RE-VERIFICA antes de cada Paso 5 (implementacion de fases).
+
+```
+current_branch = git branch --show-current
+
+¿current_branch es main o master?
+├── SI (estamos en Paso 0): OK — el Paso 1 creara la rama feature/
+├── SI (estamos en Paso 5+): ❌ ERROR FATAL
+│   → "BLOQUEADO: Se esta intentando implementar directamente en main.
+│      Esto viola el protocolo de ramas del engine.
+│      El Paso 1 debio crear una rama feature/ antes de llegar aqui.
+│      ACCION: Parar inmediatamente. NO escribir codigo en main."
+│   → PARAR el pipeline. No continuar bajo ninguna circunstancia.
+└── NO: OK — continuar normalmente
+```
+
+**Por que este bloqueo es necesario:**
+- Sin rama feature/, no hay PR posible
+- Sin PR, no hay acceptance evidence ni review
+- Sin review, el merge secuencial no puede funcionar
+- Implementar en main directamente rompe TODO el pipeline de calidad
+
+### 0.5c Validacion de Trello state (si spec-driven) (BLOQUEANTE)
+
+> Solo aplica si el origen es US-XX o UC-XXX (Trello spec-driven).
+
+```
+¿Se llamo start_uc(board_id, uc_id) en Paso 0.1a?
+├── SI: Verificar con get_uc(board_id, uc_id) que status == "in_progress"
+│   ├── Confirmado: OK — continuar
+│   └── No confirmado: ⚠️ WARNING — start_uc pudo haber fallado silenciosamente
+│       → Reintentar start_uc una vez
+│       → Si falla de nuevo: continuar con WARNING en el log
+└── NO (start_uc no fue llamado): ❌ ERROR FATAL
+    → "BLOQUEADO: No se llamo start_uc antes de implementar.
+       El estado del UC en Trello no refleja que esta en progreso.
+       Esto causara inconsistencia en el board."
+    → Llamar start_uc ahora como recovery
+    → Si falla: PARAR y notificar al usuario
+```
 
 ---
 
@@ -494,6 +542,39 @@ Si el MCP no estaba disponible, fallo, o el usuario eligio `skip`:
 
 2. Mantener placeholders `[IMAGE: {id}]` en los diseños — el Paso 6.1b los reemplazara cuando las imagenes existan.
 3. Log en consola: `⚠️ {N} imagenes pendientes. Ver doc/veg/{feature}/PENDING_IMAGES.md`
+4. **NUEVO: Activar flag de calidad visual degradada:**
+   ```
+   veg_images_pending = true
+   ```
+   Este flag tiene consecuencias en pasos posteriores:
+   - **Paso 7.6 (AG-08 Quality Audit)**: Si `veg_images_pending == true`:
+     - AG-08 verdict = **CONDITIONAL GO** como maximo (nunca GO pleno)
+     - Razon: "VEG Pilar 1 no completado — {N} imagenes usan placeholders CSS"
+     - AG-08 DEBE listar las imagenes pendientes en su report
+   - **Paso 8 (PR body)**: Anadir banner visible:
+     ```
+     > ⚠️ **VEG Pilar 1 incompleto**: Este PR usa {N} imagenes placeholder.
+     > Las imagenes profesionales deben generarse antes del deploy a produccion.
+     > Ver `doc/veg/{feature}/PENDING_IMAGES.md` para prompts listos.
+     ```
+   - **Paso 8.5 (Auto-merge)**: Auto-merge BLOQUEADO si `veg_images_pending == true`
+     - Razon: "No se puede auto-merge con imagenes placeholder — calidad visual degradada"
+     - El usuario puede aprobar manualmente si acepta el estado visual actual
+
+### 3.5.5 Prohibicion de placeholders CSS como sustituto de imagenes VEG
+
+> **REGLA**: Cuando el VEG especifica imagenes (Pilar 1), los sub-agentes NO pueden
+> sustituirlas por gradientes CSS, iconos SVG inline, o iniciales de texto como "solucion".
+> Estas tecnicas son aceptables SOLO si el VEG no existe o no especifica imagenes.
+
+```
+¿El proyecto tiene VEG con Pilar 1 (Imagenes)?
+├── SI: Las secciones que requieren imagenes DEBEN usar:
+│   ├── Imagenes reales de doc/veg/{feature}/assets/ (si existen)
+│   ├── Placeholders <img> con src apuntando a PENDING_IMAGES paths (si no existen)
+│   └── NUNCA: gradientes CSS, divs con colores, iconos como sustituto de fotos
+└── NO: Libre de usar cualquier tecnica visual
+```
 
 ---
 
@@ -1221,6 +1302,54 @@ Si el plan referencia un work item de Plane/Trello:
 > Si estamos en modo autopilot (ejecutando múltiples cards en secuencia),
 > merge antes de iniciar la siguiente card. Esto evita conflictos entre PRs.
 
+### 8.5.0 Validacion pre-merge (BLOQUEANTES)
+
+> Estas validaciones se ejecutan ANTES de verificar condiciones de auto-merge.
+> Son HARD BLOCKS — si fallan, el merge NO puede proceder bajo ninguna circunstancia.
+
+```
+VALIDACION 1: ¿Estamos en una rama feature/?
+  branch = git branch --show-current
+  ¿branch empieza con "feature/"?
+  ├── SI: OK
+  └── NO: ❌ ERROR FATAL
+      → "BLOQUEADO: No se puede hacer merge desde '{branch}'.
+         El protocolo requiere una rama feature/ con PR asociada.
+         Algo salto el Paso 1 (Crear Rama de Feature)."
+      → PARAR INMEDIATAMENTE.
+
+VALIDACION 2: ¿Existe PR abierta para esta rama?
+  gh pr view --json state,url 2>/dev/null
+  ¿Existe PR con state == "OPEN"?
+  ├── SI: OK — guardar URL para referencia
+  └── NO: ❌ ERROR FATAL
+      → "BLOQUEADO: No hay PR abierta para la rama actual.
+         El Paso 8 debio crear una PR antes de llegar aqui.
+         Sin PR no hay acceptance evidence ni review."
+      → PARAR. Ofrecer ejecutar Paso 8 como recovery.
+
+VALIDACION 3 (solo Trello spec-driven): ¿El UC esta en estado correcto?
+  uc_data = get_uc(board_id, uc_id)
+  ¿uc_data.status == "in_progress"?
+  ├── SI: OK — el UC fue iniciado correctamente con start_uc
+  └── NO: ⚠️ WARNING
+      → "El UC {uc_id} esta en estado '{uc_data.status}' en lugar de 'in_progress'.
+         Esto indica que start_uc no fue llamado o fallo."
+      → Intentar start_uc como recovery
+      → Continuar con WARNING en el log
+
+VALIDACION 4: ¿El flag veg_images_pending esta activo?
+  ¿veg_images_pending == true?
+  ├── SI: Auto-merge BLOQUEADO
+  │   → "⚠️ Auto-merge bloqueado: VEG Pilar 1 incompleto ({N} imagenes placeholder).
+  │      Opciones:
+  │      a) Generar imagenes con /implement --images-only
+  │      b) Aprobar merge manualmente aceptando calidad visual degradada
+  │      c) Crear PENDING_IMAGES.md y resolver post-merge"
+  │   → Esperar decision del usuario
+  └── NO: OK
+```
+
 ### 8.5.1 Verificar condiciones de auto-merge
 
 Auto-merge SOLO si se cumplen TODAS estas condiciones:
@@ -1229,6 +1358,7 @@ Auto-merge SOLO si se cumplen TODAS estas condiciones:
 - Todos los acceptance tests pasan
 - El usuario ha confirmado modo autopilot
 - **No hay feedback abierto con severity critical o major** (verificar feedback-summary.json)
+- **No hay VEG images pendientes** (`veg_images_pending == false`) — NUEVO v4.0.1
 
 ### 8.5.1a Verificar feedback abierto
 

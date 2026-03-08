@@ -1,13 +1,37 @@
+# Version control
 .git
 .github
+
+# Quality logs and evidence (runtime, not build-time)
 .quality/logs/
 .quality/evidence/
+
+# Dependencies and build artifacts
 node_modules
 __pycache__
 *.pyc
 .venv
+*.egg-info
+dist/
+
+# Secrets
 .env
 .env.*
+
+# Tests (not needed in production image)
 tests/
+
+# Research and internal prompts
 doc/research/
+doc/plans/
 docs/prompts/
+
+# IDE and editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

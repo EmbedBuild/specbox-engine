@@ -10,10 +10,10 @@ services:
     environment:
       - MCP_TRANSPORT=http
       - MCP_PORT=8000
-      - DASHBOARD_TOKEN=${DASHBOARD_TOKEN}
-      - AUTH_GATEWAY_URL=${AUTH_GATEWAY_URL}
+      - DASHBOARD_TOKEN=${DASHBOARD_TOKEN:-}
+      - LOG_FORMAT=json
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
       interval: 30s
       timeout: 5s
       start_period: 10s

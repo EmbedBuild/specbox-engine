@@ -44,6 +44,13 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
         return token == dashboard_token
 
     # ------------------------------------------------------------------
+    # GET /health — Container healthcheck (no auth)
+    # ------------------------------------------------------------------
+    @mcp.custom_route("/health", methods=["GET"])
+    async def health(request: Request) -> JSONResponse:
+        return _json({"status": "ok", "version": "4.0.0"})
+
+    # ------------------------------------------------------------------
     # GET /api/sala — Global dashboard
     # ------------------------------------------------------------------
     @mcp.custom_route("/api/sala", methods=["GET"])

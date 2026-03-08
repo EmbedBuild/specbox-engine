@@ -619,10 +619,11 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
     # ------------------------------------------------------------------
     # Static files — serve React build from /dashboard/dist
     # ------------------------------------------------------------------
-    dashboard_dist = Path("/app/dashboard/dist")
+    # In Docker: /app/server/dashboard/dist (monorepo layout)
+    dashboard_dist = Path(__file__).parent / "dashboard" / "dist"
     if not dashboard_dist.exists():
-        # Dev fallback: check relative to this file
-        dashboard_dist = Path(__file__).parent.parent.parent / "dashboard" / "dist"
+        # Fallback: check absolute path
+        dashboard_dist = Path("/app/server/dashboard/dist")
 
     if dashboard_dist.exists():
         @mcp.custom_route("/assets/{path:path}", methods=["GET"])

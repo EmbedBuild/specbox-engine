@@ -158,8 +158,8 @@ src/
 
 ## Referencia
 
-- Patrones: `jps_dev_engine/architecture/google-apps-script/`
-- Overview: `jps_dev_engine/architecture/google-apps-script/overview.md`
-- Estructura: `jps_dev_engine/architecture/google-apps-script/folder-structure.md`
-- Patrones de codigo: `jps_dev_engine/architecture/google-apps-script/patterns.md`
-- Testing: `jps_dev_engine/architecture/google-apps-script/testing-strategy.md`
+- Patrones: `sdd-jps-engine/architecture/google-apps-script/`
+- Overview: `sdd-jps-engine/architecture/google-apps-script/overview.md`
+- Estructura: `sdd-jps-engine/architecture/google-apps-script/folder-structure.md`
+- Patrones de codigo: `sdd-jps-engine/architecture/google-apps-script/patterns.md`
+- Testing: `sdd-jps-engine/architecture/google-apps-script/testing-strategy.md`

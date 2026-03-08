@@ -235,6 +235,141 @@ npm run test && npm run lint && npm run push
 
 ---
 
+## 6. Acceptance Testing (BDD)
+
+> Tests de aceptación basados en Gherkin que validan AC-XX directamente desde archivos `.feature`.
+> Cada UC genera un `.feature`, cada AC genera un Escenario.
+> Solo aplica a la lógica pura testeable localmente (no a servicios Google).
+
+### Setup
+
+```bash
+npm install -D jest-cucumber
+```
+
+### Ejemplo .feature
+
+```gherkin
+# language: es
+# tests/acceptance/features/UC-001_procesar_factura.feature
+
+@US-01 @UC-001
+Característica: Procesar factura
+  Como administrador
+  Quiero procesar facturas desde un Google Sheet
+  Para automatizar la contabilidad
+
+  Antecedentes:
+    Dado que tengo un array de headers ["id", "cliente", "monto", "estado"]
+    Y tengo datos de factura válidos
+
+  @AC-01
+  Escenario: Procesar factura con datos válidos
+    Cuando proceso la factura con cliente "Empresa ABC" y monto 1500.00
+    Entonces el resultado tiene estado "procesada"
+    Y el monto formateado es "1500.00 EUR"
+    Y capturo evidencia del resultado
+
+  @AC-02
+  Escenario: Rechazar factura con monto negativo
+    Cuando proceso la factura con cliente "Empresa ABC" y monto -100
+    Entonces el resultado tiene estado "rechazada"
+    Y el error contiene "monto inválido"
+    Y capturo evidencia del resultado
+```
+
+### Step Definition (TypeScript)
+
+```typescript
+// tests/acceptance/steps/UC-001_steps.ts
+import { defineFeature, loadFeature } from 'jest-cucumber';
+import { formatCurrency } from '../../src/utils/Helpers';
+import { processInvoice } from '../../src/services/InvoiceProcessor';
+import * as fs from 'fs';
+
+const feature = loadFeature(
+  'tests/acceptance/features/UC-001_procesar_factura.feature',
+);
+
+defineFeature(feature, (test) => {
+  let headers: string[];
+  let result: any;
+
+  test('Procesar factura con datos válidos', ({ given, when, then, and }) => {
+    given(/^que tengo un array de headers (.*)$/, (h: string) => {
+      headers = JSON.parse(h);
+    });
+
+    given('tengo datos de factura válidos', () => {
+      // Setup preconditions
+    });
+
+    when(
+      /^proceso la factura con cliente "(.*)" y monto (.*)$/,
+      (cliente: string, monto: string) => {
+        result = processInvoice({
+          cliente,
+          monto: parseFloat(monto),
+        });
+      },
+    );
+
+    then(/^el resultado tiene estado "(.*)"$/, (estado: string) => {
+      expect(result.estado).toBe(estado);
+    });
+
+    and(/^el monto formateado es "(.*)"$/, (expected: string) => {
+      expect(formatCurrency(result.monto)).toBe(expected);
+    });
+
+    and('capturo evidencia del resultado', () => {
+      const evidence = JSON.stringify(result, null, 2);
+      fs.mkdirSync('tests/acceptance/reports', { recursive: true });
+      fs.appendFileSync(
+        'tests/acceptance/reports/evidence.json',
+        evidence + '\n',
+      );
+    });
+  });
+});
+```
+
+### Ejecución
+
+```bash
+# Ejecutar acceptance tests BDD
+npx jest tests/acceptance/
+
+# Con verbose
+npx jest tests/acceptance/ --verbose
+
+# Con coverage
+npx jest tests/acceptance/ --coverage
+```
+
+### Report
+
+- Formato: JSON Cucumber estándar
+- Ubicación: `tests/acceptance/reports/cucumber-report.json`
+- PDF de evidencia generado y adjuntado a card UC en Trello (si spec-driven)
+
+### Estructura
+
+```
+tests/acceptance/
+├── features/
+│   ├── UC-001_procesar_factura.feature
+│   └── UC-002_generar_reporte.feature
+├── steps/
+│   ├── common_steps.ts         # Helpers comunes de assertion
+│   └── UC-001_steps.ts         # Steps específicos del UC
+└── reports/
+    ├── cucumber-report.json
+    └── acceptance-report.pdf
+```
+
+---
+
 ## Anti-patrones de Testing
 
 | No hacer | Si hacer |

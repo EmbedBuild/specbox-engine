@@ -900,17 +900,17 @@ git commit -m "test({feature}): add tests with 85%+ coverage"
 
 ---
 
-## Paso 7.5: Acceptance Tests (AG-09a)
+## Paso 7.5: Acceptance Tests con Gherkin BDD (AG-09a)
 
-> Generar y ejecutar tests que validen acceptance criteria del PRD.
+> Generar y ejecutar tests BDD en formato Gherkin que validen acceptance criteria del PRD.
 > Si no hay PRD disponible, saltar este paso con WARNING.
 
 ### 7.5.1 Localizar PRD
 
 ```
 ¿Cómo encontrar el PRD?
-├── Plan referencia work item (PROYECTO-XX)
-│   └── plane:retrieve_work_item_by_identifier → extraer PRD del description
+├── Spec-Driven (Trello)
+│   └── get_evidence(board_id, us_id, "us", "prd") → extraer PRD adjunto
 ├── Existe doc/prd/{feature}.md
 │   └── Leer directamente
 └── No se encuentra PRD
@@ -918,59 +918,147 @@ git commit -m "test({feature}): add tests with 85%+ coverage"
     └── Saltar a Paso 7.6
 ```
 
-### 7.5.2 Extraer Acceptance Criteria
-
-Parsear sección "Criterios de Aceptación > Funcionales":
+Extraer sección "Criterios de Aceptación > Funcionales":
 - Extraer cada AC-XX con su descripción
 - Ignorar sección "Técnicos"
 - Si no hay criterios AC-XX en el PRD → WARNING y saltar
 
-### 7.5.3 Generar Acceptance Tests
+### 7.5.2 Generar archivos .feature
 
-Delegar a AG-09a (ver `agents/acceptance-tester.md`). Para cada AC-XX:
+Delegar a AG-09a (ver `agents/acceptance-tester.md`).
 
-**Flutter (Patrol):**
-- Archivo: `test/acceptance/ac_{NN}_{description_snake}_test.dart`
-- Framework: `patrol` + `alchemist` (si golden aplica)
-- Screenshot: `$.takeScreenshot('AC-{NN}_{description}')`
-- Evidencia en: `.quality/evidence/{feature}/acceptance/`
+Generar un archivo `.feature` por cada UC del plan actual, con un `Escenario` por cada AC-XX:
 
-**React (Playwright):**
-- Archivo: `tests/acceptance/ac-{NN}-{description-kebab}.spec.ts`
-- Framework: `@playwright/test`
-- Screenshot: `page.screenshot({path: '.quality/evidence/{feature}/acceptance/AC-{NN}.png'})`
+```gherkin
+# language: es
+@US-XX @UC-XXX
+Característica: {Título del UC-XXX}
+
+  @AC-01
+  Escenario: {Descripción del AC-01}
+    Dado ...
+    Cuando ...
+    Entonces ...
+
+  @AC-02
+  Escenario: {Descripción del AC-02}
+    Dado ...
+    Cuando ...
+    Entonces ...
+```
+
+**Reglas:**
+- Tags obligatorios: `@US-XX`, `@UC-XXX`, `@AC-XX` en cada escenario
+- Idioma obligatorio: `# language: es`
+- Un `.feature` por UC, un `Escenario` por AC-XX
+
+**Ubicación por stack:**
+
+| Stack | Directorio |
+|-------|-----------|
+| Flutter | `test/acceptance/features/` |
+| React | `tests/acceptance/features/` |
+| Python | `tests/acceptance/features/` |
+| GAS | `tests/acceptance/features/` |
+
+### 7.5.3 Generar step definitions
+
+Generar step definitions usando el framework BDD nativo del stack:
+
+**Flutter (bdd_widget_test):**
+- Step file: `test/acceptance/steps/UC-XXX_steps.dart`
+- Framework: `bdd_widget_test`
+- Reutilizar `test/acceptance/steps/common_steps.dart` si existe
+- Screenshot: captura automática en cada escenario
+
+**React (playwright-bdd):**
+- Step file: `tests/acceptance/steps/UC-XXX_steps.ts`
+- Framework: `playwright-bdd`
+- Reutilizar `tests/acceptance/steps/common_steps.ts` si existe
+- Screenshot: `page.screenshot()` en cada escenario
 - Traces: `context.tracing.start()` / `stop()`
 
-**Python (pytest):**
-- Archivo: `tests/acceptance/test_ac_{NN}_{description_snake}.py`
-- Framework: `pytest` + `httpx.AsyncClient`
-- Evidence: request/response log a `.quality/evidence/{feature}/acceptance/AC-{NN}.json`
+**Python (pytest-bdd):**
+- Step file: `tests/acceptance/steps/UC_XXX_steps.py`
+- Framework: `pytest-bdd`
+- Reutilizar `tests/acceptance/steps/common_steps.py` si existe
+- Evidence: request/response log por escenario
 
-### 7.5.4 Ejecutar Acceptance Tests
+**GAS (jest-cucumber):**
+- Step file: `tests/acceptance/steps/UC-XXX_steps.ts`
+- Framework: `jest-cucumber`
+- Reutilizar `tests/acceptance/steps/common_steps.ts` si existe
+
+### 7.5.4 Instalar dependencias BDD (si no están)
+
+Verificar que las dependencias BDD están instaladas. Si no, instalarlas:
 
 ```bash
 # Flutter
-flutter test test/acceptance/ --reporter expanded
+flutter pub add --dev bdd_widget_test
 
 # React
-npx playwright test tests/acceptance/
+npm install -D playwright-bdd
 
 # Python
-pytest tests/acceptance/ -v
+pip install pytest-bdd
+
+# GAS
+npm install -D jest-cucumber
 ```
 
-### 7.5.5 Generar Evidencia
+### 7.5.5 Ejecutar tests
+
+```bash
+# Flutter
+flutter test test/acceptance/ --reporter json > reports/cucumber-report.json
+
+# React
+npx bddgen && npx playwright test tests/acceptance/ --reporter=json
+
+# Python
+pytest tests/acceptance/ --cucumberjson=reports/cucumber-report.json
+
+# GAS
+npx jest tests/acceptance/ --json --outputFile=reports/cucumber-report.json
+```
+
+### 7.5.6 Recopilar evidencia
 
 Guardar en `.quality/evidence/{feature}/acceptance/`:
-- Screenshots por criterio (AC-01.png, AC-02.png...)
+- Screenshots automáticos en cada Escenario (AC-01.png, AC-02.png...)
+- JSON report en formato Cucumber estándar (`cucumber-report.json`)
 - Traces (solo Playwright)
-- `results.json` con resumen de ejecución
 
-### 7.5.6 Commit
+### 7.5.7 Generar PDF de evidencia
+
+Generar PDF con estructura:
+- **Título**: Acceptance Tests — {feature} / UC-XXX
+- **Resumen**: Total escenarios, pasados, fallidos
+- **Tabla AC**: AC-XX | Descripción | Resultado (PASS/FAIL)
+- **Detalle por escenario**: Steps ejecutados, screenshots, logs
+- **Footer**: Timestamp, branch, commit SHA
+
+Guardar en `.quality/evidence/{feature}/acceptance/acceptance-report.pdf`
+
+### 7.5.8 Adjuntar a Trello (si spec-driven)
+
+Si el flujo es spec-driven (tiene board_id y UC card):
+```
+attach_evidence(board_id, uc_card_id, "uc", "acceptance", pdf_path)
+```
+Agregar comentario estructurado en la card del UC:
+```
+📋 Acceptance Tests — UC-XXX
+✅ {N} passed / ❌ {M} failed
+📎 Evidencia adjunta: acceptance-report.pdf
+```
+
+### 7.5.9 Commit
 
 ```bash
 git add test/acceptance/ tests/acceptance/ .quality/evidence/{feature}/acceptance/
-git commit -m "test({feature}): add acceptance tests for {N} criteria"
+git commit -m "test(acceptance): add Gherkin scenarios for UC-XXX"
 ```
 
 **NOTA**: Si los acceptance tests fallan, NO bloquear aquí. Reportar fallos y dejar que AG-09b decida el veredicto en Paso 7.7.
@@ -1115,7 +1203,7 @@ gh pr create \
 `{path al plan}`
 
 ---
-🤖 Implementado con [SDD-JPS Engine](https://github.com/jesusperezdeveloper/jps_dev_engine) `/implement`
+🤖 Implementado con [SDD-JPS Engine](https://github.com/jesusperezdeveloper/sdd-jps-engine) `/implement`
 EOF
 )"
 ```

@@ -188,7 +188,7 @@ src/
 
 ## Referencia
 
-- Patrones Flutter: `jps_dev_engine/architecture/flutter/`
-- Patrones React: `jps_dev_engine/architecture/react/`
-- Patrones Python: `jps_dev_engine/architecture/python/`
-- Patrones Apps Script: `jps_dev_engine/architecture/google-apps-script/`
+- Patrones Flutter: `sdd-jps-engine/architecture/flutter/`
+- Patrones React: `sdd-jps-engine/architecture/react/`
+- Patrones Python: `sdd-jps-engine/architecture/python/`
+- Patrones Apps Script: `sdd-jps-engine/architecture/google-apps-script/`

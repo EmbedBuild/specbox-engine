@@ -325,6 +325,17 @@ if [ -f "$ENGINE_DIR/.claude/settings.json" ]; then
     echo ""
 fi
 
+## --- COMPATIBILITY SYMLINK (v4.0) ---
+
+echo -e "${GREEN}Creating compatibility symlink...${NC}"
+if [ "$DRY_RUN" = true ]; then
+    echo -e "  Would create: ~/jps_dev_engine → ~/sdd-jps-engine"
+else
+    ln -sf ~/sdd-jps-engine ~/jps_dev_engine 2>/dev/null || true
+    echo -e "  ${GREEN}~/jps_dev_engine → ~/sdd-jps-engine${NC}"
+fi
+echo ""
+
 ## --- SUMMARY ---
 
 if [ "$DRY_RUN" = true ]; then

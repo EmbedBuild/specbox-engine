@@ -170,9 +170,9 @@ Para cada comando, extraer:
 
 ### 0.6 Detectar SDD-JPS Engine y Comparar Versiones
 
-**Localizar el engine**: Buscar `jps_dev_engine` en estas ubicaciones (en orden):
-1. `~/jps_dev_engine/`
-2. `~/Desktop/Proyectos/jpsdeveloper/jps_dev_engine/`
+**Localizar el engine**: Buscar `sdd-jps-engine` en estas ubicaciones (en orden):
+1. `~/sdd-jps-engine/`
+2. `~/Desktop/Proyectos/jpsdeveloper/sdd-jps-engine/`
 3. Seguir symlinks de `~/.claude/commands/*.md` para encontrar la ruta del engine
 
 Si se encuentra el engine, leer `ENGINE_VERSION.yaml` y guardar `$ENGINE_VERSION`.
@@ -838,12 +838,12 @@ Archivos del proyecto vs engine:
 
 [Si hay archivos OUTDATED:]
 Para actualizar, copiar desde el engine:
-  cp ~/jps_dev_engine/agents/feature-generator.md .claude/agents/
+  cp ~/sdd-jps-engine/agents/feature-generator.md .claude/agents/
   [comando por cada archivo outdated]
 
 [Si no se encontró el engine:]
 ⚠️ SDD-JPS Engine no encontrado.
-  Instalar: git clone <repo-url> ~/jps_dev_engine && cd ~/jps_dev_engine && ./install.sh
+  Instalar: git clone <repo-url> ~/sdd-jps-engine && cd ~/sdd-jps-engine && ./install.sh
 
 ════════════════════════════════════════════════════════════
   RESUMEN

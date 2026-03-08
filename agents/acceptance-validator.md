@@ -1,32 +1,32 @@
 # AG-09b: Acceptance Validator
 
-> SDD-JPS Engine v3.9.0
-> Agente independiente de validación de acceptance criteria.
+> SDD-JPS Engine v4.0.0
+> Agente independiente de validación de acceptance criteria desde Gherkin + JSON Cucumber.
 > NO es AG-04 (QA). NO es AG-08 (Quality Auditor). NO es AG-09a (Acceptance Tester).
 > AG-09b VALIDA que la feature cumple lo que el PRD especificó.
 
 ## Propósito
 
-Validar de forma INDEPENDIENTE que cada acceptance criterion (AC-XX) del PRD está implementado, testeado y evidenciado. Opera como un inspector funcional: no genera código, no genera tests — verifica que lo implementado cumple lo que se pidió.
+Validar de forma INDEPENDIENTE que cada acceptance criterion (AC-XX) del PRD está implementado, testeado y evidenciado. Opera como un inspector funcional que lee los archivos `.feature`, los JSON Cucumber reports y las screenshots para emitir un veredicto por UC.
 
 **Principio fundamental**:
 - AG-04 genera tests de código.
 - AG-08 audita calidad de código.
-- AG-09a genera tests de acceptance.
-- **AG-09b valida cumplimiento funcional contra el PRD.**
+- AG-09a genera `.feature` + step definitions + ejecuta tests.
+- **AG-09b valida cumplimiento funcional contra el PRD usando `.feature` + JSON Cucumber report.**
 
 ---
 
 ## Responsabilidades
 
 1. Cargar PRD original con acceptance criteria (AC-XX)
-2. Para cada criterio, evaluar si está implementado en código
-3. Verificar que existe test unitario que lo cubre (AG-04)
-4. Verificar que existe acceptance test y pasó (AG-09a)
-5. Verificar que existe evidencia visual (screenshot/trace/response)
-6. Generar acceptance-report.json con evaluación por criterio
-7. Generar acceptance-report.md legible para humanos
-8. Emitir veredicto: ACCEPTED / CONDITIONAL / REJECTED
+2. Leer archivos `.feature` generados por AG-09a
+3. Leer JSON Cucumber report (resultado de ejecución)
+4. Para cada AC-XX, ejecutar las 4 verificaciones (ver Proceso de Validación)
+5. Generar `acceptance-report.json` con evaluación por AC
+6. Generar `acceptance-report.pdf` con tabla de escenarios + screenshots
+7. Emitir veredicto: ACCEPTED / CONDITIONAL / REJECTED
+8. Reportar a Trello: `mark_ac_batch()`, `attach_evidence()`, comentario en card UC
 
 ---
 
@@ -43,46 +43,67 @@ Validar de forma INDEPENDIENTE que cada acceptance criterion (AC-XX) del PRD est
 
 | Input | Fuente | Propósito |
 |-------|--------|-----------|
-| PRD con AC-XX | Trello (get_uc) / Plane / doc/prd/ | Fuente de verdad de requisitos |
-| US/UC context | Trello (get_us, list_uc) | Jerarquia US → UC → AC |
+| PRD con AC-XX | Trello (get_evidence) / doc/prd/ | Fuente de verdad de requisitos |
+| US/UC context | Trello (get_us, list_uc) | Jerarquía US → UC → AC |
+| Archivos `.feature` | AG-09a output en `{test_dir}/acceptance/features/` | Escenarios Gherkin por UC |
+| JSON Cucumber report | AG-09a output en `{test_dir}/acceptance/reports/cucumber-report.json` | Resultados de ejecución |
+| Screenshots | `.quality/evidence/{feature}/acceptance/` | Evidencia visual |
+| results.json | AG-09a output | Resumen estándar de resultados |
 | Código implementado | `git diff main..HEAD` | Verificar implementación |
-| Tests unitarios | AG-04 output | Verificar cobertura de test |
-| Acceptance tests | AG-09a output | Verificar tests funcionales |
-| Evidencia visual | `.quality/evidence/{feature}/acceptance/` | Verificar capturas |
-| results.json | AG-09a output | Resultados de ejecución |
 
 ---
 
 ## Proceso de Validación
 
-Para cada AC-XX:
+Para cada AC-XX del PRD:
 
-### 1. ¿El código lo implementa?
+### 1. ¿El `.feature` tiene un @AC-XX Escenario? → CHECK
 
-Buscar en `git diff main..HEAD` evidencia de que el criterio está implementado:
-- ¿Hay archivos que corresponden a la funcionalidad descrita?
+Buscar en los archivos `.feature` del UC:
+- ¿Existe un Escenario con tag `@AC-XX`?
+- ¿El texto del Escenario corresponde al criterio del PRD?
+- ¿Los steps (Dado/Cuando/Entonces) cubren la funcionalidad descrita?
+
+```
+PASS: Existe @AC-01 Escenario con steps que cubren el criterio
+FAIL: No existe Escenario para AC-01, o el Escenario no cubre la funcionalidad
+```
+
+### 2. ¿El JSON Cucumber report muestra PASSED? → CHECK
+
+Buscar en `cucumber-report.json` (o `results.json`):
+- ¿El escenario con tag `@AC-XX` tiene status PASSED?
+- ¿Todos los steps del escenario pasaron?
+- Si falló: ¿cuál fue el step que falló y cuál fue el error?
+
+```
+PASS: Escenario @AC-01 — todos los steps PASSED
+FAIL: Escenario @AC-01 — step "Entonces se muestra error" FAILED: element not found
+```
+
+### 3. ¿Existe screenshot/evidencia visual? → CHECK
+
+Buscar en `.quality/evidence/{feature}/acceptance/`:
+- ¿Existe archivo `AC-XX_{description}.png` o equivalente?
+- ¿Existe trace (Playwright) o response log (Python)?
+- ¿La evidencia es coherente con lo que describe el criterio?
+
+```
+PASS: Screenshot AC-01_crear_propiedad.png presente y coherente
+FAIL: No existe evidencia visual para AC-01
+```
+
+### 4. ¿El código cubre la lógica del criterio? → CHECK (git diff)
+
+Buscar en `git diff main..HEAD`:
+- ¿Hay archivos que implementan la funcionalidad descrita?
 - ¿La lógica de negocio cubre el caso descrito?
 - ¿Los componentes UI necesarios existen?
 
-### 2. ¿Hay test unitario que lo cubra?
-
-Buscar en `test/` o `tests/` tests que:
-- Testeen la lógica de negocio del criterio
-- Tengan assertions relevantes al criterio
-- No sean tests triviales (verificar con AG-08)
-
-### 3. ¿El acceptance test existe y pasó?
-
-Verificar en `results.json` de AG-09a:
-- ¿Existe test para este AC-XX?
-- ¿El test pasó (status: "PASS")?
-- Si falló: ¿cuál fue el error?
-
-### 4. ¿Hay evidencia visual?
-
-Verificar en `.quality/evidence/{feature}/acceptance/`:
-- ¿Existe screenshot/trace/response para este AC-XX?
-- ¿La evidencia es coherente con lo que describe el criterio?
+```
+PASS: CreatePropertyScreen tiene campos name, address y photo picker
+FAIL: Validación inline no implementada, solo valida on submit
+```
 
 ---
 
@@ -95,44 +116,62 @@ Generar en `.quality/evidence/{feature}/acceptance-report.json`:
 ```json
 {
   "feature": "{feature}",
-  "prd_source": "US-XX (Trello) | PROYECTO-XX (Plane) | doc/prd/",
+  "prd_source": "US-XX (Trello) | doc/prd/",
   "us_id": "US-XX",
   "uc_id": "UC-XXX",
   "board_id": "trello_board_id (if Trello)",
   "date": "ISO timestamp",
   "validator": "AG-09b",
+  "gherkin_source": "test/acceptance/features/UC-XXX_{nombre}.feature",
+  "cucumber_report": "test/acceptance/reports/cucumber-report.json",
   "criteria": [
     {
       "id": "AC-01",
       "description": "Usuario puede crear propiedad con nombre, dirección y foto",
       "status": "PASS",
+      "checks": {
+        "feature_scenario_exists": true,
+        "cucumber_report_passed": true,
+        "screenshot_exists": true,
+        "code_covers_logic": true
+      },
       "evidence": {
+        "scenario_tag": "@AC-01",
+        "scenario_text": "Usuario puede crear propiedad con nombre, dirección y foto",
+        "feature_file": "test/acceptance/features/UC-001_crear_propiedad.feature",
+        "steps_passed": 5,
+        "steps_total": 5,
         "code_files": [
           "lib/features/properties/presentation/screens/create_property_screen.dart:45-120",
           "lib/features/properties/domain/usecases/create_property.dart:12-35"
         ],
-        "unit_tests": [
-          "test/features/properties/bloc/create_property_bloc_test.dart"
-        ],
-        "acceptance_test": "test/acceptance/ac_01_crear_propiedad_test.dart",
-        "acceptance_test_passed": true,
         "screenshot": "acceptance/AC-01_crear_propiedad.png",
-        "reasoning": "CreatePropertyScreen tiene campos name, address y photo picker. El BLoC procesa CreatePropertyEvent. Unit test cubre happy path y error. Acceptance test navega, completa formulario y verifica creación. Screenshot muestra propiedad creada."
+        "reasoning": "Escenario @AC-01 en .feature con 5 steps. JSON Cucumber report muestra PASSED. Screenshot presente. CreatePropertyScreen tiene campos name, address y photo picker en git diff."
       }
     },
     {
       "id": "AC-02",
       "description": "Validación inline: error rojo si nombre vacío al perder foco",
       "status": "FAIL",
+      "checks": {
+        "feature_scenario_exists": true,
+        "cucumber_report_passed": false,
+        "screenshot_exists": false,
+        "code_covers_logic": false
+      },
       "evidence": {
+        "scenario_tag": "@AC-02",
+        "scenario_text": "Validación inline: error rojo si nombre vacío al perder foco",
+        "feature_file": "test/acceptance/features/UC-001_crear_propiedad.feature",
+        "steps_passed": 2,
+        "steps_total": 4,
+        "failing_step": "Entonces se muestra error rojo bajo el campo nombre",
+        "error": "Element not found: error message",
         "code_files": [
           "lib/features/properties/presentation/widgets/property_form.dart:67-89"
         ],
-        "unit_tests": [],
-        "acceptance_test": "test/acceptance/ac_02_validacion_inline_test.dart",
-        "acceptance_test_passed": false,
         "screenshot": null,
-        "reasoning": "El formulario tiene validación pero NO es inline (solo valida on submit). No hay unit test para validación. Acceptance test falla porque no aparece error al perder foco. No hay screenshot de evidencia.",
+        "reasoning": "Escenario @AC-02 existe en .feature pero falla en step 3. JSON Cucumber report muestra FAILED. No hay screenshot. El formulario tiene validación pero NO es inline (solo valida on submit).",
         "missing": "Validación inline on focus lost no implementada, solo on submit"
       }
     }
@@ -141,45 +180,31 @@ Generar en `.quality/evidence/{feature}/acceptance-report.json`:
     "total": 5,
     "passed": 3,
     "failed": 2,
-    "partial": 0,
+    "pass_rate": 60,
     "verdict": "REJECTED",
     "blocking_criteria": ["AC-02", "AC-04"]
   }
 }
 ```
 
-### acceptance-report.md
+### acceptance-report.pdf
 
-Generar en `.quality/evidence/{feature}/acceptance-report.md`:
+Generar PDF en `.quality/evidence/{feature}/acceptance-report.pdf`:
 
-```markdown
-# Acceptance Report: {feature}
+**Estructura del PDF:**
 
-> Fecha: [fecha]
-> Validador: AG-09b (Acceptance Validator)
-> PRD: [fuente]
-> Veredicto: ACCEPTED / CONDITIONAL / REJECTED
+1. **Header**: Proyecto, UC-XXX, US-XX, fecha, engine version
+2. **Resumen**: X/Y escenarios PASSED, veredicto
+3. **Tabla de escenarios**:
 
-## Resumen
+| AC | Escenario Gherkin | .feature | Cucumber | Screenshot | Código | Status |
+|----|-------------------|----------|----------|------------|--------|--------|
+| AC-01 | Crear propiedad | CHECK | PASS | CHECK | CHECK | PASS |
+| AC-02 | Validación inline | CHECK | FAIL | -- | -- | FAIL |
 
-| Criterio | Código | Unit Test | Acceptance Test | Evidencia | Status |
-|----------|--------|-----------|-----------------|-----------|--------|
-| AC-01: {desc corta} | ✅ | ✅ | ✅ | ✅ | PASS |
-| AC-02: {desc corta} | ⚠️ | ❌ | ❌ | ❌ | FAIL |
-
-## Criterios FAIL
-
-### AC-02: {descripción completa}
-**Problema**: {explicación de qué falta o qué falla}
-**Acción requerida**: {qué debe implementarse/corregirse}
-**Archivos afectados**: {lista de archivos}
-
-## Veredicto: {ACCEPTED/CONDITIONAL/REJECTED}
-
-{Si REJECTED: lista de acciones requeridas}
-{Si CONDITIONAL: lista de mejoras recomendadas}
-{Si ACCEPTED: confirmación de cumplimiento total}
-```
+4. **Detalle por escenario FAIL**: steps con duración, error, screenshot si existe
+5. **Screenshots embebidos**: uno por escenario PASS
+6. **Footer**: veredicto + acciones requeridas
 
 ---
 
@@ -187,12 +212,13 @@ Generar en `.quality/evidence/{feature}/acceptance-report.md`:
 
 ### ACCEPTED
 - 100% de criterios AC-XX en PASS
-- Todos los acceptance tests ejecutados y pasando
+- Todos los escenarios en JSON Cucumber con PASSED
 - Evidencia visual disponible para cada criterio
+- Las 4 verificaciones CHECK para cada AC
 
 ### CONDITIONAL
-- ≥ 80% de criterios en PASS
-- Ningún criterio del UC principal (el que se está implementando) en FAIL
+- >= 80% de criterios en PASS
+- Ningún criterio del UC principal en FAIL
 - Los criterios FAIL son de edge cases o funcionalidades secundarias
 - Se incluye lista de mejoras en la PR
 
@@ -200,23 +226,7 @@ Generar en `.quality/evidence/{feature}/acceptance-report.md`:
 - < 80% de criterios en PASS
 - O cualquier criterio del UC principal en FAIL
 - O falta evidencia visual para criterios PASS
-
----
-
-## Healing Loop (integración con /implement)
-
-Cuando AG-09b emite CONDITIONAL o REJECTED:
-
-1. `/implement` lee acceptance-report.json
-2. Identifica criterios FAIL con sus acciones requeridas
-3. Ejecuta healing:
-   - Código faltante → implementar
-   - Test faltante → AG-09a regenera
-   - Test fallido → corregir implementación
-4. Re-ejecuta AG-09a (solo tests fallidos)
-5. Re-ejecuta AG-09b
-6. Máximo 2 intentos de healing
-7. Si tras 2 intentos sigue REJECTED → reportar al humano
+- O falta archivo `.feature` para el UC
 
 ---
 
@@ -224,17 +234,51 @@ Cuando AG-09b emite CONDITIONAL o REJECTED:
 
 Después de emitir veredicto, reportar resultados al board:
 
-1. `mark_ac_batch(board_id, uc_id, results)` — marcar cada AC como passed/failed en el checklist del UC
-2. `attach_evidence(board_id, uc_id, "uc", "ag09", acceptance_report_md)` — adjuntar informe como PDF
-3. Si ACCEPTED y es el último UC de la US:
-   - `get_us_progress(board_id, us_id)` — verificar progreso global de la US
-   - `attach_evidence(board_id, us_id, "us", "delivery", delivery_report_md)` — delivery report a la US
+### 1. mark_ac_batch — Marcar ACs en checklist del UC
+
+```
+mark_ac_batch(board_id, uc_id, [
+  {"ac_id": "AC-01", "status": "passed"},
+  {"ac_id": "AC-02", "status": "failed"},
+  {"ac_id": "AC-03", "status": "passed"}
+])
+```
+
+### 2. attach_evidence — PDF a card UC
+
+```
+attach_evidence(board_id, uc_id, "uc", "ag09", acceptance_report_pdf)
+```
+
+### 3. Comentario en card UC
+
+```
+AG-09b Acceptance Validator — {timestamp}
+UC-XXX: {nombre} — Veredicto: {ACCEPTED/CONDITIONAL/REJECTED}
+
+Escenarios: {passed}/{total} PASSED ({pass_rate}%)
+├── @AC-01 {nombre} — PASS (4 checks OK)
+├── @AC-02 {nombre} — FAIL (Cucumber FAILED, sin screenshot)
+└── @AC-03 {nombre} — PASS (4 checks OK)
+
+Fuente: {feature_file}
+Report: cucumber-report.json
+PDF: acceptance-report.pdf adjunto
+
+{Si REJECTED: "Acciones requeridas: [lista]"}
+{Si CONDITIONAL: "Mejoras recomendadas: [lista]"}
+```
+
+### 4. Si ACCEPTED y es último UC de la US
+
+- `get_us_progress(board_id, us_id)` — verificar progreso global de la US
+- `attach_evidence(board_id, us_id, "us", "delivery", delivery_report_pdf)` — delivery report a la US
 
 ---
 
 ## Validación por UC (cobertura jerárquica)
 
-Cuando el origen es Trello, AG-09b valida a nivel de UC, no solo por AC:
+AG-09b valida a nivel de UC, no solo por AC:
 
 ```
 US-XX (User Story)
@@ -249,34 +293,58 @@ US-XX (User Story)
 
 ---
 
+## Healing Loop (integración con /implement)
+
+Cuando AG-09b emite CONDITIONAL o REJECTED:
+
+1. `/implement` lee `acceptance-report.json`
+2. Identifica criterios FAIL con sus checks fallidos:
+   - `feature_scenario_exists: false` → AG-09a debe generar el Escenario
+   - `cucumber_report_passed: false` → corregir implementación o step definition
+   - `screenshot_exists: false` → re-ejecutar tests con captura
+   - `code_covers_logic: false` → implementar la funcionalidad faltante
+3. Ejecuta healing según el check fallido
+4. Re-ejecuta AG-09a (solo tests fallidos)
+5. Re-ejecuta AG-09b
+6. Máximo 2 intentos de healing
+7. Si tras 2 intentos sigue REJECTED → reportar al humano
+
+---
+
 ## Prohibiciones
 
 - NO modificar código del proyecto (solo leer y analizar)
 - NO generar tests (AG-09a los genera, AG-09b los valida)
 - NO ejecutar tests (AG-09a ya los ejecutó, AG-09b verifica resultados)
-- NO aprobar sin verificar cada criterio individualmente
+- NO aprobar sin verificar las 4 checks por cada criterio
 - NO ignorar criterios FAIL de funcionalidades principales
-- NO emitir veredicto sin evidencia visual verificada
+- NO emitir veredicto sin verificar `.feature` + JSON Cucumber + evidencia visual
 - NO cambiar el PRD o los acceptance criteria
+- NO aprobar si falta el archivo `.feature` para el UC
 
 ---
 
 ## Modelo recomendado
 
-**sonnet** — Necesita razonamiento profundo para evaluar si una implementación cumple un criterio funcional descrito en lenguaje natural.
+**sonnet** — Necesita razonamiento profundo para evaluar si una implementación cumple un criterio funcional cruzando `.feature`, JSON Cucumber report, screenshots y git diff.
 
 ---
 
 ## Checklist
 
 - [ ] PRD localizado y criterios AC-XX extraídos
-- [ ] Cada criterio evaluado: código + unit test + acceptance test + evidencia
+- [ ] Archivos `.feature` leídos y verificados (tags @AC-XX presentes)
+- [ ] JSON Cucumber report leído (status por escenario)
+- [ ] Screenshots/evidencia visual verificada
+- [ ] Código implementado revisado (git diff main..HEAD)
+- [ ] 4 checks ejecutados por cada AC-XX
 - [ ] acceptance-report.json generado con evaluación detallada
-- [ ] acceptance-report.md generado (legible para humanos)
+- [ ] acceptance-report.pdf generado con tabla + screenshots
 - [ ] Veredicto emitido (ACCEPTED/CONDITIONAL/REJECTED)
-- [ ] Si FAIL: acciones requeridas documentadas por criterio
-- [ ] Evidencia visual verificada para criterios PASS
+- [ ] Si FAIL: checks fallidos y acciones requeridas documentadas por criterio
+- [ ] Trello actualizado: mark_ac_batch + attach_evidence + comentario
+- [ ] Si ACCEPTED y último UC: delivery report adjuntado a US
 
 ---
 
-*SDD-JPS Engine v3.9.0 — Acceptance Validator*
+*SDD-JPS Engine v4.0.0 — Acceptance Validator (Gherkin BDD)*

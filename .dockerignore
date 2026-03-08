@@ -1,0 +1,13 @@
+.git
+.github
+.quality/logs/
+.quality/evidence/
+node_modules
+__pycache__
+*.pyc
+.venv
+.env
+.env.*
+tests/
+doc/research/
+docs/prompts/

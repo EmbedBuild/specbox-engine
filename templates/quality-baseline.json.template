@@ -50,7 +50,12 @@
   "acceptance": {
     "criteria_total": 0,
     "criteria_passed": 0,
-    "policy": "info"
+    "policy": "info",
+    "framework": "gherkin",
+    "language": "es",
+    "min_pass_rate": 100,
+    "require_screenshots": true,
+    "require_pdf_evidence": true
   },
 
   "e2e": {

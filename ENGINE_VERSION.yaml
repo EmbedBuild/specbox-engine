@@ -1,8 +1,8 @@
-version: 3.9.1
-codename: "Visual Experience Generation"
+version: 4.0.0
+codename: "Monorepo + Gherkin Acceptance"
 brand: "SDD-JPS Engine"
 brand_full: "Spec-Driven Development Engine by JPS"
-release_date: 2026-03-07
+release_date: 2026-03-08
 min_claude_code: "1.0.0"
 
 stacks:
@@ -21,6 +21,7 @@ services:
   - google-workspace
 
 features:
+  # Existing (v3.9.1)
   - agent-skills
   - agent-teams
   - multi-stack
@@ -50,8 +51,41 @@ features:
   - trello-domain-mcp
   - us-uc-ac-hierarchy
   - veg-visual-experience-generation
+  # New (v4.0.0)
+  - monorepo-unified
+  - gherkin-acceptance-bdd
+  - gherkin-spanish-language
+  - acceptance-pdf-evidence
+  - trello-acceptance-evidence
+  - sala-de-maquinas-embedded
+  - spec-driven-onboarding
+  - project-archiving
+  - unified-mcp-endpoint
 
 changelog:
+  4.0.0:
+    date: 2026-03-08
+    changes:
+      - "feat: Monorepo — fusión de jps_dev_engine + dev_engine_mcp + dev-engine-trello-mcp"
+      - "feat: Rename jps_dev_engine → sdd-jps-engine en todo el ecosistema"
+      - "feat: MCP unificado — 73+ tools en un solo endpoint (engine + spec-driven + telemetría)"
+      - "feat: Gherkin en español como mecanismo estándar de validación de AC"
+      - "feat: AG-09a reescrito — genera .feature + step definitions por stack"
+      - "feat: AG-09b adaptado — valida desde .feature + JSON Cucumber report"
+      - "feat: PDF de evidencia con escenarios + screenshots → adjunto a card UC en Trello"
+      - "feat: Template .feature estándar en doc/templates/gherkin-feature-template.md"
+      - "feat: Frameworks BDD por stack: bdd_widget_test, playwright-bdd, pytest-bdd, jest-cucumber"
+      - "feat: setup_board integrado en onboard_project como paso opcional"
+      - "feat: archive_project — ocultar proyectos absorbidos/obsoletos del dashboard"
+      - "feat: Sala de Máquinas embebida en el monorepo (React 19 + Vite)"
+      - "feat: Página Spec-Driven en dashboard con estado de boards Trello"
+      - "feat: Eliminado sync_engine y check_engine_update (innecesarios en monorepo)"
+      - "feat: Dockerfile multi-stage unificado (Node dashboard + Python server)"
+      - "feat: GLOBAL_RULES.md con sección BDD/Gherkin obligatoria"
+      - "feat: architecture/{stack}/testing-strategy.md con sección BDD por stack"
+      - "feat: Templates actualizados con sección Trello + Gherkin + paths sdd-jps-engine"
+      - "fix: symlink ~/jps_dev_engine → ~/sdd-jps-engine para backward compatibility"
+
   3.9.1:
     date: 2026-03-07
     changes:
@@ -280,7 +314,7 @@ changelog:
     date: 2026-02-24
     changes:
       - "/optimize-agents: nueva seccion Engine Sync — detecta version del engine y compara archivos del proyecto"
-      - "Paso 0.6: localiza jps_dev_engine, compara agents/prompts/config copiados vs engine"
+      - "Paso 0.6: localiza sdd-jps-engine, compara agents/prompts/config copiados vs engine"
       - "Output audit: seccion 7 Engine Sync con estado de symlinks y archivos outdated"
 
   2.0.1:

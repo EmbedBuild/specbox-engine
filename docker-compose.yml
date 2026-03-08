@@ -1,0 +1,23 @@
+services:
+  sdd-jps-engine:
+    build: .
+    container_name: sdd-jps-engine
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - engine-state:/data/state
+    environment:
+      - MCP_TRANSPORT=http
+      - MCP_PORT=8000
+      - DASHBOARD_TOKEN=${DASHBOARD_TOKEN}
+      - AUTH_GATEWAY_URL=${AUTH_GATEWAY_URL}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  engine-state:

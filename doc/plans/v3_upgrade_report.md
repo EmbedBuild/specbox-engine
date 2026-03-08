@@ -54,7 +54,7 @@
 .gitignore
 .quality/README.md
 .quality/baselines/.gitkeep
-.quality/baselines/jps_dev_engine.json
+.quality/baselines/sdd-jps-engine.json
 .quality/evidence/.gitkeep
 .quality/scripts/create-baseline.sh
 doc/plans/v3_upgrade_status.md

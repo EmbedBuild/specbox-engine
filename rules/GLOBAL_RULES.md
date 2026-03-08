@@ -419,6 +419,76 @@ AG-10 captura observaciones de testing manual del desarrollador:
 
 ---
 
+## BDD / Gherkin — Acceptance Testing
+
+### Reglas obligatorias
+
+1. Todo AC-XX de un UC genera un Escenario en un archivo .feature
+2. Los .feature se escriben en español (`# language: es`)
+3. Tags obligatorios: `@US-XX @UC-XXX` en Característica, `@AC-XX` en Escenario
+4. Un archivo .feature = un Use Case
+5. Un Escenario = un Acceptance Criterion
+6. Antecedentes para precondiciones compartidas (auth, navegación inicial)
+7. Steps reutilizables en `steps/common_steps` (auth, navegación, assertions)
+8. Steps específicos en `steps/UC-XXX_steps`
+9. Screenshot obligatorio al final de cada Escenario
+10. JSON report en formato Cucumber estándar
+11. PDF de evidencia generado y adjuntado a card UC en Trello (si spec-driven)
+
+### Framework por stack
+
+| Stack | Paquete | Comando |
+|-------|---------|---------|
+| Flutter | `bdd_widget_test` ^0.7.1 | `flutter test test/acceptance/` |
+| React | `playwright-bdd` ^8.4.2 | `npx bddgen && npx playwright test tests/acceptance/` |
+| Python | `pytest-bdd` >=8.1.0 | `pytest tests/acceptance/ --cucumberjson=reports/cucumber-report.json` |
+| GAS | `jest-cucumber` | `npx jest tests/acceptance/` |
+
+### Estructura de archivos
+
+```
+test/acceptance/     (o tests/acceptance/)
+├── features/
+│   └── UC-XXX_{nombre}.feature
+├── steps/
+│   ├── common_steps.{ext}
+│   └── UC-XXX_steps.{ext}
+└── reports/
+    ├── cucumber-report.json
+    └── acceptance-report.pdf
+```
+
+### Ejemplo de .feature
+
+```gherkin
+# language: es
+@US-01 @UC-001
+Característica: Crear propiedad
+  Como propietario
+  Quiero crear una propiedad con nombre, dirección y foto
+  Para gestionar mis inmuebles
+
+  Antecedentes:
+    Dado que estoy autenticado como "propietario"
+    Y estoy en la página de propiedades
+
+  @AC-01
+  Escenario: Crear propiedad con datos válidos
+    Cuando completo el formulario con nombre "Depto Centro" y dirección "Av. Libertador 1234"
+    Y adjunto una foto de la propiedad
+    Y presiono "Guardar"
+    Entonces veo la propiedad "Depto Centro" en el listado
+    Y capturo screenshot de evidencia
+
+  @AC-02
+  Escenario: Validación de campos obligatorios
+    Cuando presiono "Guardar" sin completar el formulario
+    Entonces veo el mensaje de error "El nombre es obligatorio"
+    Y capturo screenshot de evidencia
+```
+
+---
+
 ## Testing (todos los stacks)
 
 | Tipo | Cobertura | Estrategia |
@@ -451,4 +521,4 @@ AG-10 captura observaciones de testing manual del desarrollador:
 
 ---
 
-*Version: 3.6.0 | Ultima actualizacion: 2026-03-02*
+*Version: 4.0.0 | Ultima actualizacion: 2026-03-08*

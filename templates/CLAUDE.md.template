@@ -14,7 +14,7 @@
 
 {ARCHITECTURE_DESCRIPTION}
 
-Ver patrones detallados en: jps_dev_engine/architecture/{stack}/
+Ver patrones detallados en: sdd-jps-engine/architecture/{stack}/
 
 ## Memoria Persistente (Engram) — REQUERIDO
 
@@ -137,7 +137,7 @@ Durante el trabajo normal (sin compactacion), persiste informacion critica en En
 ## Reglas del Proyecto
 
 ### Importar reglas globales
-Las reglas de jps_dev_engine/rules/GLOBAL_RULES.md aplican a este proyecto.
+Las reglas de sdd-jps-engine/rules/GLOBAL_RULES.md aplican a este proyecto.
 
 ### Reglas especificas de este proyecto
 
@@ -148,7 +148,7 @@ Las reglas de jps_dev_engine/rules/GLOBAL_RULES.md aplican a este proyecto.
 
 Estilo: {UI_STYLE} ({UI_STYLE_ID})
 Diseños Stitch: `doc/design/{feature}/`
-Patrones: `jps_dev_engine/design/stitch/`
+Patrones: `sdd-jps-engine/design/stitch/`
 
 ## Agentes del Proyecto
 
@@ -171,7 +171,7 @@ Agentes disponibles en .claude/agents/:
 
 ### Opcion B: Agent Teams (nativo Claude Code)
 
-Ver: jps_dev_engine/agent-teams/README.md
+Ver: sdd-jps-engine/agent-teams/README.md
 Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 
 ## Servicios Externos
@@ -179,7 +179,7 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ### {SERVICE_1} (ej: Supabase)
 - Project ID: {PROJECT_ID}
 - Entorno: desarrollo
-- Patrones: jps_dev_engine/infra/{service}/patterns.md
+- Patrones: sdd-jps-engine/infra/{service}/patterns.md
 
 ### Google Stitch (si aplica UI)
 - Project ID: {STITCH_PROJECT_ID}
@@ -213,6 +213,83 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
   |
 /optimize-agents → Validar configuracion agentica
 ```
+
+## Trello — Fuente de Verdad (Spec-Driven)
+
+Si `trello.boardId` está configurado en `.claude/settings.local.json`,
+el engine opera en modo Spec-Driven:
+
+| Concepto | En Trello | Identificador |
+|----------|-----------|---------------|
+| User Story | Card con label "US" | US-XX |
+| Use Case | Card con label "UC" | UC-XXX |
+| Acceptance Criteria | Checklist items en card UC | AC-XX |
+
+### Flujo
+
+- /prd → Lee/crea US + UCs en Trello → adjunta PRD como PDF
+- /plan → Lee US/UCs → genera plan → adjunta como PDF
+- /implement → find_next_uc → start_uc → fases → complete_uc → merge
+
+### Tools disponibles (MCP sdd-jps-engine)
+
+| Tool | Uso |
+|------|-----|
+| setup_board | Crear board nuevo con estructura correcta |
+| get_us, list_us | Leer User Stories |
+| get_uc, list_uc | Leer Use Cases |
+| start_uc | Iniciar implementación de un UC |
+| complete_uc | Marcar UC como completado |
+| find_next_uc | Determinar siguiente UC a implementar |
+| mark_ac_batch | Reportar resultados de ACs |
+| attach_evidence | Adjuntar PDF de evidencia a card |
+| import_spec | Importar estructura US/UC/AC completa |
+
+Si NO hay `trello.boardId`, el engine funciona en modo freeform (sin Trello).
+
+## Acceptance Testing — Gherkin BDD
+
+Los Acceptance Criteria (AC-XX) de cada Use Case se validan con Gherkin en español.
+
+### Estructura
+
+```
+test/acceptance/          # Flutter (o tests/acceptance/ en React/Python)
+├── features/
+│   └── UC-XXX_{nombre}.feature
+├── steps/
+│   ├── common_steps.{ext}
+│   └── UC-XXX_steps.{ext}
+└── reports/
+    ├── cucumber-report.json
+    └── acceptance-report.pdf
+```
+
+### Formato .feature
+
+```gherkin
+# language: es
+@US-01 @UC-001
+Característica: UC-001 — Nombre del caso de uso
+  Como [Actor]
+  Quiero [Objetivo]
+  Para [Beneficio]
+
+  @AC-01
+  Escenario: Descripción del criterio
+    Dado [precondición]
+    Cuando [acción]
+    Entonces [resultado esperado]
+```
+
+### Framework por stack
+
+| Stack | Paquete |
+|-------|---------|
+| Flutter | bdd_widget_test ^0.7.1 |
+| React | playwright-bdd ^8.4.2 |
+| Python | pytest-bdd >=8.1.0 |
+| GAS | jest-cucumber |
 
 ## Visual Experience Generation — VEG (v3.9)
 
@@ -250,7 +327,7 @@ Si el PRD no tiene seccion Audiencia, el pipeline funciona como siempre (legacy)
 | Config | `e2e/playwright.config.ts` (Flutter) o `playwright.config.ts` (React) |
 | Run | Ver `architecture/{stack}/e2e-testing.md` |
 | Report | `doc/test_cases/reports/` |
-| Patterns | `jps_dev_engine/architecture/{stack}/e2e-testing.md` |
+| Patterns | `sdd-jps-engine/architecture/{stack}/e2e-testing.md` |
 
 ## Hooks
 

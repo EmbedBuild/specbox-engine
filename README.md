@@ -10,8 +10,8 @@ Repositorio canonico que contiene Skills auto-descubribles, hooks de calidad, pa
 
 ```bash
 # 1. Clonar
-git clone <repo-url> ~/jps_dev_engine
-cd ~/jps_dev_engine
+git clone <repo-url> ~/sdd-jps-engine
+cd ~/sdd-jps-engine
 
 # 2. Instalar commands globales
 ./install.sh
@@ -477,7 +477,7 @@ El archivo `rules/GLOBAL_RULES.md` define reglas que aplican a **todos** los pro
 ## Estructura del Repositorio
 
 ```
-jps_dev_engine/
+sdd-jps-engine/
 ├── CLAUDE.md                      # Descripcion del engine para Claude
 ├── ENGINE_VERSION.yaml            # Version, stacks, servicios, changelog
 ├── README.md                      # Este archivo
@@ -656,7 +656,7 @@ Ver guia completa en [docs/getting-started.md](docs/getting-started.md).
 ## Actualizacion
 
 ```bash
-cd ~/jps_dev_engine
+cd ~/sdd-jps-engine
 git pull
 ./install.sh
 ```

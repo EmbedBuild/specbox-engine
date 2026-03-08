@@ -195,8 +195,8 @@ Estas variables deben resolverse al personalizar para un proyecto:
 
 ## Referencia
 
-- Engine: `jps_dev_engine/`
-- Skills: `jps_dev_engine/.claude/skills/`
-- Arquitectura por stack: `jps_dev_engine/architecture/{stack}/`
-- Infraestructura: `jps_dev_engine/infra/{servicio}/`
-- Diseño Stitch: `jps_dev_engine/design/stitch/`
+- Engine: `sdd-jps-engine/`
+- Skills: `sdd-jps-engine/.claude/skills/`
+- Arquitectura por stack: `sdd-jps-engine/architecture/{stack}/`
+- Infraestructura: `sdd-jps-engine/infra/{servicio}/`
+- Diseño Stitch: `sdd-jps-engine/design/stitch/`

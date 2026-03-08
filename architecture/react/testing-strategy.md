@@ -239,6 +239,119 @@ describe('DashboardLayout responsive', () => {
 
 ---
 
+## Acceptance Testing (BDD)
+
+> Tests de aceptación basados en Gherkin que validan AC-XX directamente desde archivos `.feature`.
+> Cada UC genera un `.feature`, cada AC genera un Escenario.
+
+### Setup
+
+```json
+// package.json
+{
+  "devDependencies": {
+    "playwright-bdd": "^8.4.2",
+    "@playwright/test": "^1.x"
+  }
+}
+```
+
+### Ejemplo .feature
+
+```gherkin
+# language: es
+# tests/acceptance/features/UC-001_crear_propiedad.feature
+
+@US-01 @UC-001
+Característica: Crear propiedad
+  Como propietario
+  Quiero crear una propiedad con nombre, dirección y foto
+  Para gestionar mis inmuebles
+
+  Antecedentes:
+    Dado que estoy autenticado como "propietario"
+    Y estoy en la página de propiedades
+
+  @AC-01
+  Escenario: Crear propiedad con datos válidos
+    Cuando completo el campo "nombre" con "Depto Centro"
+    Y completo el campo "dirección" con "Av. Libertador 1234"
+    Y adjunto una foto de la propiedad
+    Y presiono "Guardar"
+    Entonces veo "Depto Centro" en el listado de propiedades
+    Y capturo screenshot de evidencia
+```
+
+### Step Definition (TypeScript)
+
+```typescript
+// tests/acceptance/steps/UC-001_steps.ts
+import { createBdd } from 'playwright-bdd';
+import { expect } from '@playwright/test';
+
+const { Given, When, Then } = createBdd();
+
+Given('que estoy autenticado como {string}', async ({ page }, role: string) => {
+  // Auth via API + cookie injection
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(`${role}@test.com`);
+  await page.getByLabel('Password').fill('password123');
+  await page.getByRole('button', { name: /sign in/i }).click();
+  await page.waitForURL('/dashboard');
+});
+
+When('completo el campo {string} con {string}', async ({ page }, campo: string, valor: string) => {
+  await page.getByLabel(campo).fill(valor);
+});
+
+When('presiono {string}', async ({ page }, boton: string) => {
+  await page.getByRole('button', { name: boton }).click();
+});
+
+Then('veo {string} en el listado de propiedades', async ({ page }, texto: string) => {
+  await expect(page.getByText(texto)).toBeVisible();
+});
+
+Then('capturo screenshot de evidencia', async ({ page }, testInfo) => {
+  await page.screenshot({
+    path: `tests/acceptance/reports/${testInfo.title}.png`,
+  });
+});
+```
+
+### Ejecución
+
+```bash
+# Generar tests desde .feature + ejecutar
+npx bddgen && npx playwright test tests/acceptance/
+
+# Con HTML report
+npx bddgen && npx playwright test tests/acceptance/ --reporter=html
+```
+
+### Report
+
+- Formato: JSON Cucumber estándar
+- Ubicación: `tests/acceptance/reports/cucumber-report.json`
+- PDF de evidencia generado y adjuntado a card UC en Trello (si spec-driven)
+
+### Estructura
+
+```
+tests/acceptance/
+├── features/
+│   ├── UC-001_crear_propiedad.feature
+│   └── UC-002_listar_propiedades.feature
+├── steps/
+│   ├── common_steps.ts         # Auth, navegación, assertions
+│   └── UC-001_steps.ts         # Steps específicos del UC
+└── reports/
+    ├── cucumber-report.json
+    └── acceptance-report.pdf
+```
+
+---
+
 ## E2E Tests (Playwright)
 
 > Tests end-to-end contra Next.js build con Playwright.

@@ -11,8 +11,8 @@
 ### 1. Clonar el repositorio
 
 ```bash
-git clone <repo-url> ~/jps_dev_engine
-cd ~/jps_dev_engine
+git clone <repo-url> ~/sdd-jps-engine
+cd ~/sdd-jps-engine
 ```
 
 ### 2. Instalar commands, skills y hooks
@@ -48,7 +48,7 @@ Copia el template y personaliza:
 
 ```bash
 cd /path/to/mi-proyecto
-cp ~/jps_dev_engine/templates/CLAUDE.md.template CLAUDE.md
+cp ~/sdd-jps-engine/templates/CLAUDE.md.template CLAUDE.md
 ```
 
 Edita CLAUDE.md reemplazando los placeholders `{...}` con los datos de tu proyecto.
@@ -59,7 +59,7 @@ Si usas Agent Teams, Stitch o Plane:
 
 ```bash
 mkdir -p .claude
-cp ~/jps_dev_engine/templates/settings.json.template .claude/settings.local.json
+cp ~/sdd-jps-engine/templates/settings.json.template .claude/settings.local.json
 ```
 
 ### Paso 3: Configurar agentes (opcional)
@@ -70,15 +70,15 @@ Copia los agentes que necesites:
 
 ```bash
 mkdir -p .claude/agents
-cp ~/jps_dev_engine/agents/orchestrator.md .claude/agents/
-cp ~/jps_dev_engine/agents/feature-generator.md .claude/agents/
+cp ~/sdd-jps-engine/agents/orchestrator.md .claude/agents/
+cp ~/sdd-jps-engine/agents/feature-generator.md .claude/agents/
 # ... etc
 ```
 
 #### Opcion B: Agent Teams (recomendado)
 
 ```bash
-cp ~/jps_dev_engine/templates/team-config.json.template .claude/team-config.json
+cp ~/sdd-jps-engine/templates/team-config.json.template .claude/team-config.json
 ```
 
 Activa Agent Teams en settings.json:
@@ -115,7 +115,7 @@ Activa Agent Teams en settings.json:
 ## Actualizacion del engine
 
 ```bash
-cd ~/jps_dev_engine
+cd ~/sdd-jps-engine
 git pull
 ./install.sh
 ```

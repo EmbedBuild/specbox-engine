@@ -30,7 +30,7 @@ fi
     -H "Content-Type: application/json" \
     -H "Accept: application/json, text/event-stream" \
     -D /dev/stderr \
-    -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-03-26\",\"capabilities\":{},\"clientInfo\":{\"name\":\"jps-dev-engine-hook\",\"version\":\"$ENGINE_VERSION\"}}}" \
+    -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-03-26\",\"capabilities\":{},\"clientInfo\":{\"name\":\"sdd-jps-engine-hook\",\"version\":\"$ENGINE_VERSION\"}}}" \
     2>/tmp/mcp_headers_$$ || exit 0)
 
   # Extract session ID from response headers

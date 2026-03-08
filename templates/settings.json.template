@@ -41,6 +41,20 @@
       }
     ]
   },
+  "trello": {
+    "boardId": "",
+    "_comment": "Dejar vacío si no usa Trello. Rellenar con el ID del board tras ejecutar setup_board."
+  },
+  "acceptance": {
+    "framework": "gherkin",
+    "language": "es",
+    "features_path": {
+      "flutter": "test/acceptance/features/",
+      "react": "tests/acceptance/features/",
+      "python": "tests/acceptance/features/",
+      "google-apps-script": "tests/acceptance/features/"
+    }
+  },
   "stitch": {
     "projectId": "{STITCH_PROJECT_ID}",
     "deviceType": "DESKTOP",

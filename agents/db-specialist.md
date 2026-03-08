@@ -191,7 +191,7 @@ serve(async (req) => {
 
 ## Referencia
 
-- Patrones Supabase: `jps_dev_engine/infra/supabase/`
-- Patrones Neon: `jps_dev_engine/infra/neon/`
-- Patrones Firebase: `jps_dev_engine/infra/firebase/`
+- Patrones Supabase: `sdd-jps-engine/infra/supabase/`
+- Patrones Neon: `sdd-jps-engine/infra/neon/`
+- Patrones Firebase: `sdd-jps-engine/infra/firebase/`
 - Herramientas MCP Supabase: prefijo `mcp__supabase__`

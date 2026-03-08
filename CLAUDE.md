@@ -1,12 +1,12 @@
-# SDD-JPS Engine v3.9.0
+# SDD-JPS Engine v4.0.0
 
 > **Spec-Driven Development Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Repositorio canonico con commands, patrones, templates y configuracion de Agent Teams.
+> Monorepo unificado: engine + MCP server (73+ tools) + Sala de Máquinas + Gherkin BDD.
 
 ## Que es este repositorio
 
-Este repositorio contiene el **sistema completo de programacion agentica** para trabajar con Claude Code. Incluye:
+Este repositorio es un **monorepo unificado** con el sistema completo de programacion agentica para Claude Code. Incluye:
 
 - **Commands** (`/prd`, `/plan`, `/implement`, `/adapt-ui`, `/optimize-agents`, `/feedback`) — flujo completo de desarrollo
 - **Agent Teams** — configuracion para orquestacion multi-agente nativa de Claude Code
@@ -15,6 +15,9 @@ Este repositorio contiene el **sistema completo de programacion agentica** para 
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
+- **Server** — MCP server unificado (73+ tools) + Sala de Máquinas dashboard (React 19)
+- **Spec-Driven** — Trello domain tools para US/UC/AC (21 tools integrados en MCP)
+- **Gherkin BDD** — Acceptance testing en español con frameworks por stack
 
 ## Stack soportado
 
@@ -35,8 +38,8 @@ Este repositorio contiene el **sistema completo de programacion agentica** para 
 ## Instalacion
 
 ```bash
-git clone <repo-url> jps_dev_engine
-cd jps_dev_engine
+git clone <repo-url> sdd-jps-engine
+cd sdd-jps-engine
 ./install.sh
 ```
 
@@ -71,7 +74,7 @@ Freeform (Plane / texto):
 ## Estructura del repositorio
 
 ```
-jps_dev_engine/
+sdd-jps-engine/
 ├── CLAUDE.md              ← Este archivo
 ├── ENGINE_VERSION.yaml    ← Version del engine
 ├── install.sh             ← Instala skills, hooks, commands, GGA
@@ -147,6 +150,32 @@ jps_dev_engine/
 ├── .quality/              ← Telemetria y evidencia (v3.1)
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
+├── server/                ← MCP server unificado (v4.0)
+│   ├── server.py          ← FastMCP (73+ tools)
+│   ├── dashboard_api.py   ← REST API /api/*
+│   ├── tools/             ← 10 tool modules
+│   │   ├── engine.py      ← 3 tools (version, status, stacks)
+│   │   ├── plans.py       ← 3 tools
+│   │   ├── quality.py     ← 4 tools
+│   │   ├── skills.py      ← 2 tools
+│   │   ├── features.py    ← 7 tools
+│   │   ├── telemetry.py   ← 8 tools
+│   │   ├── hooks.py       ← 3 tools
+│   │   ├── onboarding.py  ← 10 tools (+ setup_board + archive_project)
+│   │   ├── state.py       ← 20 tools
+│   │   └── spec_driven.py ← 21 tools Trello domain
+│   ├── trello_client.py   ← Async httpx con retry
+│   ├── board_helpers.py   ← Card parsing, custom fields
+│   ├── models.py          ← Pydantic: US, UC, AC, WorkflowState
+│   ├── pdf_generator.py   ← Markdown → PDF (fpdf2)
+│   ├── auth_gateway.py    ← Per-session credentials
+│   ├── resources/         ← 8 MCP Resources
+│   └── dashboard/         ← React 19 + Vite (Sala de Máquinas)
+│       └── src/
+├── tests/                 ← Tests unificados (208 tests)
+├── Dockerfile             ← Multi-stage (Node + Python)
+├── docker-compose.yml
+├── pyproject.toml         ← name = "sdd-jps-engine"
 └── docs/                  ← Documentacion del sistema
     ├── getting-started.md
     ├── commands.md
@@ -317,6 +346,6 @@ Configuracion MCP de providers en `templates/settings.json.template` → seccion
 
 ## Engine Version
 
-Current: v3.9.0 "Visual Experience Generation"
+Current: v4.0.0 "Monorepo + Gherkin Acceptance"
 Brand: SDD-JPS Engine (Spec-Driven Development Engine by JPS)
 Config: ENGINE_VERSION.yaml

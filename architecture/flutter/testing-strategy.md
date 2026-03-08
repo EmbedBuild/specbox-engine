@@ -456,6 +456,111 @@ Screenshots se guardan en `.quality/evidence/{feature}/acceptance/`:
 
 ---
 
+## Acceptance Testing (BDD)
+
+> Tests de aceptación basados en Gherkin que validan AC-XX directamente desde archivos `.feature`.
+> Cada UC genera un `.feature`, cada AC genera un Escenario.
+
+### Setup
+
+```yaml
+# pubspec.yaml
+dev_dependencies:
+  bdd_widget_test: ^0.7.1
+```
+
+### Ejemplo .feature
+
+```gherkin
+# language: es
+# test/acceptance/features/UC-001_crear_propiedad.feature
+
+@US-01 @UC-001
+Característica: Crear propiedad
+  Como propietario
+  Quiero crear una propiedad con nombre, dirección y foto
+  Para gestionar mis inmuebles
+
+  Antecedentes:
+    Dado que estoy autenticado como "propietario"
+    Y estoy en la página de propiedades
+
+  @AC-01
+  Escenario: Crear propiedad con datos válidos
+    Cuando completo el campo "nombre" con "Depto Centro"
+    Y completo el campo "dirección" con "Av. Libertador 1234"
+    Y adjunto una foto de la propiedad
+    Y presiono "Guardar"
+    Entonces veo "Depto Centro" en el listado de propiedades
+    Y capturo screenshot de evidencia
+```
+
+### Step Definition (Dart)
+
+```dart
+// test/acceptance/steps/UC-001_steps.dart
+import 'package:bdd_widget_test/step/i_see_text.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// Cuando completo el campo {string} con {string}
+Future<void> completoElCampoCon(
+  WidgetTester tester,
+  String campo,
+  String valor,
+) async {
+  final field = find.byKey(Key('${campo}_field'));
+  await tester.enterText(field, valor);
+  await tester.pumpAndSettle();
+}
+
+/// Y presiono {string}
+Future<void> presiono(WidgetTester tester, String boton) async {
+  await tester.tap(find.text(boton));
+  await tester.pumpAndSettle();
+}
+
+/// Y capturo screenshot de evidencia
+Future<void> capturoScreenshotDeEvidencia(WidgetTester tester) async {
+  await expectLater(
+    find.byType(MaterialApp),
+    matchesGoldenFile('reports/screenshot.png'),
+  );
+}
+```
+
+### Ejecución
+
+```bash
+# Ejecutar acceptance tests BDD
+flutter test test/acceptance/
+
+# Con reporter verbose
+flutter test test/acceptance/ --reporter expanded
+```
+
+### Report
+
+- Formato: JSON Cucumber estándar
+- Ubicación: `test/acceptance/reports/cucumber-report.json`
+- PDF de evidencia generado y adjuntado a card UC en Trello (si spec-driven)
+
+### Estructura
+
+```
+test/acceptance/
+├── features/
+│   ├── UC-001_crear_propiedad.feature
+│   └── UC-002_listar_propiedades.feature
+├── steps/
+│   ├── common_steps.dart       # Auth, navegación, assertions
+│   └── UC-001_steps.dart       # Steps específicos del UC
+└── reports/
+    ├── cucumber-report.json
+    └── acceptance-report.pdf
+```
+
+---
+
 ## E2E Tests (Playwright Web)
 
 > Tests end-to-end contra Flutter web build con CanvasKit.

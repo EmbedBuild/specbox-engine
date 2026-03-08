@@ -259,6 +259,6 @@ doc/
 
 ## Referencia
 
-- Integracion Stitch: `jps_dev_engine/design/stitch/`
-- Skill /plan: `jps_dev_engine/.claude/skills/plan/SKILL.md`
+- Integracion Stitch: `sdd-jps-engine/design/stitch/`
+- Skill /plan: `sdd-jps-engine/.claude/skills/plan/SKILL.md`
 - Instrucciones globales Stitch: `~/.claude/CLAUDE.md`

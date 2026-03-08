@@ -251,7 +251,7 @@ Max 100 caracteres. Truncar description si necesario.
 {Si no: "No direct impact on acceptance criteria."}
 
 ---
-Filed by [SDD-JPS Engine](https://github.com/jesusperezdeveloper/jps_dev_engine) `/feedback`
+Filed by [SDD-JPS Engine](https://github.com/jesusperezdeveloper/sdd-jps-engine) `/feedback`
 ```
 
 ### 5.3 Labels

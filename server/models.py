@@ -9,11 +9,11 @@ from pydantic import BaseModel, Field
 
 # --- Workflow States ---
 
-WorkflowState = Literal["backlog", "ready", "in_progress", "review", "done"]
+WorkflowState = Literal["user_stories", "backlog", "in_progress", "review", "done"]
 
 WORKFLOW_LIST_NAMES: dict[WorkflowState, str] = {
+    "user_stories": "User Stories",
     "backlog": "Backlog",
-    "ready": "Ready",
     "in_progress": "In Progress",
     "review": "Review",
     "done": "Done",

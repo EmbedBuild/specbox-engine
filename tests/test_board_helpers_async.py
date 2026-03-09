@@ -23,11 +23,11 @@ def mock_client(sample_lists, sample_custom_fields, sample_us_card, sample_uc_ca
 
 class TestGetListIdByName:
     async def test_finds_list(self, mock_client):
-        result = await get_list_id_by_name(mock_client, "board123", "Backlog")
+        result = await get_list_id_by_name(mock_client, "board123", "User Stories")
         assert result == "list_backlog"
 
     async def test_case_insensitive(self, mock_client):
-        result = await get_list_id_by_name(mock_client, "board123", "backlog")
+        result = await get_list_id_by_name(mock_client, "board123", "user stories")
         assert result == "list_backlog"
 
     async def test_not_found(self, mock_client):
@@ -38,20 +38,20 @@ class TestGetListIdByName:
 class TestGetListMap:
     async def test_returns_map(self, mock_client):
         result = await get_list_map(mock_client, "board123")
-        assert "backlog" in result
+        assert "user stories" in result
         assert "done" in result
-        assert result["backlog"] == "list_backlog"
+        assert result["user stories"] == "list_backlog"
 
 
 class TestGetListIdForState:
     async def test_finds_state(self, mock_client):
-        result = await get_list_id_for_state(mock_client, "board123", "backlog")
+        result = await get_list_id_for_state(mock_client, "board123", "user_stories")
         assert result == "list_backlog"
 
     async def test_raises_on_not_found(self, mock_client):
         mock_client.get_board_lists.return_value = []
         with pytest.raises(ValueError, match="not found"):
-            await get_list_id_for_state(mock_client, "board123", "backlog")
+            await get_list_id_for_state(mock_client, "board123", "user_stories")
 
 
 class TestFindCardByCustomField:

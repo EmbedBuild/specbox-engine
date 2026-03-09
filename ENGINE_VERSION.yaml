@@ -1,8 +1,8 @@
-version: 4.0.1
-codename: "Hardened Autopilot"
+version: 4.0.2
+codename: "Board Taxonomy"
 brand: "SDD-JPS Engine"
 brand_full: "Spec-Driven Development Engine by JPS"
-release_date: 2026-03-08
+release_date: 2026-03-09
 min_claude_code: "1.0.0"
 
 stacks:
@@ -70,6 +70,16 @@ features:
   - css-placeholder-prohibition
 
 changelog:
+  4.0.2:
+    date: 2026-03-09
+    changes:
+      - "refactor: Rename Trello workflow lists — 'Backlog' → 'User Stories' (US registry), 'Ready' → 'Backlog' (UC queue)"
+      - "refactor: WorkflowState enum — 'backlog' → 'user_stories', 'ready' → 'backlog' (semantic alignment)"
+      - "refactor: All hardcoded list name lookups in spec_driven.py updated to new names"
+      - "refactor: All tests updated — conftest, test_models, test_board_helpers, test_coverage_edges, test_tools_board"
+      - "refactor: Implement SKILL.md — find_next_uc now references 'Backlog' instead of 'Ready'"
+      - "docs: Docstrings across spec_driven.py updated with new state names"
+
   4.0.1:
     date: 2026-03-09
     changes:

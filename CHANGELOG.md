@@ -2,6 +2,19 @@
 
 All notable changes to SDD-JPS Engine are documented here.
 
+## [4.0.2] - 2026-03-09
+
+### Changed
+- **Board Taxonomy refactor** — Trello workflow lists renamed for semantic clarity:
+  - `Backlog` → `User Stories` (static US registry, cards don't move)
+  - `Ready` → `Backlog` (UC queue, cards flow through pipeline)
+- **WorkflowState enum** — Internal states renamed: `backlog` → `user_stories`, `ready` → `backlog`
+- **spec_driven.py** — All hardcoded list name lookups (`lst["name"].lower()`) updated to match new names
+- **find_next_uc** — Now searches "Backlog" list (formerly "Ready") for next UC to implement
+- **move_us** — Movement rules updated: `user_stories` replaces `backlog`, `backlog` replaces `ready`
+- **Tests** — conftest fixtures, test_models assertions, test_board_helpers, test_coverage_edges, test_tools_board all aligned
+- **implement SKILL.md** — UC lifecycle diagram and merge flow reference new list names
+
 ## [4.0.1] - 2026-03-09
 
 ### Added

@@ -186,7 +186,7 @@ Para cada Use Case, determinar:
 - **Actor**: [actor]
 - **Horas**: [N]h
 - **Pantallas**: [pantallas]
-- **Estado**: [backlog/ready/in_progress/review/done]
+- **Estado**: [user_stories/backlog/in_progress/review/done]
 
 #### Acceptance Criteria
 - [ ] **AC-01**: [Criterio especifico y testable]

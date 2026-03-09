@@ -159,7 +159,7 @@ class TestSprintBlockedUs:
         }
         mock_client.get_board.return_value = {"name": "TEST"}
         mock_client.get_board_lists.return_value = [
-            {"id": "list_backlog", "name": "Backlog"},
+            {"id": "list_backlog", "name": "User Stories"},
             {"id": "list_done", "name": "Done"},
         ]
         mock_client.get_board_cards.return_value = [us_card]

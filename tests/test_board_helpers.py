@@ -64,7 +64,7 @@ class TestIsUsUcCard:
 class TestGetStateForList:
     def test_known_list(self, sample_lists):
         state = get_state_for_list("list_backlog", sample_lists)
-        assert state == "backlog"
+        assert state == "user_stories"
 
     def test_done_list(self, sample_lists):
         state = get_state_for_list("list_done", sample_lists)

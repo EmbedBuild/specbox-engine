@@ -78,17 +78,17 @@ Que recibi?
 ```
 US-XX recibida
   ├── Cargar plan de la US
-  ├── find_next_uc → UC-001 (Ready)
+  ├── find_next_uc → UC-001 (Backlog)
   │   ├── start_uc(UC-001) → In Progress
   │   ├── Implementar (Pasos 1-7.7)
   │   ├── complete_uc(UC-001) → Done
   │   ├── Merge secuencial (Paso 8.5)
   │   └── Pull main
-  ├── find_next_uc → UC-002 (Ready)
+  ├── find_next_uc → UC-002 (Backlog)
   │   ├── start_uc(UC-002) → In Progress
   │   ├── ... (mismo ciclo)
   │   └── Pull main
-  └── No mas UCs en Ready → Finalizar
+  └── No mas UCs en Backlog → Finalizar
 ```
 
 ### 0.1b Si es plan local:
@@ -1408,13 +1408,13 @@ git pull origin main
 
 #### Si origen es Trello (US-XX mode):
 ```
-→ Llamar find_next_uc(board_id) para obtener siguiente UC en Ready
+→ Llamar find_next_uc(board_id) para obtener siguiente UC en Backlog
 → Si hay UC disponible:
   → start_uc(board_id, uc_id) — mueve a In Progress
   → Volver a Paso 0.1a con el nuevo UC
   → El nuevo feature branch parte del main actualizado (post-merge)
   → CERO conflictos garantizados
-→ Si no hay mas UCs en Ready:
+→ Si no hay mas UCs en Backlog:
   → Verificar si todos los UCs de la US estan en Done
   → Si todos Done → move_us a Done + delivery report
   → Finalizar pipeline con resumen global

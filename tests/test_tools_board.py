@@ -50,8 +50,8 @@ class TestGetBoardStatus:
         with _patch_client(mock_trello_client):
             result = await get_board_status("board123", mock_ctx)
 
-        # Backlog list should have 1 US and 1 UC
-        backlog = next(l for l in result["lists"] if l["name"] == "Backlog")
+        # User Stories list should have 1 US and 1 UC
+        backlog = next(l for l in result["lists"] if l["name"] == "User Stories")
         assert backlog["us_count"] == 1
         assert backlog["uc_count"] == 1
 

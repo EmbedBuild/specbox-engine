@@ -42,8 +42,8 @@ def sample_board():
 @pytest.fixture
 def sample_lists():
     return [
-        {"id": "list_backlog", "name": "Backlog"},
-        {"id": "list_ready", "name": "Ready"},
+        {"id": "list_backlog", "name": "User Stories"},
+        {"id": "list_ready", "name": "Backlog"},
         {"id": "list_ip", "name": "In Progress"},
         {"id": "list_review", "name": "Review"},
         {"id": "list_done", "name": "Done"},

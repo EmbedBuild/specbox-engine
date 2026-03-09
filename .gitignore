@@ -8,6 +8,12 @@
 # Node
 node_modules/
 
+# Python
+__pycache__/
+*.pyc
+.venv/
+src
+
 # OS
 .DS_Store
 Thumbs.db

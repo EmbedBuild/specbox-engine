@@ -252,11 +252,11 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
         lists = await client.get_board_lists(board_id)
         backlog_id = None
         for lst in lists:
-            if lst["name"].lower() == "backlog":
+            if lst["name"].lower() == "user stories":
                 backlog_id = lst["id"]
                 break
         if not backlog_id:
-            return {"error": "Backlog list not found", "code": "LIST_NOT_FOUND"}
+            return {"error": "User Stories list not found", "code": "LIST_NOT_FOUND"}
 
         custom_fields = await client.get_board_custom_fields(board_id)
         cf_map = build_custom_field_map(custom_fields)
@@ -348,7 +348,7 @@ async def list_us(board_id: str, ctx: Context, status: str | None = None) -> lis
     """List all User Stories on the board.
 
     Filters cards with custom field tipo=US. Optionally filter by workflow
-    status (backlog, ready, in_progress, review, done).
+    status (user_stories, backlog, in_progress, review, done).
 
     Args:
         board_id: Trello board ID
@@ -488,9 +488,9 @@ async def move_us(board_id: str, us_id: str, target: str, ctx: Context) -> dict[
     """Move a User Story and its Use Cases through the workflow.
 
     Movement rules:
-    - backlog: moves US + ALL UCs to Backlog
-    - ready: moves US to Ready + UCs in Backlog to Ready
-    - in_progress: moves US to In Progress + UCs in Backlog/Ready to Ready
+    - user_stories: moves US + ALL UCs to User Stories
+    - backlog: moves US to Backlog + UCs in User Stories to Backlog
+    - in_progress: moves US to In Progress + UCs in User Stories/Backlog to Backlog
     - review: ONLY if all UCs are in Review or Done
     - done: ONLY if ALL UCs are in Done
 
@@ -555,22 +555,22 @@ async def move_us(board_id: str, us_id: str, target: str, ctx: Context) -> dict[
 
         await client.move_card(us_card["id"], target_list_id)
 
-        if target == "backlog":
+        if target == "user_stories":
             for uc in uc_cards:
                 await client.move_card(uc["id"], target_list_id)
                 ucs_moved += 1
-        elif target == "ready":
-            backlog_ids = {lst["id"] for lst in lists if lst["name"].lower() == "backlog"}
+        elif target == "backlog":
+            us_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "user stories"}
             for uc in uc_cards:
-                if uc.get("idList") in backlog_ids:
+                if uc.get("idList") in us_list_ids:
                     await client.move_card(uc["id"], target_list_id)
                     ucs_moved += 1
         elif target == "in_progress":
-            ready_id = await get_list_id_for_state(client, board_id, "ready")
-            backlog_ready_ids = {lst["id"] for lst in lists if lst["name"].lower() in ("backlog", "ready")}
+            backlog_id = await get_list_id_for_state(client, board_id, "backlog")
+            us_backlog_ids = {lst["id"] for lst in lists if lst["name"].lower() in ("user stories", "backlog")}
             for uc in uc_cards:
-                if uc.get("idList") in backlog_ready_ids:
-                    await client.move_card(uc["id"], ready_id)
+                if uc.get("idList") in us_backlog_ids:
+                    await client.move_card(uc["id"], backlog_id)
                     ucs_moved += 1
 
         return {"us_id": us_id, "new_status": target, "ucs_moved": ucs_moved, "errors": errors}
@@ -674,7 +674,7 @@ async def list_uc(board_id: str, ctx: Context, us_id: str | None = None, status:
     Args:
         board_id: Trello board ID
         us_id: Optional parent US ID filter (e.g., "US-01")
-        status: Optional workflow state filter (backlog, ready, in_progress, review, done)
+        status: Optional workflow state filter (user_stories, backlog, in_progress, review, done)
 
     Returns:
         List of UC summaries with AC progress.
@@ -809,7 +809,7 @@ async def move_uc(board_id: str, uc_id: str, target: str, ctx: Context) -> dict[
     Args:
         board_id: Trello board ID
         uc_id: Use Case ID (e.g., "UC-001")
-        target: Target state (backlog, ready, in_progress, review, done)
+        target: Target state (user_stories, backlog, in_progress, review, done)
 
     Returns:
         Movement result with US checklist update status.
@@ -1391,15 +1391,15 @@ async def find_next_uc(board_id: str, ctx: Context) -> dict[str, Any] | None:
     """Find the next Use Case to work on.
 
     Priority:
-    1. UCs in Ready whose US has UCs in In Progress (maintain focus)
-    2. UCs in Ready from the US with most UCs in Ready (start a block)
-    3. First UC in Ready by position
+    1. UCs in Backlog whose US has UCs in In Progress (maintain focus)
+    2. UCs in Backlog from the US with most UCs in Backlog (start a block)
+    3. First UC in Backlog by position
 
     Args:
         board_id: Trello board ID
 
     Returns:
-        Full UC detail (same as get_uc) or None if nothing in Ready.
+        Full UC detail (same as get_uc) or None if nothing in Backlog.
     """
     client = await get_session_client(ctx)
     try:
@@ -1408,7 +1408,7 @@ async def find_next_uc(board_id: str, ctx: Context) -> dict[str, Any] | None:
         custom_fields = await client.get_board_custom_fields(board_id)
         cf_map = build_custom_field_map(custom_fields)
 
-        ready_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "ready"}
+        ready_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "backlog"}
         ip_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "in progress"}
 
         ready_ucs = [

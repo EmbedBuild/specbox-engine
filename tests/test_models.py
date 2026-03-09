@@ -15,11 +15,13 @@ from src.models import (
 
 class TestWorkflowStates:
     def test_list_names(self):
+        assert WORKFLOW_LIST_NAMES["user_stories"] == "User Stories"
         assert WORKFLOW_LIST_NAMES["backlog"] == "Backlog"
         assert WORKFLOW_LIST_NAMES["done"] == "Done"
         assert len(WORKFLOW_LIST_NAMES) == 5
 
     def test_reverse_mapping(self):
+        assert LIST_NAME_TO_STATE["User Stories"] == "user_stories"
         assert LIST_NAME_TO_STATE["Backlog"] == "backlog"
         assert LIST_NAME_TO_STATE["In Progress"] == "in_progress"
 

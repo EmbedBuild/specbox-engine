@@ -12,6 +12,7 @@ services:
       - MCP_PORT=8000
       - DASHBOARD_TOKEN=${DASHBOARD_TOKEN:-}
       - LOG_FORMAT=json
+    stop_grace_period: 10s
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
       interval: 30s

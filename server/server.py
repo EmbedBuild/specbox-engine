@@ -120,10 +120,12 @@ def main():
     logger = structlog.get_logger(__name__)
     logger.info("server_starting", transport=transport, host=host, port=port, version="4.0.0")
 
+    uvicorn_opts = {"timeout_graceful_shutdown": 5}
+
     if transport in ("http", "streamable-http"):
-        mcp.run(transport="streamable-http", host=host, port=port)
+        mcp.run(transport="streamable-http", host=host, port=port, uvicorn_config=uvicorn_opts)
     elif transport == "sse":
-        mcp.run(transport="sse", host=host, port=port)
+        mcp.run(transport="sse", host=host, port=port, uvicorn_config=uvicorn_opts)
     else:
         mcp.run(transport="stdio")
 

@@ -13,6 +13,30 @@ __pycache__/
 *.pyc
 .venv/
 src
+*.egg-info/
+.pytest_cache/
+
+# Build artifacts
+server/dashboard/dist/
+
+# Package manager locks (generated, not committed)
+uv.lock
+
+# Environment / Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+id_rsa*
+secrets.*
+credentials.json
+firebase-adminsdk*.json
+google-services.json
+GoogleService-Info.plist
 
 # OS
 .DS_Store

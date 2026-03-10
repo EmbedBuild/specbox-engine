@@ -18,8 +18,8 @@ El objetivo es que el LLM (Claude Code) piense en US/UC/AC, nunca en cards/lists
 ### Contexto del ecosistema
 
 Ya tengo MCPs desplegados con esta misma arquitectura. Usa como referencia de patron:
-- **Repo existente**: `/Users/jesusperezsanchez/Desktop/Proyectos/0_jps_iautomat/jpsdeveloper/mcp/trello/` (MCP generico de Trello)
-- **Auth Gateway**: `https://auth.jpsdeveloper.com` — centraliza credenciales. El usuario llama `set_auth_token(jwt)` y el MCP obtiene API key + token de Trello del gateway.
+- **Repo existente**: Repositorio del MCP genérico de Trello (ver configuración local)
+- **Auth Gateway**: `https://your-auth-gateway.example.com` — centraliza credenciales. El usuario llama `set_auth_token(jwt)` y el MCP obtiene API key + token de Trello del gateway.
 - **Deploy**: Docker + EasyPanel. Transporte: Streamable HTTP en puerto 8000, endpoint `/mcp`
 
 Lee el server.py, Dockerfile, docker-compose.yml y auth_gateway.py del MCP de Trello existente para entender el patron de autenticacion y transporte. Replica esa misma arquitectura.
@@ -483,7 +483,7 @@ Replica el patron del Dockerfile del MCP de Trello existente:
 
 ```
 # Auth Gateway
-AUTH_GATEWAY_URL=https://auth.jpsdeveloper.com
+AUTH_GATEWAY_URL=https://your-auth-gateway.example.com
 AUTH_GATEWAY_API_KEY=
 
 # Transport

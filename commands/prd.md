@@ -27,7 +27,7 @@ El archivo `.claude/settings.local.json` puede contener:
     "defaultProject": "MCPROFIT",
     "defaultState": "Backlog",
     "projectId": "a6a688dd-03e2-4863-bcd8-c9cb64607cd3",
-    "defaultAssignee": "d325686f-2d7c-491f-9e28-dffbf4e23c55"
+    "defaultAssignee": "{PLANE_ASSIGNEE_ID}"
   }
 }
 ```
@@ -36,7 +36,7 @@ El archivo `.claude/settings.local.json` puede contener:
 
 **OBLIGATORIO**: Todas las tareas creadas con `/prd` se asignan automáticamente a:
 - **Usuario**: {developer_name} ({developer_email})
-- **ID**: `d325686f-2d7c-491f-9e28-dffbf4e23c55`
+- **ID**: `{PLANE_ASSIGNEE_ID}`
 
 ---
 
@@ -263,7 +263,7 @@ Usar `plane:create_work_item`:
   "priority": "[urgent|high|medium|low|none]",
   "state": "[ID del estado Backlog o To-Do]",
   "labels": ["[ID de label si aplica]"],
-  "assignees": ["d325686f-2d7c-491f-9e28-dffbf4e23c55"]
+  "assignees": ["{PLANE_ASSIGNEE_ID}"]
 }
 ```
 

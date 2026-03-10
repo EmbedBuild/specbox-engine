@@ -48,7 +48,7 @@ Buscar en `.claude/settings.local.json`:
     "defaultProject": "MCPROFIT",
     "projectId": "uuid",
     "defaultState": "Backlog",
-    "defaultAssignee": "d325686f-2d7c-491f-9e28-dffbf4e23c55"
+    "defaultAssignee": "{PLANE_ASSIGNEE_ID}"
   }
 }
 ```
@@ -62,9 +62,11 @@ Buscar en `.claude/settings.local.json`:
 
 ### 0.3 Asignee por defecto (Plane)
 
-**OBLIGATORIO** para Plane: Todas las tareas se asignan a:
-- **Usuario**: Jesus Perez Sanchez (jesus.perez.developer@gmail.com)
-- **ID**: `d325686f-2d7c-491f-9e28-dffbf4e23c55`
+**OBLIGATORIO** para Plane: Todas las tareas se asignan al usuario configurado en:
+- **Variable**: `PLANE_DEFAULT_ASSIGNEE_EMAIL` (env var o settings.local.json → `plane.assigneeEmail`)
+- **ID**: `PLANE_DEFAULT_ASSIGNEE_ID` (env var o settings.local.json → `plane.assigneeId`)
+
+Si no están configurados, preguntar al usuario.
 
 ---
 
@@ -672,11 +674,11 @@ Usar `plane:create_work_item`:
   "priority": "[urgent|high|medium|low|none]",
   "state": "[ID del estado Backlog o To-Do]",
   "labels": ["[ID de label si aplica]"],
-  "assignees": ["d325686f-2d7c-491f-9e28-dffbf4e23c55"]
+  "assignees": ["{PLANE_ASSIGNEE_ID}"]
 }
 ```
 
-> **IMPORTANTE**: El campo `assignees` SIEMPRE incluye el ID de Jesus Perez
+> **IMPORTANTE**: El campo `assignees` SIEMPRE incluye el ID del assignee configurado
 
 #### Mapeo de prioridades
 

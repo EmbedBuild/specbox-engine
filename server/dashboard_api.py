@@ -23,8 +23,13 @@ from .tools.state import (
 )
 
 
+_CORS_ORIGIN = os.getenv("DASHBOARD_CORS_ORIGIN", "")
+
+
 def _json(data: dict | list, status: int = 200) -> JSONResponse:
-    return JSONResponse(data, status_code=status, headers={"Access-Control-Allow-Origin": "*"})
+    cors = _CORS_ORIGIN if _CORS_ORIGIN else None
+    headers = {"Access-Control-Allow-Origin": cors} if cors else {}
+    return JSONResponse(data, status_code=status, headers=headers)
 
 
 def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path) -> None:

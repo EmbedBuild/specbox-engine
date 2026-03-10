@@ -1,8 +1,8 @@
-version: 4.0.2
-codename: "Board Taxonomy"
+version: 4.0.3
+codename: "Public Release Hardening"
 brand: "SDD-JPS Engine"
 brand_full: "Spec-Driven Development Engine by JPS"
-release_date: 2026-03-09
+release_date: 2026-03-10
 min_claude_code: "1.0.0"
 
 stacks:
@@ -68,8 +68,25 @@ features:
   - veg-images-pending-flag
   - project-config-json-support
   - css-placeholder-prohibition
+  # New (v4.0.3)
+  - dashboard-cors-configurable
+  - security-audit-public-release
 
 changelog:
+  4.0.3:
+    date: 2026-03-10
+    changes:
+      - "security: Audit completo para release publico — eliminadas credenciales, rutas locales y URLs internas"
+      - "security: CORS configurable via DASHBOARD_CORS_ORIGIN — sin header por defecto (same-origin only)"
+      - "security: .gitignore hardened — .env*, *.key, *.pem, *.p12, credentials.json, firebase-adminsdk*.json"
+      - "security: server/dashboard/dist/ eliminado del tracking (build artifacts)"
+      - "docs: README.md — Sala de Maquinas es instancia propia del usuario, no servidor central"
+      - "docs: README.md — configuracion de seguridad en produccion (DASHBOARD_TOKEN, CORS)"
+      - "docs: SECURITY.md — politica de responsible disclosure y best practices"
+      - "docs: .env.example — template de variables de entorno para desarrolladores"
+      - "docs: CHANGELOG.md — v4.0.3 con cambios de seguridad y release publico"
+      - "refactor: Plane assignee parametrizado como {PLANE_ASSIGNEE_ID} en skills y commands"
+
   4.0.2:
     date: 2026-03-09
     changes:

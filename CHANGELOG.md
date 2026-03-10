@@ -2,6 +2,25 @@
 
 All notable changes to SDD-JPS Engine are documented here.
 
+## [4.0.3] - 2026-03-10
+
+### Security
+- **CORS configurable** — `DASHBOARD_CORS_ORIGIN` env var controla que origenes pueden hacer requests al dashboard. Sin configurar = no se envian headers CORS (same-origin only). Antes era `Access-Control-Allow-Origin: *` hardcodeado.
+- **.gitignore hardened** — Añadidos patrones para `.env*`, `*.key`, `*.pem`, `*.p12`, `*.pfx`, `*.jks`, `id_rsa*`, `secrets.*`, `credentials.json`, `firebase-adminsdk*.json`, `google-services.json`, `GoogleService-Info.plist`.
+- **Dashboard dist removido del tracking** — `server/dashboard/dist/` ya no se commitea (el Dockerfile lo construye en Stage 1).
+- **Credenciales personales eliminadas** — Email, UUID de Plane y rutas locales absolutas parametrizadas o eliminadas.
+- **URLs internas reemplazadas** — Dominios de infraestructura reemplazados por placeholders `example.com`.
+
+### Added
+- **SECURITY.md** — Politica de responsible disclosure, versiones soportadas, best practices de seguridad.
+- **.env.example** — Template de variables de entorno con documentacion inline.
+- **`DASHBOARD_CORS_ORIGIN`** — Nueva variable de entorno para configurar CORS del dashboard.
+
+### Changed
+- **README.md** — Seccion "Sala de Maquinas" clarifica que cada usuario despliega su propia instancia (no hay servidor central compartido). Incluye tabla de configuracion de seguridad en produccion.
+- **docker-compose.yml** — Incluye `DASHBOARD_CORS_ORIGIN` en variables de entorno.
+- **Plane assignee** — Parametrizado como `{PLANE_ASSIGNEE_ID}` en `/prd` skill y command (antes era UUID hardcodeado).
+
 ## [4.0.2] - 2026-03-09
 
 ### Changed

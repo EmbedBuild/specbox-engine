@@ -25,7 +25,8 @@ We will acknowledge your report within 48 hours and provide a timeline for resol
 
 ## Security Best Practices for Users
 
-- **Always set `DASHBOARD_TOKEN`** in production deployments
+- **Always set `DASHBOARD_TOKEN`** in production deployments — without it, the dashboard is open to anyone who can reach the port
+- **Configure `DASHBOARD_CORS_ORIGIN`** in production — by default CORS headers are not sent (same-origin only). Set to your specific domain, never use `"*"` in production
 - **Never commit `.env` files** — use `.env.example` as a template
 - Trello credentials are per-session and not persisted to disk
 - Remote MCP telemetry (`DEV_ENGINE_MCP_URL`) is opt-in and fire-and-forget

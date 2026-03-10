@@ -1,4 +1,4 @@
-# SDD-JPS Engine v4.0.1 — Hardened Autopilot
+# SDD-JPS Engine v4.0.3 — Public Release
 
 **Spec-Driven Development Engine by JPS** — Sistema de programacion agentica para Claude Code.
 
@@ -673,7 +673,7 @@ docker compose up
 
 ## Sala de Maquinas (Dashboard)
 
-Dashboard embebido (React 19 + Vite) para visualizar estado global de todos los proyectos.
+Dashboard embebido (React 19 + Vite) que **cada usuario despliega con su propia instancia del MCP server**. La Sala de Maquinas muestra los datos de **tus** proyectos, almacenados localmente en tu `STATE_PATH`. No hay servidor central compartido — cada instalacion es independiente y privada.
 
 **Features:**
 - Estado de proyectos onboarded
@@ -683,6 +683,19 @@ Dashboard embebido (React 19 + Vite) para visualizar estado global de todos los 
 - Spec-Driven: estado de boards Trello
 - Acceptance tests y validaciones
 - E2E test results
+
+**Seguridad en produccion:**
+
+| Variable | Valor recomendado | Descripcion |
+|----------|-------------------|-------------|
+| `DASHBOARD_TOKEN` | Token secreto largo | **Obligatorio**. Sin token, el dashboard es accesible sin autenticacion |
+| `DASHBOARD_CORS_ORIGIN` | `https://tu-dominio.com` | Restringe que origenes pueden hacer requests. Vacio = solo mismo origen |
+
+```bash
+# Ejemplo: produccion segura
+DASHBOARD_TOKEN=mi-token-secreto-largo
+DASHBOARD_CORS_ORIGIN=https://mi-sala.ejemplo.com
+```
 
 ---
 
@@ -1078,4 +1091,4 @@ MIT
 
 ---
 
-v4.0.1 | 2026-03-09 | JPS Developer
+v4.0.3 | 2026-03-10 | JPS Developer

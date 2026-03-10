@@ -11,6 +11,7 @@ services:
       - MCP_TRANSPORT=http
       - MCP_PORT=8000
       - DASHBOARD_TOKEN=${DASHBOARD_TOKEN:-}
+      - DASHBOARD_CORS_ORIGIN=${DASHBOARD_CORS_ORIGIN:-}
       - LOG_FORMAT=json
     stop_grace_period: 10s
     healthcheck:

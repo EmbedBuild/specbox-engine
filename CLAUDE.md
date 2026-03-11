@@ -1,4 +1,4 @@
-# SDD-JPS Engine v4.1.0
+# SDD-JPS Engine v4.1.1
 
 > **Spec-Driven Development Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -364,6 +364,6 @@ Configuracion MCP de providers en `templates/settings.json.template` → seccion
 
 ## Engine Version
 
-Current: v4.1.0 "Multi-Backend Abstraction"
+Current: v4.1.1 "Idempotent Import"
 Brand: SDD-JPS Engine (Spec-Driven Development Engine by JPS)
 Config: ENGINE_VERSION.yaml

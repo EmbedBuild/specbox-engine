@@ -1,5 +1,5 @@
-version: 4.1.0
-codename: "Multi-Backend Abstraction"
+version: 4.1.1
+codename: "Idempotent Import"
 brand: "SDD-JPS Engine"
 brand_full: "Spec-Driven Development Engine by JPS"
 release_date: 2026-03-11
@@ -82,8 +82,21 @@ features:
   - trello-plane-migration
   - bidirectional-project-migration
   - backend-agnostic-spec-tools
+  # New (v4.1.1)
+  - idempotent-import-spec
 
 changelog:
+  4.1.1:
+    date: 2026-03-11
+    changes:
+      - "fix: import_spec now idempotent — find-or-create pattern prevents duplicates on re-import"
+      - "fix: import_spec passes only us_id to create_module (was passing full name, causing find_card_by_custom_field to always miss)"
+      - "feat: import_spec updates existing US/UC metadata (name, description, hours, screens) on re-import"
+      - "feat: import_spec creates only missing ACs when UC already exists (contractual — never overwrites)"
+      - "feat: import_spec response includes 'updated' counters alongside 'created'"
+      - "feat: Module linking handles both new and existing US (creates module for new, reuses for existing)"
+      - "test: 12 new tests in test_import_spec_idempotent.py covering AC-01 through AC-07"
+
   4.1.0:
     date: 2026-03-11
     changes:

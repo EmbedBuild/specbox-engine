@@ -32,6 +32,7 @@ from ..models import (
 from ..pdf_generator import markdown_to_pdf
 from ..spec_backend import (
     ItemDTO,
+    ModuleDTO,
     SpecBackend,
     parse_item_id,
 )
@@ -346,11 +347,10 @@ async def get_board_status(board_id: str, ctx: Context) -> dict[str, Any]:
 
 
 async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]:
-    """Import a full project specification into the board/project.
+    """Import a full project specification into the board/project (idempotent).
 
-    Creates US and UC items from a structured spec. Each US gets an item with
-    labels and metadata. Each UC gets an item with labels, description,
-    acceptance criteria, and a link to its parent US.
+    Uses find-or-create pattern: if items already exist they are updated,
+    otherwise they are created. Safe to call multiple times with the same spec.
 
     Args:
         board_id: Board/project ID
@@ -359,14 +359,16 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
               acceptance_criteria: [str], context}]}]}
 
     Returns:
-        Import results with counts of created items and any errors.
+        Import results with counts of created/updated items and any errors.
     """
     backend = await get_session_backend(ctx)
     try:
         parsed = ImportSpec(**spec)
 
         created_us = 0
+        updated_us = 0
         created_uc = 0
+        updated_uc = 0
         created_ac = 0
         errors: list[str] = []
 
@@ -380,28 +382,42 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
                     f"{us_spec.description}"
                 )
 
-                # Create US item
-                us_item = await backend.create_item(
-                    board_id,
-                    name=f"{us_spec.us_id}: {us_spec.name}",
-                    description=us_desc,
-                    state="user_stories",
-                    labels=["US"],
-                    meta={
-                        "tipo": "US",
-                        "us_id": us_spec.us_id,
-                        "horas": us_spec.hours,
-                        "pantallas": us_spec.screens,
-                    },
-                )
+                us_meta = {
+                    "tipo": "US",
+                    "us_id": us_spec.us_id,
+                    "horas": us_spec.hours,
+                    "pantallas": us_spec.screens,
+                }
 
-                # Create module (checklist in Trello, module in Plane) for UC grouping
-                module = await backend.create_module(
-                    board_id, f"{us_spec.us_id}: {us_spec.name}"
+                # Find-or-create US item
+                existing_us = await backend.find_item_by_field(
+                    board_id, "us_id", us_spec.us_id
                 )
-                created_us += 1
+                module: ModuleDTO | None = None
+                if existing_us:
+                    us_item = await backend.update_item(
+                        board_id,
+                        existing_us.id,
+                        name=f"{us_spec.us_id}: {us_spec.name}",
+                        description=us_desc,
+                        state="user_stories",
+                        meta=us_meta,
+                    )
+                    updated_us += 1
+                else:
+                    us_item = await backend.create_item(
+                        board_id,
+                        name=f"{us_spec.us_id}: {us_spec.name}",
+                        description=us_desc,
+                        state="user_stories",
+                        labels=["US"],
+                        meta=us_meta,
+                    )
+                    # Create module only for new US items (pass only us_id)
+                    module = await backend.create_module(board_id, us_spec.us_id)
+                    created_us += 1
 
-                uc_item_ids: list[str] = []
+                new_uc_item_ids: list[str] = []
 
                 for uc_spec in us_spec.use_cases:
                     try:
@@ -425,45 +441,100 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
                         if uc_spec.actor:
                             uc_labels.append(f"Actor:{uc_spec.actor}")
 
-                        # Create UC item
-                        uc_item = await backend.create_item(
-                            board_id,
-                            name=f"{uc_spec.uc_id}: {uc_spec.name}",
-                            description=uc_desc,
-                            state="backlog",
-                            labels=uc_labels,
-                            parent_id=us_item.id,
-                            meta={
-                                "tipo": "UC",
-                                "uc_id": uc_spec.uc_id,
-                                "us_id": us_spec.us_id,
-                                "horas": uc_spec.hours,
-                                "pantallas": uc_spec.screens,
-                                "actor": uc_spec.actor,
-                            },
-                        )
+                        uc_meta = {
+                            "tipo": "UC",
+                            "uc_id": uc_spec.uc_id,
+                            "us_id": us_spec.us_id,
+                            "horas": uc_spec.hours,
+                            "pantallas": uc_spec.screens,
+                            "actor": uc_spec.actor,
+                        }
 
-                        # Create acceptance criteria
+                        # Find-or-create UC item
+                        existing_uc = await backend.find_item_by_field(
+                            board_id, "uc_id", uc_spec.uc_id
+                        )
+                        if existing_uc:
+                            uc_item = await backend.update_item(
+                                board_id,
+                                existing_uc.id,
+                                name=f"{uc_spec.uc_id}: {uc_spec.name}",
+                                description=uc_desc,
+                                labels=uc_labels,
+                                parent_id=us_item.id,
+                                meta=uc_meta,
+                            )
+                            updated_uc += 1
+                        else:
+                            uc_item = await backend.create_item(
+                                board_id,
+                                name=f"{uc_spec.uc_id}: {uc_spec.name}",
+                                description=uc_desc,
+                                state="backlog",
+                                labels=uc_labels,
+                                parent_id=us_item.id,
+                                meta=uc_meta,
+                            )
+                            created_uc += 1
+
+                        # Acceptance criteria: create only missing ones
                         criteria = [
                             (f"AC-{idx:02d}", ac_text)
                             for idx, ac_text in enumerate(uc_spec.acceptance_criteria, 1)
                         ]
                         if criteria:
-                            await backend.create_acceptance_criteria(
-                                board_id, uc_item.id, criteria
-                            )
-                            created_ac += len(criteria)
+                            if existing_uc:
+                                existing_acs = await backend.get_acceptance_criteria(
+                                    board_id, uc_item.id
+                                )
+                                existing_ac_ids = {ac.id for ac in existing_acs}
+                                new_criteria = [
+                                    (ac_id, text)
+                                    for ac_id, text in criteria
+                                    if ac_id not in existing_ac_ids
+                                ]
+                                if new_criteria:
+                                    await backend.create_acceptance_criteria(
+                                        board_id, uc_item.id, new_criteria
+                                    )
+                                    created_ac += len(new_criteria)
+                            else:
+                                await backend.create_acceptance_criteria(
+                                    board_id, uc_item.id, criteria
+                                )
+                                created_ac += len(criteria)
 
-                        uc_item_ids.append(uc_item.id)
-                        created_uc += 1
+                        # Only track new UCs for module linking
+                        if not existing_uc:
+                            new_uc_item_ids.append(uc_item.id)
 
                     except Exception as e:
                         errors.append(f"UC {uc_spec.uc_id}: {str(e)}")
                         logger.error("import_uc_error", uc_id=uc_spec.uc_id, error=str(e))
 
-                # Add UC items to module
-                if uc_item_ids:
-                    await backend.add_items_to_module(board_id, module.id, uc_item_ids)
+                # Add only new UC items to module
+                if new_uc_item_ids:
+                    if module:
+                        # Module was just created for new US
+                        await backend.add_items_to_module(
+                            board_id, module.id, new_uc_item_ids
+                        )
+                    elif existing_us:
+                        # US existed — create module (finds existing US card/item)
+                        # In Trello this creates a new checklist; in Plane a new module
+                        try:
+                            existing_module = await backend.create_module(
+                                board_id, us_spec.us_id
+                            )
+                            await backend.add_items_to_module(
+                                board_id, existing_module.id, new_uc_item_ids
+                            )
+                        except Exception:
+                            logger.warning(
+                                "import_module_link_skip",
+                                us_id=us_spec.us_id,
+                                msg="Could not link new UCs to module",
+                            )
 
             except Exception as e:
                 errors.append(f"US {us_spec.us_id}: {str(e)}")
@@ -471,6 +542,7 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
 
         return {
             "created": {"us": created_us, "uc": created_uc, "ac": created_ac},
+            "updated": {"us": updated_us, "uc": updated_uc},
             "errors": errors,
         }
     finally:

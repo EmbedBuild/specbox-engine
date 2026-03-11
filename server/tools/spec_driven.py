@@ -27,12 +27,10 @@ from ..auth_gateway import (
 )
 from ..models import (
     ImportSpec,
-    WorkflowState,
     WORKFLOW_LIST_NAMES,
 )
 from ..pdf_generator import markdown_to_pdf
 from ..spec_backend import (
-    ChecklistItemDTO,
     ItemDTO,
     SpecBackend,
     parse_item_id,

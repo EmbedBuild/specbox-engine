@@ -1,8 +1,9 @@
-"""Plane CE backend implementation of SpecBackend.
+"""Plane backend implementation of SpecBackend.
 
 Maps the abstract SpecBackend interface to Plane REST API v1 using PlaneClient.
-Designed for Plane Community Edition (self-hosted) without custom properties —
-uses labels and name conventions to encode metadata (tipo, us_id, uc_id, etc.).
+Works with both Plane Cloud and Plane CE (self-hosted) — only the base_url differs.
+Uses labels and name conventions to encode metadata (tipo, us_id, uc_id, etc.)
+since Plane does not expose custom properties via its REST API.
 """
 
 from __future__ import annotations
@@ -83,8 +84,9 @@ def _extract_meta_from_html(description_html: str) -> dict[str, str]:
     for match in _META_RE.finditer(description_html or ""):
         key = match.group(1).lower()
         value = match.group(2).strip()
-        # Strip any remaining HTML tags from value
+        # Strip HTML tags and decode entities
         value = re.sub(r"<[^>]+>", "", value).strip()
+        value = html.unescape(value)
         meta[key] = value
     return meta
 
@@ -142,7 +144,7 @@ def _detect_item_type(name: str) -> str:
 
 
 class PlaneBackend(SpecBackend):
-    """SpecBackend implementation for Plane CE (self-hosted).
+    """SpecBackend implementation for Plane (Cloud and CE).
 
     Metadata encoding (no custom properties):
     - tipo (US/UC/AC): Label "US", "UC", or "AC"
@@ -321,8 +323,10 @@ class PlaneBackend(SpecBackend):
                 )
                 labels_mapping[label_name] = new_label["id"]
 
-        # Invalidate caches for the new project
+        # Invalidate and repopulate caches for the new project
         self._invalidate_caches(project_id)
+        await self._ensure_state_cache(project_id)
+        await self._ensure_label_cache(project_id)
 
         project_url = (
             f"{self.client.base_url}/{self.client.workspace_slug}"
@@ -475,7 +479,14 @@ class PlaneBackend(SpecBackend):
         if parent_id is not None:
             data["parent"] = parent_id
         if priority is not None:
-            data["priority"] = priority
+            priority_map = {
+                "none": "none",
+                "low": "low",
+                "medium": "medium",
+                "high": "high",
+                "urgent": "urgent",
+            }
+            data["priority"] = priority_map.get(priority, priority)
 
         if data:
             await self.client.update_work_item(board_id, item_id, **data)
@@ -580,6 +591,15 @@ class PlaneBackend(SpecBackend):
     ) -> list[ChecklistItemDTO]:
         result: list[ChecklistItemDTO] = []
         ac_label_ids = await self._resolve_label_ids(board_id, ["AC"])
+        if not ac_label_ids:
+            # Ensure AC label exists before creating ACs
+            new_label = await self.client.create_label(
+                board_id, name="AC", color="#A855F7"
+            )
+            ac_label_ids = [new_label["id"]]
+            # Update cache
+            if board_id in self._label_cache:
+                self._label_cache[board_id]["AC"] = new_label["id"]
 
         backlog_state_id = await self._resolve_state_id(board_id, "backlog")
 

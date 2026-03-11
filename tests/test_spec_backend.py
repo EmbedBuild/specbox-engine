@@ -65,11 +65,11 @@ class TestParseItemId:
         assert item_id == "AC-03"
         assert name == "Redirige segun rol"
 
-    def test_unknown_prefix_falls_back_to_us(self):
-        """Unknown prefix falls back to _US_RE pattern."""
+    def test_unknown_prefix_returns_empty(self):
+        """Unknown prefix returns empty id and original name."""
         item_id, name = parse_item_id("US-10: Something", "UNKNOWN")
-        assert item_id == "US-10"
-        assert name == "Something"
+        assert item_id == ""
+        assert name == "US-10: Something"
 
     def test_empty_string(self):
         item_id, name = parse_item_id("", "US")

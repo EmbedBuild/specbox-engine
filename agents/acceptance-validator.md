@@ -1,6 +1,6 @@
 # AG-09b: Acceptance Validator
 
-> SDD-JPS Engine v4.0.0
+> SDD-JPS Engine v4.1.0
 > Agente independiente de validación de acceptance criteria desde Gherkin + JSON Cucumber.
 > NO es AG-04 (QA). NO es AG-08 (Quality Auditor). NO es AG-09a (Acceptance Tester).
 > AG-09b VALIDA que la feature cumple lo que el PRD especificó.
@@ -347,4 +347,4 @@ Cuando AG-09b emite CONDITIONAL o REJECTED:
 
 ---
 
-*SDD-JPS Engine v4.0.0 — Acceptance Validator (Gherkin BDD)*
+*SDD-JPS Engine v4.1.0 — Acceptance Validator (Gherkin BDD)*

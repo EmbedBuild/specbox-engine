@@ -1,8 +1,10 @@
-# SDD-JPS Engine v4.0.3 — Public Release
+# SDD-JPS Engine v4.1.0 — Public Release
 
 **Spec-Driven Development Engine by JPS** — Sistema de programacion agentica para Claude Code.
 
-Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 73+ tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello para desarrollo profesional con Claude Code.
+Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 78+ tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane para desarrollo profesional con Claude Code.
+
+> **[English version below](#english-version)** — Scroll down for the full English documentation.
 
 ---
 
@@ -18,7 +20,8 @@ Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad
 - [Hooks System](#hooks-system)
 - [Self-Healing Protocol](#self-healing-protocol)
 - [VEG — Visual Experience Generation](#veg--visual-experience-generation)
-- [Spec-Driven Pipeline (Trello)](#spec-driven-pipeline-trello)
+- [Multi-Backend: Trello + Plane](#multi-backend-trello--plane)
+- [Spec-Driven Pipeline](#spec-driven-pipeline)
 - [Hardened Autopilot Guards (v4.0.1)](#hardened-autopilot-guards-v401)
 - [MCP Server](#mcp-server)
 - [Sala de Maquinas (Dashboard)](#sala-de-maquinas-dashboard)
@@ -94,10 +97,10 @@ Las Skills se auto-descubren cuando son relevantes. Los hooks se ejecutan automa
                Merge secuencial → pull main → siguiente UC
 ```
 
-### Flujo Spec-Driven (Trello)
+### Flujo Spec-Driven (Trello / Plane)
 
 ```
-/prd ──> PRD + Trello Board (US/UC/AC cards)
+/prd ──> PRD + Board/Project (US/UC/AC cards/work-items)
            │
 /plan ──> Plan tecnico + Stitch + VEG
            │  (adjunta plan como evidencia PDF a la US)
@@ -152,13 +155,13 @@ Genera un Product Requirements Document estructurado con US/UC/AC hierarchy.
 3. Genera PRD con template estructurado (US-XX, UC-XXX, AC-XX)
 4. **Definition Quality Gate**: Rechaza criterios vagos o no-testables
 5. Detecta audiencia y genera VEG Readiness
-6. Crea Work Item en Trello con US/UC/AC cards
+6. Crea Work Items en Trello o Plane con US/UC/AC cards
 7. Adjunta PRD como evidencia PDF a la US
 
-**Output:** `doc/prd/PRD_{nombre}.md` + Trello board con cards
+**Output:** `doc/prd/PRD_{nombre}.md` + Board/Project con cards
 
 **Modos:**
-- **Spec-Driven (Trello)**: Enriquece especificacion firmada por cliente
+- **Spec-Driven (Trello/Plane)**: Enriquece especificacion firmada por cliente
 - **Freeform**: Crea PRD desde cero a partir de descripcion
 
 ---
@@ -509,17 +512,56 @@ Sistema de 3 modos para generar decisiones visuales (imagenes, motion, design) a
 
 ---
 
-## Spec-Driven Pipeline (Trello)
+## Multi-Backend: Trello + Plane
 
-Pipeline basado en especificacion con Trello como fuente de verdad.
+Desde v4.1.0, el engine soporta **Trello** y **Plane** como gestores de proyecto intercambiables. Ambos backends implementan la misma interfaz `SpecBackend` (23 metodos), por lo que todos los tools MCP funcionan de forma identica con cualquiera de los dos.
+
+### Arquitectura Multi-Backend
+
+```
+spec_driven.py (21 tools, backend-agnostic)
+        │
+        ▼
+  SpecBackend ABC ─── 23 metodos unificados
+   ┌────┴────┐
+   │         │
+TrelloBackend  PlaneBackend
+   │              │
+TrelloClient   PlaneClient
+(httpx+retry)  (httpx+retry, X-Api-Key)
+```
+
+### Configuracion de backend
+
+**Trello** — `set_auth_token(token="TRELLO_TOKEN", api_key="TRELLO_KEY")`
+
+**Plane** — `set_auth_token(token="PLANE_API_KEY", backend_type="plane", base_url="https://app.plane.so", workspace_slug="my-ws")`
+
+### Migracion entre backends
+
+| Tool | Proposito |
+|------|-----------|
+| `migrate_preview` | Vista previa de la migracion (dry run) |
+| `migrate_project` | Migrar US/UC/AC entre backends |
+| `migrate_status` | Estado de la migracion en curso |
+| `set_migration_target` | Configurar backend destino |
+| `switch_backend` | Cambiar backend activo de la sesion |
+
+La migracion es idempotente: usa `external_source` + `external_id` para evitar duplicados.
+
+---
+
+## Spec-Driven Pipeline
+
+Pipeline basado en especificacion con Trello o Plane como fuente de verdad.
 
 ### Jerarquia
 
 ```
-Board (proyecto)
-├── US-01: User Story (card en lista workflow)
-│   ├── UC-001: Use Case (card hija)
-│   │   ├── AC-01: Acceptance Criterion (checklist item)
+Board/Project
+├── US-01: User Story (card/work-item en lista workflow)
+│   ├── UC-001: Use Case (card hija / sub-work-item)
+│   │   ├── AC-01: Acceptance Criterion (checklist item / sub-item)
 │   │   ├── AC-02: ...
 │   │   └── AC-03: ...
 │   ├── UC-002: ...
@@ -534,11 +576,11 @@ Board (proyecto)
 Backlog → Ready → In Progress → Review → Done
 ```
 
-### Tools MCP para Trello
+### Tools MCP (backend-agnostic)
 
 | Tool | Proposito |
 |------|-----------|
-| `setup_board` | Crear board con listas workflow |
+| `setup_board` | Crear board/proyecto con listas workflow |
 | `import_spec` | Importar US/UC/AC desde JSON |
 | `get_us` / `list_us` | Leer User Stories |
 | `get_uc` / `list_uc` | Leer Use Cases |
@@ -549,7 +591,7 @@ Backlog → Ready → In Progress → Review → Done
 | `mark_ac` / `mark_ac_batch` | Marcar criterios de aceptacion |
 | `attach_evidence` | Adjuntar PDF de evidencia |
 | `get_evidence` | Buscar evidencia adjunta |
-| `get_board_status` | Estado completo del board |
+| `get_board_status` | Estado completo del board/proyecto |
 | `get_delivery_report` | Reporte de entrega |
 
 ### Configuracion
@@ -560,6 +602,11 @@ En `.claude/project-config.json` (PREFERIDO):
 {
   "trello": {
     "boardId": "ID_DEL_BOARD"
+  },
+  "plane": {
+    "projectId": "ID_DEL_PROYECTO",
+    "baseUrl": "https://app.plane.so",
+    "workspaceSlug": "mi-workspace"
   },
   "stitch": {
     "projectId": "ID_PROYECTO_STITCH",
@@ -626,7 +673,7 @@ Ahora son **HARD BLOCKS** que detienen el pipeline.
 
 ## MCP Server
 
-Servidor MCP unificado con 73+ tools en un solo endpoint.
+Servidor MCP unificado con 78+ tools en un solo endpoint.
 
 ### Arquitectura
 
@@ -634,12 +681,17 @@ Servidor MCP unificado con 73+ tools en un solo endpoint.
 server/
 ├── server.py              # FastMCP main server
 ├── dashboard_api.py       # REST API para dashboard
-├── auth_gateway.py        # Credenciales per-session
-├── trello_client.py       # Async httpx con retry
-├── board_helpers.py       # Card parsing, custom fields
+├── auth_gateway.py        # Credenciales per-session (Trello + Plane)
+├── spec_backend.py        # SpecBackend ABC (23 metodos)
+├── trello_client.py       # Async httpx con retry (Trello)
+├── board_helpers.py       # Card parsing, custom fields (Trello)
+├── backends/              # Multi-backend implementations
+│   ├── trello_backend.py  #   TrelloBackend (SpecBackend wrapper)
+│   ├── plane_backend.py   #   PlaneBackend (SpecBackend implementation)
+│   └── plane_client.py    #   PlaneClient (httpx async, X-Api-Key)
 ├── models.py              # Pydantic models (US, UC, AC)
 ├── pdf_generator.py       # Markdown → PDF
-├── tools/                 # 10 modulos de tools
+├── tools/                 # 11 modulos de tools
 │   ├── engine.py          # 3 tools: version, status, rules
 │   ├── plans.py           # 3 tools: list, read, architecture
 │   ├── quality.py         # 4 tools: baseline, logs, evidence
@@ -649,7 +701,8 @@ server/
 │   ├── hooks.py           # 3 tools: list, config, source
 │   ├── onboarding.py      # 10+ tools: register, onboard, upgrade
 │   ├── state.py           # 20 tools: report, checkpoint, healing
-│   └── spec_driven.py     # 21 tools: Trello domain (US/UC/AC)
+│   ├── spec_driven.py     # 21 tools: backend-agnostic (US/UC/AC)
+│   └── migration.py       # 5 tools: Trello ↔ Plane migration
 ├── resources/             # 8 MCP Resources
 └── dashboard/             # React 19 + Vite frontend
 ```
@@ -782,7 +835,7 @@ upgrade_project(name)          # Actualiza al ultimo template del engine
 ```
 sdd-jps-engine/
 ├── CLAUDE.md                          # Instrucciones del engine para Claude
-├── ENGINE_VERSION.yaml                # Version 4.0.1, stacks, servicios, changelog
+├── ENGINE_VERSION.yaml                # Version 4.1.0, stacks, servicios, changelog
 ├── README.md                          # Este archivo
 ├── CHANGELOG.md                       # Historial de cambios desde v1.0.0
 ├── LICENSE                            # MIT
@@ -818,7 +871,7 @@ sdd-jps-engine/
 │   ├── board_helpers.py               #   Card parsing
 │   ├── models.py                      #   Pydantic models
 │   ├── pdf_generator.py               #   Markdown → PDF
-│   ├── tools/                         #   10 modules, 73+ tools
+│   ├── tools/                         #   11 modules, 78+ tools
 │   │   ├── engine.py                  #     Version, status, rules
 │   │   ├── plans.py                   #     Plans management
 │   │   ├── quality.py                 #     Quality baselines
@@ -828,7 +881,13 @@ sdd-jps-engine/
 │   │   ├── hooks.py                   #     Hook config
 │   │   ├── onboarding.py             #     Project onboarding
 │   │   ├── state.py                   #     State reporting
-│   │   └── spec_driven.py            #     Trello domain (21 tools)
+│   │   ├── spec_driven.py            #     Backend-agnostic (21 tools)
+│   │   └── migration.py             #     Trello ↔ Plane (5 tools)
+│   ├── backends/                      #   Multi-backend layer
+│   │   ├── trello_backend.py         #     TrelloBackend (SpecBackend)
+│   │   ├── plane_backend.py          #     PlaneBackend (SpecBackend)
+│   │   └── plane_client.py           #     PlaneClient (httpx async)
+│   ├── spec_backend.py               #   SpecBackend ABC (23 methods)
 │   ├── resources/                     #   8 MCP Resources
 │   └── dashboard/                     #   Sala de Maquinas (React 19 + Vite)
 │       └── src/
@@ -902,7 +961,7 @@ sdd-jps-engine/
 │   ├── agent-teams.md
 │   └── architecture.md
 │
-└── tests/                             # 208 tests unificados
+└── tests/                             # 171+ tests unificados
 ```
 
 ---
@@ -1091,4 +1150,835 @@ MIT
 
 ---
 
-v4.0.3 | 2026-03-10 | JPS Developer
+v4.1.0 | 2026-03-11 | JPS Developer
+
+---
+
+<a id="english-version"></a>
+
+# English Version
+
+# SDD-JPS Engine v4.1.0 — Public Release
+
+**Spec-Driven Development Engine by JPS** — An agentic programming system for Claude Code.
+
+Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 78+ tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane for professional development with Claude Code.
+
+---
+
+## Table of Contents
+
+- [Quick Start](#quick-start-en)
+- [Full Development Flow](#full-development-flow)
+- [Skills (Commands)](#skills-commands)
+- [Agent System](#agent-system)
+- [Supported Stacks](#supported-stacks)
+- [Infrastructure Services](#infrastructure-services)
+- [Quality Gate System](#quality-gate-system-en)
+- [Hooks System](#hooks-system-en)
+- [Self-Healing Protocol](#self-healing-protocol-en)
+- [VEG — Visual Experience Generation](#veg-en)
+- [Multi-Backend: Trello + Plane](#multi-backend-en)
+- [Spec-Driven Pipeline](#spec-driven-pipeline-en)
+- [Hardened Autopilot Guards](#hardened-autopilot-guards)
+- [MCP Server](#mcp-server-en)
+- [Sala de Maquinas (Dashboard)](#dashboard-en)
+- [Google Stitch MCP](#stitch-en)
+- [Context Engineering](#context-engineering-en)
+- [Templates for New Projects](#templates-en)
+- [Repository Structure](#repo-structure-en)
+- [Example: Full Flow](#example-en)
+- [Using in Existing Projects](#existing-projects-en)
+- [Project Configuration](#project-config-en)
+- [Upgrading](#upgrading-en)
+- [Philosophy](#philosophy-en)
+- [License](#license-en)
+
+---
+
+<a id="quick-start-en"></a>
+
+## Quick Start
+
+```bash
+# 1. Clone
+git clone <repo-url> ~/sdd-jps-engine
+cd ~/sdd-jps-engine
+
+# 2. Install skills + hooks + commands globally
+./install.sh
+
+# 3. Verify skills
+ls -la ~/.claude/skills/
+# You should see: prd, plan, implement, adapt-ui, optimize-agents, quality-gate, explore, feedback
+
+# 4. Verify hooks
+ls -la ~/.claude/hooks/
+# You should see: pre-commit-lint.sh, on-session-end.sh, implement-checkpoint.sh, etc.
+
+# 5. Start MCP server (optional — for telemetry and dashboard)
+pip install -e .
+sdd-jps-engine
+```
+
+Skills are auto-discovered when relevant. Hooks run automatically via Claude Code.
+
+---
+
+## Full Development Flow
+
+```
+/prd ──────────> PRD + Work Item (Trello/Plane)
+                   │
+                   │  Documents requirements, US/UC/AC,
+                   │  audience, VEG, NFRs.
+                   │  Definition Quality Gate rejects
+                   │  vague or untestable criteria.
+                   │
+                   ▼
+/plan ─────────> Technical plan + Stitch designs (HTML) + VEG
+                   │
+                   │  Breaks into phases, analyzes UI,
+                   │  generates Stitch MCP designs,
+                   │  generates VEG (images/motion/design),
+                   │  saves to doc/plans/ + doc/design/
+                   │
+                   ▼
+/implement ────> Autopilot: branch + code + QA + Acceptance Gate + PR
+                   │
+                   │  Creates feature/ branch, executes phases,
+                   │  design-to-code, generates VEG images,
+                   │  injects motion, tests, AG-08 audit,
+                   │  AG-09a acceptance tests, AG-09b validation,
+                   │  creates PR with acceptance evidence.
+                   │
+                   ▼
+               Sequential merge → pull main → next UC
+```
+
+### Spec-Driven Flow (Trello / Plane)
+
+```
+/prd ──> PRD + Board/Project (US/UC/AC cards/work-items)
+           │
+/plan ──> Technical plan + Stitch + VEG
+           │  (attaches plan as PDF evidence to the US)
+           │
+/implement US-01 ──> Autopilot per UC:
+           │
+           ├── find_next_uc → UC-001 (Ready)
+           │   ├── start_uc(UC-001) → In Progress
+           │   ├── git checkout -b feature/...
+           │   ├── Implement phases
+           │   ├── AG-08 + AG-09a + AG-09b
+           │   ├── gh pr create
+           │   ├── Auto-merge (if GO + ACCEPTED)
+           │   ├── complete_uc(UC-001) → Done
+           │   └── git pull main
+           │
+           ├── find_next_uc → UC-002 (Ready)
+           │   ├── start_uc(UC-002) → In Progress
+           │   ├── ... (same cycle, new branch)
+           │   └── git pull main
+           │
+           └── No more UCs → move_us(US-01, "done")
+```
+
+### Support Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/adapt-ui` | Scans project widgets/components, generates UI mapping |
+| `/optimize-agents` | Audits and optimizes the agentic system (score /100) |
+| `/quality-gate` | Adaptive quality gates with auditable evidence |
+| `/explore` | Read-only codebase exploration |
+| `/feedback` | Captures manual testing feedback, blocks merge if unresolved |
+
+---
+
+## Skills (Commands)
+
+> Since v3.0, commands were migrated to Agent Skills with YAML frontmatter, auto-discovery, context isolation, and hooks. Files in `commands/` are kept as legacy reference.
+
+### `/prd` — Generate PRD
+
+Generates a structured Product Requirements Document with US/UC/AC hierarchy.
+
+```
+/prd "title" "requirements description"
+```
+
+**What it does:**
+1. Detects PRD type (new feature or refactor)
+2. Gathers info: features, UI interactions, criteria
+3. Generates PRD with structured template (US-XX, UC-XXX, AC-XX)
+4. **Definition Quality Gate**: Rejects vague or untestable criteria
+5. Detects audience and generates VEG Readiness
+6. Creates Work Items in Trello or Plane with US/UC/AC cards
+7. Attaches PRD as PDF evidence to the US
+
+### `/plan` — Generate Implementation Plan
+
+Generates technical plan with UI analysis, Stitch designs, and VEG.
+
+```
+/plan US-01                    # From Trello/Plane User Story
+/plan PROYECTO-42              # From Plane work item
+/plan "description"            # From direct text
+```
+
+### `/implement` — Implementation Autopilot
+
+Reads a plan and executes the full implementation process autonomously.
+
+```
+/implement US-01                    # Executes all UCs in sequence
+/implement UC-001                   # Executes a single UC
+/implement plan_name                # Searches doc/plans/{name}_plan.md
+/implement doc/plans/my_plan.md     # Direct path
+/implement                          # Lists plans and asks
+```
+
+**Internal flow:**
+
+| Step | Description | Enforcement |
+|------|-------------|-------------|
+| 0 | Load and validate plan | — |
+| 0.1a | If Trello/Plane: load US/UC, `start_uc` | — |
+| 0.5 | Pre-flight: working tree, branch, fetch | HARD BLOCK |
+| **0.5b** | **Anti-main guard** | **FATAL ERROR** (v4.0.1) |
+| **0.5c** | **start_uc validation** | **FATAL ERROR** (v4.0.1) |
+| 1 | Create feature/ branch | — |
+| 2 | Sub-agent orchestration | — |
+| 3 | Generate Stitch designs (if missing) | — |
+| 3.5 | Generate VEG images (if active) | Cost warning |
+| **3.5.5** | **CSS placeholder prohibition** | **RULE** (v4.0.1) |
+| 4 | Design-to-code + motion | — |
+| 5 | Execute plan phases | Lint gates |
+| 6 | Integration | Build check |
+| 7 | QA + Acceptance Gate | AG-08, AG-09a/b |
+| 8 | Create PR | — |
+| **8.5.0** | **Pre-merge validation** | **HARD BLOCK** (v4.0.1) |
+| 8.5 | Sequential merge + next UC | Auto-merge conditions |
+
+### `/adapt-ui` — UI Component Mapping
+
+Scans widgets/components, detects framework, categorizes by type, detects design tokens, generates `.claude/ui-adapter.md`.
+
+### `/optimize-agents` — Audit Agentic System
+
+Evaluates 6 dimensions (100 points): Documentation Sync, Validation Strategy, Model Optimization, Team Coordination, Deprecation Hygiene, Agent Teams Readiness.
+
+### `/quality-gate` — Adaptive Quality Gates
+
+Policies: zero-tolerance lint, ratchet coverage, no-regression tests.
+
+### `/explore` — Read-Only Exploration
+
+Read-only codebase exploration in fork mode with Explore agent.
+
+### `/feedback` — Manual Testing Feedback
+
+Creates GitHub issues, links to AC-XX from PRD, blocks merge if unresolved.
+
+---
+
+## Agent System
+
+| ID | Agent | Role | When |
+|----|-------|------|------|
+| — | **Orchestrator** | Coordinator. NEVER writes code. | Always |
+| AG-01 | Feature Generator | Generates full structure per stack | Logic phase |
+| AG-02 | UI/UX Designer | Interfaces, responsiveness, VEG Motion | UI phase |
+| AG-03 | DB Specialist | Supabase, Neon, Firebase, migrations | DB phase |
+| AG-04 | QA Validation | Unit tests, 85%+ coverage | QA phase |
+| AG-05 | n8n Specialist | Automation workflows | If n8n present |
+| AG-06 | Design Specialist | Google Stitch MCP, VEG enrichment | Designs |
+| AG-07 | Apps Script Specialist | Google Apps Script (clasp, V8) | GAS projects |
+| AG-08 | Quality Auditor | Independent verification, GO/NO-GO | Post-QA |
+| AG-09a | Acceptance Tester | Generates .feature + step definitions | Step 7.5 |
+| AG-09b | Acceptance Validator | Validates compliance, ACCEPTED/REJECTED | Step 7.7 |
+| AG-10 | Developer Tester | Processes human feedback, GitHub issues | /feedback |
+
+### Strict Orchestrator Isolation
+
+The Orchestrator (main Claude thread) **NEVER writes code directly**:
+
+| Action | Orchestrator | Sub-agent |
+|--------|:-----------:|:----------:|
+| Read source code | No | Yes |
+| Write/edit code | No | Yes |
+| Run lint/tests/build | No | Yes |
+| Generate Stitch designs | No | AG-06 |
+| Read plan (once) | Yes | — |
+| Create branch and commits | Yes | — |
+| Create PR | Yes | — |
+| Manage Trello/Plane state | Yes | — |
+| Decide self-healing | Yes | (delegates fix) |
+
+---
+
+## Supported Stacks
+
+| Stack | Version | Architecture |
+|-------|---------|-------------|
+| **Flutter** | 3.38+ | Clean Architecture, BLoC+Freezed, Responsive (3 layouts), DataSource |
+| **React** | 19.x | App Router / SPA, Server Components, TanStack Query, Tailwind CSS |
+| **Python** | 3.12+ | FastAPI, SQLAlchemy 2 async, Pydantic v2, Repository pattern |
+| **Google Apps Script** | V8 | clasp + TypeScript + esbuild, batch operations, PropertiesService |
+
+Each stack has its folder in `architecture/` with overview, folder-structure, patterns, testing-strategy, and e2e-testing.
+
+---
+
+## Infrastructure Services
+
+| Service | Folder | Content |
+|---------|--------|---------|
+| **Supabase** | `infra/supabase/` | MCP tools, RLS policies, migrations, Realtime, DataSource |
+| **Neon** | `infra/neon/` | Connection pooling, branching, Drizzle ORM, serverless |
+| **Stripe** | `infra/stripe/` | Webhooks, Checkout, Subscriptions, Customer Portal |
+| **Firebase** | `infra/firebase/` | Firestore rules, Auth, Cloud Functions, Storage |
+| **n8n** | `infra/n8n/` | Workflow patterns, triggers, webhooks, error handling |
+
+---
+
+<a id="quality-gate-system-en"></a>
+
+## Quality Gate System
+
+Automatic quality gates between each `/implement` phase, with persistent evidence and independent auditor (AG-08).
+
+### Policies
+
+| Metric | Policy | Description |
+|--------|--------|-------------|
+| **Lint** | zero-tolerance | 0 errors / 0 warnings / 0 info. BLOCKING |
+| **Coverage** | ratchet | Never decreases. Progressively increases |
+| **Tests** | no-regression | Never fewer passing. Failing = 0 |
+| **Architecture** | ratchet | Never more violations |
+
+---
+
+<a id="hooks-system-en"></a>
+
+## Hooks System
+
+Automatic enforcement — no need to remember running these manually:
+
+| Hook | Event | Behavior |
+|------|-------|----------|
+| `pre-commit-lint.sh` | PostToolUse (git commit) | **BLOCKING**: fails commit if lint has errors |
+| `on-session-end.sh` | Stop | Logs telemetry to .quality/logs/ + Engram |
+| `implement-checkpoint.sh` | Manual (/implement) | Saves phase progress for resume |
+| `implement-healing.sh` | Manual (/implement) | Logs self-healing events |
+| `post-implement-validate.sh` | Manual (/implement) | Detects baseline regression |
+
+---
+
+<a id="self-healing-protocol-en"></a>
+
+## Self-Healing Protocol
+
+When `/implement` encounters errors, the system attempts auto-recovery:
+
+| Level | Action | Example |
+|-------|--------|---------|
+| **1: Auto-Fix** | Runs stack auto-fix | `dart fix --apply`, `eslint --fix`, `ruff check --fix` |
+| **2: Diagnostic** | Analyzes error, applies specific fix | Missing import, wrong type |
+| **3: Rollback** | Reverts phase, retries from scratch | `git stash` + fresh attempt |
+| **4: Human** | Generates error report and pauses | `.quality/evidence/{feature}/error_report.md` |
+
+All attempts are logged in `.quality/evidence/{feature}/healing.jsonl`.
+
+---
+
+<a id="veg-en"></a>
+
+## VEG — Visual Experience Generation
+
+System with 3 modes for generating visual decisions (images, motion, design) tailored to the project audience.
+
+### Modes
+
+| Mode | Name | When |
+|------|------|------|
+| 1 | **Uniform** | Homogeneous audience (same VEG for all) |
+| 2 | **Per Profile** | Variants per user profile |
+| 3 | **Per ICP+JTBD** | Customized per ICP with rational and emotional JTBD |
+
+### 3 Pillars
+
+| Pillar | Content | Integration |
+|--------|---------|-------------|
+| **Pillar 1: Images** | Type, mood, palette, per-section prompts | Step 3.5 generates with MCP (Canva/Freepik/etc.) |
+| **Pillar 2: Motion** | Level (1-3), page enter, scroll reveal, hover | Step 4 injects catalog into AG-02 |
+| **Pillar 3: Design** | Density, whitespace, typography, CTA, shadows | Step 3 enriches Stitch prompts |
+
+### 6 Archetypes
+
+Corporate, Startup, Creative, Consumer, Gen-Z, Government — derived from target audience. Defined in `doc/templates/veg-archetypes.md`.
+
+### Image Generation Providers
+
+| Provider | Cost | Quality |
+|----------|------|---------|
+| **Canva** (Pro/Premium) | €0 extra | High (Magic Media) |
+| Freepik (Mystic) | Per plan | High (stock + AI) |
+| lansespirit (OpenAI/Gemini) | $0.02-0.19/img | Very high |
+
+**If MCP unavailable**: Creates `PENDING_IMAGES.md` with prompts for manual generation.
+
+---
+
+<a id="multi-backend-en"></a>
+
+## Multi-Backend: Trello + Plane
+
+Since v4.1.0, the engine supports **Trello** and **Plane** as interchangeable project managers. Both backends implement the same `SpecBackend` interface (23 methods), so all MCP tools work identically with either one.
+
+### Multi-Backend Architecture
+
+```
+spec_driven.py (21 tools, backend-agnostic)
+        │
+        ▼
+  SpecBackend ABC ─── 23 unified methods
+   ┌────┴────┐
+   │         │
+TrelloBackend  PlaneBackend
+   │              │
+TrelloClient   PlaneClient
+(httpx+retry)  (httpx+retry, X-Api-Key)
+```
+
+### Backend Configuration
+
+**Trello** — `set_auth_token(token="TRELLO_TOKEN", api_key="TRELLO_KEY")`
+
+**Plane** — `set_auth_token(token="PLANE_API_KEY", backend_type="plane", base_url="https://app.plane.so", workspace_slug="my-ws")`
+
+### Migration Tools
+
+| Tool | Purpose |
+|------|---------|
+| `migrate_preview` | Preview migration (dry run) |
+| `migrate_project` | Migrate US/UC/AC between backends |
+| `migrate_status` | Current migration status |
+| `set_migration_target` | Configure target backend |
+| `switch_backend` | Switch active session backend |
+
+Migration is idempotent: uses `external_source` + `external_id` to prevent duplicates.
+
+---
+
+<a id="spec-driven-pipeline-en"></a>
+
+## Spec-Driven Pipeline
+
+Specification-based pipeline with Trello or Plane as source of truth.
+
+### Hierarchy
+
+```
+Board/Project
+├── US-01: User Story (card/work-item in workflow list)
+│   ├── UC-001: Use Case (child card / sub-work-item)
+│   │   ├── AC-01: Acceptance Criterion (checklist item / sub-item)
+│   │   ├── AC-02: ...
+│   │   └── AC-03: ...
+│   ├── UC-002: ...
+│   └── UC-003: ...
+├── US-02: ...
+└── ...
+```
+
+### Workflow States
+
+```
+Backlog → Ready → In Progress → Review → Done
+```
+
+### MCP Tools (backend-agnostic)
+
+| Tool | Purpose |
+|------|---------|
+| `setup_board` | Create board/project with workflow lists |
+| `import_spec` | Import US/UC/AC from JSON |
+| `get_us` / `list_us` | Read User Stories |
+| `get_uc` / `list_uc` | Read Use Cases |
+| `find_next_uc` | Next UC in Ready |
+| `start_uc` | Move UC to In Progress |
+| `complete_uc` | Move UC to Done |
+| `move_us` / `move_uc` | Change state |
+| `mark_ac` / `mark_ac_batch` | Mark acceptance criteria |
+| `attach_evidence` | Attach PDF evidence |
+| `get_evidence` | Search attached evidence |
+| `get_board_status` | Full board/project status |
+| `get_delivery_report` | Delivery report |
+
+---
+
+## Hardened Autopilot Guards (v4.0.1)
+
+HARD BLOCKS that prevent the most critical protocol violations during autonomous implementation:
+
+| Guard | What it validates | If it fails |
+|-------|-------------------|-------------|
+| **Step 0.5b: Anti-main** | Not implementing on main/master | FATAL ERROR — stops immediately |
+| **Step 0.5c: start_uc** | start_uc was called before implementing | FATAL ERROR — call start_uc or stop |
+| **Step 3.5.5: CSS placeholders** | No CSS gradients/SVG as image substitutes | RULE — only real images |
+| **Step 8.5.0: Pre-merge** | feature/ branch + open PR + UC in_progress + no pending images | HARD BLOCK per check |
+
+---
+
+<a id="mcp-server-en"></a>
+
+## MCP Server
+
+Unified MCP server with 78+ tools in a single endpoint.
+
+### Architecture
+
+```
+server/
+├── server.py              # FastMCP main server
+├── dashboard_api.py       # REST API for dashboard
+├── auth_gateway.py        # Per-session credentials (Trello + Plane)
+├── spec_backend.py        # SpecBackend ABC (23 methods)
+├── trello_client.py       # Async httpx with retry (Trello)
+├── board_helpers.py       # Card parsing, custom fields (Trello)
+├── backends/              # Multi-backend implementations
+│   ├── trello_backend.py  #   TrelloBackend (SpecBackend wrapper)
+│   ├── plane_backend.py   #   PlaneBackend (SpecBackend implementation)
+│   └── plane_client.py    #   PlaneClient (httpx async, X-Api-Key)
+├── models.py              # Pydantic models (US, UC, AC)
+├── pdf_generator.py       # Markdown → PDF
+├── tools/                 # 11 tool modules
+│   ├── engine.py          # 3 tools: version, status, rules
+│   ├── plans.py           # 3 tools: list, read, architecture
+│   ├── quality.py         # 4 tools: baseline, logs, evidence
+│   ├── skills.py          # 2 tools: list, read
+│   ├── features.py        # 7 tools: in-progress, designs
+│   ├── telemetry.py       # 8 tools: sessions, events, dashboard
+│   ├── hooks.py           # 3 tools: list, config, source
+│   ├── onboarding.py      # 10+ tools: register, onboard, upgrade
+│   ├── state.py           # 20 tools: report, checkpoint, healing
+│   ├── spec_driven.py     # 21 tools: backend-agnostic (US/UC/AC)
+│   └── migration.py       # 5 tools: Trello ↔ Plane migration
+├── resources/             # 8 MCP Resources
+└── dashboard/             # React 19 + Vite frontend
+```
+
+### Running
+
+```bash
+# Install dependencies
+pip install -e .
+
+# Run server
+sdd-jps-engine
+
+# Docker
+docker compose up
+```
+
+**Dependencies**: Python 3.12+, FastMCP 3.0.0+, httpx, pydantic, fpdf2, structlog.
+
+---
+
+<a id="dashboard-en"></a>
+
+## Sala de Maquinas (Dashboard)
+
+Embedded dashboard (React 19 + Vite) that **each user deploys with their own MCP server instance**. The dashboard shows data from **your** projects, stored locally in your `STATE_PATH`. There is no shared central server — each installation is independent and private.
+
+**Production security:**
+
+| Variable | Recommended value | Description |
+|----------|-------------------|-------------|
+| `DASHBOARD_TOKEN` | Long secret token | **Required**. Without token, dashboard is accessible without authentication |
+| `DASHBOARD_CORS_ORIGIN` | `https://your-domain.com` | Restricts which origins can make requests. Empty = same-origin only |
+
+---
+
+<a id="stitch-en"></a>
+
+## Google Stitch MCP
+
+Automatic UI design generation via Google Stitch.
+
+| MCP Tool | Usage |
+|----------|-------|
+| `mcp__stitch__list_projects` | List Stitch projects |
+| `mcp__stitch__get_project` | Project details |
+| `mcp__stitch__list_screens` | List screens |
+| `mcp__stitch__get_screen` | Get screen HTML |
+| `mcp__stitch__generate_screen_from_text` | Generate screen from prompt |
+
+**Rules:** Always Light Mode. One screen at a time. `GEMINI_3_PRO` for complex, `GEMINI_3_FLASH` for simple.
+
+---
+
+<a id="context-engineering-en"></a>
+
+## Context Engineering
+
+Context management system to keep the orchestrator within limits.
+
+| Operation | Max budget |
+|-----------|-----------|
+| Implementation phase | ~8,700 tokens |
+| Sub-agent summary | Max 5 lines |
+| Plan (single read) | No limit |
+| Checkpoint | ~200 tokens |
+
+**Pruning rules:** Aggressive pruning after each phase, external persistence (checkpoints, Engram), compact summaries by default, fork isolation for sub-agents.
+
+---
+
+<a id="templates-en"></a>
+
+## Templates for New Projects
+
+| Template | Purpose |
+|----------|---------|
+| `CLAUDE.md.template` | Claude Code instructions + Engram + VEG |
+| `settings.json.template` | Permissions, hooks, MCP config |
+| `team-config.json.template` | Agent Teams with all roles |
+| `quality-baseline.json.template` | Initial quality baseline |
+
+### Automatic Onboarding
+
+```
+# Via MCP
+onboard_project(path, name)   # Auto-detects stack, generates CLAUDE.md, configures hooks
+upgrade_project(name)          # Upgrades to latest engine template
+```
+
+---
+
+<a id="repo-structure-en"></a>
+
+## Repository Structure
+
+```
+sdd-jps-engine/
+├── CLAUDE.md                          # Engine instructions for Claude
+├── ENGINE_VERSION.yaml                # Version 4.1.0, stacks, services, changelog
+├── README.md                          # This file
+├── CHANGELOG.md                       # Change history since v1.0.0
+├── LICENSE                            # MIT
+├── install.sh                         # Skills + hooks + commands installer
+├── pyproject.toml                     # Python project config (FastMCP 3.0.0+)
+├── Dockerfile                         # Multi-stage (Node 20 + Python 3.12)
+├── docker-compose.yml                 # Docker Compose config
+│
+├── .claude/                           # Claude Code configuration
+│   ├── settings.json                  #   Hooks config
+│   ├── skills/                        #   8 Agent Skills
+│   └── hooks/                         #   6 Hook scripts
+│
+├── server/                            # MCP Server + Dashboard
+│   ├── server.py                      #   FastMCP main
+│   ├── spec_backend.py                #   SpecBackend ABC (23 methods)
+│   ├── backends/                      #   Multi-backend layer
+│   │   ├── trello_backend.py         #     TrelloBackend
+│   │   ├── plane_backend.py          #     PlaneBackend
+│   │   └── plane_client.py           #     PlaneClient
+│   ├── tools/                         #   11 modules, 78+ tools
+│   └── dashboard/                     #   Sala de Maquinas (React 19 + Vite)
+│
+├── agents/                            # 12 Agent templates (AG-01 to AG-10)
+├── agent-teams/                       # Native Agent Teams (Claude Code)
+├── architecture/                      # Patterns per stack (15 docs)
+├── design/                            # Google Stitch MCP integration
+├── infra/                             # Patterns per service (5 services)
+├── templates/                         # Templates for new projects
+├── rules/                             # Global rules
+├── doc/                               # Internal documentation
+├── docs/                              # Public documentation
+└── tests/                             # 171+ unified tests
+```
+
+---
+
+<a id="example-en"></a>
+
+## Example: Full Flow
+
+### 1. Create PRD + Trello/Plane Board
+
+```
+> /prd "Staff management system" "We need a screen to manage
+  staff: view list, create, edit, delete.
+  Each member has name, email, role and active/inactive status."
+```
+
+**Result:**
+- `doc/prd/PRD_staff_management.md` with US-01, UC-001..003, AC-01..09
+- Board/Project with US and UC cards created
+- Definition Quality Gate: all ACs verified as testable
+
+### 2. Generate Plan + Designs
+
+```
+> /plan US-01
+```
+
+**Result:**
+- `doc/plans/staff_management_plan.md` with 5 phases
+- `doc/design/staff_management/*.html` (Stitch screens)
+- `doc/veg/staff_management/veg-*.md` (VEG artifacts)
+- Plan attached as PDF to the US
+
+### 3. Implement
+
+```
+> /implement US-01
+```
+
+**Result (automatic, per UC):**
+
+```
+UC-001: CRUD Backend
+  ├── start_uc(UC-001)
+  ├── git checkout -b feature/staff-crud-backend
+  ├── Phase 1: Supabase tables + RLS
+  ├── Phase 2: models + repository
+  ├── AG-08: GO ✅
+  ├── AG-09b: ACCEPTED ✅
+  ├── gh pr create + auto-merge
+  ├── complete_uc(UC-001)
+  └── git pull main
+
+UC-002: UI Staff List
+  ├── start_uc(UC-002)
+  ├── git checkout -b feature/staff-ui-list
+  ├── Stitch designs → code
+  ├── VEG images → Canva MCP
+  ├── VEG motion → Framer Motion
+  ├── AG-08: GO ✅
+  ├── AG-09b: ACCEPTED ✅
+  ├── gh pr create + auto-merge
+  ├── complete_uc(UC-002)
+  └── git pull main
+
+No more UCs → move_us(US-01, "done") + delivery report
+```
+
+---
+
+<a id="existing-projects-en"></a>
+
+## Using in Existing Projects
+
+### Option A: Manual installation
+
+```bash
+# 1. Install skills + hooks
+cd ~/sdd-jps-engine && ./install.sh
+
+# 2. Copy CLAUDE.md template
+cp ~/sdd-jps-engine/templates/CLAUDE.md.template ./CLAUDE.md
+# Edit placeholders
+
+# 3. Audit
+/optimize-agents audit
+```
+
+### Option B: Automatic onboarding (via MCP)
+
+```
+onboard_project("/path/to/project", "my-project")
+```
+
+Auto-detects stack, generates CLAUDE.md, configures hooks, creates baseline.
+
+---
+
+<a id="project-config-en"></a>
+
+## Project Configuration
+
+### `.claude/project-config.json` (RECOMMENDED)
+
+```json
+{
+  "trello": {
+    "boardId": "BOARD_ID"
+  },
+  "plane": {
+    "projectId": "PROJECT_ID",
+    "baseUrl": "https://app.plane.so",
+    "workspaceSlug": "my-workspace"
+  },
+  "stitch": {
+    "projectId": "STITCH_PROJECT_ID",
+    "deviceType": "DESKTOP",
+    "modelId": "GEMINI_3_PRO"
+  },
+  "veg": {
+    "image_provider": {
+      "primary": "canva",
+      "fallback": "lansespirit",
+      "maxImagesPerScreen": 5
+    }
+  }
+}
+```
+
+> **Why not `settings.local.json`?** Claude Code validates the `settings.local.json` schema and rejects custom fields like `trello` or `stitch`. Using `project-config.json` avoids this problem.
+
+---
+
+<a id="upgrading-en"></a>
+
+## Upgrading
+
+```bash
+cd ~/sdd-jps-engine
+git pull
+./install.sh
+```
+
+Symlinks are updated automatically. Run `/optimize-agents audit` in your projects to verify compatibility.
+
+### Version Matrix
+
+```
+# Check which projects need upgrading
+get_version_matrix()
+
+# Individual upgrade
+upgrade_project("my-project")
+
+# Batch upgrade
+upgrade_all_projects()
+```
+
+---
+
+<a id="philosophy-en"></a>
+
+## Philosophy
+
+1. **Consistency > Speed** — Better to do things right than fast
+2. **Executable documentation** — Skills ARE the documentation
+3. **Claude as critical architect** — Questions, doesn't please
+4. **Scalable from day 1** — Multi-stack, multi-service, multi-agent
+5. **Autopilot with control** — `/implement` automates with acceptance evidence for human review
+6. **Enforcement > Documentation** — HARD BLOCKS prevent violations, not warnings (v4.0.1)
+7. **Non-negotiable visual quality** — VEG Pillar 1 demands real images, not placeholders (v4.0.1)
+
+---
+
+<a id="license-en"></a>
+
+## License
+
+MIT
+
+---
+
+v4.1.0 | 2026-03-11 | JPS Developer

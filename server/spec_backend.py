@@ -122,7 +122,9 @@ def parse_item_id(name: str, prefix: str = "US") -> tuple[str, str]:
         (item_id, clean_name) — e.g., ('US-01', 'Registro de usuario')
     """
     patterns = {"US": _US_RE, "UC": _UC_RE, "AC": _AC_RE}
-    pattern = patterns.get(prefix, _US_RE)
+    pattern = patterns.get(prefix)
+    if pattern is None:
+        return "", name
     match = pattern.match(name)
     if match:
         return match.group(1), match.group(2).strip()

@@ -1,7 +1,7 @@
 """
-SDD-JPS Engine MCP Server v4.0.0
+SDD-JPS Engine MCP Server v4.1.0
 
-Unified MCP endpoint: 73+ tools (engine + spec-driven + telemetry).
+Unified MCP endpoint: 78+ tools (engine + spec-driven + migration + telemetry).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
 
 Architecture:
@@ -55,7 +55,7 @@ STATE_PATH.mkdir(parents=True, exist_ok=True)
 mcp = FastMCP(
     "sdd-jps-engine",
     instructions="""
-    MCP server for the SDD-JPS Engine v4.0.0 — an agentic programming system for Claude Code.
+    MCP server for the SDD-JPS Engine v4.1.0 — an agentic programming system for Claude Code.
 
     Use these tools to:
     - Query implementation plans and their status
@@ -96,7 +96,7 @@ mcp = FastMCP(
     """
 )
 
-# Register engine tools (52 tools)
+# Register engine tools
 register_plan_tools(mcp, ENGINE_PATH)
 register_quality_tools(mcp, ENGINE_PATH)
 register_skill_tools(mcp, ENGINE_PATH)
@@ -124,7 +124,7 @@ def main():
     host = os.getenv("MCP_HOST", "0.0.0.0")
 
     logger = structlog.get_logger(__name__)
-    logger.info("server_starting", transport=transport, host=host, port=port, version="4.0.0")
+    logger.info("server_starting", transport=transport, host=host, port=port, version="4.1.0")
 
     uvicorn_opts = {"timeout_graceful_shutdown": 5}
 

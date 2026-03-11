@@ -143,6 +143,7 @@ class TrelloBackend(SpecBackend):
         lists: list[dict],
         custom_fields: list[dict],
         cf_map: dict[str, dict],
+        us_id_to_card_id: dict[str, str] | None = None,
     ) -> ItemDTO:
         """Convert a raw Trello card dict into an ItemDTO."""
         meta: dict[str, Any] = {}
@@ -151,13 +152,11 @@ class TrelloBackend(SpecBackend):
             if val is not None:
                 meta[field_name] = val
 
-        # Derive parent_id: for UC cards, look up the US card by us_id
+        # Derive parent_id: for UC cards, resolve from us_id lookup table
         parent_id: str | None = None
         tipo = meta.get("tipo")
-        if tipo == "UC" and meta.get("us_id"):
-            # parent_id is resolved lazily by callers or via find_item_by_field;
-            # we store us_id in meta so the convenience methods on SpecBackend work.
-            pass
+        if tipo == "UC" and meta.get("us_id") and us_id_to_card_id:
+            parent_id = us_id_to_card_id.get(str(meta["us_id"]))
 
         return ItemDTO(
             id=card["id"],
@@ -236,8 +235,17 @@ class TrelloBackend(SpecBackend):
     async def list_items(self, board_id: str) -> list[ItemDTO]:
         cards = await self.client.get_board_cards(board_id)
         lists, custom_fields, cf_map = await self._fetch_board_context(board_id)
+
+        # Build US-ID -> card-ID lookup for parent resolution
+        us_id_to_card_id: dict[str, str] = {}
+        for c in cards:
+            if is_us_card(c, cf_map, custom_fields):
+                us_id_val = get_card_custom_value(c, "us_id", cf_map, custom_fields)
+                if us_id_val:
+                    us_id_to_card_id[str(us_id_val)] = c["id"]
+
         return [
-            self._card_to_item(card, lists, custom_fields, cf_map)
+            self._card_to_item(card, lists, custom_fields, cf_map, us_id_to_card_id)
             for card in cards
         ]
 

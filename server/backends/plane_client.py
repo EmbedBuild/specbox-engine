@@ -22,7 +22,7 @@ RETRY_MAX_DELAY = 30.0
 
 
 class PlaneClient:
-    """Async client for Plane REST API v1 (self-hosted or cloud)."""
+    """Async client for Plane REST API v1 (Cloud and CE)."""
 
     def __init__(
         self,
@@ -43,7 +43,7 @@ class PlaneClient:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
                 headers={
-                    "Authorization": self.api_key,
+                    "X-Api-Key": self.api_key,
                     "Content-Type": "application/json",
                     "Accept": "application/json",
                 },
@@ -220,7 +220,7 @@ class PlaneClient:
         self,
         project_id: str,
         item_id: str,
-        expand: str = "labels,state",
+        expand: str = "labels,state,parent",
     ) -> dict:
         params: dict[str, Any] = {}
         if expand:

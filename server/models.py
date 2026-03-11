@@ -48,8 +48,6 @@ CUSTOM_FIELD_NAMES = ["tipo", "us_id", "uc_id", "horas", "pantallas", "actor"]
 
 EvidenceType = Literal["prd", "plan", "ag09", "delivery", "feedback"]
 
-TargetType = Literal["us", "uc"]
-
 
 # --- Import Spec Models ---
 

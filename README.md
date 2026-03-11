@@ -69,7 +69,7 @@ Las Skills se auto-descubren cuando son relevantes. Los hooks se ejecutan automa
 ## Flujo Completo de Desarrollo
 
 ```
-/prd ──────────> PRD + Work Item (Trello)
+/prd ──────────> PRD + Work Item (Trello/Plane)
                    │
                    │  Documenta requisitos, US/UC/AC,
                    │  audiencia, VEG, NFRs.
@@ -171,7 +171,7 @@ Genera un Product Requirements Document estructurado con US/UC/AC hierarchy.
 Genera plan tecnico con analisis UI, diseños Stitch, y VEG.
 
 ```
-/plan US-01                    # Desde User Story de Trello
+/plan US-01                    # Desde User Story de Trello/Plane
 /plan PROYECTO-42              # Desde work item de Plane
 /plan "descripcion"            # Desde texto directo
 ```
@@ -185,7 +185,7 @@ Genera plan tecnico con analisis UI, diseños Stitch, y VEG.
 6. Genera VEG (Paso 2.5b): imagenes, motion, design
 7. Genera diseños en Stitch MCP: pantallas HTML
 8. Guarda plan en `doc/plans/` + HTMLs en `doc/design/` + VEG en `doc/veg/`
-9. Adjunta plan como evidencia PDF a la US en Trello
+9. Adjunta plan como evidencia PDF a la US en Trello/Plane
 
 **Output:** Plan + Stitch HTMLs + VEG artifacts
 
@@ -208,7 +208,7 @@ Lee un plan y ejecuta el proceso completo de implementacion de forma autonoma.
 | Paso | Descripcion | Enforcement |
 |------|-------------|-------------|
 | 0 | Cargar y validar plan | — |
-| 0.1a | Si Trello: cargar US/UC, `start_uc` | — |
+| 0.1a | Si Trello/Plane: cargar US/UC, `start_uc` | — |
 | 0.3 | Detectar VEG | — |
 | 0.5 | Pre-flight: working tree, rama, fetch | HARD BLOCK |
 | **0.5b** | **Guardia anti-main** | **ERROR FATAL** (v4.0.1) |
@@ -332,7 +332,7 @@ El Orquestador (main Claude thread) **NUNCA escribe codigo directamente**:
 | Leer plan (1 vez) | ✅ | — |
 | Crear rama y commits | ✅ | — |
 | Crear PR | ✅ | — |
-| Gestionar Trello state | ✅ | — |
+| Gestionar Trello/Plane state | ✅ | — |
 | Decidir self-healing | ✅ | (delega fix) |
 
 **Token budget del Orquestador**: Max 15% del context window (~30K tokens).
@@ -533,9 +533,13 @@ TrelloClient   PlaneClient
 
 ### Configuracion de backend
 
+El backend se elige al autenticarse. Solo uno esta activo por sesion. Todos los tools MCP (`setup_board`, `find_next_uc`, `mark_ac`, etc.) funcionan exactamente igual con cualquiera de los dos:
+
 **Trello** — `set_auth_token(token="TRELLO_TOKEN", api_key="TRELLO_KEY")`
 
-**Plane** — `set_auth_token(token="PLANE_API_KEY", backend_type="plane", base_url="https://app.plane.so", workspace_slug="my-ws")`
+**Plane (cloud o self-hosted)** — `set_auth_token(token="PLANE_API_KEY", backend_type="plane", base_url="https://app.plane.so", workspace_slug="my-ws")`
+
+> Para Plane self-hosted (CE), cambia `base_url` a tu dominio (ej. `https://plane.miempresa.com`).
 
 ### Migracion entre backends
 
@@ -633,10 +637,10 @@ La v4.0.1 introduce **HARD BLOCKS** que previenen las violaciones de protocolo m
 └── Razon: Sin rama feature/ → sin PR → sin acceptance evidence → sin review
 ```
 
-### Paso 0.5c: Validacion Trello state (ERROR FATAL)
+### Paso 0.5c: Validacion Trello/Plane state (ERROR FATAL)
 
 ```
-¿Se llamo start_uc antes de implementar? (solo Trello spec-driven)
+¿Se llamo start_uc antes de implementar? (Trello/Plane spec-driven)
 ├── SI y status == "in_progress": OK
 ├── SI pero status incorrecto: Recovery automatico (reintentar start_uc)
 └── NO: ❌ ERROR FATAL — llamar start_uc o PARAR
@@ -656,7 +660,7 @@ La v4.0.1 introduce **HARD BLOCKS** que previenen las violaciones de protocolo m
 |-------|-----------|----------|
 | 1 | Rama actual es `feature/*` | ERROR FATAL |
 | 2 | PR abierta existe (`gh pr view`) | ERROR FATAL |
-| 3 | UC en estado `in_progress` (Trello) | Recovery + WARNING |
+| 3 | UC en estado `in_progress` (Trello/Plane) | Recovery + WARNING |
 | 4 | `veg_images_pending == false` | Merge bloqueado, espera usuario |
 
 ### Por que estos guards son necesarios
@@ -665,7 +669,7 @@ Antes de v4.0.1, estas validaciones eran "soft requirements" — documentadas en
 - Implementar todo en main sin crear rama
 - Crear PR sin haber llamado start_uc
 - Auto-merge con imagenes placeholder degradando calidad visual
-- Saltarse complete_uc dejando el board Trello inconsistente
+- Saltarse complete_uc dejando el board Trello/Plane inconsistente
 
 Ahora son **HARD BLOCKS** que detienen el pipeline.
 
@@ -733,7 +737,7 @@ Dashboard embebido (React 19 + Vite) que **cada usuario despliega con su propia 
 - Telemetria de sesiones
 - Self-healing events y resolution rates
 - Quality baselines y evidencia
-- Spec-Driven: estado de boards Trello
+- Spec-Driven: estado de boards Trello y proyectos Plane
 - Acceptance tests y validaciones
 - E2E test results
 
@@ -968,7 +972,7 @@ sdd-jps-engine/
 
 ## Ejemplo: Flujo Completo
 
-### 1. Crear PRD + Board Trello
+### 1. Crear PRD + Board Trello/Plane
 
 ```
 > /prd "Sistema de gestion de staff" "Necesitamos una pantalla para
@@ -978,7 +982,7 @@ sdd-jps-engine/
 
 **Resultado:**
 - `doc/prd/PRD_staff_management.md` con US-01, UC-001..003, AC-01..09
-- Board Trello con cards US y UC creadas
+- Board Trello / proyecto Plane con cards/work-items US y UC creados
 - Definition Quality Gate: todos los AC verificados como testables
 
 ### 2. Generar Plan + Diseños
@@ -991,7 +995,7 @@ sdd-jps-engine/
 - `doc/plans/staff_management_plan.md` con 5 fases
 - `doc/design/staff_management/*.html` (pantallas Stitch)
 - `doc/veg/staff_management/veg-*.md` (VEG artifacts)
-- Plan adjunto como PDF a la US en Trello
+- Plan adjunto como PDF a la US en Trello/Plane
 
 ### 3. Implementar
 
@@ -1554,9 +1558,13 @@ TrelloClient   PlaneClient
 
 ### Backend Configuration
 
+The backend is selected at authentication time. Only one is active per session. All MCP tools (`setup_board`, `find_next_uc`, `mark_ac`, etc.) work identically with either backend:
+
 **Trello** — `set_auth_token(token="TRELLO_TOKEN", api_key="TRELLO_KEY")`
 
-**Plane** — `set_auth_token(token="PLANE_API_KEY", backend_type="plane", base_url="https://app.plane.so", workspace_slug="my-ws")`
+**Plane (cloud or self-hosted)** — `set_auth_token(token="PLANE_API_KEY", backend_type="plane", base_url="https://app.plane.so", workspace_slug="my-ws")`
+
+> For self-hosted Plane (CE), change `base_url` to your domain (e.g. `https://plane.mycompany.com`).
 
 ### Migration Tools
 

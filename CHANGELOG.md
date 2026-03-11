@@ -2,6 +2,40 @@
 
 All notable changes to SDD-JPS Engine are documented here.
 
+## [4.1.0] - 2026-03-11
+
+### Added
+- **Multi-Backend Abstraction** — Plane added as alternative project manager alongside Trello. Both backends work identically through backend-agnostic `SpecBackend` ABC.
+- **SpecBackend ABC** (`server/spec_backend.py`) — Abstract interface defining 23 methods for unified project management operations. Includes DTOs: `ItemDTO`, `ChecklistItemDTO`, `CommentDTO`, `AttachmentDTO`, `ModuleDTO`, `BackendUser`, `BoardConfig`.
+- **TrelloBackend** (`server/backends/trello_backend.py`) — Wraps existing `TrelloClient` + `board_helpers` into `SpecBackend` interface. Zero breaking changes.
+- **PlaneBackend** (`server/backends/plane_backend.py`) — Full `SpecBackend` implementation for Plane (Cloud and CE). Metadata encoding via labels and name prefixes. AC stored as sub-work-items.
+- **PlaneClient** (`server/backends/plane_client.py`) — Direct httpx async client for Plane REST API v1 with retry logic and pagination.
+- **Migration tools** (`server/tools/migration.py`) — 5 new MCP tools: `migrate_preview`, `migrate_project`, `migrate_status`, `set_migration_target`, `switch_backend`. Idempotent via `external_source` + `external_id`.
+- **Per-session backend selection** — `get_session_backend(ctx)` returns appropriate backend based on session credentials. `store_plane_credentials()` for Plane auth.
+- **78+ MCP tools** — 21 spec-driven tools (backend-agnostic) + 5 migration tools + 52 engine tools.
+- **Test suite expansion** — `test_spec_backend.py`, `test_plane_backend.py`, `test_migration.py`, `test_auth_gateway_v2.py` (82 new tests).
+
+### Changed
+- **spec_driven.py rewritten** — All 21 tools now use `get_session_backend(ctx)` instead of direct `TrelloClient`. Tool descriptions updated to say "board/project" instead of "Trello board".
+- **auth_gateway.py** — `store_session_credentials()` now stores both legacy and unified keys. `clear_session_credentials()` clears both.
+- **models.py** — `UseCaseDetail` gains `backend_item_id`, `backend_item_url`, `backend_type` fields.
+- **server.py** — Registers migration tools after spec-driven tools.
+- **`set_auth_token`** — Now accepts `backend_type`, `base_url`, `workspace_slug` params for Plane.
+- **CLAUDE.md** — Updated to v4.1.0, 78+ tools, new "Gestores de proyecto" section.
+- **ENGINE_VERSION.yaml** — v4.1.0 "Multi-Backend Abstraction", new `project_managers` section.
+
+### Fixed
+- **PlaneBackend priority mapping** — `update_item()` now maps priority strings consistently with `create_item()`.
+- **PlaneClient auth header** — Uses `X-Api-Key` header (Plane REST API standard).
+- **PlaneClient parent expand** — Default expand includes `parent` to prevent AttributeError on hierarchy traversal.
+- **PlaneBackend AC label** — `create_acceptance_criteria()` auto-creates "AC" label if missing.
+- **TrelloBackend UC parent_id** — Now resolves `parent_id` from `us_id` metadata during `list_items()`.
+- **PlaneBackend state cache** — Repopulates caches after `setup_board()` instead of just invalidating.
+- **PlaneBackend HTML entity round-trip** — `_extract_meta_from_html()` now unescapes HTML entities.
+- **spec_backend parse_item_id** — Unknown prefix returns `("", name)` instead of silently falling back to US pattern.
+- **Unused imports removed** — `WorkflowState`, `ChecklistItemDTO` from spec_driven.py; `TargetType` from models.py.
+- **Stale test files removed** — 8 test files with broken imports from pre-consolidation module layout.
+
 ## [4.0.3] - 2026-03-10
 
 ### Security

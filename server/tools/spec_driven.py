@@ -1,6 +1,8 @@
-"""Spec-Driven tools: Trello domain operations for US/UC/AC management.
+"""Spec-Driven tools: Backend-agnostic operations for US/UC/AC management.
 
-Consolidated from dev-engine-trello-mcp tool modules:
+Works with both Trello and Plane backends via the SpecBackend ABC.
+
+Consolidated tool modules:
 - auth: set_auth_token
 - board: setup_board, get_board_status, import_spec
 - user_story: list_us, get_us, move_us, get_us_progress
@@ -15,38 +17,124 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-import httpx
 import structlog
 from fastmcp import Context
 
-from ..auth_gateway import get_session_client, store_session_credentials
-from ..board_helpers import (
-    build_custom_field_map,
-    build_uc_description,
-    build_us_description,
-    find_card_by_custom_field,
-    find_option_id,
-    get_card_custom_value,
-    get_list_id_for_state,
-    get_state_for_list,
-    is_uc_card,
-    is_us_card,
-    parse_checklist_acs,
-    parse_uc_description,
+from ..auth_gateway import (
+    get_session_backend,
+    store_plane_credentials,
+    store_session_credentials,
 )
 from ..models import (
-    ACTOR_OPTIONS,
-    CARD_TYPE_OPTIONS,
-    CUSTOM_FIELD_NAMES,
-    LIST_NAME_TO_STATE,
-    WORKFLOW_LIST_NAMES,
     ImportSpec,
-    WorkflowState,
+    WORKFLOW_LIST_NAMES,
 )
 from ..pdf_generator import markdown_to_pdf
-from ..trello_client import TrelloClient
+from ..spec_backend import (
+    ItemDTO,
+    SpecBackend,
+    parse_item_id,
+)
 
 logger = structlog.get_logger(__name__)
+
+
+# ── Helpers ──────────────────────────────────────────────────────────
+
+
+def _extract_meta_str(item: ItemDTO, key: str, default: str = "") -> str:
+    """Extract a string value from item metadata."""
+    val = item.meta.get(key, default)
+    return str(val) if val else default
+
+
+def _extract_meta_float(item: ItemDTO, key: str, default: float = 0.0) -> float:
+    """Extract a float value from item metadata."""
+    val = item.meta.get(key, default)
+    try:
+        return float(val) if val else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _is_us(item: ItemDTO) -> bool:
+    """Check if an item is a User Story."""
+    return "US" in item.labels
+
+
+def _is_uc(item: ItemDTO) -> bool:
+    """Check if an item is a Use Case."""
+    return "UC" in item.labels
+
+
+def _get_us_id(item: ItemDTO) -> str:
+    """Get the us_id from item metadata or parse from name."""
+    us_id = _extract_meta_str(item, "us_id")
+    if us_id:
+        return us_id
+    parsed_id, _ = parse_item_id(item.name, "US")
+    return parsed_id
+
+
+def _get_uc_id(item: ItemDTO) -> str:
+    """Get the uc_id from item metadata or parse from name."""
+    uc_id = _extract_meta_str(item, "uc_id")
+    if uc_id:
+        return uc_id
+    parsed_id, _ = parse_item_id(item.name, "UC")
+    return parsed_id
+
+
+def _clean_name(name: str, prefix_id: str) -> str:
+    """Remove the prefix ID from a name (e.g., 'US-01: Name' -> 'Name')."""
+    if prefix_id and name.startswith(prefix_id):
+        cleaned = name[len(prefix_id):]
+        return cleaned.lstrip(":").lstrip(" ").lstrip("]").lstrip(" ")
+    return name
+
+
+def _find_us_item(items: list[ItemDTO], us_id: str) -> ItemDTO | None:
+    """Find a US item by us_id in a pre-fetched items list."""
+    for item in items:
+        if _is_us(item) and _get_us_id(item) == us_id:
+            return item
+    return None
+
+
+def _find_uc_item(items: list[ItemDTO], uc_id: str) -> ItemDTO | None:
+    """Find a UC item by uc_id in a pre-fetched items list."""
+    for item in items:
+        if _is_uc(item) and _get_uc_id(item) == uc_id:
+            return item
+    return None
+
+
+def _get_uc_children(items: list[ItemDTO], us_id: str) -> list[ItemDTO]:
+    """Get all UC items belonging to a US, matching by parent_id or us_id meta."""
+    us_item = _find_us_item(items, us_id)
+    children = []
+    for item in items:
+        if not _is_uc(item):
+            continue
+        # Match by metadata us_id
+        if _extract_meta_str(item, "us_id") == us_id:
+            children.append(item)
+            continue
+        # Match by parent_id
+        if us_item and item.parent_id == us_item.id:
+            children.append(item)
+            continue
+    return children
+
+
+async def _get_ac_counts(
+    backend: SpecBackend, board_id: str, uc_item: ItemDTO
+) -> tuple[int, int]:
+    """Get (total, done) AC counts for a UC item."""
+    acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
+    total = len(acs)
+    done = sum(1 for ac in acs if ac.done)
+    return total, done
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -54,53 +142,104 @@ logger = structlog.get_logger(__name__)
 # ═══════════════════════════════════════════════════════════════════════
 
 
-async def set_auth_token(api_key: str, token: str, ctx: Context) -> dict[str, Any]:
-    """Configure Trello API credentials for this session.
+async def set_auth_token(
+    api_key: str,
+    token: str,
+    ctx: Context,
+    backend_type: str = "trello",
+    base_url: str = "",
+    workspace_slug: str = "",
+) -> dict[str, Any]:
+    """Configure backend API credentials for this session.
 
     Each user must call this tool before using any other tool.
     Credentials are isolated per session — other users cannot access yours.
 
     Args:
-        api_key: Trello API key (32 characters, from https://trello.com/app-key)
-        token: Trello API token (64 characters, generated from the API key page)
+        api_key: API key (Trello: 32-char key; Plane: API token)
+        token: API token (Trello: 64-char OAuth token; Plane: ignored, pass "")
+        backend_type: "trello" (default) or "plane"
+        base_url: Plane base URL (e.g., "https://plane.example.com"); required for Plane
+        workspace_slug: Plane workspace slug; required for Plane
 
     Returns:
         Authentication status with user info if successful.
     """
     if not api_key or not api_key.strip():
         return {"error": "api_key is required", "code": "MISSING_API_KEY"}
-    if not token or not token.strip():
-        return {"error": "token is required", "code": "MISSING_TOKEN"}
 
     api_key = api_key.strip()
-    token = token.strip()
+    token = token.strip() if token else ""
 
-    try:
-        client = TrelloClient(api_key=api_key, token=token)
-        user_info = await client.get_me()
-        await client.close()
-    except httpx.HTTPStatusError as e:
-        logger.warning("auth_validation_failed", status=e.response.status_code)
+    if backend_type == "plane":
+        # Plane authentication
+        if not base_url or not base_url.strip():
+            return {"error": "base_url is required for Plane backend", "code": "MISSING_BASE_URL"}
+        if not workspace_slug or not workspace_slug.strip():
+            return {
+                "error": "workspace_slug is required for Plane backend",
+                "code": "MISSING_WORKSPACE_SLUG",
+            }
+
+        base_url = base_url.strip().rstrip("/")
+        workspace_slug = workspace_slug.strip()
+
+        try:
+            from ..backends.plane_backend import PlaneBackend
+
+            backend = PlaneBackend(
+                base_url=base_url,
+                api_key=api_key,
+                workspace_slug=workspace_slug,
+            )
+            user = await backend.validate_auth()
+            await backend.close()
+        except Exception as e:
+            logger.error("plane_auth_error", error=str(e))
+            return {"error": f"Plane auth failed: {str(e)}", "code": "INVALID_CREDENTIALS"}
+
+        await store_plane_credentials(ctx, api_key, base_url, workspace_slug)
+        logger.info("auth_token_set", backend="plane", user=user.username)
+
         return {
-            "error": f"Invalid Trello credentials: HTTP {e.response.status_code}",
-            "code": "INVALID_CREDENTIALS",
+            "success": True,
+            "backend": "plane",
+            "message": f"Authenticated as {user.display_name} on Plane",
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "fullName": user.display_name,
+            },
         }
-    except Exception as e:
-        logger.error("auth_error", error=str(e))
-        return {"error": f"Connection error: {str(e)}", "code": "CONNECTION_ERROR"}
 
-    await store_session_credentials(ctx, api_key, token)
-    logger.info("auth_token_set", user=user_info.get("username"))
+    else:
+        # Trello authentication (default)
+        if not token:
+            return {"error": "token is required for Trello backend", "code": "MISSING_TOKEN"}
 
-    return {
-        "success": True,
-        "message": f"Authenticated as {user_info.get('fullName', user_info.get('username'))}",
-        "user": {
-            "id": user_info.get("id"),
-            "username": user_info.get("username"),
-            "fullName": user_info.get("fullName"),
-        },
-    }
+        try:
+            from ..backends.trello_backend import TrelloBackend
+
+            backend = TrelloBackend(api_key=api_key, token=token)
+            user = await backend.validate_auth()
+            await backend.close()
+        except Exception as e:
+            logger.error("trello_auth_error", error=str(e))
+            return {"error": f"Trello auth failed: {str(e)}", "code": "INVALID_CREDENTIALS"}
+
+        await store_session_credentials(ctx, api_key, token)
+        logger.info("auth_token_set", backend="trello", user=user.username)
+
+        return {
+            "success": True,
+            "backend": "trello",
+            "message": f"Authenticated as {user.display_name}",
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "fullName": user.display_name,
+            },
+        }
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -109,161 +248,122 @@ async def set_auth_token(api_key: str, token: str, ctx: Context) -> dict[str, An
 
 
 async def setup_board(board_name: str, ctx: Context) -> dict[str, Any]:
-    """Create a new Trello board with the Dev Engine structure.
+    """Create a new board/project with the Dev Engine structure.
 
-    Creates the board with 5 workflow lists (Backlog, Ready, In Progress,
-    Review, Done), 6 custom fields (tipo, us_id, uc_id, horas, pantallas,
-    actor), and base labels (US, UC, Infra, Bloqueado).
+    Creates the board with 5 workflow states (User Stories, Backlog,
+    In Progress, Review, Done), base labels (US, UC, Infra, Bloqueado),
+    and any backend-specific configuration (custom fields for Trello).
 
     Args:
-        board_name: Name for the new board (e.g., "TALENT-ON")
+        board_name: Name for the new board/project (e.g., "TALENT-ON")
 
     Returns:
-        Board configuration with IDs for lists, custom fields, and labels.
+        Board configuration with IDs for states, custom fields, and labels.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        board = await client.create_board(board_name, default_lists=False)
-        board_id = board["id"]
-        logger.info("board_created", board_id=board_id, name=board_name)
-
-        lists_result: dict[str, str] = {}
-        for state, list_name in WORKFLOW_LIST_NAMES.items():
-            lst = await client.create_list(board_id, list_name)
-            lists_result[state] = lst["id"]
-
-        cf_result: dict[str, str] = {}
-        cf = await client.create_custom_field(board_id, "tipo", "list", options=CARD_TYPE_OPTIONS)
-        cf_result["tipo"] = cf["id"]
-        for name in ["us_id", "uc_id", "pantallas"]:
-            cf = await client.create_custom_field(board_id, name, "text")
-            cf_result[name] = cf["id"]
-        cf = await client.create_custom_field(board_id, "horas", "number")
-        cf_result["horas"] = cf["id"]
-        cf = await client.create_custom_field(board_id, "actor", "list", options=ACTOR_OPTIONS)
-        cf_result["actor"] = cf["id"]
-
-        labels_result: dict[str, str] = {}
-        label_defs = [("US", "blue"), ("UC", "green"), ("Infra", "yellow"), ("Bloqueado", "red")]
-        for label_name, color in label_defs:
-            label = await client.create_label(board_id, label_name, color)
-            labels_result[label_name] = label["id"]
-
+        config = await backend.setup_board(board_name)
         return {
-            "board_id": board_id,
-            "board_url": board.get("url", ""),
-            "lists": lists_result,
-            "custom_fields": cf_result,
-            "labels": labels_result,
+            "board_id": config.board_id,
+            "board_url": config.board_url,
+            "lists": config.states,
+            "custom_fields": config.custom_fields,
+            "labels": config.labels,
         }
     finally:
-        await client.close()
+        await backend.close()
 
 
 async def get_board_status(board_id: str, ctx: Context) -> dict[str, Any]:
-    """Get comprehensive status of a Dev Engine board.
+    """Get comprehensive status of a Dev Engine board/project.
 
-    Reads all lists and cards, counts US vs UC per list, and calculates
+    Reads all items, counts US vs UC per state, and calculates
     progress metrics (hours done/total, UCs done/total).
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
 
     Returns:
-        Board status with list counts, progress percentages, and US summary.
+        Board status with state counts, progress percentages, and US summary.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        lists = await client.get_board_lists(board_id)
-        cards = await client.get_board_cards(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
+        items = await backend.list_items(board_id)
+        states = await backend.get_states(board_id)
 
-        list_stats: list[dict] = []
-        for lst in lists:
-            lid = lst["id"]
-            list_cards = [c for c in cards if c.get("idList") == lid]
-            us_count = sum(1 for c in list_cards if is_us_card(c, cf_map, custom_fields))
-            uc_count = sum(1 for c in list_cards if is_uc_card(c, cf_map, custom_fields))
-            list_stats.append({"name": lst["name"], "us_count": us_count, "uc_count": uc_count})
+        # Build per-state counts
+        list_stats: list[dict[str, Any]] = []
+        state_name_map = {v: k for k, v in WORKFLOW_LIST_NAMES.items()}
+        for state_key, display_name in WORKFLOW_LIST_NAMES.items():
+            state_items = [i for i in items if i.state == state_key]
+            us_count = sum(1 for i in state_items if _is_us(i))
+            uc_count = sum(1 for i in state_items if _is_uc(i))
+            list_stats.append({"name": display_name, "us_count": us_count, "uc_count": uc_count})
 
-        done_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "done"}
+        # Progress metrics
         total_hours = 0.0
         done_hours = 0.0
         total_ucs = 0
         done_ucs = 0
 
-        for card in cards:
-            if is_uc_card(card, cf_map, custom_fields):
+        for item in items:
+            if _is_uc(item):
                 total_ucs += 1
-                h = get_card_custom_value(card, "horas", cf_map, custom_fields) or 0
-                total_hours += float(h)
-                if card.get("idList") in done_list_ids:
+                h = _extract_meta_float(item, "horas")
+                total_hours += h
+                if item.state == "done":
                     done_ucs += 1
-                    done_hours += float(h)
+                    done_hours += h
 
         pct = (done_hours / total_hours * 100) if total_hours > 0 else 0
 
-        us_summary = []
-        for card in cards:
-            if not is_us_card(card, cf_map, custom_fields):
+        # US summary
+        us_summary: list[dict[str, Any]] = []
+        for item in items:
+            if not _is_us(item):
                 continue
-            us_id = get_card_custom_value(card, "us_id", cf_map, custom_fields) or ""
-            status = get_state_for_list(card.get("idList", ""), lists)
-            uc_children = [
-                c for c in cards
-                if is_uc_card(c, cf_map, custom_fields)
-                and get_card_custom_value(c, "us_id", cf_map, custom_fields) == us_id
-            ]
-            uc_done = sum(1 for c in uc_children if c.get("idList") in done_list_ids)
+            us_id = _get_us_id(item)
+            uc_children = _get_uc_children(items, us_id)
+            uc_done = sum(1 for c in uc_children if c.state == "done")
             us_summary.append({
                 "us_id": us_id,
-                "name": card.get("name", ""),
-                "status": status,
+                "name": item.name,
+                "status": item.state,
                 "uc_progress": f"{uc_done}/{len(uc_children)}",
             })
 
         return {
             "lists": list_stats,
-            "progress": {"horas_done": done_hours, "horas_total": total_hours, "pct": round(pct, 1)},
+            "progress": {
+                "horas_done": done_hours,
+                "horas_total": total_hours,
+                "pct": round(pct, 1),
+            },
             "us_summary": us_summary,
         }
     finally:
-        await client.close()
+        await backend.close()
 
 
 async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]:
-    """Import a full project specification into the board.
+    """Import a full project specification into the board/project.
 
-    Creates US and UC cards from a structured spec. Each US gets a card with
-    label, custom fields, and a "Casos de Uso" checklist. Each UC gets a card
-    with labels, custom fields, description, and "Criterios de Aceptacion" checklist.
+    Creates US and UC items from a structured spec. Each US gets an item with
+    labels and metadata. Each UC gets an item with labels, description,
+    acceptance criteria, and a link to its parent US.
 
     Args:
-        board_id: Trello board ID
-        spec: JSON spec with structure: {user_stories: [{us_id, name, hours, screens, description, use_cases: [{uc_id, name, actor, hours, screens, acceptance_criteria: [str], context}]}]}
+        board_id: Board/project ID
+        spec: JSON spec with structure: {user_stories: [{us_id, name, hours, screens,
+              description, use_cases: [{uc_id, name, actor, hours, screens,
+              acceptance_criteria: [str], context}]}]}
 
     Returns:
         Import results with counts of created items and any errors.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
         parsed = ImportSpec(**spec)
-        lists = await client.get_board_lists(board_id)
-        backlog_id = None
-        for lst in lists:
-            if lst["name"].lower() == "user stories":
-                backlog_id = lst["id"]
-                break
-        if not backlog_id:
-            return {"error": "User Stories list not found", "code": "LIST_NOT_FOUND"}
-
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
-        board_labels = await client.get_board_labels(board_id)
-
-        us_label_id = next((l["id"] for l in board_labels if l.get("name") == "US"), None)
-        uc_label_id = next((l["id"] for l in board_labels if l.get("name") == "UC"), None)
 
         created_us = 0
         created_uc = 0
@@ -272,71 +372,109 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
 
         for us_spec in parsed.user_stories:
             try:
-                us_desc = build_us_description(
-                    us_spec.us_id, us_spec.name, us_spec.hours, us_spec.screens, us_spec.description
+                # Build US description
+                us_desc = (
+                    f"# {us_spec.us_id}: {us_spec.name}\n\n"
+                    f"**Horas estimadas:** {us_spec.hours}\n"
+                    f"**Pantallas:** {us_spec.screens}\n\n"
+                    f"{us_spec.description}"
                 )
-                us_labels = [us_label_id] if us_label_id else []
-                us_card = await client.create_card(backlog_id, f"{us_spec.us_id}: {us_spec.name}", us_desc, us_labels)
-                us_card_id = us_card["id"]
 
-                await _set_card_type(client, us_card_id, "US", cf_map, custom_fields)
-                await _set_text_field(client, us_card_id, "us_id", us_spec.us_id, cf_map)
-                await _set_number_field(client, us_card_id, "horas", us_spec.hours, cf_map)
-                await _set_text_field(client, us_card_id, "pantallas", us_spec.screens, cf_map)
+                # Create US item
+                us_item = await backend.create_item(
+                    board_id,
+                    name=f"{us_spec.us_id}: {us_spec.name}",
+                    description=us_desc,
+                    state="user_stories",
+                    labels=["US"],
+                    meta={
+                        "tipo": "US",
+                        "us_id": us_spec.us_id,
+                        "horas": us_spec.hours,
+                        "pantallas": us_spec.screens,
+                    },
+                )
 
-                us_group_label = await client.create_label(board_id, us_spec.us_id, "purple")
-                us_group_label_id = us_group_label["id"]
-                us_checklist = await client.create_checklist(us_card_id, "Casos de Uso")
+                # Create module (checklist in Trello, module in Plane) for UC grouping
+                module = await backend.create_module(
+                    board_id, f"{us_spec.us_id}: {us_spec.name}"
+                )
                 created_us += 1
+
+                uc_item_ids: list[str] = []
 
                 for uc_spec in us_spec.use_cases:
                     try:
-                        uc_desc = build_uc_description(
-                            uc_spec.uc_id, uc_spec.name, us_spec.us_id, us_spec.name,
-                            uc_spec.actor, uc_spec.hours, uc_spec.screens,
-                            uc_spec.acceptance_criteria, uc_spec.context,
+                        # Build UC description
+                        ac_lines = "\n".join(
+                            f"- AC-{idx:02d}: {ac}"
+                            for idx, ac in enumerate(uc_spec.acceptance_criteria, 1)
                         )
-                        uc_labels = []
-                        if uc_label_id:
-                            uc_labels.append(uc_label_id)
-                        uc_labels.append(us_group_label_id)
-
-                        uc_card = await client.create_card(
-                            backlog_id, f"{uc_spec.uc_id}: {uc_spec.name}", uc_desc, uc_labels
+                        uc_desc = (
+                            f"# {uc_spec.uc_id}: {uc_spec.name}\n\n"
+                            f"**User Story:** {us_spec.us_id}: {us_spec.name}\n"
+                            f"**Actor:** {uc_spec.actor}\n"
+                            f"**Horas estimadas:** {uc_spec.hours}\n"
+                            f"**Pantallas:** {uc_spec.screens}\n\n"
+                            f"## Criterios de Aceptacion\n{ac_lines}\n\n"
+                            f"## Contexto\n{uc_spec.context}"
                         )
-                        uc_card_id = uc_card["id"]
 
-                        await _set_card_type(client, uc_card_id, "UC", cf_map, custom_fields)
-                        await _set_text_field(client, uc_card_id, "uc_id", uc_spec.uc_id, cf_map)
-                        await _set_text_field(client, uc_card_id, "us_id", us_spec.us_id, cf_map)
-                        await _set_number_field(client, uc_card_id, "horas", uc_spec.hours, cf_map)
-                        await _set_text_field(client, uc_card_id, "pantallas", uc_spec.screens, cf_map)
+                        # Build labels for UC
+                        uc_labels = ["UC"]
                         if uc_spec.actor:
-                            await _set_actor_field(client, uc_card_id, uc_spec.actor, cf_map, custom_fields)
+                            uc_labels.append(f"Actor:{uc_spec.actor}")
 
-                        ac_checklist = await client.create_checklist(uc_card_id, "Criterios de Aceptacion")
-                        for idx, ac_text in enumerate(uc_spec.acceptance_criteria, 1):
-                            ac_id = f"AC-{idx:02d}"
-                            await client.add_checklist_item(ac_checklist["id"], f"{ac_id}: {ac_text}")
-                            created_ac += 1
-
-                        uc_url = uc_card.get("url", "")
-                        await client.add_checklist_item(
-                            us_checklist["id"], f"{uc_spec.uc_id}: {uc_spec.name} — {uc_url}",
+                        # Create UC item
+                        uc_item = await backend.create_item(
+                            board_id,
+                            name=f"{uc_spec.uc_id}: {uc_spec.name}",
+                            description=uc_desc,
+                            state="backlog",
+                            labels=uc_labels,
+                            parent_id=us_item.id,
+                            meta={
+                                "tipo": "UC",
+                                "uc_id": uc_spec.uc_id,
+                                "us_id": us_spec.us_id,
+                                "horas": uc_spec.hours,
+                                "pantallas": uc_spec.screens,
+                                "actor": uc_spec.actor,
+                            },
                         )
+
+                        # Create acceptance criteria
+                        criteria = [
+                            (f"AC-{idx:02d}", ac_text)
+                            for idx, ac_text in enumerate(uc_spec.acceptance_criteria, 1)
+                        ]
+                        if criteria:
+                            await backend.create_acceptance_criteria(
+                                board_id, uc_item.id, criteria
+                            )
+                            created_ac += len(criteria)
+
+                        uc_item_ids.append(uc_item.id)
                         created_uc += 1
 
                     except Exception as e:
                         errors.append(f"UC {uc_spec.uc_id}: {str(e)}")
                         logger.error("import_uc_error", uc_id=uc_spec.uc_id, error=str(e))
 
+                # Add UC items to module
+                if uc_item_ids:
+                    await backend.add_items_to_module(board_id, module.id, uc_item_ids)
+
             except Exception as e:
                 errors.append(f"US {us_spec.us_id}: {str(e)}")
                 logger.error("import_us_error", us_id=us_spec.us_id, error=str(e))
 
-        return {"created": {"us": created_us, "uc": created_uc, "ac": created_ac}, "errors": errors}
+        return {
+            "created": {"us": created_us, "uc": created_uc, "ac": created_ac},
+            "errors": errors,
+        }
     finally:
-        await client.close()
+        await backend.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -344,59 +482,52 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
 # ═══════════════════════════════════════════════════════════════════════
 
 
-async def list_us(board_id: str, ctx: Context, status: str | None = None) -> list[dict[str, Any]]:
-    """List all User Stories on the board.
+async def list_us(
+    board_id: str, ctx: Context, status: str | None = None
+) -> list[dict[str, Any]]:
+    """List all User Stories on the board/project.
 
-    Filters cards with custom field tipo=US. Optionally filter by workflow
+    Filters items with label US. Optionally filter by workflow
     status (user_stories, backlog, in_progress, review, done).
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         status: Optional workflow state filter
 
     Returns:
         List of US summaries with progress metrics.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        cards = await client.get_board_cards(board_id)
-        lists = await client.get_board_lists(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
-        done_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "done"}
+        items = await backend.list_items(board_id)
 
-        result = []
-        for card in cards:
-            if not is_us_card(card, cf_map, custom_fields):
+        result: list[dict[str, Any]] = []
+        for item in items:
+            if not _is_us(item):
                 continue
-            card_state = get_state_for_list(card.get("idList", ""), lists)
-            if status and card_state != status:
+            if status and item.state != status:
                 continue
 
-            us_id = get_card_custom_value(card, "us_id", cf_map, custom_fields) or ""
-            hours = get_card_custom_value(card, "horas", cf_map, custom_fields) or 0
-            screens = get_card_custom_value(card, "pantallas", cf_map, custom_fields) or ""
+            us_id = _get_us_id(item)
+            hours = _extract_meta_float(item, "horas")
+            screens = _extract_meta_str(item, "pantallas")
 
-            uc_children = [
-                c for c in cards
-                if is_uc_card(c, cf_map, custom_fields)
-                and get_card_custom_value(c, "us_id", cf_map, custom_fields) == us_id
-            ]
-            uc_done = sum(1 for c in uc_children if c.get("idList") in done_list_ids)
+            uc_children = _get_uc_children(items, us_id)
+            uc_done = sum(1 for c in uc_children if c.state == "done")
 
+            # Get AC counts for each UC
             ac_total = 0
             ac_done = 0
-            for uc_card in uc_children:
-                checklists = await client.get_card_checklists(uc_card["id"])
-                acs = parse_checklist_acs(checklists)
-                ac_total += len(acs)
-                ac_done += sum(1 for ac in acs if ac.done)
+            for uc_item in uc_children:
+                t, d = await _get_ac_counts(backend, board_id, uc_item)
+                ac_total += t
+                ac_done += d
 
             result.append({
                 "us_id": us_id,
-                "name": card.get("name", ""),
-                "hours": float(hours),
-                "status": card_state,
+                "name": item.name,
+                "hours": hours,
+                "status": item.state,
                 "screens": screens,
                 "uc_total": len(uc_children),
                 "uc_done": uc_done,
@@ -406,85 +537,73 @@ async def list_us(board_id: str, ctx: Context, status: str | None = None) -> lis
 
         return result
     finally:
-        await client.close()
+        await backend.close()
 
 
 async def get_us(board_id: str, us_id: str, ctx: Context) -> dict[str, Any]:
     """Get detailed information about a User Story and its Use Cases.
 
-    Reads the US card and all child UC cards (linked via us_id custom field).
+    Reads the US item and all child UC items.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         us_id: User Story ID (e.g., "US-01")
 
     Returns:
         Full US detail with child UCs, attachments, and progress.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        cards = await client.get_board_cards(board_id)
-        lists = await client.get_board_lists(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
-        done_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "done"}
+        items = await backend.list_items(board_id)
 
-        us_card = None
-        for card in cards:
-            if is_us_card(card, cf_map, custom_fields):
-                if get_card_custom_value(card, "us_id", cf_map, custom_fields) == us_id:
-                    us_card = card
-                    break
-
-        if not us_card:
+        us_item = _find_us_item(items, us_id)
+        if not us_item:
             return {"error": f"User Story {us_id} not found", "code": "US_NOT_FOUND"}
 
-        attachments = await client.get_card_attachments(us_card["id"])
+        # Get attachments
+        attachments = await backend.get_attachments(board_id, us_item.id)
         attach_list = [
-            {"name": a.get("name", ""), "url": a.get("url", ""), "date": a.get("date", "")}
+            {"name": a.name, "url": a.url, "date": a.created_at}
             for a in attachments
         ]
 
-        use_cases = []
-        for card in cards:
-            if not is_uc_card(card, cf_map, custom_fields):
-                continue
-            if get_card_custom_value(card, "us_id", cf_map, custom_fields) != us_id:
-                continue
+        # Get child UCs
+        uc_children = _get_uc_children(items, us_id)
+        use_cases: list[dict[str, Any]] = []
+        for uc_item in uc_children:
+            uc_id = _get_uc_id(uc_item)
+            uc_hours = _extract_meta_float(uc_item, "horas")
+            actor = _extract_meta_str(uc_item, "actor")
 
-            uc_id = get_card_custom_value(card, "uc_id", cf_map, custom_fields) or ""
-            uc_hours = get_card_custom_value(card, "horas", cf_map, custom_fields) or 0
-            uc_state = get_state_for_list(card.get("idList", ""), lists)
-            actor = get_card_custom_value(card, "actor", cf_map, custom_fields) or ""
-
-            checklists = await client.get_card_checklists(card["id"])
-            acs = parse_checklist_acs(checklists)
+            ac_total, ac_done = await _get_ac_counts(backend, board_id, uc_item)
 
             use_cases.append({
                 "uc_id": uc_id,
-                "name": card.get("name", ""),
+                "name": uc_item.name,
                 "actor": actor,
-                "hours": float(uc_hours),
-                "status": uc_state,
-                "ac_total": len(acs),
-                "ac_done": sum(1 for ac in acs if ac.done),
+                "hours": uc_hours,
+                "status": uc_item.state,
+                "ac_total": ac_total,
+                "ac_done": ac_done,
             })
 
         return {
             "us_id": us_id,
-            "name": us_card.get("name", ""),
-            "hours": float(get_card_custom_value(us_card, "horas", cf_map, custom_fields) or 0),
-            "status": get_state_for_list(us_card.get("idList", ""), lists),
-            "screens": get_card_custom_value(us_card, "pantallas", cf_map, custom_fields) or "",
-            "description": us_card.get("desc", ""),
+            "name": us_item.name,
+            "hours": _extract_meta_float(us_item, "horas"),
+            "status": us_item.state,
+            "screens": _extract_meta_str(us_item, "pantallas"),
+            "description": us_item.description,
             "use_cases": use_cases,
             "attachments": attach_list,
         }
     finally:
-        await client.close()
+        await backend.close()
 
 
-async def move_us(board_id: str, us_id: str, target: str, ctx: Context) -> dict[str, Any]:
+async def move_us(
+    board_id: str, us_id: str, target: str, ctx: Context
+) -> dict[str, Any]:
     """Move a User Story and its Use Cases through the workflow.
 
     Movement rules:
@@ -495,7 +614,7 @@ async def move_us(board_id: str, us_id: str, target: str, ctx: Context) -> dict[
     - done: ONLY if ALL UCs are in Done
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         us_id: User Story ID (e.g., "US-01")
         target: Target workflow state
 
@@ -503,134 +622,113 @@ async def move_us(board_id: str, us_id: str, target: str, ctx: Context) -> dict[
         Movement result with count of UCs moved and any errors.
     """
     if target not in WORKFLOW_LIST_NAMES:
-        return {"error": f"Invalid target: {target}. Must be one of: {list(WORKFLOW_LIST_NAMES.keys())}", "code": "INVALID_TARGET"}
+        return {
+            "error": f"Invalid target: {target}. Must be one of: {list(WORKFLOW_LIST_NAMES.keys())}",
+            "code": "INVALID_TARGET",
+        }
 
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        cards = await client.get_board_cards(board_id)
-        lists = await client.get_board_lists(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
+        items = await backend.list_items(board_id)
 
-        us_card = None
-        for card in cards:
-            if is_us_card(card, cf_map, custom_fields):
-                if get_card_custom_value(card, "us_id", cf_map, custom_fields) == us_id:
-                    us_card = card
-                    break
-
-        if not us_card:
+        us_item = _find_us_item(items, us_id)
+        if not us_item:
             return {"error": f"User Story {us_id} not found", "code": "US_NOT_FOUND"}
 
-        uc_cards = [
-            c for c in cards
-            if is_uc_card(c, cf_map, custom_fields)
-            and get_card_custom_value(c, "us_id", cf_map, custom_fields) == us_id
-        ]
-
-        target_list_id = await get_list_id_for_state(client, board_id, target)
+        uc_children = _get_uc_children(items, us_id)
         ucs_moved = 0
         errors: list[str] = []
 
+        # Validate state transitions
         if target == "review":
-            review_done_names = {"review", "done"}
-            for uc in uc_cards:
-                uc_state = get_state_for_list(uc.get("idList", ""), lists)
-                if uc_state not in review_done_names:
-                    uc_id = get_card_custom_value(uc, "uc_id", cf_map, custom_fields) or "?"
+            review_done_states = {"review", "done"}
+            for uc in uc_children:
+                if uc.state not in review_done_states:
+                    uc_id = _get_uc_id(uc)
                     return {
-                        "error": f"Cannot move to review: UC {uc_id} is in '{uc_state}'",
+                        "error": f"Cannot move to review: UC {uc_id} is in '{uc.state}'",
                         "code": "UC_NOT_READY_FOR_REVIEW",
                     }
 
         elif target == "done":
-            for uc in uc_cards:
-                uc_state = get_state_for_list(uc.get("idList", ""), lists)
-                if uc_state != "done":
-                    uc_id = get_card_custom_value(uc, "uc_id", cf_map, custom_fields) or "?"
+            for uc in uc_children:
+                if uc.state != "done":
+                    uc_id = _get_uc_id(uc)
                     return {
-                        "error": f"Cannot move to done: UC {uc_id} is in '{uc_state}'",
+                        "error": f"Cannot move to done: UC {uc_id} is in '{uc.state}'",
                         "code": "UC_NOT_DONE",
                     }
 
-        await client.move_card(us_card["id"], target_list_id)
+        # Move US
+        await backend.update_item(board_id, us_item.id, state=target)
 
+        # Move children based on rules
         if target == "user_stories":
-            for uc in uc_cards:
-                await client.move_card(uc["id"], target_list_id)
+            for uc in uc_children:
+                await backend.update_item(board_id, uc.id, state=target)
                 ucs_moved += 1
+
         elif target == "backlog":
-            us_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "user stories"}
-            for uc in uc_cards:
-                if uc.get("idList") in us_list_ids:
-                    await client.move_card(uc["id"], target_list_id)
+            for uc in uc_children:
+                if uc.state == "user_stories":
+                    await backend.update_item(board_id, uc.id, state="backlog")
                     ucs_moved += 1
+
         elif target == "in_progress":
-            backlog_id = await get_list_id_for_state(client, board_id, "backlog")
-            us_backlog_ids = {lst["id"] for lst in lists if lst["name"].lower() in ("user stories", "backlog")}
-            for uc in uc_cards:
-                if uc.get("idList") in us_backlog_ids:
-                    await client.move_card(uc["id"], backlog_id)
+            for uc in uc_children:
+                if uc.state in ("user_stories", "backlog"):
+                    await backend.update_item(board_id, uc.id, state="backlog")
                     ucs_moved += 1
 
-        return {"us_id": us_id, "new_status": target, "ucs_moved": ucs_moved, "errors": errors}
+        return {
+            "us_id": us_id,
+            "new_status": target,
+            "ucs_moved": ucs_moved,
+            "errors": errors,
+        }
     finally:
-        await client.close()
+        await backend.close()
 
 
-async def get_us_progress(board_id: str, us_id: str, ctx: Context) -> dict[str, Any]:
+async def get_us_progress(
+    board_id: str, us_id: str, ctx: Context
+) -> dict[str, Any]:
     """Get detailed progress for a User Story.
 
     Reads all child UCs and their acceptance criteria to calculate
     comprehensive progress metrics.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         us_id: User Story ID (e.g., "US-01")
 
     Returns:
         Progress detail with UC-level and AC-level completion stats.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        cards = await client.get_board_cards(board_id)
-        lists = await client.get_board_lists(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
-        done_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "done"}
+        items = await backend.list_items(board_id)
 
-        us_card = None
-        for card in cards:
-            if is_us_card(card, cf_map, custom_fields):
-                if get_card_custom_value(card, "us_id", cf_map, custom_fields) == us_id:
-                    us_card = card
-                    break
-
-        if not us_card:
+        us_item = _find_us_item(items, us_id)
+        if not us_item:
             return {"error": f"User Story {us_id} not found", "code": "US_NOT_FOUND"}
 
-        ucs_data = []
+        uc_children = _get_uc_children(items, us_id)
+
+        ucs_data: list[dict[str, Any]] = []
         total_acs = 0
         passed_acs = 0
         hours_total = 0.0
         hours_done = 0.0
 
-        for card in cards:
-            if not is_uc_card(card, cf_map, custom_fields):
-                continue
-            if get_card_custom_value(card, "us_id", cf_map, custom_fields) != us_id:
-                continue
+        for uc_item in uc_children:
+            uc_id = _get_uc_id(uc_item)
+            uc_hours = _extract_meta_float(uc_item, "horas")
+            is_done = uc_item.state == "done"
 
-            uc_id = get_card_custom_value(card, "uc_id", cf_map, custom_fields) or ""
-            uc_hours = float(get_card_custom_value(card, "horas", cf_map, custom_fields) or 0)
-            uc_state = get_state_for_list(card.get("idList", ""), lists)
-            is_done = card.get("idList") in done_list_ids
-
-            checklists = await client.get_card_checklists(card["id"])
-            acs = parse_checklist_acs(checklists)
-
-            acs_total_uc = len(acs)
-            acs_passed_uc = sum(1 for ac in acs if ac.done)
+            acs_total_uc, acs_passed_uc = await _get_ac_counts(
+                backend, board_id, uc_item
+            )
 
             total_acs += acs_total_uc
             passed_acs += acs_passed_uc
@@ -640,8 +738,8 @@ async def get_us_progress(board_id: str, us_id: str, ctx: Context) -> dict[str, 
 
             ucs_data.append({
                 "uc_id": uc_id,
-                "name": card.get("name", ""),
-                "status": uc_state,
+                "name": uc_item.name,
+                "status": uc_item.state,
                 "acs_total": acs_total_uc,
                 "acs_passed": acs_passed_uc,
             })
@@ -650,7 +748,7 @@ async def get_us_progress(board_id: str, us_id: str, ctx: Context) -> dict[str, 
 
         return {
             "us_id": us_id,
-            "name": us_card.get("name", ""),
+            "name": us_item.name,
             "total_ucs": len(ucs_data),
             "done_ucs": done_ucs,
             "total_acs": total_acs,
@@ -660,7 +758,7 @@ async def get_us_progress(board_id: str, us_id: str, ctx: Context) -> dict[str, 
             "ucs": ucs_data,
         }
     finally:
-        await client.close()
+        await backend.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -668,182 +766,188 @@ async def get_us_progress(board_id: str, us_id: str, ctx: Context) -> dict[str, 
 # ═══════════════════════════════════════════════════════════════════════
 
 
-async def list_uc(board_id: str, ctx: Context, us_id: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
-    """List Use Cases on the board, optionally filtered by parent US or status.
+async def list_uc(
+    board_id: str,
+    ctx: Context,
+    us_id: str | None = None,
+    status: str | None = None,
+) -> list[dict[str, Any]]:
+    """List Use Cases on the board/project, optionally filtered by parent US or status.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         us_id: Optional parent US ID filter (e.g., "US-01")
         status: Optional workflow state filter (user_stories, backlog, in_progress, review, done)
 
     Returns:
         List of UC summaries with AC progress.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        cards = await client.get_board_cards(board_id)
-        lists = await client.get_board_lists(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
+        items = await backend.list_items(board_id)
 
-        result = []
-        for card in cards:
-            if not is_uc_card(card, cf_map, custom_fields):
+        result: list[dict[str, Any]] = []
+        for item in items:
+            if not _is_uc(item):
                 continue
-            card_us_id = get_card_custom_value(card, "us_id", cf_map, custom_fields) or ""
-            if us_id and card_us_id != us_id:
+            item_us_id = _extract_meta_str(item, "us_id")
+            # Also check parent_id for Plane-style hierarchy
+            if not item_us_id and item.parent_id:
+                parent = next((i for i in items if i.id == item.parent_id), None)
+                if parent:
+                    item_us_id = _get_us_id(parent)
+            if us_id and item_us_id != us_id:
                 continue
-            card_state = get_state_for_list(card.get("idList", ""), lists)
-            if status and card_state != status:
+            if status and item.state != status:
                 continue
 
-            uc_id = get_card_custom_value(card, "uc_id", cf_map, custom_fields) or ""
-            hours = get_card_custom_value(card, "horas", cf_map, custom_fields) or 0
-            screens = get_card_custom_value(card, "pantallas", cf_map, custom_fields) or ""
-            actor = get_card_custom_value(card, "actor", cf_map, custom_fields) or ""
+            uc_id = _get_uc_id(item)
+            hours = _extract_meta_float(item, "horas")
+            screens = _extract_meta_str(item, "pantallas")
+            actor = _extract_meta_str(item, "actor")
 
-            checklists = await client.get_card_checklists(card["id"])
-            acs = parse_checklist_acs(checklists)
+            ac_total, ac_done = await _get_ac_counts(backend, board_id, item)
 
             result.append({
                 "uc_id": uc_id,
-                "us_id": card_us_id,
-                "name": card.get("name", ""),
+                "us_id": item_us_id,
+                "name": item.name,
                 "actor": actor,
-                "hours": float(hours),
-                "status": card_state,
+                "hours": hours,
+                "status": item.state,
                 "screens": screens,
-                "ac_total": len(acs),
-                "ac_done": sum(1 for ac in acs if ac.done),
+                "ac_total": ac_total,
+                "ac_done": ac_done,
             })
 
         return result
     finally:
-        await client.close()
+        await backend.close()
 
 
 async def get_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
     """Get full details of a Use Case, optimized for LLM consumption.
 
-    Reads the UC card, parses its structured markdown description,
-    reads AC checklist status, and returns a complete JSON representation.
+    Reads the UC item, its acceptance criteria, and attachments,
+    returning a complete JSON representation.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
 
     Returns:
         Complete UC detail with acceptance criteria, context, and attachments.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        cards = await client.get_board_cards(board_id)
-        lists = await client.get_board_lists(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
+        items = await backend.list_items(board_id)
 
-        uc_card = None
-        for card in cards:
-            if is_uc_card(card, cf_map, custom_fields):
-                if get_card_custom_value(card, "uc_id", cf_map, custom_fields) == uc_id:
-                    uc_card = card
-                    break
-
-        if not uc_card:
+        uc_item = _find_uc_item(items, uc_id)
+        if not uc_item:
             return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
 
-        desc_raw = uc_card.get("desc", "")
-        parsed = parse_uc_description(desc_raw)
-
-        card_us_id = get_card_custom_value(uc_card, "us_id", cf_map, custom_fields) or ""
-        hours = float(get_card_custom_value(uc_card, "horas", cf_map, custom_fields) or 0)
-        screens_raw = get_card_custom_value(uc_card, "pantallas", cf_map, custom_fields) or ""
-        actor = get_card_custom_value(uc_card, "actor", cf_map, custom_fields) or ""
-        status = get_state_for_list(uc_card.get("idList", ""), lists)
-
-        screens = [s.strip() for s in screens_raw.split(",") if s.strip()] if screens_raw else parsed.get("screens", [])
+        # Get parent US info
+        item_us_id = _extract_meta_str(uc_item, "us_id")
+        if not item_us_id and uc_item.parent_id:
+            parent = next((i for i in items if i.id == uc_item.parent_id), None)
+            if parent:
+                item_us_id = _get_us_id(parent)
 
         us_name = ""
-        for card in cards:
-            if is_us_card(card, cf_map, custom_fields):
-                if get_card_custom_value(card, "us_id", cf_map, custom_fields) == card_us_id:
-                    us_name = card.get("name", "").replace(f"{card_us_id}: ", "")
-                    break
+        if item_us_id:
+            us_item = _find_us_item(items, item_us_id)
+            if us_item:
+                us_name = _clean_name(us_item.name, item_us_id)
 
-        checklists = await client.get_card_checklists(uc_card["id"])
-        acs = parse_checklist_acs(checklists)
+        # Get ACs
+        acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
         ac_list = [{"id": ac.id, "text": ac.text, "done": ac.done} for ac in acs]
 
-        attachments = await client.get_card_attachments(uc_card["id"])
+        # Get attachments
+        attachments = await backend.get_attachments(board_id, uc_item.id)
         attach_list = [
-            {"name": a.get("name", ""), "url": a.get("url", ""), "date": a.get("date", "")}
+            {"name": a.name, "url": a.url, "date": a.created_at}
             for a in attachments
         ]
 
-        return {
+        # Extract metadata
+        hours = _extract_meta_float(uc_item, "horas")
+        screens_raw = _extract_meta_str(uc_item, "pantallas")
+        actor = _extract_meta_str(uc_item, "actor")
+        context = _extract_meta_str(uc_item, "context")
+
+        screens = (
+            [s.strip() for s in screens_raw.split(",") if s.strip()]
+            if screens_raw
+            else []
+        )
+
+        result: dict[str, Any] = {
             "uc_id": uc_id,
-            "name": uc_card.get("name", "").replace(f"{uc_id}: ", ""),
-            "us_id": card_us_id,
+            "name": _clean_name(uc_item.name, uc_id),
+            "us_id": item_us_id,
             "us_name": us_name,
-            "actor": actor or parsed.get("actor", ""),
+            "actor": actor,
             "hours": hours,
             "screens": screens,
-            "status": status,
+            "status": uc_item.state,
             "acceptance_criteria": ac_list,
-            "context": parsed.get("context", ""),
-            "description_raw": desc_raw,
+            "context": context,
+            "description_raw": uc_item.description,
             "attachments": attach_list,
-            "trello_card_id": uc_card["id"],
-            "trello_card_url": uc_card.get("url", ""),
+            # Backend-agnostic identifiers
+            "backend_item_id": uc_item.id,
+            "backend_item_url": uc_item.url,
+            # Backward compatibility aliases
+            "trello_card_id": uc_item.id,
+            "trello_card_url": uc_item.url,
         }
+
+        return result
     finally:
-        await client.close()
+        await backend.close()
 
 
-async def move_uc(board_id: str, uc_id: str, target: str, ctx: Context) -> dict[str, Any]:
+async def move_uc(
+    board_id: str, uc_id: str, target: str, ctx: Context
+) -> dict[str, Any]:
     """Move a Use Case to a workflow state.
 
-    When moving to 'done', automatically marks the corresponding checkitem
-    in the parent US's checklist as complete.
+    When moving to 'done', automatically updates the parent US module/checklist.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
         target: Target state (user_stories, backlog, in_progress, review, done)
 
     Returns:
-        Movement result with US checklist update status.
+        Movement result with parent US update status.
     """
     if target not in WORKFLOW_LIST_NAMES:
         return {"error": f"Invalid target: {target}", "code": "INVALID_TARGET"}
 
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        cards = await client.get_board_cards(board_id)
-        lists = await client.get_board_lists(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
+        items = await backend.list_items(board_id)
 
-        uc_card = None
-        for card in cards:
-            if is_uc_card(card, cf_map, custom_fields):
-                if get_card_custom_value(card, "uc_id", cf_map, custom_fields) == uc_id:
-                    uc_card = card
-                    break
-
-        if not uc_card:
+        uc_item = _find_uc_item(items, uc_id)
+        if not uc_item:
             return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
 
-        target_list_id = await get_list_id_for_state(client, board_id, target)
-        await client.move_card(uc_card["id"], target_list_id)
+        # Move UC
+        await backend.update_item(board_id, uc_item.id, state=target)
 
         us_checklist_updated = False
         us_all_done = False
-        card_us_id = get_card_custom_value(uc_card, "us_id", cf_map, custom_fields) or ""
+        item_us_id = _extract_meta_str(uc_item, "us_id")
+        if not item_us_id and uc_item.parent_id:
+            parent = next((i for i in items if i.id == uc_item.parent_id), None)
+            if parent:
+                item_us_id = _get_us_id(parent)
 
-        if target == "done" and card_us_id:
-            us_checklist_updated, us_all_done = await _update_us_checklist_for_uc(
-                client, cards, cf_map, custom_fields, lists, card_us_id, uc_id
+        if target == "done" and item_us_id:
+            us_checklist_updated, us_all_done = await _handle_uc_completion(
+                backend, board_id, items, item_us_id, uc_id
             )
 
         return {
@@ -853,7 +957,7 @@ async def move_uc(board_id: str, uc_id: str, target: str, ctx: Context) -> dict[
             "us_all_done": us_all_done,
         }
     finally:
-        await client.close()
+        await backend.close()
 
 
 async def start_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
@@ -863,84 +967,75 @@ async def start_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
     and returns the full UC detail for the LLM to work with.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
 
     Returns:
         Full UC detail (same as get_uc) for immediate use.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        cards = await client.get_board_cards(board_id)
-        lists = await client.get_board_lists(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
-
-        uc_card = None
-        for card in cards:
-            if is_uc_card(card, cf_map, custom_fields):
-                if get_card_custom_value(card, "uc_id", cf_map, custom_fields) == uc_id:
-                    uc_card = card
-                    break
-
-        if not uc_card:
+        uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
+        if not uc_item:
             return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
 
-        target_list_id = await get_list_id_for_state(client, board_id, "in_progress")
-        await client.move_card(uc_card["id"], target_list_id)
+        # Move to in_progress
+        await backend.update_item(board_id, uc_item.id, state="in_progress")
 
+        # Add timestamp comment
         now = datetime.now(timezone.utc).isoformat()
-        await client.add_comment(uc_card["id"], f"Desarrollo iniciado: {now}")
+        await backend.add_comment(board_id, uc_item.id, f"Desarrollo iniciado: {now}")
     finally:
-        await client.close()
+        await backend.close()
 
+    # Return full UC detail (creates a new backend session)
     return await get_uc(board_id, uc_id, ctx)
 
 
-async def complete_uc(board_id: str, uc_id: str, ctx: Context, evidence: str | None = None) -> dict[str, Any]:
+async def complete_uc(
+    board_id: str, uc_id: str, ctx: Context, evidence: str | None = None
+) -> dict[str, Any]:
     """Mark a Use Case as complete.
 
-    Moves to Done, marks the corresponding checkitem in the parent US
-    checklist as complete, and optionally adds evidence as a comment.
+    Moves to Done, updates the parent US module/checklist,
+    and optionally adds evidence as a comment.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
         evidence: Optional evidence text to add as comment
 
     Returns:
         Completion result with US update status.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        cards = await client.get_board_cards(board_id)
-        lists = await client.get_board_lists(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
+        items = await backend.list_items(board_id)
 
-        uc_card = None
-        for card in cards:
-            if is_uc_card(card, cf_map, custom_fields):
-                if get_card_custom_value(card, "uc_id", cf_map, custom_fields) == uc_id:
-                    uc_card = card
-                    break
-
-        if not uc_card:
+        uc_item = _find_uc_item(items, uc_id)
+        if not uc_item:
             return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
 
-        done_list_id = await get_list_id_for_state(client, board_id, "done")
-        await client.move_card(uc_card["id"], done_list_id)
+        # Move to done
+        await backend.update_item(board_id, uc_item.id, state="done")
 
+        # Add evidence comment
         if evidence:
-            await client.add_comment(uc_card["id"], evidence)
+            await backend.add_comment(board_id, uc_item.id, evidence)
 
-        card_us_id = get_card_custom_value(uc_card, "us_id", cf_map, custom_fields) or ""
+        # Handle parent US updates
+        item_us_id = _extract_meta_str(uc_item, "us_id")
+        if not item_us_id and uc_item.parent_id:
+            parent = next((i for i in items if i.id == uc_item.parent_id), None)
+            if parent:
+                item_us_id = _get_us_id(parent)
+
         us_checklist_updated = False
         us_all_done = False
 
-        if card_us_id:
-            us_checklist_updated, us_all_done = await _update_us_checklist_for_uc(
-                client, cards, cf_map, custom_fields, lists, card_us_id, uc_id
+        if item_us_id:
+            us_checklist_updated, us_all_done = await _handle_uc_completion(
+                backend, board_id, items, item_us_id, uc_id
             )
 
         now = datetime.now(timezone.utc).isoformat()
@@ -949,10 +1044,10 @@ async def complete_uc(board_id: str, uc_id: str, ctx: Context, evidence: str | N
             "completed_at": now,
             "us_checklist_updated": us_checklist_updated,
             "us_all_done": us_all_done,
-            "us_id": card_us_id,
+            "us_id": item_us_id,
         }
     finally:
-        await client.close()
+        await backend.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -960,13 +1055,20 @@ async def complete_uc(board_id: str, uc_id: str, ctx: Context, evidence: str | N
 # ═══════════════════════════════════════════════════════════════════════
 
 
-async def mark_ac(board_id: str, uc_id: str, ac_id: str, passed: bool, ctx: Context, evidence: str | None = None) -> dict[str, Any]:
+async def mark_ac(
+    board_id: str,
+    uc_id: str,
+    ac_id: str,
+    passed: bool,
+    ctx: Context,
+    evidence: str | None = None,
+) -> dict[str, Any]:
     """Mark a single Acceptance Criterion as passed or failed.
 
-    Updates the checkitem state in the UC's checklist and adds a comment.
+    Updates the AC status and adds a comment.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
         ac_id: Acceptance Criterion ID (e.g., "AC-01")
         passed: True if the criterion passed, False if failed
@@ -975,29 +1077,34 @@ async def mark_ac(board_id: str, uc_id: str, ac_id: str, passed: bool, ctx: Cont
     Returns:
         AC status update result with totals.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        uc_card = await _find_uc_card(client, board_id, uc_id)
-        if not uc_card:
+        uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
+        if not uc_item:
             return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
 
-        checkitem_id, _ = await _find_ac_checkitem(client, uc_card["id"], ac_id)
-        if not checkitem_id:
-            return {"error": f"AC {ac_id} not found in {uc_id}", "code": "AC_NOT_FOUND"}
+        # Mark the AC
+        try:
+            await backend.mark_acceptance_criterion(
+                board_id, uc_item.id, ac_id, passed
+            )
+        except Exception as e:
+            return {
+                "error": f"AC {ac_id} not found in {uc_id}: {str(e)}",
+                "code": "AC_NOT_FOUND",
+            }
 
-        state = "complete" if passed else "incomplete"
-        await client.update_checklist_item(uc_card["id"], checkitem_id, state)
-
+        # Add comment
         status_text = "PASSED" if passed else "FAILED"
         comment = f"{ac_id}: {status_text}"
         if evidence:
             comment += f" — {evidence}"
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         comment += f" [{now}]"
-        await client.add_comment(uc_card["id"], comment)
+        await backend.add_comment(board_id, uc_item.id, comment)
 
-        checklists = await client.get_card_checklists(uc_card["id"])
-        acs = parse_checklist_acs(checklists)
+        # Get updated AC counts
+        acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
 
         return {
             "uc_id": uc_id,
@@ -1007,29 +1114,31 @@ async def mark_ac(board_id: str, uc_id: str, ac_id: str, passed: bool, ctx: Cont
             "ac_done": sum(1 for ac in acs if ac.done),
         }
     finally:
-        await client.close()
+        await backend.close()
 
 
-async def mark_ac_batch(board_id: str, uc_id: str, results: list[dict], ctx: Context) -> dict[str, Any]:
+async def mark_ac_batch(
+    board_id: str, uc_id: str, results: list[dict], ctx: Context
+) -> dict[str, Any]:
     """Mark multiple Acceptance Criteria at once.
 
     Processes all AC results in a single operation and adds a consolidated comment.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
         results: List of {ac_id: str, passed: bool, evidence: str | None}
 
     Returns:
         Batch result with total/passed/failed counts.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        uc_card = await _find_uc_card(client, board_id, uc_id)
-        if not uc_card:
+        uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
+        if not uc_item:
             return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
 
-        details = []
+        details: list[dict[str, Any]] = []
         passed_count = 0
         failed_count = 0
 
@@ -1037,10 +1146,14 @@ async def mark_ac_batch(board_id: str, uc_id: str, results: list[dict], ctx: Con
             ac_id = r.get("ac_id", "")
             passed = r.get("passed", False)
 
-            checkitem_id, _ = await _find_ac_checkitem(client, uc_card["id"], ac_id)
-            if checkitem_id:
-                state = "complete" if passed else "incomplete"
-                await client.update_checklist_item(uc_card["id"], checkitem_id, state)
+            try:
+                await backend.mark_acceptance_criterion(
+                    board_id, uc_item.id, ac_id, passed
+                )
+            except Exception:
+                logger.warning(
+                    "mark_ac_batch_skip", uc_id=uc_id, ac_id=ac_id, error="not_found"
+                )
 
             if passed:
                 passed_count += 1
@@ -1049,15 +1162,20 @@ async def mark_ac_batch(board_id: str, uc_id: str, results: list[dict], ctx: Con
 
             details.append({"ac_id": ac_id, "passed": passed})
 
+        # Add consolidated comment
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         comment_lines = [f"Validacion AG-09b [{now}]:"]
         for d in details:
             status_text = "PASSED" if d["passed"] else "FAILED"
             comment_lines.append(f"  {d['ac_id']}: {status_text}")
-        await client.add_comment(uc_card["id"], "\n".join(comment_lines))
+        await backend.add_comment(board_id, uc_item.id, "\n".join(comment_lines))
 
         if failed_count == 0 and passed_count > 0:
-            await client.add_comment(uc_card["id"], "Todos los criterios de aceptacion validados")
+            await backend.add_comment(
+                board_id,
+                uc_item.id,
+                "Todos los criterios de aceptacion validados",
+            )
 
         return {
             "uc_id": uc_id,
@@ -1067,38 +1185,41 @@ async def mark_ac_batch(board_id: str, uc_id: str, results: list[dict], ctx: Con
             "details": details,
         }
     finally:
-        await client.close()
+        await backend.close()
 
 
-async def get_ac_status(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
+async def get_ac_status(
+    board_id: str, uc_id: str, ctx: Context
+) -> dict[str, Any]:
     """Get the status of all Acceptance Criteria for a Use Case.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
 
     Returns:
         AC status with total, done, pending counts and individual criteria.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        uc_card = await _find_uc_card(client, board_id, uc_id)
-        if not uc_card:
+        uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
+        if not uc_item:
             return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
 
-        checklists = await client.get_card_checklists(uc_card["id"])
-        acs = parse_checklist_acs(checklists)
-
+        acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
         done_count = sum(1 for ac in acs if ac.done)
+
         return {
             "uc_id": uc_id,
             "total": len(acs),
             "done": done_count,
             "pending": len(acs) - done_count,
-            "criteria": [{"id": ac.id, "text": ac.text, "done": ac.done} for ac in acs],
+            "criteria": [
+                {"id": ac.id, "text": ac.text, "done": ac.done} for ac in acs
+            ],
         }
     finally:
-        await client.close()
+        await backend.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1115,13 +1236,13 @@ async def attach_evidence(
     ctx: Context,
     summary: str | None = None,
 ) -> dict[str, Any]:
-    """Convert markdown to PDF and attach it to a US or UC card.
+    """Convert markdown to PDF and attach it to a US or UC item.
 
     Generates a PDF from the markdown content, uploads it as an attachment,
     and adds a summary comment.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         target_id: US or UC ID (e.g., "US-01" or "UC-001")
         target_type: "us" or "uc"
         evidence_type: Type of evidence: "prd", "plan", "ag09", "delivery", "feedback"
@@ -1132,37 +1253,49 @@ async def attach_evidence(
         Attachment result with URL and comment status.
     """
     if target_type not in ("us", "uc"):
-        return {"error": "target_type must be 'us' or 'uc'", "code": "INVALID_TARGET_TYPE"}
+        return {
+            "error": "target_type must be 'us' or 'uc'",
+            "code": "INVALID_TARGET_TYPE",
+        }
     if evidence_type not in ("prd", "plan", "ag09", "delivery", "feedback"):
         return {"error": "Invalid evidence_type", "code": "INVALID_EVIDENCE_TYPE"}
 
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
         field_name = "us_id" if target_type == "us" else "uc_id"
-        card = await find_card_by_custom_field(client, board_id, field_name, target_id)
-        if not card:
-            return {"error": f"{target_type.upper()} {target_id} not found", "code": "TARGET_NOT_FOUND"}
+        item = await backend.find_item_by_field(board_id, field_name, target_id)
+        if not item:
+            return {
+                "error": f"{target_type.upper()} {target_id} not found",
+                "code": "TARGET_NOT_FOUND",
+            }
 
         filename = f"{target_id}_{evidence_type}.pdf"
         title = f"{target_id} - {evidence_type.upper()}"
         pdf_bytes = markdown_to_pdf(markdown_content, title=title)
 
-        attachment = await client.add_attachment(card["id"], pdf_bytes, filename)
+        attachment = await backend.add_attachment(
+            board_id, item.id, filename, pdf_bytes
+        )
 
         if not summary:
             summary = f"Evidencia {evidence_type.upper()} generada ({len(markdown_content)} chars)"
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        await client.add_comment(card["id"], f"{evidence_type.upper()} generado [{now}] — {summary}")
+        await backend.add_comment(
+            board_id,
+            item.id,
+            f"{evidence_type.upper()} generado [{now}] — {summary}",
+        )
 
         return {
             "target_id": target_id,
             "evidence_type": evidence_type,
-            "attachment_id": attachment.get("id", ""),
-            "attachment_url": attachment.get("url", ""),
+            "attachment_id": attachment.id,
+            "attachment_url": attachment.url,
             "comment_added": True,
         }
     finally:
-        await client.close()
+        await backend.close()
 
 
 async def get_evidence(
@@ -1172,49 +1305,57 @@ async def get_evidence(
     ctx: Context,
     evidence_type: str | None = None,
 ) -> dict[str, Any]:
-    """Get evidence attachments and activity for a US or UC card.
+    """Get evidence attachments and activity for a US or UC item.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
         target_id: US or UC ID (e.g., "US-01" or "UC-001")
         target_type: "us" or "uc"
         evidence_type: Optional filter by evidence type name
 
     Returns:
-        Attachments and activity comments for the target card.
+        Attachments and activity comments for the target item.
     """
     if target_type not in ("us", "uc"):
-        return {"error": "target_type must be 'us' or 'uc'", "code": "INVALID_TARGET_TYPE"}
+        return {
+            "error": "target_type must be 'us' or 'uc'",
+            "code": "INVALID_TARGET_TYPE",
+        }
 
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
         field_name = "us_id" if target_type == "us" else "uc_id"
-        card = await find_card_by_custom_field(client, board_id, field_name, target_id)
-        if not card:
-            return {"error": f"{target_type.upper()} {target_id} not found", "code": "TARGET_NOT_FOUND"}
+        item = await backend.find_item_by_field(board_id, field_name, target_id)
+        if not item:
+            return {
+                "error": f"{target_type.upper()} {target_id} not found",
+                "code": "TARGET_NOT_FOUND",
+            }
 
-        attachments = await client.get_card_attachments(card["id"])
-        attach_list = []
+        # Get attachments
+        attachments = await backend.get_attachments(board_id, item.id)
+        attach_list: list[dict[str, Any]] = []
         for a in attachments:
-            name = a.get("name", "")
-            if evidence_type and evidence_type not in name.lower():
+            if evidence_type and evidence_type not in a.name.lower():
                 continue
             attach_list.append({
-                "name": name,
-                "url": a.get("url", ""),
-                "date": a.get("date", ""),
-                "size": a.get("bytes", 0),
+                "name": a.name,
+                "url": a.url,
+                "date": a.created_at,
+                "size": a.size,
             })
 
-        actions = await client.get_card_actions(card["id"], filter="commentCard")
-        activity = [
-            {"text": a.get("data", {}).get("text", ""), "date": a.get("date", "")}
-            for a in actions
-        ]
+        # Get comments as activity
+        comments = await backend.get_comments(board_id, item.id)
+        activity = [{"text": c.text, "date": c.created_at} for c in comments]
 
-        return {"target_id": target_id, "attachments": attach_list, "activity": activity}
+        return {
+            "target_id": target_id,
+            "attachments": attach_list,
+            "activity": activity,
+        }
     finally:
-        await client.close()
+        await backend.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1223,26 +1364,20 @@ async def get_evidence(
 
 
 async def get_sprint_status(board_id: str, ctx: Context) -> dict[str, Any]:
-    """Get executive summary of the entire board.
+    """Get executive summary of the entire board/project.
 
     Provides counts by status, hours progress, AC pass rates, and blocked items.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
 
     Returns:
         Sprint status dashboard with comprehensive metrics.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        board = await client.get_board(board_id)
-        lists = await client.get_board_lists(board_id)
-        cards = await client.get_board_cards(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
-
-        board_labels = await client.get_board_labels(board_id)
-        blocked_label_id = next((l["id"] for l in board_labels if l.get("name", "").lower() == "bloqueado"), None)
+        board_name = await backend.get_board_name(board_id)
+        items = await backend.list_items(board_id)
 
         total_us = 0
         total_uc = 0
@@ -1252,53 +1387,55 @@ async def get_sprint_status(board_id: str, ctx: Context) -> dict[str, Any]:
         hours_done = 0.0
         hours_in_progress = 0.0
         acs_passed = 0
-        blocked: list[dict] = []
-
-        done_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "done"}
-        ip_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "in progress"}
+        blocked: list[dict[str, Any]] = []
 
         for state in WORKFLOW_LIST_NAMES:
             by_status[state] = {"us": 0, "uc": 0}
 
-        for card in cards:
-            card_state = get_state_for_list(card.get("idList", ""), lists)
-            _is_us = is_us_card(card, cf_map, custom_fields)
-            _is_uc = is_uc_card(card, cf_map, custom_fields)
+        for item in items:
+            is_us = _is_us(item)
+            is_uc = _is_uc(item)
 
-            if _is_us:
+            if is_us:
                 total_us += 1
-                if card_state in by_status:
-                    by_status[card_state]["us"] += 1
-            elif _is_uc:
+                if item.state in by_status:
+                    by_status[item.state]["us"] += 1
+            elif is_uc:
                 total_uc += 1
-                if card_state in by_status:
-                    by_status[card_state]["uc"] += 1
+                if item.state in by_status:
+                    by_status[item.state]["uc"] += 1
 
-                h = float(get_card_custom_value(card, "horas", cf_map, custom_fields) or 0)
+                h = _extract_meta_float(item, "horas")
                 hours_total += h
-                if card.get("idList") in done_list_ids:
+                if item.state == "done":
                     hours_done += h
-                elif card.get("idList") in ip_list_ids:
+                elif item.state == "in_progress":
                     hours_in_progress += h
 
-                checklists = await client.get_card_checklists(card["id"])
-                acs = parse_checklist_acs(checklists)
-                total_ac += len(acs)
-                acs_passed += sum(1 for ac in acs if ac.done)
+                ac_t, ac_d = await _get_ac_counts(backend, board_id, item)
+                total_ac += ac_t
+                acs_passed += ac_d
 
-            if blocked_label_id and blocked_label_id in [l.get("id") for l in card.get("labels", [])]:
-                card_id_val = ""
-                if _is_us:
-                    card_id_val = get_card_custom_value(card, "us_id", cf_map, custom_fields) or ""
-                elif _is_uc:
-                    card_id_val = get_card_custom_value(card, "uc_id", cf_map, custom_fields) or ""
-                blocked.append({"id": card_id_val, "name": card.get("name", ""), "status": card_state})
+            # Check for blocked
+            if "Bloqueado" in item.labels or "bloqueado" in [
+                l.lower() for l in item.labels
+            ]:
+                item_id_val = ""
+                if is_us:
+                    item_id_val = _get_us_id(item)
+                elif is_uc:
+                    item_id_val = _get_uc_id(item)
+                blocked.append({
+                    "id": item_id_val,
+                    "name": item.name,
+                    "status": item.state,
+                })
 
         hours_pct = (hours_done / hours_total * 100) if hours_total > 0 else 0
         acs_pct = (acs_passed / total_ac * 100) if total_ac > 0 else 0
 
         return {
-            "board_name": board.get("name", ""),
+            "board_name": board_name,
             "total_us": total_us,
             "total_uc": total_uc,
             "total_ac": total_ac,
@@ -1309,11 +1446,15 @@ async def get_sprint_status(board_id: str, ctx: Context) -> dict[str, Any]:
                 "in_progress": hours_in_progress,
                 "pct": round(hours_pct, 1),
             },
-            "acs": {"total": total_ac, "passed": acs_passed, "pct": round(acs_pct, 1)},
+            "acs": {
+                "total": total_ac,
+                "passed": acs_passed,
+                "pct": round(acs_pct, 1),
+            },
             "blocked": blocked,
         }
     finally:
-        await client.close()
+        await backend.close()
 
 
 async def get_delivery_report(board_id: str, ctx: Context) -> dict[str, Any]:
@@ -1322,54 +1463,44 @@ async def get_delivery_report(board_id: str, ctx: Context) -> dict[str, Any]:
     Summarizes progress per User Story with completion percentages.
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
 
     Returns:
         Delivery report with per-US progress and overall summary.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        board = await client.get_board(board_id)
-        cards = await client.get_board_cards(board_id)
-        lists = await client.get_board_lists(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
-        done_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "done"}
+        board_name = await backend.get_board_name(board_id)
+        items = await backend.list_items(board_id)
 
-        us_cards = [c for c in cards if is_us_card(c, cf_map, custom_fields)]
-        total_us = len(us_cards)
+        us_items = [i for i in items if _is_us(i)]
+        total_us = len(us_items)
         completed_us = 0
-        user_stories = []
+        user_stories: list[dict[str, Any]] = []
 
-        for us_card in us_cards:
-            us_id = get_card_custom_value(us_card, "us_id", cf_map, custom_fields) or ""
-            us_name = us_card.get("name", "").replace(f"{us_id}: ", "")
-            us_hours = float(get_card_custom_value(us_card, "horas", cf_map, custom_fields) or 0)
-            us_status = get_state_for_list(us_card.get("idList", ""), lists)
+        for us_item in us_items:
+            us_id = _get_us_id(us_item)
+            us_name = _clean_name(us_item.name, us_id)
+            us_hours = _extract_meta_float(us_item, "horas")
 
-            uc_children = [
-                c for c in cards
-                if is_uc_card(c, cf_map, custom_fields)
-                and get_card_custom_value(c, "us_id", cf_map, custom_fields) == us_id
-            ]
-            uc_done = sum(1 for c in uc_children if c.get("idList") in done_list_ids)
+            uc_children = _get_uc_children(items, us_id)
+            uc_done = sum(1 for c in uc_children if c.state == "done")
             uc_total = len(uc_children)
 
             ac_total = 0
             ac_passed = 0
-            for uc in uc_children:
-                cls = await client.get_card_checklists(uc["id"])
-                acs = parse_checklist_acs(cls)
-                ac_total += len(acs)
-                ac_passed += sum(1 for ac in acs if ac.done)
+            for uc_item in uc_children:
+                t, d = await _get_ac_counts(backend, board_id, uc_item)
+                ac_total += t
+                ac_passed += d
 
-            if us_status == "done":
+            if us_item.state == "done":
                 completed_us += 1
 
             user_stories.append({
                 "us_id": us_id,
                 "name": us_name,
-                "status": us_status,
+                "status": us_item.state,
                 "hours": us_hours,
                 "ucs_completed": f"{uc_done}/{uc_total}",
                 "acs_passed": f"{ac_passed}/{ac_total}",
@@ -1378,13 +1509,17 @@ async def get_delivery_report(board_id: str, ctx: Context) -> dict[str, Any]:
         pct = (completed_us / total_us * 100) if total_us > 0 else 0
 
         return {
-            "project": board.get("name", ""),
+            "project": board_name,
             "generated_at": datetime.now(timezone.utc).isoformat(),
-            "summary": {"total_us": total_us, "completed_us": completed_us, "pct": round(pct, 1)},
+            "summary": {
+                "total_us": total_us,
+                "completed_us": completed_us,
+                "pct": round(pct, 1),
+            },
             "user_stories": user_stories,
         }
     finally:
-        await client.close()
+        await backend.close()
 
 
 async def find_next_uc(board_id: str, ctx: Context) -> dict[str, Any] | None:
@@ -1396,63 +1531,70 @@ async def find_next_uc(board_id: str, ctx: Context) -> dict[str, Any] | None:
     3. First UC in Backlog by position
 
     Args:
-        board_id: Trello board ID
+        board_id: Board/project ID
 
     Returns:
         Full UC detail (same as get_uc) or None if nothing in Backlog.
     """
-    client = await get_session_client(ctx)
+    backend = await get_session_backend(ctx)
     try:
-        cards = await client.get_board_cards(board_id)
-        lists = await client.get_board_lists(board_id)
-        custom_fields = await client.get_board_custom_fields(board_id)
-        cf_map = build_custom_field_map(custom_fields)
+        items = await backend.list_items(board_id)
 
-        ready_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "backlog"}
-        ip_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "in progress"}
-
-        ready_ucs = [
-            c for c in cards
-            if is_uc_card(c, cf_map, custom_fields) and c.get("idList") in ready_list_ids
-        ]
-
+        # Find all UCs in Backlog
+        ready_ucs = [i for i in items if _is_uc(i) and i.state == "backlog"]
         if not ready_ucs:
             return None
 
-        us_with_ip = set()
-        for card in cards:
-            if is_uc_card(card, cf_map, custom_fields) and card.get("idList") in ip_list_ids:
-                uid = get_card_custom_value(card, "us_id", cf_map, custom_fields) or ""
+        # Find USs that have UCs in progress
+        us_with_ip: set[str] = set()
+        for item in items:
+            if _is_uc(item) and item.state == "in_progress":
+                uid = _extract_meta_str(item, "us_id")
+                if not uid and item.parent_id:
+                    parent = next(
+                        (i for i in items if i.id == item.parent_id), None
+                    )
+                    if parent:
+                        uid = _get_us_id(parent)
                 if uid:
                     us_with_ip.add(uid)
 
-        priority1 = [
-            c for c in ready_ucs
-            if (get_card_custom_value(c, "us_id", cf_map, custom_fields) or "") in us_with_ip
-        ]
+        # Priority 1: UCs from USs with in-progress work
+        def _get_item_us_id(item: ItemDTO) -> str:
+            uid = _extract_meta_str(item, "us_id")
+            if not uid and item.parent_id:
+                parent = next(
+                    (i for i in items if i.id == item.parent_id), None
+                )
+                if parent:
+                    uid = _get_us_id(parent)
+            return uid
+
+        priority1 = [c for c in ready_ucs if _get_item_us_id(c) in us_with_ip]
 
         if priority1:
             chosen = priority1[0]
         else:
+            # Priority 2: US with most UCs in backlog
             us_ready_count: dict[str, int] = {}
             for c in ready_ucs:
-                uid = get_card_custom_value(c, "us_id", cf_map, custom_fields) or ""
+                uid = _get_item_us_id(c)
                 us_ready_count[uid] = us_ready_count.get(uid, 0) + 1
 
             if us_ready_count:
-                top_us = max(us_ready_count, key=us_ready_count.get)
+                top_us = max(us_ready_count, key=lambda k: us_ready_count[k])
                 priority2 = [
-                    c for c in ready_ucs
-                    if get_card_custom_value(c, "us_id", cf_map, custom_fields) == top_us
+                    c for c in ready_ucs if _get_item_us_id(c) == top_us
                 ]
                 chosen = priority2[0] if priority2 else ready_ucs[0]
             else:
                 chosen = ready_ucs[0]
 
-        uc_id = get_card_custom_value(chosen, "uc_id", cf_map, custom_fields) or ""
+        uc_id = _get_uc_id(chosen)
     finally:
-        await client.close()
+        await backend.close()
 
+    # Return full UC detail (creates a new backend session)
     return await get_uc(board_id, uc_id, ctx)
 
 
@@ -1461,122 +1603,54 @@ async def find_next_uc(board_id: str, ctx: Context) -> dict[str, Any] | None:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-async def _find_uc_card(client: TrelloClient, board_id: str, uc_id: str) -> dict | None:
-    """Find a UC card by uc_id custom field."""
-    cards = await client.get_board_cards(board_id)
-    custom_fields = await client.get_board_custom_fields(board_id)
-    cf_map = build_custom_field_map(custom_fields)
-    for card in cards:
-        if is_uc_card(card, cf_map, custom_fields):
-            if get_card_custom_value(card, "uc_id", cf_map, custom_fields) == uc_id:
-                return card
-    return None
-
-
-async def _find_ac_checkitem(client: TrelloClient, card_id: str, ac_id: str) -> tuple[str | None, str | None]:
-    """Find a checkitem by AC-XX id. Returns (checkitem_id, checklist_id)."""
-    checklists = await client.get_card_checklists(card_id)
-    for cl in checklists:
-        if "aceptacion" in cl.get("name", "").lower() or "acceptance" in cl.get("name", "").lower():
-            for item in cl.get("checkItems", []):
-                if item.get("name", "").startswith(ac_id):
-                    return item["id"], cl["id"]
-    return None, None
-
-
-async def _set_card_type(
-    client: TrelloClient, card_id: str, tipo: str, cf_map: dict, custom_fields: list[dict]
-) -> None:
-    cf_info = cf_map.get("tipo")
-    if not cf_info:
-        return
-    option_id = find_option_id(custom_fields, "tipo", tipo)
-    if option_id:
-        await client.set_custom_field_value(card_id, cf_info["id"], {"idValue": option_id})
-
-
-async def _set_text_field(client: TrelloClient, card_id: str, field_name: str, value: str, cf_map: dict) -> None:
-    cf_info = cf_map.get(field_name.lower())
-    if not cf_info or not value:
-        return
-    await client.set_custom_field_value(card_id, cf_info["id"], {"value": {"text": str(value)}})
-
-
-async def _set_number_field(client: TrelloClient, card_id: str, field_name: str, value: float, cf_map: dict) -> None:
-    cf_info = cf_map.get(field_name.lower())
-    if not cf_info:
-        return
-    await client.set_custom_field_value(card_id, cf_info["id"], {"value": {"number": str(value)}})
-
-
-async def _set_actor_field(
-    client: TrelloClient, card_id: str, actor: str, cf_map: dict, custom_fields: list[dict]
-) -> None:
-    cf_info = cf_map.get("actor")
-    if not cf_info:
-        return
-    option_id = find_option_id(custom_fields, "actor", actor)
-    if option_id:
-        await client.set_custom_field_value(card_id, cf_info["id"], {"idValue": option_id})
-
-
-async def _update_us_checklist_for_uc(
-    client: TrelloClient,
-    cards: list[dict],
-    cf_map: dict,
-    custom_fields: list[dict],
-    lists: list[dict],
+async def _handle_uc_completion(
+    backend: SpecBackend,
+    board_id: str,
+    items: list[ItemDTO],
     us_id: str,
-    uc_id: str,
+    completed_uc_id: str,
 ) -> tuple[bool, bool]:
-    """Update parent US checklist when a UC is completed."""
-    us_card = None
-    for card in cards:
-        if is_us_card(card, cf_map, custom_fields):
-            if get_card_custom_value(card, "us_id", cf_map, custom_fields) == us_id:
-                us_card = card
-                break
+    """Handle parent US updates when a UC is completed.
 
-    if not us_card:
+    Checks if all sibling UCs are done and adds a completion comment
+    to the parent US if so.
+
+    Returns:
+        (checklist_updated, all_done) tuple.
+    """
+    us_item = _find_us_item(items, us_id)
+    if not us_item:
         return False, False
 
-    us_checklists = await client.get_card_checklists(us_card["id"])
-    checklist_updated = False
-    for cl in us_checklists:
-        if "caso" in cl.get("name", "").lower() or "use" in cl.get("name", "").lower():
-            for item in cl.get("checkItems", []):
-                if uc_id in item.get("name", ""):
-                    await client.update_checklist_item(us_card["id"], item["id"], "complete")
-                    checklist_updated = True
-                    break
+    uc_siblings = _get_uc_children(items, us_id)
 
-    done_list_ids = {lst["id"] for lst in lists if lst["name"].lower() == "done"}
-    uc_siblings = [
-        c for c in cards
-        if is_uc_card(c, cf_map, custom_fields)
-        and get_card_custom_value(c, "us_id", cf_map, custom_fields) == us_id
-    ]
-
+    # Check if all UCs are done (including the one just completed)
     all_done = all(
-        c.get("idList") in done_list_ids
-        or get_card_custom_value(c, "uc_id", cf_map, custom_fields) == uc_id
+        c.state == "done" or _get_uc_id(c) == completed_uc_id
         for c in uc_siblings
     )
+
+    checklist_updated = True  # Backend handles module/checklist updates internally
 
     if all_done and uc_siblings:
         total_ucs = len(uc_siblings)
         total_acs = 0
         for uc in uc_siblings:
-            cls = await client.get_card_checklists(uc["id"])
-            acs = parse_checklist_acs(cls)
-            total_acs += len(acs)
+            ac_t, _ = await _get_ac_counts(backend, board_id, uc)
+            total_acs += ac_t
 
-        await client.add_comment(
-            us_card["id"],
+        await backend.add_comment(
+            board_id,
+            us_item.id,
             f"{us_id} completada: {total_ucs}/{total_ucs} UCs, {total_acs} ACs",
         )
 
     return checklist_updated, all_done
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# TOOL REGISTRATION
+# ═══════════════════════════════════════════════════════════════════════
 
 
 def register_spec_driven_tools(mcp_instance) -> None:
@@ -1584,20 +1658,20 @@ def register_spec_driven_tools(mcp_instance) -> None:
 
     # Auth (1)
     mcp_instance.tool(
-        description="Configure Trello API credentials for this session. "
+        description="Configure backend API credentials (Trello or Plane) for this session. "
         "MUST be called before any other spec-driven tool."
     )(set_auth_token)
 
     # Board & Setup (3)
     mcp_instance.tool(
-        description="Create a new board with Dev Engine structure: 5 workflow lists, "
-        "6 custom fields, and base labels."
+        description="Create a new board/project with Dev Engine structure: 5 workflow states, "
+        "custom fields (Trello), and base labels."
     )(setup_board)
     mcp_instance.tool(
-        description="Get board status: card counts per list, hours progress, US summary."
+        description="Get board/project status: item counts per state, hours progress, US summary."
     )(get_board_status)
     mcp_instance.tool(
-        description="Import a full project spec (US + UC + AC) into the board from JSON."
+        description="Import a full project spec (US + UC + AC) into the board/project from JSON."
     )(import_spec)
 
     # User Stories (4)
@@ -1622,13 +1696,13 @@ def register_spec_driven_tools(mcp_instance) -> None:
         description="Get full UC detail optimized for LLM: acceptance criteria, context, screens."
     )(get_uc)
     mcp_instance.tool(
-        description="Move a UC to a workflow state. Auto-updates parent US checklist."
+        description="Move a UC to a workflow state. Auto-updates parent US module/checklist."
     )(move_uc)
     mcp_instance.tool(
         description="Start working on a UC: moves to In Progress, adds timestamp, returns full detail."
     )(start_uc)
     mcp_instance.tool(
-        description="Complete a UC: moves to Done, updates parent US checklist, adds evidence."
+        description="Complete a UC: moves to Done, updates parent US, adds evidence."
     )(complete_uc)
 
     # Acceptance Criteria (3)
@@ -1644,7 +1718,7 @@ def register_spec_driven_tools(mcp_instance) -> None:
 
     # Evidence (2)
     mcp_instance.tool(
-        description="Convert markdown to PDF and attach as evidence to a US or UC card."
+        description="Convert markdown to PDF and attach as evidence to a US or UC item."
     )(attach_evidence)
     mcp_instance.tool(
         description="Get evidence attachments and activity for a US or UC."

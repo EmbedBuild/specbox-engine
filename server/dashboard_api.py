@@ -53,7 +53,7 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
     # ------------------------------------------------------------------
     @mcp.custom_route("/health", methods=["GET"])
     async def health(request: Request) -> JSONResponse:
-        return _json({"status": "ok", "version": "4.0.0"})
+        return _json({"status": "ok", "version": "4.1.0"})
 
     # ------------------------------------------------------------------
     # GET /api/sala — Global dashboard
@@ -567,7 +567,7 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
         })
 
     # ------------------------------------------------------------------
-    # GET /api/spec-driven — Spec-driven (Trello) board status
+    # GET /api/spec-driven — Spec-driven (Trello/Plane) board status
     # ------------------------------------------------------------------
     @mcp.custom_route("/api/spec-driven", methods=["GET"])
     async def api_spec_driven(request: Request) -> JSONResponse:

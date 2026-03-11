@@ -1,8 +1,8 @@
-# SDD-JPS Engine v4.0.0
+# SDD-JPS Engine v4.1.0
 
 > **Spec-Driven Development Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (73+ tools) + Sala de Máquinas + Gherkin BDD.
+> Monorepo unificado: engine + MCP server (78+ tools) + Sala de Máquinas + Gherkin BDD.
 
 ## Que es este repositorio
 
@@ -15,8 +15,8 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (73+ tools) + Sala de Máquinas dashboard (React 19)
-- **Spec-Driven** — Trello domain tools para US/UC/AC (21 tools integrados en MCP)
+- **Server** — MCP server unificado (78+ tools) + Sala de Máquinas dashboard (React 19)
+- **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
 
 ## Stack soportado
@@ -35,6 +35,18 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 | Google Stitch MCP | - | Completo |
 | VEG (Visual Experience Generation) | v3.9 | Completo |
 
+## Gestores de proyecto (Spec-Driven)
+
+| Gestor | Auth | Estado |
+|--------|------|--------|
+| Trello | API key + token | Completo |
+| Plane | API key + base_url + workspace_slug | Completo |
+
+Ambos gestores se usan de forma identica gracias a la abstraccion `SpecBackend`.
+Los 21 tools de spec-driven funcionan con cualquier backend configurado por proyecto.
+Plane funciona tanto self-hosted (CE) como cloud — solo cambia el `base_url`.
+Migracion bidireccional disponible via `migrate_preview` / `migrate_project`.
+
 ## Instalacion
 
 ```bash
@@ -48,12 +60,12 @@ Esto instala Skills en `~/.claude/skills/`, hooks en `~/.claude/hooks/` y comman
 ## Flujo de desarrollo
 
 ```
-Spec-Driven (Trello):
+Spec-Driven (Trello o Plane):
   US-XX (User Story) → UC-XXX (Use Cases) → AC-XX (Acceptance Criteria)
   ↓
-/prd → Enriquece spec firmado + PRD + evidencia PDF → Trello
+/prd → Enriquece spec firmado + PRD + evidencia PDF → Trello/Plane
   ↓
-/plan → Plan tecnico por UC + VEG + Diseños Stitch (MCP) + evidencia PDF → Trello
+/plan → Plan tecnico por UC + VEG + Diseños Stitch (MCP) + evidencia PDF → Trello/Plane
   ↓
 /implement → find_next_uc → start_uc → rama + fases + QA + Acceptance Gate + PR
   ↓                                                         ↑
@@ -67,8 +79,8 @@ complete_uc → Merge secuencial → pull main → find_next_uc (siguiente UC)
   ↓
 /optimize-agents → Audita y optimiza sistema agentico del proyecto
 
-Freeform (Plane / texto):
-  /prd → PRD + Plane    →  /plan → Plan tecnico  →  /implement → Autopilot
+Backend selection: set_auth_token(backend_type="trello"|"plane")
+Migration: migrate_preview → migrate_project (bidirectional Trello ↔ Plane)
 ```
 
 ## Estructura del repositorio
@@ -150,10 +162,15 @@ sdd-jps-engine/
 ├── .quality/              ← Telemetria y evidencia (v3.1)
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
-├── server/                ← MCP server unificado (v4.0)
-│   ├── server.py          ← FastMCP (73+ tools)
+├── server/                ← MCP server unificado (v4.1)
+│   ├── server.py          ← FastMCP (78+ tools)
 │   ├── dashboard_api.py   ← REST API /api/*
-│   ├── tools/             ← 10 tool modules
+│   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
+│   ├── backends/          ← Backend implementations
+│   │   ├── trello_backend.py  ← TrelloBackend (wraps TrelloClient)
+│   │   ├── plane_backend.py   ← PlaneBackend (Plane CE self-hosted)
+│   │   └── plane_client.py    ← Async httpx client for Plane API v1
+│   ├── tools/             ← 11 tool modules
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
 │   │   ├── quality.py     ← 4 tools
@@ -163,16 +180,17 @@ sdd-jps-engine/
 │   │   ├── hooks.py       ← 3 tools
 │   │   ├── onboarding.py  ← 10 tools (+ setup_board + archive_project)
 │   │   ├── state.py       ← 20 tools
-│   │   └── spec_driven.py ← 21 tools Trello domain
+│   │   ├── spec_driven.py ← 21 tools (backend-agnostic via SpecBackend)
+│   │   └── migration.py   ← 5 tools (Trello ↔ Plane migration)
 │   ├── trello_client.py   ← Async httpx con retry
-│   ├── board_helpers.py   ← Card parsing, custom fields
+│   ├── board_helpers.py   ← Card parsing, custom fields (Trello)
 │   ├── models.py          ← Pydantic: US, UC, AC, WorkflowState
 │   ├── pdf_generator.py   ← Markdown → PDF (fpdf2)
-│   ├── auth_gateway.py    ← Per-session credentials
+│   ├── auth_gateway.py    ← Per-session credentials (multi-backend)
 │   ├── resources/         ← 8 MCP Resources
 │   └── dashboard/         ← React 19 + Vite (Sala de Máquinas)
 │       └── src/
-├── tests/                 ← Tests unificados (208 tests)
+├── tests/                 ← Tests unificados
 ├── Dockerfile             ← Multi-stage (Node + Python)
 ├── docker-compose.yml
 ├── pyproject.toml         ← name = "sdd-jps-engine"
@@ -346,6 +364,6 @@ Configuracion MCP de providers en `templates/settings.json.template` → seccion
 
 ## Engine Version
 
-Current: v4.0.0 "Monorepo + Gherkin Acceptance"
+Current: v4.1.0 "Multi-Backend Abstraction"
 Brand: SDD-JPS Engine (Spec-Driven Development Engine by JPS)
 Config: ENGINE_VERSION.yaml

@@ -1,7 +1,7 @@
 """
-SDD-JPS Engine MCP Server v4.0.0
+SDD-JPS Engine MCP Server v4.1.0
 
-Unified MCP endpoint: 73+ tools (engine + spec-driven + telemetry).
+Unified MCP endpoint: 78+ tools (engine + spec-driven + migration + telemetry).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
 
 Architecture:
@@ -25,6 +25,7 @@ from .tools.hooks import register_hook_tools
 from .tools.onboarding import register_onboarding_tools
 from .tools.state import register_state_tools
 from .tools.spec_driven import register_spec_driven_tools
+from .tools.migration import register_migration_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -54,7 +55,7 @@ STATE_PATH.mkdir(parents=True, exist_ok=True)
 mcp = FastMCP(
     "sdd-jps-engine",
     instructions="""
-    MCP server for the SDD-JPS Engine v4.0.0 — an agentic programming system for Claude Code.
+    MCP server for the SDD-JPS Engine v4.1.0 — an agentic programming system for Claude Code.
 
     Use these tools to:
     - Query implementation plans and their status
@@ -77,8 +78,10 @@ mcp = FastMCP(
     - Report E2E test results (Playwright) and track pass rates across projects
     - View the Sala de Máquinas global dashboard across all projects
     - Manage Trello boards for spec-driven development (US/UC/AC hierarchy)
+    - Manage Plane projects for spec-driven development (US/UC/AC hierarchy)
     - Import project specifications, track progress, attach evidence
     - Find next UC to implement, mark acceptance criteria, generate delivery reports
+    - Migrate projects bidirectionally between Trello and Plane
 
     The engine manages Flutter, React, Python, and Google Apps Script projects
     with automated PRD → Plan → Implement → PR pipelines, self-healing protocol,
@@ -93,7 +96,7 @@ mcp = FastMCP(
     """
 )
 
-# Register engine tools (52 tools)
+# Register engine tools
 register_plan_tools(mcp, ENGINE_PATH)
 register_quality_tools(mcp, ENGINE_PATH)
 register_skill_tools(mcp, ENGINE_PATH)
@@ -108,6 +111,9 @@ register_resources(mcp, ENGINE_PATH)
 # Register spec-driven tools (21 tools)
 register_spec_driven_tools(mcp)
 
+# Register migration tools (5 tools: migrate_preview, migrate_project, migrate_status, set_migration_target, switch_backend)
+register_migration_tools(mcp)
+
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)
 
@@ -118,7 +124,7 @@ def main():
     host = os.getenv("MCP_HOST", "0.0.0.0")
 
     logger = structlog.get_logger(__name__)
-    logger.info("server_starting", transport=transport, host=host, port=port, version="4.0.0")
+    logger.info("server_starting", transport=transport, host=host, port=port, version="4.1.0")
 
     uvicorn_opts = {"timeout_graceful_shutdown": 5}
 

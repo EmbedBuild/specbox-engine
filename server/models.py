@@ -1,4 +1,7 @@
-"""Pydantic models for Dev Engine Trello MCP domain objects."""
+"""Pydantic models for Dev Engine MCP domain objects.
+
+Backend-agnostic: works with both Trello and Plane backends.
+"""
 
 from __future__ import annotations
 
@@ -110,8 +113,9 @@ class UseCaseDetail(BaseModel):
     context: str = ""
     description_raw: str = ""
     attachments: list[dict[str, Any]] = Field(default_factory=list)
-    trello_card_id: str = ""
-    trello_card_url: str = ""
+    backend_item_id: str = ""
+    backend_item_url: str = ""
+    backend_type: str = ""  # "trello" or "plane"
 
 
 class UserStorySummary(BaseModel):

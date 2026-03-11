@@ -25,6 +25,7 @@ from .tools.hooks import register_hook_tools
 from .tools.onboarding import register_onboarding_tools
 from .tools.state import register_state_tools
 from .tools.spec_driven import register_spec_driven_tools
+from .tools.migration import register_migration_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -77,8 +78,10 @@ mcp = FastMCP(
     - Report E2E test results (Playwright) and track pass rates across projects
     - View the Sala de Máquinas global dashboard across all projects
     - Manage Trello boards for spec-driven development (US/UC/AC hierarchy)
+    - Manage Plane projects for spec-driven development (US/UC/AC hierarchy)
     - Import project specifications, track progress, attach evidence
     - Find next UC to implement, mark acceptance criteria, generate delivery reports
+    - Migrate projects bidirectionally between Trello and Plane
 
     The engine manages Flutter, React, Python, and Google Apps Script projects
     with automated PRD → Plan → Implement → PR pipelines, self-healing protocol,
@@ -107,6 +110,9 @@ register_resources(mcp, ENGINE_PATH)
 
 # Register spec-driven tools (21 tools)
 register_spec_driven_tools(mcp)
+
+# Register migration tools (5 tools: migrate_preview, migrate_project, migrate_status, set_migration_target, switch_backend)
+register_migration_tools(mcp)
 
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)

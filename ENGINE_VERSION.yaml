@@ -1,8 +1,8 @@
-version: 4.0.3
-codename: "Public Release Hardening"
+version: 4.1.0
+codename: "Multi-Backend Abstraction"
 brand: "SDD-JPS Engine"
 brand_full: "Spec-Driven Development Engine by JPS"
-release_date: 2026-03-10
+release_date: 2026-03-11
 min_claude_code: "1.0.0"
 
 stacks:
@@ -19,6 +19,10 @@ services:
   - n8n
   - stitch-mcp
   - google-workspace
+
+project_managers:
+  - trello
+  - plane
 
 features:
   # Existing (v3.9.1)
@@ -71,8 +75,33 @@ features:
   # New (v4.0.3)
   - dashboard-cors-configurable
   - security-audit-public-release
+  # New (v4.1.0)
+  - multi-backend-abstraction
+  - plane-backend
+  - spec-backend-abc
+  - trello-plane-migration
+  - bidirectional-project-migration
+  - backend-agnostic-spec-tools
 
 changelog:
+  4.1.0:
+    date: 2026-03-11
+    changes:
+      - "feat: SpecBackend ABC — abstract interface for Trello and Plane backends (21 methods)"
+      - "feat: PlaneBackend — full Plane implementation using labels + name prefixes for metadata (CE + Cloud)"
+      - "feat: PlaneClient — async HTTP client for Plane REST API v1 with retry logic"
+      - "feat: TrelloBackend — adapter wrapping existing TrelloClient + board_helpers into SpecBackend"
+      - "feat: Multi-backend auth_gateway — get_session_backend() returns SpecBackend by config"
+      - "feat: Backend-agnostic spec_driven.py — all 21 tools work with any SpecBackend implementation"
+      - "feat: Bidirectional migration tools — migrate_preview, migrate_project, migrate_status, switch_backend"
+      - "feat: Idempotent migration via external_source + external_id tracking"
+      - "feat: Plane metadata mapping — labels for tipo/actor, name prefix for IDs, description_html for hours/screens"
+      - "feat: AC hierarchy in Plane — acceptance criteria as sub-work-items with label AC and parent field"
+      - "feat: set_auth_token supports backend_type param (trello/plane) for unified auth"
+      - "feat: Migration tools registered in MCP server (78+ tools total)"
+      - "refactor: models.py — backend_item_id and backend_item_url fields on UseCaseDetail"
+      - "refactor: server.py instructions updated for Plane support"
+
   4.0.3:
     date: 2026-03-10
     changes:

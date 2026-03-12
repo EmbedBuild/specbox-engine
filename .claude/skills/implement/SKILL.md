@@ -201,6 +201,100 @@ current_branch = git branch --show-current
 - Sin review, el merge secuencial no puede funcionar
 - Implementar en main directamente rompe TODO el pipeline de calidad
 
+### 0.5d Stitch Design Gate (si UC tiene pantallas) (BLOQUEANTE)
+
+> **REGLA**: No se puede generar codigo de presentacion sin diseños Stitch previos.
+> Este gate impide que el agente en modo autopilot salte el paso de diseño.
+
+```
+¿El UC/plan tiene pantallas listadas?
+  pantallas = extraer campo "screens" o "pantallas" del UC/plan
+  ├── pantallas vacías o no definidas → SKIP (gate no aplica, UC sin UI)
+  └── pantallas definidas → Verificar diseños:
+      │
+      Para cada pantalla listada:
+        ¿Existe doc/design/{feature}/*.html con HTML correspondiente?
+        ├── SI → OK
+        └── NO → Acumular en lista missing_designs[]
+      │
+      ¿missing_designs está vacío?
+      ├── SI → OK — todos los diseños existen, continuar
+      └── NO → Verificar campo stitch_designs del plan:
+          │
+          ¿stitch_designs == "PENDING"?
+          ├── SI → ❌ BLOCKED
+          │   "❌ BLOCKED: Stitch designs pending for UC-XXX.
+          │    The plan has stitch_designs: PENDING — designs were not generated.
+          │    Run /plan first to generate Stitch designs, or create them manually
+          │    in doc/design/{feature}/ before running /implement."
+          │   → PARAR. No continuar bajo ninguna circunstancia.
+          └── NO (campo no existe o no es PENDING) → ❌ BLOCKED
+              "❌ BLOCKED: No Stitch designs found for UC-XXX.
+               Missing designs for screens: {missing_designs[]}
+               Expected location: doc/design/{feature}/
+               Run /plan first or generate designs manually."
+              → PARAR. No continuar bajo ninguna circunstancia.
+```
+
+**Verificacion concreta:**
+```bash
+# Contar HTMLs de diseño existentes para el feature
+ls doc/design/${feature}/*.html 2>/dev/null | wc -l
+
+# Si es 0 y el UC tiene pantallas → BLOCKED
+```
+
+**Por que este bloqueo es necesario:**
+- Sin diseños previos, el design-to-code genera UI sin referencia visual
+- El agente en autopilot inventa layouts que no fueron aprobados por el usuario
+- Se pierde la trazabilidad diseño → codigo que AG-08 verifica
+- El resultado es UI generica en lugar de UI intencional derivada de VEG/Stitch
+
+### 0.5d.1 Retrofit: Enforcement progresivo para proyectos legacy
+
+> Para proyectos con codigo UI pre-v4.2.0, el Design Gate aplica enforcement
+> progresivo basado en el nivel de compliance del proyecto.
+
+```
+¿Existe baseline de design compliance?
+  .quality/scripts/design-baseline.sh . → leer enforcementLevel
+  │
+  ├── L0 (compliance < 30%): Proyecto legacy, mucho codigo sin Stitch
+  │   → Paso 0.5d se comporta como WARNING, no BLOCK
+  │   → Mensaje: "⚠️ Design compliance L0: {rate}%. UC-XXX no tiene diseños.
+  │     Recomendacion: ejecutar /plan para generar diseños antes de implementar.
+  │     Este proyecto esta en modo retrofit — el gate no bloquea aun."
+  │   → Continuar implementacion (el codigo se genera sin diseño)
+  │   → AG-08 Check 6 reporta como INFO, no CRITICAL
+  │   → /check-designs muestra deuda de diseño acumulada
+  │
+  ├── L1 (compliance 30-79%): Proyecto en transicion
+  │   → Paso 0.5d BLOQUEA solo si el plan es nuevo (post-v4.2.0)
+  │   → Planes legacy (sin campo stitch_designs) → WARNING + continuar
+  │   → Planes nuevos (con campo stitch_designs) → BLOCK si PENDING/missing
+  │   → AG-08 Check 6: CRITICAL solo en archivos nuevos del diff
+  │   → Archivos existentes modificados: WARNING (no CRITICAL)
+  │   → complianceRate solo puede subir (ratchet)
+  │
+  └── L2 (compliance >= 80%): Proyecto alineado
+      → Paso 0.5d BLOQUEA siempre (comportamiento estandar)
+      → AG-08 Check 6: CRITICAL en todo archivo de presentation/pages/
+      → Sin excepciones — el proyecto ya esta alineado
+```
+
+**Como migrar de L0 a L2 progresivamente:**
+
+1. **Fase 1 (L0 → L1)**: Ejecutar `/check-designs` para ver deuda. Al implementar
+   features nuevas, usar `/plan` con Stitch. Cada feature alineada sube el rate.
+   Al alcanzar 30% → upgrade automatico a L1.
+
+2. **Fase 2 (L1 → L2)**: Aprovechar cada modificacion de features existentes para
+   generar diseños Stitch retroactivos. Usar `/plan feature:nombre_existente` para
+   generar diseños de features legacy que se estan tocando. Al alcanzar 80% → L2.
+
+3. **Fase 3 (L2 estable)**: Todo nuevo codigo pasa por Stitch. La deuda legacy
+   restante se resuelve en sprints dedicados o cuando se toca el codigo.
+
 ### 0.5c Validacion de Trello state (si spec-driven) (BLOQUEANTE)
 
 > Solo aplica si el origen es US-XX o UC-XXX (Trello spec-driven).
@@ -686,7 +780,25 @@ Para cada HTML de diseno:
    - Convertir HTML a templates Jinja2 o componentes NiceGUI
 2. Si es API-only: saltar design-to-code
 
-### 4.3 Commit parcial de diseños
+### 4.3 Traceability comment (OBLIGATORIO)
+
+Cada archivo de pagina/pantalla generado por design-to-code DEBE incluir un comentario de trazabilidad en las primeras lineas:
+
+```dart
+// Generated from: doc/design/{feature}/{screen}.html
+```
+
+```tsx
+// Generated from: doc/design/{feature}/{screen}.html
+```
+
+```python
+# Generated from: doc/design/{feature}/{screen}.html
+```
+
+**Regla**: Si el archivo no tiene este comentario, AG-08 lo reportara como violacion de trazabilidad en el Check 6 (Design Traceability).
+
+### 4.4 Commit parcial de diseños
 
 ```bash
 git add doc/design/{feature}/
@@ -1572,6 +1684,7 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 - [ ] Plan leido y parseado correctamente
 - [ ] Rama creada desde main
 - [ ] Stack detectado
+- [ ] Stitch Design Gate pasado (Paso 0.5d — si UC tiene pantallas)
 - [ ] VEGs cargados del plan (si aplica)
 - [ ] Disenos Stitch generados con directivas VEG (si aplica)
 - [ ] Usuario informado de costes antes de generar (Paso 3.5.0 — €0 con Canva)

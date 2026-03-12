@@ -1,4 +1,4 @@
-# SDD-JPS Engine v4.1.0 — Public Release
+# SDD-JPS Engine v4.2.0 — Public Release
 
 **Spec-Driven Development Engine by JPS** — Sistema de programacion agentica para Claude Code.
 
@@ -134,6 +134,7 @@ Las Skills se auto-descubren cuando son relevantes. Los hooks se ejecutan automa
 | `/quality-gate` | Quality gates adaptativos con evidence auditable |
 | `/explore` | Exploracion read-only del codebase |
 | `/feedback` | Captura feedback de testing manual, bloquea merge si no resuelto |
+| `/check-designs` | Escaneo retroactivo de compliance Stitch por UC |
 
 ---
 
@@ -213,6 +214,7 @@ Lee un plan y ejecuta el proceso completo de implementacion de forma autonoma.
 | 0.5 | Pre-flight: working tree, rama, fetch | HARD BLOCK |
 | **0.5b** | **Guardia anti-main** | **ERROR FATAL** (v4.0.1) |
 | **0.5c** | **Validacion start_uc** | **ERROR FATAL** (v4.0.1) |
+| **0.5d** | **Stitch Design Gate** | **BLOCKED** (v4.2.0) |
 | 1 | Crear rama feature/ | — |
 | 2 | Orquestacion por sub-agentes | — |
 | 3 | Generar diseños Stitch (si faltan) | — |
@@ -434,6 +436,7 @@ Enforcement automatico — no hace falta recordar ejecutarlos:
 | `implement-healing.sh` | Manual (/implement) | Registra eventos de self-healing |
 | `post-implement-validate.sh` | Manual (/implement) | Detecta regresion de baseline |
 | `mcp-report.sh` | Utility | Cliente MCP reutilizable para telemetria remota |
+| `design-gate.sh` | PostToolUse (Write/Edit) | WARNING si se modifica `presentation/pages/` sin diseño Stitch |
 
 Configuracion en `.claude/settings.json`. Telemetria remota controlada por `DEV_ENGINE_MCP_URL` env var.
 
@@ -624,7 +627,7 @@ En `.claude/project-config.json` (PREFERIDO):
 
 ---
 
-## Hardened Autopilot Guards (v4.0.1)
+## Hardened Autopilot Guards (v4.0.1+)
 
 La v4.0.1 introduce **HARD BLOCKS** que previenen las violaciones de protocolo mas criticas durante la implementacion autonoma. Estas validaciones detienen el pipeline inmediatamente si se detecta una inconsistencia.
 
@@ -645,6 +648,23 @@ La v4.0.1 introduce **HARD BLOCKS** que previenen las violaciones de protocolo m
 ├── SI pero status incorrecto: Recovery automatico (reintentar start_uc)
 └── NO: ❌ ERROR FATAL — llamar start_uc o PARAR
 ```
+
+### Paso 0.5d: Stitch Design Gate (BLOCKED) — v4.2.0
+
+```
+¿El UC tiene pantallas definidas?
+├── No → SKIP (gate no aplica)
+└── Si → ¿Existen HTMLs en doc/design/{feature}/?
+    ├── Si → OK, continuar
+    └── No → ❌ BLOCKED
+        "No Stitch designs found for UC-XXX.
+         Run /plan first or generate designs manually."
+```
+
+Complementado por:
+- **Hook `design-gate.sh`**: WARNING en cada Write/Edit sobre `presentation/pages/` si no hay diseño.
+- **AG-08 Check 6**: NO-GO si paginas carecen de `// Generated from: doc/design/...` comment.
+- **/check-designs**: Escaneo retroactivo de compliance Stitch por UC.
 
 ### Paso 3.5.5: Prohibicion de placeholders CSS
 
@@ -670,6 +690,7 @@ Antes de v4.0.1, estas validaciones eran "soft requirements" — documentadas en
 - Crear PR sin haber llamado start_uc
 - Auto-merge con imagenes placeholder degradando calidad visual
 - Saltarse complete_uc dejando el board Trello/Plane inconsistente
+- **Generar paginas UI directamente sin diseños Stitch previos** (corregido en v4.2.0)
 
 Ahora son **HARD BLOCKS** que detienen el pipeline.
 
@@ -1162,7 +1183,7 @@ v4.1.0 | 2026-03-11 | JPS Developer
 
 # English Version
 
-# SDD-JPS Engine v4.1.0 — Public Release
+# SDD-JPS Engine v4.2.0 — Public Release
 
 **Spec-Driven Development Engine by JPS** — An agentic programming system for Claude Code.
 
@@ -1627,7 +1648,7 @@ Backlog → Ready → In Progress → Review → Done
 
 ---
 
-## Hardened Autopilot Guards (v4.0.1)
+## Hardened Autopilot Guards (v4.0.1+)
 
 HARD BLOCKS that prevent the most critical protocol violations during autonomous implementation:
 
@@ -1635,6 +1656,7 @@ HARD BLOCKS that prevent the most critical protocol violations during autonomous
 |-------|-------------------|-------------|
 | **Step 0.5b: Anti-main** | Not implementing on main/master | FATAL ERROR — stops immediately |
 | **Step 0.5c: start_uc** | start_uc was called before implementing | FATAL ERROR — call start_uc or stop |
+| **Step 0.5d: Design Gate** (v4.2.0) | Stitch HTMLs exist for UC screens | BLOCKED — run /plan first |
 | **Step 3.5.5: CSS placeholders** | No CSS gradients/SVG as image substitutes | RULE — only real images |
 | **Step 8.5.0: Pre-merge** | feature/ branch + open PR + UC in_progress + no pending images | HARD BLOCK per check |
 

@@ -1,4 +1,4 @@
-# SDD-JPS Engine v4.1.1
+# SDD-JPS Engine v4.2.0
 
 > **Spec-Driven Development Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -101,14 +101,16 @@ sdd-jps-engine/
 │   │   ├── optimize-agents/SKILL.md
 │   │   ├── quality-gate/SKILL.md
 │   │   ├── explore/SKILL.md
-│   │   └── feedback/SKILL.md
+│   │   ├── feedback/SKILL.md
+│   │   └── check-designs/SKILL.md
 │   ├── hooks/             ← Hooks (v3.3)
 │   │   ├── mcp-report.sh
 │   │   ├── pre-commit-lint.sh
 │   │   ├── on-session-end.sh
 │   │   ├── implement-checkpoint.sh
 │   │   ├── implement-healing.sh
-│   │   └── post-implement-validate.sh
+│   │   ├── post-implement-validate.sh
+│   │   └── design-gate.sh
 │   └── settings.json      ← Hooks config
 ├── commands/              ← Commands (referencia legacy)
 │   ├── prd.md
@@ -222,6 +224,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /quality-gate | "check quality", "run gates", "coverage check" | direct | Lint+Read | |
 | /explore | "analyze codebase", "explore code", "understand architecture" | fork:Explore | Read-only | |
 | /feedback | "report feedback", "found a bug", "this doesn't work" | direct | Full | AG-10 + GitHub issue + invalida acceptance |
+| /check-designs | "check designs", "design compliance", "verify designs" | fork:Explore | Read-only | Retroactive Stitch compliance scan |
 
 ## Hooks (v3.5)
 
@@ -234,6 +237,7 @@ Automatic enforcement — no need to remember running these manually:
 | implement-checkpoint | Manual (called by /implement) | Saves phase progress for resume |
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
 | post-implement-validate | Manual (called by /implement) | Checks baseline regression after implementation |
+| design-gate | PostToolUse (Write/Edit on presentation/pages/) | NON-BLOCKING: warns if presentation page lacks Stitch design or traceability comment |
 
 ## Remote Telemetry (v3.3)
 
@@ -259,6 +263,7 @@ Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
 | `update-baseline.sh` | `.quality/scripts/update-baseline.sh [path]` | Ratchet-safe baseline update (only improves) |
 | `analyze-sessions.sh` | `.quality/scripts/analyze-sessions.sh [--last N]` | Telemetry: sessions, context tokens, healing, checkpoints |
 | `context-budget.sh` | `.quality/scripts/context-budget.sh <path> [--detail]` | Estimate token cost of files/directories |
+| `design-baseline.sh` | `.quality/scripts/design-baseline.sh [path] [--update\|--init]` | Measure design compliance, enforce ratchet (L0/L1/L2) |
 
 ## Agents (v3.5)
 
@@ -364,6 +369,6 @@ Configuracion MCP de providers en `templates/settings.json.template` → seccion
 
 ## Engine Version
 
-Current: v4.1.1 "Idempotent Import"
+Current: v4.2.0 "Stitch Design Gate"
 Brand: SDD-JPS Engine (Spec-Driven Development Engine by JPS)
 Config: ENGINE_VERSION.yaml

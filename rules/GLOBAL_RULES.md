@@ -1,4 +1,4 @@
-# Reglas Globales - SDD-JPS Engine v3.9.0
+# Reglas Globales - SDD-JPS Engine v4.2.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.
@@ -338,6 +338,7 @@ Umbrales de salud:
 | **Architecture** | `ratchet` | Nunca más violaciones de capas. |
 | **Dead code** | `ratchet` | Nunca más código muerto. |
 | **Dependencies** | `info` | Reportar outdated/vulnerable. Solo bloquea CVEs. |
+| **Design Compliance** | `ratchet` | Trazabilidad diseño→código. Nivel progresivo L0/L1/L2. |
 
 ### Baseline
 
@@ -374,6 +375,27 @@ AG-04 genera tests. AG-08 verifica que:
 - No hay código muerto nuevo
 
 AG-08 emite veredicto GO/NO-GO antes de crear PR.
+
+### Design Compliance (v4.2.0)
+
+Trazabilidad obligatoria entre diseños Stitch y codigo de presentacion.
+
+**Enforcement progresivo por nivel:**
+
+| Nivel | Umbral | Gate en /implement | AG-08 Check 6 | /quality-gate |
+|-------|--------|-------------------|---------------|---------------|
+| **L0** | < 30% compliance | WARNING (no bloquea) | INFO | INFO |
+| **L1** | 30-79% compliance | BLOCK solo planes nuevos | CRITICAL solo archivos nuevos | ratchet (no bajar) |
+| **L2** | >= 80% compliance | BLOCK siempre | CRITICAL todo | zero-tolerance |
+
+**Reglas:**
+- Todo archivo en `presentation/pages/` generado por design-to-code DEBE incluir `// Generated from: doc/design/{feature}/{screen}.html`
+- El campo `stitch_designs` en el plan indica el estado de los diseños (GENERATED/PENDING/MANUAL/N/A)
+- `/plan` NUNCA salta silenciosamente la generacion Stitch si hay pantallas — pregunta al usuario
+- El complianceRate solo puede subir (ratchet) — nunca se acepta degradacion
+- El nivel del proyecto sube automaticamente al cruzar umbrales (30%, 80%)
+- Medir con: `.quality/scripts/design-baseline.sh`
+- Auditar con: `/check-designs`
 
 ### AG-09 Acceptance Validation (independiente de AG-04 y AG-08)
 
@@ -521,4 +543,4 @@ Característica: Crear propiedad
 
 ---
 
-*Version: 4.0.0 | Ultima actualizacion: 2026-03-08*
+*Version: 4.2.0 | Ultima actualizacion: 2026-03-12*

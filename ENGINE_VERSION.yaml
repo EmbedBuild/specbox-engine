@@ -1,8 +1,8 @@
-version: 4.1.1
-codename: "Idempotent Import"
+version: 4.2.0
+codename: "Stitch Design Gate"
 brand: "SDD-JPS Engine"
 brand_full: "Spec-Driven Development Engine by JPS"
-release_date: 2026-03-11
+release_date: 2026-03-12
 min_claude_code: "1.0.0"
 
 stacks:
@@ -84,8 +84,37 @@ features:
   - backend-agnostic-spec-tools
   # New (v4.1.1)
   - idempotent-import-spec
+  # New (v4.2.0)
+  - stitch-design-gate
+  - design-traceability-check
+  - check-designs-skill
+  - design-gate-hook
+  - plan-stitch-config-gate
+  - design-compliance-ratchet
+  - design-baseline-script
+  - retrofit-progressive-enforcement
 
 changelog:
+  4.2.0:
+    date: 2026-03-12
+    changes:
+      - "feat: Stitch Design Gate (Paso 0.5d) — BLOQUEANTE: impide generar codigo de presentacion sin diseños Stitch previos"
+      - "feat: /plan Stitch Config Gate (Paso 6.0a) — si hay pantallas y no hay config Stitch, pregunta al usuario (nunca salta silenciosamente)"
+      - "feat: campo stitch_designs (GENERATED/PENDING/MANUAL/N/A) obligatorio en output de /plan"
+      - "feat: /implement lee stitch_designs del plan y bloquea si es PENDING"
+      - "feat: design-gate.sh hook — PostToolUse en Write/Edit sobre presentation/pages/, emite WARNING si no hay diseño"
+      - "feat: Traceability comment obligatorio en design-to-code (// Generated from: doc/design/{feature}/{screen}.html)"
+      - "feat: AG-08 Check 6 Design Traceability Audit — paginas sin trazabilidad = CRITICAL NO-GO"
+      - "feat: /check-designs skill — escaneo retroactivo de compliance Stitch (Trello/Plane/local)"
+      - "feat: Design Compliance Ratchet — enforcement progresivo L0/L1/L2 para proyectos legacy"
+      - "feat: design-baseline.sh — mide compliance rate y aplica ratchet (solo mejora, nunca baja)"
+      - "feat: /quality-gate Paso 5.6 — Design Compliance Gate con ratchet por nivel"
+      - "feat: /implement Paso 0.5d.1 — retrofit protocol para enforcement progresivo en proyectos legacy"
+      - "feat: /check-designs genera retrofit roadmap y actualiza baseline"
+      - "feat: GLOBAL_RULES.md incluye politica Design Compliance con tabla L0/L1/L2"
+      - "feat: quality-baseline.json.template incluye seccion designCompliance"
+      - "docs: CLAUDE.md, README.md, CHANGELOG.md actualizados con v4.2.0"
+
   4.1.1:
     date: 2026-03-11
     changes:

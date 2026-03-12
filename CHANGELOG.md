@@ -2,6 +2,32 @@
 
 All notable changes to SDD-JPS Engine are documented here.
 
+## [4.2.0] - 2026-03-12
+
+### Added
+- **Stitch Design Gate** (Paso 0.5d in `/implement`) — BLOQUEANTE: impide generar codigo de presentacion sin diseños Stitch previos. Si el UC tiene pantallas y no existen HTMLs en `doc/design/{feature}/`, el pipeline se detiene con mensaje claro.
+- **Stitch Config Gate** (Paso 6.0a in `/plan`) — Si el plan tiene pantallas y no hay config Stitch, pregunta al usuario (nunca salta silenciosamente). Opciones: configurar Stitch, marcar PENDING, o generar manualmente.
+- **`stitch_designs` field** — Campo obligatorio en el output de `/plan` con valores `GENERATED`, `PENDING`, `MANUAL`, o `N/A`. `/implement` lee este campo y bloquea si es `PENDING`.
+- **Design traceability comment** — Paso 4.3 en `/implement` obliga a incluir `// Generated from: doc/design/{feature}/{screen}.html` en cada pagina generada por design-to-code.
+- **AG-08 Check 6: Design Traceability Audit** — Nuevo check en Quality Auditor que verifica que toda pagina bajo `presentation/pages/` tiene comentario de trazabilidad. Pagina sin trazabilidad = CRITICAL → NO-GO.
+- **`/check-designs` skill** — Escaneo retroactivo de compliance Stitch. Soporta Trello, Plane y planes locales. Genera tabla con status COMPLIANT/MISSING/PARTIAL/PENDING/SKIP por UC.
+- **`design-gate.sh` hook** — PostToolUse hook (NON-BLOCKING) que emite WARNING cuando se crean/modifican archivos en `presentation/pages/` sin diseño Stitch correspondiente o sin comentario de trazabilidad.
+- **Design Compliance Ratchet** — Enforcement progresivo en 3 niveles (L0=info, L1=ratchet, L2=zero-tolerance) para proyectos con codigo UI legacy. El nivel sube automaticamente al cruzar umbrales de compliance (30% → L1, 80% → L2). Nunca baja.
+- **`design-baseline.sh`** — Script que mide design compliance (features con diseño, paginas con trazabilidad, compliance rate) y aplica ratchet enforcement.
+- **`/quality-gate` Paso 5.6: Design Compliance Gate** — Verifica ratchet de diseño segun nivel del proyecto. Integrado en el flujo existente.
+- **`/implement` Paso 0.5d.1: Retrofit Protocol** — En L0 el design gate emite WARNING (no bloquea), en L1 solo bloquea planes nuevos, en L2 bloquea siempre. Permite migracion gradual.
+- **`/check-designs` retrofit roadmap** — Genera roadmap de retrofit priorizado por frecuencia de modificacion + actualizacion de baseline.
+- **`quality-baseline.json.template` seccion `designCompliance`** — Metricas de compliance, nivel de enforcement, lista de features grandfathered.
+- **`GLOBAL_RULES.md` politica Design Compliance** — Tabla L0/L1/L2, reglas de trazabilidad, umbrales de escalado automatico.
+
+### Changed
+- **`/implement` pre-flight checks** — Nuevo Paso 0.5d se ejecuta despues de 0.5c y antes de crear la rama feature/.
+- **`/implement` Paso 4.3 → 4.4** — El commit parcial de diseños se renumero a 4.4 para dar espacio al nuevo paso de traceability.
+- **AG-08 responsibilities** — 6 verificaciones (antes 5) + 2 outputs (report + evidence). Design Traceability añadido como Check 6.
+- **AG-08 audit.json** — Nuevo campo `designTraceability` con `pagesWithoutTraceability` y `brokenReferences`.
+- **`settings.json`** — 2 nuevos hooks PostToolUse para Write y Edit con `input_contains: "presentation/pages/"`.
+- **CLAUDE.md** — Skills table incluye `/check-designs`, hooks table incluye `design-gate`, directory tree actualizado.
+
 ## [4.1.0] - 2026-03-11
 
 ### Added

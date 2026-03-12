@@ -69,6 +69,22 @@
     "command": "{E2E_COMMAND}"
   },
 
+  "designCompliance": {
+    "totalFeaturesWithUI": 0,
+    "compliant": 0,
+    "partial": 0,
+    "missing": 0,
+    "legacy": 0,
+    "pagesTotal": 0,
+    "pagesWithTraceability": 0,
+    "complianceRate": 0,
+    "policy": "ratchet",
+    "ratchetDirection": "up",
+    "enforcementLevel": "L0",
+    "grandfathered": [],
+    "notes": "L0=info-only, L1=ratchet on modified files, L2=zero-tolerance on new features"
+  },
+
   "plan": {
     "sprints": [],
     "currentSprint": 0

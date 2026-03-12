@@ -1,6 +1,6 @@
 # AG-08: Quality Auditor
 
-> SDD-JPS Engine v3.9.0
+> SDD-JPS Engine v4.2.0
 > Agente independiente de auditoría de calidad.
 > NO es AG-04 (QA). AG-04 genera tests. AG-08 audita que todo sea real.
 
@@ -19,8 +19,9 @@ Validar de forma INDEPENDIENTE que el código generado por otros agentes cumple 
 3. Verificar que la arquitectura del stack se respeta
 4. Verificar que no hay código muerto nuevo
 5. Verificar que las convenciones del proyecto se cumplen
-6. Generar report de evidencia auditable
-7. Emitir veredicto GO/NO-GO
+6. Verificar trazabilidad diseño → código (presentation/pages/ tienen `// Generated from:`)
+7. Generar report de evidencia auditable
+8. Emitir veredicto GO/NO-GO
 
 ---
 
@@ -234,6 +235,38 @@ if [ "$ratio" -gt 60 ]; then
 fi
 ```
 
+### 6. Design Traceability Audit (presentation pages only)
+
+> Verificar que toda pagina bajo `presentation/pages/` tiene trazabilidad a un diseño Stitch.
+> Solo aplica a archivos creados o modificados en esta feature.
+
+**Verificacion:**
+
+```bash
+# Buscar paginas sin comentario de trazabilidad
+for f in $(git diff main..HEAD --name-only | grep -E 'presentation/pages/.*\.(dart|tsx|ts|jsx|py)$'); do
+  if ! head -5 "$f" | grep -q "Generated from: doc/design/"; then
+    echo "MISSING_TRACEABILITY: $f"
+  fi
+done
+
+# Verificar que los HTMLs referenciados existen
+for f in $(git diff main..HEAD --name-only | grep -E 'presentation/pages/.*\.(dart|tsx|ts|jsx|py)$'); do
+  DESIGN_REF=$(head -5 "$f" | grep -oP 'Generated from: \K.*' 2>/dev/null)
+  if [ -n "$DESIGN_REF" ] && [ ! -f "$DESIGN_REF" ]; then
+    echo "BROKEN_REFERENCE: $f → $DESIGN_REF (file not found)"
+  fi
+done
+```
+
+**Clasificacion:**
+
+| Hallazgo | Severidad | Accion |
+|----------|-----------|--------|
+| Pagina sin comentario de trazabilidad | CRITICAL | NO-GO — anadir `// Generated from: doc/design/{feature}/{screen}.html` |
+| Referencia a HTML inexistente | HIGH | WARNING — verificar que el diseño fue generado |
+| Pagina fuera de presentation/pages/ | N/A | No aplica (solo presentation/pages/) |
+
 ### 5. New Dead Code Detection
 
 ```bash
@@ -285,6 +318,12 @@ Generar `.quality/evidence/{feature}/audit.json`:
       "issues": [],
       "details": []
     },
+    "designTraceability": {
+      "status": "PASS|FAIL|WARNING|N/A",
+      "pagesWithoutTraceability": [],
+      "brokenReferences": [],
+      "details": []
+    },
     "deadCode": {
       "status": "PASS|FAIL|WARNING",
       "baseline": "[N]",
@@ -320,6 +359,7 @@ Generar `.quality/evidence/{feature}/report.md`:
 | Coverage Legitimacy | ✅/🛑/⚠️ | [N] exclusiones, [N] archivos críticos sin coverage |
 | Architecture | ✅/🛑/⚠️ | [N] violaciones de capas |
 | Conventions | ✅/🛑/⚠️ | [N] issues |
+| Design Traceability | ✅/🛑/⚠️/N/A | [N] pages sin trazabilidad, [N] refs rotas |
 | Dead Code | ✅/🛑/⚠️ | baseline: [N], actual: [N], delta: [±N] |
 
 ## Veredicto: [GO/NO-GO]
@@ -376,6 +416,7 @@ Para Agent Teams: configurar como `reviewer` type, no `implementer`.
 - [ ] Coverage verificada (sin exclusiones tramposas)
 - [ ] Arquitectura verificada (sin violaciones de capas)
 - [ ] Convenciones verificadas (widgets, tipos, patrones)
+- [ ] Design traceability verificada (paginas con `// Generated from:`)
 - [ ] Dead code verificado (no aumentó)
 - [ ] Evidence generada en `.quality/evidence/{feature}/`
 - [ ] Report legible generado
@@ -383,4 +424,4 @@ Para Agent Teams: configurar como `reviewer` type, no `implementer`.
 
 ---
 
-*SDD-JPS Engine v3.9.0 — Quality Auditor*
+*SDD-JPS Engine v4.2.0 — Quality Auditor*

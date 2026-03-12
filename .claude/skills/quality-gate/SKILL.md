@@ -251,6 +251,84 @@ o
 
 ---
 
+## Paso 5.6: Design Compliance Gate (ratchet progresivo)
+
+> Verifica que la compliance de diseño Stitch no retrocede.
+> Aplica enforcement progresivo segun el nivel del proyecto.
+
+### Deteccion
+
+1. **Cargar baseline de diseño:**
+   ```bash
+   .quality/scripts/design-baseline.sh .
+   ```
+   Esto mide: features con UI, HTMLs existentes, paginas con trazabilidad.
+
+2. **Determinar enforcement level:**
+   ```
+   complianceRate >= 80% → L2 (zero-tolerance en nuevo codigo)
+   complianceRate >= 30% → L1 (ratchet — no empeorar)
+   complianceRate <  30% → L0 (info — solo reporta, no bloquea)
+   ```
+
+3. **Aplicar gate segun nivel:**
+
+   | Nivel | Gate | Comportamiento |
+   |-------|------|----------------|
+   | **L0** | `info` | Solo reporta metricas. No bloquea. Muestra "Design debt: N features sin diseño" |
+   | **L1** | `ratchet` | Compara con baseline. Si complianceRate baja → FAIL. Archivos modificados en la PR deben mantener o mejorar trazabilidad |
+   | **L2** | `zero-tolerance` | Todo archivo nuevo en presentation/pages/ DEBE tener traceability comment + HTML en doc/design/. Sin excepciones |
+
+4. **Ratchet check (L1/L2):**
+   ```bash
+   .quality/scripts/design-baseline.sh . --update
+   # Exit code 1 = ratchet violation
+   ```
+
+### Retrofit: Grandfathering de codigo legacy
+
+Para proyectos con mucho codigo pre-v4.2.0:
+
+1. Ejecutar `/check-designs` → genera reporte de compliance actual
+2. Ejecutar `.quality/scripts/design-baseline.sh . --init` → establece baseline actual
+3. Los archivos existentes quedan "grandfathered" en el baseline
+4. A partir de ese momento:
+   - **Archivos nuevos**: enforcement segun nivel actual
+   - **Archivos existentes modificados (git diff)**: si se toca un archivo legacy en presentation/pages/, AG-08 Check 6 solo aplica a archivos en el diff (no a todo el proyecto)
+   - **complianceRate solo puede subir**: cada feature que se alinee a Stitch sube el rate
+
+### Escalado automatico de nivel
+
+El nivel sube automaticamente cuando el complianceRate cruza umbrales:
+
+```
+Proyecto nuevo → empieza en L0 (0% compliance)
+  → Primer /plan con Stitch → sube compliance
+  → Al alcanzar 30% → upgrade automatico a L1
+  → Al alcanzar 80% → upgrade automatico a L2
+  → Ya no puede bajar de nivel (ratchet en el nivel tambien)
+```
+
+### Output
+
+```
+| Design Compliance | ratchet (L1) | ✅ PASS | 45% → 48% (3 features migradas) |
+```
+
+o
+
+```
+| Design Compliance | info (L0) | ℹ️ INFO | 12% compliance, 15 features sin diseño |
+```
+
+o
+
+```
+| Design Compliance | ratchet (L1) | ❌ FAIL | 45% → 42% — ratchet violation |
+```
+
+---
+
 ## Checklist
 
 - [ ] Stack detectado correctamente
@@ -259,5 +337,6 @@ o
 - [ ] Tests ejecutados sin regresiones
 - [ ] Coverage comparado con baseline
 - [ ] E2E ejecutados (si config existe)
+- [ ] Design compliance medida y comparada con baseline
 - [ ] Evidence generado y guardado
 - [ ] Resultado reportado claramente

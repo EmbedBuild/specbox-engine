@@ -452,10 +452,39 @@ lib/
 
 ---
 
-## Paso 6: Generar Diseños en Google Stitch (AUTOMÁTICO via MCP)
+## Paso 6: Generar Diseños en Google Stitch (OBLIGATORIO via MCP)
 
 > Esta sección genera diseños HTML automáticamente usando el MCP de Stitch.
 > **NO se copia/pega manualmente** — Claude ejecuta la generación directamente.
+> **OBLIGATORIO**: Si el UC/plan tiene pantallas, los diseños DEBEN generarse aquí.
+> /implement bloqueará la implementación si no existen diseños (Paso 0.5d).
+
+### 6.0a Stitch Config Gate (OBLIGATORIO si hay pantallas)
+
+```
+¿El plan tiene pantallas/screens definidos?
+├── NO → Saltar Paso 6 completamente (UC sin UI)
+└── SI → Verificar config Stitch:
+    │
+    ¿Existe stitch.projectId en configuración?
+    ├── SI → Continuar con 6.0 (detección normal)
+    └── NO → PREGUNTAR al usuario (NUNCA saltar silenciosamente):
+        "El plan requiere {N} pantallas pero no hay config Stitch.
+         Opciones:
+         a) Configurar Stitch ahora (necesito projectId)
+         b) Marcar diseños como PENDING (bloquea /implement)
+         c) Generar diseños manualmente en doc/design/{feature}/
+
+         ¿Qué prefieres?"
+        │
+        ├── a) → Obtener projectId → Continuar con 6.0
+        ├── b) → Registrar en plan: stitch_designs: PENDING
+        │        Crear doc/design/{feature}/ vacío
+        │        Continuar sin generar
+        └── c) → Registrar en plan: stitch_designs: MANUAL
+                 Crear doc/design/{feature}/ vacío
+                 Continuar sin generar
+```
 
 ### 6.0 Detectar Proyecto Stitch
 
@@ -688,6 +717,9 @@ Usar `plane:create_work_item_comment`:
 | Archivos | `doc/veg/[feature]/` |
 
 ### Disenos Stitch:
+
+**stitch_designs**: {GENERATED / PENDING / MANUAL / N/A}
+
 | Pantalla | Screen ID | Estado | VEG aplicado |
 |----------|-----------|--------|--------------|
 | [nombre] | [id] | Generado | {Si/No} |
@@ -696,9 +728,12 @@ Usar `plane:create_work_item_comment`:
 **HTMLs guardados en**: `doc/design/[feature]/`
 **Prompts registrados en**: `doc/design/[feature]/[feature]_stitch_prompts.md`
 
+> Si `stitch_designs: PENDING` — /implement bloqueará la implementación hasta que
+> los diseños se generen manualmente o se re-ejecute /plan con config Stitch.
+
 ### Siguiente paso:
 1. Revisar disenos HTML generados
-2. Ejecutar `/design-to-code [feature]`
+2. Ejecutar `/implement` (verificará diseños en Paso 0.5d)
 ```
 
 ---
@@ -760,6 +795,8 @@ Empty state → Ilustración + CTA
 - [ ] Costes de imagenes advertidos al usuario en preview
 - [ ] VEGs guardados en `doc/veg/{feature}/` con los 3 pilares
 - [ ] Resumen VEG compacto (<400 tokens) incluido en el plan
+- [ ] Stitch config verificada (Paso 6.0a — si hay pantallas, NUNCA saltar silenciosamente)
+- [ ] Campo `stitch_designs` incluido en el plan (GENERATED/PENDING/MANUAL/N/A)
 - [ ] Pantallas Stitch generadas via MCP (si aplica UI)
 - [ ] Prompts Stitch enriquecidos con VEG (si aplica)
 - [ ] HTMLs guardados en `doc/design/{feature}/`

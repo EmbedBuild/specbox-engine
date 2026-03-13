@@ -1,8 +1,8 @@
-# SDD-JPS Engine v4.2.0
+# SDD-JPS Engine v5.0.0
 
 > **Spec-Driven Development Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (78+ tools) + Sala de Máquinas + Gherkin BDD.
+> Monorepo unificado: engine + MCP server (90+ tools) + Sala de Máquinas + Gherkin BDD.
 
 ## Que es este repositorio
 
@@ -210,7 +210,7 @@ sdd-jps-engine/
 3. Tras modificar una Skill, ejecutar `./install.sh` para actualizar en global
 4. Versionar cambios en ENGINE_VERSION.yaml
 
-## Available Skills (v3.5)
+## Available Skills (v5.0)
 
 Skills are auto-discoverable. Claude will use them when relevant. You can also invoke them explicitly.
 
@@ -218,13 +218,15 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 |-------|----------------|------|-------|-------|
 | /prd | "create PRD", "new feature", "write requirements" | fork:Plan | Full | Definition Quality Gate (Paso 2.5) valida AC-XX |
 | /plan | "plan feature", "technical plan", "analyze for implementation" | fork:Plan | Full | VEG generation (Paso 2.5b) |
-| /implement | "implement plan", "execute plan", "autopilot" | direct | Full | Self-healing + AG-09 acceptance gate + merge secuencial |
+| /implement | "implement plan", "execute plan", "autopilot" | direct | Full | Self-healing + AG-09 + Spec-Code Sync + merge secuencial |
 | /adapt-ui | "scan UI", "map components", "detect widgets" | fork:Explore | Read-only | |
 | /optimize-agents | "audit agents", "optimize system", "agent score" | fork:Explore | Read-only | |
 | /quality-gate | "check quality", "run gates", "coverage check" | direct | Lint+Read | |
 | /explore | "analyze codebase", "explore code", "understand architecture" | fork:Explore | Read-only | |
 | /feedback | "report feedback", "found a bug", "this doesn't work" | direct | Full | AG-10 + GitHub issue + invalida acceptance |
 | /check-designs | "check designs", "design compliance", "verify designs" | fork:Explore | Read-only | Retroactive Stitch compliance scan |
+| /acceptance-check | "check acceptance", "validate AC", "acceptance gate" | fork | Full | v5.0 — Standalone BDD acceptance without /implement |
+| /quickstart | "quickstart", "tutorial", "getting started" | fork | Full | v5.0 — Interactive onboarding tutorial (< 5 min) |
 
 ## Hooks (v3.5)
 
@@ -367,8 +369,49 @@ Configuracion MCP de providers en `templates/settings.json.template` → seccion
 - Decisiones: `doc/research/veg-tooling-decisions.md`
 - Por feature: `doc/veg/{feature}/` (generado por /plan)
 
+## Spec-Code Sync (v5.0)
+
+Automatic PRD update with implementation deltas after each /implement phase:
+
+- **Delta capture** (Paso 5.1.1a): After each phase, generates structured Markdown with files, deltas vs plan, healing events
+- **PRD write** (Paso 8.5.1a / 7.7a): Appends `## Implementation Status` section to PRD (append-only)
+- **MCP tools**: `get_implementation_status(project_path, item_id)`, `write_implementation_status(...)`
+- **Parser**: Reads Implementation Status from PRDs into structured JSON with `overall_status` and `delta_count`
+
+## External Skill Registry (v5.0)
+
+External skills with `manifest.yaml` can be installed, versioned, and auto-discovered:
+
+- **Manifest**: `name`, `version` (semver), `author`, `description`, `compatibility` (stacks), `triggers`, `depends_on`
+- **Install**: `install.sh --skill <path|git-url>` (global) or `--local` (project)
+- **Auto-discovery**: During /prd, skills matching stack + keywords are activated automatically
+- **MCP tools**: `discover_skills(...)`, `validate_skill_manifest(...)`
+- **Template**: `templates/skill-manifest.yaml.template`
+
+## Standalone Acceptance Check (v5.0)
+
+BDD acceptance testing without full /implement pipeline:
+
+- **Skill**: `/acceptance-check` — validates AC from PRD against code
+- **MCP tools**: `run_acceptance_check(project_path, item_id, branch)`, `get_acceptance_report(project_path, uc_id)`
+- **GitHub Action**: `templates/github-actions/acceptance-gate.yml`
+- **Output**: PR-comment-ready Markdown with per-AC verdict
+
+## Contextual Hints (v5.0)
+
+- Hints shown first 3 times a skill is used in a project (then disappear)
+- Counter stored in `.quality/hint_counters.json`
+- Not shown if project has > 5 completed UCs
+- MCP tools: `get_skill_hint(project_path, skill_name)`, `record_skill_hint(...)`
+
+## Public Benchmarking (v5.0)
+
+- **MCP tool**: `generate_benchmark_snapshot(output_path)` — aggregated, anonymized metrics
+- **REST endpoint**: `GET /api/benchmark/public` — JSON metrics (no auth required)
+- **Output**: `docs/benchmarks/snapshot_{date}.md` with Metodología section
+
 ## Engine Version
 
-Current: v4.2.0 "Stitch Design Gate"
+Current: v5.0.0 "Self-Evolution"
 Brand: SDD-JPS Engine (Spec-Driven Development Engine by JPS)
 Config: ENGINE_VERSION.yaml

@@ -722,6 +722,83 @@ def register_onboarding_tools(
         }
 
     @mcp.tool
+    def get_onboarding_wizard() -> dict:
+        """Get the interactive onboarding wizard questions when onboard_project is called without params.
+
+        Returns a structured list of questions, each with an explanation, field name,
+        type, and default value. The client/skill uses these to guide the user through
+        onboarding step by step.
+
+        When the user provides all params directly to onboard_project, this wizard
+        is skipped (retrocompatibility). If the user answers "no" to all optional
+        questions, a minimal config is generated.
+
+        Use when starting onboard_project without knowing the project details upfront."""
+        return {
+            "wizard": True,
+            "title": "Wizard de Onboarding — SDD-JPS Engine",
+            "description": (
+                "Vamos a configurar tu proyecto paso a paso. "
+                "Cada pregunta incluye una explicacion de para que sirve."
+            ),
+            "questions": [
+                {
+                    "field": "project",
+                    "question": "Nombre del proyecto (ej: 'mi-app', 'escandallo-app')",
+                    "explanation": "Identificador unico del proyecto en el Engine. Se usa para registry, baselines y evidencia.",
+                    "type": "string",
+                    "required": True,
+                    "default": "",
+                },
+                {
+                    "field": "stack",
+                    "question": "Stack tecnologico (flutter, react, python, google-apps-script)",
+                    "explanation": "Define que patrones de arquitectura, agentes especializados y quality gates se aplican.",
+                    "type": "choice",
+                    "required": False,
+                    "options": ["flutter", "react", "python", "google-apps-script"],
+                    "default": "unknown",
+                },
+                {
+                    "field": "infra",
+                    "question": "Servicios de infraestructura (supabase, neon, stripe, firebase, n8n) separados por coma",
+                    "explanation": "Habilita patrones especificos de infra y configura integraciones en el CLAUDE.md generado.",
+                    "type": "string",
+                    "required": False,
+                    "default": "",
+                },
+                {
+                    "field": "repo_url",
+                    "question": "URL del repositorio Git (ej: https://github.com/user/repo)",
+                    "explanation": "Se registra como referencia. Usado por /implement para crear PRs y por el dashboard.",
+                    "type": "string",
+                    "required": False,
+                    "default": "",
+                },
+                {
+                    "field": "developer_name",
+                    "question": "Nombre del desarrollador principal",
+                    "explanation": "Se incluye en templates y evidencia generada. Identifica quien onboardeo el proyecto.",
+                    "type": "string",
+                    "required": False,
+                    "default": "Jesus Perez",
+                },
+                {
+                    "field": "trello_board_name",
+                    "question": "Nombre del board Trello/Plane (dejar vacio si no usas spec-driven)",
+                    "explanation": "Si se proporciona, crea un board con listas de workflow (Backlog, In Progress, Done, etc.) y custom fields.",
+                    "type": "string",
+                    "required": False,
+                    "default": "",
+                },
+            ],
+            "minimal_config_note": (
+                "Si no sabes las respuestas, puedes dejar todo en blanco excepto el nombre. "
+                "Se generara una config minima que puedes enriquecer despues con upgrade_project."
+            ),
+        }
+
+    @mcp.tool
     def archive_project(project: str) -> dict:
         """Archive a project by setting its status to 'archived' in the state registry.
 

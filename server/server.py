@@ -1,5 +1,5 @@
 """
-SDD-JPS Engine MCP Server v4.1.0
+SDD-JPS Engine MCP Server v5.0.0
 
 Unified MCP endpoint: 78+ tools (engine + spec-driven + migration + telemetry).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
@@ -26,6 +26,11 @@ from .tools.onboarding import register_onboarding_tools
 from .tools.state import register_state_tools
 from .tools.spec_driven import register_spec_driven_tools
 from .tools.migration import register_migration_tools
+from .tools.sync import register_sync_tools
+from .tools.acceptance import register_acceptance_tools
+from .tools.benchmark import register_benchmark_tools
+from .tools.hints import register_hint_tools
+from .tools.skill_registry import register_skill_registry_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -55,7 +60,7 @@ STATE_PATH.mkdir(parents=True, exist_ok=True)
 mcp = FastMCP(
     "sdd-jps-engine",
     instructions="""
-    MCP server for the SDD-JPS Engine v4.1.0 — an agentic programming system for Claude Code.
+    MCP server for the SDD-JPS Engine v5.0.0 — an agentic programming system for Claude Code.
 
     Use these tools to:
     - Query implementation plans and their status
@@ -82,6 +87,11 @@ mcp = FastMCP(
     - Import project specifications, track progress, attach evidence
     - Find next UC to implement, mark acceptance criteria, generate delivery reports
     - Migrate projects bidirectionally between Trello and Plane
+    - Query Spec-Code Sync status (implementation deltas vs plan)
+    - Run standalone acceptance checks against PRDs without full /implement
+    - Generate public benchmark snapshots with anonymized project metrics
+    - Manage contextual hints for new developers
+    - Discover and validate external skill manifests
 
     The engine manages Flutter, React, Python, and Google Apps Script projects
     with automated PRD → Plan → Implement → PR pipelines, self-healing protocol,
@@ -113,6 +123,21 @@ register_spec_driven_tools(mcp)
 
 # Register migration tools (5 tools: migrate_preview, migrate_project, migrate_status, set_migration_target, switch_backend)
 register_migration_tools(mcp)
+
+# Register sync tools (2 tools: get_implementation_status, write_implementation_status)
+register_sync_tools(mcp, ENGINE_PATH)
+
+# Register acceptance tools (2 tools: run_acceptance_check, get_acceptance_report)
+register_acceptance_tools(mcp, ENGINE_PATH, STATE_PATH)
+
+# Register benchmark tools (1 tool: generate_benchmark_snapshot)
+register_benchmark_tools(mcp, ENGINE_PATH, STATE_PATH)
+
+# Register hint tools (3 tools: get_skill_hint, record_skill_hint, list_skill_hints)
+register_hint_tools(mcp)
+
+# Register skill registry tools (3 tools: list_skills_v2, discover_skills, validate_skill_manifest)
+register_skill_registry_tools(mcp, ENGINE_PATH)
 
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)

@@ -2,6 +2,8 @@
 # SDD-JPS Engine - Installer
 # Instala commands, skills y hooks globales en ~/.claude/
 # Usage: ./install.sh [--uninstall] [--dry-run]
+#        ./install.sh --skill <path|git-url> [--local]
+#        ./install.sh --remove-skill <name>
 
 set -e
 
@@ -27,24 +29,167 @@ print_header() {
 # Parse arguments
 DRY_RUN=false
 UNINSTALL=false
+SKILL_PATH=""
+SKILL_LOCAL=false
+REMOVE_SKILL=""
 
-for arg in "$@"; do
-    case $arg in
-        --dry-run)  DRY_RUN=true ;;
-        --uninstall) UNINSTALL=true ;;
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dry-run)  DRY_RUN=true; shift ;;
+        --uninstall) UNINSTALL=true; shift ;;
+        --skill)
+            SKILL_PATH="$2"; shift 2 ;;
+        --local)
+            SKILL_LOCAL=true; shift ;;
+        --remove-skill)
+            REMOVE_SKILL="$2"; shift 2 ;;
         --help|-h)
             echo "Usage: ./install.sh [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --dry-run     Show what would be done without making changes"
-            echo "  --uninstall   Remove installed symlinks"
-            echo "  --help, -h    Show this help"
+            echo "  --dry-run                Show what would be done without making changes"
+            echo "  --uninstall              Remove installed symlinks"
+            echo "  --skill <path|git-url>   Install an external skill"
+            echo "  --local                  Install skill to project .claude/skills/ (with --skill)"
+            echo "  --remove-skill <name>    Remove an external skill by name"
+            echo "  --help, -h               Show this help"
             exit 0
             ;;
+        *) shift ;;
     esac
 done
 
 print_header
+
+# --- REMOVE EXTERNAL SKILL ---
+if [ -n "$REMOVE_SKILL" ]; then
+    SKILLS_DIR="$HOME/.claude/skills"
+    target="$SKILLS_DIR/$REMOVE_SKILL"
+
+    # Safety: refuse to remove core skills (symlinks into engine)
+    if [ -L "$target" ]; then
+        link_target=$(readlink "$target")
+        if echo "$link_target" | grep -q "$ENGINE_DIR/.claude/skills/"; then
+            echo -e "${RED}ERROR: '$REMOVE_SKILL' is a core skill. Cannot remove.${NC}"
+            exit 1
+        fi
+    fi
+
+    if [ -d "$target" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            echo -e "  Would remove external skill: ${RED}$REMOVE_SKILL${NC}"
+        else
+            rm -rf "$target"
+            echo -e "  ${GREEN}Removed external skill: $REMOVE_SKILL${NC}"
+        fi
+    elif [ -L "$target" ]; then
+        if [ "$DRY_RUN" = true ]; then
+            echo -e "  Would remove external skill symlink: ${RED}$REMOVE_SKILL${NC}"
+        else
+            rm "$target"
+            echo -e "  ${GREEN}Removed external skill: $REMOVE_SKILL${NC}"
+        fi
+    else
+        echo -e "${RED}ERROR: Skill '$REMOVE_SKILL' not found in $SKILLS_DIR${NC}"
+        exit 1
+    fi
+    exit 0
+fi
+
+# --- INSTALL EXTERNAL SKILL ---
+if [ -n "$SKILL_PATH" ]; then
+    SKILL_SRC="$SKILL_PATH"
+
+    # If it's a git URL, clone to a temp dir first
+    if echo "$SKILL_SRC" | grep -qE '^(https?://|git@)'; then
+        TMPDIR_SKILL=$(mktemp -d)
+        echo -e "${BLUE}Cloning skill from $SKILL_SRC...${NC}"
+        git clone --depth 1 "$SKILL_SRC" "$TMPDIR_SKILL/skill-repo" 2>/dev/null || {
+            echo -e "${RED}ERROR: Failed to clone $SKILL_SRC${NC}"
+            rm -rf "$TMPDIR_SKILL"
+            exit 1
+        }
+        # Find the skill dir (root or first subdir with SKILL.md)
+        if [ -f "$TMPDIR_SKILL/skill-repo/SKILL.md" ]; then
+            SKILL_SRC="$TMPDIR_SKILL/skill-repo"
+        else
+            FOUND=$(find "$TMPDIR_SKILL/skill-repo" -maxdepth 2 -name "SKILL.md" -print -quit 2>/dev/null)
+            if [ -n "$FOUND" ]; then
+                SKILL_SRC=$(dirname "$FOUND")
+            else
+                echo -e "${RED}ERROR: No SKILL.md found in cloned repo${NC}"
+                rm -rf "$TMPDIR_SKILL"
+                exit 1
+            fi
+        fi
+    fi
+
+    # Resolve to absolute path
+    SKILL_SRC=$(cd "$SKILL_SRC" && pwd)
+
+    # Validate SKILL.md exists
+    if [ ! -f "$SKILL_SRC/SKILL.md" ]; then
+        echo -e "${RED}ERROR: $SKILL_SRC/SKILL.md not found${NC}"
+        exit 1
+    fi
+
+    # Validate manifest.yaml exists and has required fields
+    if [ ! -f "$SKILL_SRC/manifest.yaml" ]; then
+        echo -e "${RED}ERROR: $SKILL_SRC/manifest.yaml not found (required for external skills)${NC}"
+        exit 1
+    fi
+
+    # Check required manifest fields
+    MANIFEST_ERRORS=""
+    for field in name version author description compatibility; do
+        if ! grep -q "^${field}:" "$SKILL_SRC/manifest.yaml"; then
+            MANIFEST_ERRORS="${MANIFEST_ERRORS}  missing required field: ${field}\n"
+        fi
+    done
+    if [ -n "$MANIFEST_ERRORS" ]; then
+        echo -e "${RED}ERROR: manifest.yaml validation failed:${NC}"
+        echo -e "$MANIFEST_ERRORS"
+        exit 1
+    fi
+
+    SKILL_NAME=$(basename "$SKILL_SRC")
+
+    # Determine target directory
+    if [ "$SKILL_LOCAL" = true ]; then
+        TARGET_DIR=".claude/skills/$SKILL_NAME"
+    else
+        TARGET_DIR="$HOME/.claude/skills/$SKILL_NAME"
+    fi
+
+    # Check for core skill name collision
+    CORE_SKILL="$ENGINE_DIR/.claude/skills/$SKILL_NAME"
+    if [ -d "$CORE_SKILL" ]; then
+        echo -e "${YELLOW}WARNING: Core skill '$SKILL_NAME' exists. Core takes priority at runtime.${NC}"
+    fi
+
+    # Check depends_on (warning only, non-blocking)
+    if grep -q "^depends_on:" "$SKILL_SRC/manifest.yaml"; then
+        DEPS=$(grep -A 20 "^depends_on:" "$SKILL_SRC/manifest.yaml" | grep "^  - " | sed 's/^  - //')
+        SKILLS_DIR_CHECK="$HOME/.claude/skills"
+        for dep in $DEPS; do
+            if [ ! -d "$SKILLS_DIR_CHECK/$dep" ] && [ ! -d "$ENGINE_DIR/.claude/skills/$dep" ]; then
+                echo -e "${YELLOW}WARNING: dependency '$dep' not found (non-blocking)${NC}"
+            fi
+        done
+    fi
+
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "  Would install skill '${GREEN}$SKILL_NAME${NC}' to $TARGET_DIR"
+    else
+        mkdir -p "$(dirname "$TARGET_DIR")"
+        cp -r "$SKILL_SRC" "$TARGET_DIR"
+        echo -e "  ${GREEN}Installed external skill: $SKILL_NAME → $TARGET_DIR${NC}"
+    fi
+
+    # Cleanup temp dir if used
+    [ -n "${TMPDIR_SKILL:-}" ] && rm -rf "$TMPDIR_SKILL"
+    exit 0
+fi
 
 # --- UNINSTALL ---
 if [ "$UNINSTALL" = true ]; then

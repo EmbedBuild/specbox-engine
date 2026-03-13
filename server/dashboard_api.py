@@ -622,6 +622,37 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
         })
 
     # ------------------------------------------------------------------
+    # GET /api/benchmark/public — Public benchmark metrics (UC-014)
+    # No auth required (AC-64). Rate limiting is handled at infra level.
+    # ------------------------------------------------------------------
+    @mcp.custom_route("/api/benchmark/public", methods=["GET"])
+    async def api_benchmark_public(request: Request) -> JSONResponse:
+        # AC-63: Returns JSON with same metrics as snapshot
+        # AC-64: No auth required
+        # AC-66: Returns 404 if no snapshot exists
+        from .benchmark_generator import generate_benchmark
+
+        import yaml
+
+        engine_version = "unknown"
+        version_file = engine_path / "ENGINE_VERSION.yaml"
+        if version_file.exists():
+            try:
+                with open(version_file) as f:
+                    data = yaml.safe_load(f)
+                    engine_version = data.get("version", "unknown")
+            except Exception:
+                pass
+
+        metrics = generate_benchmark(state_path, engine_version)
+
+        if metrics["total_projects"] == 0:
+            return _json({"error": "No benchmark data available", "detail": "No projects found in state."}, 404)
+
+        # AC-65: Include generated_at and engine_version
+        return _json(metrics)
+
+    # ------------------------------------------------------------------
     # Static files — serve React build from /dashboard/dist
     # ------------------------------------------------------------------
     # In Docker: /app/server/dashboard/dist (monorepo layout)

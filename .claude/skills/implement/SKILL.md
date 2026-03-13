@@ -937,6 +937,26 @@ RETURN FORMAT (OBLIGATORIO):
 └── failed → Guardar checkpoint failed + escalar a humano
 ```
 
+### 5.1.1a Implementation Delta (Post-Phase) — v5.0 Spec-Code Sync
+
+Despues de guardar el checkpoint, generar el delta block para tracking spec-code:
+
+1. Recopilar del reporte de fase: `files_created`, `files_modified`, `phase_status`, `decisions`
+2. Leer archivos esperados del plan (si disponible en `doc/plans/`)
+3. Verificar si hubo self-healing (leer `.quality/evidence/${feature}/healing.jsonl`, ultima linea)
+4. Generar bloque delta con `generate_phase_delta()` (max 500 tokens):
+   - Si implementacion conforme al plan → "Sin deltas — implementacion conforme al plan"
+   - Si fase fallo → "Fase fallida — pendiente de resolucion" + error resumido
+   - Si self-healing → linea adicional con tipo y resultado
+5. Acumular en variable del orquestador: `implementation_deltas.append(delta_block)`
+
+El orquestador mantiene en memoria durante toda la sesion:
+```
+implementation_deltas: list[str] = []  # uno por fase completada
+```
+
+**IMPORTANTE:** Este paso es informativo (nunca bloquea). Si falla la generacion del delta, continuar normalmente.
+
 ### 5.2 Reglas por stack durante implementacion
 
 #### Flutter
@@ -1320,6 +1340,24 @@ Si CONDITIONAL o REJECTED:
 .claude/hooks/implement-healing.sh {feature} acceptance {level} "{action}" "{result}"
 ```
 
+### 7.7a Implementation Status — modo freeform (v5.0 Spec-Code Sync)
+
+Si el pipeline NO es spec-driven (no hay board_id ni Trello/Plane configurado):
+
+1. Verificar que `implementation_deltas[]` tiene al menos 1 entrada
+2. Derivar `uc_id` del nombre del plan (e.g. `uc_001_plan.md` → `UC-001`) o usar `"FREEFORM"`
+3. Obtener branch name actual: `git rev-parse --abbrev-ref HEAD`
+4. Buscar PRD en `doc/prds/` usando `find_prd_path(project_path, feature=feature_name)`
+5. Si PRD encontrado: ejecutar `append_implementation_status(prd_path, uc_id, branch, implementation_deltas)`
+6. Commit del PRD actualizado:
+   ```bash
+   git add doc/prds/{prd_file}
+   git commit -m "docs({feature}): add Implementation Status for {uc_id}"
+   ```
+7. Si no se encuentra PRD → WARNING en output, no bloquear
+
+**IMPORTANTE:** En modo spec-driven, este paso se ejecuta en 8.5.3a en su lugar.
+
 ---
 
 ## Paso 8: Crear Pull Request
@@ -1490,6 +1528,26 @@ Si existe `.quality/evidence/${feature}/feedback-summary.json`:
            "Re-ejecutar /implement para re-validar o resolver feedback primero."
          → Cuando el usuario apruebe: continuar con 8.5.2
 ```
+
+### 8.5.1a Escribir Implementation Status en PRD (v5.0 Spec-Code Sync)
+
+Antes del merge, escribir el Implementation Status en el PRD:
+
+1. Localizar PRD del feature/US actual:
+   - Si spec-driven: buscar en `doc/prds/` por us_id o feature name
+   - Si freeform: ya se hizo en Paso 7.7a (saltar este paso)
+2. Compilar `implementation_deltas[]` en seccion Markdown con `compile_uc_status(uc_id, branch, deltas)`
+3. Append al PRD con `append_implementation_status(prd_path, uc_id, branch, implementation_deltas)`
+4. Commit del PRD actualizado:
+   ```bash
+   git add doc/prds/{prd_file}
+   git commit -m "docs({feature}): add Implementation Status for {uc_id}"
+   git push origin {branch}
+   ```
+5. Si no se encuentra PRD → WARNING, no bloquear el merge
+
+**Tambien disponible como MCP tool:** `write_implementation_status(project_path, uc_id, branch, phase_deltas)`
+**Consulta posterior:** `get_implementation_status(project_path, item_id)` — devuelve JSON con deltas y overall_status
 
 ### 8.5.2 Merge
 

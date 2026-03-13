@@ -1,0 +1,34 @@
+# Skill Manifest Template — SDD-JPS Engine v5.0
+# Copy this file as manifest.yaml inside your skill directory.
+#
+# Directory structure:
+#   my-skill/
+#   ├── SKILL.md          # Required — YAML frontmatter + instructions
+#   ├── manifest.yaml     # Required — this file
+#   └── ...               # Optional supporting files (.md, .json, .yaml)
+#
+# Install:
+#   ./install.sh --skill ./my-skill           # global (~/.claude/skills/)
+#   ./install.sh --skill ./my-skill --local   # project (.claude/skills/)
+
+# --- Required fields ---
+
+name: my-custom-skill
+version: 1.0.0                # semver (X.Y.Z)
+author: Your Name
+description: >
+  Short description of what this skill does, when it should be activated,
+  and what domain knowledge it provides.
+compatibility:                # list of compatible stacks
+  - flutter
+  - react
+
+# --- Optional fields ---
+
+triggers:                     # keywords that activate this skill during /prd
+  - payments
+  - stripe
+  - billing
+
+depends_on:                   # other skills this one requires
+  - plan

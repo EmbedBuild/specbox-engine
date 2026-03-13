@@ -1,0 +1,271 @@
+# SDD-JPS Engine — Acceptance Gate GitHub Action
+#
+# Validates acceptance criteria from PRD against PR changes.
+# Runs standalone BDD acceptance check without the full /implement pipeline.
+#
+# Installation:
+#   Copy this file to your project's .github/workflows/acceptance-gate.yml
+#   or run install.sh which offers to copy it automatically.
+#
+# Required env vars:
+#   SDD_ENGINE_URL    — URL of the SDD-JPS Engine MCP server (streamable-http)
+#   SDD_PROJECT_PATH  — Absolute path to the project root (default: $GITHUB_WORKSPACE)
+#
+# Optional env vars:
+#   SDD_FAIL_ON_CONDITIONAL — Set to "true" to fail the check on CONDITIONAL verdicts (default: false)
+
+name: Acceptance Gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  SDD_ENGINE_URL: ${{ vars.SDD_ENGINE_URL || '' }}
+  SDD_PROJECT_PATH: ${{ vars.SDD_PROJECT_PATH || github.workspace }}
+  SDD_FAIL_ON_CONDITIONAL: ${{ vars.SDD_FAIL_ON_CONDITIONAL || 'false' }}
+
+jobs:
+  acceptance-check:
+    name: Acceptance Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for diff against main
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install SDD-JPS Engine (if not using remote MCP)
+        if: env.SDD_ENGINE_URL == ''
+        run: |
+          pip install httpx fastmcp pydantic structlog pyyaml fpdf2
+          # Clone engine if not embedded
+          if [ ! -f "server/tools/acceptance.py" ]; then
+            echo "::warning::SDD-JPS Engine not found in project. Set SDD_ENGINE_URL for remote mode."
+            exit 0
+          fi
+
+      - name: Determine affected UCs from changed files
+        id: detect-ucs
+        run: |
+          # Get files changed in this PR
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          # Search PRD files for UC references related to changed files
+          UC_IDS=""
+          for prd in $(find doc/prd doc/prds -name "*.md" 2>/dev/null); do
+            # Extract all UC-XXX from PRD
+            ucs=$(grep -oE 'UC-[0-9]+' "$prd" | sort -u)
+            if [ -n "$ucs" ]; then
+              UC_IDS="$UC_IDS $ucs"
+            fi
+          done
+
+          # Also check plan files for file-to-UC mapping
+          for plan in $(find doc/plans -name "*.md" 2>/dev/null); do
+            for changed in $CHANGED_FILES; do
+              if grep -q "$changed" "$plan" 2>/dev/null; then
+                plan_ucs=$(grep -oE 'UC-[0-9]+' "$plan" | sort -u)
+                UC_IDS="$UC_IDS $plan_ucs"
+              fi
+            done
+          done
+
+          # Deduplicate
+          UC_IDS=$(echo "$UC_IDS" | tr ' ' '\n' | sort -u | tr '\n' ' ' | xargs)
+          echo "Detected UCs: $UC_IDS"
+          echo "uc_ids=$UC_IDS" >> "$GITHUB_OUTPUT"
+
+          if [ -z "$UC_IDS" ]; then
+            echo "No UCs detected from changed files"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run acceptance check (local)
+        if: steps.detect-ucs.outputs.skip != 'true' && env.SDD_ENGINE_URL == ''
+        id: local-check
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          RESULTS=""
+          OVERALL="ACCEPTED"
+
+          for UC_ID in ${{ steps.detect-ucs.outputs.uc_ids }}; do
+            echo "::group::Checking $UC_ID"
+            RESULT=$(python -c "
+          import json, sys
+          sys.path.insert(0, '.')
+          from server.tools.acceptance import register_acceptance_tools
+          from unittest.mock import MagicMock
+          from pathlib import Path
+
+          mcp = MagicMock()
+          tools = {}
+          original_tool = mcp.tool
+          def capture_tool(fn=None):
+              if fn is None:
+                  return capture_tool
+              tools[fn.__name__] = fn
+              return fn
+          mcp.tool = capture_tool
+
+          register_acceptance_tools(mcp, Path('.'), Path('/tmp/state'))
+          result = tools['run_acceptance_check']('${{ env.SDD_PROJECT_PATH }}', '$UC_ID', '$BRANCH')
+          print(json.dumps(result))
+          ")
+            echo "$RESULT" | python -m json.tool
+            echo "::endgroup::"
+
+            VERDICT=$(echo "$RESULT" | python -c "import json,sys; print(json.load(sys.stdin).get('verdict','REJECTED'))")
+            if [ "$VERDICT" = "REJECTED" ]; then
+              OVERALL="REJECTED"
+            elif [ "$VERDICT" = "CONDITIONAL" ] && [ "$OVERALL" != "REJECTED" ]; then
+              OVERALL="CONDITIONAL"
+            fi
+            RESULTS="$RESULTS|$UC_ID:$VERDICT"
+          done
+
+          echo "overall=$OVERALL" >> "$GITHUB_OUTPUT"
+          echo "results=$RESULTS" >> "$GITHUB_OUTPUT"
+
+      - name: Run acceptance check (remote MCP)
+        if: steps.detect-ucs.outputs.skip != 'true' && env.SDD_ENGINE_URL != ''
+        id: remote-check
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          OVERALL="ACCEPTED"
+          RESULTS=""
+
+          for UC_ID in ${{ steps.detect-ucs.outputs.uc_ids }}; do
+            echo "::group::Checking $UC_ID (remote)"
+            RESPONSE=$(curl -s -X POST "${{ env.SDD_ENGINE_URL }}" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"jsonrpc\": \"2.0\",
+                \"method\": \"tools/call\",
+                \"params\": {
+                  \"name\": \"run_acceptance_check\",
+                  \"arguments\": {
+                    \"project_path\": \"${{ env.SDD_PROJECT_PATH }}\",
+                    \"item_id\": \"$UC_ID\",
+                    \"branch\": \"$BRANCH\"
+                  }
+                },
+                \"id\": 1
+              }")
+            echo "$RESPONSE" | python -m json.tool 2>/dev/null || echo "$RESPONSE"
+            echo "::endgroup::"
+
+            VERDICT=$(echo "$RESPONSE" | python -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          content = data.get('result', {}).get('content', [{}])
+          if content:
+              text = content[0].get('text', '{}')
+              print(json.loads(text).get('verdict', 'REJECTED'))
+          else:
+              print('REJECTED')
+          " 2>/dev/null || echo "REJECTED")
+
+            if [ "$VERDICT" = "REJECTED" ]; then
+              OVERALL="REJECTED"
+            elif [ "$VERDICT" = "CONDITIONAL" ] && [ "$OVERALL" != "REJECTED" ]; then
+              OVERALL="CONDITIONAL"
+            fi
+            RESULTS="$RESULTS|$UC_ID:$VERDICT"
+          done
+
+          echo "overall=$OVERALL" >> "$GITHUB_OUTPUT"
+          echo "results=$RESULTS" >> "$GITHUB_OUTPUT"
+
+      - name: Post PR comment with results
+        if: steps.detect-ucs.outputs.skip != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const overall = '${{ steps.local-check.outputs.overall || steps.remote-check.outputs.overall || 'SKIPPED' }}';
+            const results = '${{ steps.local-check.outputs.results || steps.remote-check.outputs.results || '' }}';
+            const fs = require('fs');
+            const path = require('path');
+
+            // Collect markdown reports
+            let reportContent = '';
+            const checkDir = path.join('${{ env.SDD_PROJECT_PATH }}', '.quality', 'acceptance-check');
+            if (fs.existsSync(checkDir)) {
+              const dirs = fs.readdirSync(checkDir);
+              for (const dir of dirs) {
+                const reportPath = path.join(checkDir, dir, 'report.md');
+                if (fs.existsSync(reportPath)) {
+                  reportContent += fs.readFileSync(reportPath, 'utf8') + '\n\n';
+                }
+              }
+            }
+
+            const emoji = overall === 'ACCEPTED' ? ':white_check_mark:' :
+                          overall === 'REJECTED' ? ':x:' : ':warning:';
+
+            const body = `# ${emoji} Acceptance Gate: ${overall}
+
+            ${reportContent || 'No detailed reports generated.'}
+
+            ---
+            *Powered by [SDD-JPS Engine](https://github.com/jesusperezdeveloper/sdd-jps-engine) Acceptance Gate*`;
+
+            // Find and update existing comment or create new one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const botComment = comments.find(c => c.body.includes('Acceptance Gate:'));
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+      - name: Fail if REJECTED
+        if: steps.detect-ucs.outputs.skip != 'true'
+        run: |
+          OVERALL="${{ steps.local-check.outputs.overall || steps.remote-check.outputs.overall || 'SKIPPED' }}"
+          FAIL_CONDITIONAL="${{ env.SDD_FAIL_ON_CONDITIONAL }}"
+
+          if [ "$OVERALL" = "REJECTED" ]; then
+            echo "::error::Acceptance Gate REJECTED — one or more acceptance criteria not met"
+            exit 1
+          fi
+
+          if [ "$OVERALL" = "CONDITIONAL" ] && [ "$FAIL_CONDITIONAL" = "true" ]; then
+            echo "::error::Acceptance Gate CONDITIONAL — SDD_FAIL_ON_CONDITIONAL is enabled"
+            exit 1
+          fi
+
+          echo "Acceptance Gate: $OVERALL"
+
+      - name: Skip notice
+        if: steps.detect-ucs.outputs.skip == 'true'
+        run: |
+          echo "::notice::No UCs detected from PR changes — acceptance gate skipped"

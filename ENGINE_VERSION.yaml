@@ -1,8 +1,8 @@
-version: 4.2.0
-codename: "Stitch Design Gate"
+version: 5.0.0
+codename: "Self-Evolution"
 brand: "SDD-JPS Engine"
 brand_full: "Spec-Driven Development Engine by JPS"
-release_date: 2026-03-12
+release_date: 2026-03-13
 min_claude_code: "1.0.0"
 
 stacks:
@@ -93,8 +93,61 @@ features:
   - design-compliance-ratchet
   - design-baseline-script
   - retrofit-progressive-enforcement
+  # New (v5.0.0)
+  - spec-code-sync-layer
+  - implementation-delta-capture
+  - prd-implementation-status
+  - get-implementation-status-tool
+  - write-implementation-status-tool
+  - acceptance-check-skill
+  - acceptance-check-standalone
+  - run-acceptance-check-tool
+  - get-acceptance-report-tool
+  - github-action-acceptance-gate
+  - quickstart-skill
+  - hint-system
+  - skill-hint-tools
+  - onboarding-wizard
+  - skill-registry-external
+  - skill-manifest-yaml
+  - skill-auto-discovery
+  - discover-skills-tool
+  - validate-skill-manifest-tool
+  - benchmark-snapshot
+  - benchmark-public-endpoint
+  - generate-benchmark-snapshot-tool
 
 changelog:
+  5.0.0:
+    date: 2026-03-13
+    changes:
+      - "feat: US-01 Spec-Code Sync Layer — automatic PRD update with Implementation Status after each /implement phase"
+      - "feat: delta_generator.py — structured Markdown delta blocks per phase (max 500 tokens, AC-01..AC-05)"
+      - "feat: prd_writer.py — append-only PRD writing with Implementation Status sections (AC-06..AC-10)"
+      - "feat: prd_parser.py — parse Implementation Status from PRDs into structured data (AC-11..AC-14)"
+      - "feat: MCP tools get_implementation_status and write_implementation_status (server/tools/sync.py)"
+      - "feat: /implement SKILL.md steps 5.1.1a (delta capture), 7.7a (freeform write), 8.5.1a (spec-driven write)"
+      - "feat: US-02 DX Onboarding — /quickstart skill, contextual hints, onboarding wizard"
+      - "feat: /quickstart skill — interactive tutorial guiding new devs through the full pipeline in < 5 min"
+      - "feat: hint_manager.py — contextual hints system with .quality/hint_counters.json (disappear after 3 uses)"
+      - "feat: MCP tools get_skill_hint and record_skill_hint (server/tools/hints.py)"
+      - "feat: US-03 Skill Registry — external skill manifests, install/uninstall, auto-discovery"
+      - "feat: skill_registry.py — manifest validation, skill listing (core/external), dependency checking"
+      - "feat: Auto-discovery of external skills matching stack + keyword triggers in pipeline"
+      - "feat: MCP tools discover_skills, validate_skill_manifest (server/tools/skill_registry.py)"
+      - "feat: templates/skill-manifest.yaml.template for external skill authors"
+      - "feat: US-04 BDD as Exportable Module — standalone acceptance check without full /implement"
+      - "feat: /acceptance-check skill — validates AC from PRD against code, outputs PR-comment-ready Markdown"
+      - "feat: MCP tools run_acceptance_check and get_acceptance_report (server/tools/acceptance.py)"
+      - "feat: templates/github-actions/acceptance-gate.yml — GitHub Action for automated acceptance gates"
+      - "feat: US-05 Public Benchmarking — aggregated metrics from real projects"
+      - "feat: benchmark_generator.py — anonymized project metrics with Metodología section"
+      - "feat: MCP tool generate_benchmark_snapshot (server/tools/benchmark.py)"
+      - "feat: REST endpoint GET /api/benchmark/public (dashboard_api.py)"
+      - "docs: doc/plans/ with technical plans for all 5 User Stories"
+      - "test: 114+ new tests covering all v5.0 modules"
+
+
   4.2.0:
     date: 2026-03-12
     changes:

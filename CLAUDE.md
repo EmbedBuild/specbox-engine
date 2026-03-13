@@ -1,6 +1,6 @@
-# SDD-JPS Engine v5.0.0
+# SpecBox Engine v5.1.0
 
-> **Spec-Driven Development Engine by JPS**
+> **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
 > Monorepo unificado: engine + MCP server (90+ tools) + Sala de Máquinas + Gherkin BDD.
 
@@ -413,5 +413,5 @@ BDD acceptance testing without full /implement pipeline:
 ## Engine Version
 
 Current: v5.0.0 "Self-Evolution"
-Brand: SDD-JPS Engine (Spec-Driven Development Engine by JPS)
+Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

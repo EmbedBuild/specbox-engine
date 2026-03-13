@@ -180,7 +180,7 @@ class TestRunAcceptanceCheck:
         assert "## Acceptance Check: UC-001" in content
         assert "**Verdict**:" in content
         assert "| AC |" in content
-        assert "SDD-JPS Engine" in content
+        assert "SpecBox Engine" in content
 
     def test_json_report_generated(self, tools, project_dir):
         """AC-47: JSON report with verdict and evidence per AC."""

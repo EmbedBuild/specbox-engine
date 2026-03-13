@@ -1,5 +1,5 @@
 {
-  "$schema": "SDD-JPS Engine v3.9.0 - Agent Teams Configuration (Orchestrator Isolation)",
+  "$schema": "SpecBox Engine v3.9.0 - Agent Teams Configuration (Orchestrator Isolation)",
   "team": {
     "name": "{PROJECT_NAME}",
     "description": "Equipo de desarrollo para {PROJECT_NAME}",

@@ -1,6 +1,6 @@
-# SDD-JPS Engine v4.2.0 — Public Release
+# SpecBox Engine v5.1.0 — Public Release
 
-**Spec-Driven Development Engine by JPS** — Sistema de programacion agentica para Claude Code.
+**SpecBox Engine by JPS** — Sistema de programacion agentica para Claude Code.
 
 Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 78+ tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane para desarrollo profesional con Claude Code.
 
@@ -1183,9 +1183,9 @@ v4.1.0 | 2026-03-11 | JPS Developer
 
 # English Version
 
-# SDD-JPS Engine v4.2.0 — Public Release
+# SpecBox Engine v5.1.0 — Public Release
 
-**Spec-Driven Development Engine by JPS** — An agentic programming system for Claude Code.
+**SpecBox Engine by JPS** — An agentic programming system for Claude Code.
 
 Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 78+ tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane for professional development with Claude Code.
 

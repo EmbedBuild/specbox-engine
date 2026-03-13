@@ -251,7 +251,7 @@ Max 100 caracteres. Truncar description si necesario.
 {Si no: "No direct impact on acceptance criteria."}
 
 ---
-Filed by [SDD-JPS Engine](https://github.com/jesusperezdeveloper/sdd-jps-engine) `/feedback`
+Filed by [SpecBox Engine](https://github.com/jesusperezdeveloper/specbox-engine) `/feedback`
 ```
 
 ### 5.3 Labels
@@ -398,7 +398,7 @@ Si `github_issue` no es null:
 ```bash
 gh issue comment {number} --body "✅ Resolved: {resolution}
 
-Marked as resolved by SDD-JPS Engine \`/feedback resolve\`"
+Marked as resolved by SpecBox Engine \`/feedback resolve\`"
 
 gh issue close {number}
 ```

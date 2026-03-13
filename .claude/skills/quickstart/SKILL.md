@@ -1,6 +1,6 @@
 ---
 name: quickstart
-description: "Interactive tutorial — guides new developers through the full SDD-JPS Engine pipeline with a demo project"
+description: "Interactive tutorial — guides new developers through the full SpecBox Engine pipeline with a demo project"
 triggers: ["quickstart", "tutorial", "getting started", "learn engine", "onboarding tutorial"]
 context: fork
 mode: direct
@@ -9,7 +9,7 @@ tools: ["Read", "Write", "Bash", "Glob"]
 
 # /quickstart — Tutorial Guiado Interactivo
 
-Tutorial interactivo que guia a nuevos desarrolladores a traves del pipeline completo del SDD-JPS Engine con un micro-proyecto de ejemplo.
+Tutorial interactivo que guia a nuevos desarrolladores a traves del pipeline completo del SpecBox Engine con un micro-proyecto de ejemplo.
 
 ## Uso
 
@@ -43,7 +43,7 @@ Crea el directorio `~/quickstart-demo/` con una estructura minima de proyecto Fl
 **pubspec.yaml** contenido:
 ```yaml
 name: quickstart_demo
-description: Proyecto demo para aprender SDD-JPS Engine
+description: Proyecto demo para aprender SpecBox Engine
 version: 1.0.0
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -53,7 +53,7 @@ environment:
 ```dart
 // Placeholder — este archivo seria tu app Flutter real
 void main() {
-  print('Quickstart Demo - SDD-JPS Engine');
+  print('Quickstart Demo - SpecBox Engine');
 }
 ```
 
@@ -62,9 +62,9 @@ void main() {
 Mostrar:
 
 ```
-=== SDD-JPS Engine — Tutorial Quickstart ===
+=== SpecBox Engine — Tutorial Quickstart ===
 
-Bienvenido al tutorial interactivo del SDD-JPS Engine.
+Bienvenido al tutorial interactivo del SpecBox Engine.
 En los proximos minutos vas a recorrer el pipeline completo
 que este sistema usa para desarrollar software de forma agentica.
 

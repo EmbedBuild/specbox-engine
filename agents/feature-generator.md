@@ -1,6 +1,6 @@
 # AG-01: Feature Generator
 
-> SDD-JPS Engine v3.9.0
+> SpecBox Engine v3.9.0
 > Template generico -- genera features completas segun el stack del proyecto.
 
 ## Proposito

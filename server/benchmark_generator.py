@@ -218,7 +218,7 @@ def render_benchmark_markdown(metrics: dict) -> str:
     generated = metrics.get("generated_at", "unknown")
     version = metrics.get("engine_version", "unknown")
 
-    lines.append("# SDD-JPS Engine — Benchmark Snapshot")
+    lines.append("# SpecBox Engine — Benchmark Snapshot")
     lines.append("")
     lines.append(f"> Generado: {generated}")
     lines.append(f"> Engine version: {version}")
@@ -277,7 +277,7 @@ def render_benchmark_markdown(metrics: dict) -> str:
     lines.append("genéricos (Proyecto A, B, C...). Solo se muestra la categoría genérica del stack.")
     lines.append("")
     lines.append("---")
-    lines.append(f"*Generado automáticamente por SDD-JPS Engine v{version}*")
+    lines.append(f"*Generado automáticamente por SpecBox Engine v{version}*")
     lines.append("")
 
     return "\n".join(lines)

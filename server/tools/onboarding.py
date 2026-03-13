@@ -736,7 +736,7 @@ def register_onboarding_tools(
         Use when starting onboard_project without knowing the project details upfront."""
         return {
             "wizard": True,
-            "title": "Wizard de Onboarding — SDD-JPS Engine",
+            "title": "Wizard de Onboarding — SpecBox Engine",
             "description": (
                 "Vamos a configurar tu proyecto paso a paso. "
                 "Cada pregunta incluye una explicacion de para que sirve."

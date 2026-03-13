@@ -373,7 +373,7 @@ from fastmcp import FastMCP, Context
 mcp = FastMCP(
     name="dev-engine-trello",
     instructions="""
-    MCP server for SDD-JPS Engine — Trello project management.
+    MCP server for SpecBox Engine — Trello project management.
 
     Operates on User Stories (US), Use Cases (UC), and Acceptance Criteria (AC).
     Each tool is a domain operation that orchestrates multiple Trello API calls.

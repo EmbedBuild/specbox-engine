@@ -199,4 +199,4 @@ El ratchet garantiza que el compliance rate nunca baje.
 
 ---
 
-*SDD-JPS Engine v4.2.0 — Design Compliance Check*
+*SpecBox Engine v4.2.0 — Design Compliance Check*

@@ -1,5 +1,5 @@
 #!/bin/bash
-# SDD-JPS Engine - Installer
+# SpecBox Engine - Installer
 # Instala commands, skills y hooks globales en ~/.claude/
 # Usage: ./install.sh [--uninstall] [--dry-run]
 #        ./install.sh --skill <path|git-url> [--local]
@@ -21,7 +21,7 @@ NC='\033[0m'
 print_header() {
     echo ""
     echo -e "${BLUE}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  SDD-JPS Engine Installer ${VERSION}         ║${NC}"
+    echo -e "${BLUE}║  SpecBox Engine Installer ${VERSION}         ║${NC}"
     echo -e "${BLUE}╚══════════════════════════════════════════╝${NC}"
     echo ""
 }
@@ -193,7 +193,7 @@ fi
 
 # --- UNINSTALL ---
 if [ "$UNINSTALL" = true ]; then
-    echo -e "${YELLOW}Uninstalling SDD-JPS Engine...${NC}"
+    echo -e "${YELLOW}Uninstalling SpecBox Engine...${NC}"
 
     # Remove commands (symlinks)
     for cmd in "$ENGINE_DIR"/commands/*.md; do

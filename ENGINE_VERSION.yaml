@@ -1,7 +1,7 @@
-version: 5.0.0
-codename: "Self-Evolution"
-brand: "SDD-JPS Engine"
-brand_full: "Spec-Driven Development Engine by JPS"
+version: 5.1.0
+codename: "SpecBox"
+brand: "SpecBox Engine"
+brand_full: "SpecBox Engine by JPS"
 release_date: 2026-03-13
 min_claude_code: "1.0.0"
 
@@ -118,6 +118,15 @@ features:
   - generate-benchmark-snapshot-tool
 
 changelog:
+  5.1.0:
+    date: 2026-03-13
+    changes:
+      - "brand: Rebrand SDD-JPS Engine → SpecBox Engine by JPS — display text only, all paths and API preserved"
+      - "brand: ENGINE_VERSION.yaml brand 'SpecBox Engine', brand_full 'SpecBox Engine by JPS'"
+      - "brand: All Skills, Agent prompts, templates, server, install.sh, dashboard updated"
+      - "brand: Tests updated to reflect new brand name"
+      - "brand: CHANGELOG header updated, historical entries preserved"
+
   5.0.0:
     date: 2026-03-13
     changes:

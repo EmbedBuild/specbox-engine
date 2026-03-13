@@ -344,4 +344,4 @@ npx playwright test --trace on
 
 ---
 
-*Referencia: SDD-JPS Engine v3.9.0 "E2E Sentinel"*
+*Referencia: SpecBox Engine v3.9.0 "E2E Sentinel"*

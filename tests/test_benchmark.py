@@ -309,7 +309,7 @@ class TestRenderMarkdown:
 
     def test_contains_title(self):
         md = render_benchmark_markdown(self._sample_metrics())
-        assert "# SDD-JPS Engine" in md
+        assert "# SpecBox Engine" in md
         assert "Benchmark Snapshot" in md
 
     def test_contains_summary_table(self):

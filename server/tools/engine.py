@@ -34,7 +34,7 @@ def register_engine_tools(mcp: FastMCP, engine_path: Path):
 
     @mcp.tool
     def get_engine_version() -> dict:
-        """Get the current SDD-JPS Engine version, codename, and changelog.
+        """Get the current SpecBox Engine version, codename, and changelog.
         Use when you need to know which version of the engine is installed
         or what changed in the latest release."""
         version_file = engine_path / "ENGINE_VERSION.yaml"
@@ -45,7 +45,7 @@ def register_engine_tools(mcp: FastMCP, engine_path: Path):
 
     @mcp.tool
     def get_engine_status() -> dict:
-        """Get a comprehensive status overview of the SDD-JPS Engine.
+        """Get a comprehensive status overview of the SpecBox Engine.
         Returns counts of: skills, plans, baselines, features in progress,
         hooks installed, supported stacks, engine version, and local git commit.
         Use when you need a quick health check of the entire engine."""

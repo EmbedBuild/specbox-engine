@@ -1,6 +1,6 @@
 # Architecture Guide
 
-> SDD-JPS Engine v3.9.0 — Guia de arquitectura multi-stack
+> SpecBox Engine v3.9.0 — Guia de arquitectura multi-stack
 
 ## Stacks soportados
 

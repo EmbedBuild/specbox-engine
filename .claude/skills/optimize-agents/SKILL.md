@@ -168,7 +168,7 @@ Para cada comando, extraer:
 - **¿Tiene checkpoints?** (buscar "CHECKPOINT", "verificar", "validate", "analyze")
 - **¿Usa subagents?** (buscar "Task tool", "subagent", "agent team")
 
-### 0.6 Detectar SDD-JPS Engine y Comparar Versiones
+### 0.6 Detectar SpecBox Engine y Comparar Versiones
 
 **Localizar el engine**: Buscar `sdd-jps-engine` en estas ubicaciones (en orden):
 1. `~/sdd-jps-engine/`
@@ -680,7 +680,7 @@ Imprimir directamente en la conversación:
   Stack: [stacks detectados]
   Infra: [infra detectada]
   System: [LEGACY_ONLY | NATIVE_ONLY | HYBRID | NO_AGENTS]
-  Engine: SDD-JPS Engine v[VERSION] [o "not found"]
+  Engine: SpecBox Engine v[VERSION] [o "not found"]
   Agents: [N] detected ([N] active, [N] deprecated)
   Teams: [N native teams] ([N active tasks], [N stuck])
   Date: [fecha]
@@ -820,7 +820,7 @@ Estado actual del equipo: [métricas]
 7. ENGINE SYNC                                 [info]
 ────────────────────────────────────────────────────────────
 
-Engine: SDD-JPS Engine v[VERSION] — [ruta del engine]
+Engine: SpecBox Engine v[VERSION] — [ruta del engine]
 
 Commands (symlinks):
   /prd              [✅ Linked / ⚠️ Copia suelta — ejecutar ./install.sh]
@@ -842,7 +842,7 @@ Para actualizar, copiar desde el engine:
   [comando por cada archivo outdated]
 
 [Si no se encontró el engine:]
-⚠️ SDD-JPS Engine no encontrado.
+⚠️ SpecBox Engine no encontrado.
   Instalar: git clone <repo-url> ~/sdd-jps-engine && cd ~/sdd-jps-engine && ./install.sh
 
 ════════════════════════════════════════════════════════════

@@ -1434,7 +1434,7 @@ gh pr create \
 `{path al plan}`
 
 ---
-🤖 Implementado con [SDD-JPS Engine](https://github.com/jesusperezdeveloper/sdd-jps-engine) `/implement`
+🤖 Implementado con [SpecBox Engine](https://github.com/jesusperezdeveloper/specbox-engine) `/implement`
 EOF
 )"
 ```

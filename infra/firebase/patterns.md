@@ -1,6 +1,6 @@
 # Firebase - Patrones de Infraestructura
 
-> SDD-JPS Engine v3.9.0 | Referencia de patrones para proyectos basados en Firebase
+> SpecBox Engine v3.9.0 | Referencia de patrones para proyectos basados en Firebase
 
 ---
 

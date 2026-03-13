@@ -1,5 +1,5 @@
 """
-SDD-JPS Engine MCP Server v5.0.0
+SpecBox Engine MCP Server v5.1.0
 
 Unified MCP endpoint: 78+ tools (engine + spec-driven + migration + telemetry).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
@@ -60,7 +60,7 @@ STATE_PATH.mkdir(parents=True, exist_ok=True)
 mcp = FastMCP(
     "sdd-jps-engine",
     instructions="""
-    MCP server for the SDD-JPS Engine v5.0.0 — an agentic programming system for Claude Code.
+    MCP server for the SpecBox Engine v5.1.0 — an agentic programming system for Claude Code.
 
     Use these tools to:
     - Query implementation plans and their status

@@ -1,6 +1,43 @@
 # Changelog
 
-All notable changes to SDD-JPS Engine are documented here.
+All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
+
+## [5.1.0] - 2026-03-13
+
+### Changed
+- **Rebrand**: SDD-JPS Engine → SpecBox Engine by JPS — display text only, all filesystem paths and API preserved
+- `ENGINE_VERSION.yaml`: brand "SpecBox Engine", brand_full "SpecBox Engine by JPS", version 5.1.0, codename "SpecBox"
+- All Skills, Agent prompts, templates, server docstrings, install.sh, and dashboard updated
+- Tests updated to reflect new brand name
+- CHANGELOG header updated (historical entries preserved as-is)
+
+### Not Changed
+- MCP server ID (`sdd-jps-engine`), package name, Docker service name, filesystem paths
+- All 21 onboarded projects continue working (symlink backward compatibility)
+- No tool names, endpoints, or API changes
+
+## [5.0.0] - 2026-03-13
+
+### Added
+- **Spec-Code Sync Layer** — automatic PRD update with Implementation Status after each /implement phase
+- **Delta Generator** — structured Markdown delta blocks per phase (max 500 tokens)
+- **PRD Writer** — append-only PRD writing with Implementation Status sections
+- **PRD Parser** — parse Implementation Status from PRDs into structured data
+- MCP tools `get_implementation_status` and `write_implementation_status`
+- `/implement` SKILL.md steps 5.1.1a (delta capture), 7.7a (freeform write), 8.5.1a (spec-driven write)
+- **/quickstart** skill — interactive tutorial guiding new devs through the full pipeline in < 5 min
+- **Hint Manager** — contextual hints system with `.quality/hint_counters.json` (disappear after 3 uses)
+- MCP tools `get_skill_hint` and `record_skill_hint`
+- **Skill Registry** — external skill manifests, install/uninstall, auto-discovery
+- MCP tools `discover_skills`, `validate_skill_manifest`
+- `templates/skill-manifest.yaml.template` for external skill authors
+- **/acceptance-check** skill — standalone BDD acceptance without full /implement
+- MCP tools `run_acceptance_check` and `get_acceptance_report`
+- `templates/github-actions/acceptance-gate.yml` — GitHub Action for automated acceptance gates
+- **Benchmark Snapshot** — aggregated, anonymized project metrics
+- MCP tool `generate_benchmark_snapshot`
+- REST endpoint `GET /api/benchmark/public`
+- 114+ new tests covering all v5.0 modules
 
 ## [4.2.0] - 2026-03-12
 

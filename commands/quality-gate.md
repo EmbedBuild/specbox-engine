@@ -668,4 +668,4 @@ Solo bloquea si hay vulnerabilidades conocidas (CVE).
 
 ---
 
-*SDD-JPS Engine v3.9.0 — Quality Gate System*
+*SpecBox Engine v3.9.0 — Quality Gate System*

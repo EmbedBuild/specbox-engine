@@ -1,4 +1,4 @@
-# SDD-JPS Engine — Acceptance Gate GitHub Action
+# SpecBox Engine — Acceptance Gate GitHub Action
 #
 # Validates acceptance criteria from PRD against PR changes.
 # Runs standalone BDD acceptance check without the full /implement pipeline.
@@ -8,7 +8,7 @@
 #   or run install.sh which offers to copy it automatically.
 #
 # Required env vars:
-#   SDD_ENGINE_URL    — URL of the SDD-JPS Engine MCP server (streamable-http)
+#   SDD_ENGINE_URL    — URL of the SpecBox Engine MCP server (streamable-http)
 #   SDD_PROJECT_PATH  — Absolute path to the project root (default: $GITHUB_WORKSPACE)
 #
 # Optional env vars:
@@ -44,13 +44,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install SDD-JPS Engine (if not using remote MCP)
+      - name: Install SpecBox Engine (if not using remote MCP)
         if: env.SDD_ENGINE_URL == ''
         run: |
           pip install httpx fastmcp pydantic structlog pyyaml fpdf2
           # Clone engine if not embedded
           if [ ! -f "server/tools/acceptance.py" ]; then
-            echo "::warning::SDD-JPS Engine not found in project. Set SDD_ENGINE_URL for remote mode."
+            echo "::warning::SpecBox Engine not found in project. Set SDD_ENGINE_URL for remote mode."
             exit 0
           fi
 
@@ -221,7 +221,7 @@ jobs:
             ${reportContent || 'No detailed reports generated.'}
 
             ---
-            *Powered by [SDD-JPS Engine](https://github.com/jesusperezdeveloper/sdd-jps-engine) Acceptance Gate*`;
+            *Powered by [SpecBox Engine](https://github.com/jesusperezdeveloper/sdd-jps-engine) Acceptance Gate*`;
 
             // Find and update existing comment or create new one
             const { data: comments } = await github.rest.issues.listComments({

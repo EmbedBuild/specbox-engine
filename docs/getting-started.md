@@ -1,4 +1,4 @@
-# Getting Started - SDD-JPS Engine v3.9.0
+# Getting Started - SpecBox Engine v3.9.0
 
 ## Requisitos
 

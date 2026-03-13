@@ -1,4 +1,4 @@
-# Reglas Globales - SDD-JPS Engine v4.2.0
+# Reglas Globales - SpecBox Engine v5.1.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.

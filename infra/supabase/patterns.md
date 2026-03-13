@@ -1,6 +1,6 @@
 # Supabase - Patrones de Infraestructura
 
-> SDD-JPS Engine v3.9.0 | Referencia de patrones, herramientas MCP y plantillas
+> SpecBox Engine v3.9.0 | Referencia de patrones, herramientas MCP y plantillas
 
 ---
 

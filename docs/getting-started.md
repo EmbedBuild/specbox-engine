@@ -11,8 +11,8 @@
 ### 1. Clonar el repositorio
 
 ```bash
-git clone <repo-url> ~/sdd-jps-engine
-cd ~/sdd-jps-engine
+git clone <repo-url> ~/specbox-engine
+cd ~/specbox-engine
 ```
 
 ### 2. Instalar commands, skills y hooks
@@ -48,7 +48,7 @@ Copia el template y personaliza:
 
 ```bash
 cd /path/to/mi-proyecto
-cp ~/sdd-jps-engine/templates/CLAUDE.md.template CLAUDE.md
+cp ~/specbox-engine/templates/CLAUDE.md.template CLAUDE.md
 ```
 
 Edita CLAUDE.md reemplazando los placeholders `{...}` con los datos de tu proyecto.
@@ -59,7 +59,7 @@ Si usas Agent Teams, Stitch o Plane:
 
 ```bash
 mkdir -p .claude
-cp ~/sdd-jps-engine/templates/settings.json.template .claude/settings.local.json
+cp ~/specbox-engine/templates/settings.json.template .claude/settings.local.json
 ```
 
 ### Paso 3: Configurar agentes (opcional)
@@ -70,15 +70,15 @@ Copia los agentes que necesites:
 
 ```bash
 mkdir -p .claude/agents
-cp ~/sdd-jps-engine/agents/orchestrator.md .claude/agents/
-cp ~/sdd-jps-engine/agents/feature-generator.md .claude/agents/
+cp ~/specbox-engine/agents/orchestrator.md .claude/agents/
+cp ~/specbox-engine/agents/feature-generator.md .claude/agents/
 # ... etc
 ```
 
 #### Opcion B: Agent Teams (recomendado)
 
 ```bash
-cp ~/sdd-jps-engine/templates/team-config.json.template .claude/team-config.json
+cp ~/specbox-engine/templates/team-config.json.template .claude/team-config.json
 ```
 
 Activa Agent Teams en settings.json:
@@ -115,7 +115,7 @@ Activa Agent Teams en settings.json:
 ## Actualizacion del engine
 
 ```bash
-cd ~/sdd-jps-engine
+cd ~/specbox-engine
 git pull
 ./install.sh
 ```

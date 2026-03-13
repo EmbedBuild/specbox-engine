@@ -474,10 +474,10 @@ fi
 
 echo -e "${GREEN}Creating compatibility symlink...${NC}"
 if [ "$DRY_RUN" = true ]; then
-    echo -e "  Would create: ~/jps_dev_engine → ~/sdd-jps-engine"
+    echo -e "  Would create: ~/jps_dev_engine → ~/specbox-engine"
 else
-    ln -sf ~/sdd-jps-engine ~/jps_dev_engine 2>/dev/null || true
-    echo -e "  ${GREEN}~/jps_dev_engine → ~/sdd-jps-engine${NC}"
+    ln -sf ~/specbox-engine ~/jps_dev_engine 2>/dev/null || true
+    echo -e "  ${GREEN}~/jps_dev_engine → ~/specbox-engine${NC}"
 fi
 echo ""
 

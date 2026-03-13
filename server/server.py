@@ -58,7 +58,7 @@ STATE_PATH = Path(os.getenv("STATE_PATH", "/data/state"))
 STATE_PATH.mkdir(parents=True, exist_ok=True)
 
 mcp = FastMCP(
-    "sdd-jps-engine",
+    "specbox-engine",
     instructions="""
     MCP server for the SpecBox Engine v5.1.0 — an agentic programming system for Claude Code.
 

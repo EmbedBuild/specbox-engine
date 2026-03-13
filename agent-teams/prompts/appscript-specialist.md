@@ -81,5 +81,5 @@ npm run test && npm run lint && npm run push
 
 ## Referencia
 
-- Patrones: `sdd-jps-engine/architecture/google-apps-script/`
-- Agente: `sdd-jps-engine/agents/appscript-specialist.md`
+- Patrones: `specbox-engine/architecture/google-apps-script/`
+- Agente: `specbox-engine/agents/appscript-specialist.md`

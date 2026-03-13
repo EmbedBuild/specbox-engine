@@ -221,7 +221,7 @@ jobs:
             ${reportContent || 'No detailed reports generated.'}
 
             ---
-            *Powered by [SpecBox Engine](https://github.com/jesusperezdeveloper/sdd-jps-engine) Acceptance Gate*`;
+            *Powered by [SpecBox Engine](https://github.com/jesusperezdeveloper/specbox-engine) Acceptance Gate*`;
 
             // Find and update existing comment or create new one
             const { data: comments } = await github.rest.issues.listComments({

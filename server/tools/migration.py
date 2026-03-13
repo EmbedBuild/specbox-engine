@@ -24,7 +24,7 @@ logger = structlog.get_logger(__name__)
 MIGRATION_STATE_KEY = "migration_state"
 
 # External source marker for traceability
-ENGINE_SOURCE = "sdd-jps-engine"
+ENGINE_SOURCE = "specbox-engine"
 
 
 # ═══════════════════════════════════════════════════════════════════════

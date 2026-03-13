@@ -158,8 +158,8 @@ src/
 
 ## Referencia
 
-- Patrones: `sdd-jps-engine/architecture/google-apps-script/`
-- Overview: `sdd-jps-engine/architecture/google-apps-script/overview.md`
-- Estructura: `sdd-jps-engine/architecture/google-apps-script/folder-structure.md`
-- Patrones de codigo: `sdd-jps-engine/architecture/google-apps-script/patterns.md`
-- Testing: `sdd-jps-engine/architecture/google-apps-script/testing-strategy.md`
+- Patrones: `specbox-engine/architecture/google-apps-script/`
+- Overview: `specbox-engine/architecture/google-apps-script/overview.md`
+- Estructura: `specbox-engine/architecture/google-apps-script/folder-structure.md`
+- Patrones de codigo: `specbox-engine/architecture/google-apps-script/patterns.md`
+- Testing: `specbox-engine/architecture/google-apps-script/testing-strategy.md`

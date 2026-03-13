@@ -55,7 +55,7 @@ export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 Copiar el template de configuracion al proyecto:
 
 ```bash
-cp sdd-jps-engine/agent-teams/templates/team-config.template.json \
+cp specbox-engine/agent-teams/templates/team-config.template.json \
    mi_proyecto/.claude/team-config.json
 ```
 
@@ -66,7 +66,7 @@ Ajustar los roles y File Ownership segun el stack del proyecto.
 Copiar los prompts necesarios:
 
 ```bash
-cp sdd-jps-engine/agent-teams/prompts/lead-agent.md \
+cp specbox-engine/agent-teams/prompts/lead-agent.md \
    mi_proyecto/.claude/team-prompts/lead.md
 ```
 

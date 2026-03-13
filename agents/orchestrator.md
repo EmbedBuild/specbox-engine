@@ -195,8 +195,8 @@ Estas variables deben resolverse al personalizar para un proyecto:
 
 ## Referencia
 
-- Engine: `sdd-jps-engine/`
-- Skills: `sdd-jps-engine/.claude/skills/`
-- Arquitectura por stack: `sdd-jps-engine/architecture/{stack}/`
-- Infraestructura: `sdd-jps-engine/infra/{servicio}/`
-- Diseño Stitch: `sdd-jps-engine/design/stitch/`
+- Engine: `specbox-engine/`
+- Skills: `specbox-engine/.claude/skills/`
+- Arquitectura por stack: `specbox-engine/architecture/{stack}/`
+- Infraestructura: `specbox-engine/infra/{servicio}/`
+- Diseño Stitch: `specbox-engine/design/stitch/`

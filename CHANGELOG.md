@@ -11,10 +11,19 @@ All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented h
 - Tests updated to reflect new brand name
 - CHANGELOG header updated (historical entries preserved as-is)
 
+### Also Changed (v5.1.0 phase 2)
+- MCP server ID: `sdd-jps-engine` → `specbox-engine` (FastMCP name in server.py)
+- Package name: `sdd-jps-engine` → `specbox-engine` (pyproject.toml)
+- Docker service/container: `sdd-jps-engine` → `specbox-engine` (docker-compose.yml)
+- All ~40 filesystem path references: `sdd-jps-engine/` → `specbox-engine/` (agents, templates, docs, skills, commands)
+- GitHub URLs: `jesusperezdeveloper/sdd-jps-engine` → `jesusperezdeveloper/specbox-engine`
+- Baseline file: `.quality/baselines/sdd-jps-engine.json` → `specbox-engine.json`
+- Migration engine source: `ENGINE_SOURCE = "specbox-engine"` (migration.py)
+- Hook client name: `specbox-engine-hook` (mcp-report.sh)
+
 ### Not Changed
-- MCP server ID (`sdd-jps-engine`), package name, Docker service name, filesystem paths
-- All 21 onboarded projects continue working (symlink backward compatibility)
-- No tool names, endpoints, or API changes
+- Historical documents: ENGINE_VERSION.yaml changelog, doc/prds/, doc/plans/, CHANGELOG entries
+- No tool names, endpoints, or API contract changes
 
 ## [5.0.0] - 2026-03-13
 

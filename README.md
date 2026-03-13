@@ -43,8 +43,8 @@ Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad
 
 ```bash
 # 1. Clonar
-git clone <repo-url> ~/sdd-jps-engine
-cd ~/sdd-jps-engine
+git clone <repo-url> ~/specbox-engine
+cd ~/specbox-engine
 
 # 2. Instalar skills + hooks + commands globales
 ./install.sh
@@ -59,7 +59,7 @@ ls -la ~/.claude/hooks/
 
 # 5. Iniciar MCP server (opcional — para telemetria y dashboard)
 pip install -e .
-sdd-jps-engine
+specbox-engine
 ```
 
 Las Skills se auto-descubren cuando son relevantes. Los hooks se ejecutan automaticamente por Claude Code.
@@ -739,7 +739,7 @@ server/
 pip install -e .
 
 # Ejecutar servidor
-sdd-jps-engine
+specbox-engine
 
 # Docker
 docker compose up
@@ -858,7 +858,7 @@ upgrade_project(name)          # Actualiza al ultimo template del engine
 ## Estructura del Repositorio
 
 ```
-sdd-jps-engine/
+specbox-engine/
 ├── CLAUDE.md                          # Instrucciones del engine para Claude
 ├── ENGINE_VERSION.yaml                # Version 4.1.0, stacks, servicios, changelog
 ├── README.md                          # Este archivo
@@ -1071,15 +1071,15 @@ La PR incluye:
 
 ```bash
 # 1. Instalar skills + hooks
-cd ~/sdd-jps-engine && ./install.sh
+cd ~/specbox-engine && ./install.sh
 
 # 2. Copiar CLAUDE.md template
-cp ~/sdd-jps-engine/templates/CLAUDE.md.template ./CLAUDE.md
+cp ~/specbox-engine/templates/CLAUDE.md.template ./CLAUDE.md
 # Editar placeholders
 
 # 3. Copiar agentes necesarios
 mkdir -p .claude/agents
-cp ~/sdd-jps-engine/agents/{orchestrator,feature-generator,qa-validation}.md .claude/agents/
+cp ~/specbox-engine/agents/{orchestrator,feature-generator,qa-validation}.md .claude/agents/
 
 # 4. Audit
 /optimize-agents audit
@@ -1135,7 +1135,7 @@ Auto-detecta stack, genera CLAUDE.md, configura hooks, crea baseline.
 ## Actualizacion
 
 ```bash
-cd ~/sdd-jps-engine
+cd ~/specbox-engine
 git pull
 ./install.sh
 ```
@@ -1227,8 +1227,8 @@ Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi
 
 ```bash
 # 1. Clone
-git clone <repo-url> ~/sdd-jps-engine
-cd ~/sdd-jps-engine
+git clone <repo-url> ~/specbox-engine
+cd ~/specbox-engine
 
 # 2. Install skills + hooks + commands globally
 ./install.sh
@@ -1243,7 +1243,7 @@ ls -la ~/.claude/hooks/
 
 # 5. Start MCP server (optional — for telemetry and dashboard)
 pip install -e .
-sdd-jps-engine
+specbox-engine
 ```
 
 Skills are auto-discovered when relevant. Hooks run automatically via Claude Code.
@@ -1707,7 +1707,7 @@ server/
 pip install -e .
 
 # Run server
-sdd-jps-engine
+specbox-engine
 
 # Docker
 docker compose up
@@ -1793,7 +1793,7 @@ upgrade_project(name)          # Upgrades to latest engine template
 ## Repository Structure
 
 ```
-sdd-jps-engine/
+specbox-engine/
 ├── CLAUDE.md                          # Engine instructions for Claude
 ├── ENGINE_VERSION.yaml                # Version 4.1.0, stacks, services, changelog
 ├── README.md                          # This file
@@ -1907,10 +1907,10 @@ No more UCs → move_us(US-01, "done") + delivery report
 
 ```bash
 # 1. Install skills + hooks
-cd ~/sdd-jps-engine && ./install.sh
+cd ~/specbox-engine && ./install.sh
 
 # 2. Copy CLAUDE.md template
-cp ~/sdd-jps-engine/templates/CLAUDE.md.template ./CLAUDE.md
+cp ~/specbox-engine/templates/CLAUDE.md.template ./CLAUDE.md
 # Edit placeholders
 
 # 3. Audit
@@ -1967,7 +1967,7 @@ Auto-detects stack, generates CLAUDE.md, configures hooks, creates baseline.
 ## Upgrading
 
 ```bash
-cd ~/sdd-jps-engine
+cd ~/specbox-engine
 git pull
 ./install.sh
 ```

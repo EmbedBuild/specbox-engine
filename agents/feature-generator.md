@@ -188,7 +188,7 @@ src/
 
 ## Referencia
 
-- Patrones Flutter: `sdd-jps-engine/architecture/flutter/`
-- Patrones React: `sdd-jps-engine/architecture/react/`
-- Patrones Python: `sdd-jps-engine/architecture/python/`
-- Patrones Apps Script: `sdd-jps-engine/architecture/google-apps-script/`
+- Patrones Flutter: `specbox-engine/architecture/flutter/`
+- Patrones React: `specbox-engine/architecture/react/`
+- Patrones Python: `specbox-engine/architecture/python/`
+- Patrones Apps Script: `specbox-engine/architecture/google-apps-script/`

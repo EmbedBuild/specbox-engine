@@ -14,7 +14,7 @@
 
 {ARCHITECTURE_DESCRIPTION}
 
-Ver patrones detallados en: sdd-jps-engine/architecture/{stack}/
+Ver patrones detallados en: specbox-engine/architecture/{stack}/
 
 ## Memoria Persistente (Engram) — REQUERIDO
 
@@ -137,7 +137,7 @@ Durante el trabajo normal (sin compactacion), persiste informacion critica en En
 ## Reglas del Proyecto
 
 ### Importar reglas globales
-Las reglas de sdd-jps-engine/rules/GLOBAL_RULES.md aplican a este proyecto.
+Las reglas de specbox-engine/rules/GLOBAL_RULES.md aplican a este proyecto.
 
 ### Reglas especificas de este proyecto
 
@@ -148,7 +148,7 @@ Las reglas de sdd-jps-engine/rules/GLOBAL_RULES.md aplican a este proyecto.
 
 Estilo: {UI_STYLE} ({UI_STYLE_ID})
 Diseños Stitch: `doc/design/{feature}/`
-Patrones: `sdd-jps-engine/design/stitch/`
+Patrones: `specbox-engine/design/stitch/`
 
 ## Agentes del Proyecto
 
@@ -171,7 +171,7 @@ Agentes disponibles en .claude/agents/:
 
 ### Opcion B: Agent Teams (nativo Claude Code)
 
-Ver: sdd-jps-engine/agent-teams/README.md
+Ver: specbox-engine/agent-teams/README.md
 Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 
 ## Servicios Externos
@@ -179,7 +179,7 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ### {SERVICE_1} (ej: Supabase)
 - Project ID: {PROJECT_ID}
 - Entorno: desarrollo
-- Patrones: sdd-jps-engine/infra/{service}/patterns.md
+- Patrones: specbox-engine/infra/{service}/patterns.md
 
 ### Google Stitch (si aplica UI)
 - Project ID: {STITCH_PROJECT_ID}
@@ -231,7 +231,7 @@ el engine opera en modo Spec-Driven:
 - /plan → Lee US/UCs → genera plan → adjunta como PDF
 - /implement → find_next_uc → start_uc → fases → complete_uc → merge
 
-### Tools disponibles (MCP sdd-jps-engine)
+### Tools disponibles (MCP specbox-engine)
 
 | Tool | Uso |
 |------|-----|
@@ -327,7 +327,7 @@ Si el PRD no tiene seccion Audiencia, el pipeline funciona como siempre (legacy)
 | Config | `e2e/playwright.config.ts` (Flutter) o `playwright.config.ts` (React) |
 | Run | Ver `architecture/{stack}/e2e-testing.md` |
 | Report | `doc/test_cases/reports/` |
-| Patterns | `sdd-jps-engine/architecture/{stack}/e2e-testing.md` |
+| Patterns | `specbox-engine/architecture/{stack}/e2e-testing.md` |
 
 ## Hooks
 

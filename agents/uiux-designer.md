@@ -214,6 +214,6 @@ core/widgets/          (o components/ui/)
 ## Referencia
 
 - Disenos Stitch: `doc/design/{feature}/`
-- Patrones Stitch: `sdd-jps-engine/design/stitch/`
-- Arquitectura Flutter: `sdd-jps-engine/architecture/flutter/`
-- Arquitectura React: `sdd-jps-engine/architecture/react/`
+- Patrones Stitch: `specbox-engine/design/stitch/`
+- Arquitectura Flutter: `specbox-engine/architecture/flutter/`
+- Arquitectura React: `specbox-engine/architecture/react/`

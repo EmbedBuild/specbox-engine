@@ -649,7 +649,7 @@ gh pr create \
 `{path al plan}`
 
 ---
-🤖 Implementado con [SpecBox Engine](https://github.com/jesusperezdeveloper/sdd-jps-engine) `/implement` + Quality Gates
+🤖 Implementado con [SpecBox Engine](https://github.com/jesusperezdeveloper/specbox-engine) `/implement` + Quality Gates
 EOF
 )"
 ```

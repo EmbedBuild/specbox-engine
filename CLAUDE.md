@@ -50,8 +50,8 @@ Migracion bidireccional disponible via `migrate_preview` / `migrate_project`.
 ## Instalacion
 
 ```bash
-git clone <repo-url> sdd-jps-engine
-cd sdd-jps-engine
+git clone <repo-url> specbox-engine
+cd specbox-engine
 ./install.sh
 ```
 
@@ -86,7 +86,7 @@ Migration: migrate_preview → migrate_project (bidirectional Trello ↔ Plane)
 ## Estructura del repositorio
 
 ```
-sdd-jps-engine/
+specbox-engine/
 ├── CLAUDE.md              ← Este archivo
 ├── ENGINE_VERSION.yaml    ← Version del engine
 ├── install.sh             ← Instala skills, hooks, commands, GGA
@@ -195,7 +195,7 @@ sdd-jps-engine/
 ├── tests/                 ← Tests unificados
 ├── Dockerfile             ← Multi-stage (Node + Python)
 ├── docker-compose.yml
-├── pyproject.toml         ← name = "sdd-jps-engine"
+├── pyproject.toml         ← name = "specbox-engine"
 └── docs/                  ← Documentacion del sistema
     ├── getting-started.md
     ├── commands.md

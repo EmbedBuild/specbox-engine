@@ -262,6 +262,6 @@ Cada workflow DEBE incluir:
 
 ## Referencia
 
-- Patrones n8n: `sdd-jps-engine/infra/n8n/`
-- Patrones Supabase: `sdd-jps-engine/infra/supabase/`
+- Patrones n8n: `specbox-engine/infra/n8n/`
+- Patrones Supabase: `specbox-engine/infra/supabase/`
 - Documentacion n8n: https://docs.n8n.io/

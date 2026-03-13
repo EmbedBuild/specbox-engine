@@ -1,7 +1,7 @@
 services:
-  sdd-jps-engine:
+  specbox-engine:
     build: .
-    container_name: sdd-jps-engine
+    container_name: specbox-engine
     restart: unless-stopped
     ports:
       - "8000:8000"

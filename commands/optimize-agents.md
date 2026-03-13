@@ -158,9 +158,9 @@ Para cada comando, extraer:
 
 ### 0.6 Detectar SpecBox Engine y Comparar Versiones
 
-**Localizar el engine**: Buscar `sdd-jps-engine` en estas ubicaciones (en orden):
-1. `~/sdd-jps-engine/`
-2. `~/Desktop/Proyectos/jpsdeveloper/sdd-jps-engine/`
+**Localizar el engine**: Buscar `specbox-engine` en estas ubicaciones (en orden):
+1. `~/specbox-engine/`
+2. `~/Desktop/Proyectos/jpsdeveloper/specbox-engine/`
 3. Seguir symlinks de `~/.claude/commands/*.md` para encontrar la ruta del engine
 
 Si se encuentra el engine, leer `ENGINE_VERSION.yaml` y guardar `$ENGINE_VERSION`.
@@ -826,12 +826,12 @@ Archivos del proyecto vs engine:
 
 [Si hay archivos OUTDATED:]
 Para actualizar, copiar desde el engine:
-  cp ~/sdd-jps-engine/agents/feature-generator.md .claude/agents/
+  cp ~/specbox-engine/agents/feature-generator.md .claude/agents/
   [comando por cada archivo outdated]
 
 [Si no se encontró el engine:]
 ⚠️ SpecBox Engine no encontrado.
-  Instalar: git clone <repo-url> ~/sdd-jps-engine && cd ~/sdd-jps-engine && ./install.sh
+  Instalar: git clone <repo-url> ~/specbox-engine && cd ~/specbox-engine && ./install.sh
 
 ════════════════════════════════════════════════════════════
   RESUMEN

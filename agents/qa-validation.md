@@ -271,6 +271,6 @@ Cada funcion/metodo testeado debe cubrir:
 
 ## Referencia
 
-- Patrones Flutter test: `sdd-jps-engine/architecture/flutter/`
-- Patrones React test: `sdd-jps-engine/architecture/react/`
-- Patrones Python test: `sdd-jps-engine/architecture/python/`
+- Patrones Flutter test: `specbox-engine/architecture/flutter/`
+- Patrones React test: `specbox-engine/architecture/react/`
+- Patrones Python test: `specbox-engine/architecture/python/`

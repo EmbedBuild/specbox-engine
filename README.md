@@ -438,7 +438,7 @@ Enforcement automatico — no hace falta recordar ejecutarlos:
 | `mcp-report.sh` | Utility | Cliente MCP reutilizable para telemetria remota |
 | `design-gate.sh` | PostToolUse (Write/Edit) | WARNING si se modifica `presentation/pages/` sin diseño Stitch |
 
-Configuracion en `.claude/settings.json`. Telemetria remota controlada por `DEV_ENGINE_MCP_URL` env var.
+Configuracion en `.claude/settings.json`. Telemetria remota controlada por `SPECBOX_ENGINE_MCP_URL` env var.
 
 ---
 

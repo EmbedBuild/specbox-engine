@@ -249,7 +249,7 @@ async def set_auth_token(
 
 
 async def setup_board(board_name: str, ctx: Context) -> dict[str, Any]:
-    """Create a new board/project with the Dev Engine structure.
+    """Create a new board/project with the SpecBox Engine structure.
 
     Creates the board with 5 workflow states (User Stories, Backlog,
     In Progress, Review, Done), base labels (US, UC, Infra, Bloqueado),
@@ -276,7 +276,7 @@ async def setup_board(board_name: str, ctx: Context) -> dict[str, Any]:
 
 
 async def get_board_status(board_id: str, ctx: Context) -> dict[str, Any]:
-    """Get comprehensive status of a Dev Engine board/project.
+    """Get comprehensive status of a SpecBox Engine board/project.
 
     Reads all items, counts US vs UC per state, and calculates
     progress metrics (hours done/total, UCs done/total).
@@ -1736,7 +1736,7 @@ def register_spec_driven_tools(mcp_instance) -> None:
 
     # Board & Setup (3)
     mcp_instance.tool(
-        description="Create a new board/project with Dev Engine structure: 5 workflow states, "
+        description="Create a new board/project with SpecBox Engine structure: 5 workflow states, "
         "custom fields (Trello), and base labels."
     )(setup_board)
     mcp_instance.tool(

@@ -20,8 +20,8 @@ We will acknowledge your report within 48 hours and provide a timeline for resol
 
 | Version | Supported |
 |---------|-----------|
-| 4.x     | Yes       |
-| < 4.0   | No        |
+| 5.x     | Yes       |
+| < 5.0   | No        |
 
 ## Security Best Practices for Users
 
@@ -29,4 +29,4 @@ We will acknowledge your report within 48 hours and provide a timeline for resol
 - **Configure `DASHBOARD_CORS_ORIGIN`** in production — by default CORS headers are not sent (same-origin only). Set to your specific domain, never use `"*"` in production
 - **Never commit `.env` files** — use `.env.example` as a template
 - Trello credentials are per-session and not persisted to disk
-- Remote MCP telemetry (`DEV_ENGINE_MCP_URL`) is opt-in and fire-and-forget
+- Remote MCP telemetry (`SPECBOX_ENGINE_MCP_URL`) is opt-in and fire-and-forget

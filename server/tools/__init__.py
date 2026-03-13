@@ -1,1 +1,1 @@
-"""Dev Engine MCP tools."""
+"""SpecBox Engine MCP tools."""

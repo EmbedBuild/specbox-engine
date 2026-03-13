@@ -1,1 +1,1 @@
-"""Dev Engine MCP resources."""
+"""SpecBox Engine MCP resources."""

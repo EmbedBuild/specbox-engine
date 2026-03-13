@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Hook: Report E2E results to Dev Engine MCP
+# Hook: Report E2E results to SpecBox Engine MCP
 # Usage: ./hooks/e2e-report.sh [results-json-path]
 set -euo pipefail
 
 RESULTS_JSON="${1:-}"
 PROJECT=$(basename "$(git rev-parse --show-toplevel)")
 ENGINE_VERSION=$(grep 'version:' "$(dirname "$0")/../../ENGINE_VERSION.yaml" 2>/dev/null | head -1 | awk '{print $2}' || echo "unknown")
-MCP_URL="${DEV_ENGINE_MCP_URL:-}"
+MCP_URL="${SPECBOX_ENGINE_MCP_URL:-${DEV_ENGINE_MCP_URL:-}}"
 
 # Auto-detect results file
 if [[ -z "$RESULTS_JSON" ]]; then

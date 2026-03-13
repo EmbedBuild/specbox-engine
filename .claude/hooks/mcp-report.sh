@@ -1,11 +1,13 @@
 #!/bin/bash
 # Hook helper: envía datos al MCP remoto (fire-and-forget)
 # Uso: mcp-report.sh <tool_name> '<json_arguments>'
-# Requiere: DEV_ENGINE_MCP_URL env var
+# Requiere: SPECBOX_ENGINE_MCP_URL env var (legacy: DEV_ENGINE_MCP_URL también funciona)
 # Si no está configurado o falla, no hace nada (silencioso)
 
 # Exit silently if MCP URL not configured
-[ -z "$DEV_ENGINE_MCP_URL" ] && exit 0
+# Support new name with legacy fallback
+SPECBOX_ENGINE_MCP_URL="${SPECBOX_ENGINE_MCP_URL:-$DEV_ENGINE_MCP_URL}"
+[ -z "$SPECBOX_ENGINE_MCP_URL" ] && exit 0
 
 TOOL_NAME="$1"
 TOOL_ARGS="$2"
@@ -22,7 +24,7 @@ fi
 
 # Run entire MCP call in background, silently
 (
-  MCP_URL="$DEV_ENGINE_MCP_URL"
+  MCP_URL="$SPECBOX_ENGINE_MCP_URL"
 
   # Step 1: Initialize MCP session
   INIT_RESPONSE=$(curl -s --max-time 5 --connect-timeout 2 \

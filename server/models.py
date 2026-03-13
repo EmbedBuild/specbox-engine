@@ -1,4 +1,4 @@
-"""Pydantic models for Dev Engine MCP domain objects.
+"""Pydantic models for SpecBox Engine MCP domain objects.
 
 Backend-agnostic: works with both Trello and Plane backends.
 """

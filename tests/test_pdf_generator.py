@@ -44,7 +44,7 @@ class TestMarkdownToPdf:
         assert result[:4] == b"%PDF"
 
     def test_complex_markdown(self):
-        md = """# Dev Engine Report
+        md = """# SpecBox Engine Report
 
 ## US-01: Autenticacion
 

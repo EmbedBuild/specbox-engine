@@ -8,10 +8,10 @@ from datetime import datetime, timezone
 from fpdf import FPDF
 
 
-class DevEnginePDF(FPDF):
-    """Custom PDF with header/footer for Dev Engine reports."""
+class SpecBoxPDF(FPDF):
+    """Custom PDF with header/footer for SpecBox Engine reports."""
 
-    def __init__(self, title: str = "Dev Engine Report", **kwargs):
+    def __init__(self, title: str = "SpecBox Engine Report", **kwargs):
         super().__init__(**kwargs)
         self.report_title = title
         self.set_auto_page_break(auto=True, margin=25)
@@ -32,12 +32,12 @@ class DevEnginePDF(FPDF):
         self.cell(0, 10, f"Pagina {self.page_no()}/{{nb}}", align="C")
 
 
-def markdown_to_pdf(markdown_content: str, title: str = "Dev Engine Report") -> bytes:
+def markdown_to_pdf(markdown_content: str, title: str = "SpecBox Engine Report") -> bytes:
     """Convert markdown content to PDF bytes.
 
     Supports: headers (##, ###), bold (**text**), lists (- item), code blocks (```).
     """
-    pdf = DevEnginePDF(title=title)
+    pdf = SpecBoxPDF(title=title)
     pdf.alias_nb_pages()
     pdf.add_page()
     pdf.set_font("Helvetica", "", 10)

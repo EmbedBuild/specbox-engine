@@ -1,6 +1,6 @@
 """Tools for universal state management — ingestion and query.
 
-Hooks from the JPS Dev Engine send telemetry via HTTP (report_session,
+Hooks from SpecBox Engine send telemetry via HTTP (report_session,
 report_checkpoint, report_healing, report_acceptance_tests,
 report_acceptance_validation, report_merge_status, report_feedback,
 report_feedback_resolution, report_e2e_results). Query tools expose the

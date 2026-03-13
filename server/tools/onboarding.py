@@ -1,4 +1,4 @@
-"""Tools for onboarding and upgrading projects in the JPS Dev Engine ecosystem.
+"""Tools for onboarding and upgrading projects in the SpecBox Engine ecosystem.
 
 v2.2: upgrade_project, upgrade_all_projects, get_version_matrix.
       Engine/MCP version tracking in meta.json and registry.json.
@@ -290,7 +290,7 @@ def register_onboarding_tools(
 
     @mcp.tool
     def get_onboarding_status(project_path: str) -> dict:
-        """Check whether a project is already onboarded into the Dev Engine.
+        """Check whether a project is already onboarded into the SpecBox Engine.
         Args:
             project_path: Absolute path to the project root directory.
         Returns which onboarding artifacts exist and which are missing.
@@ -351,7 +351,7 @@ def register_onboarding_tools(
 
     @mcp.tool
     def list_onboarded_projects() -> list[dict]:
-        """List all projects registered in the Dev Engine ecosystem.
+        """List all projects registered in the SpecBox Engine ecosystem.
         Merges entries from the legacy engine registry and the central state registry.
         Returns project name, stack, infra, onboarding date, and status.
         Use to see which projects have been onboarded and their configuration."""
@@ -420,7 +420,7 @@ def register_onboarding_tools(
             infra: Comma-separated infra services (supabase, neon, stripe, etc.).
             repo_url: Git repository URL for reference.
             developer_name: Developer name for templates. Defaults to 'Jesús Pérez'.
-            trello_board_name: Optional Trello board name. If provided, creates a Dev Engine board with workflow lists, custom fields, and labels via the Trello API.
+            trello_board_name: Optional Trello board name. If provided, creates a SpecBox Engine board with workflow lists, custom fields, and labels via the Trello API.
             ctx: MCP context (injected automatically). Required when trello_board_name is provided.
 
         Returns the CONTENT of each file that should be created in the project repo
@@ -429,7 +429,7 @@ def register_onboarding_tools(
         Also registers the project in the central state registry.
         If trello_board_name is given, includes the board_id in the generated settings.
 
-        Use to onboard a new project into the Dev Engine ecosystem with quality gates and agent teams."""
+        Use to onboard a new project into the SpecBox Engine ecosystem with quality gates and agent teams."""
         detected_stack = stack or "unknown"
         infra_list = [s.strip() for s in infra.split(",") if s.strip()] if infra else []
         roles = _STACK_ROLES.get(detected_stack, _STACK_ROLES.get("python", []))

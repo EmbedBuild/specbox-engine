@@ -151,7 +151,7 @@ class SpecBackend(ABC):
 
     @abstractmethod
     async def setup_board(self, name: str) -> BoardConfig:
-        """Create a new board/project with Dev Engine structure.
+        """Create a new board/project with SpecBox Engine structure.
 
         Must create:
         - 5 workflow states/lists

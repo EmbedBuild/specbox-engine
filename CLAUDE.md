@@ -244,7 +244,7 @@ Automatic enforcement — no need to remember running these manually:
 ## Remote Telemetry (v3.3)
 
 Hooks can report to a remote MCP server for centralized state tracking.
-Set `DEV_ENGINE_MCP_URL=https://your-mcp-domain.example.com/mcp` in your shell profile.
+Set `SPECBOX_ENGINE_MCP_URL=https://mcp-specbox-engine.jpsdeveloper.com/mcp` in your shell profile.
 Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
 
 ## Context Engineering (v3.5)

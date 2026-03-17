@@ -2,8 +2,28 @@ import type { SalaData, ProjectActivity, TimelineData, HealingData, UpgradesData
 
 const BASE = '/api'
 
+// Read token from URL ?token=xxx and persist in sessionStorage
+function getToken(): string | null {
+  const urlToken = new URLSearchParams(window.location.search).get('token')
+  if (urlToken) {
+    sessionStorage.setItem('specbox_token', urlToken)
+    // Clean token from URL to avoid leaking in history/bookmarks
+    const url = new URL(window.location.href)
+    url.searchParams.delete('token')
+    window.history.replaceState({}, '', url.toString())
+    return urlToken
+  }
+  return sessionStorage.getItem('specbox_token')
+}
+
+const TOKEN = getToken()
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`)
+  const headers: HeadersInit = {}
+  if (TOKEN) {
+    headers['Authorization'] = `Bearer ${TOKEN}`
+  }
+  const res = await fetch(`${BASE}${path}`, { headers })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
     throw new Error(err.error || res.statusText)

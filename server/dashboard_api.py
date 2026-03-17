@@ -38,15 +38,15 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
     # ------------------------------------------------------------------
     # Auth middleware (optional)
     # ------------------------------------------------------------------
-    dashboard_token = os.getenv("DASHBOARD_TOKEN", "")
+    api_token = os.getenv("SPECBOX_SYNC_TOKEN", "")
 
     def _check_auth(request: Request) -> bool:
-        if not dashboard_token:
+        if not api_token:
             return True
         token = request.headers.get("Authorization", "").replace("Bearer ", "")
         if not token:
             token = request.query_params.get("token", "")
-        return token == dashboard_token
+        return token == api_token
 
     # ------------------------------------------------------------------
     # GET /health — Container healthcheck (no auth)
@@ -655,13 +655,8 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
     # ------------------------------------------------------------------
     # POST /api/heartbeat — Receive consolidated project state
     # ------------------------------------------------------------------
-    sync_token = os.getenv("SPECBOX_SYNC_TOKEN", "")
-
     def _check_sync_auth(request: Request) -> bool:
-        if not sync_token:
-            return True
-        token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        return token == sync_token
+        return _check_auth(request)
 
     @mcp.custom_route("/api/heartbeat", methods=["POST"])
     async def api_heartbeat(request: Request) -> JSONResponse:

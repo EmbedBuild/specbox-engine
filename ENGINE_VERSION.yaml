@@ -1,4 +1,4 @@
-version: 5.1.0
+version: 5.2.0
 codename: "SpecBox"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
@@ -116,8 +116,40 @@ features:
   - benchmark-snapshot
   - benchmark-public-endpoint
   - generate-benchmark-snapshot-tool
+  # New (v5.2.0)
+  - remote-state-management
+  - heartbeat-protocol
+  - heartbeat-sender-hook
+  - github-sync
+  - live-state-mcp-tools
+  - project-state-snapshot
+  - session-decay-lazy
+  - pending-heartbeat-queue
+  - specbox-state-json
 
 changelog:
+  5.2.0:
+    date: 2026-03-17
+    changes:
+      - "feat: Remote State Management — heartbeat protocol, GitHub sync, live state MCP tools for iPhone"
+      - "feat: report_heartbeat MCP tool — consolidated project state snapshot ingestion"
+      - "feat: POST /api/heartbeat REST endpoint — receive heartbeat from local hooks"
+      - "feat: POST /api/sync/github REST endpoint — sync state from GitHub repos"
+      - "feat: heartbeat-sender.sh hook — auto-detect local state, send to VPS, queue on failure"
+      - "feat: github_sync.py — read specbox-state.json from repos via GitHub API"
+      - "feat: get_project_live_state MCP tool — conversational project status for iPhone"
+      - "feat: get_all_projects_overview MCP tool — summary of all projects"
+      - "feat: get_active_sessions MCP tool — list active Claude Code sessions"
+      - "feat: refresh_project_state MCP tool — force GitHub sync for a project"
+      - "feat: project_state.json per-project snapshot (overwrite, not append)"
+      - "feat: Session decay lazy — session_active=false if no heartbeat in 30 min"
+      - "feat: specbox-state.json written to repo root for GitHub sync source"
+      - "feat: Heartbeat priority rule — heartbeat always wins over GitHub sync"
+      - "feat: Pending heartbeat queue — .quality/pending_heartbeats.jsonl for offline resilience"
+      - "feat: on-session-end.sh and implement-checkpoint.sh extended with heartbeat emission"
+      - "feat: SPECBOX_SYNC_TOKEN and GITHUB_TOKEN env vars in docker-compose"
+      - "test: 36 new tests (test_heartbeat, test_github_sync, test_live_state)"
+
   5.1.0:
     date: 2026-03-13
     changes:

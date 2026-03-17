@@ -103,3 +103,6 @@ fi
 PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null | tr '_' '-' || echo "unknown")
 HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
 "$HOOKS_DIR/mcp-report.sh" "report_session" "{\"project\": \"$PROJECT_NAME\", \"timestamp\": \"$TIMESTAMP\", \"files_modified\": $FILES_MODIFIED, \"context_tokens_est\": $CONTEXT_TOKENS, \"healing_events\": $HEALING_EVENTS, \"active_feature\": \"$ACTIVE_FEATURE\"}" &
+
+# Send heartbeat (fire-and-forget, background)
+"$HOOKS_DIR/heartbeat-sender.sh" "$PROJECT_NAME" "idle" &

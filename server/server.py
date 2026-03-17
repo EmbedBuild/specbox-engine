@@ -1,5 +1,5 @@
 """
-SpecBox Engine MCP Server v5.1.0
+SpecBox Engine MCP Server v5.2.0
 
 Unified MCP endpoint: 78+ tools (engine + spec-driven + migration + telemetry).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
@@ -31,6 +31,7 @@ from .tools.acceptance import register_acceptance_tools
 from .tools.benchmark import register_benchmark_tools
 from .tools.hints import register_hint_tools
 from .tools.skill_registry import register_skill_registry_tools
+from .tools.live_state import register_live_state_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -60,7 +61,7 @@ STATE_PATH.mkdir(parents=True, exist_ok=True)
 mcp = FastMCP(
     "specbox-engine",
     instructions="""
-    MCP server for the SpecBox Engine v5.1.0 — an agentic programming system for Claude Code.
+    MCP server for the SpecBox Engine v5.2.0 — an agentic programming system for Claude Code.
 
     Use these tools to:
     - Query implementation plans and their status
@@ -92,6 +93,9 @@ mcp = FastMCP(
     - Generate public benchmark snapshots with anonymized project metrics
     - Manage contextual hints for new developers
     - Discover and validate external skill manifests
+    - Query live project state (heartbeat snapshots, session activity)
+    - Sync project state from GitHub repos when local machine is off
+    - Get conversational project summaries optimized for mobile queries
 
     The engine manages Flutter, React, Python, and Google Apps Script projects
     with automated PRD → Plan → Implement → PR pipelines, self-healing protocol,
@@ -139,6 +143,9 @@ register_hint_tools(mcp)
 # Register skill registry tools (3 tools: list_skills_v2, discover_skills, validate_skill_manifest)
 register_skill_registry_tools(mcp, ENGINE_PATH)
 
+# Register live state tools (4 tools: get_project_live_state, get_all_projects_overview, get_active_sessions, refresh_project_state)
+register_live_state_tools(mcp, STATE_PATH)
+
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)
 
@@ -149,7 +156,7 @@ def main():
     host = os.getenv("MCP_HOST", "0.0.0.0")
 
     logger = structlog.get_logger(__name__)
-    logger.info("server_starting", transport=transport, host=host, port=port, version="5.1.0")
+    logger.info("server_starting", transport=transport, host=host, port=port, version="5.2.0")
 
     uvicorn_opts = {"timeout_graceful_shutdown": 5}
 

@@ -12,6 +12,8 @@ services:
       - MCP_PORT=8000
       - DASHBOARD_TOKEN=${DASHBOARD_TOKEN:-}
       - DASHBOARD_CORS_ORIGIN=${DASHBOARD_CORS_ORIGIN:-}
+      - SPECBOX_SYNC_TOKEN=${SPECBOX_SYNC_TOKEN:-}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
       - LOG_FORMAT=json
     stop_grace_period: 10s
     healthcheck:

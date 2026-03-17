@@ -29,3 +29,6 @@ echo "[CHECKPOINT] Phase ${PHASE} (${PHASE_NAME}) saved for ${FEATURE}"
 PROJECT_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null | tr '_' '-' || echo "unknown")
 HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
 "$HOOKS_DIR/mcp-report.sh" "report_checkpoint" "{\"project\": \"$PROJECT_NAME\", \"feature\": \"$FEATURE\", \"phase\": $PHASE, \"phase_name\": \"$PHASE_NAME\", \"branch\": \"$BRANCH\", \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" &
+
+# Send heartbeat with current phase info (fire-and-forget, background)
+"$HOOKS_DIR/heartbeat-sender.sh" "$PROJECT_NAME" "implement" &

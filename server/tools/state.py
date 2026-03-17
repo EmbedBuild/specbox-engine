@@ -138,6 +138,47 @@ def _filter_by_days(records: list[dict], days: int, ts_key: str = "timestamp") -
     return [r for r in records if r.get(ts_key, "") >= cutoff]
 
 
+def _read_project_state(project_dir: Path) -> dict:
+    """Read project_state.json for a project (consolidated snapshot)."""
+    state_file = project_dir / "project_state.json"
+    if state_file.exists():
+        try:
+            return json.loads(state_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {}
+
+
+def _write_project_state(project_dir: Path, data: dict) -> None:
+    """Persist project_state.json (overwrites — this is a snapshot, not a log)."""
+    state_file = project_dir / "project_state.json"
+    state_file.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+def _apply_session_decay(state: dict, decay_minutes: int = 30) -> dict:
+    """Apply lazy session decay: if received_at > decay_minutes ago, set session_active=false.
+
+    Returns a copy — does NOT modify the original dict or file."""
+    if not state or not state.get("session_active"):
+        return state
+    received_at = state.get("received_at", "")
+    if not received_at:
+        return state
+    try:
+        received_dt = datetime.fromisoformat(received_at.replace("Z", "+00:00"))
+        age = datetime.now(timezone.utc) - received_dt
+        if age > timedelta(minutes=decay_minutes):
+            result = dict(state)
+            result["session_active"] = False
+            return result
+    except (ValueError, TypeError):
+        pass
+    return state
+
+
 def _compute_e2e_trend(records: list[dict]) -> str:
     """Compute E2E test trend from historical runs."""
     if len(records) < 2:
@@ -1255,3 +1296,101 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
             "project": project,
             "files_deleted": files_deleted,
         }
+
+    # ===================================================================
+    # HEARTBEAT — consolidated project state snapshot
+    # ===================================================================
+
+    @mcp.tool
+    def report_heartbeat(
+        project: str,
+        timestamp: str,
+        session_active: bool = True,
+        current_phase: str = "",
+        current_feature: str = "",
+        current_branch: str = "",
+        plan_total_ucs: int = 0,
+        plan_completed_ucs: int = 0,
+        plan_current_uc: str = "",
+        last_verdict: str = "",
+        coverage_pct: float | None = None,
+        tests_passing: int = 0,
+        tests_failing: int = 0,
+        open_feedback: int = 0,
+        blocking_feedback: int = 0,
+        healing_health: str = "healthy",
+        self_healing_events: int = 0,
+        last_operation: str = "idle",
+        last_commit: str = "",
+        last_commit_at: str = "",
+    ) -> dict:
+        """Report a consolidated project state snapshot (heartbeat).
+
+        Overwrites project_state.json with the latest snapshot.  Called by
+        engine hooks after each significant operation (/prd, /plan, /implement,
+        /feedback) via HTTP POST to /api/heartbeat or via MCP tool call.
+
+        Args:
+            project: Project name (slug, e.g. 'mcprofit').
+            timestamp: ISO 8601 timestamp from the client.
+            session_active: Whether a Claude Code session is currently active.
+            current_phase: Current pipeline phase (prd|plan|implement|validate|idle).
+            current_feature: Feature being worked on.
+            current_branch: Active git branch.
+            plan_total_ucs: Total UCs in the current plan.
+            plan_completed_ucs: Completed UCs so far.
+            plan_current_uc: Current UC being implemented.
+            last_verdict: Last AG-09b verdict (ACCEPTED|CONDITIONAL|REJECTED).
+            coverage_pct: Test coverage percentage (null if unknown).
+            tests_passing: Number of passing tests.
+            tests_failing: Number of failing tests.
+            open_feedback: Open feedback tickets count.
+            blocking_feedback: Blocking (critical/major) feedback count.
+            healing_health: Self-healing health (healthy|degraded|critical).
+            self_healing_events: Count of self-healing events.
+            last_operation: Last engine operation (prd|plan|implement|feedback|idle).
+            last_commit: Last commit message.
+            last_commit_at: Last commit timestamp (ISO 8601).
+        """
+        project_dir = _ensure_project_dir(state_path, project)
+        _auto_register(state_path, project)
+
+        state = {
+            "project": project,
+            "timestamp": timestamp,
+            "received_at": datetime.now(timezone.utc).isoformat(),
+            "source": "heartbeat",
+            "session_active": session_active,
+            "current_phase": current_phase or None,
+            "current_feature": current_feature or None,
+            "current_branch": current_branch or None,
+            "plan_progress": {
+                "total_ucs": plan_total_ucs,
+                "completed_ucs": plan_completed_ucs,
+                "current_uc": plan_current_uc or None,
+            },
+            "last_verdict": last_verdict or None,
+            "coverage_pct": coverage_pct,
+            "tests_passing": tests_passing,
+            "tests_failing": tests_failing,
+            "open_feedback": open_feedback,
+            "blocking_feedback": blocking_feedback,
+            "healing_health": healing_health,
+            "self_healing_events": self_healing_events,
+            "last_operation": last_operation,
+            "last_commit": last_commit or None,
+            "last_commit_at": last_commit_at or None,
+        }
+
+        _write_project_state(project_dir, state)
+
+        # Update meta
+        meta = _read_meta(project_dir)
+        meta["last_activity"] = timestamp
+        if current_feature:
+            meta["active_feature"] = current_feature
+        _write_meta(project_dir, meta)
+
+        _invalidate_cache(state_path)
+
+        return {"status": "ok", "project": project, "event": "heartbeat"}

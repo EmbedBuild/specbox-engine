@@ -1,4 +1,4 @@
-# SpecBox Engine v5.1.0
+# SpecBox Engine v5.2.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -240,12 +240,40 @@ Automatic enforcement — no need to remember running these manually:
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
 | post-implement-validate | Manual (called by /implement) | Checks baseline regression after implementation |
 | design-gate | PostToolUse (Write/Edit on presentation/pages/) | NON-BLOCKING: warns if presentation page lacks Stitch design or traceability comment |
+| heartbeat-sender | Manual (called by on-session-end, implement-checkpoint) | Sends consolidated project state snapshot to VPS; queues locally if offline |
 
 ## Remote Telemetry (v3.3)
 
 Hooks can report to a remote MCP server for centralized state tracking.
 Set `SPECBOX_ENGINE_MCP_URL=https://mcp-specbox-engine.jpsdeveloper.com/mcp` in your shell profile.
 Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
+
+## Remote State Management (v5.2.0)
+
+Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP remoto.
+
+### Heartbeat Protocol
+- Hooks locales envian `project_state.json` al VPS tras cada operacion significativa
+- `heartbeat-sender.sh` auto-detecta: git branch, coverage, checkpoint, feedback
+- Si el VPS no responde, los heartbeats se guardan en `.quality/pending_heartbeats.jsonl`
+- Escribe `specbox-state.json` en la raiz del repo para GitHub sync
+
+### GitHub Sync
+- Cron (n8n) cada 15 min lee `specbox-state.json` de cada repo via GitHub API
+- Solo actualiza si el ultimo heartbeat tiene > 30 min de antiguedad
+- `POST /api/sync/github` para trigger manual
+
+### MCP Tools para iPhone
+| Tool | Uso |
+|------|-----|
+| `get_project_live_state` | "¿Como va McProfit?" |
+| `get_all_projects_overview` | "Dame resumen de todos" |
+| `get_active_sessions` | "¿Que tiene sesion activa?" |
+| `refresh_project_state` | "Actualiza estado de X" |
+
+### Env vars requeridas
+- `SPECBOX_SYNC_TOKEN` — auth para endpoints de heartbeat y sync (VPS + local)
+- `GITHUB_TOKEN` — para GitHub API (solo VPS)
 
 ## Context Engineering (v3.5)
 

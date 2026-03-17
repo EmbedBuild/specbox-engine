@@ -2,6 +2,30 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.2.0] - 2026-03-17
+
+### Added
+- **Remote State Management** — gestionar proyectos desde iPhone via Claude.ai iOS + MCP remoto
+- **Heartbeat Protocol** — `report_heartbeat` MCP tool + `POST /api/heartbeat` REST endpoint para recibir snapshots consolidados de estado de cada proyecto
+- **heartbeat-sender.sh** — hook que auto-detecta estado local (git branch, coverage, checkpoint, feedback) y envia heartbeat al VPS; queue local para offline resilience
+- **GitHub Sync** — `github_sync.py` lee `specbox-state.json` de repos via GitHub API; solo actualiza si heartbeat tiene > 30 min de antiguedad
+- `POST /api/sync/github` REST endpoint para trigger manual o cron de sync
+- **4 MCP tools conversacionales** para iPhone:
+  - `get_project_live_state(slug)` — "¿Como va McProfit?"
+  - `get_all_projects_overview()` — resumen de todos los proyectos con health emoji
+  - `get_active_sessions()` — proyectos con sesion activa
+  - `refresh_project_state(slug)` — force refresh desde GitHub
+- **project_state.json** — snapshot consolidado por proyecto (overwrite, no append)
+- **Session decay lazy** — `session_active=false` si no hay heartbeat en 30 min (sin cron)
+- **specbox-state.json** — escrito en raiz del repo tras heartbeat exitoso para GitHub sync
+- **Pending heartbeat queue** — `.quality/pending_heartbeats.jsonl` para reintentos
+- `SPECBOX_SYNC_TOKEN` y `GITHUB_TOKEN` env vars en docker-compose.yml
+- `on-session-end.sh` y `implement-checkpoint.sh` extendidos con emision de heartbeat
+- 36 nuevos tests (test_heartbeat, test_github_sync, test_live_state)
+
+### Technical Plan
+- `doc/plans/remote_state_management_plan.md`
+
 ## [5.1.0] - 2026-03-13
 
 ### Changed

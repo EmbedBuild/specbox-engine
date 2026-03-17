@@ -53,7 +53,7 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
     # ------------------------------------------------------------------
     @mcp.custom_route("/health", methods=["GET"])
     async def health(request: Request) -> JSONResponse:
-        return _json({"status": "ok", "version": "5.1.0"})
+        return _json({"status": "ok", "version": "5.2.0"})
 
     # ------------------------------------------------------------------
     # GET /api/sala — Global dashboard
@@ -651,6 +651,137 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
 
         # AC-65: Include generated_at and engine_version
         return _json(metrics)
+
+    # ------------------------------------------------------------------
+    # POST /api/heartbeat — Receive consolidated project state
+    # ------------------------------------------------------------------
+    sync_token = os.getenv("SPECBOX_SYNC_TOKEN", "")
+
+    def _check_sync_auth(request: Request) -> bool:
+        if not sync_token:
+            return True
+        token = request.headers.get("Authorization", "").replace("Bearer ", "")
+        return token == sync_token
+
+    @mcp.custom_route("/api/heartbeat", methods=["POST"])
+    async def api_heartbeat(request: Request) -> JSONResponse:
+        if not _check_sync_auth(request):
+            return _json({"error": "Unauthorized"}, 401)
+
+        try:
+            body = await request.json()
+        except Exception:
+            return _json({"error": "Invalid JSON body"}, 400)
+
+        project = body.get("project", "").strip()
+        if not project:
+            return _json({"error": "Missing required field: project"}, 400)
+
+        timestamp = body.get("timestamp", "")
+        if not timestamp:
+            from datetime import datetime as dt, timezone as tz
+            timestamp = dt.now(tz.utc).isoformat()
+
+        from .tools.state import (
+            _ensure_project_dir,
+            _auto_register,
+            _write_project_state,
+            _read_meta,
+            _write_meta,
+            _invalidate_cache,
+        )
+
+        project_dir = _ensure_project_dir(state_path, project)
+        _auto_register(state_path, project)
+
+        from datetime import datetime as dt, timezone as tz
+
+        state_data = {
+            "project": project,
+            "timestamp": timestamp,
+            "received_at": dt.now(tz.utc).isoformat(),
+            "source": "heartbeat",
+            "session_active": body.get("session_active", True),
+            "current_phase": body.get("current_phase") or None,
+            "current_feature": body.get("current_feature") or None,
+            "current_branch": body.get("current_branch") or None,
+            "plan_progress": {
+                "total_ucs": body.get("plan_total_ucs", 0),
+                "completed_ucs": body.get("plan_completed_ucs", 0),
+                "current_uc": body.get("plan_current_uc") or None,
+            },
+            "last_verdict": body.get("last_verdict") or None,
+            "coverage_pct": body.get("coverage_pct"),
+            "tests_passing": body.get("tests_passing", 0),
+            "tests_failing": body.get("tests_failing", 0),
+            "open_feedback": body.get("open_feedback", 0),
+            "blocking_feedback": body.get("blocking_feedback", 0),
+            "healing_health": body.get("healing_health", "healthy"),
+            "self_healing_events": body.get("self_healing_events", 0),
+            "last_operation": body.get("last_operation", "idle"),
+            "last_commit": body.get("last_commit") or None,
+            "last_commit_at": body.get("last_commit_at") or None,
+        }
+
+        _write_project_state(project_dir, state_data)
+
+        meta = _read_meta(project_dir)
+        meta["last_activity"] = timestamp
+        if state_data["current_feature"]:
+            meta["active_feature"] = state_data["current_feature"]
+        _write_meta(project_dir, meta)
+
+        _invalidate_cache(state_path)
+
+        return _json({"status": "ok", "project": project})
+
+    # ------------------------------------------------------------------
+    # POST /api/sync/github — Sync state from GitHub repos
+    # ------------------------------------------------------------------
+    @mcp.custom_route("/api/sync/github", methods=["POST"])
+    async def api_sync_github(request: Request) -> JSONResponse:
+        if not _check_sync_auth(request):
+            return _json({"error": "Unauthorized"}, 401)
+
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+
+        force = body.get("force", False)
+
+        from .github_sync import sync_all, sync_project, parse_repo_url
+
+        # If specific repos provided, sync only those
+        repos = body.get("repos", [])
+        if repos:
+            results = []
+            for repo_info in repos:
+                owner = repo_info.get("owner", "")
+                repo = repo_info.get("repo", "")
+                branch = repo_info.get("branch", "main")
+                slug = repo_info.get("slug", repo)
+                if owner and repo:
+                    result = sync_project(
+                        owner=owner,
+                        repo=repo,
+                        state_path=state_path,
+                        project_slug=slug,
+                        branch=branch,
+                        force=force,
+                    )
+                    results.append(result)
+        else:
+            results = sync_all(state_path, force=force)
+
+        summary = {
+            "total": len(results),
+            "updated": sum(1 for r in results if r.get("status") == "updated"),
+            "skipped": sum(1 for r in results if r.get("status") == "skipped"),
+            "failed": sum(1 for r in results if r.get("status") == "failed"),
+        }
+
+        return _json({"summary": summary, "results": results})
 
     # ------------------------------------------------------------------
     # Static files — serve React build from /dashboard/dist

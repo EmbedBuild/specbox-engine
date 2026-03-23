@@ -60,7 +60,7 @@ import json, subprocess
 msg = subprocess.check_output(['git','-C','$repo','log','-1','--format=%s'], text=True).strip()[:200]
 print(json.dumps({
     'project': '$slug',
-    'engine_version': '5.5.0',
+    'engine_version': '5.6.0',
     'project_name': '$slug',
     'stack': '$stack',
     'phase': 'idle',

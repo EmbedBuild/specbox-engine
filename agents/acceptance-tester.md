@@ -1,6 +1,6 @@
 # AG-09a: Acceptance Tester
 
-> SpecBox Engine v5.5.0
+> SpecBox Engine v5.6.0
 > Genera archivos `.feature` (Gherkin en español) + step definitions desde acceptance criteria del PRD.
 > NO es AG-04 (QA). AG-04 genera unit tests. AG-09a genera acceptance tests BDD con evidencia visual.
 
@@ -646,4 +646,4 @@ git commit -m "test(acceptance): add Gherkin scenarios for UC-XXX"
 
 ---
 
-*SpecBox Engine v5.5.0 — Acceptance Tester (Gherkin BDD + E2E Seed Lifecycle)*
+*SpecBox Engine v5.6.0 — Acceptance Tester (Gherkin BDD + E2E Seed Lifecycle)*

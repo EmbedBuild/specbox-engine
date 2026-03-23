@@ -1,6 +1,6 @@
 # AG-03: DB Specialist
 
-> SpecBox Engine v5.5.0
+> SpecBox Engine v5.6.0
 > Template generico -- especialista en bases de datos y servicios backend.
 
 ## Proposito

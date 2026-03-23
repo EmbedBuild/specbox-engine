@@ -2,6 +2,30 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.6.0] - 2026-03-23
+
+### Added
+- **Stitch MCP Proxy** — 13 tools que cubren los 12 tools nativos de Google Stitch + gestion de API Key por proyecto
+  - `stitch_set_api_key` — configurar API Key por proyecto (session + disco con base64)
+  - `stitch_create_project` — crear proyecto/workspace en Stitch
+  - `stitch_list_projects`, `stitch_get_project` — descubrimiento y detalles de proyectos
+  - `stitch_list_screens`, `stitch_get_screen` — listado y metadata de pantallas
+  - `stitch_fetch_screen_code` — descarga HTML raw de diseños generados
+  - `stitch_fetch_screen_image` — screenshots hi-res en base64
+  - `stitch_generate_screen` — generacion de pantallas desde prompt (timeout 6 min)
+  - `stitch_edit_screen` — edicion de pantallas existentes con prompt
+  - `stitch_generate_variants` — variantes con CreativeRange (REFINE/EXPLORE/REIMAGINE) y Aspects
+  - `stitch_extract_design_context` — extraccion de Design DNA (fuentes, colores, layouts)
+  - `stitch_build_site` — ensamblaje de sitios multi-pagina mapeando screens a rutas
+- **StitchClient** — cliente async MCP JSON-RPC con soporte SSE, retry con backoff exponencial
+- **Stitch usage telemetry** — `stitch_usage.jsonl` por proyecto para tracking de uso
+- **auth_gateway extended** — `store_stitch_credentials()` / `get_stitch_client()` per-project con fallback a disco
+
+### Tests
+- `tests/test_stitch.py` — 17 tests (payloads JSON-RPC, auth headers, SSE parsing, errores, telemetria)
+
+---
+
 ## [5.5.0] - 2026-03-23
 
 ### Added

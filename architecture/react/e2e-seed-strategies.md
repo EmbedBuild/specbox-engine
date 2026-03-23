@@ -617,4 +617,4 @@ AfterAll(async () => {
 
 ---
 
-*Referencia: SpecBox Engine v5.5.0 — E2E Seed Strategies (React/Next.js)*
+*Referencia: SpecBox Engine v5.6.0 — E2E Seed Strategies (React/Next.js)*

@@ -1,6 +1,6 @@
 # AG-07: Apps Script Specialist
 
-> SpecBox Engine v5.5.0
+> SpecBox Engine v5.6.0
 > Especialista en Google Apps Script — automatizaciones, Web Apps, Add-ons e integraciones con Google Workspace.
 
 ## Proposito

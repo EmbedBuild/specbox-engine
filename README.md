@@ -1,8 +1,8 @@
-# SpecBox Engine v5.5.0 — Public Release
+# SpecBox Engine v5.6.0 — Public Release
 
 **SpecBox Engine by JPS** — Sistema de programacion agentica para Claude Code.
 
-Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 78+ tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane para desarrollo profesional con Claude Code.
+Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 108+ tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane para desarrollo profesional con Claude Code.
 
 > **[English version below](#english-version)** — Scroll down for the full English documentation.
 
@@ -698,7 +698,7 @@ Ahora son **HARD BLOCKS** que detienen el pipeline.
 
 ## MCP Server
 
-Servidor MCP unificado con 78+ tools en un solo endpoint.
+Servidor MCP unificado con 108+ tools en un solo endpoint.
 
 ### Arquitectura
 
@@ -779,7 +779,31 @@ DASHBOARD_CORS_ORIGIN=https://mi-sala.ejemplo.com
 
 ## Google Stitch MCP
 
-Generacion automatica de diseños UI via Google Stitch.
+Generacion automatica de diseños UI via Google Stitch. Desde v5.6.0 el Engine incluye un **Stitch MCP Proxy** que permite usar Stitch desde claude.ai sin configurar un conector OAuth adicional.
+
+### Stitch Proxy (v5.6.0) — 13 tools
+
+El proxy cubre los 12 tools nativos de Stitch + configuracion de API Key por proyecto:
+
+| Tool del Engine | Stitch nativo | Descripcion |
+|----------------|---------------|-------------|
+| `stitch_set_api_key` | — | Configurar API Key por proyecto |
+| `stitch_create_project` | `create_project` | Crear proyecto/workspace |
+| `stitch_list_projects` | `list_projects` | Listar proyectos |
+| `stitch_get_project` | `get_project` | Detalles de un proyecto |
+| `stitch_list_screens` | `list_screens` | Listar pantallas |
+| `stitch_get_screen` | `get_screen` | Metadata de pantalla |
+| `stitch_fetch_screen_code` | `fetch_screen_code` | Descargar HTML raw |
+| `stitch_fetch_screen_image` | `fetch_screen_image` | Screenshot hi-res (base64) |
+| `stitch_generate_screen` | `generate_screen_from_text` | Generar pantalla desde prompt |
+| `stitch_edit_screen` | `edit_screens` | Editar pantalla existente |
+| `stitch_generate_variants` | `generate_variants` | Variantes (REFINE/EXPLORE/REIMAGINE) |
+| `stitch_extract_design_context` | `extract_design_context` | Extraer Design DNA |
+| `stitch_build_site` | `build_site` | Sitio multi-pagina |
+
+### Acceso directo (Claude Code local)
+
+Tambien disponible via MCP directo con estas herramientas:
 
 | Herramienta MCP | Uso |
 |-----------------|-----|
@@ -896,7 +920,7 @@ specbox-engine/
 │   ├── board_helpers.py               #   Card parsing
 │   ├── models.py                      #   Pydantic models
 │   ├── pdf_generator.py               #   Markdown → PDF
-│   ├── tools/                         #   11 modules, 78+ tools
+│   ├── tools/                         #   11 modules, 108+ tools
 │   │   ├── engine.py                  #     Version, status, rules
 │   │   ├── plans.py                   #     Plans management
 │   │   ├── quality.py                 #     Quality baselines
@@ -1183,11 +1207,11 @@ v4.1.0 | 2026-03-11 | JPS Developer
 
 # English Version
 
-# SpecBox Engine v5.5.0 — Public Release
+# SpecBox Engine v5.6.0 — Public Release
 
 **SpecBox Engine by JPS** — An agentic programming system for Claude Code.
 
-Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 78+ tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane for professional development with Claude Code.
+Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 108+ tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane for professional development with Claude Code.
 
 ---
 
@@ -1666,7 +1690,7 @@ HARD BLOCKS that prevent the most critical protocol violations during autonomous
 
 ## MCP Server
 
-Unified MCP server with 78+ tools in a single endpoint.
+Unified MCP server with 108+ tools in a single endpoint.
 
 ### Architecture
 
@@ -1736,15 +1760,23 @@ Embedded dashboard (React 19 + Vite) that **each user deploys with their own MCP
 
 ## Google Stitch MCP
 
-Automatic UI design generation via Google Stitch.
+Automatic UI design generation via Google Stitch. Since v5.6.0, the Engine includes a **Stitch MCP Proxy** — 13 tools that cover all 12 native Stitch tools + per-project API Key management. This enables claude.ai users to access Stitch without a separate OAuth connector.
 
-| MCP Tool | Usage |
-|----------|-------|
-| `mcp__stitch__list_projects` | List Stitch projects |
-| `mcp__stitch__get_project` | Project details |
-| `mcp__stitch__list_screens` | List screens |
-| `mcp__stitch__get_screen` | Get screen HTML |
-| `mcp__stitch__generate_screen_from_text` | Generate screen from prompt |
+| Engine Tool | Stitch Native | Description |
+|-------------|---------------|-------------|
+| `stitch_set_api_key` | — | Configure API Key per project |
+| `stitch_create_project` | `create_project` | Create workspace |
+| `stitch_list_projects` | `list_projects` | List projects |
+| `stitch_get_project` | `get_project` | Project details |
+| `stitch_list_screens` | `list_screens` | List screens |
+| `stitch_get_screen` | `get_screen` | Screen metadata |
+| `stitch_fetch_screen_code` | `fetch_screen_code` | Download raw HTML |
+| `stitch_fetch_screen_image` | `fetch_screen_image` | Hi-res screenshot (base64) |
+| `stitch_generate_screen` | `generate_screen_from_text` | Generate screen from prompt |
+| `stitch_edit_screen` | `edit_screens` | Edit existing screen |
+| `stitch_generate_variants` | `generate_variants` | Variants (REFINE/EXPLORE/REIMAGINE) |
+| `stitch_extract_design_context` | `extract_design_context` | Extract Design DNA |
+| `stitch_build_site` | `build_site` | Multi-page site assembly |
 
 **Rules:** Always Light Mode. One screen at a time. `GEMINI_3_PRO` for complex, `GEMINI_3_FLASH` for simple.
 
@@ -1816,7 +1848,7 @@ specbox-engine/
 │   │   ├── trello_backend.py         #     TrelloBackend
 │   │   ├── plane_backend.py          #     PlaneBackend
 │   │   └── plane_client.py           #     PlaneClient
-│   ├── tools/                         #   11 modules, 78+ tools
+│   ├── tools/                         #   11 modules, 108+ tools
 │   └── dashboard/                     #   Sala de Maquinas (React 19 + Vite)
 │
 ├── agents/                            # 12 Agent templates (AG-01 to AG-10)

@@ -1,8 +1,8 @@
-# SpecBox Engine v5.5.0
+# SpecBox Engine v5.6.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (95+ tools) + Sala de Máquinas + Gherkin BDD.
+> Monorepo unificado: engine + MCP server (108+ tools) + Sala de Máquinas + Gherkin BDD.
 
 ## Que es este repositorio
 
@@ -15,7 +15,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (78+ tools) + Sala de Máquinas dashboard (React 19)
+- **Server** — MCP server unificado (108+ tools) + Sala de Máquinas dashboard (React 19)
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
 
@@ -165,14 +165,14 @@ specbox-engine/
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
 ├── server/                ← MCP server unificado (v5.5)
-│   ├── server.py          ← FastMCP (95+ tools)
+│   ├── server.py          ← FastMCP (108+ tools)
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
 │   │   ├── trello_backend.py  ← TrelloBackend (wraps TrelloClient)
 │   │   ├── plane_backend.py   ← PlaneBackend (Plane CE self-hosted)
 │   │   └── plane_client.py    ← Async httpx client for Plane API v1
-│   ├── tools/             ← 12 tool modules
+│   ├── tools/             ← 13 tool modules
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
 │   │   ├── quality.py     ← 4 tools
@@ -184,7 +184,9 @@ specbox-engine/
 │   │   ├── state.py       ← 20 tools
 │   │   ├── spec_driven.py ← 21 tools (backend-agnostic via SpecBackend)
 │   │   ├── migration.py   ← 5 tools (Trello ↔ Plane migration)
+│   │   ├── stitch.py      ← 13 tools (Stitch MCP proxy)
 │   │   └── heartbeat_stats.py ← 1 tool (get_heartbeat_stats)
+│   ├── stitch_client.py   ← Async MCP JSON-RPC client for Google Stitch
 │   ├── trello_client.py   ← Async httpx con retry
 │   ├── board_helpers.py   ← Card parsing, custom fields (Trello)
 │   ├── models.py          ← Pydantic: US, UC, AC, WorkflowState
@@ -250,7 +252,7 @@ Hooks can report to a remote MCP server for centralized state tracking.
 Set `SPECBOX_ENGINE_MCP_URL=https://mcp-specbox-engine.jpsdeveloper.com/mcp` in your shell profile.
 Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
 
-## Remote State Management (v5.5.0)
+## Remote State Management (v5.6.0)
 
 Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP remoto, y desde WhatsApp/Discord via OpenClaw Gateway.
 
@@ -274,19 +276,19 @@ Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP 
 | `refresh_project_state` | "Actualiza estado de X" |
 | `get_heartbeat_stats` | "¿Llegan los heartbeats?" |
 
-### Heartbeat Observability (v5.5.0)
+### Heartbeat Observability (v5.6.0)
 - Cada heartbeat recibido se registra en `heartbeats.jsonl` por proyecto
 - `get_heartbeat_stats` retorna: total 24h, por proyecto, stale detection
 - `GET /api/heartbeats/stats` — mismo dato via REST con Bearer auth
 - Proyectos con `session_active=true` y sin heartbeat > 30 min marcados como stale
 
-### Conversational Summaries (v5.5.0)
+### Conversational Summaries (v5.6.0)
 - Todos los tools de live_state incluyen campo `summary` humanizado en espanol
 - `get_all_projects_overview` incluye `summary_table` con tabla Markdown
 - Timestamps siempre como "hace X minutos/horas" — nunca ISO crudos en summaries
 - Tools de escritura (`move_uc`, `mark_ac`, reports) incluyen `summary` + `generated_at`
 
-### Skill /remote (v5.5.0)
+### Skill /remote (v5.6.0)
 - Wrapper conversacional para OpenClaw Gateway (WhatsApp/Discord)
 - Respuestas en texto plano (max 2000 chars) sin Markdown complejo
 - Triggers: "estado de [proyecto]", "resumen de todos", "sesiones activas"
@@ -417,6 +419,60 @@ Configuracion MCP de providers en `templates/settings.json.template` → seccion
 - Decisiones: `doc/research/veg-tooling-decisions.md`
 - Por feature: `doc/veg/{feature}/` (generado por /plan)
 
+## Stitch MCP Proxy (v5.6.0)
+
+Proxy completo de Google Stitch a traves del SpecBox Engine MCP server. Permite que usuarios de claude.ai usen Stitch sin configurar un conector OAuth adicional — la API Key se configura por proyecto. Cubre los 12 tools nativos de Stitch + 1 tool de configuracion.
+
+### Tools (13)
+
+| Tool | Descripcion | Timeout |
+|------|-------------|---------|
+| `stitch_set_api_key` | Configurar/actualizar API Key de Stitch para un proyecto | normal |
+| `stitch_create_project` | Crear nuevo proyecto/workspace en Stitch | normal |
+| `stitch_list_projects` | Listar proyectos del usuario en Stitch | normal |
+| `stitch_get_project` | Obtener detalles de un proyecto Stitch | normal |
+| `stitch_list_screens` | Listar pantallas de un proyecto | normal |
+| `stitch_get_screen` | Obtener metadata de una pantalla | normal |
+| `stitch_fetch_screen_code` | Descargar HTML raw de una pantalla | normal |
+| `stitch_fetch_screen_image` | Descargar screenshot hi-res (base64) | normal |
+| `stitch_generate_screen` | Generar pantalla desde prompt | 6 min |
+| `stitch_edit_screen` | Editar pantalla existente con prompt | 6 min |
+| `stitch_generate_variants` | Generar variantes de una pantalla | 6 min |
+| `stitch_extract_design_context` | Extraer Design DNA (fuentes, colores, layouts) | normal |
+| `stitch_build_site` | Construir sitio multi-pagina mapeando screens a rutas | 6 min |
+
+### Enums de Stitch
+
+- **DeviceType**: `DESKTOP`, `MOBILE`, `TABLET`, `AGNOSTIC`
+- **ModelId**: `GEMINI_3_PRO` (complejo), `GEMINI_3_FLASH` (simple)
+- **CreativeRange** (variantes): `REFINE` (sutil), `EXPLORE` (moderado), `REIMAGINE` (radical)
+- **Aspects** (variantes): `LAYOUT`, `COLOR_SCHEME`, `IMAGES`, `TEXT_FONT`, `TEXT_CONTENT`
+
+### Flujo
+
+1. `stitch_set_api_key(project="mi-proyecto", api_key="AIza...")` — configura la key
+2. `stitch_create_project(project="mi-proyecto", title="Mi App")` — crea proyecto
+3. `stitch_generate_screen(project="mi-proyecto", stitch_project_id="xxx", prompt="...")` — genera diseño
+4. `stitch_edit_screen(...)` — itera sobre el diseño
+5. `stitch_extract_design_context(...)` — extrae Design DNA para consistencia
+6. `stitch_generate_variants(...)` — explora alternativas
+7. `stitch_fetch_screen_code(...)` — descarga HTML para integrar en codigo
+8. `stitch_build_site(...)` — ensambla sitio multi-pagina
+
+### Almacenamiento de API Key
+
+- **Sesion**: Credenciales en FastMCP session state (aisladas por cliente)
+- **Disco**: Key en base64 en `meta.json` del proyecto (fallback entre sesiones)
+- **Telemetria**: Uso registrado en `stitch_usage.jsonl` por proyecto
+
+### Arquitectura
+
+- `server/stitch_client.py` — Cliente async MCP JSON-RPC (Streamable HTTP + SSE)
+- `server/tools/stitch.py` — 13 tools registrados en FastMCP
+- `server/auth_gateway.py` — `store_stitch_credentials()` / `get_stitch_client()` per-project
+- Timeout de 6 minutos para operaciones de generacion
+- Retry con backoff exponencial para errores transitorios
+
 ## Spec-Code Sync (v5.0)
 
 Automatic PRD update with implementation deltas after each /implement phase:
@@ -460,6 +516,6 @@ BDD acceptance testing without full /implement pipeline:
 
 ## Engine Version
 
-Current: v5.5.0 "Remote Management"
+Current: v5.6.0 "Stitch Proxy"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

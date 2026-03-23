@@ -1,6 +1,6 @@
 # Orquestador de Agentes (Orchestrator)
 
-> SpecBox Engine v5.5.0
+> SpecBox Engine v5.6.0
 > Template generico -- personalizar por proyecto en `.claude/orchestrator.md`
 
 ## Proposito

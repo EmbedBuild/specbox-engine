@@ -1,12 +1,16 @@
 """Auth module - Per-session credential management via FastMCP Context.
 
-Supports multiple backends (Trello, Plane). Each MCP client provides
-credentials by calling set_auth_token() as the first operation.
-Credentials are stored in the FastMCP session state and isolated between clients.
+Supports multiple backends (Trello, Plane) and service proxies (Stitch).
+Each MCP client provides credentials by calling set_auth_token() as the
+first operation. Credentials are stored in the FastMCP session state and
+isolated between clients.
 
 Backend selection:
 - Trello: api_key + token → TrelloBackend
 - Plane: base_url + api_key + workspace_slug → PlaneBackend
+
+Service proxies:
+- Stitch: api_key per project → StitchClient
 """
 
 from __future__ import annotations
@@ -17,11 +21,14 @@ from fastmcp import Context
 
 if TYPE_CHECKING:
     from .spec_backend import SpecBackend
+    from .stitch_client import StitchClient
 
 # Legacy key kept for backward compatibility
 AUTH_STATE_KEY = "trello_credentials"
 # New unified key
 BACKEND_STATE_KEY = "spec_backend_config"
+# Stitch credentials keyed per project: stitch_config_{project}
+STITCH_STATE_PREFIX = "stitch_config_"
 
 
 async def get_session_backend(ctx: Context) -> "SpecBackend":
@@ -112,3 +119,31 @@ async def clear_session_credentials(ctx: Context) -> None:
     """Clear credentials from the session state."""
     await ctx.delete_state(AUTH_STATE_KEY)
     await ctx.delete_state(BACKEND_STATE_KEY)
+
+
+# --- Stitch proxy credentials ---
+
+
+async def store_stitch_credentials(
+    ctx: Context, project: str, api_key: str
+) -> None:
+    """Store Stitch API Key for a project in the session state."""
+    state_key = f"{STITCH_STATE_PREFIX}{project}"
+    await ctx.set_state(state_key, {"api_key": api_key, "project": project})
+
+
+async def get_stitch_client(ctx: Context, project: str) -> "StitchClient":
+    """Create a StitchClient from session-stored Stitch credentials.
+
+    Raises RuntimeError if no Stitch key is configured for the project.
+    """
+    state_key = f"{STITCH_STATE_PREFIX}{project}"
+    config = await ctx.get_state(state_key)
+    if not config:
+        raise RuntimeError(
+            f"Stitch API Key not configured for project '{project}'. "
+            "Call stitch_set_api_key(project, api_key) first."
+        )
+    from .stitch_client import StitchClient
+
+    return StitchClient(api_key=config["api_key"])

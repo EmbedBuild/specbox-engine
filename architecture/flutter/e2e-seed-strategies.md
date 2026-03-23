@@ -373,4 +373,4 @@ Identica a React (ver `architecture/react/e2e-seed-strategies.md`):
 
 ---
 
-*Referencia: SpecBox Engine v5.5.0 — E2E Seed Strategies (Flutter Web)*
+*Referencia: SpecBox Engine v5.6.0 — E2E Seed Strategies (Flutter Web)*

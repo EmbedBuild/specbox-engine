@@ -1,4 +1,4 @@
-version: 5.5.0
+version: 5.6.0
 codename: "SpecBox"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
@@ -136,8 +136,31 @@ features:
   - openclaw-gateway-docs
   - spec-driven-summaries
   - remote-write-tools
+  # New (v5.6.0)
+  - stitch-mcp-proxy
+  - stitch-api-key-per-project
+  - stitch-proxy-tools
 
 changelog:
+  5.6.0:
+    date: 2026-03-23
+    changes:
+      - "feat: Stitch MCP Proxy — 13 tools covering ALL 12 native Stitch tools + API Key management"
+      - "feat: stitch_set_api_key — per-project API Key configuration stored in session + disk"
+      - "feat: stitch_create_project — create new Stitch workspaces"
+      - "feat: stitch_list_projects, stitch_get_project — project discovery and details"
+      - "feat: stitch_list_screens, stitch_get_screen — screen listing and metadata"
+      - "feat: stitch_fetch_screen_code — download raw HTML of generated designs"
+      - "feat: stitch_fetch_screen_image — download hi-res screenshots (base64)"
+      - "feat: stitch_generate_screen — generate new screens from text prompts (6 min timeout)"
+      - "feat: stitch_edit_screen — edit existing screens with text prompts (6 min timeout)"
+      - "feat: stitch_generate_variants — creative variants with REFINE/EXPLORE/REIMAGINE ranges"
+      - "feat: stitch_extract_design_context — extract Design DNA (fonts, colors, layouts)"
+      - "feat: stitch_build_site — assemble multi-page sites mapping screens to routes"
+      - "feat: StitchClient — async MCP JSON-RPC client with SSE support and retry logic"
+      - "feat: Stitch usage telemetry — stitch_usage.jsonl per project"
+      - "feat: auth_gateway extended with Stitch credential management per project"
+
   5.5.0:
     date: 2026-03-23
     changes:

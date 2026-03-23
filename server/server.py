@@ -1,7 +1,7 @@
 """
-SpecBox Engine MCP Server v5.5.0
+SpecBox Engine MCP Server v5.6.0
 
-Unified MCP endpoint: 78+ tools (engine + spec-driven + migration + telemetry).
+Unified MCP endpoint: 108+ tools (engine + spec-driven + migration + telemetry + stitch).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
 
 Architecture:
@@ -33,6 +33,7 @@ from .tools.hints import register_hint_tools
 from .tools.skill_registry import register_skill_registry_tools
 from .tools.live_state import register_live_state_tools
 from .tools.heartbeat_stats import register_heartbeat_stats_tools
+from .tools.stitch import register_stitch_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -62,7 +63,7 @@ STATE_PATH.mkdir(parents=True, exist_ok=True)
 mcp = FastMCP(
     "specbox-engine",
     instructions="""
-    MCP server for the SpecBox Engine v5.5.0 — an agentic programming system for Claude Code.
+    MCP server for the SpecBox Engine v5.6.0 — an agentic programming system for Claude Code.
 
     Use these tools to:
     - Query implementation plans and their status
@@ -97,6 +98,7 @@ mcp = FastMCP(
     - Query live project state (heartbeat snapshots, session activity)
     - Sync project state from GitHub repos when local machine is off
     - Get conversational project summaries optimized for mobile queries
+    - Proxy Google Stitch design tools (generate, edit, variants, design DNA, build site)
 
     The engine manages Flutter, React, Python, and Google Apps Script projects
     with automated PRD → Plan → Implement → PR pipelines, self-healing protocol,
@@ -150,6 +152,13 @@ register_live_state_tools(mcp, STATE_PATH)
 # Register heartbeat stats tools (1 tool: get_heartbeat_stats)
 register_heartbeat_stats_tools(mcp, STATE_PATH)
 
+# Register Stitch proxy tools (13 tools: stitch_set_api_key, stitch_create_project,
+# stitch_list_projects, stitch_get_project, stitch_list_screens, stitch_get_screen,
+# stitch_fetch_screen_code, stitch_fetch_screen_image, stitch_generate_screen,
+# stitch_edit_screen, stitch_generate_variants, stitch_extract_design_context,
+# stitch_build_site)
+register_stitch_tools(mcp, STATE_PATH)
+
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)
 
@@ -160,7 +169,7 @@ def main():
     host = os.getenv("MCP_HOST", "0.0.0.0")
 
     logger = structlog.get_logger(__name__)
-    logger.info("server_starting", transport=transport, host=host, port=port, version="5.5.0")
+    logger.info("server_starting", transport=transport, host=host, port=port, version="5.6.0")
 
     uvicorn_opts = {"timeout_graceful_shutdown": 5}
 

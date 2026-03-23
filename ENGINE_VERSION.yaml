@@ -1,8 +1,8 @@
-version: 5.2.0
+version: 5.5.0
 codename: "SpecBox"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-03-13
+release_date: 2026-03-23
 min_claude_code: "1.0.0"
 
 stacks:
@@ -126,8 +126,35 @@ features:
   - session-decay-lazy
   - pending-heartbeat-queue
   - specbox-state-json
+  # New (v5.5.0)
+  - heartbeat-stats-tool
+  - heartbeat-observability
+  - heartbeat-jsonl-logging
+  - conversational-summaries
+  - summary-table-overview
+  - remote-skill
+  - openclaw-gateway-docs
+  - spec-driven-summaries
+  - remote-write-tools
 
 changelog:
+  5.5.0:
+    date: 2026-03-23
+    changes:
+      - "feat: Remote Management — full remote operability from iPhone (Claude.ai iOS) and WhatsApp/Discord (OpenClaw)"
+      - "feat: get_heartbeat_stats MCP tool — observability of heartbeat health, stale detection, 24h stats"
+      - "feat: GET /api/heartbeats/stats REST endpoint — heartbeat metrics with Bearer auth"
+      - "feat: Heartbeat JSONL logging — each heartbeat appended to projects/{project}/heartbeats.jsonl"
+      - "feat: Conversational summaries — summary/summary_table fields in get_project_live_state, get_all_projects_overview, get_active_sessions"
+      - "feat: Spec-driven summaries — summary + generated_at fields in move_uc, mark_ac, mark_ac_batch, get_board_status, get_sprint_status"
+      - "feat: /remote skill — OpenClaw Gateway integration for WhatsApp/Discord project management"
+      - "feat: E2E Seed Strategies — lifecycle management for acceptance test data (Flutter + React)"
+      - "feat: AG-09a enhanced — E2E Seed Lifecycle integration with Gherkin BDD"
+      - "docs: setup-claude-ios.md — step-by-step guide for Claude.ai iOS + MCP remote"
+      - "docs: setup-openclaw.md — OpenClaw Gateway configuration for WhatsApp/Discord"
+      - "docs: PRD + Plan for remote management (dogfooding with SpecBox itself)"
+      - "test: test_heartbeat_stats.py, test_remote_summaries.py — 15+ new tests"
+
   5.2.0:
     date: 2026-03-17
     changes:

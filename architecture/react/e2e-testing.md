@@ -42,7 +42,12 @@ e2e/
 ├── helpers/
 │   ├── auth.ts                     # loginViaAPI() con Supabase SSR
 │   ├── evidence.ts                 # captureEvidence(), evidenceStep() (IDÉNTICO a Flutter)
+│   ├── seed.ts                     # Seed strategy (SQL/Firestore/Mongo) — ver e2e-seed-strategies.md
 │   └── test-data.ts                # TEST_USERS constantes
+├── seed/
+│   └── fixtures/                   # JSON fixtures (solo Firestore/MongoDB)
+│       ├── base.json
+│       └── uc-XXX-{nombre}.json
 ├── fixtures/
 │   └── base-fixtures.ts            # authenticatedPage, adminPage, etc.
 ├── tc-01-auth.spec.ts
@@ -50,6 +55,9 @@ e2e/
 ├── ...
 └── tc-NN-edge-cases.spec.ts
 ```
+
+> **Seed/Cleanup de datos:** Ver `e2e-seed-strategies.md` para la guía completa
+> de cómo crear y destruir datos de test por tipo de base de datos (SQL, Firestore, MongoDB).
 
 ---
 
@@ -344,4 +352,30 @@ npx playwright test --trace on
 
 ---
 
-*Referencia: SpecBox Engine v3.9.0 "E2E Sentinel"*
+## Seed y Cleanup de Datos
+
+Los tests E2E necesitan datos reales en la DB. El ciclo completo es:
+
+```
+beforeAll → seed_e2e_base() + seed_e2e_{uc}() → datos creados
+tests     → ejecutan contra datos reales
+afterAll  → cleanup_e2e() → datos eliminados
+```
+
+**Guía completa:** `architecture/react/e2e-seed-strategies.md`
+
+| Backend | Seed | Cleanup | Auth users |
+|---------|------|---------|------------|
+| Supabase (SQL) | `supabase.rpc('seed_e2e_...')` | `supabase.rpc('cleanup_e2e')` | SQL INSERT en `auth.users` |
+| Firestore | Admin SDK batch writes | `db.recursiveDelete()` | `auth.createUser()` |
+| MongoDB | `insertMany` | `deleteMany({_id: /^e2e-/})` | Depende del auth provider |
+
+**Reglas clave:**
+- IDs determinísticos con prefijo `e2e-`
+- Cleanup en `afterAll` (nunca en el `.feature`)
+- Seed idempotente (cleanup interno al inicio)
+- Campos varchar en `auth.users` Supabase: `''` nunca `NULL`
+
+---
+
+*Referencia: SpecBox Engine v5.5.0 "E2E Sentinel + Seed Lifecycle"*

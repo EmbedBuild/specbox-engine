@@ -2,6 +2,38 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.5.0] - 2026-03-23
+
+### Added
+- **Remote Management** — operabilidad remota completa desde iPhone (Claude.ai iOS + MCP remoto) y WhatsApp/Discord (OpenClaw Gateway)
+- **Heartbeat Observability** — nuevo tool `get_heartbeat_stats` con metricas 24h, stale detection, y logging JSONL por proyecto
+- `GET /api/heartbeats/stats` REST endpoint protegido con Bearer auth
+- **Conversational Summaries** — campos `summary` y `summary_table` en tools de live_state para respuestas humanizadas en movil
+  - `get_project_live_state` — summary Markdown (max 300 chars)
+  - `get_all_projects_overview` — summary_table con tabla Markdown
+  - `get_active_sessions` — summary conversacional en espanol
+- **Spec-Driven Summaries** — campos `summary` + `generated_at` en 6 tools de escritura:
+  - `move_uc`, `mark_ac`, `mark_ac_batch` — confirmacion humanizada
+  - `get_board_status`, `get_sprint_status` — resumen compacto
+- **Skill `/remote`** — skill para OpenClaw Gateway (WhatsApp/Discord), texto plano max 2000 chars
+- **E2E Seed Strategies** — gestion del ciclo de vida de datos de prueba para acceptance tests (Flutter + React)
+- **AG-09a Enhanced** — integracion E2E Seed Lifecycle con Gherkin BDD
+
+### Documentation
+- `doc/remote-management/setup-claude-ios.md` — guia paso a paso para Claude.ai iOS
+- `doc/remote-management/setup-openclaw.md` — configuracion OpenClaw para WhatsApp/Discord
+- `doc/prd/PRD-remote-management.md` — PRD completo (dogfooding con SpecBox)
+- `doc/plans/remote-management-plan.md` — plan tecnico en 5 fases
+- `doc/research/remote-management-audit.md` — auditoria de Sala de Maquinas
+
+### Tests
+- `tests/test_heartbeat_stats.py` — 8 tests de observabilidad
+- `tests/test_remote_summaries.py` — 7 tests de summaries
+
+### Version Cleanup
+- Todas las referencias de version actualizadas a v5.5.0 en agents, templates, architecture, scripts
+- Eliminado residuo de versiones anteriores (v3.9.0, v4.1.0, v4.2.0) en headers de agentes
+
 ## [5.2.0] - 2026-03-17
 
 ### Added

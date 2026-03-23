@@ -97,15 +97,20 @@ async function waitForFlutterReady(page: Page) {
 
 ```
 e2e/
-├── package.json                    # @playwright/test, @supabase/supabase-js, serve, dotenv
+├── package.json                    # @playwright/test, @supabase/supabase-js, firebase-admin, serve, dotenv
 ├── tsconfig.json
 ├── playwright.config.ts            # 3 viewports, HTML reporter, webServer
-├── .env                            # SUPABASE_URL + SUPABASE_ANON_KEY (gitignored)
+├── .env                            # SUPABASE_URL / FIREBASE_SERVICE_ACCOUNT (gitignored)
 ├── helpers/
 │   ├── flutter-web.ts              # waitForFlutterReady(), navigateToRoute(), waitForRoute()
 │   ├── auth.ts                     # loginViaAPI() (token injection), loginViaUI()
 │   ├── evidence.ts                 # captureEvidence(), evidenceStep()
+│   ├── seed.ts                     # Seed strategy (SQL/Firestore) — ver e2e-seed-strategies.md
 │   └── test-data.ts                # TEST_USERS constantes
+├── seed/
+│   └── fixtures/                   # JSON fixtures (solo Firestore/MongoDB)
+│       ├── base.json
+│       └── uc-XXX-{nombre}.json
 ├── fixtures/
 │   └── base-fixtures.ts            # playerPage, coachPage, adminPage pre-autenticados
 ├── tc-01-auth.spec.ts              # Auth + onboarding
@@ -113,6 +118,9 @@ e2e/
 ├── ...
 └── tc-NN-edge-cases.spec.ts
 ```
+
+> **Seed/Cleanup de datos:** Ver `e2e-seed-strategies.md` para la guía completa
+> de cómo crear y destruir datos de test por tipo de base de datos (Firestore, SQL, MongoDB).
 
 ---
 
@@ -429,4 +437,30 @@ cd e2e && npx playwright test --project=desktop-chrome
 
 ---
 
-*Referencia: SpecBox Engine v3.9.0 "E2E Sentinel"*
+## Seed y Cleanup de Datos
+
+Los tests E2E necesitan datos reales en la DB. El ciclo completo es:
+
+```
+beforeAll → seed (base + UC-specific) → datos creados
+tests     → ejecutan contra datos reales
+afterAll  → cleanup → datos eliminados
+```
+
+**Guía completa:** `architecture/flutter/e2e-seed-strategies.md`
+
+| Backend | Seed | Cleanup | Auth users |
+|---------|------|---------|------------|
+| Firestore | Admin SDK batch writes + JSON fixtures | `db.recursiveDelete()` | `auth.createUser()` |
+| Supabase (SQL) | `supabase.rpc('seed_e2e_...')` | `supabase.rpc('cleanup_e2e')` | SQL INSERT en `auth.users` |
+
+**Reglas clave:**
+- IDs determinísticos con prefijo `e2e-`
+- Cleanup en `afterAll` (nunca en el `.feature`)
+- Seed idempotente (cleanup interno al inicio)
+- Firebase Emulator para CI (`FIRESTORE_EMULATOR_HOST`)
+- Auth injection: localStorage key `firebase:authUser:{apiKey}:[DEFAULT]`
+
+---
+
+*Referencia: SpecBox Engine v5.5.0 "E2E Sentinel + Seed Lifecycle"*

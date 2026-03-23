@@ -230,23 +230,49 @@ Cuando se ejecuta con `baseline`:
 2. **Si existe config:**
    - Flutter: verificar `build/web/index.html` → si no existe SKIP con warning "Flutter web build required"
    - React: verificar `npm run build` exitoso
+
+3. **Detectar Seed Strategy:**
+   - SQL: verificar que existen funciones `seed_e2e_*` en la DB (buscar en `supabase/migrations/`)
+   - Firestore: verificar que existen fixtures en `e2e/seed/fixtures/`
+   - Si hay seed configurado: reportar "Seed strategy: {SQL|Firestore|MongoDB}"
+   - Si NO hay seed pero hay E2E tests: WARNING "E2E tests sin seed strategy — datos pueden no existir"
+
+4. **Ejecutar E2E con seed lifecycle:**
    - Ejecutar: `npx playwright test --reporter=json`
+   - Playwright `beforeAll`/`afterAll` en cada spec gestionan seed/cleanup automáticamente
    - Parse JSON: total, passing, failing
    - Gate: `failing == 0` y `passing >= baseline.e2e.passing`
    - Evidence: copiar JSON summary a `.quality/evidence/{feature}/e2e-results.json`
 
-3. **Si no existe config:** SKIP silencioso (E2E no configurado)
+5. **Verificar cleanup post-ejecución (si seed detectado):**
+   - SQL: `SELECT count(*) FROM clinics WHERE id LIKE 'e2e-%'` → debe ser 0
+   - Firestore: verificar que no existen docs con prefijo `e2e-`
+   - Si quedan residuos: WARNING "E2E cleanup incompleto — {N} registros huérfanos"
+
+6. **Si no existe config:** SKIP silencioso (E2E no configurado)
 
 ### Output
 
 ```
-| E2E | no-regression | ✅ PASS | X passing, 0 failing (3 viewports) |
+| E2E | no-regression | ✅ PASS | X passing, 0 failing (3 viewports) [seed: SQL] |
+```
+
+o
+
+```
+| E2E | no-regression | ✅ PASS | X passing, 0 failing [seed: Firestore, cleanup: OK] |
 ```
 
 o
 
 ```
 | E2E | — | ⏭ SKIP | No playwright config found |
+```
+
+o
+
+```
+| E2E | no-regression | ⚠️ WARN | X passing, 0 failing [cleanup: 3 orphaned records] |
 ```
 
 ---

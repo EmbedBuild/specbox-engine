@@ -1,6 +1,6 @@
 # AG-02: UI/UX Designer
 
-> SpecBox Engine v3.9.0
+> SpecBox Engine v5.5.0
 > Template generico -- especialista en componentes UI y diseno responsivo.
 
 ## Proposito

@@ -333,6 +333,15 @@ async def get_board_status(board_id: str, ctx: Context) -> dict[str, Any]:
                 "uc_progress": f"{uc_done}/{len(uc_children)}",
             })
 
+        blocked_count = sum(1 for us in us_summary if us.get("status") == "blocked")
+        summary_text = (
+            f"{total_ucs} UCs ({done_ucs} done) | "
+            f"{round(pct, 1)}% horas completadas | "
+            f"{len(us_summary)} US"
+        )
+        if blocked_count:
+            summary_text += f" | {blocked_count} bloqueados"
+
         return {
             "lists": list_stats,
             "progress": {
@@ -341,6 +350,8 @@ async def get_board_status(board_id: str, ctx: Context) -> dict[str, Any]:
                 "pct": round(pct, 1),
             },
             "us_summary": us_summary,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "summary": summary_text,
         }
     finally:
         await backend.close()
@@ -1006,6 +1017,9 @@ async def move_uc(
         if not uc_item:
             return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
 
+        # Capture original state for summary (AC-16)
+        original_state = uc_item.state or "unknown"
+
         # Move UC
         await backend.update_item(board_id, uc_item.id, state=target)
 
@@ -1027,6 +1041,7 @@ async def move_uc(
             "new_status": target,
             "us_checklist_updated": us_checklist_updated,
             "us_all_done": us_all_done,
+            "summary": f"{uc_id} movido de {original_state} a {target}",
         }
     finally:
         await backend.close()
@@ -1178,12 +1193,14 @@ async def mark_ac(
         # Get updated AC counts
         acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
 
+        status_label = "PASSED" if passed else "FAILED"
         return {
             "uc_id": uc_id,
             "ac_id": ac_id,
             "passed": passed,
             "ac_total": len(acs),
             "ac_done": sum(1 for ac in acs if ac.done),
+            "summary": f"{ac_id} marcado como {status_label} en {uc_id}",
         }
     finally:
         await backend.close()
@@ -1255,6 +1272,7 @@ async def mark_ac_batch(
             "passed": passed_count,
             "failed": failed_count,
             "details": details,
+            "summary": f"Marcados {passed_count}/{len(results)} criterios como done en {uc_id}",
         }
     finally:
         await backend.close()
@@ -1506,6 +1524,14 @@ async def get_sprint_status(board_id: str, ctx: Context) -> dict[str, Any]:
         hours_pct = (hours_done / hours_total * 100) if hours_total > 0 else 0
         acs_pct = (acs_passed / total_ac * 100) if total_ac > 0 else 0
 
+        summary_parts = [
+            f"{board_name}: {total_us} US, {total_uc} UCs",
+            f"Horas: {round(hours_pct, 1)}% ({hours_done:.0f}/{hours_total:.0f}h)",
+            f"ACs: {round(acs_pct, 1)}% ({acs_passed}/{total_ac})",
+        ]
+        if blocked:
+            summary_parts.append(f"{len(blocked)} bloqueados")
+
         return {
             "board_name": board_name,
             "total_us": total_us,
@@ -1524,6 +1550,8 @@ async def get_sprint_status(board_id: str, ctx: Context) -> dict[str, Any]:
                 "pct": round(acs_pct, 1),
             },
             "blocked": blocked,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "summary": " | ".join(summary_parts),
         }
     finally:
         await backend.close()
@@ -1580,6 +1608,10 @@ async def get_delivery_report(board_id: str, ctx: Context) -> dict[str, Any]:
 
         pct = (completed_us / total_us * 100) if total_us > 0 else 0
 
+        summary_text = (
+            f"{board_name}: {completed_us}/{total_us} US completadas ({round(pct, 1)}%)"
+        )
+
         return {
             "project": board_name,
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -1588,6 +1620,7 @@ async def get_delivery_report(board_id: str, ctx: Context) -> dict[str, Any]:
                 "completed_us": completed_us,
                 "pct": round(pct, 1),
             },
+            "summary_text": summary_text,
             "user_stories": user_stories,
         }
     finally:

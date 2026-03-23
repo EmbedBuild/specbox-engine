@@ -53,7 +53,7 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
     # ------------------------------------------------------------------
     @mcp.custom_route("/health", methods=["GET"])
     async def health(request: Request) -> JSONResponse:
-        return _json({"status": "ok", "version": "5.2.0"})
+        return _json({"status": "ok", "version": "5.5.0"})
 
     # ------------------------------------------------------------------
     # GET /api/sala — Global dashboard
@@ -728,7 +728,24 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
 
         _invalidate_cache(state_path)
 
+        # AC-10: Log heartbeat to heartbeats.jsonl
+        from .tools.heartbeat_stats import append_heartbeat_log
+        source_ip = request.client.host if request.client else "unknown"
+        append_heartbeat_log(state_path, project, source_ip, "ok")
+
         return _json({"status": "ok", "project": project})
+
+    # ------------------------------------------------------------------
+    # GET /api/heartbeats/stats — Heartbeat observability (AC-09)
+    # ------------------------------------------------------------------
+    @mcp.custom_route("/api/heartbeats/stats", methods=["GET"])
+    async def api_heartbeat_stats(request: Request) -> JSONResponse:
+        if not _check_auth(request):
+            return _json({"error": "Unauthorized"}, 401)
+
+        from .tools.heartbeat_stats import compute_heartbeat_stats
+        stats = compute_heartbeat_stats(state_path)
+        return _json(stats)
 
     # ------------------------------------------------------------------
     # POST /api/sync/github — Sync state from GitHub repos

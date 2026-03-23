@@ -1,4 +1,4 @@
-# SpecBox Engine v5.2.0 — Public Release
+# SpecBox Engine v5.5.0 — Public Release
 
 **SpecBox Engine by JPS** — Sistema de programacion agentica para Claude Code.
 
@@ -1183,7 +1183,7 @@ v4.1.0 | 2026-03-11 | JPS Developer
 
 # English Version
 
-# SpecBox Engine v5.2.0 — Public Release
+# SpecBox Engine v5.5.0 — Public Release
 
 **SpecBox Engine by JPS** — An agentic programming system for Claude Code.
 

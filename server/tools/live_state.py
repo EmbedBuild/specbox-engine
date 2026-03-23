@@ -121,6 +121,26 @@ def register_live_state_tools(mcp: FastMCP, state_path: Path):
         total = progress.get("total_ucs", 0)
         done = progress.get("completed_ucs", 0)
 
+        session_str = "sesion activa" if state.get("session_active") else "inactivo"
+        health = _health_emoji(state)
+        time_ago = _humanize_timedelta(state.get("received_at", ""))
+        plan_str = f"{done}/{total} UCs" if total > 0 else None
+        feature = state.get("current_feature") or "—"
+        verdict = state.get("last_verdict") or "—"
+
+        # AC-04: Markdown summary max 300 chars
+        parts = [f"**{slug}** — {session_str}"]
+        if state.get("current_feature"):
+            parts.append(f"Feature: {feature}")
+        if plan_str:
+            parts.append(f"UCs: {plan_str}")
+        parts.append(f"Veredicto: {verdict}")
+        parts.append(f"Health: {health}")
+        parts.append(f"Actualizado: {time_ago}")
+        summary = " | ".join(parts)
+        if len(summary) > 300:
+            summary = summary[:297] + "..."
+
         return {
             "project": slug,
             "data_source": state.get("source", "unknown"),
@@ -128,7 +148,7 @@ def register_live_state_tools(mcp: FastMCP, state_path: Path):
             "current_phase": state.get("current_phase"),
             "current_feature": state.get("current_feature"),
             "current_branch": state.get("current_branch"),
-            "plan_progress": f"{done}/{total} UCs" if total > 0 else None,
+            "plan_progress": plan_str,
             "plan_current_uc": progress.get("current_uc"),
             "last_verdict": state.get("last_verdict"),
             "coverage_pct": state.get("coverage_pct"),
@@ -139,10 +159,9 @@ def register_live_state_tools(mcp: FastMCP, state_path: Path):
             "healing_health": state.get("healing_health"),
             "last_operation": state.get("last_operation"),
             "last_commit": state.get("last_commit"),
-            "time_since_last_update": _humanize_timedelta(
-                state.get("received_at", "")
-            ),
-            "health": _health_emoji(state),
+            "time_since_last_update": time_ago,
+            "health": health,
+            "summary": summary,
         }
 
     @mcp.tool
@@ -206,6 +225,19 @@ def register_live_state_tools(mcp: FastMCP, state_path: Path):
         for item in items:
             item.pop("received_at", None)
 
+        # AC-05: summary_table as Markdown table
+        table_lines = [
+            "| Proyecto | Estado | Feature | Ultima actividad |",
+            "|----------|--------|---------|-----------------|",
+        ]
+        for item in items:
+            name = item.get("name", "?")
+            health = item.get("health", "yellow_circle")
+            feature = item.get("current_feature") or "—"
+            time_ago = item.get("time_since_last_update", "—")
+            table_lines.append(f"| {name} | {health} | {feature} | {time_ago} |")
+        summary_table = "\n".join(table_lines)
+
         return {
             "total_projects": len(items),
             "projects": items,
@@ -214,6 +246,7 @@ def register_live_state_tools(mcp: FastMCP, state_path: Path):
                 f"{active_sessions} con sesion activa, "
                 f"{total_feedback} con feedback abierto"
             ),
+            "summary_table": summary_table,
         }
 
     @mcp.tool
@@ -248,11 +281,28 @@ def register_live_state_tools(mcp: FastMCP, state_path: Path):
             return {
                 "active_sessions": [],
                 "message": "No hay sesiones activas en este momento",
+                "summary": "No hay sesiones activas en este momento",
             }
+
+        # AC-06: Conversational summary in Spanish
+        session_descs = []
+        for s in active:
+            parts = [s["name"]]
+            if s.get("current_phase"):
+                parts.append(s["current_phase"])
+            if s.get("current_feature"):
+                parts.append(s["current_feature"])
+            session_descs.append(f"{parts[0]} ({', '.join(parts[1:])})" if len(parts) > 1 else parts[0])
+
+        if len(active) == 1:
+            summary = f"Hay 1 sesion activa: {session_descs[0]}"
+        else:
+            summary = f"Hay {len(active)} sesiones activas: {', '.join(session_descs)}"
 
         return {
             "active_sessions": active,
             "count": len(active),
+            "summary": summary,
         }
 
     @mcp.tool

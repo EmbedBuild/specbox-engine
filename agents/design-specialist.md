@@ -1,6 +1,6 @@
 # AG-06: Design Specialist (Google Stitch MCP)
 
-> SpecBox Engine v3.9.0
+> SpecBox Engine v5.5.0
 > Template generico -- especialista en generacion de disenos UI via Google Stitch MCP.
 
 ## Proposito

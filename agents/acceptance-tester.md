@@ -1,6 +1,6 @@
 # AG-09a: Acceptance Tester
 
-> SpecBox Engine v4.1.0
+> SpecBox Engine v5.5.0
 > Genera archivos `.feature` (Gherkin en español) + step definitions desde acceptance criteria del PRD.
 > NO es AG-04 (QA). AG-04 genera unit tests. AG-09a genera acceptance tests BDD con evidencia visual.
 
@@ -61,10 +61,23 @@ tests/acceptance/                   # React, Python, GAS
 ├── features/
 │   └── UC-XXX_{nombre_snake}.feature
 ├── steps/
-│   ├── common_steps.{ext}          # Auth, navegación (si no existe)
+│   ├── common_steps.{ext}          # Auth, navegación, seed steps
+│   ├── hooks.{ext}                 # AfterAll con cleanup
 │   └── UC-XXX_steps.{ext}          # Steps específicos del UC
 └── reports/
     └── cucumber-report.json        # JSON Cucumber output
+
+e2e/helpers/                        # (si no existe, AG-09a lo crea)
+├── seed.ts                         # SQL Strategy helper (Supabase)
+├── seed-firestore.ts               # Firestore Strategy helper (Firebase)
+└── test-data.ts                    # TEST_USERS constantes
+
+e2e/seed/fixtures/                  # (solo Firestore/MongoDB)
+├── base.json                       # Datos compartidos
+└── uc-XXX-{nombre}.json            # Datos por UC
+
+supabase/migrations/                # (solo SQL Strategy)
+└── XXX_e2e_seed_functions.sql      # Funciones seed/cleanup
 ```
 
 ---
@@ -341,9 +354,146 @@ Localizar PRD → extraer lista de AC-XX funcionales con ID + descripción.
 ### 3. Generar step definitions
 
 - Framework según stack (ver sección anterior)
-- Reutilizar `steps/common_steps` si ya existe (auth, navegación)
+- Reutilizar `steps/common_steps` si ya existe (auth, navegación, **seed**)
 - Crear `steps/UC-XXX_steps` con lógica específica del UC
 - Incluir captura de screenshot en el último step de cada Escenario
+
+### 3.5. Generar Seed Strategy (E2E Data Lifecycle)
+
+> **Referencia completa:** `architecture/{stack}/e2e-seed-strategies.md`
+
+Los tests de aceptación necesitan datos reales en la DB para ejecutarse.
+AG-09a genera el seed como parte del ciclo BDD.
+
+#### 3.5.1 Detectar backend de datos
+
+| Archivo en proyecto | Backend | Strategy |
+|---------------------|---------|----------|
+| `supabase/` dir o `.env` con `SUPABASE_URL` | Supabase (PostgreSQL) | SQL — funciones PL/pgSQL |
+| `firebase.json` o `.firebaserc` | Firebase (Firestore) | Firestore — Admin SDK + JSON fixtures |
+| `.env` con `MONGO_URI` | MongoDB | Mongo — client scripts |
+| `prisma/schema.prisma` | Prisma (SQL genérico) | Prisma — seed scripts |
+
+#### 3.5.2 Analizar datos necesarios por AC
+
+Para cada AC-XX del UC, determinar:
+1. **Qué entidades necesita** — usuarios, registros, configuraciones
+2. **Qué roles de usuario** — qué actor ejecuta el escenario
+3. **Qué estado previo** — datos que deben existir antes del test
+4. **Qué datos genera** — datos creados por el test que deben limpiarse
+
+#### 3.5.3 Generar seed por backend
+
+**SQL Strategy (Supabase/PostgreSQL):**
+
+Generar función `seed_e2e_{uc_id_lower}()` como migración SQL:
+
+```sql
+CREATE OR REPLACE FUNCTION seed_e2e_uc001()
+RETURNS void AS $$
+BEGIN
+  -- Datos específicos para AC-01, AC-02, etc. de este UC
+  -- IDs determinísticos con prefijo e2e-
+  -- SECURITY DEFINER bypassa RLS
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+Reglas:
+- Una función por UC que necesite datos adicionales a `seed_e2e_base()`
+- `seed_e2e_base()` crea la jerarquía organizacional + usuarios comunes
+- `seed_e2e_auth_users()` crea usuarios en `auth.users` + profiles
+- `cleanup_e2e()` borra TODO con `WHERE id LIKE 'e2e-%'` en orden FK-safe
+- **GOTCHA:** campos varchar en `auth.users` deben ser `''`, NUNCA `NULL`
+
+**Firestore Strategy:**
+
+Generar fixture JSON en `e2e/seed/fixtures/{uc_id}.json`:
+
+```json
+{
+  "collections": [
+    {
+      "path": "Collection/e2e-doc-001",
+      "data": { "campo": "valor" },
+      "subcollections": [...]
+    }
+  ]
+}
+```
+
+Reglas:
+- Un fixture JSON por UC
+- `base.json` contiene datos compartidos
+- Document IDs con prefijo `e2e-`
+- Auth users via Admin SDK (`auth.createUser()`)
+- Cleanup via `db.recursiveDelete()` para subcollections
+- Soporte de Firebase Emulator para CI
+
+**MongoDB Strategy:**
+
+Generar fixture JSON similar a Firestore, con `insertMany` y cleanup via `deleteMany({_id: /^e2e-/})`.
+
+#### 3.5.4 Generar common seed steps
+
+Si no existe `steps/common_steps` con seed, crear:
+
+**React (playwright-bdd):**
+```typescript
+// tests/acceptance/steps/common_steps.ts
+import { Given, AfterAll } from 'playwright-bdd'
+
+// SQL Strategy
+Given('el entorno E2E está preparado con datos base', async () => {
+  await supabase.rpc('seed_e2e_base')
+})
+Given('existen los usuarios de test', async () => {
+  await supabase.rpc('seed_e2e_auth_users')
+})
+Given('existen datos de {string}', async ({}, ucId: string) => {
+  const fn = `seed_e2e_${ucId.toLowerCase().replace('-', '')}`
+  await supabase.rpc(fn)
+})
+AfterAll(async () => {
+  await supabase.rpc('cleanup_e2e')
+})
+```
+
+**Flutter (playwright-bdd, E2E web):**
+```typescript
+Given('el entorno E2E está preparado con datos base', async () => {
+  await seedFirestore('base')
+})
+Given('existen los usuarios de test', async () => {
+  await createTestUsers()
+})
+AfterAll(async () => {
+  await cleanupFirestore()
+  await deleteTestUsers()
+})
+```
+
+#### 3.5.5 Inyectar Antecedentes en .feature
+
+Los `.feature` generados en paso 2 DEBEN incluir `Antecedentes` con seed:
+
+```gherkin
+Antecedentes:
+  Dado el entorno E2E está preparado con datos base
+  Y existen los usuarios de test
+  Y existen datos de "UC-XXX"
+  Y el usuario está autenticado como "{actor}"
+```
+
+El step `Y existen datos de "UC-XXX"` solo se incluye si el UC necesita
+datos adicionales a los de `seed_e2e_base()`.
+
+#### 3.5.6 Verificar seed funciona
+
+Antes de ejecutar los tests (paso 5), verificar:
+1. Health check: la DB es accesible
+2. Seed idempotente: ejecutar seed 2 veces no falla (cleanup previo interno)
+3. Cleanup limpio: tras cleanup no quedan datos con prefijo `e2e-`
 
 ### 4. Instalar dependencias BDD (si no están)
 
@@ -459,6 +609,10 @@ git commit -m "test(acceptance): add Gherkin scenarios for UC-XXX"
 - NO usar assertions laxas (toBeTruthy, isNotNull) como verificación principal
 - NO escribir `.feature` en inglés — siempre español con `# language: es`
 - NO mezclar múltiples UCs en un solo archivo `.feature`
+- NO usar IDs aleatorios en seed — siempre determinísticos con prefijo `e2e-`
+- NO dejar datos de test en la DB tras la ejecución — cleanup obligatorio
+- NO insertar `NULL` en campos varchar de `auth.users` (Supabase) — usar `''`
+- NO poner lógica de cleanup en el `.feature` — va en hooks (`AfterAll`)
 
 ---
 
@@ -473,15 +627,23 @@ git commit -m "test(acceptance): add Gherkin scenarios for UC-XXX"
 - [ ] PRD localizado y criterios AC-XX extraídos
 - [ ] Un `.feature` generado por UC con Escenarios por cada AC-XX
 - [ ] `.feature` en español con `# language: es` y tags `@US-XX @UC-XXX @AC-XX`
+- [ ] `.feature` incluye `Antecedentes` con steps de seed
 - [ ] Step definitions generados con el framework BDD del stack
+- [ ] Seed strategy generada (SQL functions / JSON fixtures / scripts)
+- [ ] Common seed steps creados (`common_steps` + `hooks` con cleanup)
+- [ ] Cleanup AfterAll registrado (no en .feature, en hooks)
+- [ ] IDs de test con prefijo `e2e-` (determinísticos, sin colisión)
+- [ ] Health check verifica acceso a DB antes de ejecutar
+- [ ] Seed es idempotente (2 ejecuciones = mismo resultado)
 - [ ] Dependencias BDD instaladas si no existían
 - [ ] Tests ejecutados con JSON Cucumber report generado
 - [ ] Screenshots capturados por escenario
 - [ ] `results.json` generado desde JSON Cucumber
 - [ ] Evidencia guardada en `.quality/evidence/{feature}/acceptance/`
 - [ ] Evidencia adjuntada a Trello (si spec-driven)
-- [ ] Commit de acceptance tests realizado
+- [ ] Cleanup verificado: 0 datos con prefijo `e2e-` tras ejecución
+- [ ] Commit de acceptance tests + seed realizado
 
 ---
 
-*SpecBox Engine v4.1.0 — Acceptance Tester (Gherkin BDD)*
+*SpecBox Engine v5.5.0 — Acceptance Tester (Gherkin BDD + E2E Seed Lifecycle)*

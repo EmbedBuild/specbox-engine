@@ -1,8 +1,8 @@
-# SpecBox Engine v5.2.0
+# SpecBox Engine v5.5.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (90+ tools) + Sala de Máquinas + Gherkin BDD.
+> Monorepo unificado: engine + MCP server (95+ tools) + Sala de Máquinas + Gherkin BDD.
 
 ## Que es este repositorio
 
@@ -164,15 +164,15 @@ specbox-engine/
 ├── .quality/              ← Telemetria y evidencia (v3.1)
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
-├── server/                ← MCP server unificado (v4.1)
-│   ├── server.py          ← FastMCP (78+ tools)
+├── server/                ← MCP server unificado (v5.5)
+│   ├── server.py          ← FastMCP (95+ tools)
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
 │   │   ├── trello_backend.py  ← TrelloBackend (wraps TrelloClient)
 │   │   ├── plane_backend.py   ← PlaneBackend (Plane CE self-hosted)
 │   │   └── plane_client.py    ← Async httpx client for Plane API v1
-│   ├── tools/             ← 11 tool modules
+│   ├── tools/             ← 12 tool modules
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
 │   │   ├── quality.py     ← 4 tools
@@ -183,7 +183,8 @@ specbox-engine/
 │   │   ├── onboarding.py  ← 10 tools (+ setup_board + archive_project)
 │   │   ├── state.py       ← 20 tools
 │   │   ├── spec_driven.py ← 21 tools (backend-agnostic via SpecBackend)
-│   │   └── migration.py   ← 5 tools (Trello ↔ Plane migration)
+│   │   ├── migration.py   ← 5 tools (Trello ↔ Plane migration)
+│   │   └── heartbeat_stats.py ← 1 tool (get_heartbeat_stats)
 │   ├── trello_client.py   ← Async httpx con retry
 │   ├── board_helpers.py   ← Card parsing, custom fields (Trello)
 │   ├── models.py          ← Pydantic: US, UC, AC, WorkflowState
@@ -210,7 +211,7 @@ specbox-engine/
 3. Tras modificar una Skill, ejecutar `./install.sh` para actualizar en global
 4. Versionar cambios en ENGINE_VERSION.yaml
 
-## Available Skills (v5.0)
+## Available Skills (v5.5)
 
 Skills are auto-discoverable. Claude will use them when relevant. You can also invoke them explicitly.
 
@@ -227,6 +228,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /check-designs | "check designs", "design compliance", "verify designs" | fork:Explore | Read-only | Retroactive Stitch compliance scan |
 | /acceptance-check | "check acceptance", "validate AC", "acceptance gate" | fork | Full | v5.0 — Standalone BDD acceptance without /implement |
 | /quickstart | "quickstart", "tutorial", "getting started" | fork | Full | v5.0 — Interactive onboarding tutorial (< 5 min) |
+| /remote | "estado de", "resumen de todos", "sesiones activas" | direct | Full | v5.5 — Remote project management for OpenClaw (WhatsApp/Discord) |
 
 ## Hooks (v3.5)
 
@@ -248,9 +250,9 @@ Hooks can report to a remote MCP server for centralized state tracking.
 Set `SPECBOX_ENGINE_MCP_URL=https://mcp-specbox-engine.jpsdeveloper.com/mcp` in your shell profile.
 Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
 
-## Remote State Management (v5.2.0)
+## Remote State Management (v5.5.0)
 
-Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP remoto.
+Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP remoto, y desde WhatsApp/Discord via OpenClaw Gateway.
 
 ### Heartbeat Protocol
 - Hooks locales envian `project_state.json` al VPS tras cada operacion significativa
@@ -270,6 +272,24 @@ Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP 
 | `get_all_projects_overview` | "Dame resumen de todos" |
 | `get_active_sessions` | "¿Que tiene sesion activa?" |
 | `refresh_project_state` | "Actualiza estado de X" |
+| `get_heartbeat_stats` | "¿Llegan los heartbeats?" |
+
+### Heartbeat Observability (v5.5.0)
+- Cada heartbeat recibido se registra en `heartbeats.jsonl` por proyecto
+- `get_heartbeat_stats` retorna: total 24h, por proyecto, stale detection
+- `GET /api/heartbeats/stats` — mismo dato via REST con Bearer auth
+- Proyectos con `session_active=true` y sin heartbeat > 30 min marcados como stale
+
+### Conversational Summaries (v5.5.0)
+- Todos los tools de live_state incluyen campo `summary` humanizado en espanol
+- `get_all_projects_overview` incluye `summary_table` con tabla Markdown
+- Timestamps siempre como "hace X minutos/horas" — nunca ISO crudos en summaries
+- Tools de escritura (`move_uc`, `mark_ac`, reports) incluyen `summary` + `generated_at`
+
+### Skill /remote (v5.5.0)
+- Wrapper conversacional para OpenClaw Gateway (WhatsApp/Discord)
+- Respuestas en texto plano (max 2000 chars) sin Markdown complejo
+- Triggers: "estado de [proyecto]", "resumen de todos", "sesiones activas"
 
 ### Env vars requeridas
 - `SPECBOX_SYNC_TOKEN` — auth para endpoints de heartbeat y sync (VPS + local)
@@ -440,6 +460,6 @@ BDD acceptance testing without full /implement pipeline:
 
 ## Engine Version
 
-Current: v5.0.0 "Self-Evolution"
+Current: v5.5.0 "Remote Management"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

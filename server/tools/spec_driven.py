@@ -25,6 +25,7 @@ from fastmcp import Context
 
 from ..auth_gateway import (
     get_session_backend,
+    store_freeform_credentials,
     store_plane_credentials,
     store_session_credentials,
 )
@@ -187,6 +188,7 @@ async def set_auth_token(
     backend_type: str = "trello",
     base_url: str = "",
     workspace_slug: str = "",
+    root_path: str = "",
 ) -> dict[str, Any]:
     """Configure backend API credentials for this session.
 
@@ -194,22 +196,52 @@ async def set_auth_token(
     Credentials are isolated per session — other users cannot access yours.
 
     Args:
-        api_key: API key (Trello: 32-char key; Plane: API token)
-        token: API token (Trello: 64-char OAuth token; Plane: ignored, pass "")
-        backend_type: "trello" (default) or "plane"
+        api_key: API key (Trello: 32-char key; Plane: API token; FreeForm: ignored, pass "freeform")
+        token: API token (Trello: 64-char OAuth token; Plane/FreeForm: ignored, pass "")
+        backend_type: "trello" (default), "plane", or "freeform"
         base_url: Plane base URL (e.g., "https://plane.example.com"); required for Plane
         workspace_slug: Plane workspace slug; required for Plane
+        root_path: FreeForm data directory (default: "doc/tracking"); required for FreeForm
 
     Returns:
         Authentication status with user info if successful.
     """
-    if not api_key or not api_key.strip():
+    if backend_type != "freeform" and (not api_key or not api_key.strip()):
         return {"error": "api_key is required", "code": "MISSING_API_KEY"}
 
-    api_key = api_key.strip()
+    api_key = api_key.strip() if api_key else ""
     token = token.strip() if token else ""
 
-    if backend_type == "plane":
+    if backend_type == "freeform":
+        # FreeForm authentication (local filesystem, no API)
+        root = root_path.strip() if root_path else "doc/tracking"
+
+        try:
+            from ..backends.freeform_backend import FreeformBackend
+
+            backend = FreeformBackend(root=root)
+            user = await backend.validate_auth()
+            await backend.close()
+        except Exception as e:
+            logger.error("freeform_auth_error", error=str(e))
+            return {"error": f"FreeForm init failed: {str(e)}", "code": "FREEFORM_ERROR"}
+
+        await store_freeform_credentials(ctx, root)
+        logger.info("auth_token_set", backend="freeform", root=root)
+
+        return {
+            "success": True,
+            "backend": "freeform",
+            "message": f"FreeForm backend initialized at {root}/",
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "fullName": user.display_name,
+            },
+            "summary": f"Backend FreeForm configurado. Datos en {root}/. Sin API externa requerida.",
+        }
+
+    elif backend_type == "plane":
         # Plane authentication
         if not base_url or not base_url.strip():
             return {"error": "base_url is required for Plane backend", "code": "MISSING_BASE_URL"}
@@ -1018,9 +1050,8 @@ async def get_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
             # Backend-agnostic identifiers
             "backend_item_id": uc_item.id,
             "backend_item_url": uc_item.url,
-            # Backward compatibility aliases
-            "trello_card_id": uc_item.id,
-            "trello_card_url": uc_item.url,
+            "card_id": uc_item.id,
+            "card_url": uc_item.url,
         }
 
         return result

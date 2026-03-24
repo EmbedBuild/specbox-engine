@@ -1,4 +1,4 @@
-version: 5.7.0
+version: 5.8.0
 codename: "SpecBox"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
@@ -23,6 +23,7 @@ services:
 project_managers:
   - trello
   - plane
+  - freeform
 
 features:
   # Existing (v3.9.1)
@@ -149,8 +150,28 @@ features:
   - complete-uc-clears-marker
   - marker-24h-expiry
   - pipeline-contract-rules
+  # New (v5.8.0)
+  - freeform-backend
+  - freeform-filesystem-storage
+  - freeform-markdown-progress
+  - freeform-auto-progress-generation
+  - freeform-no-api-required
+  - backend-agnostic-card-keys
+  - three-backend-support
 
 changelog:
+  5.8.0:
+    date: 2026-03-24
+    changes:
+      - "feat: FreeForm Backend — local filesystem backend for spec-driven development without external API"
+      - "feat: FreeformBackend implements all 25 SpecBackend methods using JSON + local files"
+      - "feat: Auto-generated Markdown progress files (README.md, UC-XXX.md) for human readability"
+      - "feat: set_auth_token supports backend_type='freeform' with root_path parameter"
+      - "feat: auth_gateway.py routes FreeForm sessions to FreeformBackend"
+      - "fix: Replaced hardcoded trello_card_id/trello_card_url with generic card_id/card_url"
+      - "feat: spec-guard.sh hooks work with FreeForm via backend_type detection"
+      - "feat: Three backends supported: Trello, Plane, FreeForm"
+
   5.7.0:
     date: 2026-03-24
     changes:

@@ -412,4 +412,4 @@ class SpecBackend(ABC):
 
 # ── Backend type registry ────────────────────────────────────────────
 
-BackendType = str  # "trello" | "plane"
+BackendType = str  # "trello" | "plane" | "freeform"

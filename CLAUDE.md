@@ -1,4 +1,4 @@
-# SpecBox Engine v5.7.0
+# SpecBox Engine v5.8.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -37,15 +37,31 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 
 ## Gestores de proyecto (Spec-Driven)
 
-| Gestor | Auth | Estado |
-|--------|------|--------|
-| Trello | API key + token | Completo |
-| Plane | API key + base_url + workspace_slug | Completo |
+| Gestor | Auth | Almacenamiento | Estado |
+|--------|------|----------------|--------|
+| Trello | API key + token | Cloud (Trello API) | Completo |
+| Plane | API key + base_url + workspace_slug | Cloud/Self-hosted (Plane API) | Completo |
+| FreeForm | Ninguna | Local filesystem (`doc/tracking/`) | Completo |
 
-Ambos gestores se usan de forma identica gracias a la abstraccion `SpecBackend`.
+Los 3 gestores se usan de forma identica gracias a la abstraccion `SpecBackend`.
 Los 21 tools de spec-driven funcionan con cualquier backend configurado por proyecto.
 Plane funciona tanto self-hosted (CE) como cloud — solo cambia el `base_url`.
-Migracion bidireccional disponible via `migrate_preview` / `migrate_project`.
+FreeForm almacena todo como JSON + Markdowns de progreso auto-generados en `doc/tracking/`.
+Migracion bidireccional disponible via `migrate_preview` / `migrate_project` (Trello ↔ Plane).
+
+### FreeForm Backend (v5.8.0)
+
+Backend sin API externa para proyectos personales o donde Trello/Plane es overkill.
+
+```
+set_auth_token(api_key="freeform", token="", backend_type="freeform", root_path="doc/tracking")
+```
+
+Genera automaticamente Markdowns de progreso legibles:
+- `doc/tracking/progress/README.md` — Vista general con tablas US/UC
+- `doc/tracking/progress/UC-XXX.md` — Detalle por UC con ACs y estado
+
+Los hooks de Pipeline Integrity (spec-guard.sh) funcionan igual con FreeForm.
 
 ## Instalacion
 
@@ -169,9 +185,10 @@ specbox-engine/
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
-│   │   ├── trello_backend.py  ← TrelloBackend (wraps TrelloClient)
-│   │   ├── plane_backend.py   ← PlaneBackend (Plane CE self-hosted)
-│   │   └── plane_client.py    ← Async httpx client for Plane API v1
+│   │   ├── trello_backend.py   ← TrelloBackend (wraps TrelloClient)
+│   │   ├── plane_backend.py    ← PlaneBackend (Plane CE self-hosted)
+│   │   ├── plane_client.py     ← Async httpx client for Plane API v1
+│   │   └── freeform_backend.py ← FreeformBackend (local JSON + Markdown)
 │   ├── tools/             ← 13 tool modules
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
@@ -527,6 +544,6 @@ BDD acceptance testing without full /implement pipeline:
 
 ## Engine Version
 
-Current: v5.7.0 "Pipeline Integrity"
+Current: v5.8.0 "FreeForm"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

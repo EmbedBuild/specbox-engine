@@ -1,6 +1,6 @@
 """Auth module - Per-session credential management via FastMCP Context.
 
-Supports multiple backends (Trello, Plane) and service proxies (Stitch).
+Supports multiple backends (Trello, Plane, FreeForm) and service proxies (Stitch).
 Each MCP client provides credentials by calling set_auth_token() as the
 first operation. Credentials are stored in the FastMCP session state and
 isolated between clients.
@@ -8,6 +8,7 @@ isolated between clients.
 Backend selection:
 - Trello: api_key + token → TrelloBackend
 - Plane: base_url + api_key + workspace_slug → PlaneBackend
+- FreeForm: root_path → FreeformBackend (local filesystem, no API)
 
 Service proxies:
 - Stitch: api_key per project → StitchClient
@@ -49,6 +50,10 @@ async def get_session_backend(ctx: Context) -> "SpecBackend":
                 api_key=config["api_key"],
                 workspace_slug=config["workspace_slug"],
             )
+        elif backend_type == "freeform":
+            from .backends.freeform_backend import FreeformBackend
+
+            return FreeformBackend(root=config["root_path"])
         else:
             from .backends.trello_backend import TrelloBackend
 
@@ -65,8 +70,10 @@ async def get_session_backend(ctx: Context) -> "SpecBackend":
 
     raise RuntimeError(
         "Backend credentials not configured for this session. "
-        "Call set_auth_token(api_key, token) for Trello or "
-        "set_auth_token(api_key, base_url, workspace_slug) for Plane first."
+        "Call set_auth_token(api_key, token) for Trello, "
+        "set_auth_token(api_key, base_url, workspace_slug) for Plane, or "
+        "set_auth_token(api_key='freeform', token='', backend_type='freeform', "
+        "root_path='doc/tracking') for FreeForm first."
     )
 
 
@@ -111,6 +118,17 @@ async def store_plane_credentials(
             "api_key": api_key,
             "base_url": base_url,
             "workspace_slug": workspace_slug,
+        },
+    )
+
+
+async def store_freeform_credentials(ctx: Context, root_path: str) -> None:
+    """Store FreeForm credentials in the session state."""
+    await ctx.set_state(
+        BACKEND_STATE_KEY,
+        {
+            "backend_type": "freeform",
+            "root_path": root_path,
         },
     )
 

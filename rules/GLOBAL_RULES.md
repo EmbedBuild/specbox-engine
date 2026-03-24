@@ -1,4 +1,4 @@
-# Reglas Globales - SpecBox Engine v5.6.0
+# Reglas Globales - SpecBox Engine v5.7.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.
@@ -11,6 +11,59 @@
 - **Empresa**: IAutomat / JPS Developer
 - **Stack**: Flutter + React + Python + Google Apps Script + Supabase/Neon + n8n
 - **Rol de Claude**: Arquitecto senior critico, NO asistente complaciente
+
+---
+
+## Pipeline Integrity — Contrato Innegociable (v5.7.0)
+
+> **La trazabilidad en el gestor de proyecto (Trello/Plane) es INNEGOCIABLE.**
+> Este es el contrato fundamental del engine. Sin trazabilidad, SpecBox no tiene valor.
+
+### Regla Absoluta
+
+**NUNCA implementar codigo sin un UC activo en el gestor de proyecto.**
+
+Si `/implement` no se puede invocar como skill (por `disable-model-invocation` u otra razon),
+ejecutar manualmente cada paso del pipeline:
+
+```
+1. find_next_uc(board_id)        → identificar el siguiente UC
+2. start_uc(board_id, uc_id)     → mover a In Progress (activa el marker)
+3. Implementar el codigo          → spec-guard.sh permite escribir
+4. mark_ac_batch(board_id, ...)   → marcar ACs completados
+5. report_checkpoint(...)         → guardar recovery point
+6. complete_uc(board_id, uc_id)   → mover a Done (limpia el marker)
+7. Commit + PR por UC            → un commit por UC, nunca monolitico
+```
+
+### Enforcement automatico
+
+| Hook | Evento | Comportamiento | Tipo |
+|------|--------|---------------|------|
+| `spec-guard.sh` | Write/Edit en `src/` o `lib/` | Verifica que existe `active_uc.json` (escrito por `start_uc`) | BLOQUEANTE |
+| `commit-spec-guard.sh` | git commit | Verifica UC activo, checkpoint reciente, tamano de commit | WARNING |
+
+### Que activa el marker
+
+- `start_uc(board_id, uc_id)` → escribe `.quality/active_uc.json`
+- `complete_uc(board_id, uc_id)` → borra `.quality/active_uc.json`
+- El marker expira a las 24 horas (proteccion contra sesiones abandonadas)
+
+### Prohibiciones explicitas
+
+1. **NUNCA** implementar multiples UCs en un solo commit — cada UC tiene su rama y commit
+2. **NUNCA** marcar ACs post-facto sin validacion real — el mark_ac_batch debe ocurrir DURANTE la implementacion
+3. **NUNCA** priorizar velocidad sobre trazabilidad — el board refleja la realidad o no sirve
+4. **NUNCA** usar "el skill no se puede invocar" como excusa — el pipeline se ejecuta manualmente
+5. **NUNCA** saltarse checkpoints — si la sesion se corta, el progreso se pierde sin recovery points
+
+### Que hacer si el agente intenta saltarse el pipeline
+
+Si detectas que estas implementando sin haber llamado a `start_uc`:
+1. **PARA inmediatamente**
+2. Llama a `find_next_uc` + `start_uc`
+3. Solo entonces continua implementando
+4. Al terminar: `mark_ac_batch` + `complete_uc`
 
 ---
 

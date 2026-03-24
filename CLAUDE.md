@@ -1,4 +1,4 @@
-# SpecBox Engine v5.6.0
+# SpecBox Engine v5.7.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -232,19 +232,30 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /quickstart | "quickstart", "tutorial", "getting started" | fork | Full | v5.0 — Interactive onboarding tutorial (< 5 min) |
 | /remote | "estado de", "resumen de todos", "sesiones activas" | direct | Full | v5.5 — Remote project management for OpenClaw (WhatsApp/Discord) |
 
-## Hooks (v3.5)
+## Hooks (v5.7.0)
 
 Automatic enforcement — no need to remember running these manually:
 
 | Hook | Event | Behavior |
 |------|-------|----------|
+| **spec-guard** | PostToolUse (Write/Edit on src/ or lib/) | **BLOCKING**: verifies active UC exists (`.quality/active_uc.json`). No UC = no code writes. Enforces pipeline contract. |
+| **commit-spec-guard** | PostToolUse (git commit) | WARNING: checks active UC, checkpoint freshness, commit size. Runs before lint. |
 | pre-commit-lint | PostToolUse (git commit) | BLOCKING: runs `gga run` (cached lint, skips unmodified files). Falls back to direct lint if GGA not installed |
+| design-gate | PostToolUse (Write/Edit on presentation/pages/) | NON-BLOCKING: warns if presentation page lacks Stitch design or traceability comment |
 | on-session-end | Stop | Logs session telemetry to .quality/logs/ + persists summary to Engram |
 | implement-checkpoint | Manual (called by /implement) | Saves phase progress for resume |
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
 | post-implement-validate | Manual (called by /implement) | Checks baseline regression after implementation |
-| design-gate | PostToolUse (Write/Edit on presentation/pages/) | NON-BLOCKING: warns if presentation page lacks Stitch design or traceability comment |
 | heartbeat-sender | Manual (called by on-session-end, implement-checkpoint) | Sends consolidated project state snapshot to VPS; queues locally if offline |
+
+### Pipeline Integrity (v5.7.0)
+
+The `spec-guard.sh` hook makes it **impossible** to write source code in a spec-driven project
+without an active UC. The marker file `.quality/active_uc.json` is written by `start_uc()` and
+cleared by `complete_uc()`. It expires after 24 hours to prevent stale sessions.
+
+**If /implement skill is unavailable**, the pipeline MUST be executed manually step by step.
+See `rules/GLOBAL_RULES.md` section "Pipeline Integrity" for the full contract.
 
 ## Remote Telemetry (v3.3)
 
@@ -516,6 +527,6 @@ BDD acceptance testing without full /implement pipeline:
 
 ## Engine Version
 
-Current: v5.6.0 "Stitch Proxy"
+Current: v5.7.0 "Pipeline Integrity"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

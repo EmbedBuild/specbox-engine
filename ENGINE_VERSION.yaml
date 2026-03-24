@@ -1,4 +1,4 @@
-version: 5.6.0
+version: 5.7.0
 codename: "SpecBox"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
@@ -140,8 +140,29 @@ features:
   - stitch-mcp-proxy
   - stitch-api-key-per-project
   - stitch-proxy-tools
+  # New (v5.7.0)
+  - pipeline-integrity-enforcement
+  - spec-guard-hook
+  - commit-spec-guard-hook
+  - active-uc-marker
+  - start-uc-writes-marker
+  - complete-uc-clears-marker
+  - marker-24h-expiry
+  - pipeline-contract-rules
 
 changelog:
+  5.7.0:
+    date: 2026-03-24
+    changes:
+      - "feat: Pipeline Integrity Enforcement — makes it impossible to bypass the spec-driven pipeline"
+      - "feat: spec-guard.sh — BLOCKING hook that prevents Write/Edit to src/lib/ without active UC"
+      - "feat: commit-spec-guard.sh — WARNING hook that checks UC, checkpoints, commit size before commit"
+      - "feat: active_uc.json marker — written by start_uc(), cleared by complete_uc(), expires 24h"
+      - "feat: Pipeline contract in GLOBAL_RULES.md — innegotiable traceability rules"
+      - "fix: start_uc() now writes .quality/active_uc.json marker for hook enforcement"
+      - "fix: complete_uc() now clears .quality/active_uc.json marker"
+      - "feat: Templates updated with spec-guard hooks for new projects"
+
   5.6.0:
     date: 2026-03-23
     changes:

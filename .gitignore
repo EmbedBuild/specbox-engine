@@ -1,6 +1,7 @@
 # Quality system
 .quality/logs/
 .quality/evidence/**/report.md
+.quality/active_uc.json
 !.quality/evidence/**/checkpoint.json
 !.quality/baselines/
 !.quality/README.md

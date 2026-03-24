@@ -14,7 +14,10 @@ Consolidated tool modules:
 
 from __future__ import annotations
 
+import json
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import structlog
@@ -38,6 +41,40 @@ from ..spec_backend import (
 )
 
 logger = structlog.get_logger(__name__)
+
+# ── Active UC Marker ─────────────────────────────────────────────────
+# The spec-guard.sh hook checks for this file before allowing writes
+# to source code. This ensures the pipeline contract is enforced at
+# the filesystem level — no UC active = no code writes allowed.
+
+ACTIVE_UC_FILENAME = ".quality/active_uc.json"
+
+
+def _write_active_uc_marker(uc_id: str, board_id: str, feature: str = "") -> None:
+    """Write the active UC marker so spec-guard.sh allows code writes."""
+    marker_path = Path(ACTIVE_UC_FILENAME)
+    marker_path.parent.mkdir(parents=True, exist_ok=True)
+    marker_path.write_text(
+        json.dumps(
+            {
+                "uc_id": uc_id,
+                "board_id": board_id,
+                "feature": feature,
+                "started_at": datetime.now(timezone.utc).isoformat(),
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+    logger.info("active_uc_marker_written", uc_id=uc_id, path=str(marker_path))
+
+
+def _clear_active_uc_marker() -> None:
+    """Remove the active UC marker after UC completion."""
+    marker_path = Path(ACTIVE_UC_FILENAME)
+    if marker_path.exists():
+        marker_path.unlink()
+        logger.info("active_uc_marker_cleared", path=str(marker_path))
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -1072,6 +1109,10 @@ async def start_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
         # Add timestamp comment
         now = datetime.now(timezone.utc).isoformat()
         await backend.add_comment(board_id, uc_item.id, f"Desarrollo iniciado: {now}")
+
+        # Write active UC marker for spec-guard.sh enforcement
+        feature = _extract_meta_str(uc_item, "feature", uc_id)
+        _write_active_uc_marker(uc_id, board_id, feature)
     finally:
         await backend.close()
 
@@ -1124,6 +1165,9 @@ async def complete_uc(
             us_checklist_updated, us_all_done = await _handle_uc_completion(
                 backend, board_id, items, item_us_id, uc_id
             )
+
+        # Clear active UC marker — next UC must call start_uc again
+        _clear_active_uc_marker()
 
         now = datetime.now(timezone.utc).isoformat()
         return {

@@ -21,9 +21,71 @@
         "hooks": [
           {
             "type": "command",
+            "command": ".claude/hooks/commit-spec-guard.sh",
+            "blocking": false,
+            "timeout": 10000
+          },
+          {
+            "type": "command",
             "command": ".claude/hooks/pre-commit-lint.sh",
             "blocking": true,
             "timeout": 60000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Write",
+          "input_contains": "src/"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/spec-guard.sh",
+            "blocking": true,
+            "timeout": 10000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Write",
+          "input_contains": "lib/"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/spec-guard.sh",
+            "blocking": true,
+            "timeout": 10000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Edit",
+          "input_contains": "src/"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/spec-guard.sh",
+            "blocking": true,
+            "timeout": 10000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Edit",
+          "input_contains": "lib/"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/spec-guard.sh",
+            "blocking": true,
+            "timeout": 10000
           }
         ]
       }

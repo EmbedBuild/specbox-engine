@@ -1,8 +1,8 @@
-version: 5.8.0
-codename: "SpecBox"
+version: 5.9.0
+codename: "Release Pipeline"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-03-23
+release_date: 2026-03-24
 min_claude_code: "1.0.0"
 
 stacks:
@@ -158,8 +158,24 @@ features:
   - freeform-no-api-required
   - backend-agnostic-card-keys
   - three-backend-support
+  # New (v5.9.0)
+  - release-skill
+  - release-audit-pipeline
+  - release-residual-detection
+  - release-doc-consistency-check
+  - release-structural-integrity-check
 
 changelog:
+  5.9.0:
+    date: 2026-03-24
+    changes:
+      - "feat: /release skill — automated audit, version bump, changelog, and push pipeline"
+      - "feat: 3-way parallel audit: residual code, documentation consistency, structural integrity"
+      - "fix: pyproject.toml version synced (was stuck at 5.6.0)"
+      - "fix: tools count updated from 108+ to 117+ across all documentation"
+      - "fix: mcp-report.sh and e2e-report.sh hooks documented in CLAUDE.md"
+      - "fix: orchestrator.md agent documented as AG-00 in CLAUDE.md"
+
   5.8.0:
     date: 2026-03-24
     changes:

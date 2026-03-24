@@ -1,8 +1,8 @@
-# SpecBox Engine v5.8.0
+# SpecBox Engine v5.9.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (108+ tools) + Sala de Máquinas + Gherkin BDD.
+> Monorepo unificado: engine + MCP server (117+ tools) + Sala de Máquinas + Gherkin BDD.
 
 ## Que es este repositorio
 
@@ -15,7 +15,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (108+ tools) + Sala de Máquinas dashboard (React 19)
+- **Server** — MCP server unificado (117+ tools) + Sala de Máquinas dashboard (React 19)
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
 
@@ -181,7 +181,7 @@ specbox-engine/
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
 ├── server/                ← MCP server unificado (v5.5)
-│   ├── server.py          ← FastMCP (108+ tools)
+│   ├── server.py          ← FastMCP (117+ tools)
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
@@ -248,6 +248,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /acceptance-check | "check acceptance", "validate AC", "acceptance gate" | fork | Full | v5.0 — Standalone BDD acceptance without /implement |
 | /quickstart | "quickstart", "tutorial", "getting started" | fork | Full | v5.0 — Interactive onboarding tutorial (< 5 min) |
 | /remote | "estado de", "resumen de todos", "sesiones activas" | direct | Full | v5.5 — Remote project management for OpenClaw (WhatsApp/Discord) |
+| /release | "release", "bump version", "sube version", "prepara release" | direct | Full | v5.8 — Audit residuals + update version/changelog/docs + push |
 
 ## Hooks (v5.7.0)
 
@@ -264,6 +265,8 @@ Automatic enforcement — no need to remember running these manually:
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
 | post-implement-validate | Manual (called by /implement) | Checks baseline regression after implementation |
 | heartbeat-sender | Manual (called by on-session-end, implement-checkpoint) | Sends consolidated project state snapshot to VPS; queues locally if offline |
+| mcp-report | Helper (called by other hooks) | Generic MCP reporter: fire-and-forget HTTP POST to /api/report/* |
+| e2e-report | Manual (called by /implement) | Reports Playwright E2E test results to MCP telemetry |
 
 ### Pipeline Integrity (v5.7.0)
 
@@ -349,6 +352,7 @@ Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP 
 
 | ID | Rol | Archivo | Modelo |
 |----|-----|---------|--------|
+| AG-00 | Orchestrator | `agents/orchestrator.md` | opus |
 | AG-01 | Feature Generator | `agents/feature-generator.md` | opus |
 | AG-02 | UI/UX Designer | `agents/uiux-designer.md` | opus |
 | AG-03 | DB Specialist | `agents/db-specialist.md` | sonnet |
@@ -544,6 +548,6 @@ BDD acceptance testing without full /implement pipeline:
 
 ## Engine Version
 
-Current: v5.8.0 "FreeForm"
+Current: v5.9.0 "Release Pipeline"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

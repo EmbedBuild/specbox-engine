@@ -1,8 +1,8 @@
-# SpecBox Engine v5.6.0 — Public Release
+# SpecBox Engine v5.9.0 — Public Release
 
 **SpecBox Engine by JPS** — Sistema de programacion agentica para Claude Code.
 
-Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 108+ tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane para desarrollo profesional con Claude Code.
+Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 117+ tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane/FreeForm para desarrollo profesional con Claude Code.
 
 > **[English version below](#english-version)** — Scroll down for the full English documentation.
 
@@ -20,8 +20,9 @@ Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad
 - [Hooks System](#hooks-system)
 - [Self-Healing Protocol](#self-healing-protocol)
 - [VEG — Visual Experience Generation](#veg--visual-experience-generation)
-- [Multi-Backend: Trello + Plane](#multi-backend-trello--plane)
+- [Multi-Backend: Trello + Plane + FreeForm](#multi-backend-trello--plane--freeform)
 - [Spec-Driven Pipeline](#spec-driven-pipeline)
+- [Pipeline Integrity (v5.7.0)](#pipeline-integrity-v570)
 - [Hardened Autopilot Guards (v4.0.1)](#hardened-autopilot-guards-v401)
 - [MCP Server](#mcp-server)
 - [Sala de Maquinas (Dashboard)](#sala-de-maquinas-dashboard)
@@ -97,7 +98,7 @@ Las Skills se auto-descubren cuando son relevantes. Los hooks se ejecutan automa
                Merge secuencial → pull main → siguiente UC
 ```
 
-### Flujo Spec-Driven (Trello / Plane)
+### Flujo Spec-Driven (Trello / Plane / FreeForm)
 
 ```
 /prd ──> PRD + Board/Project (US/UC/AC cards/work-items)
@@ -135,6 +136,10 @@ Las Skills se auto-descubren cuando son relevantes. Los hooks se ejecutan automa
 | `/explore` | Exploracion read-only del codebase |
 | `/feedback` | Captura feedback de testing manual, bloquea merge si no resuelto |
 | `/check-designs` | Escaneo retroactivo de compliance Stitch por UC |
+| `/acceptance-check` | Validacion standalone de AC sin pipeline completo |
+| `/quickstart` | Tutorial interactivo de onboarding (< 5 min) |
+| `/remote` | Gestion remota de proyectos (WhatsApp/Discord via OpenClaw) |
+| `/release` | Audita residuos + bump version + changelog + push |
 
 ---
 
@@ -430,13 +435,17 @@ Enforcement automatico — no hace falta recordar ejecutarlos:
 
 | Hook | Evento | Comportamiento |
 |------|--------|----------------|
+| `spec-guard.sh` | PostToolUse (Write/Edit en src/lib/) | **BLOQUEANTE**: verifica UC activo antes de escribir codigo (v5.7.0) |
+| `commit-spec-guard.sh` | PostToolUse (git commit) | WARNING: verifica UC activo, checkpoints frescos, tamano del commit (v5.7.0) |
 | `pre-commit-lint.sh` | PostToolUse (git commit) | **BLOQUEANTE**: falla commit si lint tiene errores |
-| `on-session-end.sh` | Stop | Registra telemetria en .quality/logs/ + Engram |
+| `design-gate.sh` | PostToolUse (Write/Edit) | WARNING si se modifica `presentation/pages/` sin diseño Stitch |
+| `on-session-end.sh` | Stop | Registra telemetria en .quality/logs/ + Engram + heartbeat |
 | `implement-checkpoint.sh` | Manual (/implement) | Guarda progreso de fase para resume |
 | `implement-healing.sh` | Manual (/implement) | Registra eventos de self-healing |
 | `post-implement-validate.sh` | Manual (/implement) | Detecta regresion de baseline |
+| `heartbeat-sender.sh` | Manual (hooks) | Envia snapshot de estado al VPS; cola local si offline |
 | `mcp-report.sh` | Utility | Cliente MCP reutilizable para telemetria remota |
-| `design-gate.sh` | PostToolUse (Write/Edit) | WARNING si se modifica `presentation/pages/` sin diseño Stitch |
+| `e2e-report.sh` | Manual (/implement) | Reporta resultados Playwright E2E a telemetria MCP |
 
 Configuracion en `.claude/settings.json`. Telemetria remota controlada por `SPECBOX_ENGINE_MCP_URL` env var.
 
@@ -515,9 +524,9 @@ Sistema de 3 modos para generar decisiones visuales (imagenes, motion, design) a
 
 ---
 
-## Multi-Backend: Trello + Plane
+## Multi-Backend: Trello + Plane + FreeForm
 
-Desde v4.1.0, el engine soporta **Trello** y **Plane** como gestores de proyecto intercambiables. Ambos backends implementan la misma interfaz `SpecBackend` (23 metodos), por lo que todos los tools MCP funcionan de forma identica con cualquiera de los dos.
+Desde v4.1.0, el engine soporta multiples gestores de proyecto intercambiables. Los 3 backends implementan la misma interfaz `SpecBackend` (25 metodos), por lo que todos los tools MCP funcionan de forma identica con cualquiera.
 
 ### Arquitectura Multi-Backend
 
@@ -525,24 +534,44 @@ Desde v4.1.0, el engine soporta **Trello** y **Plane** como gestores de proyecto
 spec_driven.py (21 tools, backend-agnostic)
         │
         ▼
-  SpecBackend ABC ─── 23 metodos unificados
-   ┌────┴────┐
-   │         │
-TrelloBackend  PlaneBackend
-   │              │
-TrelloClient   PlaneClient
-(httpx+retry)  (httpx+retry, X-Api-Key)
+  SpecBackend ABC ─── 25 metodos unificados
+   ┌────┼────────────┐
+   │    │             │
+TrelloBackend  PlaneBackend  FreeformBackend
+   │              │              │
+TrelloClient   PlaneClient   JSON + Markdown local
+(httpx+retry)  (httpx+retry)  (pathlib, sin API)
 ```
 
 ### Configuracion de backend
 
-El backend se elige al autenticarse. Solo uno esta activo por sesion. Todos los tools MCP (`setup_board`, `find_next_uc`, `mark_ac`, etc.) funcionan exactamente igual con cualquiera de los dos:
+El backend se elige al autenticarse. Solo uno esta activo por sesion. Todos los tools MCP (`setup_board`, `find_next_uc`, `mark_ac`, etc.) funcionan exactamente igual con cualquiera:
 
 **Trello** — `set_auth_token(token="TRELLO_TOKEN", api_key="TRELLO_KEY")`
 
 **Plane (cloud o self-hosted)** — `set_auth_token(token="PLANE_API_KEY", backend_type="plane", base_url="https://app.plane.so", workspace_slug="my-ws")`
 
+**FreeForm (local, sin API)** — `set_auth_token(api_key="freeform", token="", backend_type="freeform", root_path="doc/tracking")`
+
 > Para Plane self-hosted (CE), cambia `base_url` a tu dominio (ej. `https://plane.miempresa.com`).
+
+### FreeForm Backend (v5.8.0)
+
+Backend sin API externa para proyectos personales o donde Trello/Plane es overkill. Almacena todo como JSON local y genera Markdowns de progreso automaticamente:
+
+```
+doc/tracking/
+├── boards/{board_id}/
+│   ├── config.json          ← BoardConfig
+│   ├── items.json           ← Todos los items (US/UC/AC)
+│   ├── comments/{item_id}.jsonl
+│   └── attachments/{item_id}/
+└── progress/
+    ├── README.md            ← Vista general con tablas US/UC
+    └── UC-XXX.md            ← Detalle por UC con ACs y estado
+```
+
+Los hooks de Pipeline Integrity (v5.7.0) funcionan igual con FreeForm — leen `.quality/active_uc.json` que es backend-agnostic.
 
 ### Migracion entre backends
 
@@ -558,9 +587,41 @@ La migracion es idempotente: usa `external_source` + `external_id` para evitar d
 
 ---
 
+## Pipeline Integrity (v5.7.0)
+
+Enforcement a nivel de hooks que hace **imposible** escribir codigo sin UC activo en un proyecto spec-driven.
+
+### spec-guard.sh (BLOQUEANTE)
+
+```
+Agente intenta Write/Edit en src/ o lib/
+  ↓
+¿Existe .quality/active_uc.json?
+├── NO → ❌ BLOQUEADO: "No active UC. Call start_uc() first."
+├── SI → ¿Tiene menos de 24 horas?
+│   ├── SI → ✅ Permitido
+│   └── NO → ❌ BLOQUEADO: "Active UC expired (>24h). Call start_uc() again."
+└── Proyecto sin boardId configurado → ✅ No es spec-driven, permitir
+```
+
+### commit-spec-guard.sh (WARNING)
+
+```
+Agente intenta git commit
+  ↓
+Verificar:
+├── ¿UC activo? → WARNING si no
+├── ¿Checkpoint reciente (<30 min)? → WARNING si stale
+└── ¿Commit < 500 lineas? → WARNING si grande
+```
+
+Resultado del incidente embed-build (2026-03-24): un agente implemento 9 UCs sin pipeline, dejando Trello vacio. Estos hooks previenen que esto vuelva a ocurrir.
+
+---
+
 ## Spec-Driven Pipeline
 
-Pipeline basado en especificacion con Trello o Plane como fuente de verdad.
+Pipeline basado en especificacion con Trello, Plane o FreeForm como fuente de verdad.
 
 ### Jerarquia
 
@@ -698,7 +759,7 @@ Ahora son **HARD BLOCKS** que detienen el pipeline.
 
 ## MCP Server
 
-Servidor MCP unificado con 108+ tools en un solo endpoint.
+Servidor MCP unificado con 117+ tools en un solo endpoint.
 
 ### Arquitectura
 
@@ -706,17 +767,19 @@ Servidor MCP unificado con 108+ tools en un solo endpoint.
 server/
 ├── server.py              # FastMCP main server
 ├── dashboard_api.py       # REST API para dashboard
-├── auth_gateway.py        # Credenciales per-session (Trello + Plane)
-├── spec_backend.py        # SpecBackend ABC (23 metodos)
+├── auth_gateway.py        # Credenciales per-session (Trello + Plane + FreeForm)
+├── spec_backend.py        # SpecBackend ABC (25 metodos)
 ├── trello_client.py       # Async httpx con retry (Trello)
+├── stitch_client.py       # Async MCP JSON-RPC client (Stitch)
 ├── board_helpers.py       # Card parsing, custom fields (Trello)
 ├── backends/              # Multi-backend implementations
 │   ├── trello_backend.py  #   TrelloBackend (SpecBackend wrapper)
 │   ├── plane_backend.py   #   PlaneBackend (SpecBackend implementation)
-│   └── plane_client.py    #   PlaneClient (httpx async, X-Api-Key)
+│   ├── plane_client.py    #   PlaneClient (httpx async, X-Api-Key)
+│   └── freeform_backend.py #  FreeformBackend (JSON + Markdown local)
 ├── models.py              # Pydantic models (US, UC, AC)
 ├── pdf_generator.py       # Markdown → PDF
-├── tools/                 # 11 modulos de tools
+├── tools/                 # 13 modulos de tools
 │   ├── engine.py          # 3 tools: version, status, rules
 │   ├── plans.py           # 3 tools: list, read, architecture
 │   ├── quality.py         # 4 tools: baseline, logs, evidence
@@ -727,7 +790,9 @@ server/
 │   ├── onboarding.py      # 10+ tools: register, onboard, upgrade
 │   ├── state.py           # 20 tools: report, checkpoint, healing
 │   ├── spec_driven.py     # 21 tools: backend-agnostic (US/UC/AC)
-│   └── migration.py       # 5 tools: Trello ↔ Plane migration
+│   ├── migration.py       # 5 tools: Trello ↔ Plane migration
+│   ├── stitch.py          # 13 tools: Stitch MCP proxy
+│   └── heartbeat_stats.py # 1 tool: heartbeat observability
 ├── resources/             # 8 MCP Resources
 └── dashboard/             # React 19 + Vite frontend
 ```
@@ -884,7 +949,7 @@ upgrade_project(name)          # Actualiza al ultimo template del engine
 ```
 specbox-engine/
 ├── CLAUDE.md                          # Instrucciones del engine para Claude
-├── ENGINE_VERSION.yaml                # Version 4.1.0, stacks, servicios, changelog
+├── ENGINE_VERSION.yaml                # Version 5.9.0, stacks, servicios, changelog
 ├── README.md                          # Este archivo
 ├── CHANGELOG.md                       # Historial de cambios desde v1.0.0
 ├── LICENSE                            # MIT
@@ -895,7 +960,7 @@ specbox-engine/
 │
 ├── .claude/                           # Configuracion Claude Code
 │   ├── settings.json                  #   Hooks config
-│   ├── skills/                        #   8 Agent Skills
+│   ├── skills/                        #   13 Agent Skills
 │   │   ├── prd/SKILL.md              #     PRD generator
 │   │   ├── plan/SKILL.md             #     Plan + Stitch + VEG
 │   │   ├── implement/SKILL.md        #     Autopilot (1500+ lineas)
@@ -903,14 +968,24 @@ specbox-engine/
 │   │   ├── optimize-agents/SKILL.md  #     Agent system auditor
 │   │   ├── quality-gate/SKILL.md     #     Quality gates
 │   │   ├── explore/SKILL.md          #     Read-only exploration
-│   │   └── feedback/SKILL.md         #     Developer feedback
-│   └── hooks/                         #   6 Hook scripts
-│       ├── mcp-report.sh             #     MCP client helper
-│       ├── pre-commit-lint.sh        #     Lint on commit (BLOQUEANTE)
-│       ├── on-session-end.sh         #     Session telemetry
+│   │   ├── feedback/SKILL.md         #     Developer feedback
+│   │   ├── acceptance-check/SKILL.md #     Standalone AC validation
+│   │   ├── check-designs/SKILL.md    #     Stitch compliance scan
+│   │   ├── quickstart/SKILL.md       #     Interactive onboarding
+│   │   ├── remote/SKILL.md           #     Remote project management
+│   │   └── release/SKILL.md          #     Automated release pipeline
+│   └── hooks/                         #   11 Hook scripts
+│       ├── spec-guard.sh             #     BLOQUEANTE: UC activo para writes (v5.7.0)
+│       ├── commit-spec-guard.sh      #     WARNING: UC activo para commits (v5.7.0)
+│       ├── pre-commit-lint.sh        #     BLOQUEANTE: lint on commit
+│       ├── design-gate.sh            #     WARNING: diseño Stitch requerido
+│       ├── on-session-end.sh         #     Session telemetry + heartbeat
 │       ├── implement-checkpoint.sh   #     Phase checkpointing
 │       ├── implement-healing.sh      #     Healing event logging
-│       └── post-implement-validate.sh #    Baseline regression
+│       ├── post-implement-validate.sh #    Baseline regression
+│       ├── heartbeat-sender.sh       #     Estado al VPS (cola si offline)
+│       ├── mcp-report.sh             #     MCP client helper
+│       └── e2e-report.sh            #     Playwright E2E reporting
 │
 ├── server/                            # MCP Server + Dashboard
 │   ├── server.py                      #   FastMCP main
@@ -920,7 +995,7 @@ specbox-engine/
 │   ├── board_helpers.py               #   Card parsing
 │   ├── models.py                      #   Pydantic models
 │   ├── pdf_generator.py               #   Markdown → PDF
-│   ├── tools/                         #   11 modules, 108+ tools
+│   ├── tools/                         #   13 modules, 117+ tools
 │   │   ├── engine.py                  #     Version, status, rules
 │   │   ├── plans.py                   #     Plans management
 │   │   ├── quality.py                 #     Quality baselines
@@ -935,8 +1010,9 @@ specbox-engine/
 │   ├── backends/                      #   Multi-backend layer
 │   │   ├── trello_backend.py         #     TrelloBackend (SpecBackend)
 │   │   ├── plane_backend.py          #     PlaneBackend (SpecBackend)
-│   │   └── plane_client.py           #     PlaneClient (httpx async)
-│   ├── spec_backend.py               #   SpecBackend ABC (23 methods)
+│   │   ├── plane_client.py           #     PlaneClient (httpx async)
+│   │   └── freeform_backend.py       #     FreeformBackend (JSON + Markdown)
+│   ├── spec_backend.py               #   SpecBackend ABC (25 methods)
 │   ├── resources/                     #   8 MCP Resources
 │   └── dashboard/                     #   Sala de Maquinas (React 19 + Vite)
 │       └── src/
@@ -1190,6 +1266,7 @@ upgrade_all_projects()
 5. **Autopilot con control** — `/implement` automatiza con acceptance evidence para review humano
 6. **Enforcement > Documentacion** — Los HARD BLOCKS previenen violaciones, no las advertencias (v4.0.1)
 7. **Calidad visual no negociable** — VEG Pilar 1 exige imagenes reales, no placeholders (v4.0.1)
+8. **Trazabilidad innegociable** — Pipeline Integrity impide escribir codigo sin UC activo (v5.7.0)
 
 ---
 
@@ -1199,7 +1276,7 @@ MIT
 
 ---
 
-v4.1.0 | 2026-03-11 | JPS Developer
+v5.9.0 | 2026-03-25 | JPS Developer
 
 ---
 
@@ -1207,11 +1284,11 @@ v4.1.0 | 2026-03-11 | JPS Developer
 
 # English Version
 
-# SpecBox Engine v5.6.0 — Public Release
+# SpecBox Engine v5.9.0 — Public Release
 
 **SpecBox Engine by JPS** — An agentic programming system for Claude Code.
 
-Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 108+ tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane for professional development with Claude Code.
+Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 117+ tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane/FreeForm for professional development with Claude Code.
 
 ---
 
@@ -1227,7 +1304,7 @@ Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi
 - [Hooks System](#hooks-system-en)
 - [Self-Healing Protocol](#self-healing-protocol-en)
 - [VEG — Visual Experience Generation](#veg-en)
-- [Multi-Backend: Trello + Plane](#multi-backend-en)
+- [Multi-Backend: Trello + Plane + FreeForm](#multi-backend-en)
 - [Spec-Driven Pipeline](#spec-driven-pipeline-en)
 - [Hardened Autopilot Guards](#hardened-autopilot-guards)
 - [MCP Server](#mcp-server-en)
@@ -1582,9 +1659,9 @@ Corporate, Startup, Creative, Consumer, Gen-Z, Government — derived from targe
 
 <a id="multi-backend-en"></a>
 
-## Multi-Backend: Trello + Plane
+## Multi-Backend: Trello + Plane + FreeForm
 
-Since v4.1.0, the engine supports **Trello** and **Plane** as interchangeable project managers. Both backends implement the same `SpecBackend` interface (23 methods), so all MCP tools work identically with either one.
+Since v4.1.0, the engine supports multiple interchangeable project managers. All 3 backends implement the same `SpecBackend` interface (25 methods), so all MCP tools work identically with any of them.
 
 ### Multi-Backend Architecture
 
@@ -1592,24 +1669,44 @@ Since v4.1.0, the engine supports **Trello** and **Plane** as interchangeable pr
 spec_driven.py (21 tools, backend-agnostic)
         │
         ▼
-  SpecBackend ABC ─── 23 unified methods
-   ┌────┴────┐
-   │         │
-TrelloBackend  PlaneBackend
-   │              │
-TrelloClient   PlaneClient
-(httpx+retry)  (httpx+retry, X-Api-Key)
+  SpecBackend ABC ─── 25 unified methods
+   ┌────┼────────────┐
+   │    │             │
+TrelloBackend  PlaneBackend  FreeformBackend
+   │              │              │
+TrelloClient   PlaneClient   JSON + Markdown local
+(httpx+retry)  (httpx+retry)  (pathlib, no API)
 ```
 
 ### Backend Configuration
 
-The backend is selected at authentication time. Only one is active per session. All MCP tools (`setup_board`, `find_next_uc`, `mark_ac`, etc.) work identically with either backend:
+The backend is selected at authentication time. Only one is active per session. All MCP tools (`setup_board`, `find_next_uc`, `mark_ac`, etc.) work identically with any backend:
 
 **Trello** — `set_auth_token(token="TRELLO_TOKEN", api_key="TRELLO_KEY")`
 
 **Plane (cloud or self-hosted)** — `set_auth_token(token="PLANE_API_KEY", backend_type="plane", base_url="https://app.plane.so", workspace_slug="my-ws")`
 
 > For self-hosted Plane (CE), change `base_url` to your domain (e.g. `https://plane.mycompany.com`).
+
+**FreeForm (local, no API)** — `set_auth_token(api_key="freeform", token="", backend_type="freeform", root_path="doc/tracking")`
+
+### FreeForm Backend (v5.8.0)
+
+No-API backend for personal projects or where Trello/Plane is overkill. Stores everything as local JSON and auto-generates progress Markdowns:
+
+```
+doc/tracking/
+├── boards/{board_id}/
+│   ├── config.json          ← BoardConfig
+│   ├── items.json           ← All items (US/UC/AC)
+│   ├── comments/{item_id}.jsonl
+│   └── attachments/{item_id}/
+└── progress/
+    ├── README.md            ← Overview with US/UC tables
+    └── UC-XXX.md            ← Detail per UC with ACs and status
+```
+
+Pipeline Integrity hooks (v5.7.0) work identically with FreeForm — they read `.quality/active_uc.json` which is backend-agnostic.
 
 ### Migration Tools
 
@@ -1629,7 +1726,7 @@ Migration is idempotent: uses `external_source` + `external_id` to prevent dupli
 
 ## Spec-Driven Pipeline
 
-Specification-based pipeline with Trello or Plane as source of truth.
+Specification-based pipeline with Trello, Plane, or FreeForm as source of truth.
 
 ### Hierarchy
 
@@ -1690,7 +1787,7 @@ HARD BLOCKS that prevent the most critical protocol violations during autonomous
 
 ## MCP Server
 
-Unified MCP server with 108+ tools in a single endpoint.
+Unified MCP server with 117+ tools in a single endpoint.
 
 ### Architecture
 
@@ -1848,7 +1945,7 @@ specbox-engine/
 │   │   ├── trello_backend.py         #     TrelloBackend
 │   │   ├── plane_backend.py          #     PlaneBackend
 │   │   └── plane_client.py           #     PlaneClient
-│   ├── tools/                         #   11 modules, 108+ tools
+│   ├── tools/                         #   13 modules, 117+ tools
 │   └── dashboard/                     #   Sala de Maquinas (React 19 + Vite)
 │
 ├── agents/                            # 12 Agent templates (AG-01 to AG-10)
@@ -2043,4 +2140,4 @@ MIT
 
 ---
 
-v4.1.0 | 2026-03-11 | JPS Developer
+v5.9.0 | 2026-03-25 | JPS Developer

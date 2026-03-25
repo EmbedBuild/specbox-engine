@@ -1,8 +1,8 @@
-version: 5.9.0
-codename: "Release Pipeline"
+version: 5.10.0
+codename: "Hardened Enforcement"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-03-24
+release_date: 2026-03-25
 min_claude_code: "1.0.0"
 
 stacks:
@@ -164,8 +164,29 @@ features:
   - release-residual-detection
   - release-doc-consistency-check
   - release-structural-integrity-check
+  # New (v5.10.0)
+  - branch-guard-hook
+  - design-gate-blocking
+  - commit-branch-blocking
+  - autopilot-defaults
+  - acceptance-mandatory-prd
+  - healing-budget-hard-limits
+  - review-workflow-state
 
 changelog:
+  5.10.0:
+    date: 2026-03-25
+    changes:
+      - "feat: branch-guard.sh — BLOCKING hook prevents code writes on main/master"
+      - "feat: spec-guard.sh now also blocks writes on main (double enforcement)"
+      - "feat: commit-spec-guard.sh blocks commits on main (upgraded from WARNING)"
+      - "feat: design-gate.sh blocks UI page creation without Stitch HTML (upgraded from WARNING)"
+      - "feat: /implement moves UC to Review, not Done — human approves Done after PR review"
+      - "feat: Autopilot Defaults in GLOBAL_RULES — every decision has predefined default, no questions"
+      - "feat: PRD mandatory for acceptance tests — no PRD = pipeline STOPS"
+      - "feat: healing budget enforced: max 8 auto-heals, max 2 acceptance healings"
+      - "feat: 3 Absolute Contracts: no code without UC, no code on main, no UI without design"
+      - "feat: 11 explicit prohibitions in GLOBAL_RULES (was 5)"
   5.9.0:
     date: 2026-03-24
     changes:

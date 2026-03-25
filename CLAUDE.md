@@ -1,4 +1,4 @@
-# SpecBox Engine v5.9.0
+# SpecBox Engine v5.10.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -256,10 +256,11 @@ Automatic enforcement — no need to remember running these manually:
 
 | Hook | Event | Behavior |
 |------|-------|----------|
-| **spec-guard** | PostToolUse (Write/Edit on src/ or lib/) | **BLOCKING**: verifies active UC exists (`.quality/active_uc.json`). No UC = no code writes. Enforces pipeline contract. |
-| **commit-spec-guard** | PostToolUse (git commit) | WARNING: checks active UC, checkpoint freshness, commit size. Runs before lint. |
-| pre-commit-lint | PostToolUse (git commit) | BLOCKING: runs `gga run` (cached lint, skips unmodified files). Falls back to direct lint if GGA not installed |
-| design-gate | PostToolUse (Write/Edit on presentation/pages/) | NON-BLOCKING: warns if presentation page lacks Stitch design or traceability comment |
+| **spec-guard** | PostToolUse (Write/Edit on src/ or lib/) | **BLOCKING**: verifies active UC exists + branch is not main. No UC or main branch = no code writes. |
+| **branch-guard** | PostToolUse (Write/Edit on src/ or lib/) | **BLOCKING**: verifies current branch is not main/master. Enforces branch discipline. |
+| **commit-spec-guard** | PostToolUse (git commit) | **BLOCKING** (branch) + WARNING (rest): blocks commits on main; warns UC/checkpoint/size. |
+| pre-commit-lint | PostToolUse (git commit) | **BLOCKING**: runs `gga run` (cached lint, skips unmodified files). Falls back to direct lint if GGA not installed |
+| **design-gate** | PostToolUse (Write/Edit on pages/) | **BLOCKING**: blocks UI page creation/modification without Stitch HTML design in doc/design/. |
 | on-session-end | Stop | Logs session telemetry to .quality/logs/ + persists summary to Engram |
 | implement-checkpoint | Manual (called by /implement) | Saves phase progress for resume |
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
@@ -548,6 +549,6 @@ BDD acceptance testing without full /implement pipeline:
 
 ## Engine Version
 
-Current: v5.9.0 "Release Pipeline"
+Current: v5.10.0 "Hardened Enforcement"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

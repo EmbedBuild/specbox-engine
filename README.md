@@ -2,7 +2,7 @@
 
 **SpecBox Engine by JPS** — Sistema de programacion agentica para Claude Code.
 
-Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 117+ tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane/FreeForm para desarrollo profesional con Claude Code.
+Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 108 tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane/FreeForm para desarrollo profesional con Claude Code.
 
 > **[English version below](#english-version)** — Scroll down for the full English documentation.
 
@@ -759,7 +759,7 @@ Ahora son **HARD BLOCKS** que detienen el pipeline.
 
 ## MCP Server
 
-Servidor MCP unificado con 117+ tools en un solo endpoint.
+Servidor MCP unificado con 108 tools en un solo endpoint.
 
 ### Arquitectura
 
@@ -995,7 +995,7 @@ specbox-engine/
 │   ├── board_helpers.py               #   Card parsing
 │   ├── models.py                      #   Pydantic models
 │   ├── pdf_generator.py               #   Markdown → PDF
-│   ├── tools/                         #   13 modules, 117+ tools
+│   ├── tools/                         #   13 modules, 108 tools
 │   │   ├── engine.py                  #     Version, status, rules
 │   │   ├── plans.py                   #     Plans management
 │   │   ├── quality.py                 #     Quality baselines
@@ -1288,7 +1288,7 @@ v5.9.0 | 2026-03-25 | JPS Developer
 
 **SpecBox Engine by JPS** — An agentic programming system for Claude Code.
 
-Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 117+ tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane/FreeForm for professional development with Claude Code.
+Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 108 tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane/FreeForm for professional development with Claude Code.
 
 ---
 
@@ -1787,7 +1787,7 @@ HARD BLOCKS that prevent the most critical protocol violations during autonomous
 
 ## MCP Server
 
-Unified MCP server with 117+ tools in a single endpoint.
+Unified MCP server with 108 tools in a single endpoint.
 
 ### Architecture
 
@@ -1945,7 +1945,7 @@ specbox-engine/
 │   │   ├── trello_backend.py         #     TrelloBackend
 │   │   ├── plane_backend.py          #     PlaneBackend
 │   │   └── plane_client.py           #     PlaneClient
-│   ├── tools/                         #   13 modules, 117+ tools
+│   ├── tools/                         #   13 modules, 108 tools
 │   └── dashboard/                     #   Sala de Maquinas (React 19 + Vite)
 │
 ├── agents/                            # 12 Agent templates (AG-01 to AG-10)

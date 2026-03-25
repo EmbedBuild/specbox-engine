@@ -1,7 +1,7 @@
 """
-SpecBox Engine MCP Server v5.6.0
+SpecBox Engine MCP Server v5.11.0
 
-Unified MCP endpoint: 108+ tools (engine + spec-driven + migration + telemetry + stitch).
+Unified MCP endpoint: 108 tools (engine + spec-driven + migration + telemetry + stitch).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
 
 Architecture:

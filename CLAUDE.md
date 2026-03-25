@@ -1,8 +1,8 @@
-# SpecBox Engine v5.10.0
+# SpecBox Engine v5.11.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (117+ tools) + Sala de Máquinas + Gherkin BDD.
+> Monorepo unificado: engine + MCP server (108 tools) + Sala de Máquinas + Gherkin BDD.
 
 ## Que es este repositorio
 
@@ -15,7 +15,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (117+ tools) + Sala de Máquinas dashboard (React 19)
+- **Server** — MCP server unificado (108 tools) + Sala de Máquinas dashboard (React 19)
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
 
@@ -181,7 +181,7 @@ specbox-engine/
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
 ├── server/                ← MCP server unificado (v5.5)
-│   ├── server.py          ← FastMCP (117+ tools)
+│   ├── server.py          ← FastMCP (108 tools)
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
@@ -189,20 +189,26 @@ specbox-engine/
 │   │   ├── plane_backend.py    ← PlaneBackend (Plane CE self-hosted)
 │   │   ├── plane_client.py     ← Async httpx client for Plane API v1
 │   │   └── freeform_backend.py ← FreeformBackend (local JSON + Markdown)
-│   ├── tools/             ← 13 tool modules
+│   ├── tools/             ← 19 tool modules (108 tools)
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
 │   │   ├── quality.py     ← 4 tools
 │   │   ├── skills.py      ← 2 tools
-│   │   ├── features.py    ← 7 tools
-│   │   ├── telemetry.py   ← 8 tools
+│   │   ├── features.py    ← 6 tools
+│   │   ├── telemetry.py   ← 6 tools
 │   │   ├── hooks.py       ← 3 tools
-│   │   ├── onboarding.py  ← 10 tools (+ setup_board + archive_project)
-│   │   ├── state.py       ← 20 tools
+│   │   ├── onboarding.py  ← 9 tools (+ setup_board + archive_project)
+│   │   ├── state.py       ← 17 tools
 │   │   ├── spec_driven.py ← 21 tools (backend-agnostic via SpecBackend)
 │   │   ├── migration.py   ← 5 tools (Trello ↔ Plane migration)
 │   │   ├── stitch.py      ← 13 tools (Stitch MCP proxy)
-│   │   └── heartbeat_stats.py ← 1 tool (get_heartbeat_stats)
+│   │   ├── heartbeat_stats.py ← 1 tool (get_heartbeat_stats)
+│   │   ├── acceptance.py  ← 2 tools (run_acceptance_check, get_acceptance_report)
+│   │   ├── benchmark.py   ← 1 tool (generate_benchmark_snapshot)
+│   │   ├── hints.py       ← 3 tools (get_skill_hint, record, list)
+│   │   ├── live_state.py  ← 4 tools (project state, overview, sessions, refresh)
+│   │   ├── skill_registry.py ← 3 tools (discover, validate, manifest)
+│   │   └── sync.py        ← 2 tools (GitHub sync)
 │   ├── stitch_client.py   ← Async MCP JSON-RPC client for Google Stitch
 │   ├── trello_client.py   ← Async httpx con retry
 │   ├── board_helpers.py   ← Card parsing, custom fields (Trello)
@@ -552,6 +558,6 @@ BDD acceptance testing without full /implement pipeline:
 
 ## Engine Version
 
-Current: v5.10.0 "Hardened Enforcement"
+Current: v5.11.0 "E2E Evidence"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

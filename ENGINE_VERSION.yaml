@@ -1,5 +1,5 @@
-version: 5.10.0
-codename: "Hardened Enforcement"
+version: 5.11.0
+codename: "E2E Evidence"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-03-25
@@ -172,8 +172,26 @@ features:
   - acceptance-mandatory-prd
   - healing-budget-hard-limits
   - review-workflow-state
+  # New (v5.11.0)
+  - e2e-playwright-mandatory
+  - e2e-html-evidence-report
+  - e2e-evidence-step-helper
+  - flutter-playwright-e2e
+  - tool-count-audit
 
 changelog:
+  5.11.0:
+    date: 2026-03-25
+    changes:
+      - "feat: mandatory Playwright E2E for Flutter and React — real browser tests, not widget tests"
+      - "feat: HTML Evidence Report — self-contained HTML with base64 screenshots per AC-XX"
+      - "feat: evidenceStep() captures fullpage screenshot on every step (PASS and FAIL)"
+      - "feat: Flutter E2E uses Playwright against CanvasKit web build (was bdd_widget_test)"
+      - "feat: html+json reporter mandatory for Flutter/React acceptance tests"
+      - "fix: tool count corrected from 117+ to 108 actual tools across 19 modules"
+      - "fix: server.py version synced (was stuck at 5.6.0)"
+      - "fix: 6 missing tool modules documented in CLAUDE.md structure"
+      - "fix: tool counts per module corrected (features 7→6, state 20→17, telemetry 8→6, onboarding 10→9)"
   5.10.0:
     date: 2026-03-25
     changes:

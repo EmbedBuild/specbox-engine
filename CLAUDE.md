@@ -379,11 +379,14 @@ Pipeline completo de validacion funcional con jerarquia US → UC → AC:
 
 Frameworks de acceptance testing por stack:
 
-| Stack | Framework | Evidencia | Tests en |
-|-------|-----------|-----------|----------|
-| Flutter | Patrol + Alchemist | Screenshots + goldens | `test/acceptance/` |
-| React | Playwright | Screenshots + traces | `tests/acceptance/` |
-| Python | pytest + httpx | Response JSON logs | `tests/acceptance/` |
+| Stack | Framework | Evidencia | Tests en | E2E Report |
+|-------|-----------|-----------|----------|------------|
+| Flutter | **Playwright E2E** (CanvasKit web build) | Screenshots + traces + HTML report | `e2e/acceptance/` | **OBLIGATORIO** |
+| React | **Playwright E2E** (app web) | Screenshots + traces + HTML report | `tests/acceptance/` | **OBLIGATORIO** |
+| Python | pytest-bdd + httpx | Response JSON logs | `tests/acceptance/` | JSON only |
+
+Flutter y React generan un **HTML Evidence Report** self-contained con screenshots base64
+embebidos que el humano puede abrir en cualquier browser para validar calidad visual.
 
 ## Visual Experience Generation — VEG (v3.9)
 

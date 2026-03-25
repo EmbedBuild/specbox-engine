@@ -1,8 +1,10 @@
 # AG-09a: Acceptance Tester
 
-> SpecBox Engine v5.9.0
-> Genera archivos `.feature` (Gherkin en español) + step definitions desde acceptance criteria del PRD.
-> NO es AG-04 (QA). AG-04 genera unit tests. AG-09a genera acceptance tests BDD con evidencia visual.
+> SpecBox Engine v5.10.0
+> Genera archivos `.feature` (Gherkin en español) + step definitions + E2E tests reales con Playwright.
+> Para Flutter y React: genera tests E2E reales contra la app corriendo (browser).
+> Para Python: genera tests de integración HTTP. Para GAS: tests con jest-cucumber.
+> NO es AG-04 (QA). AG-04 genera unit tests. AG-09a genera E2E acceptance tests con evidencia visual.
 
 ## Propósito
 
@@ -141,55 +143,71 @@ Característica: UC-XXX — [Nombre del caso de uso]
 
 ## Step Definitions por Stack
 
-### Flutter (bdd_widget_test)
+### Flutter (Playwright E2E contra CanvasKit web build)
 
-```yaml
-# pubspec.yaml — dev_dependencies requeridas
-dev_dependencies:
-  bdd_widget_test: ^0.7.1
+> **IMPORTANTE**: Flutter usa Playwright contra web build CanvasKit, NO widget tests.
+> Los widget tests son AG-04 (unit). AG-09a genera E2E reales en browser.
+> Referencia completa: `architecture/flutter/e2e-testing.md`
+
+```json
+// package.json en e2e/ — devDependencies requeridas
+{
+  "devDependencies": {
+    "playwright-bdd": "^8.4.2",
+    "@playwright/test": "^1.40.0"
+  }
+}
 ```
 
-```dart
-// test/acceptance/steps/UC-XXX_steps.dart
-import 'package:bdd_widget_test/bdd_widget_test.dart';
-import 'package:flutter_test/flutter_test.dart';
+```typescript
+// e2e/acceptance/steps/UC-XXX_steps.ts
+import { Given, When, Then } from 'playwright-bdd';
+import { expect } from '@playwright/test';
+import { evidenceStep } from '../../helpers/evidence';
 
-import 'package:{app}/main.dart' as app;
+Given('el usuario está autenticado como {string}', async ({ page, testInfo }, actor: string) => {
+  await evidenceStep(page, testInfo, 'setup', 0, `Auth como ${actor}`, async () => {
+    // Supabase API → localStorage injection → reload
+    // Ver architecture/flutter/e2e-testing.md para auth rápida
+  });
+});
 
-// Dado el usuario está autenticado como "{actor}"
-Future<void> elUsuarioEstaAutenticadoComo(
-  WidgetTester tester, String actor,
-) async {
-  app.main();
-  await tester.pumpAndSettle();
-  // Login logic...
-}
+When('el usuario completa el formulario con {string} = {string}', async ({ page, testInfo }, campo: string, valor: string) => {
+  await evidenceStep(page, testInfo, 'AC-XX', 1, `Completar ${campo}`, async () => {
+    // CanvasKit: usar getByRole() semánticos, NUNCA selectores DOM
+    await page.getByRole('textbox', { name: campo }).click();
+    await page.keyboard.type(valor, { delay: 10 });
+  });
+});
 
-// Cuando el usuario completa el formulario con "{campo}" = "{valor}"
-Future<void> elUsuarioCompletaElFormulario(
-  WidgetTester tester, String campo, String valor,
-) async {
-  await tester.enterText(find.byKey(Key(campo)), valor);
-  await tester.pumpAndSettle();
-}
+Then('se muestra el mensaje {string}', async ({ page, testInfo }, mensaje: string) => {
+  await evidenceStep(page, testInfo, 'AC-XX', 2, `Verificar "${mensaje}"`, async () => {
+    await expect(page.getByText(mensaje)).toBeVisible();
+  });
+});
+```
 
-// Entonces se muestra el mensaje "{mensaje}"
-Future<void> seMuestraElMensaje(
-  WidgetTester tester, String mensaje,
-) async {
-  expect(find.text(mensaje), findsOneWidget);
-
-  // --- Evidencia: screenshot ---
-  // bdd_widget_test captura automáticamente al final del escenario
-}
+**Pre-requisito: build web antes de tests:**
+```bash
+flutter build web --web-renderer canvaskit --release
 ```
 
 **Ejecución:**
 ```bash
-flutter test test/acceptance/ --reporter json > test/acceptance/reports/cucumber-report.json
+npx bddgen && npx playwright test e2e/acceptance/ --reporter=html,json
 ```
 
-### React (playwright-bdd)
+**Notas CanvasKit:**
+- Selectores: SIEMPRE `getByRole()` semánticos (CanvasKit no genera DOM HTML real)
+- Input: `click()` + `keyboard.type({ delay: 10 })`, NUNCA `fill()`
+- Navegación: `window.location.hash`, NUNCA `page.goto('/route')` (pierde auth)
+- Tab: NUNCA usar Tab entre campos (pierde primer keystroke)
+
+### React (Playwright E2E real con evidenceStep)
+
+> **IMPORTANTE**: React usa Playwright E2E real contra la app corriendo.
+> Cada paso captura screenshot automaticamente via `evidenceStep()`.
+> Referencia completa: `architecture/react/e2e-testing.md`
 
 ```json
 // package.json — devDependencies requeridas
@@ -205,38 +223,47 @@ flutter test test/acceptance/ --reporter json > test/acceptance/reports/cucumber
 // tests/acceptance/steps/UC-XXX_steps.ts
 import { Given, When, Then } from 'playwright-bdd';
 import { expect } from '@playwright/test';
+import { evidenceStep } from '../../helpers/evidence';
 
-Given('el usuario está autenticado como {string}', async ({ page }, actor: string) => {
-  await page.goto('/login');
-  // Login logic...
+Given('el usuario está autenticado como {string}', async ({ page, testInfo }, actor: string) => {
+  await evidenceStep(page, testInfo, 'setup', 0, `Auth como ${actor}`, async () => {
+    await page.goto('/login');
+    await page.fill('[name="email"]', `${actor}@test.com`);
+    await page.fill('[name="password"]', 'test-password');
+    await page.click('button[type="submit"]');
+    await page.waitForURL('/dashboard');
+  });
 });
 
-When('el usuario completa el formulario con {string} = {string}', async ({ page }, campo: string, valor: string) => {
-  await page.fill(`[name="${campo}"]`, valor);
+When('el usuario completa el formulario con {string} = {string}', async ({ page, testInfo }, campo: string, valor: string) => {
+  await evidenceStep(page, testInfo, 'AC-XX', 1, `Completar ${campo}`, async () => {
+    await page.fill(`[name="${campo}"]`, valor);
+  });
 });
 
-Then('se muestra el mensaje {string}', async ({ page }, mensaje: string) => {
-  await expect(page.locator('text=' + mensaje)).toBeVisible();
-
-  // --- Evidencia: screenshot ---
-  await page.screenshot({
-    path: `.quality/evidence/{feature}/acceptance/screenshot.png`,
-    fullPage: true,
+Then('se muestra el mensaje {string}', async ({ page, testInfo }, mensaje: string) => {
+  await evidenceStep(page, testInfo, 'AC-XX', 2, `Verificar "${mensaje}"`, async () => {
+    await expect(page.getByText(mensaje)).toBeVisible();
   });
 });
 ```
 
-**Configurar traces en `playwright.config.ts`:**
+**Configurar en `playwright.config.ts`:**
 ```typescript
 use: {
-  trace: 'on',
-  screenshot: 'on',
-}
+  screenshot: 'on',              // Screenshot en cada test
+  video: 'retain-on-failure',    // Video solo en fallos
+  trace: 'retain-on-failure',    // Trace solo en fallos
+},
+reporter: [
+  ['html', { outputFolder: 'doc/test_cases/reports', open: 'never' }],
+  ['json', { outputFile: 'tests/acceptance/reports/playwright-results.json' }],
+],
 ```
 
 **Ejecución:**
 ```bash
-npx bddgen && npx playwright test tests/acceptance/ --reporter=json > tests/acceptance/reports/cucumber-report.json
+npx bddgen && npx playwright test tests/acceptance/ --reporter=html,json
 ```
 
 ### Python (pytest-bdd)
@@ -499,19 +526,21 @@ Antes de ejecutar los tests (paso 5), verificar:
 
 | Stack | Comando |
 |-------|---------|
-| Flutter | `flutter pub add --dev bdd_widget_test` |
-| React | `npm install -D playwright-bdd` |
+| Flutter | `cd e2e && npm install -D playwright-bdd @playwright/test && npx playwright install` |
+| React | `npm install -D playwright-bdd @playwright/test && npx playwright install` |
 | Python | `pip install pytest-bdd` |
 | GAS | `npm install -D jest-cucumber` |
 
 ### 5. Ejecutar tests
 
-| Stack | Comando |
-|-------|---------|
-| Flutter | `flutter test test/acceptance/ --reporter json > test/acceptance/reports/cucumber-report.json` |
-| React | `npx bddgen && npx playwright test tests/acceptance/ --reporter=json` |
-| Python | `pytest tests/acceptance/ --cucumberjson=tests/acceptance/reports/cucumber-report.json` |
-| GAS | `npx jest tests/acceptance/ --json --outputFile=tests/acceptance/reports/cucumber-report.json` |
+| Stack | Comando | Reporter |
+|-------|---------|----------|
+| Flutter | `cd e2e && npx bddgen && npx playwright test e2e/acceptance/ --reporter=html,json` | HTML + JSON |
+| React | `npx bddgen && npx playwright test tests/acceptance/ --reporter=html,json` | HTML + JSON |
+| Python | `pytest tests/acceptance/ --cucumberjson=tests/acceptance/reports/cucumber-report.json` | JSON |
+| GAS | `npx jest tests/acceptance/ --json --outputFile=tests/acceptance/reports/cucumber-report.json` | JSON |
+
+**OBLIGATORIO para Flutter y React**: Usar reporter `html` para generar informe visual con screenshots embebidos.
 
 ### 6. Recopilar evidencia
 
@@ -558,7 +587,162 @@ Transformar el JSON Cucumber report al formato estándar:
 }
 ```
 
-### 8. Adjuntar evidencia a Trello (si spec-driven)
+### 8. Generar HTML Evidence Report (Flutter y React OBLIGATORIO)
+
+> Para Flutter y React, AG-09a DEBE generar un informe HTML self-contained
+> con screenshots embebidos base64 que el humano pueda abrir en cualquier browser.
+
+**Archivo de salida:** `.quality/evidence/{feature}/acceptance/e2e-evidence-report.html`
+
+**Proceso:**
+1. Leer `results.json` generado en paso 7
+2. Para cada AC-XX con screenshot, leer el PNG y convertir a base64
+3. Generar HTML usando el template de `doc/templates/e2e-evidence-report-template.md`
+4. El HTML DEBE ser self-contained (CSS inline, imagenes base64, sin dependencias externas)
+
+**Contenido del informe:**
+
+```
+┌─────────────────────────────────────────────┐
+│  E2E Evidence Report                        │
+│  Feature: {feature} | UC: {uc_id}           │
+│  {timestamp} | Pass Rate: XX%               │
+├─────────────────────────────────────────────┤
+│  Summary                                    │
+│  ✅ 4 passed  ❌ 1 failed  ⏭️ 0 skipped     │
+│  Duration: 12.3s | Viewports: 3             │
+├─────────────────────────────────────────────┤
+│  AC-01: Crear nuevo registro     ✅ PASS    │
+│  ┌─────────────────────────────────────┐    │
+│  │  [Screenshot fullpage embebido]     │    │
+│  └─────────────────────────────────────┘    │
+│  Steps: Dado → Cuando → Entonces (1.2s)    │
+├─────────────────────────────────────────────┤
+│  AC-02: Validar campo obligatorio ❌ FAIL   │
+│  ┌─────────────────────────────────────┐    │
+│  │  [Screenshot del estado al fallar]  │    │
+│  └─────────────────────────────────────┘    │
+│  Error: Expected 'error visible'...        │
+│  Steps: Dado ✅ → Cuando ✅ → Entonces ❌   │
+├─────────────────────────────────────────────┤
+│  Viewport Coverage                          │
+│  Desktop ✅ | Tablet ✅ | Mobile ✅          │
+└─────────────────────────────────────────────┘
+```
+
+**Implementacion (script inline en step definitions):**
+
+```typescript
+// Añadir al final del test run (afterAll o reporter custom)
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { join, resolve } from 'path';
+
+function generateEvidenceReport(feature: string, ucId: string, evidenceDir: string) {
+  const resultsPath = join(evidenceDir, 'results.json');
+  if (!existsSync(resultsPath)) return;
+
+  const results = JSON.parse(readFileSync(resultsPath, 'utf-8'));
+  const totalPass = results.results.filter((r: any) => r.status === 'PASS').length;
+  const totalFail = results.results.filter((r: any) => r.status === 'FAIL').length;
+  const passRate = Math.round((totalPass / results.tests_total) * 100);
+
+  let screenshotCards = '';
+  for (const r of results.results) {
+    let imgTag = '<p style="color:#999;font-style:italic">No screenshot captured</p>';
+    if (r.screenshot) {
+      const imgPath = join(evidenceDir, r.screenshot);
+      if (existsSync(imgPath)) {
+        const b64 = readFileSync(imgPath).toString('base64');
+        imgTag = `<img src="data:image/png;base64,${b64}" style="max-width:100%;border:1px solid #e5e7eb;border-radius:8px;" />`;
+      }
+    }
+    const statusBadge = r.status === 'PASS'
+      ? '<span style="background:#22c55e;color:white;padding:2px 8px;border-radius:4px;font-size:13px">PASS</span>'
+      : '<span style="background:#ef4444;color:white;padding:2px 8px;border-radius:4px;font-size:13px">FAIL</span>';
+
+    const stepsHtml = (r.steps || []).map((s: any) =>
+      `<span style="color:${s.status === 'PASS' ? '#22c55e' : '#ef4444'}">${s.keyword}</span> ${s.text}`
+    ).join(' → ');
+
+    const errorHtml = r.error
+      ? `<pre style="background:#fef2f2;border:1px solid #fecaca;padding:8px;border-radius:4px;font-size:12px;overflow-x:auto">${r.error}</pre>`
+      : '';
+
+    screenshotCards += `
+      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0;font-size:16px">${r.id}: ${r.scenario}</h3>
+          ${statusBadge}
+        </div>
+        ${imgTag}
+        <div style="margin-top:8px;font-size:13px;color:#6b7280">${stepsHtml}</div>
+        <div style="margin-top:4px;font-size:12px;color:#9ca3af">Duration: ${r.duration_ms}ms</div>
+        ${errorHtml}
+      </div>`;
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E2E Evidence — ${ucId}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 24px; background: #fafafa; color: #1f2937; }
+    .header { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+    .header h1 { margin: 0 0 8px 0; font-size: 24px; }
+    .header .meta { color: #6b7280; font-size: 14px; }
+    .summary { display: flex; gap: 16px; margin: 16px 0; }
+    .summary .card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; flex: 1; text-align: center; }
+    .summary .card .number { font-size: 28px; font-weight: bold; }
+    .summary .card .label { font-size: 12px; color: #6b7280; text-transform: uppercase; }
+    .pass-rate { font-size: 48px; font-weight: bold; color: ${passRate >= 80 ? '#22c55e' : passRate >= 50 ? '#eab308' : '#ef4444'}; }
+    .footer { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>E2E Evidence Report</h1>
+    <div class="meta">
+      Feature: <strong>${feature}</strong> | UC: <strong>${ucId}</strong> | US: <strong>${results.us_id || 'N/A'}</strong><br>
+      Generated: ${new Date().toISOString().replace('T', ' ').slice(0, 19)} UTC
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="card">
+      <div class="pass-rate">${passRate}%</div>
+      <div class="label">Pass Rate</div>
+    </div>
+    <div class="card">
+      <div class="number" style="color:#22c55e">${totalPass}</div>
+      <div class="label">Passed</div>
+    </div>
+    <div class="card">
+      <div class="number" style="color:#ef4444">${totalFail}</div>
+      <div class="label">Failed</div>
+    </div>
+    <div class="card">
+      <div class="number">${results.tests_total}</div>
+      <div class="label">Total</div>
+    </div>
+  </div>
+
+  <h2 style="font-size:18px;margin:24px 0 12px">Acceptance Criteria Evidence</h2>
+  ${screenshotCards}
+
+  <div class="footer">
+    SpecBox Engine v5.10.0 — AG-09a Acceptance Tester<br>
+    Generated automatically from E2E test execution
+  </div>
+</body>
+</html>`;
+
+  writeFileSync(join(evidenceDir, 'e2e-evidence-report.html'), html, 'utf-8');
+}
+```
+
+### 9. Adjuntar evidencia a Trello/Plane/FreeForm (si spec-driven)
 
 ```
 attach_evidence(board_id, uc_id, "uc", "ag09", pdf_bytes)
@@ -640,10 +824,11 @@ git commit -m "test(acceptance): add Gherkin scenarios for UC-XXX"
 - [ ] Screenshots capturados por escenario
 - [ ] `results.json` generado desde JSON Cucumber
 - [ ] Evidencia guardada en `.quality/evidence/{feature}/acceptance/`
-- [ ] Evidencia adjuntada a Trello (si spec-driven)
+- [ ] HTML Evidence Report generado (Flutter/React OBLIGATORIO)
+- [ ] Evidencia adjuntada a Trello/Plane/FreeForm (si spec-driven)
 - [ ] Cleanup verificado: 0 datos con prefijo `e2e-` tras ejecución
-- [ ] Commit de acceptance tests + seed realizado
+- [ ] Commit de acceptance tests + seed + evidence report realizado
 
 ---
 
-*SpecBox Engine v5.9.0 — Acceptance Tester (Gherkin BDD + E2E Seed Lifecycle)*
+*SpecBox Engine v5.10.0 — Acceptance Tester (E2E Playwright + Gherkin BDD + Evidence Reports)*

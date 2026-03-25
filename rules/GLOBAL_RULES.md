@@ -124,12 +124,27 @@ Si detectas que estas implementando sin haber llamado a `start_uc`:
 
 > Los acceptance tests son OBLIGATORIOS. No hay path que los salte.
 
+### E2E obligatorio por stack
+
+| Stack | Framework | Tipo | Evidence Report |
+|-------|-----------|------|-----------------|
+| **Flutter** | Playwright contra CanvasKit web build | **E2E real (browser)** | HTML con screenshots base64 **OBLIGATORIO** |
+| **React** | Playwright contra app web | **E2E real (browser)** | HTML con screenshots base64 **OBLIGATORIO** |
+| Python | pytest-bdd (httpx) | Integration HTTP | JSON response logs |
+| GAS | jest-cucumber | Unit/Integration | JSON test results |
+
+**Flutter y React DEBEN usar Playwright E2E real** — NO widget tests, NO unit tests.
+El `evidenceStep()` helper captura screenshot fullpage en cada paso (PASS y FAIL).
+El HTML Evidence Report se genera automaticamente con screenshots embebidos base64.
+
 ### Reglas de AG-09a (Acceptance Tester)
 
 1. Un `.feature` por UC, un `Escenario` por AC-XX — **todos los AC-XX del PRD deben estar cubiertos**
 2. Si el .feature tiene menos Escenarios que AC-XX en el PRD → **ERROR**, no WARNING
 3. Tags obligatorios: `@US-XX`, `@UC-XXX`, `@AC-XX` en cada escenario
 4. Idioma obligatorio: `# language: es`
+5. **Flutter/React**: Reporter `html` + `json` OBLIGATORIO (genera Playwright HTML report + JSON)
+6. **Flutter/React**: HTML Evidence Report con screenshots base64 OBLIGATORIO (Paso 7.5.7)
 
 ### Reglas de AG-09b (Acceptance Validator)
 

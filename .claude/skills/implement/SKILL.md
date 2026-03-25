@@ -1181,18 +1181,23 @@ Característica: {Título del UC-XXX}
 
 Generar step definitions usando el framework BDD nativo del stack:
 
-**Flutter (bdd_widget_test):**
-- Step file: `test/acceptance/steps/UC-XXX_steps.dart`
-- Framework: `bdd_widget_test`
-- Reutilizar `test/acceptance/steps/common_steps.dart` si existe
-- Screenshot: captura automática en cada escenario
+**Flutter (Playwright E2E contra CanvasKit web build):**
+- Step file: `e2e/acceptance/steps/UC-XXX_steps.ts`
+- Framework: `playwright-bdd` + `@playwright/test`
+- Reutilizar `e2e/acceptance/steps/common_steps.ts` si existe
+- Screenshot: via `evidenceStep()` en cada paso (PASS y FAIL)
+- Traces: `retain-on-failure`
+- Reporter: `html` + `json` (OBLIGATORIO ambos)
+- Pre-requisito: `flutter build web --web-renderer canvaskit --release`
+- Selectores: `getByRole()` semánticos (CanvasKit no genera DOM)
 
-**React (playwright-bdd):**
+**React (Playwright E2E real):**
 - Step file: `tests/acceptance/steps/UC-XXX_steps.ts`
-- Framework: `playwright-bdd`
+- Framework: `playwright-bdd` + `@playwright/test`
 - Reutilizar `tests/acceptance/steps/common_steps.ts` si existe
-- Screenshot: `page.screenshot()` en cada escenario
-- Traces: `context.tracing.start()` / `stop()`
+- Screenshot: via `evidenceStep()` en cada paso (PASS y FAIL)
+- Traces: `retain-on-failure`
+- Reporter: `html` + `json` (OBLIGATORIO ambos)
 
 **Python (pytest-bdd):**
 - Step file: `tests/acceptance/steps/UC_XXX_steps.py`
@@ -1246,18 +1251,34 @@ Guardar en `.quality/evidence/{feature}/acceptance/`:
 - JSON report en formato Cucumber estándar (`cucumber-report.json`)
 - Traces (solo Playwright)
 
-### 7.5.7 Generar PDF de evidencia
+### 7.5.7 Generar HTML Evidence Report (Flutter y React OBLIGATORIO)
+
+> Para Flutter y React, generar informe HTML self-contained con screenshots base64.
+> El humano abre este archivo en su browser para validar calidad visual del E2E.
+
+1. Leer `results.json` de `.quality/evidence/{feature}/acceptance/`
+2. Para cada AC-XX con screenshot → leer PNG, convertir a base64
+3. Generar HTML usando el template definido en `agents/acceptance-tester.md` seccion 8
+4. Guardar en `.quality/evidence/{feature}/acceptance/e2e-evidence-report.html`
+
+**El informe DEBE incluir:**
+- Pass rate (%) con color verde/amarillo/rojo
+- Card por cada AC-XX con: status badge, screenshot embebido, steps, duration
+- Error details con stack trace para los FAIL
+- Resumen de viewports testeados
+
+### 7.5.8 Generar PDF de evidencia
 
 Generar PDF con estructura:
-- **Título**: Acceptance Tests — {feature} / UC-XXX
-- **Resumen**: Total escenarios, pasados, fallidos
-- **Tabla AC**: AC-XX | Descripción | Resultado (PASS/FAIL)
-- **Detalle por escenario**: Steps ejecutados, screenshots, logs
+- **Titulo**: Acceptance Tests — {feature} / UC-XXX
+- **Resumen**: Total escenarios, pasados, fallidos, pass rate
+- **Tabla AC**: AC-XX | Descripcion | Resultado (PASS/FAIL)
+- **Detalle por escenario**: Steps ejecutados, screenshot path, logs
 - **Footer**: Timestamp, branch, commit SHA
 
 Guardar en `.quality/evidence/{feature}/acceptance/acceptance-report.pdf`
 
-### 7.5.8 Adjuntar a Trello (si spec-driven)
+### 7.5.9 Adjuntar evidencia (si spec-driven)
 
 Si el flujo es spec-driven (tiene board_id y UC card):
 ```
@@ -1265,19 +1286,20 @@ attach_evidence(board_id, uc_card_id, "uc", "acceptance", pdf_path)
 ```
 Agregar comentario estructurado en la card del UC:
 ```
-📋 Acceptance Tests — UC-XXX
-✅ {N} passed / ❌ {M} failed
-📎 Evidencia adjunta: acceptance-report.pdf
+Acceptance Tests — UC-XXX
+{N} passed / {M} failed | Pass rate: XX%
+Evidencia adjunta: acceptance-report.pdf
+HTML report: .quality/evidence/{feature}/acceptance/e2e-evidence-report.html
 ```
 
-### 7.5.9 Commit
+### 7.5.10 Commit
 
 ```bash
-git add test/acceptance/ tests/acceptance/ .quality/evidence/{feature}/acceptance/
-git commit -m "test(acceptance): add Gherkin scenarios for UC-XXX"
+git add test/acceptance/ tests/acceptance/ e2e/acceptance/ .quality/evidence/{feature}/acceptance/
+git commit -m "test(acceptance): E2E acceptance tests + evidence report for UC-XXX"
 ```
 
-**NOTA**: Si los acceptance tests fallan, NO bloquear aquí. Reportar fallos y dejar que AG-09b decida el veredicto en Paso 7.7.
+**NOTA**: Si los acceptance tests fallan, NO bloquear aqui. Reportar fallos y dejar que AG-09b decida el veredicto en Paso 7.7.
 
 ---
 

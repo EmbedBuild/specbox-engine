@@ -10,7 +10,7 @@
           {
             "type": "command",
             "command": ".claude/hooks/commit-spec-guard.sh",
-            "blocking": false,
+            "blocking": true,
             "timeout": 10000
           },
           {
@@ -86,7 +86,7 @@
           {
             "type": "command",
             "command": ".claude/hooks/design-gate.sh",
-            "blocking": false,
+            "blocking": true,
             "timeout": 10000
           }
         ]
@@ -100,7 +100,63 @@
           {
             "type": "command",
             "command": ".claude/hooks/design-gate.sh",
-            "blocking": false,
+            "blocking": true,
+            "timeout": 10000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Write",
+          "input_contains": "src/pages/"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/design-gate.sh",
+            "blocking": true,
+            "timeout": 10000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Edit",
+          "input_contains": "src/pages/"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/design-gate.sh",
+            "blocking": true,
+            "timeout": 10000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Write",
+          "input_contains": "app/"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/design-gate.sh",
+            "blocking": true,
+            "timeout": 10000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Edit",
+          "input_contains": "app/"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/design-gate.sh",
+            "blocking": true,
             "timeout": 10000
           }
         ]

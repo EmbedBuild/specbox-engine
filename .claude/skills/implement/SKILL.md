@@ -81,7 +81,7 @@ US-XX recibida
   ├── find_next_uc → UC-001 (Backlog)
   │   ├── start_uc(UC-001) → In Progress
   │   ├── Implementar (Pasos 1-7.7)
-  │   ├── complete_uc(UC-001) → Done
+  │   ├── move_uc(UC-001, "review") → Review (humano aprueba Done)
   │   ├── Merge secuencial (Paso 8.5)
   │   └── Pull main
   ├── find_next_uc → UC-002 (Backlog)
@@ -1116,25 +1116,28 @@ git commit -m "test({feature}): add tests with 85%+ coverage"
 ## Paso 7.5: Acceptance Tests con Gherkin BDD (AG-09a)
 
 > Generar y ejecutar tests BDD en formato Gherkin que validen acceptance criteria del PRD.
-> Si no hay PRD disponible, saltar este paso con WARNING.
+> PRD es OBLIGATORIO. Sin PRD no hay AC-XX → no hay acceptance tests → pipeline PARA.
 
 ### 7.5.1 Localizar PRD
 
 ```
 ¿Cómo encontrar el PRD?
-├── Spec-Driven (Trello)
+├── Spec-Driven (Trello/Plane/FreeForm)
 │   └── get_evidence(board_id, us_id, "us", "prd") → extraer PRD adjunto
-├── Existe doc/prd/{feature}.md
+├── Existe doc/prd/{feature}.md o doc/prd/PRD_{feature}.md
 │   └── Leer directamente
-└── No se encuentra PRD
-    └── WARNING: "No PRD found. Skipping acceptance tests."
-    └── Saltar a Paso 7.6
+├── Existe en attachment de la US card/item
+│   └── Descargar y leer
+└── No se encuentra PRD en NINGUNA ubicacion
+    └── ERROR FATAL: "No PRD found. Cannot validate acceptance criteria."
+    └── PARAR PIPELINE — no continuar sin PRD
+    └── Reportar al usuario: "PRD requerido. Ejecutar /prd primero."
 ```
 
 Extraer sección "Criterios de Aceptación > Funcionales":
 - Extraer cada AC-XX con su descripción
 - Ignorar sección "Técnicos"
-- Si no hay criterios AC-XX en el PRD → WARNING y saltar
+- Si no hay criterios AC-XX en el PRD → ERROR FATAL, PARAR pipeline
 
 ### 7.5.2 Generar archivos .feature
 
@@ -1301,7 +1304,7 @@ Si **NO-GO** → Aplicar self-healing (ver Self-Healing Protocol) y re-auditar. 
 ## Paso 7.7: Acceptance Gate (AG-09b)
 
 > Validación independiente de que la feature cumple los acceptance criteria.
-> Si no hay PRD disponible (Paso 7.5 fue saltado), saltar este paso.
+> PRD es obligatorio (Paso 7.5 ya lo verifico). Si llegamos aqui, el PRD existe.
 
 ### 7.7.1 Ejecutar AG-09b Acceptance Validator
 
@@ -1564,15 +1567,16 @@ git pull origin main
 
 ### 8.5.4 Actualizar work item
 
-#### Si origen es Trello:
-1. Llamar `complete_uc(board_id, uc_id, evidence)` — mueve UC a Done + actualiza checklist US
-2. Si `us_all_done == true` (todos los UCs de la US completados):
-   - Llamar `move_us(board_id, us_id, "done")` — mover US a Done
-   - Adjuntar delivery report: `attach_evidence(board_id, us_id, "us", "delivery", report_md)`
-3. Reportar acceptance tests a Trello: `mark_ac_batch(board_id, uc_id, results)`
+#### Todos los backends (Trello/Plane/FreeForm):
+1. Llamar `move_uc(board_id, uc_id, "review")` — mueve UC a **Review** (NO a Done)
+2. Adjuntar evidencia: `attach_evidence(board_id, uc_id, "uc", "acceptance", evidence_md)`
+3. Reportar acceptance tests: `mark_ac_batch(board_id, uc_id, results)`
 
-#### Si origen es Plane:
-- Actualizar estado a "Finalizado"
+> **IMPORTANTE**: El agente NUNCA mueve a Done. Solo a Review.
+> El humano revisa la PR, ejecuta flujos manuales, verifica E2E,
+> y SOLO ENTONCES mueve a Done (manualmente o via complete_uc).
+> Si todos los UCs de la US estan en Review/Done, la US se queda
+> en su estado actual — el humano decide cuando mover la US a Done.
 
 ### 8.5.5 Siguiente UC/card
 
@@ -1585,8 +1589,8 @@ git pull origin main
   → El nuevo feature branch parte del main actualizado (post-merge)
   → CERO conflictos garantizados
 → Si no hay mas UCs en Backlog:
-  → Verificar si todos los UCs de la US estan en Done
-  → Si todos Done → move_us a Done + delivery report
+  → Verificar si todos los UCs de la US estan en Review o Done
+  → NO mover US a Done — el humano decide tras revisar todas las PRs
   → Finalizar pipeline con resumen global
 ```
 

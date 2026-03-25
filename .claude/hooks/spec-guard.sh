@@ -64,6 +64,25 @@ if [ -z "$BOARD_ID" ] && [ -z "$BACKEND_TYPE" ]; then
   exit 0
 fi
 
+# --- Spec-driven project: verify branch discipline ---
+
+CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+
+if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+  echo ""
+  echo "============================================================"
+  echo "  SPEC GUARD: Writing source code on $CURRENT_BRANCH blocked"
+  echo "============================================================"
+  echo "  File: $FILE_PATH"
+  echo "  Branch: $CURRENT_BRANCH"
+  echo ""
+  echo "  Spec-driven projects require ALL code on feature branches."
+  echo "  Create a branch first: git checkout -b feature/{name} main"
+  echo "============================================================"
+  echo ""
+  exit 1
+fi
+
 # --- Spec-driven project: verify active UC ---
 
 # Check for active UC marker (written by start_uc or /implement)

@@ -1,23 +1,20 @@
 #!/usr/bin/env bash
 # commit-spec-guard.sh — PostToolUse hook for git commit
-# WARNING (non-blocking): Warns if committing in a spec-driven project without
-# having marked ACs for the active UC.
+# MIXED: Some checks BLOCK, others WARN.
 #
-# This runs BEFORE pre-commit-lint.sh. It checks:
-#   1. Is this a spec-driven project? (board configured)
-#   2. Is there an active UC? (active_uc.json exists)
-#   3. Are there unmarked ACs? (warns if so)
-#   4. Has a checkpoint been saved recently? (warns if not)
+# BLOCKING checks:
+#   1. Commit on main/master in a spec-driven project → BLOCKED
 #
-# NON-BLOCKING by design: we don't want to prevent emergency commits,
-# but we DO want the agent to see the warning and self-correct.
+# WARNING checks:
+#   2. No active UC → WARNING
+#   3. No checkpoint saved → WARNING
+#   4. Large commit (>15 files) → WARNING
 #
-# v5.7.0 — Pipeline Integrity Enforcement
+# v5.10.0 — Branch discipline enforcement added (BLOCKING)
 
 set -euo pipefail
 
 # --- Check if project is spec-driven ---
-# Supports all backends: Trello (boardId), Plane (boardId), FreeForm (backend_type)
 BOARD_ID=""
 BACKEND_TYPE=""
 
@@ -35,14 +32,35 @@ for config_file in ".claude/project-config.json" ".claude/settings.local.json"; 
   fi
 done
 
-# Not spec-driven → skip
+# Not spec-driven → skip all checks
 if [ -z "$BOARD_ID" ] && [ -z "$BACKEND_TYPE" ]; then
   exit 0
 fi
 
+# --- BLOCKING Check: Branch discipline ---
+CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "")
+
+if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+  echo ""
+  echo "============================================================"
+  echo "  COMMIT BLOCKED: Cannot commit to $CURRENT_BRANCH"
+  echo "============================================================"
+  echo "  This is a spec-driven project. ALL implementation commits"
+  echo "  MUST be on a feature branch, never on main/master."
+  echo ""
+  echo "  To fix:"
+  echo "    1. git stash"
+  echo "    2. git checkout -b feature/{nombre}"
+  echo "    3. git stash pop"
+  echo "    4. Then commit on the feature branch"
+  echo "============================================================"
+  echo ""
+  exit 1
+fi
+
 WARNINGS=0
 
-# --- Check 1: Active UC exists ---
+# --- WARNING Check: Active UC exists ---
 ACTIVE_UC_FILE=".quality/active_uc.json"
 if [ ! -f "$ACTIVE_UC_FILE" ]; then
   echo ""
@@ -52,14 +70,13 @@ if [ ! -f "$ACTIVE_UC_FILE" ]; then
   echo "  Action: Call start_uc() NOW, then mark_ac_batch() after commit."
   WARNINGS=$((WARNINGS + 1))
 else
-  # Extract UC info for context
   UC_ID=$(grep -oE '"uc_id"\s*:\s*"[^"]*"' "$ACTIVE_UC_FILE" 2>/dev/null | head -1 | sed 's/.*"uc_id"\s*:\s*"//;s/"$//')
   if [ -n "$UC_ID" ]; then
-    echo "[SPEC] Active UC: $UC_ID"
+    echo "[SPEC] Active UC: $UC_ID | Branch: $CURRENT_BRANCH"
   fi
 fi
 
-# --- Check 2: Checkpoint freshness ---
+# --- WARNING Check: Checkpoint freshness ---
 FEATURE=""
 if [ -f "$ACTIVE_UC_FILE" ]; then
   FEATURE=$(grep -oE '"feature"\s*:\s*"[^"]*"' "$ACTIVE_UC_FILE" 2>/dev/null | head -1 | sed 's/.*"feature"\s*:\s*"//;s/"$//')
@@ -74,7 +91,7 @@ if [ -n "$FEATURE" ]; then
   fi
 fi
 
-# --- Check 3: File count since last checkpoint ---
+# --- WARNING Check: File count ---
 FILES_IN_COMMIT=$(git diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ')
 if [ "$FILES_IN_COMMIT" -gt 15 ]; then
   echo "WARNING: Large commit ($FILES_IN_COMMIT files). Consider splitting by UC."
@@ -87,9 +104,9 @@ fi
 if [ "$WARNINGS" -gt 0 ]; then
   echo ""
   echo "[SPEC GUARD] $WARNINGS warning(s) detected. Pipeline integrity at risk."
-  echo "  Remember: find_next_uc → start_uc → implement → mark_ac_batch → complete_uc"
+  echo "  Remember: find_next_uc -> start_uc -> implement -> mark_ac_batch -> complete_uc"
   echo ""
 fi
 
-# Always exit 0 — this hook warns but doesn't block
+# Warnings don't block — only the branch check blocks
 exit 0

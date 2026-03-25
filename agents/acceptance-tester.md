@@ -37,7 +37,7 @@ Transformar los acceptance criteria (AC-XX) del PRD en archivos `.feature` en es
 
 1. Trello: `get_evidence(board_id, us_id, "us", "prd")` → PRD adjunto a la card US
 2. Si no hay Trello → buscar `doc/prd/{feature}.md`
-3. Si no se encuentra PRD → WARNING: saltar con aviso, no bloquear
+3. Si no se encuentra PRD → ERROR FATAL: PARAR. PRD es obligatorio para acceptance testing
 
 ### Parsear Acceptance Criteria
 

@@ -1,4 +1,4 @@
-# Reglas Globales - SpecBox Engine v5.7.0
+# Reglas Globales - SpecBox Engine v5.10.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.
@@ -14,14 +14,22 @@
 
 ---
 
-## Pipeline Integrity — Contrato Innegociable (v5.7.0)
+## Pipeline Integrity — Contrato Innegociable (v5.10.0)
 
-> **La trazabilidad en el gestor de proyecto (Trello/Plane) es INNEGOCIABLE.**
+> **La trazabilidad en el gestor de proyecto (Trello/Plane/FreeForm) es INNEGOCIABLE.**
 > Este es el contrato fundamental del engine. Sin trazabilidad, SpecBox no tiene valor.
 
-### Regla Absoluta
+### 3 Contratos Absolutos (enforcement por hooks BLOQUEANTES)
 
-**NUNCA implementar codigo sin un UC activo en el gestor de proyecto.**
+1. **No code without UC** — NUNCA escribir codigo en `src/` o `lib/` sin UC activo
+2. **No code on main** — NUNCA escribir codigo en rama `main` o `master`
+3. **No UI without design** — NUNCA crear/modificar paginas UI sin diseno Stitch previo
+
+Estos 3 contratos se verifican via hooks BLOQUEANTES. No son sugerencias.
+Si el hook bloquea, el agente DEBE cumplir el contrato antes de continuar.
+No hay "workarounds", no hay "emergencias", no hay excepciones.
+
+### Pipeline manual (si `/implement` no disponible)
 
 Si `/implement` no se puede invocar como skill (por `disable-model-invocation` u otra razon),
 ejecutar manualmente cada paso del pipeline:
@@ -29,19 +37,26 @@ ejecutar manualmente cada paso del pipeline:
 ```
 1. find_next_uc(board_id)        → identificar el siguiente UC
 2. start_uc(board_id, uc_id)     → mover a In Progress (activa el marker)
-3. Implementar el codigo          → spec-guard.sh permite escribir
-4. mark_ac_batch(board_id, ...)   → marcar ACs completados
-5. report_checkpoint(...)         → guardar recovery point
-6. complete_uc(board_id, uc_id)   → mover a Done (limpia el marker)
-7. Commit + PR por UC            → un commit por UC, nunca monolitico
+3. git checkout -b feature/{uc}  → CREAR RAMA (branch-guard.sh bloquea main)
+4. Implementar el codigo          → spec-guard.sh permite escribir
+5. mark_ac_batch(board_id, ...)   → marcar ACs completados
+6. report_checkpoint(...)         → guardar recovery point
+7. move_uc(board_id, uc_id, "review") → mover a Review (humano revisa PR)
+8. Commit + PR por UC            → un commit por UC, nunca monolitico
 ```
 
-### Enforcement automatico
+**IMPORTANTE**: `complete_uc` (mover a Done) lo hace el HUMANO tras revisar la PR.
+El agente NUNCA mueve a Done directamente — solo a Review.
+
+### Enforcement automatico (hooks)
 
 | Hook | Evento | Comportamiento | Tipo |
 |------|--------|---------------|------|
-| `spec-guard.sh` | Write/Edit en `src/` o `lib/` | Verifica que existe `active_uc.json` (escrito por `start_uc`) | BLOQUEANTE |
-| `commit-spec-guard.sh` | git commit | Verifica UC activo, checkpoint reciente, tamano de commit | WARNING |
+| `spec-guard.sh` | Write/Edit en `src/` o `lib/` | Verifica UC activo + rama no es main | **BLOQUEANTE** |
+| `branch-guard.sh` | Write/Edit en `src/` o `lib/` | Verifica rama no es main/master | **BLOQUEANTE** |
+| `commit-spec-guard.sh` | git commit | Bloquea commits en main; warning UC/checkpoint/tamano | **BLOQUEANTE** (rama) + WARNING (resto) |
+| `design-gate.sh` | Write/Edit en pages/ | Verifica que existe HTML de diseno Stitch | **BLOQUEANTE** |
+| `pre-commit-lint.sh` | git commit | Zero-tolerance lint | **BLOQUEANTE** |
 
 ### Que activa el marker
 
@@ -49,21 +64,91 @@ ejecutar manualmente cada paso del pipeline:
 - `complete_uc(board_id, uc_id)` → borra `.quality/active_uc.json`
 - El marker expira a las 24 horas (proteccion contra sesiones abandonadas)
 
+### Workflow States (flujo correcto)
+
+```
+Backlog → In Progress (start_uc) → Review (agente termina, PR creada) → Done (humano aprueba)
+```
+
+El agente mueve a **Review** tras crear la PR. El humano revisa la PR, ejecuta flujos,
+verifica E2E, y solo entonces mueve a **Done** manualmente (o via complete_uc desde /feedback).
+
 ### Prohibiciones explicitas
 
-1. **NUNCA** implementar multiples UCs en un solo commit — cada UC tiene su rama y commit
-2. **NUNCA** marcar ACs post-facto sin validacion real — el mark_ac_batch debe ocurrir DURANTE la implementacion
-3. **NUNCA** priorizar velocidad sobre trazabilidad — el board refleja la realidad o no sirve
-4. **NUNCA** usar "el skill no se puede invocar" como excusa — el pipeline se ejecuta manualmente
-5. **NUNCA** saltarse checkpoints — si la sesion se corta, el progreso se pierde sin recovery points
+1. **NUNCA** implementar codigo en main/master — cada UC tiene su rama feature/
+2. **NUNCA** implementar multiples UCs en un solo commit — un commit por UC
+3. **NUNCA** crear UI sin diseno Stitch — design-gate.sh bloquea
+4. **NUNCA** mover UC a Done directamente — solo a Review (humano aprueba Done)
+5. **NUNCA** marcar ACs post-facto sin validacion real — mark_ac_batch DURANTE implementacion
+6. **NUNCA** priorizar velocidad sobre trazabilidad — el board refleja la realidad o no sirve
+7. **NUNCA** usar "el skill no se puede invocar" como excusa — el pipeline se ejecuta manualmente
+8. **NUNCA** saltarse checkpoints — si la sesion se corta, el progreso se pierde sin recovery points
+9. **NUNCA** preguntar al usuario en modo autopilot — usar defaults predefinidos (ver seccion Autopilot)
+10. **NUNCA** omitir acceptance tests porque "no hay PRD" — buscar AC-XX o PARAR pipeline
+11. **NUNCA** superar el budget de healing (max 8 intentos) — al llegar al limite, parar y reportar
 
 ### Que hacer si el agente intenta saltarse el pipeline
 
 Si detectas que estas implementando sin haber llamado a `start_uc`:
 1. **PARA inmediatamente**
 2. Llama a `find_next_uc` + `start_uc`
-3. Solo entonces continua implementando
-4. Al terminar: `mark_ac_batch` + `complete_uc`
+3. Crea rama: `git checkout -b feature/{uc-name}`
+4. Solo entonces continua implementando
+5. Al terminar: `mark_ac_batch` + `move_uc(board_id, uc_id, "review")`
+
+---
+
+## Autopilot Defaults — Decisiones sin preguntar (v5.10.0)
+
+> En modo autopilot, el agente NUNCA debe interrumpir para hacer preguntas.
+> Cada punto de decision tiene un default predefinido.
+
+| Situacion | Default (no preguntar) | Razon |
+|-----------|----------------------|-------|
+| Config Stitch no existe | `stitch_designs: PENDING`, continuar | /implement bloqueara en Paso 0.5d |
+| Motion package falla install | BLOQUEAR, no continuar sin motion | VEG Pilar 2 no es opcional |
+| VEG images pending al crear PR | Crear PR como **draft**, no bloquear | El usuario revisa cuando puede |
+| start_uc() falla 2 veces | **PARAR pipeline**, no continuar | Trello/Plane desincronizado es peor |
+| AG-09b CONDITIONAL | Healing (max 2 intentos), luego PARAR | No preguntar "¿continuo?" |
+| AG-09b INVALIDATED por feedback | Resolver feedback PRIMERO, luego re-validar | No ofrecer "o re-ejecutar /implement" |
+| PRD no encontrado | **PARAR pipeline** — PRD es obligatorio | Sin PRD no hay AC-XX que validar |
+| Healing budget excedido (8) | **PARAR pipeline**, generar report | No seguir intentando |
+
+### Regla de oro del autopilot
+
+**Si no puedes continuar cumpliendo los 3 contratos → PARA y reporta. Nunca degrades silenciosamente.**
+
+---
+
+## Acceptance Testing — Sin atajos (v5.10.0)
+
+> Los acceptance tests son OBLIGATORIOS. No hay path que los salte.
+
+### Reglas de AG-09a (Acceptance Tester)
+
+1. Un `.feature` por UC, un `Escenario` por AC-XX — **todos los AC-XX del PRD deben estar cubiertos**
+2. Si el .feature tiene menos Escenarios que AC-XX en el PRD → **ERROR**, no WARNING
+3. Tags obligatorios: `@US-XX`, `@UC-XXX`, `@AC-XX` en cada escenario
+4. Idioma obligatorio: `# language: es`
+
+### Reglas de AG-09b (Acceptance Validator)
+
+1. AG-09b valida contra la lista completa de AC-XX del PRD, no contra el .feature
+2. Si un AC-XX del PRD no tiene Escenario correspondiente → **REJECTED** (no CONDITIONAL)
+3. CONDITIONAL: maximo 2 intentos de healing, luego PARAR
+4. REJECTED: reportar al humano inmediatamente, no reintentar
+
+### Healing budget
+
+| Tipo | Maximo intentos | Si se excede |
+|------|----------------|-------------|
+| Auto-fix lint por fase | 3 | Pasar a Nivel 2 (diagnostico) |
+| Retry de fase completa | 2 (original + 1) | Parar pipeline |
+| Fases consecutivas fallidas | 2 | Parar pipeline |
+| Total auto-heals por implementacion | **8** | **PARAR pipeline, generar report** |
+| Healing de acceptance (CONDITIONAL) | 2 | **PARAR, reportar** |
+
+Estos limites son DUROS. El agente DEBE contar los intentos y parar al llegar al limite.
 
 ---
 

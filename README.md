@@ -1,4 +1,4 @@
-# SpecBox Engine v5.9.0 — Public Release
+# SpecBox Engine v5.12.0 — Source Shield
 
 **SpecBox Engine by JPS** — Sistema de programacion agentica para Claude Code.
 
@@ -1272,11 +1272,19 @@ upgrade_all_projects()
 
 ## Licencia
 
-MIT
+> **Este proyecto es source-available, no open source.**
+
+SpecBox Engine se distribuye bajo la [Business Source License 1.1](LICENSE).
+
+Puedes ver, estudiar y evaluar el codigo libremente. Puedes contribuir mejoras via Pull Request. Pero **el uso en produccion o con fines comerciales requiere un acuerdo de licencia** con el autor.
+
+Comparto mi trabajo porque creo en la transparencia y en construir confianza. Pero compartir no es regalar — si SpecBox te aporta valor en tu negocio, hablemos para que ambos ganemos.
+
+Mas informacion en [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) o contacta en **jesus@embed.build**.
 
 ---
 
-v5.9.0 | 2026-03-25 | JPS Developer
+v5.12.0 | 2026-03-26 | JPS Developer
 
 ---
 
@@ -1284,7 +1292,7 @@ v5.9.0 | 2026-03-25 | JPS Developer
 
 # English Version
 
-# SpecBox Engine v5.9.0 — Public Release
+# SpecBox Engine v5.12.0 — Source Shield
 
 **SpecBox Engine by JPS** — An agentic programming system for Claude Code.
 
@@ -2136,8 +2144,16 @@ upgrade_all_projects()
 
 ## License
 
-MIT
+> **This project is source-available, not open source.**
+
+SpecBox Engine is distributed under the [Business Source License 1.1](LICENSE).
+
+You can view, study, and evaluate the code freely. You can contribute improvements via Pull Request. But **production or commercial use requires a license agreement** with the author.
+
+I share my work because I believe in transparency and building trust. But sharing is not giving away — if SpecBox brings value to your business, let's talk so we both win.
+
+More details at [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) or contact **jesus@embed.build**.
 
 ---
 
-v5.9.0 | 2026-03-25 | JPS Developer
+v5.12.0 | 2026-03-26 | JPS Developer

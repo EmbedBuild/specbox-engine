@@ -1,6 +1,6 @@
 # AG-09a: Acceptance Tester
 
-> SpecBox Engine v5.10.0
+> SpecBox Engine v5.11.0
 > Genera archivos `.feature` (Gherkin en español) + step definitions + E2E tests reales con Playwright.
 > Para Flutter y React: genera tests E2E reales contra la app corriendo (browser).
 > Para Python: genera tests de integración HTTP. Para GAS: tests con jest-cucumber.
@@ -732,7 +732,7 @@ function generateEvidenceReport(feature: string, ucId: string, evidenceDir: stri
   ${screenshotCards}
 
   <div class="footer">
-    SpecBox Engine v5.10.0 — AG-09a Acceptance Tester<br>
+    SpecBox Engine v5.11.0 — AG-09a Acceptance Tester<br>
     Generated automatically from E2E test execution
   </div>
 </body>
@@ -831,4 +831,4 @@ git commit -m "test(acceptance): add Gherkin scenarios for UC-XXX"
 
 ---
 
-*SpecBox Engine v5.10.0 — Acceptance Tester (E2E Playwright + Gherkin BDD + Evidence Reports)*
+*SpecBox Engine v5.11.0 — Acceptance Tester (E2E Playwright + Gherkin BDD + Evidence Reports)*

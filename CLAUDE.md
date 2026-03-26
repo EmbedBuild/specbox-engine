@@ -1,4 +1,4 @@
-# SpecBox Engine v5.11.0
+# SpecBox Engine v5.12.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -558,6 +558,6 @@ BDD acceptance testing without full /implement pipeline:
 
 ## Engine Version
 
-Current: v5.11.0 "E2E Evidence"
+Current: v5.12.0 "Source Shield"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

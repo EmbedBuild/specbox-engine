@@ -1,10 +1,12 @@
 # AG-09a: Acceptance Tester
 
-> SpecBox Engine v5.11.0
-> Genera archivos `.feature` (Gherkin en español) + step definitions + E2E tests reales con Playwright.
-> Para Flutter y React: genera tests E2E reales contra la app corriendo (browser).
-> Para Python: genera tests de integración HTTP. Para GAS: tests con jest-cucumber.
+> SpecBox Engine v5.13.0
+> Genera archivos `.feature` (Gherkin en español) + step definitions + E2E tests con evidencia visual.
+> **Flutter Web + React**: Playwright E2E en browser → HTML Report nativo.
+> **Flutter Mobile** (permisos, notificaciones, biometría): Patrol v4 → `patrol-evidence-generator.js`.
+> **Python**: tests de integración HTTP. **GAS**: tests con jest-cucumber.
 > NO es AG-04 (QA). AG-04 genera unit tests. AG-09a genera E2E acceptance tests con evidencia visual.
+> Decisión arquitectónica: `doc/decisions/e2e-flutter-strategy.md`.
 
 ## Propósito
 
@@ -143,10 +145,11 @@ Característica: UC-XXX — [Nombre del caso de uso]
 
 ## Step Definitions por Stack
 
-### Flutter (Playwright E2E contra CanvasKit web build)
+### Flutter Web (Playwright E2E contra CanvasKit web build)
 
-> **IMPORTANTE**: Flutter usa Playwright contra web build CanvasKit, NO widget tests.
+> **IMPORTANTE**: Flutter Web usa Playwright contra web build CanvasKit, NO widget tests.
 > Los widget tests son AG-04 (unit). AG-09a genera E2E reales en browser.
+> Para Flutter Mobile con native automation, ver sección "Flutter Mobile (Patrol v4)" más abajo.
 > Referencia completa: `architecture/flutter/e2e-testing.md`
 
 ```json
@@ -266,7 +269,68 @@ reporter: [
 npx bddgen && npx playwright test tests/acceptance/ --reporter=html,json
 ```
 
-### Python (pytest-bdd)
+### Flutter Mobile (Patrol v4 — native automation)
+
+> **Usar cuando**: los ACs requieren permisos del sistema, notificaciones, cámara, biometría, WebViews.
+> Si los ACs solo necesitan interacción con widgets en browser, usar Flutter Web (Playwright).
+> Referencia completa: `architecture/flutter/patrol-setup.md`
+
+```yaml
+# pubspec.yaml — dev_dependencies requeridas
+dev_dependencies:
+  patrol: ^4.5.0
+  patrol_finders: ^3.2.0
+```
+
+```dart
+// test/acceptance/steps/UC-XXX_steps.dart
+import 'package:patrol/patrol.dart';
+import 'package:my_app/main.dart' as app;
+
+void main() {
+  patrolTest('AC-01: usuario acepta permisos de cámara', ($) async {
+    app.main();
+    await $.pumpAndSettle();
+
+    await $(#cameraButton).tap();
+    await $.platform.grantPermissionWhenInUse();
+
+    // Screenshot con naming convention para evidence generator
+    final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+    await binding.takeScreenshot('AC-01_step_1_camera_permission');
+
+    expect($(#cameraPreview), findsOneWidget);
+    await binding.takeScreenshot('AC-01_step_2_preview_visible');
+  });
+}
+```
+
+**Ejecución:**
+```bash
+patrol test --target test/acceptance/
+```
+
+**Generar HTML Evidence Report (post-test):**
+```bash
+node .quality/scripts/patrol-evidence-generator.js \
+  --uc-id UC-XXX --feature {feature} \
+  --screenshots build/app/outputs/connected_android_test_additional_output/emulator-5554/ \
+  --junit build/app/outputs/androidTest-results/connected/TEST-MainActivityTest.xml \
+  --output .quality/evidence/{feature}/acceptance/e2e-evidence-report.html
+```
+
+**Notas Patrol:**
+- Screenshots: naming `AC-XX_step_N_descripcion` para que el generator los correlacione
+- Custom finders: `$(#key)` en vez de `find.byKey(Key('key'))`
+- Native: `$.platform.grantPermissionWhenInUse()`, `$.platform.mobile.openNotifications()`
+- iOS: diálogos de permisos solo funcionan con dispositivo en inglés
+- El HTML report generado es idéntico al de Playwright — AG-09b no distingue el origen
+
+### Python (pytest-bdd + HTML Evidence Report)
+
+> **Python se usa para APIs y MCPs** — no hay UI, la evidencia son response logs JSON.
+> AG-09a genera un response log por AC y luego `api-evidence-generator.js` produce
+> el mismo HTML Evidence Report que Playwright/Patrol, con JSON formateado en lugar de screenshots.
 
 ```
 # requirements-dev.txt — dependencias requeridas
@@ -279,7 +343,6 @@ import json
 from pathlib import Path
 from pytest_bdd import given, when, then, scenarios, parsers
 
-# Vincula todos los escenarios del .feature
 scenarios('../features/UC-XXX_{nombre_snake}.feature')
 
 EVIDENCE_DIR = Path(".quality/evidence/{feature}/acceptance")
@@ -301,17 +364,19 @@ def enviar_post(client, endpoint, datatable):
 
 
 @then(parsers.parse('la respuesta tiene status {status:d}'))
-def verificar_status(response, status):
+def verificar_status(response, status, ac_id):
     assert response.status_code == status
 
-    # --- Evidencia: response log ---
+    # --- Evidencia: response log por AC (naming convention obligatoria) ---
     EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
     evidence = {
+        "request": {"method": "POST", "url": str(response.url)},
         "status": response.status_code,
+        "headers": dict(response.headers),
         "body": response.json(),
         "verdict": "PASS" if response.status_code == status else "FAIL",
     }
-    (EVIDENCE_DIR / "response.json").write_text(json.dumps(evidence, indent=2))
+    (EVIDENCE_DIR / f"{ac_id}_response.json").write_text(json.dumps(evidence, indent=2))
 ```
 
 **Ejecución:**
@@ -319,7 +384,19 @@ def verificar_status(response, status):
 pytest tests/acceptance/ --cucumberjson=tests/acceptance/reports/cucumber-report.json -v
 ```
 
-### Google Apps Script (jest-cucumber)
+**Generar HTML Evidence Report (post-test):**
+```bash
+node .quality/scripts/api-evidence-generator.js \
+  --uc-id UC-XXX --feature {feature} \
+  --responses .quality/evidence/{feature}/acceptance/ \
+  --cucumber tests/acceptance/reports/cucumber-report.json \
+  --output .quality/evidence/{feature}/acceptance/e2e-evidence-report.html
+```
+
+El report embebe los response logs JSON formateados en lugar de screenshots.
+Misma estructura visual, mismos colores, mismo pass rate — AG-09b no distingue el stack.
+
+### Google Apps Script (jest-cucumber) — LEGACY
 
 ```json
 // package.json — devDependencies requeridas
@@ -548,17 +625,24 @@ Antes de ejecutar los tests (paso 5), verificar:
 - JSON Cucumber report en `{test_dir}/acceptance/reports/cucumber-report.json`
 - Copiar evidencia a `.quality/evidence/{feature}/acceptance/`
 
-### 7. Generar results.json
+### 7. Generar results.json (CONTRATO FORMAL)
 
-Transformar el JSON Cucumber report al formato estándar:
+> **Contrato**: `doc/specs/results-json-spec.md` — schema que TODOS los stacks DEBEN cumplir.
+> **Enforcement**: `e2e-gate.sh` hook BLOQUEA commits si results.json no pasa validación.
+> **Validador**: `node .quality/scripts/validate-results-json.js <path> --check-evidence`
+
+Transformar el JSON Cucumber report al formato estándar. Los campos `stack` y `evidence_type`
+son OBLIGATORIOS — sin ellos el validador rechaza el archivo.
 
 ```json
 {
   "feature": "{feature}",
   "uc_id": "UC-XXX",
   "us_id": "US-XX",
-  "timestamp": "ISO",
-  "source": "cucumber-report.json",
+  "timestamp": "ISO 8601",
+  "source": "playwright-cucumber | patrol-junit-xml | pytest-bdd",
+  "stack": "flutter-web | flutter-mobile | react | python",
+  "evidence_type": "screenshot | response-log",
   "tests_total": 5,
   "tests_passed": 4,
   "tests_failed": 1,
@@ -568,7 +652,8 @@ Transformar el JSON Cucumber report al formato estándar:
       "scenario": "Texto del escenario Gherkin",
       "status": "PASS",
       "duration_ms": 1234,
-      "screenshot": "AC-01_crear_propiedad.png",
+      "evidence": "AC-01_crear_propiedad.png",
+      "error": null,
       "steps": [
         {"keyword": "Dado", "text": "el usuario está autenticado", "status": "PASS", "duration_ms": 120},
         {"keyword": "Cuando", "text": "completa el formulario", "status": "PASS", "duration_ms": 340}
@@ -579,18 +664,25 @@ Transformar el JSON Cucumber report al formato estándar:
       "scenario": "Validación inline en nombre vacío",
       "status": "FAIL",
       "duration_ms": 890,
-      "screenshot": null,
-      "error": "Expected 'error visible' but element not found",
-      "failing_step": {"keyword": "Entonces", "text": "se muestra error rojo bajo el campo"}
+      "evidence": null,
+      "error": "Expected 'error visible' but element not found"
     }
   ]
 }
 ```
 
-### 8. Generar HTML Evidence Report (Flutter y React OBLIGATORIO)
+**Tras generar results.json, VALIDAR antes de continuar:**
+```bash
+node .quality/scripts/validate-results-json.js .quality/evidence/{feature}/acceptance/results.json --check-evidence
+```
 
-> Para Flutter y React, AG-09a DEBE generar un informe HTML self-contained
-> con screenshots embebidos base64 que el humano pueda abrir en cualquier browser.
+Si el validador falla, corregir results.json ANTES de generar el HTML report.
+
+### 8. Generar HTML Evidence Report (TODOS LOS STACKS — ENFORCED)
+
+> **OBLIGATORIO para TODOS los stacks activos** (Flutter Web, Flutter Mobile, React, Python).
+> El hook `e2e-gate.sh` BLOQUEA el commit si el HTML report no existe.
+> Para stacks con UI: embebe screenshots base64. Para Python APIs: embebe response logs JSON.
 
 **Archivo de salida:** `.quality/evidence/{feature}/acceptance/e2e-evidence-report.html`
 
@@ -742,6 +834,42 @@ function generateEvidenceReport(feature: string, ucId: string, evidenceDir: stri
 }
 ```
 
+### 8.5. Auto-invocación de generators (Patrol y Python)
+
+> Para Flutter Web y React, el paso 8 genera el HTML inline (Playwright afterAll).
+> Para Flutter Mobile (Patrol) y Python (pytest-bdd), AG-09a DEBE invocar el generator
+> como paso automático — NO dejar para invocación manual.
+
+**Flutter Mobile (Patrol) — auto-invocar tras paso 5:**
+```bash
+node .quality/scripts/patrol-evidence-generator.js \
+  --uc-id UC-XXX --feature {feature} --us-id US-XX \
+  --screenshots build/app/outputs/connected_android_test_additional_output/emulator-*/ \
+  --junit build/app/outputs/androidTest-results/connected/TEST-*.xml \
+  --output .quality/evidence/{feature}/acceptance/e2e-evidence-report.html
+```
+
+**Python API — auto-invocar tras paso 5:**
+```bash
+node .quality/scripts/api-evidence-generator.js \
+  --uc-id UC-XXX --feature {feature} --us-id US-XX \
+  --responses .quality/evidence/{feature}/acceptance/ \
+  --cucumber tests/acceptance/reports/cucumber-report.json \
+  --output .quality/evidence/{feature}/acceptance/e2e-evidence-report.html
+```
+
+### 8.6. Validar evidence antes de commit (OBLIGATORIO)
+
+> El hook `e2e-gate.sh` BLOQUEARÁ el commit si esta validación no pasa.
+> Ejecutar ANTES de commitear para evitar bloqueos.
+
+```bash
+node .quality/scripts/validate-results-json.js \
+  .quality/evidence/{feature}/acceptance/results.json --check-evidence
+```
+
+Si falla: corregir results.json o regenerar evidence. NO commitear hasta que pase.
+
 ### 9. Adjuntar evidencia a Trello/Plane/FreeForm (si spec-driven)
 
 ```
@@ -831,4 +959,4 @@ git commit -m "test(acceptance): add Gherkin scenarios for UC-XXX"
 
 ---
 
-*SpecBox Engine v5.11.0 — Acceptance Tester (E2E Playwright + Gherkin BDD + Evidence Reports)*
+*SpecBox Engine v5.13.0 — Acceptance Tester (Hybrid E2E: Playwright Web + Patrol Mobile + Gherkin BDD + Evidence Reports)*

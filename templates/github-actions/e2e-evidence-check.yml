@@ -1,0 +1,70 @@
+# E2E Evidence Check — GitHub Action
+# Validates results.json schema + HTML Evidence Report existence on PRs.
+# Required status check for branch protection.
+# SpecBox Engine v5.12.0
+
+name: E2E Evidence Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.quality/evidence/**'
+      - 'test/acceptance/**'
+      - 'tests/acceptance/**'
+      - 'e2e/**'
+
+jobs:
+  validate-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate results.json files
+        run: |
+          FOUND=0
+          VALID=0
+          INVALID=0
+
+          for f in $(find .quality/evidence -name "results.json" -path "*/acceptance/*" 2>/dev/null); do
+            FOUND=$((FOUND + 1))
+            echo "Validating: $f"
+            if node .quality/scripts/validate-results-json.js "$f" --check-evidence; then
+              VALID=$((VALID + 1))
+            else
+              INVALID=$((INVALID + 1))
+            fi
+          done
+
+          echo ""
+          echo "Evidence validation: $FOUND found, $VALID valid, $INVALID invalid"
+
+          if [ "$INVALID" -gt 0 ]; then
+            echo "::error::$INVALID results.json file(s) failed schema validation"
+            exit 1
+          fi
+
+      - name: Check HTML Evidence Reports
+        run: |
+          MISSING=0
+          for f in $(find .quality/evidence -name "results.json" -path "*/acceptance/*" 2>/dev/null); do
+            DIR=$(dirname "$f")
+            if [ ! -f "$DIR/e2e-evidence-report.html" ]; then
+              echo "::error::Missing HTML Evidence Report: $DIR/e2e-evidence-report.html"
+              MISSING=$((MISSING + 1))
+            else
+              SIZE=$(wc -c < "$DIR/e2e-evidence-report.html")
+              if [ "$SIZE" -lt 1024 ]; then
+                echo "::error::HTML report too small ($SIZE bytes): $DIR/e2e-evidence-report.html"
+                MISSING=$((MISSING + 1))
+              fi
+            fi
+          done
+
+          if [ "$MISSING" -gt 0 ]; then
+            exit 1
+          fi

@@ -18,6 +18,12 @@
             "command": ".claude/hooks/pre-commit-lint.sh",
             "blocking": true,
             "timeout": 60000
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/e2e-gate.sh",
+            "blocking": true,
+            "timeout": 15000
           }
         ]
       },
@@ -158,6 +164,64 @@
             "command": ".claude/hooks/design-gate.sh",
             "blocking": true,
             "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": {
+          "tool_name": "Bash",
+          "command_pattern": "--no-verify"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/no-bypass-guard.sh",
+            "blocking": true,
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Bash",
+          "command_pattern": "push.*--force"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/no-bypass-guard.sh",
+            "blocking": true,
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Bash",
+          "command_pattern": "push.*-f "
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/no-bypass-guard.sh",
+            "blocking": true,
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Bash",
+          "command_pattern": "reset --hard"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/no-bypass-guard.sh",
+            "blocking": true,
+            "timeout": 5000
           }
         ]
       }

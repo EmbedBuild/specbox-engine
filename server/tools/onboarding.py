@@ -613,6 +613,17 @@ def register_onboarding_tools(
         _write_registry(state_path, registry)
         _invalidate_cache(state_path)
 
+        # E2E gap detection hint
+        e2e_alignment = {
+            "action": "run get_e2e_gap_report with the project path to detect E2E gaps",
+            "reason": (
+                "v5.12.0+ requires HTML Evidence Reports for all stacks. "
+                "UCs in Review/Done without E2E evidence need backfill."
+            ),
+            "tool": "get_e2e_gap_report",
+            "args": {"project_path": "<project repo path>", "project": project},
+        }
+
         return {
             "project": project,
             "stack": detected_stack,
@@ -624,9 +635,11 @@ def register_onboarding_tools(
             "mcp_version": MCP_VERSION,
             "upgraded_at": now,
             "warnings": warnings if warnings else None,
+            "e2e_alignment": e2e_alignment,
             "instructions": (
                 "Copy the files above to your project repo, replacing the existing ones. "
-                "The project's version tracking has been updated in the central state index."
+                "Then run get_e2e_gap_report on the project to detect UCs missing E2E evidence "
+                "and get a proposed testing plan."
             ),
         }
 
@@ -719,6 +732,11 @@ def register_onboarding_tools(
             "needs_upgrade": needs_upgrade_count,
             "up_to_date": len(projects) - needs_upgrade_count,
             "projects": projects,
+            "e2e_gap_hint": (
+                "After upgrading, run get_e2e_gap_report on each project to detect "
+                "UCs without E2E evidence and generate a backfill testing plan. "
+                "v5.12.0+ requires HTML Evidence Reports for all active stacks."
+            ),
         }
 
     @mcp.tool

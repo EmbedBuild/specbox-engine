@@ -1,8 +1,8 @@
-# SpecBox Engine v5.12.0
+# SpecBox Engine v5.13.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (108 tools) + Sala de Máquinas + Gherkin BDD.
+> Monorepo unificado: engine + MCP server (109 tools) + Sala de Máquinas + Gherkin BDD.
 
 ## Que es este repositorio
 
@@ -15,7 +15,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (108 tools) + Sala de Máquinas dashboard (React 19)
+- **Server** — MCP server unificado (109 tools) + Sala de Máquinas dashboard (React 19)
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
 
@@ -181,7 +181,7 @@ specbox-engine/
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
 ├── server/                ← MCP server unificado (v5.5)
-│   ├── server.py          ← FastMCP (108 tools)
+│   ├── server.py          ← FastMCP (109 tools)
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
@@ -189,7 +189,7 @@ specbox-engine/
 │   │   ├── plane_backend.py    ← PlaneBackend (Plane CE self-hosted)
 │   │   ├── plane_client.py     ← Async httpx client for Plane API v1
 │   │   └── freeform_backend.py ← FreeformBackend (local JSON + Markdown)
-│   ├── tools/             ← 19 tool modules (108 tools)
+│   ├── tools/             ← 19 tool modules (109 tools)
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
 │   │   ├── quality.py     ← 4 tools
@@ -203,7 +203,7 @@ specbox-engine/
 │   │   ├── migration.py   ← 5 tools (Trello ↔ Plane migration)
 │   │   ├── stitch.py      ← 13 tools (Stitch MCP proxy)
 │   │   ├── heartbeat_stats.py ← 1 tool (get_heartbeat_stats)
-│   │   ├── acceptance.py  ← 2 tools (run_acceptance_check, get_acceptance_report)
+│   │   ├── acceptance.py  ← 3 tools (run_acceptance_check, get_acceptance_report, get_e2e_gap_report)
 │   │   ├── benchmark.py   ← 1 tool (generate_benchmark_snapshot)
 │   │   ├── hints.py       ← 3 tools (get_skill_hint, record, list)
 │   │   ├── live_state.py  ← 4 tools (project state, overview, sessions, refresh)
@@ -266,6 +266,8 @@ Automatic enforcement — no need to remember running these manually:
 | **branch-guard** | PostToolUse (Write/Edit on src/ or lib/) | **BLOCKING**: verifies current branch is not main/master. Enforces branch discipline. |
 | **commit-spec-guard** | PostToolUse (git commit) | **BLOCKING** (branch) + WARNING (rest): blocks commits on main; warns UC/checkpoint/size. |
 | pre-commit-lint | PostToolUse (git commit) | **BLOCKING**: runs `gga run` (cached lint, skips unmodified files). Falls back to direct lint if GGA not installed |
+| **e2e-gate** | PostToolUse (git commit) | **BLOCKING**: validates results.json schema + HTML Evidence Report exists + evidence integrity when committing acceptance files. Uses `validate-results-json.js`. |
+| **no-bypass-guard** | PreToolUse (--no-verify, push --force, reset --hard) | **BLOCKING**: prevents agent shortcuts under pressure — must fix root cause, not bypass quality checks. |
 | **design-gate** | PostToolUse (Write/Edit on pages/) | **BLOCKING**: blocks UI page creation/modification without Stitch HTML design in doc/design/. |
 | on-session-end | Stop | Logs session telemetry to .quality/logs/ + persists summary to Engram |
 | implement-checkpoint | Manual (called by /implement) | Saves phase progress for resume |
@@ -280,6 +282,18 @@ Automatic enforcement — no need to remember running these manually:
 The `spec-guard.sh` hook makes it **impossible** to write source code in a spec-driven project
 without an active UC. The marker file `.quality/active_uc.json` is written by `start_uc()` and
 cleared by `complete_uc()`. It expires after 24 hours to prevent stale sessions.
+
+The `e2e-gate.sh` hook makes it **impossible** to commit acceptance evidence without valid
+`results.json` (schema-validated via `validate-results-json.js`) + `e2e-evidence-report.html`
+(integrity-checked: size, structure, UC reference, embedded evidence).
+
+The `no-bypass-guard.sh` hook prevents agents from taking shortcuts under pressure
+(failing tests, healing loops, timeouts). Blocks `--no-verify`, `push --force`, and
+`reset --hard` — the agent must fix the root cause, not bypass the quality check.
+
+**Remote enforcement**: `templates/github-actions/e2e-evidence-check.yml` validates evidence
+on PRs to main. Combined with branch protection, this creates server-side enforcement
+that complements client-side hooks. See `templates/github-actions/branch-protection-setup.md`.
 
 **If /implement skill is unavailable**, the pipeline MUST be executed manually step by step.
 See `rules/GLOBAL_RULES.md` section "Pipeline Integrity" for the full contract.
@@ -354,6 +368,9 @@ Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP 
 | `analyze-sessions.sh` | `.quality/scripts/analyze-sessions.sh [--last N]` | Telemetry: sessions, context tokens, healing, checkpoints |
 | `context-budget.sh` | `.quality/scripts/context-budget.sh <path> [--detail]` | Estimate token cost of files/directories |
 | `design-baseline.sh` | `.quality/scripts/design-baseline.sh [path] [--update\|--init]` | Measure design compliance, enforce ratchet (L0/L1/L2) |
+| `patrol-evidence-generator.js` | `.quality/scripts/patrol-evidence-generator.js --junit <xml> --screenshots <dir> ...` | Generate HTML Evidence Report from Patrol v4 results |
+| `api-evidence-generator.js` | `.quality/scripts/api-evidence-generator.js --cucumber <json> --responses <dir> ...` | Generate HTML Evidence Report from Python API test results |
+| `validate-results-json.js` | `.quality/scripts/validate-results-json.js <path> [--check-evidence]` | Validate results.json against contract (used by e2e-gate.sh hook) |
 
 ## Agents (v3.5)
 
@@ -387,12 +404,17 @@ Frameworks de acceptance testing por stack:
 
 | Stack | Framework | Evidencia | Tests en | E2E Report |
 |-------|-----------|-----------|----------|------------|
-| Flutter | **Playwright E2E** (CanvasKit web build) | Screenshots + traces + HTML report | `e2e/acceptance/` | **OBLIGATORIO** |
+| Flutter Web | **Playwright E2E** (CanvasKit web build) | Screenshots + traces + HTML report | `e2e/acceptance/` | **OBLIGATORIO** |
+| Flutter Mobile | **Patrol v4** (native automation) | Screenshots + `patrol-evidence-generator.js` | `test/acceptance/` | **OBLIGATORIO** |
 | React | **Playwright E2E** (app web) | Screenshots + traces + HTML report | `tests/acceptance/` | **OBLIGATORIO** |
-| Python | pytest-bdd + httpx | Response JSON logs | `tests/acceptance/` | JSON only |
+| Python | pytest-bdd + httpx | Response logs + `api-evidence-generator.js` | `tests/acceptance/` | **OBLIGATORIO** |
+| Google Apps Script | jest-cucumber | JSON only | `tests/acceptance/` | Legacy (sin soporte) |
 
-Flutter y React generan un **HTML Evidence Report** self-contained con screenshots base64
-embebidos que el humano puede abrir en cualquier browser para validar calidad visual.
+Todos los stacks activos generan un **HTML Evidence Report** self-contained que el humano
+puede abrir en cualquier browser. UI stacks embeben screenshots base64; Python embebe
+response logs JSON formateados. El report tiene la misma estructura visual en todos los stacks.
+Contrato formal: `doc/specs/results-json-spec.md`. Template: `doc/templates/e2e-evidence-report-template.md`.
+Decisión arquitectónica: `doc/decisions/e2e-flutter-strategy.md`.
 
 ## Visual Experience Generation — VEG (v3.9)
 
@@ -539,9 +561,19 @@ External skills with `manifest.yaml` can be installed, versioned, and auto-disco
 BDD acceptance testing without full /implement pipeline:
 
 - **Skill**: `/acceptance-check` — validates AC from PRD against code
-- **MCP tools**: `run_acceptance_check(project_path, item_id, branch)`, `get_acceptance_report(project_path, uc_id)`
+- **MCP tools**: `run_acceptance_check(project_path, item_id, branch)`, `get_acceptance_report(project_path, uc_id)`, `get_e2e_gap_report(project_path, project)`
 - **GitHub Action**: `templates/github-actions/acceptance-gate.yml`
 - **Output**: PR-comment-ready Markdown with per-AC verdict
+
+## E2E Gap Detection (v5.12.0)
+
+Deteccion automatica de UCs sin evidencia E2E durante el upgrade de proyectos:
+
+- **MCP tool**: `get_e2e_gap_report(project_path, project)` — escanea PRDs, detecta UCs sin HTML Evidence Report, propone plan de testing
+- **Integrado en upgrade**: `upgrade_project` incluye `e2e_alignment` hint que recomienda ejecutar el gap report
+- **Integrado en matrix**: `get_version_matrix` incluye `e2e_gap_hint` para post-upgrade
+- **Output**: Coverage % por UC, lista de ACs sin evidencia, plan propuesto con framework y directorio por stack
+- **Flujo**: upgrade_project → copiar files → get_e2e_gap_report → plan E2E → ejecutar tests → evidencia completa
 
 ## Contextual Hints (v5.0)
 
@@ -558,6 +590,6 @@ BDD acceptance testing without full /implement pipeline:
 
 ## Engine Version
 
-Current: v5.12.0 "Source Shield"
+Current: v5.13.0 "E2E Evidence Enforcement"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

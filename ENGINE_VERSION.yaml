@@ -1,8 +1,8 @@
-version: 5.12.0
-codename: "Source Shield"
+version: 5.13.0
+codename: "E2E Evidence Enforcement"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-03-26
+release_date: 2026-03-28
 min_claude_code: "1.0.0"
 
 stacks:
@@ -178,8 +178,53 @@ features:
   - e2e-evidence-step-helper
   - flutter-playwright-e2e
   - tool-count-audit
+  # New (v5.12.0)
+  - bsl-1-1-license
+  - cla-contributor-agreement
+  - commercial-license
+  - public-repo-protection
+  # New (v5.13.0)
+  - hybrid-e2e-pipeline
+  - patrol-v4-flutter-mobile
+  - playwright-flutter-web-semantics
+  - e2e-gate-hook
+  - no-bypass-guard-hook
+  - validate-results-json
+  - patrol-evidence-generator
+  - api-evidence-generator
+  - results-json-contract
+  - e2e-evidence-report-template
+  - e2e-gap-report-tool
+  - stack-aware-acceptance
+  - github-branch-protection-template
+  - e2e-evidence-check-github-action
+  - gas-legacy-mode
 
 changelog:
+  5.13.0:
+    date: 2026-03-28
+    changes:
+      - "feat: hybrid E2E pipeline — Playwright (web) + Patrol v4 (mobile) + shared Gherkin"
+      - "feat: e2e-gate.sh BLOCKING hook — validates results.json schema + HTML report integrity before commit"
+      - "feat: no-bypass-guard.sh BLOCKING hook — prevents agent shortcuts (--no-verify, push --force, reset --hard)"
+      - "feat: validate-results-json.js — programmatic schema validation with evidence file checks"
+      - "feat: patrol-evidence-generator.js — JUnit XML + screenshots to HTML Evidence Report"
+      - "feat: api-evidence-generator.js — Cucumber JSON + response logs to HTML Evidence Report"
+      - "feat: get_e2e_gap_report MCP tool — detects UCs without E2E evidence, proposes testing plan"
+      - "feat: results.json formal contract (doc/specs/results-json-spec.md) — stack, evidence_type, AC format"
+      - "feat: AG-09b Paso 0 hybrid validation — code validates schema BEFORE LLM judges functionality"
+      - "feat: GitHub Actions template for E2E evidence check on PRs + branch protection guide"
+      - "feat: ADR for Flutter E2E strategy (doc/decisions/e2e-flutter-strategy.md)"
+      - "feat: Python API generates HTML Evidence Report with response logs (was JSON-only)"
+      - "fix: tool count corrected from 108 to 109 (added get_e2e_gap_report)"
+      - "fix: pyproject.toml version synced (was stuck at 5.11.0)"
+      - "refactor: GAS marked as legacy — acceptance testing not supported"
+  5.12.0:
+    date: 2026-03-26
+    changes:
+      - "feat: BSL 1.1 license — protect commercial use while keeping source readable"
+      - "feat: CLA for contributors — ensures IP clarity"
+      - "feat: commercial license program for enterprise use"
   5.11.0:
     date: 2026-03-25
     changes:

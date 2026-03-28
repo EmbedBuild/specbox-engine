@@ -1,8 +1,40 @@
 # E2E Testing — Flutter Web con Playwright
 
-> Guía exhaustiva de E2E testing para Flutter web (CanvasKit) con Playwright.
-> Validación de flujos completos: auth, navegación, interacciones, responsive.
-> Genera HTML report con screenshots como evidencia de cada paso (PASS/FAIL).
+> Guía para E2E testing de Flutter Web con Playwright via accessibility/semantics tree.
+> Genera HTML report con screenshots como evidencia obligatoria (PASS/FAIL).
+> **Para Flutter mobile** (permisos, notificaciones, biometría): ver `patrol-setup.md`.
+> **Decisión arquitectónica**: ver `doc/decisions/e2e-flutter-strategy.md`.
+
+---
+
+## Estrategia dual Flutter
+
+| Plataforma | Framework | Report HTML | Guía |
+|-----------|-----------|-------------|------|
+| **Flutter Web** | **Playwright** (este doc) | Nativo | `e2e-testing.md` |
+| **Flutter Mobile** | **Patrol v4** | `patrol-evidence-generator.js` | `patrol-setup.md` |
+
+Los archivos `.feature` (Gherkin) se comparten entre ambos paths. Las step definitions son específicas por plataforma (TypeScript para Playwright, Dart para Patrol).
+
+---
+
+## Requisito Dart: habilitar Semantics
+
+Flutter Web no habilita el accessibility tree por defecto. **Obligatorio** en el `main.dart` de cualquier app que use E2E con Playwright:
+
+```dart
+import 'package:flutter/foundation.dart';
+import 'package:flutter/semantics.dart';
+
+void main() {
+  runApp(const MyApp());
+  if (kIsWeb) {
+    SemanticsBinding.instance.ensureSemantics();
+  }
+}
+```
+
+Sin esto, Playwright no encuentra ningún elemento. Requiere Flutter >= 3.31 (fix de click leak #163576).
 
 ---
 
@@ -463,4 +495,20 @@ afterAll  → cleanup → datos eliminados
 
 ---
 
-*Referencia: SpecBox Engine v5.11.0 "E2E Sentinel + Seed Lifecycle"*
+---
+
+## Problemas conocidos de CanvasKit con Playwright
+
+| Problema | Causa | Solución |
+|---------|-------|---------|
+| `fill()` no funciona | CanvasKit no genera `<input>` DOM | `click()` + `keyboard.type({ delay: 10 })` |
+| Tab pierde primer keystroke | Bug de CanvasKit | `click()` en siguiente campo |
+| 404 al navegar | Servidor sin SPA fallback | Flag `-s` en `npx serve` |
+| No encuentra elementos | Semantics no habilitado | `SemanticsBinding.instance.ensureSemantics()` en Dart |
+| Clicks no llegan al widget | Bug click leak (Flutter < 3.31) | Actualizar a Flutter >= 3.31 |
+| `excludeSemantics: true` rompe tests | Flutter bug #172206 | No usar `excludeSemantics: true` en campos que necesiten testing |
+
+---
+
+*Referencia: SpecBox Engine v5.12.0 — Hybrid E2E Pipeline (Playwright Web + Patrol Mobile)*
+*Decisión: `doc/decisions/e2e-flutter-strategy.md`*

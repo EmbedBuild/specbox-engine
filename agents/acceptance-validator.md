@@ -1,9 +1,10 @@
 # AG-09b: Acceptance Validator
 
-> SpecBox Engine v5.6.0
+> SpecBox Engine v5.13.0
 > Agente independiente de validación de acceptance criteria desde Gherkin + JSON Cucumber.
 > NO es AG-04 (QA). NO es AG-08 (Quality Auditor). NO es AG-09a (Acceptance Tester).
 > AG-09b VALIDA que la feature cumple lo que el PRD especificó.
+> Stack-aware: acepta screenshots (UI) O response logs (API) como evidencia válida.
 
 ## Propósito
 
@@ -53,6 +54,28 @@ Validar de forma INDEPENDIENTE que cada acceptance criterion (AC-XX) del PRD est
 
 ---
 
+## Paso 0: Validación programática (ANTES del juicio LLM)
+
+> **OBLIGATORIO**: AG-09b DEBE ejecutar el validador de schema ANTES de emitir cualquier juicio.
+> Si la validación programática falla, AG-09b DEBE emitir REJECTED sin continuar.
+> Esto impide que el LLM hallucine "ACCEPTED" con evidencia inválida o inexistente.
+
+```bash
+node .quality/scripts/validate-results-json.js \
+  .quality/evidence/{feature}/acceptance/results.json --check-evidence
+```
+
+**Si falla (exit code 1):**
+- Veredicto automático: **REJECTED**
+- Razón: "results.json no cumple el contrato (doc/specs/results-json-spec.md)"
+- NO continuar con las 4 verificaciones — los datos de entrada son inválidos
+
+**Si pasa (exit code 0):**
+- Continuar con el Proceso de Validación (4 checks)
+- El LLM evalúa cumplimiento FUNCIONAL, no estructural (eso ya está validado)
+
+---
+
 ## Proceso de Validación
 
 Para cada AC-XX del PRD:
@@ -81,16 +104,28 @@ PASS: Escenario @AC-01 — todos los steps PASSED
 FAIL: Escenario @AC-01 — step "Entonces se muestra error" FAILED: element not found
 ```
 
-### 3. ¿Existe screenshot/evidencia visual? → CHECK
+### 3. ¿Existe evidencia? → CHECK (stack-aware)
+
+Leer `results.json` y verificar el campo `evidence_type` para determinar qué tipo de evidencia esperar.
 
 Buscar en `.quality/evidence/{feature}/acceptance/`:
+
+**Si `evidence_type` = `screenshot`** (Flutter Web, Flutter Mobile, React):
 - ¿Existe archivo `AC-XX_{description}.png` o equivalente?
-- ¿Existe trace (Playwright) o response log (Python)?
-- ¿La evidencia es coherente con lo que describe el criterio?
+- ¿Existe trace (Playwright) si aplica?
+- ¿La evidencia visual es coherente con lo que describe el criterio?
+
+**Si `evidence_type` = `response-log`** (Python API):
+- ¿Existe archivo `AC-XX_{description}.json` con request/response?
+- ¿El status HTTP y body de la respuesta confirman que el AC se cumple?
+- ¿La evidencia incluye los datos que el criterio exige?
+
+**En ambos casos**: ¿Existe `e2e-evidence-report.html`? (OBLIGATORIO para todos los stacks)
 
 ```
 PASS: Screenshot AC-01_crear_propiedad.png presente y coherente
-FAIL: No existe evidencia visual para AC-01
+PASS: Response log AC-01_login_valido.json con status 200 y access_token
+FAIL: No existe evidencia para AC-01 (ni screenshot ni response log)
 ```
 
 ### 4. ¿El código cubre la lógica del criterio? → CHECK (git diff)

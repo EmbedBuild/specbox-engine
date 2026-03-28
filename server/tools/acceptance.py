@@ -565,3 +565,261 @@ def register_acceptance_tools(mcp: FastMCP, engine_path: Path, state_path: Path)
             "available_reports": available,
             "hint": "Run `run_acceptance_check` first to generate a report",
         }
+
+    @mcp.tool
+    def get_e2e_gap_report(
+        project_path: str,
+        project: str = "",
+    ) -> dict:
+        """Detect E2E testing gaps for a project: which UCs lack acceptance evidence.
+
+        Scans PRDs for all US/UC/AC definitions, then checks which have E2E evidence
+        (HTML reports, screenshots, response logs, results.json). Returns a gap report
+        with a proposed E2E testing plan for UCs missing evidence.
+
+        Designed to run during upgrade_project alignment to ensure projects moving to
+        the latest engine version get a concrete plan to backfill E2E evidence.
+
+        Args:
+            project_path: Absolute path to the project root.
+            project: Project name (for state lookup). Optional.
+
+        Returns:
+            JSON with coverage summary, per-UC gap analysis, and a proposed
+            E2E testing plan for UCs without evidence.
+        """
+        pp = Path(project_path).resolve()
+        if not pp.is_dir():
+            return {"error": f"Project path does not exist: {project_path}"}
+
+        timestamp = datetime.now(timezone.utc).isoformat()
+
+        # -----------------------------------------------------------
+        # 1. Detect stack
+        # -----------------------------------------------------------
+        stack = "unknown"
+        if (pp / "pubspec.yaml").exists():
+            stack = "flutter"
+        elif (pp / "package.json").exists():
+            try:
+                pkg = json.loads((pp / "package.json").read_text())
+                deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
+                if "react" in deps or "next" in deps or "react-dom" in deps:
+                    stack = "react"
+            except (json.JSONDecodeError, OSError):
+                pass
+        elif (pp / "pyproject.toml").exists() or (pp / "requirements.txt").exists():
+            stack = "python"
+
+        # -----------------------------------------------------------
+        # 2. Find all PRDs and extract US → UC → AC hierarchy
+        # -----------------------------------------------------------
+        prd_files = _find_prd_files(pp)
+        if not prd_files:
+            return {
+                "project": project or pp.name,
+                "stack": stack,
+                "error": "No PRD files found — cannot detect E2E gaps",
+                "hint": "Create PRDs in doc/prd/ with AC-XX definitions",
+            }
+
+        prd_text = ""
+        for prd_file in prd_files:
+            try:
+                prd_text += "\n" + prd_file.read_text(encoding="utf-8")
+            except OSError:
+                continue
+
+        # Extract all UCs
+        all_ucs = list(dict.fromkeys(
+            uc.upper() for uc in re.findall(r"(UC-\d+)", prd_text, re.IGNORECASE)
+        ))
+
+        if not all_ucs:
+            return {
+                "project": project or pp.name,
+                "stack": stack,
+                "error": "No UC identifiers found in PRDs",
+                "prd_files": [str(f.relative_to(pp)) for f in prd_files],
+            }
+
+        # -----------------------------------------------------------
+        # 3. For each UC, check what E2E evidence exists
+        # -----------------------------------------------------------
+        evidence_base = pp / ".quality" / "evidence"
+        uc_results: list[dict] = []
+        covered = 0
+        partial = 0
+        missing = 0
+
+        for uc_id in all_ucs:
+            criteria = _extract_ac_from_prd(prd_text, uc_id)
+            uc_entry: dict = {
+                "uc_id": uc_id,
+                "ac_count": len(criteria),
+                "criteria": [],
+            }
+
+            has_html_report = False
+            has_results_json = False
+            ac_with_evidence = 0
+
+            # Search evidence dirs (by feature name — could be any subdir)
+            for feature_dir in (evidence_base.iterdir() if evidence_base.is_dir() else []):
+                if not feature_dir.is_dir():
+                    continue
+                acc_dir = feature_dir / "acceptance"
+                if not acc_dir.is_dir():
+                    continue
+
+                # Check HTML report
+                html_report = acc_dir / "e2e-evidence-report.html"
+                if html_report.exists():
+                    try:
+                        content = html_report.read_text(errors="ignore")
+                        if uc_id in content:
+                            has_html_report = True
+                    except OSError:
+                        pass
+
+                # Check results.json
+                results_file = acc_dir / "results.json"
+                if results_file.exists():
+                    try:
+                        data = json.loads(results_file.read_text())
+                        if data.get("uc_id", "").upper() == uc_id:
+                            has_results_json = True
+                    except (json.JSONDecodeError, OSError):
+                        pass
+
+            # Check acceptance-check reports
+            check_dir = pp / ".quality" / "acceptance-check" / uc_id
+            has_acceptance_check = (check_dir / "report.json").exists()
+
+            # Check for .feature files
+            feature_dirs = [
+                pp / "test" / "acceptance" / "features",
+                pp / "tests" / "acceptance" / "features",
+                pp / "e2e" / "acceptance" / "features",
+                pp / "e2e" / "features",
+            ]
+            has_feature_file = False
+            for fd in feature_dirs:
+                if fd.is_dir():
+                    for f in fd.iterdir():
+                        if f.suffix == ".feature":
+                            try:
+                                content = f.read_text(errors="ignore")
+                                if uc_id in content:
+                                    has_feature_file = True
+                                    break
+                            except OSError:
+                                continue
+                if has_feature_file:
+                    break
+
+            # Per-AC evidence check
+            for ac in criteria:
+                ac_id = ac["ac_id"]
+                ac_evidence = _search_evidence(pp, ac_id, ac["description"])
+                has_test_evidence = any(
+                    "test" in e.lower() or "acceptance" in e.lower() or "e2e" in e.lower()
+                    for e in ac_evidence
+                )
+                if has_test_evidence:
+                    ac_with_evidence += 1
+                uc_entry["criteria"].append({
+                    "ac_id": ac_id,
+                    "description": ac["description"][:80],
+                    "has_evidence": has_test_evidence,
+                })
+
+            # Determine UC coverage status
+            if has_html_report and has_results_json:
+                status = "covered"
+                covered += 1
+            elif has_feature_file or has_acceptance_check or ac_with_evidence > 0:
+                status = "partial"
+                partial += 1
+            else:
+                status = "missing"
+                missing += 1
+
+            uc_entry["status"] = status
+            uc_entry["has_html_report"] = has_html_report
+            uc_entry["has_results_json"] = has_results_json
+            uc_entry["has_feature_file"] = has_feature_file
+            uc_entry["has_acceptance_check"] = has_acceptance_check
+            uc_entry["ac_with_evidence"] = ac_with_evidence
+            uc_results.append(uc_entry)
+
+        # -----------------------------------------------------------
+        # 4. Generate E2E testing plan for UCs without evidence
+        # -----------------------------------------------------------
+        plan_items: list[dict] = []
+        for uc in uc_results:
+            if uc["status"] in ("missing", "partial"):
+                missing_acs = [
+                    c for c in uc["criteria"] if not c["has_evidence"]
+                ]
+                if missing_acs:
+                    # Determine test framework based on stack
+                    if stack == "flutter":
+                        framework = "Playwright (web) or Patrol v4 (mobile)"
+                        test_dir = "e2e/acceptance/"
+                        generator = "Playwright native or patrol-evidence-generator.js"
+                    elif stack == "react":
+                        framework = "Playwright"
+                        test_dir = "tests/acceptance/"
+                        generator = "Playwright native HTML reporter"
+                    elif stack == "python":
+                        framework = "pytest-bdd + httpx"
+                        test_dir = "tests/acceptance/"
+                        generator = "api-evidence-generator.js"
+                    else:
+                        framework = "Unknown"
+                        test_dir = "tests/acceptance/"
+                        generator = "Manual"
+
+                    plan_items.append({
+                        "uc_id": uc["uc_id"],
+                        "status": uc["status"],
+                        "missing_acs": [
+                            {"ac_id": c["ac_id"], "description": c["description"]}
+                            for c in missing_acs
+                        ],
+                        "action": f"Generate .feature + step definitions + run E2E tests",
+                        "framework": framework,
+                        "test_dir": test_dir,
+                        "evidence_generator": generator,
+                    })
+
+        total = len(all_ucs)
+        coverage_pct = round((covered / total) * 100) if total > 0 else 0
+
+        # -----------------------------------------------------------
+        # 5. Build summary
+        # -----------------------------------------------------------
+        summary = (
+            f"E2E Coverage: {coverage_pct}% ({covered}/{total} UCs with full evidence). "
+            f"{partial} parcial, {missing} sin evidencia."
+        )
+        if plan_items:
+            summary += f" Plan propuesto: {len(plan_items)} UCs necesitan tests E2E."
+
+        return {
+            "project": project or pp.name,
+            "stack": stack,
+            "timestamp": timestamp,
+            "prd_files": [str(f.relative_to(pp)) for f in prd_files],
+            "coverage": {
+                "total_ucs": total,
+                "covered": covered,
+                "partial": partial,
+                "missing": missing,
+                "coverage_pct": coverage_pct,
+            },
+            "uc_results": uc_results,
+            "e2e_plan": plan_items if plan_items else None,
+            "summary": summary,
+        }

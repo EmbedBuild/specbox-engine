@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # --- Workflow States ---
@@ -64,6 +64,30 @@ class UseCaseSpec(BaseModel):
     acceptance_criteria: list[str] = Field(default_factory=list)
     context: str = ""
 
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_aliases(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        # Accept id/title as aliases for uc_id/name
+        if "uc_id" not in data and "id" in data:
+            data["uc_id"] = data.pop("id")
+        if "name" not in data and "title" in data:
+            data["name"] = data.pop("title")
+        # Normalize acceptance_criteria: accept list of dicts with text field
+        acs = data.get("acceptance_criteria")
+        if isinstance(acs, list):
+            normalized: list[str] = []
+            for ac in acs:
+                if isinstance(ac, str):
+                    normalized.append(ac)
+                elif isinstance(ac, dict):
+                    normalized.append(ac.get("text", ac.get("name", str(ac))))
+                else:
+                    normalized.append(str(ac))
+            data["acceptance_criteria"] = normalized
+        return data
+
 
 class UserStorySpec(BaseModel):
     us_id: str
@@ -72,6 +96,18 @@ class UserStorySpec(BaseModel):
     screens: str = ""
     description: str = ""
     use_cases: list[UseCaseSpec] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_aliases(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        # Accept id/title as aliases for us_id/name
+        if "us_id" not in data and "id" in data:
+            data["us_id"] = data.pop("id")
+        if "name" not in data and "title" in data:
+            data["name"] = data.pop("title")
+        return data
 
 
 class ImportSpec(BaseModel):

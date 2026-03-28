@@ -1,10 +1,15 @@
-# SpecBox Engine v5.12.0 — Source Shield
+<p align="center">
+  <img src=".github/assets/Logo SpecBox.png" alt="SpecBox Engine" width="280" />
+</p>
 
-**SpecBox Engine by JPS** — Sistema de programacion agentica para Claude Code.
+<h1 align="center">SpecBox Engine v5.12.0 — Source Shield</h1>
+
+<p align="center">
+  <strong>SpecBox Engine by JPS</strong> — Sistema de programacion agentica para Claude Code.<br/>
+  <a href="#english-version">English version below</a>
+</p>
 
 Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 108 tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane/FreeForm para desarrollo profesional con Claude Code.
-
-> **[English version below](#english-version)** — Scroll down for the full English documentation.
 
 ---
 
@@ -1292,9 +1297,15 @@ v5.12.0 | 2026-03-26 | JPS Developer
 
 # English Version
 
-# SpecBox Engine v5.12.0 — Source Shield
+<p align="center">
+  <img src=".github/assets/Logo SpecBox.png" alt="SpecBox Engine" width="280" />
+</p>
 
-**SpecBox Engine by JPS** — An agentic programming system for Claude Code.
+<h1 align="center">SpecBox Engine v5.12.0 — Source Shield</h1>
+
+<p align="center">
+  <strong>SpecBox Engine by JPS</strong> — An agentic programming system for Claude Code.
+</p>
 
 Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 108 tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane/FreeForm for professional development with Claude Code.
 

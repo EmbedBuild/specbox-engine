@@ -201,6 +201,56 @@ current_branch = git branch --show-current
 - Sin review, el merge secuencial no puede funcionar
 - Implementar en main directamente rompe TODO el pipeline de calidad
 
+### 0.5c.vs Visual Identity Gate (si UC tiene pantallas) (BLOQUEANTE)
+
+> **REGLA**: No se puede implementar UI sin identidad visual configurada.
+> Este gate impide generar diseños genéricos que no representan la marca del producto.
+> Se ejecuta ANTES del Design Gate (0.5d) porque sin brand kit los diseños carecen de sentido.
+
+```
+¿El UC/plan tiene pantallas listadas?
+├── No tiene pantallas → SKIP (gate no aplica, UC sin UI)
+└── Tiene pantallas → Verificar identidad visual:
+    │
+    ¿Existe doc/brand/brand_kit/SKILL.md?
+    ├── SI → OK — brand kit configurado, continuar
+    └── NO → Verificar mas:
+        │
+        ¿Existe stitch.designSystemAssetId en .claude/settings.local.json?
+        ├── SI → OK — Design System configurado (brand kit parcial aceptable)
+        └── NO → Verificar si el proyecto usa Stitch:
+            │
+            ¿Existe stitch.projectId en .claude/settings.local.json
+             O existen doc/design/**/*.html?
+            ├── NO → SKIP (proyecto no usa Stitch, gate no aplica)
+            └── SI → ❌ BLOCKED
+                "❌ BLOCKED: Visual identity not configured.
+                 This project uses Stitch but has no brand kit or Design System.
+                 Without visual identity, designs are generic and inconsistent.
+
+                 Run /visual-setup first to configure:
+                 - Brand Kit (colors, typography, CSS tokens)
+                 - Design System in Stitch (applied automatically to every screen)
+                 - VEG base (visual directives for sub-agents)
+                 - Prompt template (reusable structure for Stitch generation)
+
+                 /visual-setup takes ~5 minutes and only needs to run once per project."
+                → PARAR. No continuar bajo ninguna circunstancia.
+```
+
+```bash
+# Verificacion rapida
+ls doc/brand/brand_kit/SKILL.md 2>/dev/null
+cat .claude/settings.local.json 2>/dev/null | grep -c "designSystemAssetId"
+```
+
+**Por que este bloqueo es necesario:**
+- Sin brand kit, Stitch genera con paleta y tipografia por defecto
+- Los diseños resultantes no representan la marca del producto
+- design-to-code hereda el estilo generico, creando deuda visual
+- Cada pantalla generada sin brand kit es una pantalla que hay que rehacer
+- `/visual-setup` solo se ejecuta UNA VEZ por proyecto (~5 min) y resuelve el problema permanentemente
+
 ### 0.5d Stitch Design Gate (si UC tiene pantallas) (BLOQUEANTE)
 
 > **REGLA**: No se puede generar codigo de presentacion sin diseños Stitch previos.

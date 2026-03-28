@@ -1,5 +1,5 @@
-version: 5.13.0
-codename: "E2E Evidence Enforcement"
+version: 5.14.0
+codename: "Visual Identity"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-03-28
@@ -199,8 +199,30 @@ features:
   - github-branch-protection-template
   - e2e-evidence-check-github-action
   - gas-legacy-mode
+  # New (v5.14.0)
+  - visual-setup-skill
+  - brand-kit-generation
+  - stitch-design-system-auto-config
+  - veg-base-generation
+  - multi-form-factor-config
+  - stitch-prompt-template
+  - visual-identity-gate
+  - get-visual-gap-report-tool
+  - visual-alignment-hint-upgrade
 
 changelog:
+  5.14.0:
+    date: 2026-03-28
+    changes:
+      - "feat: /visual-setup skill — configure brand kit, Stitch Design System, VEG base, and multi-form-factor before development"
+      - "feat: brand kit generation — variables.css (light+dark tokens), tailwind.config.js, SKILL.md (agent summary), light.md, dark.md"
+      - "feat: Stitch Design System auto-config — creates project, applies design system with designMd from brand kit"
+      - "feat: VEG base generation — visual directives (3 pillars) derived from brand kit for all features"
+      - "feat: multi-form-factor config — DESKTOP + TABLET + MOBILE with reusable prompt template"
+      - "feat: Visual Identity Gate (BLOCKING) in /implement — blocks UI implementation without brand kit for Stitch projects"
+      - "feat: get_visual_gap_report MCP tool — scans 10 artifacts across 5 categories, reports coverage %"
+      - "feat: visual_alignment hint in upgrade_project and visual_gap_hint in get_version_matrix"
+      - "fix: tool count corrected from 110 to 111 (added get_visual_gap_report)"
   5.13.0:
     date: 2026-03-28
     changes:

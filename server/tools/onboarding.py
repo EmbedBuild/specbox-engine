@@ -624,6 +624,17 @@ def register_onboarding_tools(
             "args": {"project_path": "<project repo path>", "project": project},
         }
 
+        # Visual identity alignment hint
+        visual_alignment = {
+            "action": "run get_visual_gap_report with the project path to detect visual identity gaps",
+            "reason": (
+                "v5.14.0+ supports /visual-setup for brand kit + Stitch Design System + VEG base. "
+                "Projects using Stitch without a brand kit get inconsistent designs."
+            ),
+            "tool": "get_visual_gap_report",
+            "args": {"project_path": "<project repo path>"},
+        }
+
         return {
             "project": project,
             "stack": detected_stack,
@@ -636,10 +647,11 @@ def register_onboarding_tools(
             "upgraded_at": now,
             "warnings": warnings if warnings else None,
             "e2e_alignment": e2e_alignment,
+            "visual_alignment": visual_alignment,
             "instructions": (
                 "Copy the files above to your project repo, replacing the existing ones. "
-                "Then run get_e2e_gap_report on the project to detect UCs missing E2E evidence "
-                "and get a proposed testing plan."
+                "Then run get_e2e_gap_report and get_visual_gap_report on the project to detect "
+                "E2E evidence gaps and visual identity gaps respectively."
             ),
         }
 
@@ -737,6 +749,11 @@ def register_onboarding_tools(
                 "UCs without E2E evidence and generate a backfill testing plan. "
                 "v5.12.0+ requires HTML Evidence Reports for all active stacks."
             ),
+            "visual_gap_hint": (
+                "After upgrading, run get_visual_gap_report on each project to detect "
+                "missing brand kit, Stitch Design System, or VEG base configuration. "
+                "v5.14.0+ supports /visual-setup for consistent design identity."
+            ),
         }
 
     @mcp.tool
@@ -814,6 +831,205 @@ def register_onboarding_tools(
                 "Si no sabes las respuestas, puedes dejar todo en blanco excepto el nombre. "
                 "Se generara una config minima que puedes enriquecer despues con upgrade_project."
             ),
+        }
+
+    @mcp.tool
+    def get_visual_gap_report(project_path: str) -> dict:
+        """Scan a project for missing visual identity artifacts and report gaps.
+
+        Args:
+            project_path: Absolute path to the project repository root.
+
+        Checks for:
+        - Brand Kit (doc/brand/brand_kit/SKILL.md, variables.css, tailwind.config.js, light.md, dark.md)
+        - Stitch config (stitch.projectId, stitch.designSystemAssetId in settings.local.json)
+        - VEG base (doc/veg/base/*.md)
+        - Prompt template (doc/design/stitch-prompt-template.md)
+        - Multi-form-factor config (stitch.multiFormFactor in settings.local.json)
+
+        Returns a structured report with coverage percentage, missing artifacts,
+        and recommended actions. Projects not using Stitch at all get a clean skip.
+
+        Use after upgrade_project to detect which projects need /visual-setup,
+        or before /plan to verify visual identity is configured."""
+        import json as json_mod
+        from pathlib import Path as P
+
+        repo = P(project_path)
+        if not repo.is_dir():
+            return {"error": f"Directory not found: {project_path}"}
+
+        # --- Detect if project uses Stitch at all ---
+        settings_path = repo / ".claude" / "settings.local.json"
+        settings: dict = {}
+        if settings_path.exists():
+            try:
+                settings = json_mod.loads(settings_path.read_text())
+            except Exception:
+                pass
+
+        stitch_cfg = settings.get("stitch", {})
+        has_any_stitch = bool(stitch_cfg.get("projectId"))
+
+        # Check for any design HTML files (even without settings)
+        design_dir = repo / "doc" / "design"
+        has_design_htmls = False
+        if design_dir.is_dir():
+            has_design_htmls = any(design_dir.rglob("*.html"))
+
+        uses_stitch = has_any_stitch or has_design_htmls
+
+        # --- Check each artifact ---
+        brand_kit_dir = repo / "doc" / "brand" / "brand_kit"
+        artifacts = {
+            "brand_kit_skill": {
+                "path": "doc/brand/brand_kit/SKILL.md",
+                "exists": (brand_kit_dir / "SKILL.md").is_file(),
+                "category": "brand_kit",
+                "description": "Brand summary for sub-agents (~600 tokens)",
+            },
+            "brand_kit_variables": {
+                "path": "doc/brand/brand_kit/variables.css",
+                "exists": (brand_kit_dir / "variables.css").is_file(),
+                "category": "brand_kit",
+                "description": "CSS custom properties (light + dark tokens)",
+            },
+            "brand_kit_tailwind": {
+                "path": "doc/brand/brand_kit/tailwind.config.js",
+                "exists": (brand_kit_dir / "tailwind.config.js").is_file(),
+                "category": "brand_kit",
+                "description": "Tailwind config using CSS variables",
+            },
+            "brand_kit_light": {
+                "path": "doc/brand/brand_kit/light.md",
+                "exists": (brand_kit_dir / "light.md").is_file(),
+                "category": "brand_kit",
+                "description": "Light theme specifications",
+            },
+            "brand_kit_dark": {
+                "path": "doc/brand/brand_kit/dark.md",
+                "exists": (brand_kit_dir / "dark.md").is_file(),
+                "category": "brand_kit",
+                "description": "Dark theme specifications",
+            },
+            "stitch_project_id": {
+                "path": ".claude/settings.local.json → stitch.projectId",
+                "exists": bool(stitch_cfg.get("projectId")),
+                "category": "stitch",
+                "description": "Stitch project created and configured",
+            },
+            "stitch_design_system": {
+                "path": ".claude/settings.local.json → stitch.designSystemAssetId",
+                "exists": bool(stitch_cfg.get("designSystemAssetId")),
+                "category": "stitch",
+                "description": "Stitch Design System with brand tokens applied",
+            },
+            "veg_base": {
+                "path": "doc/veg/base/*.md",
+                "exists": any((repo / "doc" / "veg" / "base").rglob("*.md"))
+                if (repo / "doc" / "veg" / "base").is_dir()
+                else False,
+                "category": "veg",
+                "description": "VEG base with visual directives for all features",
+            },
+            "prompt_template": {
+                "path": "doc/design/stitch-prompt-template.md",
+                "exists": (repo / "doc" / "design" / "stitch-prompt-template.md").is_file(),
+                "category": "prompt",
+                "description": "Reusable prompt structure for Stitch generation",
+            },
+            "multi_form_factor": {
+                "path": ".claude/settings.local.json → stitch.multiFormFactor",
+                "exists": bool(stitch_cfg.get("multiFormFactor")),
+                "category": "config",
+                "description": "Multi-form-factor enabled (DESKTOP + TABLET + MOBILE)",
+            },
+        }
+
+        total = len(artifacts)
+        present = sum(1 for a in artifacts.values() if a["exists"])
+        missing = [
+            {"artifact": k, "path": v["path"], "description": v["description"]}
+            for k, v in artifacts.items()
+            if not v["exists"]
+        ]
+
+        coverage_pct = round((present / total) * 100) if total > 0 else 0
+
+        # --- Category summaries ---
+        categories = {}
+        for a in artifacts.values():
+            cat = a["category"]
+            if cat not in categories:
+                categories[cat] = {"total": 0, "present": 0}
+            categories[cat]["total"] += 1
+            if a["exists"]:
+                categories[cat]["present"] += 1
+
+        # --- Determine status ---
+        if coverage_pct == 100:
+            status = "complete"
+            action = "No action needed — visual identity is fully configured."
+        elif coverage_pct == 0 and not uses_stitch:
+            status = "not_applicable"
+            action = (
+                "Project does not use Stitch. Run /visual-setup if you want to "
+                "add design system capabilities."
+            )
+        elif coverage_pct == 0 and uses_stitch:
+            status = "missing"
+            action = (
+                "Project uses Stitch but has NO visual identity configured. "
+                "Run /visual-setup to create brand kit, Design System, VEG base, "
+                "and prompt template from scratch."
+            )
+        else:
+            status = "partial"
+            missing_cats = [
+                cat for cat, info in categories.items()
+                if info["present"] < info["total"]
+            ]
+            action = (
+                f"Visual identity partially configured ({coverage_pct}%). "
+                f"Missing in: {', '.join(missing_cats)}. "
+                "Run /visual-setup — it will detect existing artifacts and complete "
+                "only what's missing."
+            )
+
+        # --- Human-friendly summary ---
+        summary_lines = [
+            f"Visual Identity: {coverage_pct}% ({present}/{total} artifacts)",
+            f"Status: {status.upper()}",
+        ]
+        if uses_stitch:
+            summary_lines.append(f"Stitch: {'configured' if has_any_stitch else 'HTML designs found but no project config'}")
+        if missing:
+            summary_lines.append(f"Missing: {', '.join(m['artifact'] for m in missing[:5])}")
+            if len(missing) > 5:
+                summary_lines.append(f"  ...and {len(missing) - 5} more")
+        summary_lines.append(f"Action: {action}")
+
+        return {
+            "project_path": project_path,
+            "uses_stitch": uses_stitch,
+            "status": status,
+            "coverage": {
+                "total": total,
+                "present": present,
+                "missing_count": len(missing),
+                "coverage_pct": coverage_pct,
+            },
+            "categories": {
+                cat: f"{info['present']}/{info['total']}"
+                for cat, info in categories.items()
+            },
+            "artifacts": {
+                k: {"exists": v["exists"], "path": v["path"]}
+                for k, v in artifacts.items()
+            },
+            "missing": missing if missing else None,
+            "action": action,
+            "summary": "\n".join(summary_lines),
         }
 
     @mcp.tool

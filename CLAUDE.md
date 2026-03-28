@@ -1,21 +1,21 @@
-# SpecBox Engine v5.13.0
+# SpecBox Engine v5.14.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (109 tools) + Sala de Máquinas + Gherkin BDD.
+> Monorepo unificado: engine + MCP server (111 tools) + Sala de Máquinas + Gherkin BDD.
 
 ## Que es este repositorio
 
 Este repositorio es un **monorepo unificado** con el sistema completo de programacion agentica para Claude Code. Incluye:
 
-- **Commands** (`/prd`, `/plan`, `/implement`, `/adapt-ui`, `/optimize-agents`, `/feedback`) — flujo completo de desarrollo
+- **Commands** (`/prd`, `/visual-setup`, `/plan`, `/implement`, `/adapt-ui`, `/optimize-agents`, `/feedback`) — flujo completo de desarrollo
 - **Agent Teams** — configuracion para orquestacion multi-agente nativa de Claude Code
 - **Architecture** — patrones por stack (Flutter, React, Python, Google Apps Script)
 - **Infrastructure** — patrones por servicio (Supabase, Neon, Stripe, Firebase, n8n)
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (109 tools) + Sala de Máquinas dashboard (React 19)
+- **Server** — MCP server unificado (111 tools) + Sala de Máquinas dashboard (React 19)
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
 
@@ -81,6 +81,8 @@ Spec-Driven (Trello o Plane):
   ↓
 /prd → Enriquece spec firmado + PRD + evidencia PDF → Trello/Plane
   ↓
+/visual-setup → Brand Kit + Stitch DS + VEG base + Multi-Form-Factor
+  ↓
 /plan → Plan tecnico por UC + VEG + Diseños Stitch (MCP) + evidencia PDF → Trello/Plane
   ↓
 /implement → find_next_uc → start_uc → rama + fases + QA + Acceptance Gate + PR
@@ -118,7 +120,8 @@ specbox-engine/
 │   │   ├── quality-gate/SKILL.md
 │   │   ├── explore/SKILL.md
 │   │   ├── feedback/SKILL.md
-│   │   └── check-designs/SKILL.md
+│   │   ├── check-designs/SKILL.md
+│   │   └── visual-setup/SKILL.md
 │   ├── hooks/             ← Hooks (v3.3)
 │   │   ├── mcp-report.sh
 │   │   ├── pre-commit-lint.sh
@@ -181,7 +184,7 @@ specbox-engine/
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
 ├── server/                ← MCP server unificado (v5.5)
-│   ├── server.py          ← FastMCP (109 tools)
+│   ├── server.py          ← FastMCP (111 tools)
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
@@ -189,7 +192,7 @@ specbox-engine/
 │   │   ├── plane_backend.py    ← PlaneBackend (Plane CE self-hosted)
 │   │   ├── plane_client.py     ← Async httpx client for Plane API v1
 │   │   └── freeform_backend.py ← FreeformBackend (local JSON + Markdown)
-│   ├── tools/             ← 19 tool modules (109 tools)
+│   ├── tools/             ← 19 tool modules (111 tools)
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
 │   │   ├── quality.py     ← 4 tools
@@ -197,7 +200,7 @@ specbox-engine/
 │   │   ├── features.py    ← 6 tools
 │   │   ├── telemetry.py   ← 6 tools
 │   │   ├── hooks.py       ← 3 tools
-│   │   ├── onboarding.py  ← 9 tools (+ setup_board + archive_project)
+│   │   ├── onboarding.py  ← 9 tools (+ setup_board + archive_project + get_visual_gap_report)
 │   │   ├── state.py       ← 17 tools
 │   │   ├── spec_driven.py ← 21 tools (backend-agnostic via SpecBackend)
 │   │   ├── migration.py   ← 5 tools (Trello ↔ Plane migration)
@@ -243,6 +246,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | Skill | Trigger phrases | Mode | Tools | Notes |
 |-------|----------------|------|-------|-------|
 | /prd | "create PRD", "new feature", "write requirements" | fork:Plan | Full | Definition Quality Gate (Paso 2.5) valida AC-XX |
+| /visual-setup | "visual setup", "configure brand", "design system", "brand kit" | fork:Plan | Full | v5.14 — Brand Kit + Stitch DS + VEG + Multi-FF |
 | /plan | "plan feature", "technical plan", "analyze for implementation" | fork:Plan | Full | VEG generation (Paso 2.5b) |
 | /implement | "implement plan", "execute plan", "autopilot" | direct | Full | Self-healing + AG-09 + Spec-Code Sync + merge secuencial |
 | /adapt-ui | "scan UI", "map components", "detect widgets" | fork:Explore | Read-only | |
@@ -590,6 +594,6 @@ Deteccion automatica de UCs sin evidencia E2E durante el upgrade de proyectos:
 
 ## Engine Version
 
-Current: v5.13.0 "E2E Evidence Enforcement"
+Current: v5.14.0 "Visual Identity"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

@@ -1,7 +1,76 @@
-# Reglas Globales - SpecBox Engine v5.10.0
+# Reglas Globales - SpecBox Engine v5.15.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.
+
+---
+
+## Quality First — Calidad sobre velocidad (v5.15.0)
+
+> **SpecBox Engine ya proporciona velocidad. El trabajo del LLM es CALIDAD.**
+> Cada vez que el agente prioriza velocidad sobre calidad, genera deuda tecnica
+> que cuesta mas que el tiempo "ahorrado". Un token bien usado > diez tokens desperdiciados.
+
+### Contrato de Calidad
+
+**Antes de escribir cualquier archivo, el agente DEBE:**
+
+1. **Leer** — Leer el archivo que va a modificar (enforcement por `quality-first-guard.sh`)
+2. **Entender** — Comprender el codigo existente, sus patrones, sus convenciones
+3. **Articular** — Explicar en texto visible que va a hacer y por que
+4. **Implementar** — Solo entonces, escribir el codigo
+5. **Verificar** — Confirmar que el cambio es correcto antes de marcarlo como hecho
+
+### Reglas de calidad obligatorias
+
+| Regla | Descripcion | Enforcement |
+|-------|-------------|-------------|
+| **Read before Write** | Leer archivos existentes antes de modificarlos | Hook BLOQUEANTE (`quality-first-guard.sh`) |
+| **Think before Act** | Articular enfoque antes de implementar en tareas complejas | Instruccion (CLAUDE.md) |
+| **Verify before Done** | Verificar que el cambio funciona antes de marcar como completado | Instruccion (CLAUDE.md) |
+| **Ask before Guess** | Si hay incertidumbre, preguntar al usuario en vez de adivinar | Instruccion (CLAUDE.md) |
+| **One right > three fast** | Una implementacion correcta vale mas que tres iteraciones rapidas | Instruccion (CLAUDE.md) |
+
+### Antipatrones prohibidos
+
+Estos son los comportamientos que el agente NUNCA debe exhibir:
+
+1. **Escribir sin leer** — Modificar un archivo sin haberlo leido primero → Hook bloquea
+2. **Adivinar en vez de preguntar** — Ante incertidumbre, iterar en vez de consultar → Gasta tokens
+3. **Completar por completar** — Marcar tareas como hechas sin verificar → Genera deuda
+4. **Codigo reactivo** — Escribir codigo que "deberia funcionar" sin entender el contexto → Breaks
+5. **Healing infinito** — Reintentar la misma solucion esperando un resultado diferente → Budget
+
+### Articulacion obligatoria (tareas complejas)
+
+Para tareas que involucren mas de 3 archivos o logica no trivial, el agente DEBE
+articular en texto visible ANTES de escribir codigo:
+
+```
+## Que voy a hacer
+[Descripcion concreta del cambio]
+
+## Por que
+[Razon del cambio, no solo "el usuario lo pidio"]
+
+## Alternativas consideradas
+[Al menos 1 alternativa y por que se descarto]
+
+## Riesgos
+[Que podria salir mal]
+```
+
+Esto NO es burocracia — es el mecanismo que fuerza al modelo a "pensar" antes de actuar.
+El coste es ~100 tokens. El ahorro es miles de tokens de iteraciones evitadas.
+
+### Enforcement mecanico
+
+| Hook | Evento | Tipo | Que hace |
+|------|--------|------|----------|
+| `quality-first-guard.sh` | PreToolUse (Write/Edit) | **BLOQUEANTE** | Verifica que el archivo fue leido en la sesion |
+| `read-tracker.sh` | PostToolUse (Read) | No bloqueante | Registra archivos leidos en `.quality/read_tracker.jsonl` |
+
+El tracker se limpia automaticamente cada 24 horas (una sesion = un tracker fresco).
 
 ---
 

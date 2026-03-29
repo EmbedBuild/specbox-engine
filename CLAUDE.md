@@ -1,8 +1,8 @@
-# SpecBox Engine v5.14.0
+# SpecBox Engine v5.15.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (111 tools) + Sala de Máquinas + Gherkin BDD.
+> Monorepo unificado: engine + MCP server (110 tools) + Sala de Máquinas + Gherkin BDD.
 
 ## Que es este repositorio
 
@@ -15,7 +15,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (111 tools) + Sala de Máquinas dashboard (React 19)
+- **Server** — MCP server unificado (110 tools) + Sala de Máquinas dashboard (React 19)
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
 
@@ -122,7 +122,9 @@ specbox-engine/
 │   │   ├── feedback/SKILL.md
 │   │   ├── check-designs/SKILL.md
 │   │   └── visual-setup/SKILL.md
-│   ├── hooks/             ← Hooks (v3.3)
+│   ├── hooks/             ← Hooks (v5.15)
+│   │   ├── quality-first-guard.sh
+│   │   ├── read-tracker.sh
 │   │   ├── mcp-report.sh
 │   │   ├── pre-commit-lint.sh
 │   │   ├── on-session-end.sh
@@ -184,7 +186,7 @@ specbox-engine/
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
 ├── server/                ← MCP server unificado (v5.5)
-│   ├── server.py          ← FastMCP (111 tools)
+│   ├── server.py          ← FastMCP (110 tools)
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
@@ -192,7 +194,7 @@ specbox-engine/
 │   │   ├── plane_backend.py    ← PlaneBackend (Plane CE self-hosted)
 │   │   ├── plane_client.py     ← Async httpx client for Plane API v1
 │   │   └── freeform_backend.py ← FreeformBackend (local JSON + Markdown)
-│   ├── tools/             ← 19 tool modules (111 tools)
+│   ├── tools/             ← 19 tool modules (110 tools)
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
 │   │   ├── quality.py     ← 4 tools
@@ -260,12 +262,14 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /remote | "estado de", "resumen de todos", "sesiones activas" | direct | Full | v5.5 — Remote project management for OpenClaw (WhatsApp/Discord) |
 | /release | "release", "bump version", "sube version", "prepara release" | direct | Full | v5.8 — Audit residuals + update version/changelog/docs + push |
 
-## Hooks (v5.7.0)
+## Hooks (v5.15.0)
 
 Automatic enforcement — no need to remember running these manually:
 
 | Hook | Event | Behavior |
 |------|-------|----------|
+| **quality-first-guard** | PreToolUse (Write/Edit) | **BLOCKING**: verifies the agent read the file before modifying it. Enforces "read before write." |
+| **read-tracker** | PostToolUse (Read) | Non-blocking: records which files the agent reads. Used by quality-first-guard. |
 | **spec-guard** | PostToolUse (Write/Edit on src/ or lib/) | **BLOCKING**: verifies active UC exists + branch is not main. No UC or main branch = no code writes. |
 | **branch-guard** | PostToolUse (Write/Edit on src/ or lib/) | **BLOCKING**: verifies current branch is not main/master. Enforces branch discipline. |
 | **commit-spec-guard** | PostToolUse (git commit) | **BLOCKING** (branch) + WARNING (rest): blocks commits on main; warns UC/checkpoint/size. |
@@ -280,6 +284,21 @@ Automatic enforcement — no need to remember running these manually:
 | heartbeat-sender | Manual (called by on-session-end, implement-checkpoint) | Sends consolidated project state snapshot to VPS; queues locally if offline |
 | mcp-report | Helper (called by other hooks) | Generic MCP reporter: fire-and-forget HTTP POST to /api/report/* |
 | e2e-report | Manual (called by /implement) | Reports Playwright E2E test results to MCP telemetry |
+
+### Quality First Enforcement (v5.15.0)
+
+The `quality-first-guard.sh` hook makes it **impossible** to modify an existing file without
+reading it first. The `read-tracker.sh` hook records every Read tool call in
+`.quality/read_tracker.jsonl`. The tracker auto-clears after 24 hours (one session = fresh tracker).
+
+This enforces the principle: **SpecBox provides speed. The LLM provides quality.**
+Every time the agent writes without reading, it risks breaking existing code, duplicating
+functionality, or introducing inconsistencies. The hook eliminates this antipattern mechanically.
+
+Skipped files: generated (`.g.dart`, `.freezed.dart`), lock files, `.quality/` internals,
+build artifacts. New files (that don't exist yet) are always allowed.
+
+See `rules/GLOBAL_RULES.md` section "Quality First" for the complete quality contract.
 
 ### Pipeline Integrity (v5.7.0)
 
@@ -594,6 +613,6 @@ Deteccion automatica de UCs sin evidencia E2E durante el upgrade de proyectos:
 
 ## Engine Version
 
-Current: v5.14.0 "Visual Identity"
+Current: v5.15.0 "Quality First"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

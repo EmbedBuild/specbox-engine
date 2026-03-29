@@ -3,6 +3,19 @@
     "PostToolUse": [
       {
         "matcher": {
+          "tool_name": "Read"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/read-tracker.sh",
+            "blocking": false,
+            "timeout": 3000
+          }
+        ]
+      },
+      {
+        "matcher": {
           "tool_name": "Bash",
           "command_pattern": "git commit"
         },
@@ -169,6 +182,32 @@
       }
     ],
     "PreToolUse": [
+      {
+        "matcher": {
+          "tool_name": "Write"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/quality-first-guard.sh",
+            "blocking": true,
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Edit"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/quality-first-guard.sh",
+            "blocking": true,
+            "timeout": 5000
+          }
+        ]
+      },
       {
         "matcher": {
           "tool_name": "Bash",

@@ -500,8 +500,8 @@ else
 
     echo -e "${GREEN}Installation complete.${NC}"
     echo -e "Commands: /prd, /plan, /implement, /adapt-ui, /optimize-agents"
-    echo -e "Skills:   /prd, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore, /feedback"
-    echo -e "E2E Hook: e2e-report.sh (report E2E results to MCP)"
+    echo -e "Skills:   /prd, /visual-setup, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore, /feedback, /check-designs, /acceptance-check, /quickstart, /remote, /release"
+    echo -e "Quality:  quality-first-guard.sh (read before write), read-tracker.sh (session tracking)"
     echo -e "Hooks:    $HOOK_NAMES"
 fi
 echo ""

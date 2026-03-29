@@ -1,8 +1,8 @@
-version: 5.14.0
-codename: "Visual Identity"
+version: 5.15.0
+codename: "Quality First"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-03-28
+release_date: 2026-03-29
 min_claude_code: "1.0.0"
 
 stacks:
@@ -209,8 +209,25 @@ features:
   - visual-identity-gate
   - get-visual-gap-report-tool
   - visual-alignment-hint-upgrade
+  # New (v5.15.0)
+  - quality-first-enforcement
+  - quality-first-guard-hook
+  - read-tracker-hook
+  - read-before-write-contract
+  - quality-contract-template
+  - think-before-act-rules
+  - antipattern-prohibition
 
 changelog:
+  5.15.0:
+    date: 2026-03-29
+    changes:
+      - "feat: quality-first-guard.sh BLOCKING hook — prevents modifying existing files without reading them first"
+      - "feat: read-tracker.sh PostToolUse hook — records files read in session for quality-first-guard enforcement"
+      - "feat: Quality First section in GLOBAL_RULES.md — 5 mandatory quality rules, 5 prohibited antipatterns, articulation template"
+      - "feat: Quality Contract section in CLAUDE.md.template — installed in every consumer project"
+      - "feat: think-before-act articulation requirement for complex tasks (>3 files or non-trivial logic)"
+      - "fix: tool count corrected from 111 to 110 (audit verified actual registration count)"
   5.14.0:
     date: 2026-03-28
     changes:

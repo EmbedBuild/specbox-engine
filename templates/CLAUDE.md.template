@@ -134,6 +134,29 @@ Durante el trabajo normal (sin compactacion), persiste informacion critica en En
 | `mem_timeline` | Ver contexto cronologico alrededor de una observacion |
 | `mem_stats` | Estadisticas del sistema de memoria |
 
+## Quality Contract — Calidad sobre velocidad
+
+> Este proyecto usa SpecBox Engine. La velocidad ya esta resuelta por el sistema.
+> Tu trabajo como agente es CALIDAD: lee antes de escribir, piensa antes de actuar,
+> verifica antes de marcar como hecho.
+
+### Reglas innegociables
+
+1. **Lee antes de escribir** — El hook `quality-first-guard.sh` BLOQUEA modificaciones a archivos existentes si no los leiste primero en esta sesion. No hay excepciones.
+2. **Piensa antes de actuar** — Para tareas complejas (>3 archivos o logica no trivial), articula tu enfoque en texto visible antes de escribir codigo.
+3. **Verifica antes de cerrar** — No marques una tarea como completada sin verificar que funciona. "Deberia funcionar" no es verificacion.
+4. **Pregunta antes de adivinar** — Si no estas seguro del enfoque, pregunta al usuario. Una pregunta cuesta ~50 tokens. Una iteracion fallida cuesta miles.
+5. **Una correcta > tres rapidas** — Una implementacion bien pensada vale mas que tres intentos rapidos que cada uno necesita arreglo.
+
+### Antipatrones que cuestan tokens
+
+| Antipatron | Coste real | Alternativa |
+|------------|-----------|-------------|
+| Escribir sin leer | Rompe funcionalidad existente, requiere rollback | Leer primero (hook lo fuerza) |
+| Adivinar enfoque | 3-5 iteraciones de healing, ~5K tokens cada una | Preguntar al usuario (~50 tokens) |
+| "Ya esta" sin verificar | Bug descubierto tarde, requiere reabrir UC | Verificar lint + test + funcionalidad |
+| Copiar codigo generico | No encaja con patrones del proyecto, refactor posterior | Leer codigo existente, seguir patrones |
+
 ## Reglas del Proyecto
 
 ### Importar reglas globales

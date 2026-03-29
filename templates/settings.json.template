@@ -12,7 +12,48 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": {
+          "tool_name": "Write"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/quality-first-guard.sh",
+            "blocking": true,
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Edit"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/quality-first-guard.sh",
+            "blocking": true,
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
+      {
+        "matcher": {
+          "tool_name": "Read"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/read-tracker.sh",
+            "blocking": false,
+            "timeout": 3000
+          }
+        ]
+      },
       {
         "matcher": {
           "tool_name": "Bash",

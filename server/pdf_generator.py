@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fpdf import FPDF
+
+_FONTS_DIR = Path(__file__).parent / "fonts"
 
 
 class SpecBoxPDF(FPDF):
@@ -15,12 +18,17 @@ class SpecBoxPDF(FPDF):
         super().__init__(**kwargs)
         self.report_title = title
         self.set_auto_page_break(auto=True, margin=25)
+        # Register DejaVu Sans (Unicode TTF) as the default font family
+        self.add_font("DejaVu", "", str(_FONTS_DIR / "DejaVuSans.ttf"), uni=True)
+        self.add_font("DejaVu", "B", str(_FONTS_DIR / "DejaVuSans-Bold.ttf"), uni=True)
+        self.add_font("DejaVu", "I", str(_FONTS_DIR / "DejaVuSans-Oblique.ttf"), uni=True)
+        self.add_font("DejaVuMono", "", str(_FONTS_DIR / "DejaVuSansMono.ttf"), uni=True)
 
     def header(self):
-        self.set_font("Helvetica", "B", 10)
+        self.set_font("DejaVu", "B", 10)
         w = self.get_string_width(self.report_title) + 10
         self.cell(w, 8, self.report_title)
-        self.set_font("Helvetica", "", 8)
+        self.set_font("DejaVu", "", 8)
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         self.cell(0, 8, date_str, align="R", new_x="LMARGIN", new_y="NEXT")
         self.line(10, self.get_y(), 200, self.get_y())
@@ -28,7 +36,7 @@ class SpecBoxPDF(FPDF):
 
     def footer(self):
         self.set_y(-15)
-        self.set_font("Helvetica", "I", 8)
+        self.set_font("DejaVu", "I", 8)
         self.cell(0, 10, f"Pagina {self.page_no()}/{{nb}}", align="C")
 
 
@@ -40,7 +48,7 @@ def markdown_to_pdf(markdown_content: str, title: str = "SpecBox Engine Report")
     pdf = SpecBoxPDF(title=title)
     pdf.alias_nb_pages()
     pdf.add_page()
-    pdf.set_font("Helvetica", "", 10)
+    pdf.set_font("DejaVu", "", 10)
 
     lines = markdown_content.split("\n")
     in_code_block = False
@@ -53,10 +61,10 @@ def markdown_to_pdf(markdown_content: str, title: str = "SpecBox Engine Report")
         if line.strip().startswith("```"):
             in_code_block = not in_code_block
             if in_code_block:
-                pdf.set_font("Courier", "", 9)
+                pdf.set_font("DejaVuMono", "", 9)
                 pdf.set_fill_color(240, 240, 240)
             else:
-                pdf.set_font("Helvetica", "", 10)
+                pdf.set_font("DejaVu", "", 10)
             i += 1
             continue
 
@@ -70,25 +78,25 @@ def markdown_to_pdf(markdown_content: str, title: str = "SpecBox Engine Report")
         # Headers — check longest prefix first
         if stripped.startswith("### "):
             pdf.ln(2)
-            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_font("DejaVu", "B", 12)
             pdf.cell(0, 6, stripped[4:], new_x="LMARGIN", new_y="NEXT")
-            pdf.set_font("Helvetica", "", 10)
+            pdf.set_font("DejaVu", "", 10)
             pdf.ln(1)
         elif stripped.startswith("## "):
             pdf.ln(3)
-            pdf.set_font("Helvetica", "B", 14)
+            pdf.set_font("DejaVu", "B", 14)
             pdf.cell(0, 7, stripped[3:], new_x="LMARGIN", new_y="NEXT")
-            pdf.set_font("Helvetica", "", 10)
+            pdf.set_font("DejaVu", "", 10)
             pdf.ln(2)
         elif stripped.startswith("# "):
             pdf.ln(4)
-            pdf.set_font("Helvetica", "B", 16)
+            pdf.set_font("DejaVu", "B", 16)
             pdf.cell(0, 8, stripped[2:], new_x="LMARGIN", new_y="NEXT")
-            pdf.set_font("Helvetica", "", 10)
+            pdf.set_font("DejaVu", "", 10)
             pdf.ln(3)
         elif stripped.startswith("- ") or stripped.startswith("* "):
             text = _clean_markdown(stripped[2:])
-            pdf.cell(0, 5, f"  - {text}", new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(0, 5, f"  \u2022 {text}", new_x="LMARGIN", new_y="NEXT")
         elif stripped == "":
             pdf.ln(3)
         else:

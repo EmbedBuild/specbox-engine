@@ -1,5 +1,5 @@
 """
-SpecBox Engine MCP Server v5.11.0
+SpecBox Engine MCP Server v5.16.0
 
 Unified MCP endpoint: 108 tools (engine + spec-driven + migration + telemetry + stitch).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
@@ -63,7 +63,7 @@ STATE_PATH.mkdir(parents=True, exist_ok=True)
 mcp = FastMCP(
     "specbox-engine",
     instructions="""
-    MCP server for the SpecBox Engine v5.6.0 — an agentic programming system for Claude Code.
+    MCP server for the SpecBox Engine v5.16.0 — an agentic programming system for Claude Code.
 
     Use these tools to:
     - Query implementation plans and their status
@@ -100,7 +100,7 @@ mcp = FastMCP(
     - Get conversational project summaries optimized for mobile queries
     - Proxy Google Stitch design tools (generate, edit, variants, design DNA, build site)
 
-    The engine manages Flutter, React, Python, and Google Apps Script projects
+    The engine manages Flutter, React, Go, Python, and Google Apps Script projects
     with automated PRD → Plan → Implement → PR pipelines, self-healing protocol,
     acceptance validation (AG-09a/AG-09b), feedback loop, E2E testing telemetry,
     and quality gates with ratchet enforcement.
@@ -169,7 +169,7 @@ def main():
     host = os.getenv("MCP_HOST", "0.0.0.0")
 
     logger = structlog.get_logger(__name__)
-    logger.info("server_starting", transport=transport, host=host, port=port, version="5.6.0")
+    logger.info("server_starting", transport=transport, host=host, port=port, version="5.16.0")
 
     uvicorn_opts = {"timeout_graceful_shutdown": 5}
 

@@ -60,7 +60,7 @@ def register_feature_tools(mcp: FastMCP, engine_path: Path):
     def get_architecture_doc(stack: str, doc_type: str = "overview") -> dict:
         """Read architecture documentation for a specific technology stack.
         Args:
-            stack: Technology stack name (flutter, react, python, gas).
+            stack: Technology stack name (flutter, react, go, python, gas).
             doc_type: Document type (overview, folder-structure, patterns, testing-strategy).
         Returns document content and metadata.
         Use when you need architecture guidance for implementing in a specific stack."""

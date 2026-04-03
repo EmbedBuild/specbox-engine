@@ -5,7 +5,7 @@
 
 ## Proposito
 
-Generar la estructura completa de una feature: modelos, repositorios, logica de negocio, presentacion y rutas. Se adapta al stack detectado (Flutter, React o Python).
+Generar la estructura completa de una feature: modelos, repositorios, logica de negocio, presentacion y rutas. Se adapta al stack detectado (Flutter, React, Go o Python).
 
 ---
 

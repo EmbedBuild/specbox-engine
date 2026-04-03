@@ -1,4 +1,4 @@
-# SpecBox Engine v5.15.0
+# SpecBox Engine v5.16.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -25,6 +25,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 |-------|---------|--------|
 | Flutter | 3.38+ | Completo |
 | React | 19.x | Completo |
+| Go | 1.23+ | Completo |
 | Python (FastAPI) | 3.12+ | Completo |
 | Google Apps Script | V8 | Completo |
 | Supabase | 2.x | Completo |
@@ -430,6 +431,7 @@ Frameworks de acceptance testing por stack:
 | Flutter Web | **Playwright E2E** (CanvasKit web build) | Screenshots + traces + HTML report | `e2e/acceptance/` | **OBLIGATORIO** |
 | Flutter Mobile | **Patrol v4** (native automation) | Screenshots + `patrol-evidence-generator.js` | `test/acceptance/` | **OBLIGATORIO** |
 | React | **Playwright E2E** (app web) | Screenshots + traces + HTML report | `tests/acceptance/` | **OBLIGATORIO** |
+| Go | `testing` + `httptest` + `testcontainers-go` | Response logs + `api-evidence-generator.js` | `tests/acceptance/` | **OBLIGATORIO** |
 | Python | pytest-bdd + httpx | Response logs + `api-evidence-generator.js` | `tests/acceptance/` | **OBLIGATORIO** |
 | Google Apps Script | jest-cucumber | JSON only | `tests/acceptance/` | Legacy (sin soporte) |
 
@@ -613,6 +615,6 @@ Deteccion automatica de UCs sin evidencia E2E durante el upgrade de proyectos:
 
 ## Engine Version
 
-Current: v5.15.0 "Quality First"
+Current: v5.16.0 "Go Ready"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

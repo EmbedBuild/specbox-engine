@@ -154,6 +154,7 @@
     "features_path": {
       "flutter": "test/acceptance/features/",
       "react": "tests/acceptance/features/",
+      "go": "tests/acceptance/features/",
       "python": "tests/acceptance/features/",
       "google-apps-script": "tests/acceptance/features/"
     }

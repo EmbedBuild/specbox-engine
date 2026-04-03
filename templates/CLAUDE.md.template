@@ -312,6 +312,7 @@ Característica: UC-001 — Nombre del caso de uso
 | Flutter | bdd_widget_test ^0.7.1 |
 | React | playwright-bdd ^8.4.2 |
 | Python | pytest-bdd >=8.1.0 |
+| Go | testing + testify |
 | GAS | jest-cucumber |
 
 ## Visual Experience Generation — VEG (v3.9)

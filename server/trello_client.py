@@ -104,7 +104,7 @@ class TrelloClient:
         return await self._request(
             "GET",
             f"/boards/{board_id}/cards",
-            params={"fields": fields, "customFieldItems": "true"},
+            params={"fields": fields, "customFieldItems": "true", "limit": "1000"},
         )
 
     async def get_board_labels(self, board_id: str) -> list[dict]:

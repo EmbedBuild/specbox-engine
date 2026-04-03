@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 _STACK_MARKERS: dict[str, str] = {
     "pubspec.yaml": "flutter",
     "package.json": "react",
+    "go.mod": "go",
     "pyproject.toml": "python",
     "requirements.txt": "python",
     ".clasp.json": "google-apps-script",
@@ -46,6 +47,7 @@ _INFRA_KEYWORDS: dict[str, str] = {
 _DEP_FILES: list[str] = [
     "pubspec.yaml",
     "package.json",
+    "go.mod",
     "pyproject.toml",
     "requirements.txt",
     ".clasp.json",
@@ -59,6 +61,7 @@ _DEP_FILES: list[str] = [
 _STACK_ROLES: dict[str, list[str]] = {
     "flutter": ["lead-agent", "flutter-specialist", "qa-reviewer"],
     "react": ["lead-agent", "react-specialist", "qa-reviewer"],
+    "go": ["lead-agent", "go-specialist", "qa-reviewer"],
     "python": ["lead-agent", "python-specialist", "qa-reviewer"],
     "google-apps-script": ["lead-agent", "gas-specialist", "qa-reviewer"],
 }
@@ -193,6 +196,15 @@ def _detect_stack(project_path: Path) -> dict:
             pattern = "src-layout"
         elif (project_path / "app").exists():
             pattern = "app-layout"
+        else:
+            pattern = "flat-layout"
+    elif detected_stack == "go":
+        if (project_path / "cmd").exists() and (project_path / "internal").exists():
+            pattern = "clean-architecture"
+        elif (project_path / "cmd").exists():
+            pattern = "cmd-structure"
+        elif (project_path / "internal").exists():
+            pattern = "internal-structure"
         else:
             pattern = "flat-layout"
     elif detected_stack == "google-apps-script":
@@ -416,7 +428,7 @@ def register_onboarding_tools(
 
         Args:
             project: Project name (e.g. 'escandallo-app').
-            stack: Technology stack (flutter, react, python, google-apps-script). Leave empty if unknown.
+            stack: Technology stack (flutter, react, go, python, google-apps-script). Leave empty if unknown.
             infra: Comma-separated infra services (supabase, neon, stripe, etc.).
             repo_url: Git repository URL for reference.
             developer_name: Developer name for templates. Defaults to 'Jesús Pérez'.
@@ -787,11 +799,11 @@ def register_onboarding_tools(
                 },
                 {
                     "field": "stack",
-                    "question": "Stack tecnologico (flutter, react, python, google-apps-script)",
+                    "question": "Stack tecnologico (flutter, react, go, python, google-apps-script)",
                     "explanation": "Define que patrones de arquitectura, agentes especializados y quality gates se aplican.",
                     "type": "choice",
                     "required": False,
-                    "options": ["flutter", "react", "python", "google-apps-script"],
+                    "options": ["flutter", "react", "go", "python", "google-apps-script"],
                     "default": "unknown",
                 },
                 {

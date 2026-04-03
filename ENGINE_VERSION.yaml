@@ -1,13 +1,14 @@
-version: 5.15.0
-codename: "Quality First"
+version: 5.16.0
+codename: "Go Ready"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-03-29
+release_date: 2026-04-03
 min_claude_code: "1.0.0"
 
 stacks:
   flutter: "3.38+"
   react: "19.x"
+  go: "1.23+"
   python: "3.12+"
   google-apps-script: "V8"
 
@@ -217,8 +218,28 @@ features:
   - quality-contract-template
   - think-before-act-rules
   - antipattern-prohibition
+  # New (v5.16.0)
+  - go-stack-support
+  - go-architecture-docs
+  - go-stack-detection
+  - go-acceptance-framework
+  - go-benchmark-category
+  - five-stack-engine
+  - unicode-pdf-fonts
+  - trello-card-limit-fix
 
 changelog:
+  5.16.0:
+    date: 2026-04-03
+    changes:
+      - "feat: Go as 5th supported stack — architecture docs (overview, folder-structure, testing-strategy, patterns)"
+      - "feat: Go stack auto-detection via go.mod with 4 architecture patterns (clean-architecture, cmd-structure, internal-structure, flat-layout)"
+      - "feat: Go acceptance testing framework — testing + testify + httptest + testcontainers-go, integrated with AG-09a/AG-09b"
+      - "feat: Go in all stack registries — onboarding wizard, benchmark categories, quality gates, team composition, skill manifests"
+      - "feat: 22 files updated across engine to include Go in stack lists, tables, validators, and templates"
+      - "feat: Unicode PDF generation — DejaVu Sans fonts for full UTF-8 support in evidence PDFs"
+      - "fix: Trello API card limit raised from default (10) to 1000 — was silently truncating boards"
+      - "fix: validate-results-json.js now accepts 'go' as valid stack value"
   5.15.0:
     date: 2026-03-29
     changes:

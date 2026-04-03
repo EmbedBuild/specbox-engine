@@ -14,7 +14,7 @@
   "us_id": "string — US-XX",
   "timestamp": "string — ISO 8601",
   "source": "string — origen de los datos",
-  "stack": "string — flutter-web | flutter-mobile | react | python",
+  "stack": "string — flutter-web | flutter-mobile | react | go | python",
   "evidence_type": "string — screenshot | response-log",
   "tests_total": "number",
   "tests_passed": "number",

@@ -42,7 +42,7 @@ def register_skill_registry_tools(mcp: FastMCP, engine_path: Path):
 
         Args:
             project_path: Optional project path for project-local skills.
-            stack: Target stack (e.g. "flutter", "react", "python").
+            stack: Target stack (e.g. "flutter", "react", "go", "python").
             keywords: Comma-separated keywords from PRD to match against triggers.
 
         Returns dict with "activated" (compatible) and "incompatible" lists.

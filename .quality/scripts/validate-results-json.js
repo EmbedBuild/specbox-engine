@@ -68,7 +68,7 @@ try {
   }
 
   // --- Validate stack values ---
-  const validStacks = ['flutter-web', 'flutter-mobile', 'react', 'python'];
+  const validStacks = ['flutter-web', 'flutter-mobile', 'react', 'go', 'python'];
   if (data.stack && !validStacks.includes(data.stack)) {
     errors.push(`Invalid stack '${data.stack}'. Must be one of: ${validStacks.join(', ')}`);
   }

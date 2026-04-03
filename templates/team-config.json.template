@@ -140,6 +140,7 @@
     "preCommit": {
       "flutter": "dart fix --apply && dart analyze && flutter test",
       "react": "npx eslint . --fix && npx tsc --noEmit && npx jest",
+      "go": "golangci-lint run && go test -race ./...",
       "python": "ruff check . --fix && mypy . && pytest",
       "google-apps-script": "npm run test && npm run lint && npm run push"
     },
@@ -150,6 +151,7 @@
     "orchestratorRule": "El Orchestrator NUNCA implementa codigo. Solo planifica, delega, consolida y persiste en Engram.",
     "flutterOnly": "Orchestrator + DesignSpecialist + FlutterSpecialist + DBInfra + QAReviewer + AcceptanceTester + AcceptanceValidator",
     "reactOnly": "Orchestrator + DesignSpecialist + ReactSpecialist + DBInfra + QAReviewer + AcceptanceTester + AcceptanceValidator",
+    "goOnly": "Orchestrator + GoSpecialist + DBInfra + QAReviewer + AcceptanceTester + AcceptanceValidator",
     "appsScriptOnly": "Orchestrator + AppScriptSpecialist + QAReviewer",
     "fullStack": "Orchestrator + todos los roles relevantes",
     "contextBudget": "Cada Task recibe max ~8,700 tokens. Si una fase excede 30% de ventana, splitear en sub-fases."

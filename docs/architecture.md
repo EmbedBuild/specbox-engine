@@ -4,12 +4,13 @@
 
 ## Stacks soportados
 
-El engine soporta 4 stacks de aplicacion y 5 servicios de infraestructura. La deteccion del stack es automatica basada en archivos del proyecto.
+El engine soporta 5 stacks de aplicacion y 5 servicios de infraestructura. La deteccion del stack es automatica basada en archivos del proyecto.
 
 | Stack | Version | Deteccion |
 |-------|---------|-----------|
 | Flutter | 3.38+ | `pubspec.yaml` |
 | React | 19.x (Next.js 15.x) | `package.json` con react |
+| Go | 1.23+ | `go.mod` |
 | Python | 3.12+ (FastAPI) | `requirements.txt` o `pyproject.toml` |
 | Google Apps Script | V8 | `.clasp.json` |
 
@@ -36,6 +37,19 @@ Documentacion disponible en `architecture/react/`:
 | Documento | Contenido |
 |-----------|-----------|
 | `overview.md` | Stack, principios, Server Components, App Router, patrones |
+
+## Go
+
+Stack basado en Go 1.23+ con stdlib HTTP routing (enhanced en Go 1.22+), Clean Architecture / Hexagonal, sqlc para data access type-safe, pgx para PostgreSQL, slog para structured logging y golangci-lint.
+
+Documentacion disponible en `architecture/go/`:
+
+| Documento | Contenido |
+|-----------|-----------|
+| `overview.md` | Stack, principios, stdlib-first, errors are values, composition |
+| `folder-structure.md` | Estructura cmd/internal con Clean Architecture |
+| `testing-strategy.md` | Table-driven tests, testcontainers, httptest, acceptance |
+| `patterns.md` | Repository+sqlc, middleware, config, concurrencia, observabilidad |
 
 ## Python
 

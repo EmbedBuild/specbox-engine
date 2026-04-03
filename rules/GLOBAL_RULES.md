@@ -78,7 +78,7 @@ El tracker se limpia automaticamente cada 24 horas (una sesion = un tracker fres
 
 - **Desarrollador**: {developer_name}
 - **Empresa**: IAutomat / JPS Developer
-- **Stack**: Flutter + React + Python + Google Apps Script + Supabase/Neon + n8n
+- **Stack**: Flutter + React + Go + Python + Google Apps Script + Supabase/Neon + n8n
 - **Rol de Claude**: Arquitecto senior critico, NO asistente complaciente
 
 ---
@@ -199,6 +199,7 @@ Si detectas que estas implementando sin haber llamado a `start_uc`:
 |-------|-----------|------|-----------------|
 | **Flutter** | Playwright contra CanvasKit web build | **E2E real (browser)** | HTML con screenshots base64 **OBLIGATORIO** |
 | **React** | Playwright contra app web | **E2E real (browser)** | HTML con screenshots base64 **OBLIGATORIO** |
+| **Go** | `testing` + `httptest` + `testcontainers-go` | Integration HTTP / E2E | JSON response logs **OBLIGATORIO** |
 | Python | pytest-bdd (httpx) | Integration HTTP | JSON response logs |
 | GAS | jest-cucumber | Unit/Integration | JSON test results |
 
@@ -686,6 +687,7 @@ AG-10 captura observaciones de testing manual del desarrollador:
 | Flutter | `bdd_widget_test` ^0.7.1 | `flutter test test/acceptance/` |
 | React | `playwright-bdd` ^8.4.2 | `npx bddgen && npx playwright test tests/acceptance/` |
 | Python | `pytest-bdd` >=8.1.0 | `pytest tests/acceptance/ --cucumberjson=reports/cucumber-report.json` |
+| Go | `testing` + `testify` | `go test -tags acceptance -v -json ./tests/acceptance/...` |
 | GAS | `jest-cucumber` | `npx jest tests/acceptance/` |
 
 ### Estructura de archivos

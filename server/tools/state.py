@@ -348,7 +348,7 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
             project: Project name (e.g. 'tempo-zenon').
             feature: Feature name (e.g. 'staff_management').
             timestamp: ISO 8601 timestamp.
-            stack: Technology stack (flutter, react, python, google-apps-script).
+            stack: Technology stack (flutter, react, go, python, google-apps-script).
             tests_total: Total number of acceptance tests executed.
             tests_passed: Number of tests that passed.
             tests_failed: Number of tests that failed.
@@ -755,7 +755,7 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
 
         Args:
             project: Project name (e.g. 'escandallo-app').
-            stack: Technology stack (flutter, react, python, google-apps-script).
+            stack: Technology stack (flutter, react, go, python, google-apps-script).
             infra: Comma-separated infra services (supabase, stripe, etc.).
             repo_url: Git repository URL.
             description: Short project description.

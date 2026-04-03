@@ -949,7 +949,7 @@ Si no existe `.claude/settings.json`, crearlo. Si existe, añadir:
 {
   "version": "1.0",
   "project": "[nombre del proyecto]",
-  "stacks": ["flutter", "python", "react", "stripe", "neon"],
+  "stacks": ["flutter", "react", "go", "python", "stripe", "neon"],
   "generatedDate": "[fecha]",
   "team": {
     "recommendedSize": 5,

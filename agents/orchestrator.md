@@ -187,7 +187,7 @@ Estas variables deben resolverse al personalizar para un proyecto:
 | Variable | Descripcion | Ejemplo |
 |----------|-------------|---------|
 | `{project}` | Nombre del proyecto | MiApp |
-| `{stack}` | Stack principal | flutter / react / python |
+| `{stack}` | Stack principal | flutter / react / go / python |
 | `{db_service}` | Servicio de base de datos | supabase / neon / firebase |
 | `{design_system}` | Sistema de diseno | material3 / minimalist |
 

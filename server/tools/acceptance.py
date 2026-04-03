@@ -772,6 +772,10 @@ def register_acceptance_tools(mcp: FastMCP, engine_path: Path, state_path: Path)
                         framework = "Playwright"
                         test_dir = "tests/acceptance/"
                         generator = "Playwright native HTML reporter"
+                    elif stack == "go":
+                        framework = "testing + testify + httptest"
+                        test_dir = "tests/acceptance/"
+                        generator = "api-evidence-generator.js"
                     elif stack == "python":
                         framework = "pytest-bdd + httpx"
                         test_dir = "tests/acceptance/"

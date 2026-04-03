@@ -22,6 +22,7 @@ description: >
 compatibility:                # list of compatible stacks
   - flutter
   - react
+  - go
 
 # --- Optional fields ---
 

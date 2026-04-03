@@ -641,7 +641,7 @@ son OBLIGATORIOS — sin ellos el validador rechaza el archivo.
   "us_id": "US-XX",
   "timestamp": "ISO 8601",
   "source": "playwright-cucumber | patrol-junit-xml | pytest-bdd",
-  "stack": "flutter-web | flutter-mobile | react | python",
+  "stack": "flutter-web | flutter-mobile | react | go | python",
   "evidence_type": "screenshot | response-log",
   "tests_total": 5,
   "tests_passed": 4,

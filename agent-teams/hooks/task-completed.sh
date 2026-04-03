@@ -10,7 +10,7 @@
 #   TASK_ASSIGNEE    - Teammate que la completo
 #   PROJECT_ROOT     - Raiz del proyecto
 #   TEAM_LOG_DIR     - Directorio de logs del equipo
-#   STACK            - Stack del proyecto (flutter, react, python, multi)
+#   STACK            - Stack del proyecto (flutter, react, go, python, multi)
 # ==============================================================================
 
 set -euo pipefail

@@ -70,6 +70,8 @@ def _categorize_stack(stack: str) -> str:
     categories = {
         "flutter": "Mobile/Desktop (Flutter)",
         "react": "Web Frontend (React)",
+        "go": "Backend (Go)",
+        "golang": "Backend (Go)",
         "python": "Backend (Python)",
         "fastapi": "Backend (Python)",
         "google-apps-script": "Automation (Apps Script)",

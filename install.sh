@@ -228,7 +228,7 @@ if [ "$UNINSTALL" = true ]; then
 
     # Remove hooks
     HOOKS_DIR="$HOME/.claude/hooks"
-    for hook in "$ENGINE_DIR"/.claude/hooks/*.sh; do
+    for hook in "$ENGINE_DIR"/.claude/hooks/*.mjs; do
         [ -f "$hook" ] || continue
         hook_name=$(basename "$hook")
         target="$HOOKS_DIR/$hook_name"
@@ -239,6 +239,17 @@ if [ "$UNINSTALL" = true ]; then
                 rm "$target"
                 echo -e "  Removed hook: ${RED}$hook_name${NC}"
             fi
+        fi
+    done
+    # Also remove legacy .sh hooks if they exist
+    for hook in "$HOOKS_DIR"/*.sh; do
+        [ -f "$hook" ] || continue
+        hook_name=$(basename "$hook")
+        if [ "$DRY_RUN" = true ]; then
+            echo -e "  Would remove legacy hook: ${RED}$hook_name${NC}"
+        else
+            rm "$hook"
+            echo -e "  Removed legacy hook: ${RED}$hook_name${NC}"
         fi
     done
 
@@ -383,9 +394,11 @@ if [ -d "$ENGINE_DIR/.claude/hooks" ]; then
         echo -e "  Would install hooks to $HOOKS_DIR"
     else
         mkdir -p "$HOOKS_DIR"
-        cp "$ENGINE_DIR"/.claude/hooks/*.sh "$HOOKS_DIR/"
-        chmod +x "$HOOKS_DIR"/*.sh
-        echo -e "  Hooks installed"
+        cp "$ENGINE_DIR"/.claude/hooks/*.mjs "$HOOKS_DIR/"
+        # Copy shared lib/ directory for hook dependencies
+        mkdir -p "$HOOKS_DIR/lib"
+        cp "$ENGINE_DIR"/.claude/hooks/lib/*.mjs "$HOOKS_DIR/lib/"
+        echo -e "  Hooks installed (Node.js)"
     fi
     echo ""
 fi
@@ -488,9 +501,11 @@ if [ "$DRY_RUN" = true ]; then
 else
     # Build dynamic hooks list
     HOOK_NAMES=""
-    for hook in "$ENGINE_DIR"/.claude/hooks/*.sh; do
+    for hook in "$ENGINE_DIR"/.claude/hooks/*.mjs; do
         [ -f "$hook" ] || continue
-        name=$(basename "$hook" .sh)
+        name=$(basename "$hook" .mjs)
+        # Skip test-hooks from the summary
+        [ "$name" = "test-hooks" ] && continue
         if [ -z "$HOOK_NAMES" ]; then
             HOOK_NAMES="$name"
         else
@@ -501,7 +516,7 @@ else
     echo -e "${GREEN}Installation complete.${NC}"
     echo -e "Commands: /prd, /plan, /implement, /adapt-ui, /optimize-agents"
     echo -e "Skills:   /prd, /visual-setup, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore, /feedback, /check-designs, /acceptance-check, /quickstart, /remote, /release"
-    echo -e "Quality:  quality-first-guard.sh (read before write), read-tracker.sh (session tracking)"
+    echo -e "Quality:  quality-first-guard.mjs (read before write), read-tracker.mjs (session tracking)"
     echo -e "Hooks:    $HOOK_NAMES"
 fi
 echo ""

@@ -1,8 +1,8 @@
-version: 5.16.0
-codename: "Go Ready"
+version: 5.17.0
+codename: "Cross-Platform Hooks"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-04-03
+release_date: 2026-04-04
 min_claude_code: "1.0.0"
 
 stacks:
@@ -227,8 +227,35 @@ features:
   - five-stack-engine
   - unicode-pdf-fonts
   - trello-card-limit-fix
+  # New (v5.17.0)
+  - cross-platform-hooks
+  - hooks-bash-to-nodejs-migration
+  - hooks-shared-lib-utils
+  - hooks-shared-lib-http
+  - hooks-shared-lib-config
+  - hooks-shared-lib-output
+  - hooks-zero-dependencies
+  - hooks-windows-compatible
+  - hooks-test-suite
+  - hooks-legacy-bash-backup
+  - install-copies-mjs-hooks
+  - settings-node-invocation
 
 changelog:
+  5.17.0:
+    date: 2026-04-04
+    changes:
+      - "feat: all 16 hooks migrated from Bash to Node.js (.mjs) for macOS, Linux, and Windows compatibility"
+      - "feat: shared hook library (lib/) — utils.mjs, http.mjs, config.mjs, output.mjs with zero npm dependencies"
+      - "feat: cross-platform patterns — stat, find, curl, background processes all replaced with Node.js built-ins"
+      - "feat: MCP 3-step protocol reimplemented in pure Node.js fetch (http.mjs mcpCall)"
+      - "feat: test-hooks.mjs validation suite — 23 tests covering all hooks with simulated stdin"
+      - "feat: install.sh updated to copy .mjs hooks + lib/ directory to consumer projects"
+      - "feat: settings.json template uses 'node .claude/hooks/*.mjs' invocation for cross-platform execution"
+      - "fix: read-tracker JSON injection vulnerability — template literals replaced with JSON.stringify"
+      - "fix: e2e-report async/await correctness — process.exit before Promise resolution"
+      - "refactor: all .sh references updated across 20+ files (server, skills, agents, docs, templates, rules)"
+      - "refactor: legacy .sh hooks preserved in .claude/hooks/legacy-bash/ for rollback safety"
   5.16.0:
     date: 2026-04-03
     changes:

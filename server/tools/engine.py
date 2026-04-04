@@ -91,7 +91,7 @@ def register_engine_tools(mcp: FastMCP, engine_path: Path):
 
         hooks_dir = engine_path / ".claude" / "hooks"
         if hooks_dir.exists():
-            status["hooks"] = [f.name for f in hooks_dir.glob("*.sh")]
+            status["hooks"] = [f.name for f in hooks_dir.glob("*.mjs")]
 
         arch_dir = engine_path / "architecture"
         if arch_dir.exists():

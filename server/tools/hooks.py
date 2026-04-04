@@ -35,7 +35,7 @@ def register_hook_tools(mcp: FastMCP, engine_path: Path):
                 pass
 
         hooks = []
-        for f in sorted(hooks_dir.glob("*.sh")):
+        for f in sorted(hooks_dir.glob("*.mjs")):
             is_auto = f.name in auto_hooks
             content = f.read_text(encoding="utf-8")
 
@@ -92,17 +92,17 @@ def register_hook_tools(mcp: FastMCP, engine_path: Path):
     def get_hook_source(hook_name: str) -> dict:
         """Read the source code of a specific hook script.
         Args:
-            hook_name: Filename of the hook (e.g. 'pre-commit-lint.sh').
+            hook_name: Filename of the hook (e.g. 'pre-commit-lint.mjs').
         Returns the full script content, description, and metadata.
         Use to understand exactly what a hook does or to debug hook behavior."""
         hooks_dir = engine_path / ".claude" / "hooks"
         hook_file = hooks_dir / hook_name
 
         if not hook_file.exists():
-            # Try without .sh
-            hook_file = hooks_dir / f"{hook_name}.sh"
+            # Try with .mjs extension
+            hook_file = hooks_dir / f"{hook_name}.mjs"
         if not hook_file.exists():
-            available = [f.name for f in hooks_dir.glob("*.sh")] if hooks_dir.exists() else []
+            available = [f.name for f in hooks_dir.glob("*.mjs")] if hooks_dir.exists() else []
             return {"error": f"Hook '{hook_name}' not found", "available": available}
 
         content = hook_file.read_text(encoding="utf-8")

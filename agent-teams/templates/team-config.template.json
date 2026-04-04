@@ -276,12 +276,12 @@
 
   "hooks": {
     "teammateIdle": {
-      "script": ".claude/hooks/teammate-idle.sh",
+      "script": ".claude/hooks/teammate-idle.mjs",
       "timeout": 30,
       "enabled": true
     },
     "taskCompleted": {
-      "script": ".claude/hooks/task-completed.sh",
+      "script": ".claude/hooks/task-completed.mjs",
       "timeout": 120,
       "enabled": true
     }

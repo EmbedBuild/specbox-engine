@@ -381,7 +381,7 @@ CONTEXT:
 RULES:
 - Run lint after implementation: {stack_lint_command}
 - Quality gate between phases: lint 0/0/0 (BLOQUEANTE), compile (BLOQUEANTE), tests pass (BLOQUEANTE)
-- Save checkpoint: .claude/hooks/implement-checkpoint.sh {feature} {N} {phase_name}
+- Save checkpoint: node .claude/hooks/implement-checkpoint.mjs {feature} {N} {phase_name}
 - If lint fails, apply self-healing (Level 1 first, then Level 2)
 
 RETURN FORMAT (OBLIGATORIO):

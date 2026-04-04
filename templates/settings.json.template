@@ -20,7 +20,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/quality-first-guard.sh",
+            "command": "node .claude/hooks/quality-first-guard.mjs",
             "blocking": true,
             "timeout": 5000
           }
@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/quality-first-guard.sh",
+            "command": "node .claude/hooks/quality-first-guard.mjs",
             "blocking": true,
             "timeout": 5000
           }
@@ -48,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/read-tracker.sh",
+            "command": "node .claude/hooks/read-tracker.mjs",
             "blocking": false,
             "timeout": 3000
           }
@@ -62,13 +62,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/commit-spec-guard.sh",
+            "command": "node .claude/hooks/commit-spec-guard.mjs",
             "blocking": false,
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": ".claude/hooks/pre-commit-lint.sh",
+            "command": "node .claude/hooks/pre-commit-lint.mjs",
             "blocking": true,
             "timeout": 60000
           }
@@ -82,7 +82,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/spec-guard.sh",
+            "command": "node .claude/hooks/spec-guard.mjs",
             "blocking": true,
             "timeout": 10000
           }
@@ -96,7 +96,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/spec-guard.sh",
+            "command": "node .claude/hooks/spec-guard.mjs",
             "blocking": true,
             "timeout": 10000
           }
@@ -110,7 +110,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/spec-guard.sh",
+            "command": "node .claude/hooks/spec-guard.mjs",
             "blocking": true,
             "timeout": 10000
           }
@@ -124,7 +124,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/spec-guard.sh",
+            "command": "node .claude/hooks/spec-guard.mjs",
             "blocking": true,
             "timeout": 10000
           }
@@ -136,7 +136,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/on-session-end.sh",
+            "command": "node .claude/hooks/on-session-end.mjs",
             "blocking": false,
             "timeout": 10000
           }

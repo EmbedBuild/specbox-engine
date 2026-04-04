@@ -707,7 +707,7 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
             feature: Feature being tested (optional).
 
         Appends to e2e_results.jsonl, updates meta with E2E stats.
-        Called by hooks/e2e-report.sh after Playwright runs — fire-and-forget."""
+        Called by hooks/e2e-report.mjs after Playwright runs — fire-and-forget."""
         project_dir = _ensure_project_dir(state_path, project)
         _auto_register(state_path, project)
 

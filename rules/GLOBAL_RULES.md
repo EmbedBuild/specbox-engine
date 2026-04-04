@@ -15,7 +15,7 @@
 
 **Antes de escribir cualquier archivo, el agente DEBE:**
 
-1. **Leer** — Leer el archivo que va a modificar (enforcement por `quality-first-guard.sh`)
+1. **Leer** — Leer el archivo que va a modificar (enforcement por `quality-first-guard.mjs`)
 2. **Entender** — Comprender el codigo existente, sus patrones, sus convenciones
 3. **Articular** — Explicar en texto visible que va a hacer y por que
 4. **Implementar** — Solo entonces, escribir el codigo
@@ -25,7 +25,7 @@
 
 | Regla | Descripcion | Enforcement |
 |-------|-------------|-------------|
-| **Read before Write** | Leer archivos existentes antes de modificarlos | Hook BLOQUEANTE (`quality-first-guard.sh`) |
+| **Read before Write** | Leer archivos existentes antes de modificarlos | Hook BLOQUEANTE (`quality-first-guard.mjs`) |
 | **Think before Act** | Articular enfoque antes de implementar en tareas complejas | Instruccion (CLAUDE.md) |
 | **Verify before Done** | Verificar que el cambio funciona antes de marcar como completado | Instruccion (CLAUDE.md) |
 | **Ask before Guess** | Si hay incertidumbre, preguntar al usuario en vez de adivinar | Instruccion (CLAUDE.md) |
@@ -67,8 +67,8 @@ El coste es ~100 tokens. El ahorro es miles de tokens de iteraciones evitadas.
 
 | Hook | Evento | Tipo | Que hace |
 |------|--------|------|----------|
-| `quality-first-guard.sh` | PreToolUse (Write/Edit) | **BLOQUEANTE** | Verifica que el archivo fue leido en la sesion |
-| `read-tracker.sh` | PostToolUse (Read) | No bloqueante | Registra archivos leidos en `.quality/read_tracker.jsonl` |
+| `quality-first-guard.mjs` | PreToolUse (Write/Edit) | **BLOQUEANTE** | Verifica que el archivo fue leido en la sesion |
+| `read-tracker.mjs` | PostToolUse (Read) | No bloqueante | Registra archivos leidos en `.quality/read_tracker.jsonl` |
 
 El tracker se limpia automaticamente cada 24 horas (una sesion = un tracker fresco).
 
@@ -106,8 +106,8 @@ ejecutar manualmente cada paso del pipeline:
 ```
 1. find_next_uc(board_id)        → identificar el siguiente UC
 2. start_uc(board_id, uc_id)     → mover a In Progress (activa el marker)
-3. git checkout -b feature/{uc}  → CREAR RAMA (branch-guard.sh bloquea main)
-4. Implementar el codigo          → spec-guard.sh permite escribir
+3. git checkout -b feature/{uc}  → CREAR RAMA (branch-guard.mjs bloquea main)
+4. Implementar el codigo          → spec-guard.mjs permite escribir
 5. mark_ac_batch(board_id, ...)   → marcar ACs completados
 6. report_checkpoint(...)         → guardar recovery point
 7. move_uc(board_id, uc_id, "review") → mover a Review (humano revisa PR)
@@ -121,11 +121,11 @@ El agente NUNCA mueve a Done directamente — solo a Review.
 
 | Hook | Evento | Comportamiento | Tipo |
 |------|--------|---------------|------|
-| `spec-guard.sh` | Write/Edit en `src/` o `lib/` | Verifica UC activo + rama no es main | **BLOQUEANTE** |
-| `branch-guard.sh` | Write/Edit en `src/` o `lib/` | Verifica rama no es main/master | **BLOQUEANTE** |
-| `commit-spec-guard.sh` | git commit | Bloquea commits en main; warning UC/checkpoint/tamano | **BLOQUEANTE** (rama) + WARNING (resto) |
-| `design-gate.sh` | Write/Edit en pages/ | Verifica que existe HTML de diseno Stitch | **BLOQUEANTE** |
-| `pre-commit-lint.sh` | git commit | Zero-tolerance lint | **BLOQUEANTE** |
+| `spec-guard.mjs` | Write/Edit en `src/` o `lib/` | Verifica UC activo + rama no es main | **BLOQUEANTE** |
+| `branch-guard.mjs` | Write/Edit en `src/` o `lib/` | Verifica rama no es main/master | **BLOQUEANTE** |
+| `commit-spec-guard.mjs` | git commit | Bloquea commits en main; warning UC/checkpoint/tamano | **BLOQUEANTE** (rama) + WARNING (resto) |
+| `design-gate.mjs` | Write/Edit en pages/ | Verifica que existe HTML de diseno Stitch | **BLOQUEANTE** |
+| `pre-commit-lint.mjs` | git commit | Zero-tolerance lint | **BLOQUEANTE** |
 
 ### Que activa el marker
 
@@ -146,7 +146,7 @@ verifica E2E, y solo entonces mueve a **Done** manualmente (o via complete_uc de
 
 1. **NUNCA** implementar codigo en main/master — cada UC tiene su rama feature/
 2. **NUNCA** implementar multiples UCs en un solo commit — un commit por UC
-3. **NUNCA** crear UI sin diseno Stitch — design-gate.sh bloquea
+3. **NUNCA** crear UI sin diseno Stitch — design-gate.mjs bloquea
 4. **NUNCA** mover UC a Done directamente — solo a Review (humano aprueba Done)
 5. **NUNCA** marcar ACs post-facto sin validacion real — mark_ac_batch DURANTE implementacion
 6. **NUNCA** priorizar velocidad sobre trazabilidad — el board refleja la realidad o no sirve

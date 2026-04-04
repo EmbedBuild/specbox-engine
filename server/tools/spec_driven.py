@@ -44,7 +44,7 @@ from ..spec_backend import (
 logger = structlog.get_logger(__name__)
 
 # ── Active UC Marker ─────────────────────────────────────────────────
-# The spec-guard.sh hook checks for this file before allowing writes
+# The spec-guard.mjs hook checks for this file before allowing writes
 # to source code. This ensures the pipeline contract is enforced at
 # the filesystem level — no UC active = no code writes allowed.
 
@@ -52,7 +52,7 @@ ACTIVE_UC_FILENAME = ".quality/active_uc.json"
 
 
 def _write_active_uc_marker(uc_id: str, board_id: str, feature: str = "") -> None:
-    """Write the active UC marker so spec-guard.sh allows code writes."""
+    """Write the active UC marker so spec-guard.mjs allows code writes."""
     marker_path = Path(ACTIVE_UC_FILENAME)
     marker_path.parent.mkdir(parents=True, exist_ok=True)
     marker_path.write_text(
@@ -1141,7 +1141,7 @@ async def start_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
         now = datetime.now(timezone.utc).isoformat()
         await backend.add_comment(board_id, uc_item.id, f"Desarrollo iniciado: {now}")
 
-        # Write active UC marker for spec-guard.sh enforcement
+        # Write active UC marker for spec-guard.mjs enforcement
         feature = _extract_meta_str(uc_item, "feature", uc_id)
         _write_active_uc_marker(uc_id, board_id, feature)
     finally:

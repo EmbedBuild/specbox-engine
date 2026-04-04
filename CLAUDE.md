@@ -1,4 +1,4 @@
-# SpecBox Engine v5.16.0
+# SpecBox Engine v5.17.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -62,7 +62,7 @@ Genera automaticamente Markdowns de progreso legibles:
 - `doc/tracking/progress/README.md` — Vista general con tablas US/UC
 - `doc/tracking/progress/UC-XXX.md` — Detalle por UC con ACs y estado
 
-Los hooks de Pipeline Integrity (spec-guard.sh) funcionan igual con FreeForm.
+Los hooks de Pipeline Integrity (spec-guard.mjs) funcionan igual con FreeForm.
 
 ## Instalacion
 
@@ -124,15 +124,15 @@ specbox-engine/
 │   │   ├── check-designs/SKILL.md
 │   │   └── visual-setup/SKILL.md
 │   ├── hooks/             ← Hooks (v5.15)
-│   │   ├── quality-first-guard.sh
-│   │   ├── read-tracker.sh
-│   │   ├── mcp-report.sh
-│   │   ├── pre-commit-lint.sh
-│   │   ├── on-session-end.sh
-│   │   ├── implement-checkpoint.sh
-│   │   ├── implement-healing.sh
-│   │   ├── post-implement-validate.sh
-│   │   └── design-gate.sh
+│   │   ├── quality-first-guard.mjs
+│   │   ├── read-tracker.mjs
+│   │   ├── mcp-report.mjs
+│   │   ├── pre-commit-lint.mjs
+│   │   ├── on-session-end.mjs
+│   │   ├── implement-checkpoint.mjs
+│   │   ├── implement-healing.mjs
+│   │   ├── post-implement-validate.mjs
+│   │   └── design-gate.mjs
 │   └── settings.json      ← Hooks config
 ├── commands/              ← Commands (referencia legacy)
 │   ├── prd.md
@@ -288,8 +288,8 @@ Automatic enforcement — no need to remember running these manually:
 
 ### Quality First Enforcement (v5.15.0)
 
-The `quality-first-guard.sh` hook makes it **impossible** to modify an existing file without
-reading it first. The `read-tracker.sh` hook records every Read tool call in
+The `quality-first-guard.mjs` hook makes it **impossible** to modify an existing file without
+reading it first. The `read-tracker.mjs` hook records every Read tool call in
 `.quality/read_tracker.jsonl`. The tracker auto-clears after 24 hours (one session = fresh tracker).
 
 This enforces the principle: **SpecBox provides speed. The LLM provides quality.**
@@ -303,15 +303,15 @@ See `rules/GLOBAL_RULES.md` section "Quality First" for the complete quality con
 
 ### Pipeline Integrity (v5.7.0)
 
-The `spec-guard.sh` hook makes it **impossible** to write source code in a spec-driven project
+The `spec-guard.mjs` hook makes it **impossible** to write source code in a spec-driven project
 without an active UC. The marker file `.quality/active_uc.json` is written by `start_uc()` and
 cleared by `complete_uc()`. It expires after 24 hours to prevent stale sessions.
 
-The `e2e-gate.sh` hook makes it **impossible** to commit acceptance evidence without valid
+The `e2e-gate.mjs` hook makes it **impossible** to commit acceptance evidence without valid
 `results.json` (schema-validated via `validate-results-json.js`) + `e2e-evidence-report.html`
 (integrity-checked: size, structure, UC reference, embedded evidence).
 
-The `no-bypass-guard.sh` hook prevents agents from taking shortcuts under pressure
+The `no-bypass-guard.mjs` hook prevents agents from taking shortcuts under pressure
 (failing tests, healing loops, timeouts). Blocks `--no-verify`, `push --force`, and
 `reset --hard` — the agent must fix the root cause, not bypass the quality check.
 
@@ -334,7 +334,7 @@ Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP 
 
 ### Heartbeat Protocol
 - Hooks locales envian `project_state.json` al VPS tras cada operacion significativa
-- `heartbeat-sender.sh` auto-detecta: git branch, coverage, checkpoint, feedback
+- `heartbeat-sender.mjs` auto-detecta: git branch, coverage, checkpoint, feedback
 - Si el VPS no responde, los heartbeats se guardan en `.quality/pending_heartbeats.jsonl`
 - Escribe `specbox-state.json` en la raiz del repo para GitHub sync
 
@@ -394,7 +394,7 @@ Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP 
 | `design-baseline.sh` | `.quality/scripts/design-baseline.sh [path] [--update\|--init]` | Measure design compliance, enforce ratchet (L0/L1/L2) |
 | `patrol-evidence-generator.js` | `.quality/scripts/patrol-evidence-generator.js --junit <xml> --screenshots <dir> ...` | Generate HTML Evidence Report from Patrol v4 results |
 | `api-evidence-generator.js` | `.quality/scripts/api-evidence-generator.js --cucumber <json> --responses <dir> ...` | Generate HTML Evidence Report from Python API test results |
-| `validate-results-json.js` | `.quality/scripts/validate-results-json.js <path> [--check-evidence]` | Validate results.json against contract (used by e2e-gate.sh hook) |
+| `validate-results-json.js` | `.quality/scripts/validate-results-json.js <path> [--check-evidence]` | Validate results.json against contract (used by e2e-gate.mjs hook) |
 
 ## Agents (v3.5)
 
@@ -615,6 +615,6 @@ Deteccion automatica de UCs sin evidencia E2E durante el upgrade de proyectos:
 
 ## Engine Version
 
-Current: v5.16.0 "Go Ready"
+Current: v5.17.0 "Cross-Platform Hooks"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

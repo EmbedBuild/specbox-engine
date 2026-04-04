@@ -142,7 +142,7 @@ Durante el trabajo normal (sin compactacion), persiste informacion critica en En
 
 ### Reglas innegociables
 
-1. **Lee antes de escribir** — El hook `quality-first-guard.sh` BLOQUEA modificaciones a archivos existentes si no los leiste primero en esta sesion. No hay excepciones.
+1. **Lee antes de escribir** — El hook `quality-first-guard.mjs` BLOQUEA modificaciones a archivos existentes si no los leiste primero en esta sesion. No hay excepciones.
 2. **Piensa antes de actuar** — Para tareas complejas (>3 archivos o logica no trivial), articula tu enfoque en texto visible antes de escribir codigo.
 3. **Verifica antes de cerrar** — No marques una tarea como completada sin verificar que funciona. "Deberia funcionar" no es verificacion.
 4. **Pregunta antes de adivinar** — Si no estas seguro del enfoque, pregunta al usuario. Una pregunta cuesta ~50 tokens. Una iteracion fallida cuesta miles.

@@ -160,7 +160,7 @@ Usos:
 - Verificar calidad del trabajo realizado
 - Asignar la siguiente tarea pendiente
 
-Script: `agent-teams/hooks/teammate-idle.sh`
+Script: `agent-teams/hooks/teammate-idle.mjs`
 
 ### TaskCompleted
 
@@ -172,7 +172,7 @@ Usos:
 - Verificar cobertura de tests
 - Notificar al Lead Agent
 
-Script: `agent-teams/hooks/task-completed.sh`
+Script: `agent-teams/hooks/task-completed.mjs`
 
 ## Cuando usar Teams vs Agente unico
 
@@ -222,8 +222,8 @@ agent-teams/
     db-infra.md                          <- Prompt del especialista DB/Infra
     qa-reviewer.md                       <- Prompt del revisor QA
   hooks/
-    teammate-idle.sh                     <- Hook: teammate queda libre
-    task-completed.sh                    <- Hook: tarea completada
+    teammate-idle.mjs                    <- Hook: teammate queda libre
+    task-completed.mjs                   <- Hook: tarea completada
 ```
 
 ## Referencias

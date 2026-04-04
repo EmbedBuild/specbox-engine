@@ -628,7 +628,7 @@ Antes de ejecutar los tests (paso 5), verificar:
 ### 7. Generar results.json (CONTRATO FORMAL)
 
 > **Contrato**: `doc/specs/results-json-spec.md` — schema que TODOS los stacks DEBEN cumplir.
-> **Enforcement**: `e2e-gate.sh` hook BLOQUEA commits si results.json no pasa validación.
+> **Enforcement**: `e2e-gate.mjs` hook BLOQUEA commits si results.json no pasa validación.
 > **Validador**: `node .quality/scripts/validate-results-json.js <path> --check-evidence`
 
 Transformar el JSON Cucumber report al formato estándar. Los campos `stack` y `evidence_type`
@@ -681,7 +681,7 @@ Si el validador falla, corregir results.json ANTES de generar el HTML report.
 ### 8. Generar HTML Evidence Report (TODOS LOS STACKS — ENFORCED)
 
 > **OBLIGATORIO para TODOS los stacks activos** (Flutter Web, Flutter Mobile, React, Python).
-> El hook `e2e-gate.sh` BLOQUEA el commit si el HTML report no existe.
+> El hook `e2e-gate.mjs` BLOQUEA el commit si el HTML report no existe.
 > Para stacks con UI: embebe screenshots base64. Para Python APIs: embebe response logs JSON.
 
 **Archivo de salida:** `.quality/evidence/{feature}/acceptance/e2e-evidence-report.html`
@@ -860,7 +860,7 @@ node .quality/scripts/api-evidence-generator.js \
 
 ### 8.6. Validar evidence antes de commit (OBLIGATORIO)
 
-> El hook `e2e-gate.sh` BLOQUEARÁ el commit si esta validación no pasa.
+> El hook `e2e-gate.mjs` BLOQUEARÁ el commit si esta validación no pasa.
 > Ejecutar ANTES de commitear para evitar bloqueos.
 
 ```bash

@@ -115,7 +115,7 @@ export default function E2ETesting() {
                     <TestTube2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p>Ningun proyecto ha reportado E2E tests</p>
                     <p className="text-xs mt-1">
-                      Configura <code className="text-teal-400">hooks/e2e-report.sh</code> para empezar
+                      Configura <code className="text-teal-400">hooks/e2e-report.mjs</code> para empezar
                     </p>
                   </td>
                 </tr>

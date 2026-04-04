@@ -61,7 +61,7 @@ ls -la ~/.claude/skills/
 
 # 4. Verificar hooks
 ls -la ~/.claude/hooks/
-# Deberias ver: pre-commit-lint.sh, on-session-end.sh, implement-checkpoint.sh, etc.
+# Deberias ver: pre-commit-lint.mjs, on-session-end.mjs, implement-checkpoint.mjs, etc.
 
 # 5. Iniciar MCP server (opcional — para telemetria y dashboard)
 pip install -e .
@@ -440,17 +440,17 @@ Enforcement automatico — no hace falta recordar ejecutarlos:
 
 | Hook | Evento | Comportamiento |
 |------|--------|----------------|
-| `spec-guard.sh` | PostToolUse (Write/Edit en src/lib/) | **BLOQUEANTE**: verifica UC activo antes de escribir codigo (v5.7.0) |
-| `commit-spec-guard.sh` | PostToolUse (git commit) | WARNING: verifica UC activo, checkpoints frescos, tamano del commit (v5.7.0) |
-| `pre-commit-lint.sh` | PostToolUse (git commit) | **BLOQUEANTE**: falla commit si lint tiene errores |
-| `design-gate.sh` | PostToolUse (Write/Edit) | WARNING si se modifica `presentation/pages/` sin diseño Stitch |
-| `on-session-end.sh` | Stop | Registra telemetria en .quality/logs/ + Engram + heartbeat |
-| `implement-checkpoint.sh` | Manual (/implement) | Guarda progreso de fase para resume |
-| `implement-healing.sh` | Manual (/implement) | Registra eventos de self-healing |
-| `post-implement-validate.sh` | Manual (/implement) | Detecta regresion de baseline |
-| `heartbeat-sender.sh` | Manual (hooks) | Envia snapshot de estado al VPS; cola local si offline |
-| `mcp-report.sh` | Utility | Cliente MCP reutilizable para telemetria remota |
-| `e2e-report.sh` | Manual (/implement) | Reporta resultados Playwright E2E a telemetria MCP |
+| `spec-guard.mjs` | PostToolUse (Write/Edit en src/lib/) | **BLOQUEANTE**: verifica UC activo antes de escribir codigo (v5.7.0) |
+| `commit-spec-guard.mjs` | PostToolUse (git commit) | WARNING: verifica UC activo, checkpoints frescos, tamano del commit (v5.7.0) |
+| `pre-commit-lint.mjs` | PostToolUse (git commit) | **BLOQUEANTE**: falla commit si lint tiene errores |
+| `design-gate.mjs` | PostToolUse (Write/Edit) | WARNING si se modifica `presentation/pages/` sin diseño Stitch |
+| `on-session-end.mjs` | Stop | Registra telemetria en .quality/logs/ + Engram + heartbeat |
+| `implement-checkpoint.mjs` | Manual (/implement) | Guarda progreso de fase para resume |
+| `implement-healing.mjs` | Manual (/implement) | Registra eventos de self-healing |
+| `post-implement-validate.mjs` | Manual (/implement) | Detecta regresion de baseline |
+| `heartbeat-sender.mjs` | Manual (hooks) | Envia snapshot de estado al VPS; cola local si offline |
+| `mcp-report.mjs` | Utility | Cliente MCP reutilizable para telemetria remota |
+| `e2e-report.mjs` | Manual (/implement) | Reporta resultados Playwright E2E a telemetria MCP |
 
 Configuracion en `.claude/settings.json`. Telemetria remota controlada por `SPECBOX_ENGINE_MCP_URL` env var.
 
@@ -596,7 +596,7 @@ La migracion es idempotente: usa `external_source` + `external_id` para evitar d
 
 Enforcement a nivel de hooks que hace **imposible** escribir codigo sin UC activo en un proyecto spec-driven.
 
-### spec-guard.sh (BLOQUEANTE)
+### spec-guard.mjs (BLOQUEANTE)
 
 ```
 Agente intenta Write/Edit en src/ o lib/
@@ -609,7 +609,7 @@ Agente intenta Write/Edit en src/ o lib/
 └── Proyecto sin boardId configurado → ✅ No es spec-driven, permitir
 ```
 
-### commit-spec-guard.sh (WARNING)
+### commit-spec-guard.mjs (WARNING)
 
 ```
 Agente intenta git commit
@@ -728,7 +728,7 @@ La v4.0.1 introduce **HARD BLOCKS** que previenen las violaciones de protocolo m
 ```
 
 Complementado por:
-- **Hook `design-gate.sh`**: WARNING en cada Write/Edit sobre `presentation/pages/` si no hay diseño.
+- **Hook `design-gate.mjs`**: WARNING en cada Write/Edit sobre `presentation/pages/` si no hay diseño.
 - **AG-08 Check 6**: NO-GO si paginas carecen de `// Generated from: doc/design/...` comment.
 - **/check-designs**: Escaneo retroactivo de compliance Stitch por UC.
 
@@ -980,17 +980,17 @@ specbox-engine/
 │   │   ├── remote/SKILL.md           #     Remote project management
 │   │   └── release/SKILL.md          #     Automated release pipeline
 │   └── hooks/                         #   11 Hook scripts
-│       ├── spec-guard.sh             #     BLOQUEANTE: UC activo para writes (v5.7.0)
-│       ├── commit-spec-guard.sh      #     WARNING: UC activo para commits (v5.7.0)
-│       ├── pre-commit-lint.sh        #     BLOQUEANTE: lint on commit
-│       ├── design-gate.sh            #     WARNING: diseño Stitch requerido
-│       ├── on-session-end.sh         #     Session telemetry + heartbeat
-│       ├── implement-checkpoint.sh   #     Phase checkpointing
-│       ├── implement-healing.sh      #     Healing event logging
-│       ├── post-implement-validate.sh #    Baseline regression
-│       ├── heartbeat-sender.sh       #     Estado al VPS (cola si offline)
-│       ├── mcp-report.sh             #     MCP client helper
-│       └── e2e-report.sh            #     Playwright E2E reporting
+│       ├── spec-guard.mjs             #     BLOQUEANTE: UC activo para writes (v5.7.0)
+│       ├── commit-spec-guard.mjs      #     WARNING: UC activo para commits (v5.7.0)
+│       ├── pre-commit-lint.mjs        #     BLOQUEANTE: lint on commit
+│       ├── design-gate.mjs            #     WARNING: diseño Stitch requerido
+│       ├── on-session-end.mjs         #     Session telemetry + heartbeat
+│       ├── implement-checkpoint.mjs   #     Phase checkpointing
+│       ├── implement-healing.mjs      #     Healing event logging
+│       ├── post-implement-validate.mjs #    Baseline regression
+│       ├── heartbeat-sender.mjs       #     Estado al VPS (cola si offline)
+│       ├── mcp-report.mjs             #     MCP client helper
+│       └── e2e-report.mjs            #     Playwright E2E reporting
 │
 ├── server/                            # MCP Server + Dashboard
 │   ├── server.py                      #   FastMCP main
@@ -1359,7 +1359,7 @@ ls -la ~/.claude/skills/
 
 # 4. Verify hooks
 ls -la ~/.claude/hooks/
-# You should see: pre-commit-lint.sh, on-session-end.sh, implement-checkpoint.sh, etc.
+# You should see: pre-commit-lint.mjs, on-session-end.mjs, implement-checkpoint.mjs, etc.
 
 # 5. Start MCP server (optional — for telemetry and dashboard)
 pip install -e .
@@ -1613,11 +1613,11 @@ Automatic enforcement — no need to remember running these manually:
 
 | Hook | Event | Behavior |
 |------|-------|----------|
-| `pre-commit-lint.sh` | PostToolUse (git commit) | **BLOCKING**: fails commit if lint has errors |
-| `on-session-end.sh` | Stop | Logs telemetry to .quality/logs/ + Engram |
-| `implement-checkpoint.sh` | Manual (/implement) | Saves phase progress for resume |
-| `implement-healing.sh` | Manual (/implement) | Logs self-healing events |
-| `post-implement-validate.sh` | Manual (/implement) | Detects baseline regression |
+| `pre-commit-lint.mjs` | PostToolUse (git commit) | **BLOCKING**: fails commit if lint has errors |
+| `on-session-end.mjs` | Stop | Logs telemetry to .quality/logs/ + Engram |
+| `implement-checkpoint.mjs` | Manual (/implement) | Saves phase progress for resume |
+| `implement-healing.mjs` | Manual (/implement) | Logs self-healing events |
+| `post-implement-validate.mjs` | Manual (/implement) | Detects baseline regression |
 
 ---
 

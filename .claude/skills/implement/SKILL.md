@@ -912,7 +912,7 @@ CONTEXT:
 
 RULES:
 - Run lint after implementation: {stack_lint_command}
-- Save checkpoint: .claude/hooks/implement-checkpoint.sh {feature} {N} {phase_name}
+- Save checkpoint: node .claude/hooks/implement-checkpoint.mjs {feature} {N} {phase_name}
 - If lint fails, apply self-healing (Level 1 first, then Level 2)
 
 RETURN FORMAT:
@@ -966,7 +966,7 @@ CONTEXT:
 RULES:
 - Run lint after implementation: {stack_lint_command}
 - Quality gate: lint 0/0/0 (BLOQUEANTE), compile (BLOQUEANTE), tests pass (BLOQUEANTE)
-- Save checkpoint: .claude/hooks/implement-checkpoint.sh {feature} {N} {phase_name}
+- Save checkpoint: node .claude/hooks/implement-checkpoint.mjs {feature} {N} {phase_name}
 - If lint fails, apply self-healing (Level 1 first, then Level 2)
 
 RETURN FORMAT (OBLIGATORIO):
@@ -1412,7 +1412,7 @@ Si CONDITIONAL o REJECTED:
 ### 7.7.4 Registrar healing
 
 ```bash
-.claude/hooks/implement-healing.sh {feature} acceptance {level} "{action}" "{result}"
+node .claude/hooks/implement-healing.mjs {feature} acceptance {level} "{action}" "{result}"
 ```
 
 ### 7.7a Implementation Status — modo freeform (v5.0 Spec-Code Sync)

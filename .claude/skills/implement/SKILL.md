@@ -151,6 +151,44 @@ cat pyproject.toml 2>/dev/null | grep -E "fastapi|django"        # Python
 ls .clasp.json appsscript.json 2>/dev/null                       # Google Apps Script
 ```
 
+### 0.4a Inicializar Pipeline State (v5.18.0)
+
+Despues de detectar el stack y parsear el plan, inicializar `pipeline_state.json`
+para que `pipeline-phase-guard.mjs` pueda validar el orden de fases:
+
+```bash
+mkdir -p .quality/evidence/${feature}
+```
+
+Determinar qué fases aplican al proyecto:
+
+```
+has_db = plan incluye fase DB/Infra (AG-03)
+has_ui = plan incluye fase Diseño/Design-to-code (AG-02/AG-06)
+
+# Pre-marcar fases no aplicables como completadas
+completed_phases = []
+if NOT has_db:  completed_phases.append("db_infra")
+if NOT has_ui:  completed_phases.append("stitch_designs", "design_to_code")
+```
+
+Escribir el estado inicial:
+
+```json
+// .quality/evidence/${feature}/pipeline_state.json
+{
+  "feature": "${feature}",
+  "has_ui": true|false,
+  "has_db": true|false,
+  "completed_phases": ["...fases no aplicables pre-marcadas..."],
+  "current_phase": "init",
+  "last_updated": "ISO8601"
+}
+```
+
+**IMPORTANTE**: Este archivo es OBLIGATORIO. Sin el, `pipeline-phase-guard.mjs` permite todo
+(modo permisivo). Con el, enforce mecánico del orden de fases.
+
 ### 0.5 Validacion pre-vuelo (HARD BLOCKS)
 
 Antes de ejecutar, verificar:
@@ -987,7 +1025,58 @@ RETURN FORMAT (OBLIGATORIO):
 └── failed → Guardar checkpoint failed + escalar a humano
 ```
 
-### 5.1.1a Implementation Delta (Post-Phase) — v5.0 Spec-Code Sync
+### 5.1.1a Pipeline State Update (Post-Phase) — v5.18.0 Mechanical Enforcement
+
+Despues de guardar el checkpoint, **SIEMPRE** actualizar `pipeline_state.json` para que
+`pipeline-phase-guard.mjs` pueda validar la secuencia de fases mecanicamente:
+
+```bash
+# Leer estado actual o crear nuevo
+PIPELINE_STATE=".quality/evidence/${feature}/pipeline_state.json"
+mkdir -p ".quality/evidence/${feature}"
+```
+
+El orquestador mantiene y actualiza este archivo despues de CADA fase completada:
+
+```json
+{
+  "feature": "${feature}",
+  "has_ui": true,
+  "has_db": true,
+  "completed_phases": ["db_infra", "stitch_designs", "design_to_code", "feature_code"],
+  "current_phase": "integration",
+  "last_updated": "2026-04-05T18:00:00Z"
+}
+```
+
+**Mapeo de fases del plan a IDs de pipeline_state:**
+
+| Fase del plan | ID en completed_phases | Condicion |
+|---------------|----------------------|-----------|
+| DB/Infra (AG-03) | `db_infra` | Solo si el plan tiene fase DB |
+| Stitch Designs (AG-06) | `stitch_designs` | Solo si proyecto tiene UI |
+| Design-to-Code (AG-02) | `design_to_code` | Solo si proyecto tiene UI |
+| Feature Code (AG-01) | `feature_code` | Siempre |
+| Apps Script (AG-07) | `appscript` | Solo si aplica |
+| n8n (AG-05) | `n8n` | Solo si aplica |
+| Integration/DI | `integration` | Siempre (si hay fase) |
+| QA/Tests (AG-04) | `tests` | Siempre |
+
+**IMPORTANTE**: Si una fase no aplica al proyecto (ej: no hay DB), marcarla como completada
+al inicio para que el guard no bloquee las fases dependientes:
+
+```javascript
+// Ejemplo: proyecto sin DB ni UI
+{
+  "completed_phases": ["db_infra", "stitch_designs", "design_to_code"],
+  "has_ui": false,
+  "has_db": false
+}
+```
+
+Esto permite que `pipeline-phase-guard.mjs` valide el orden sin falsos positivos.
+
+### 5.1.1b Implementation Delta (Post-Phase) — v5.0 Spec-Code Sync
 
 Despues de guardar el checkpoint, generar el delta block para tracking spec-code:
 

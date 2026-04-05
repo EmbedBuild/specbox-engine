@@ -37,6 +37,26 @@
             "command": "node .claude/hooks/e2e-gate.mjs",
             "blocking": true,
             "timeout": 15000
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/checkpoint-freshness-guard.mjs",
+            "blocking": false,
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": {
+          "tool_name": "Bash",
+          "command_pattern": "git push"
+        },
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/uc-lifecycle-guard.mjs",
+            "blocking": false,
+            "timeout": 10000
           }
         ]
       },
@@ -192,6 +212,18 @@
             "command": "node .claude/hooks/quality-first-guard.mjs",
             "blocking": true,
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/healing-budget-guard.mjs",
+            "blocking": true,
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/pipeline-phase-guard.mjs",
+            "blocking": true,
+            "timeout": 5000
           }
         ]
       },
@@ -203,6 +235,18 @@
           {
             "type": "command",
             "command": "node .claude/hooks/quality-first-guard.mjs",
+            "blocking": true,
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/healing-budget-guard.mjs",
+            "blocking": true,
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/pipeline-phase-guard.mjs",
             "blocking": true,
             "timeout": 5000
           }

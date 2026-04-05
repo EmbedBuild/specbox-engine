@@ -1,8 +1,8 @@
-version: 5.17.0
-codename: "Cross-Platform Hooks"
+version: 5.18.0
+codename: "Compliance Enforcement"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-04-04
+release_date: 2026-04-05
 min_claude_code: "1.0.0"
 
 stacks:
@@ -240,8 +240,35 @@ features:
   - hooks-legacy-bash-backup
   - install-copies-mjs-hooks
   - settings-node-invocation
+  # New (v5.18.0)
+  - compliance-enforcement
+  - healing-budget-guard-hook
+  - pipeline-phase-guard-hook
+  - checkpoint-freshness-guard-hook
+  - uc-lifecycle-guard-hook
+  - compliance-audit-skill
+  - specbox-audit-script
+  - pipeline-state-json
+  - pipeline-phase-dependencies
+  - implement-pipeline-state-writer
+  - settings-template-full-parity
 
 changelog:
+  5.18.0:
+    date: 2026-04-05
+    changes:
+      - "feat: healing-budget-guard.mjs — BLOCKING hook that stops agent after 8 healing attempts per feature"
+      - "feat: pipeline-phase-guard.mjs — BLOCKING hook that validates phase dependencies before allowing writes"
+      - "feat: checkpoint-freshness-guard.mjs — WARNING hook on commit if checkpoint stale >30min"
+      - "feat: uc-lifecycle-guard.mjs — WARNING hook on push if move_uc not called (board sync)"
+      - "feat: /compliance skill — exhaustive SpecBox compliance audit with scoring and auto-fix"
+      - "feat: specbox-audit.mjs — standalone Node.js auditor (6 categories, 21 hooks, weighted scoring A+ to F)"
+      - "feat: pipeline_state.json writer in /implement — enables mechanical phase ordering enforcement"
+      - "feat: --fix flag for specbox-audit auto-resolves missing hooks and directories"
+      - "fix: settings.json.template missing design-gate, no-bypass-guard, e2e-gate matchers — full parity with engine"
+      - "fix: CLAUDE.md structure section missing 4 skills and 7 hooks — now lists all 15 skills and 20 hooks"
+      - "fix: install.sh summary missing /compliance skill"
+      - "refactor: /implement SKILL.md step numbering — 5.1.1a Pipeline State, 5.1.1b Implementation Delta"
   5.17.0:
     date: 2026-04-04
     changes:

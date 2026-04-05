@@ -515,7 +515,7 @@ else
 
     echo -e "${GREEN}Installation complete.${NC}"
     echo -e "Commands: /prd, /plan, /implement, /adapt-ui, /optimize-agents"
-    echo -e "Skills:   /prd, /visual-setup, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore, /feedback, /check-designs, /acceptance-check, /quickstart, /remote, /release"
+    echo -e "Skills:   /prd, /visual-setup, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore, /feedback, /check-designs, /acceptance-check, /quickstart, /remote, /release, /compliance"
     echo -e "Quality:  quality-first-guard.mjs (read before write), read-tracker.mjs (session tracking)"
     echo -e "Hooks:    $HOOK_NAMES"
 fi

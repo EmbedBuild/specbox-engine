@@ -1,4 +1,4 @@
-# SpecBox Engine v5.17.0
+# SpecBox Engine v5.18.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -112,7 +112,7 @@ specbox-engine/
 ├── .gga                   ← Config de Gentleman Guardian Angel (cached lint)
 ├── .vscode/mcp.json       ← Servidor MCP de Engram (memoria persistente)
 ├── .claude/
-│   ├── skills/            ← Agent Skills (v3.5)
+│   ├── skills/            ← Agent Skills (v5.18)
 │   │   ├── prd/SKILL.md
 │   │   ├── plan/SKILL.md
 │   │   ├── implement/SKILL.md
@@ -122,17 +122,33 @@ specbox-engine/
 │   │   ├── explore/SKILL.md
 │   │   ├── feedback/SKILL.md
 │   │   ├── check-designs/SKILL.md
-│   │   └── visual-setup/SKILL.md
-│   ├── hooks/             ← Hooks (v5.15)
+│   │   ├── visual-setup/SKILL.md
+│   │   ├── acceptance-check/SKILL.md
+│   │   ├── quickstart/SKILL.md
+│   │   ├── remote/SKILL.md
+│   │   ├── release/SKILL.md
+│   │   └── compliance/SKILL.md
+│   ├── hooks/             ← Hooks (v5.18)
 │   │   ├── quality-first-guard.mjs
 │   │   ├── read-tracker.mjs
-│   │   ├── mcp-report.mjs
+│   │   ├── spec-guard.mjs
+│   │   ├── branch-guard.mjs
+│   │   ├── commit-spec-guard.mjs
 │   │   ├── pre-commit-lint.mjs
+│   │   ├── e2e-gate.mjs
+│   │   ├── no-bypass-guard.mjs
+│   │   ├── design-gate.mjs
+│   │   ├── healing-budget-guard.mjs
+│   │   ├── pipeline-phase-guard.mjs
+│   │   ├── checkpoint-freshness-guard.mjs
+│   │   ├── uc-lifecycle-guard.mjs
 │   │   ├── on-session-end.mjs
 │   │   ├── implement-checkpoint.mjs
 │   │   ├── implement-healing.mjs
 │   │   ├── post-implement-validate.mjs
-│   │   └── design-gate.mjs
+│   │   ├── heartbeat-sender.mjs
+│   │   ├── mcp-report.mjs
+│   │   └── e2e-report.mjs
 │   └── settings.json      ← Hooks config
 ├── commands/              ← Commands (referencia legacy)
 │   ├── prd.md
@@ -262,8 +278,9 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /quickstart | "quickstart", "tutorial", "getting started" | fork | Full | v5.0 — Interactive onboarding tutorial (< 5 min) |
 | /remote | "estado de", "resumen de todos", "sesiones activas" | direct | Full | v5.5 — Remote project management for OpenClaw (WhatsApp/Discord) |
 | /release | "release", "bump version", "sube version", "prepara release" | direct | Full | v5.8 — Audit residuals + update version/changelog/docs + push |
+| /compliance | "check compliance", "audit specbox", "specbox audit", "is specbox up to date" | direct | Bash+Read | v5.18 — Compliance audit + version alignment + auto-fix |
 
-## Hooks (v5.15.0)
+## Hooks (v5.18.0)
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -285,6 +302,21 @@ Automatic enforcement — no need to remember running these manually:
 | heartbeat-sender | Manual (called by on-session-end, implement-checkpoint) | Sends consolidated project state snapshot to VPS; queues locally if offline |
 | mcp-report | Helper (called by other hooks) | Generic MCP reporter: fire-and-forget HTTP POST to /api/report/* |
 | e2e-report | Manual (called by /implement) | Reports Playwright E2E test results to MCP telemetry |
+| **healing-budget-guard** | PreToolUse (Write/Edit) | **BLOCKING**: counts healing.jsonl entries per feature. Blocks at 8 attempts (HARD limit). Prevents infinite healing loops. |
+| **pipeline-phase-guard** | PreToolUse (Write/Edit) | **BLOCKING**: reads pipeline_state.json to verify phase dependencies are met. Prevents out-of-order execution (e.g., feature code before DB). |
+| checkpoint-freshness-guard | PostToolUse (git commit) | Non-blocking WARNING: warns if checkpoint is stale (>30min) or missing during active UC implementation. |
+| uc-lifecycle-guard | PostToolUse (git push) | Non-blocking WARNING: warns if pushing feature branch without calling move_uc (board out of sync). |
+
+### Compliance Audit (v5.18.0)
+
+The `/compliance` skill and `specbox-audit.mjs` script provide exhaustive SpecBox compliance auditing:
+
+- **Local execution**: `node .quality/scripts/specbox-audit.mjs [path] [--json] [--fix] [--verbose]`
+- **Skill invocation**: `/compliance` from Claude Code
+- **Auto-fix**: `--fix` flag copies missing hooks, creates directories
+- **6 audit categories**: Version Alignment, Hooks Installation, Settings Configuration, Quality Infrastructure, Skills Installation, Spec-Driven Compliance
+- **Scoring**: Weighted score 0-100% with grades A+ through F
+- **Evidence**: Saves `compliance-audit.json` in `.quality/evidence/`
 
 ### Quality First Enforcement (v5.15.0)
 
@@ -395,6 +427,7 @@ Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP 
 | `patrol-evidence-generator.js` | `.quality/scripts/patrol-evidence-generator.js --junit <xml> --screenshots <dir> ...` | Generate HTML Evidence Report from Patrol v4 results |
 | `api-evidence-generator.js` | `.quality/scripts/api-evidence-generator.js --cucumber <json> --responses <dir> ...` | Generate HTML Evidence Report from Python API test results |
 | `validate-results-json.js` | `.quality/scripts/validate-results-json.js <path> [--check-evidence]` | Validate results.json against contract (used by e2e-gate.mjs hook) |
+| `specbox-audit.mjs` | `.quality/scripts/specbox-audit.mjs [path] [--json] [--fix] [--verbose]` | Compliance audit: version, hooks, settings, quality infra, skills, spec-driven |
 
 ## Agents (v3.5)
 
@@ -615,6 +648,6 @@ Deteccion automatica de UCs sin evidencia E2E durante el upgrade de proyectos:
 
 ## Engine Version
 
-Current: v5.17.0 "Cross-Platform Hooks"
+Current: v5.18.0 "Compliance Enforcement"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

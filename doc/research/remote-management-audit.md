@@ -1,7 +1,7 @@
 # Auditoría: Sala de Máquinas + Remote Management
 
 > **Fecha**: 2026-03-18
-> **Engine**: v5.2.0
+> **Engine**: v5.18.0
 > **Objetivo**: Mapear el estado real de la infraestructura antes de diseñar el PRD de Remote Management
 
 ---

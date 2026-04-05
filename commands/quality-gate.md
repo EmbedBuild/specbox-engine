@@ -668,4 +668,4 @@ Solo bloquea si hay vulnerabilidades conocidas (CVE).
 
 ---
 
-*SpecBox Engine v3.9.0 — Quality Gate System*
+*SpecBox Engine v5.18.0 — Quality Gate System*

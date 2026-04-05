@@ -199,4 +199,4 @@ Un `results.json` es válido si:
 
 ---
 
-*SpecBox Engine v5.12.0 — results.json Contract*
+*SpecBox Engine v5.18.0 — results.json Contract*

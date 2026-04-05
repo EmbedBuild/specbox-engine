@@ -1,6 +1,6 @@
 # Referencia de Commands y Skills
 
-> **v3.5:** Los commands han sido migrados a **Agent Skills** en `.claude/skills/`. Los archivos en `commands/` se mantienen como referencia. Las Skills son la version activa con auto-discovery, context isolation y hooks.
+> **v5.18.0:** Los commands han sido migrados a **Agent Skills** en `.claude/skills/`. Los archivos en `commands/` se mantienen como referencia. Las Skills son la version activa con auto-discovery, context isolation y hooks.
 
 ## Instalacion
 

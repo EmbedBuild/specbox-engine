@@ -487,4 +487,4 @@ e2e/
 
 ---
 
-*Referencia: SpecBox Engine v3.9.0 "E2E Sentinel"*
+*Referencia: SpecBox Engine v5.18.0 "E2E Sentinel"*

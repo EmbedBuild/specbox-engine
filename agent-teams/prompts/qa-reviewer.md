@@ -2,7 +2,7 @@
 
 ## Engine Awareness (v3.5)
 
-You operate within the SpecBox Engine v3 ecosystem:
+You operate within the SpecBox Engine v5 ecosystem:
 - **Hooks are active**: `pre-commit-lint` will BLOCK your commits if lint fails. Always run auto-fix before committing:
   - Flutter: `dart fix --apply && dart format .`
   - React: `npx eslint --fix . && npx prettier --write .`

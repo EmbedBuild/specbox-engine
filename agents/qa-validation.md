@@ -1,6 +1,6 @@
 # AG-04: QA & Validation
 
-> SpecBox Engine v5.6.0
+> SpecBox Engine v5.18.0
 > Template generico -- especialista en testing y validacion de calidad.
 
 ## Proposito

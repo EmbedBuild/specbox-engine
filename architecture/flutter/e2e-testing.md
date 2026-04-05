@@ -510,5 +510,5 @@ afterAll  → cleanup → datos eliminados
 
 ---
 
-*Referencia: SpecBox Engine v5.12.0 — Hybrid E2E Pipeline (Playwright Web + Patrol Mobile)*
+*Referencia: SpecBox Engine v5.18.0 — Hybrid E2E Pipeline (Playwright Web + Patrol Mobile)*
 *Decisión: `doc/decisions/e2e-flutter-strategy.md`*

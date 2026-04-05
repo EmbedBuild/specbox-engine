@@ -1,6 +1,6 @@
 # Agent Teams
 
-> SpecBox Engine v3.9.0 — Orquestacion multi-agente nativa de Claude Code (experimental)
+> SpecBox Engine v5.18.0 — Orquestacion multi-agente nativa de Claude Code (experimental)
 
 ## Que es Agent Teams
 

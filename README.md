@@ -2,14 +2,14 @@
   <img src=".github/assets/Logo SpecBox.png" alt="SpecBox Engine" width="280" />
 </p>
 
-<h1 align="center">SpecBox Engine v5.12.0 — Source Shield</h1>
+<h1 align="center">SpecBox Engine v5.18.0 — Compliance Enforcement</h1>
 
 <p align="center">
   <strong>SpecBox Engine by JPS</strong> — Sistema de programacion agentica para Claude Code.<br/>
   <a href="#english-version">English version below</a>
 </p>
 
-Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 108 tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane/FreeForm para desarrollo profesional con Claude Code.
+Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 110 tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane/FreeForm para desarrollo profesional con Claude Code.
 
 ---
 
@@ -57,11 +57,13 @@ cd ~/specbox-engine
 
 # 3. Verificar skills
 ls -la ~/.claude/skills/
-# Deberias ver: prd, plan, implement, adapt-ui, optimize-agents, quality-gate, explore, feedback
+# Deberias ver: prd, plan, implement, adapt-ui, optimize-agents, quality-gate,
+# explore, feedback, check-designs, visual-setup, acceptance-check, quickstart,
+# remote, release, compliance (15 skills)
 
 # 4. Verificar hooks
 ls -la ~/.claude/hooks/
-# Deberias ver: pre-commit-lint.mjs, on-session-end.mjs, implement-checkpoint.mjs, etc.
+# Deberias ver: 20 hooks .mjs + lib/ con 4 shared modules
 
 # 5. Iniciar MCP server (opcional — para telemetria y dashboard)
 pip install -e .
@@ -145,6 +147,8 @@ Las Skills se auto-descubren cuando son relevantes. Los hooks se ejecutan automa
 | `/quickstart` | Tutorial interactivo de onboarding (< 5 min) |
 | `/remote` | Gestion remota de proyectos (WhatsApp/Discord via OpenClaw) |
 | `/release` | Audita residuos + bump version + changelog + push |
+| `/visual-setup` | Configura identidad visual: brand kit + Stitch DS + VEG |
+| `/compliance` | Audita compliance SpecBox: version, hooks, settings, scoring A+ a F |
 
 ---
 
@@ -376,10 +380,11 @@ agent-teams/
 |-------|---------|-------------|------|
 | **Flutter** | 3.38+ | Clean Architecture, BLoC+Freezed, Responsive (3 layouts), DataSource | 6 docs |
 | **React** | 19.x | App Router / SPA, Server Components, TanStack Query, Tailwind CSS | 3 docs |
+| **Go** | 1.23+ | Clean Architecture, cmd/internal structure, testcontainers-go | 4 docs |
 | **Python** | 3.12+ | FastAPI, SQLAlchemy 2 async, Pydantic v2, Repository pattern | 2 docs |
 | **Google Apps Script** | V8 | clasp + TypeScript + esbuild, batch operations, PropertiesService | 4 docs |
 
-Cada stack tiene su carpeta en `architecture/` con overview, folder-structure, patterns, testing-strategy, y e2e-testing (Flutter/React).
+Cada stack tiene su carpeta en `architecture/` con overview, folder-structure, patterns, testing-strategy, y e2e-testing.
 
 ---
 
@@ -440,19 +445,28 @@ Enforcement automatico — no hace falta recordar ejecutarlos:
 
 | Hook | Evento | Comportamiento |
 |------|--------|----------------|
-| `spec-guard.mjs` | PostToolUse (Write/Edit en src/lib/) | **BLOQUEANTE**: verifica UC activo antes de escribir codigo (v5.7.0) |
-| `commit-spec-guard.mjs` | PostToolUse (git commit) | WARNING: verifica UC activo, checkpoints frescos, tamano del commit (v5.7.0) |
-| `pre-commit-lint.mjs` | PostToolUse (git commit) | **BLOQUEANTE**: falla commit si lint tiene errores |
-| `design-gate.mjs` | PostToolUse (Write/Edit) | WARNING si se modifica `presentation/pages/` sin diseño Stitch |
-| `on-session-end.mjs` | Stop | Registra telemetria en .quality/logs/ + Engram + heartbeat |
-| `implement-checkpoint.mjs` | Manual (/implement) | Guarda progreso de fase para resume |
-| `implement-healing.mjs` | Manual (/implement) | Registra eventos de self-healing |
-| `post-implement-validate.mjs` | Manual (/implement) | Detecta regresion de baseline |
-| `heartbeat-sender.mjs` | Manual (hooks) | Envia snapshot de estado al VPS; cola local si offline |
-| `mcp-report.mjs` | Utility | Cliente MCP reutilizable para telemetria remota |
-| `e2e-report.mjs` | Manual (/implement) | Reporta resultados Playwright E2E a telemetria MCP |
+| **quality-first-guard.mjs** | PreToolUse (Write/Edit) | **BLOQUEANTE**: verifica que el archivo fue leido antes de modificarlo (v5.15.0) |
+| **healing-budget-guard.mjs** | PreToolUse (Write/Edit) | **BLOQUEANTE**: para al agente tras 8 intentos de healing por feature (v5.18.0) |
+| **pipeline-phase-guard.mjs** | PreToolUse (Write/Edit) | **BLOQUEANTE**: valida dependencias entre fases (DB antes de Feature, etc.) (v5.18.0) |
+| **no-bypass-guard.mjs** | PreToolUse (Bash) | **BLOQUEANTE**: impide --no-verify, push --force, reset --hard (v5.13.0) |
+| read-tracker.mjs | PostToolUse (Read) | Registra archivos leidos para quality-first-guard (v5.15.0) |
+| **spec-guard.mjs** | PostToolUse (Write/Edit en src/lib/) | **BLOQUEANTE**: verifica UC activo antes de escribir codigo (v5.7.0) |
+| **branch-guard.mjs** | PostToolUse (Write/Edit en src/lib/) | **BLOQUEANTE**: impide escribir en main/master (v5.10.0) |
+| **commit-spec-guard.mjs** | PostToolUse (git commit) | **BLOQUEANTE** en main + WARNING: UC activo, checkpoint, tamano (v5.7.0) |
+| **pre-commit-lint.mjs** | PostToolUse (git commit) | **BLOQUEANTE**: zero-tolerance lint (0 errores, 0 warnings) |
+| **e2e-gate.mjs** | PostToolUse (git commit) | **BLOQUEANTE**: valida results.json + HTML Evidence Report (v5.13.0) |
+| checkpoint-freshness-guard.mjs | PostToolUse (git commit) | WARNING si checkpoint >30 min durante implementacion (v5.18.0) |
+| uc-lifecycle-guard.mjs | PostToolUse (git push) | WARNING si push sin mover UC a Review (v5.18.0) |
+| **design-gate.mjs** | PostToolUse (Write/Edit pages/) | **BLOQUEANTE**: requiere HTML Stitch en doc/design/ (v4.2.0) |
+| on-session-end.mjs | Stop | Registra telemetria en .quality/logs/ + heartbeat |
+| implement-checkpoint.mjs | Manual (/implement) | Guarda progreso de fase para resume |
+| implement-healing.mjs | Manual (/implement) | Registra eventos de self-healing |
+| post-implement-validate.mjs | Manual (/implement) | Detecta regresion de baseline |
+| heartbeat-sender.mjs | Manual (hooks) | Envia snapshot de estado al VPS; cola local si offline |
+| mcp-report.mjs | Utility | Cliente MCP reutilizable para telemetria remota |
+| e2e-report.mjs | Manual (/implement) | Reporta resultados Playwright E2E a telemetria MCP |
 
-Configuracion en `.claude/settings.json`. Telemetria remota controlada por `SPECBOX_ENGINE_MCP_URL` env var.
+**9 hooks BLOQUEANTES** + 11 no-bloqueantes = 20 hooks totales. Todos en Node.js (.mjs), cross-platform (macOS/Linux/Windows), zero npm dependencies. Configuracion en `.claude/settings.json`.
 
 ---
 
@@ -764,7 +778,7 @@ Ahora son **HARD BLOCKS** que detienen el pipeline.
 
 ## MCP Server
 
-Servidor MCP unificado con 108 tools en un solo endpoint.
+Servidor MCP unificado con 110 tools en 19 modulos.
 
 ### Arquitectura
 
@@ -784,20 +798,26 @@ server/
 │   └── freeform_backend.py #  FreeformBackend (JSON + Markdown local)
 ├── models.py              # Pydantic models (US, UC, AC)
 ├── pdf_generator.py       # Markdown → PDF
-├── tools/                 # 13 modulos de tools
-│   ├── engine.py          # 3 tools: version, status, rules
+├── tools/                 # 19 modulos, 110 tools
+│   ├── engine.py          # 3 tools: version, status, stacks
 │   ├── plans.py           # 3 tools: list, read, architecture
 │   ├── quality.py         # 4 tools: baseline, logs, evidence
 │   ├── skills.py          # 2 tools: list, read
-│   ├── features.py        # 7 tools: in-progress, designs
-│   ├── telemetry.py       # 8 tools: sessions, events, dashboard
+│   ├── features.py        # 6 tools: in-progress, designs
+│   ├── telemetry.py       # 6 tools: sessions, events
 │   ├── hooks.py           # 3 tools: list, config, source
-│   ├── onboarding.py      # 10+ tools: register, onboard, upgrade
-│   ├── state.py           # 20 tools: report, checkpoint, healing
+│   ├── onboarding.py      # 9 tools: register, onboard, upgrade
+│   ├── state.py           # 17 tools: report, checkpoint, healing
 │   ├── spec_driven.py     # 21 tools: backend-agnostic (US/UC/AC)
 │   ├── migration.py       # 5 tools: Trello ↔ Plane migration
 │   ├── stitch.py          # 13 tools: Stitch MCP proxy
-│   └── heartbeat_stats.py # 1 tool: heartbeat observability
+│   ├── heartbeat_stats.py # 1 tool: heartbeat observability
+│   ├── acceptance.py      # 3 tools: acceptance check, report, gap
+│   ├── benchmark.py       # 1 tool: benchmark snapshot
+│   ├── hints.py           # 3 tools: skill hints
+│   ├── live_state.py      # 4 tools: project live state
+│   ├── skill_registry.py  # 3 tools: discover, validate
+│   └── sync.py            # 2 tools: GitHub sync
 ├── resources/             # 8 MCP Resources
 └── dashboard/             # React 19 + Vite frontend
 ```
@@ -954,7 +974,7 @@ upgrade_project(name)          # Actualiza al ultimo template del engine
 ```
 specbox-engine/
 ├── CLAUDE.md                          # Instrucciones del engine para Claude
-├── ENGINE_VERSION.yaml                # Version 5.9.0, stacks, servicios, changelog
+├── ENGINE_VERSION.yaml                # Version 5.18.0, stacks, servicios, changelog
 ├── README.md                          # Este archivo
 ├── CHANGELOG.md                       # Historial de cambios desde v1.0.0
 ├── LICENSE                            # MIT
@@ -965,10 +985,10 @@ specbox-engine/
 │
 ├── .claude/                           # Configuracion Claude Code
 │   ├── settings.json                  #   Hooks config
-│   ├── skills/                        #   13 Agent Skills
+│   ├── skills/                        #   15 Agent Skills
 │   │   ├── prd/SKILL.md              #     PRD generator
 │   │   ├── plan/SKILL.md             #     Plan + Stitch + VEG
-│   │   ├── implement/SKILL.md        #     Autopilot (1500+ lineas)
+│   │   ├── implement/SKILL.md        #     Autopilot (1880+ lineas)
 │   │   ├── adapt-ui/SKILL.md         #     UI component scanner
 │   │   ├── optimize-agents/SKILL.md  #     Agent system auditor
 │   │   ├── quality-gate/SKILL.md     #     Quality gates
@@ -976,21 +996,33 @@ specbox-engine/
 │   │   ├── feedback/SKILL.md         #     Developer feedback
 │   │   ├── acceptance-check/SKILL.md #     Standalone AC validation
 │   │   ├── check-designs/SKILL.md    #     Stitch compliance scan
+│   │   ├── visual-setup/SKILL.md     #     Brand kit + Stitch DS + VEG
 │   │   ├── quickstart/SKILL.md       #     Interactive onboarding
 │   │   ├── remote/SKILL.md           #     Remote project management
-│   │   └── release/SKILL.md          #     Automated release pipeline
-│   └── hooks/                         #   11 Hook scripts
+│   │   ├── release/SKILL.md          #     Automated release pipeline
+│   │   └── compliance/SKILL.md       #     SpecBox compliance audit
+│   └── hooks/                         #   20 Hook scripts + lib/
+│       ├── quality-first-guard.mjs    #     BLOQUEANTE: read before write (v5.15.0)
+│       ├── healing-budget-guard.mjs   #     BLOQUEANTE: max 8 healing (v5.18.0)
+│       ├── pipeline-phase-guard.mjs   #     BLOQUEANTE: phase ordering (v5.18.0)
+│       ├── no-bypass-guard.mjs        #     BLOQUEANTE: no --no-verify/--force (v5.13.0)
 │       ├── spec-guard.mjs             #     BLOQUEANTE: UC activo para writes (v5.7.0)
-│       ├── commit-spec-guard.mjs      #     WARNING: UC activo para commits (v5.7.0)
-│       ├── pre-commit-lint.mjs        #     BLOQUEANTE: lint on commit
-│       ├── design-gate.mjs            #     WARNING: diseño Stitch requerido
+│       ├── branch-guard.mjs           #     BLOQUEANTE: no writes on main (v5.10.0)
+│       ├── commit-spec-guard.mjs      #     BLOQUEANTE + WARNING: commits (v5.7.0)
+│       ├── pre-commit-lint.mjs        #     BLOQUEANTE: zero-tolerance lint
+│       ├── e2e-gate.mjs               #     BLOQUEANTE: evidence validation (v5.13.0)
+│       ├── design-gate.mjs            #     BLOQUEANTE: Stitch design required (v4.2.0)
+│       ├── checkpoint-freshness-guard.mjs # WARNING: stale checkpoint (v5.18.0)
+│       ├── uc-lifecycle-guard.mjs     #     WARNING: push sin move_uc (v5.18.0)
+│       ├── read-tracker.mjs           #     Tracks reads for quality-first-guard
 │       ├── on-session-end.mjs         #     Session telemetry + heartbeat
 │       ├── implement-checkpoint.mjs   #     Phase checkpointing
 │       ├── implement-healing.mjs      #     Healing event logging
 │       ├── post-implement-validate.mjs #    Baseline regression
 │       ├── heartbeat-sender.mjs       #     Estado al VPS (cola si offline)
 │       ├── mcp-report.mjs             #     MCP client helper
-│       └── e2e-report.mjs            #     Playwright E2E reporting
+│       ├── e2e-report.mjs             #     Playwright E2E reporting
+│       └── lib/                       #     Shared: utils, output, config, http
 │
 ├── server/                            # MCP Server + Dashboard
 │   ├── server.py                      #   FastMCP main
@@ -1000,7 +1032,7 @@ specbox-engine/
 │   ├── board_helpers.py               #   Card parsing
 │   ├── models.py                      #   Pydantic models
 │   ├── pdf_generator.py               #   Markdown → PDF
-│   ├── tools/                         #   13 modules, 108 tools
+│   ├── tools/                         #   19 modules, 110 tools
 │   │   ├── engine.py                  #     Version, status, rules
 │   │   ├── plans.py                   #     Plans management
 │   │   ├── quality.py                 #     Quality baselines
@@ -1272,6 +1304,7 @@ upgrade_all_projects()
 6. **Enforcement > Documentacion** — Los HARD BLOCKS previenen violaciones, no las advertencias (v4.0.1)
 7. **Calidad visual no negociable** — VEG Pilar 1 exige imagenes reales, no placeholders (v4.0.1)
 8. **Trazabilidad innegociable** — Pipeline Integrity impide escribir codigo sin UC activo (v5.7.0)
+9. **Mecanico > Instruccional** — Todo lo mandatory se enforce por hooks BLOQUEANTES, no por prompts (v5.18.0)
 
 ---
 
@@ -1289,7 +1322,7 @@ Mas informacion en [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) o contacta en 
 
 ---
 
-v5.12.0 | 2026-03-26 | JPS Developer
+v5.18.0 | 2026-04-05 | JPS Developer
 
 ---
 
@@ -1301,13 +1334,13 @@ v5.12.0 | 2026-03-26 | JPS Developer
   <img src=".github/assets/Logo SpecBox.png" alt="SpecBox Engine" width="280" />
 </p>
 
-<h1 align="center">SpecBox Engine v5.12.0 — Source Shield</h1>
+<h1 align="center">SpecBox Engine v5.18.0 — Compliance Enforcement</h1>
 
 <p align="center">
   <strong>SpecBox Engine by JPS</strong> — An agentic programming system for Claude Code.
 </p>
 
-Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 108 tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane/FreeForm for professional development with Claude Code.
+Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 110 tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane/FreeForm for professional development with Claude Code.
 
 ---
 
@@ -1355,11 +1388,13 @@ cd ~/specbox-engine
 
 # 3. Verify skills
 ls -la ~/.claude/skills/
-# You should see: prd, plan, implement, adapt-ui, optimize-agents, quality-gate, explore, feedback
+# You should see: prd, plan, implement, adapt-ui, optimize-agents, quality-gate,
+# explore, feedback, check-designs, visual-setup, acceptance-check, quickstart,
+# remote, release, compliance (15 skills)
 
 # 4. Verify hooks
 ls -la ~/.claude/hooks/
-# You should see: pre-commit-lint.mjs, on-session-end.mjs, implement-checkpoint.mjs, etc.
+# You should see: 20 hooks .mjs + lib/ with 4 shared modules
 
 # 5. Start MCP server (optional — for telemetry and dashboard)
 pip install -e .
@@ -1806,7 +1841,7 @@ HARD BLOCKS that prevent the most critical protocol violations during autonomous
 
 ## MCP Server
 
-Unified MCP server with 108 tools in a single endpoint.
+Unified MCP server with 110 tools in a single endpoint.
 
 ### Architecture
 
@@ -1964,7 +1999,7 @@ specbox-engine/
 │   │   ├── trello_backend.py         #     TrelloBackend
 │   │   ├── plane_backend.py          #     PlaneBackend
 │   │   └── plane_client.py           #     PlaneClient
-│   ├── tools/                         #   13 modules, 108 tools
+│   ├── tools/                         #   19 modules, 110 tools
 │   └── dashboard/                     #   Sala de Maquinas (React 19 + Vite)
 │
 ├── agents/                            # 12 Agent templates (AG-01 to AG-10)
@@ -2167,4 +2202,4 @@ More details at [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) or contact **jesu
 
 ---
 
-v5.12.0 | 2026-03-26 | JPS Developer
+v5.18.0 | 2026-04-05 | JPS Developer

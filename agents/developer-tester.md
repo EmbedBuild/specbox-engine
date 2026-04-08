@@ -1,6 +1,6 @@
 # AG-10: Developer Tester
 
-> SpecBox Engine v5.18.0
+> SpecBox Engine v5.19.0
 > Captura feedback de testing manual del desarrollador como evidencia estructurada.
 > NO es AG-04 (QA). NO es AG-09a (Acceptance Tester). NO es AG-09b (Acceptance Validator).
 > AG-10 estructura feedback humano y lo vincula al pipeline de acceptance.
@@ -194,4 +194,4 @@ comentar y cerrar GitHub issue.
 
 ---
 
-*SpecBox Engine v5.18.0 — Developer Tester*
+*SpecBox Engine v5.19.0 — Developer Tester*

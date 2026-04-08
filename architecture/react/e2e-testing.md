@@ -378,4 +378,4 @@ afterAll  → cleanup_e2e() → datos eliminados
 
 ---
 
-*Referencia: SpecBox Engine v5.18.0 "E2E Sentinel + Seed Lifecycle"*
+*Referencia: SpecBox Engine v5.19.0 "E2E Sentinel + Seed Lifecycle"*

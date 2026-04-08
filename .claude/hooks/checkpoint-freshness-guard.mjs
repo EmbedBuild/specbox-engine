@@ -4,7 +4,7 @@
  * WARNING (non-blocking): Warns if active UC exists but checkpoint is stale (>30min)
  * or missing entirely. Reminds the agent to save checkpoints for recovery.
  *
- * v5.18.0 — Compliance Enforcement
+ * v5.19.0 — Compliance Enforcement
  */
 
 import { fileExists, fileAge, readJsonFile } from './lib/utils.mjs';

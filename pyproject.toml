@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "5.18.0"
-description = "SpecBox Engine v5.18.0 — unified MCP server with 110 tools for spec-driven development"
+version = "5.19.0"
+description = "SpecBox Engine v5.19.0 — unified MCP server with 110 tools for spec-driven development"
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.0.0",

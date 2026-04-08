@@ -151,7 +151,7 @@ cat pyproject.toml 2>/dev/null | grep -E "fastapi|django"        # Python
 ls .clasp.json appsscript.json 2>/dev/null                       # Google Apps Script
 ```
 
-### 0.4a Inicializar Pipeline State (v5.18.0)
+### 0.4a Inicializar Pipeline State (v5.19.0)
 
 Despues de detectar el stack y parsear el plan, inicializar `pipeline_state.json`
 para que `pipeline-phase-guard.mjs` pueda validar el orden de fases:
@@ -1025,7 +1025,7 @@ RETURN FORMAT (OBLIGATORIO):
 └── failed → Guardar checkpoint failed + escalar a humano
 ```
 
-### 5.1.1a Pipeline State Update (Post-Phase) — v5.18.0 Mechanical Enforcement
+### 5.1.1a Pipeline State Update (Post-Phase) — v5.19.0 Mechanical Enforcement
 
 Despues de guardar el checkpoint, **SIEMPRE** actualizar `pipeline_state.json` para que
 `pipeline-phase-guard.mjs` pueda validar la secuencia de fases mecanicamente:

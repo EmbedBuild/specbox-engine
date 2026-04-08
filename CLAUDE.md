@@ -1,4 +1,4 @@
-# SpecBox Engine v5.18.0
+# SpecBox Engine v5.19.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -280,7 +280,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /release | "release", "bump version", "sube version", "prepara release" | direct | Full | v5.8 — Audit residuals + update version/changelog/docs + push |
 | /compliance | "check compliance", "audit specbox", "specbox audit", "is specbox up to date" | direct | Bash+Read | v5.18 — Compliance audit + version alignment + auto-fix |
 
-## Hooks (v5.18.0)
+## Hooks (v5.19.0)
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -307,7 +307,7 @@ Automatic enforcement — no need to remember running these manually:
 | checkpoint-freshness-guard | PostToolUse (git commit) | Non-blocking WARNING: warns if checkpoint is stale (>30min) or missing during active UC implementation. |
 | uc-lifecycle-guard | PostToolUse (git push) | Non-blocking WARNING: warns if pushing feature branch without calling move_uc (board out of sync). |
 
-### Compliance Audit (v5.18.0)
+### Compliance Audit (v5.19.0)
 
 The `/compliance` skill and `specbox-audit.mjs` script provide exhaustive SpecBox compliance auditing:
 
@@ -648,6 +648,6 @@ Deteccion automatica de UCs sin evidencia E2E durante el upgrade de proyectos:
 
 ## Engine Version
 
-Current: v5.18.0 "Compliance Enforcement"
+Current: v5.19.0 "Hook Schema Fix"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

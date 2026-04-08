@@ -7,7 +7,7 @@
  * Previously this was instructional-only — the LLM had to count and stop.
  * Now this hook enforces it mechanically.
  *
- * v5.18.0 — Mechanical Enforcement
+ * v5.19.0 — Mechanical Enforcement
  */
 
 import { readStdin, fileExists, readJsonFile } from './lib/utils.mjs';

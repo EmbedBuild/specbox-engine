@@ -1,8 +1,8 @@
-version: 5.18.0
-codename: "Compliance Enforcement"
+version: 5.19.0
+codename: "Hook Schema Fix"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-04-05
+release_date: 2026-04-08
 min_claude_code: "1.0.0"
 
 stacks:
@@ -252,8 +252,24 @@ features:
   - pipeline-phase-dependencies
   - implement-pipeline-state-writer
   - settings-template-full-parity
+  # New (v5.19.0)
+  - hook-schema-fix
+  - matcher-string-format
+  - matcher-if-filtering
+  - matcher-consolidation
+  - settings-migration-hint
+  - audit-matcher-format-check
 
 changelog:
+  5.19.0:
+    date: 2026-04-08
+    changes:
+      - "fix: settings.json matcher format — object {tool_name:...} replaced with string (Claude Code schema)"
+      - "fix: hook filtering moved from matcher to individual hook 'if' field (e.g. Bash(.*git commit.*))"
+      - "fix: consolidated duplicate Bash matchers into single group with per-hook 'if' conditions"
+      - "feat: specbox-audit.mjs detects broken object matchers as CRITICAL compliance failure"
+      - "feat: upgrade_project includes settings_migration hint warning about broken matcher format"
+      - "fix: template and engine settings.json now parse correctly — hooks and permissions are active"
   5.18.0:
     date: 2026-04-05
     changes:

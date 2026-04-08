@@ -19,7 +19,7 @@
  *   1 = Compliance gaps found (report generated)
  *   2 = Critical: project not onboarded or engine not found
  *
- * v5.18.0 — Compliance Enforcement
+ * v5.19.0 — Hook Schema Fix
  */
 
 import { readFileSync, existsSync, statSync, readdirSync, mkdirSync, copyFileSync, writeFileSync } from 'fs';
@@ -222,6 +222,28 @@ function auditSettingsConfiguration() {
     checks.push({ name: 'Hooks configured in settings', pass: false, critical: true, fix: 'Settings missing hooks section' });
     return { name: 'Settings Configuration', weight: 20, checks };
   }
+
+  // Check matcher format — Claude Code expects matcher as string, not object
+  let hasObjectMatchers = false;
+  for (const eventType of ['PreToolUse', 'PostToolUse']) {
+    const groups = settings.hooks[eventType] || [];
+    for (const group of groups) {
+      if (group.matcher && typeof group.matcher === 'object') {
+        hasObjectMatchers = true;
+        break;
+      }
+    }
+    if (hasObjectMatchers) break;
+  }
+  checks.push({
+    name: 'Matcher format (string, not object)',
+    pass: !hasObjectMatchers,
+    detail: hasObjectMatchers
+      ? 'BROKEN: matcher is {tool_name:...} object — Claude Code expects a string. Hooks are NOT active.'
+      : 'Correct: matchers are strings',
+    critical: hasObjectMatchers,
+    fix: hasObjectMatchers ? 'Run upgrade_project or replace settings.json from engine template (v5.19+)' : undefined,
+  });
 
   // Check critical hook registrations in settings
   const requiredSettingsHooks = [

@@ -1,6 +1,6 @@
 # Architecture Guide
 
-> SpecBox Engine v5.18.0 — Guia de arquitectura multi-stack
+> SpecBox Engine v5.19.0 — Guia de arquitectura multi-stack
 
 ## Stacks soportados
 

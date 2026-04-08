@@ -300,5 +300,5 @@ Ver `.quality/scripts/patrol-evidence-generator.js` para el código del generado
 
 ---
 
-*Referencia: SpecBox Engine v5.18.0 — Patrol v4 Setup Guide*
+*Referencia: SpecBox Engine v5.19.0 — Patrol v4 Setup Guide*
 *Decisión arquitectónica: `doc/decisions/e2e-flutter-strategy.md`*

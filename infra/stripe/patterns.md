@@ -1,6 +1,6 @@
 # Stripe - Patrones de Infraestructura
 
-> SpecBox Engine v5.18.0 | Referencia de patrones para integracion de pagos con Stripe
+> SpecBox Engine v5.19.0 | Referencia de patrones para integracion de pagos con Stripe
 
 ---
 

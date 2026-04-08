@@ -1,6 +1,6 @@
 # AG-09b: Acceptance Validator
 
-> SpecBox Engine v5.18.0
+> SpecBox Engine v5.19.0
 > Agente independiente de validación de acceptance criteria desde Gherkin + JSON Cucumber.
 > NO es AG-04 (QA). NO es AG-08 (Quality Auditor). NO es AG-09a (Acceptance Tester).
 > AG-09b VALIDA que la feature cumple lo que el PRD especificó.
@@ -382,4 +382,4 @@ Cuando AG-09b emite CONDITIONAL o REJECTED:
 
 ---
 
-*SpecBox Engine v5.18.0 — Acceptance Validator (Gherkin BDD)*
+*SpecBox Engine v5.19.0 — Acceptance Validator (Gherkin BDD)*

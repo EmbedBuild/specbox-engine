@@ -38,7 +38,7 @@
 │  Error: Expected 'X' but got 'Y'                │
 │  Steps: Dado ✓ → Cuando ✓ → Entonces ✗ (0.9s)  │
 ├──────────────────────────────────────────────────┤
-│  SpecBox Engine v5.18.0 — AG-09a                 │
+│  SpecBox Engine v5.19.0 — AG-09a                 │
 │  Stack: {stack} | Source: {source}               │
 └──────────────────────────────────────────────────┘
 ```
@@ -180,7 +180,7 @@ Cuando `evidence` es null (no se capturó): mostrar placeholder gris con texto "
 
   <!-- FOOTER -->
   <div class="footer">
-    SpecBox Engine v5.18.0 — AG-09a Acceptance Tester<br>
+    SpecBox Engine v5.19.0 — AG-09a Acceptance Tester<br>
     Stack: ${stack} | Source: ${source}
   </div>
 </body>
@@ -202,4 +202,4 @@ Todos producen el mismo HTML. AG-09b no distingue el origen.
 
 ---
 
-*SpecBox Engine v5.18.0 — E2E Evidence Report Template*
+*SpecBox Engine v5.19.0 — E2E Evidence Report Template*

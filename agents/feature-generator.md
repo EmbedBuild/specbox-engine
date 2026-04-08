@@ -1,6 +1,6 @@
 # AG-01: Feature Generator
 
-> SpecBox Engine v5.18.0
+> SpecBox Engine v5.19.0
 > Template generico -- genera features completas segun el stack del proyecto.
 
 ## Proposito

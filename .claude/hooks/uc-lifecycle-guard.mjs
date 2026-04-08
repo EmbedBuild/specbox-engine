@@ -6,7 +6,7 @@
  *
  * Also warns if mark_ac_batch hasn't been called (no ACs marked).
  *
- * v5.18.0 — Compliance Enforcement
+ * v5.19.0 — Compliance Enforcement
  */
 
 import { readStdin, git, fileExists, readJsonFile } from './lib/utils.mjs';

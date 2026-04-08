@@ -1,6 +1,6 @@
 # AG-05: n8n Specialist
 
-> SpecBox Engine v5.18.0
+> SpecBox Engine v5.19.0
 > Template generico -- especialista en automatizacion de workflows con n8n.
 
 ## Proposito

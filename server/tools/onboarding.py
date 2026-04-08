@@ -647,6 +647,17 @@ def register_onboarding_tools(
             "args": {"project_path": "<project repo path>"},
         }
 
+        # Settings matcher migration hint (v5.19+)
+        settings_migration = {
+            "action": "CRITICAL: replace .claude/settings.json — matcher format has changed",
+            "reason": (
+                "Pre-v5.19 settings used {tool_name: ...} objects for matcher. "
+                "Claude Code expects matcher as a string. Old format causes: "
+                "'Settings file failed to parse' — ALL hooks and permissions disabled."
+            ),
+            "fix": "The new settings.json in files above uses the correct string matcher format.",
+        }
+
         return {
             "project": project,
             "stack": detected_stack,
@@ -660,8 +671,11 @@ def register_onboarding_tools(
             "warnings": warnings if warnings else None,
             "e2e_alignment": e2e_alignment,
             "visual_alignment": visual_alignment,
+            "settings_migration": settings_migration,
             "instructions": (
-                "Copy the files above to your project repo, replacing the existing ones. "
+                "IMPORTANT: Replace .claude/settings.json FIRST — the old matcher format "
+                "was broken (object instead of string) and caused Claude Code to ignore all "
+                "hooks and permissions. Copy all files above to your project repo. "
                 "Then run get_e2e_gap_report and get_visual_gap_report on the project to detect "
                 "E2E evidence gaps and visual identity gaps respectively."
             ),

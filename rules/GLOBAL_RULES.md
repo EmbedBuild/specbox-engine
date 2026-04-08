@@ -1,4 +1,4 @@
-# Reglas Globales - SpecBox Engine v5.18.0
+# Reglas Globales - SpecBox Engine v5.19.0
 
 > Estas reglas aplican a TODOS los proyectos que usen el engine.
 > Se referencian desde el CLAUDE.md de cada proyecto.

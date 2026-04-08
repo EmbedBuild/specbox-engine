@@ -286,4 +286,4 @@ ruff check . --fix && ruff format . && mypy . && pytest
 
 ---
 
-*Referencia: SpecBox Engine v5.18.0*
+*Referencia: SpecBox Engine v5.19.0*

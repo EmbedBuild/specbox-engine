@@ -17,7 +17,7 @@
  *   Phase 6: Integration / DI   → requires Phase 4
  *   Phase 7: Quality / Tests    → requires Phase 4
  *
- * v5.18.0 — Mechanical Enforcement
+ * v5.19.0 — Mechanical Enforcement
  */
 
 import { readStdin, fileExists, readJsonFile } from './lib/utils.mjs';

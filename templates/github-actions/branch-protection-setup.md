@@ -140,4 +140,4 @@ gh api repos/{owner}/{repo}/branches/main/protection --jq '.required_status_chec
 
 ---
 
-*SpecBox Engine v5.18.0 — GitHub Branch Protection Setup*
+*SpecBox Engine v5.19.0 — GitHub Branch Protection Setup*

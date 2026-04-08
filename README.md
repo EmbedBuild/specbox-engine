@@ -2,7 +2,7 @@
   <img src=".github/assets/Logo SpecBox.png" alt="SpecBox Engine" width="280" />
 </p>
 
-<h1 align="center">SpecBox Engine v5.18.0 — Compliance Enforcement</h1>
+<h1 align="center">SpecBox Engine v5.19.0 — Compliance Enforcement</h1>
 
 <p align="center">
   <strong>SpecBox Engine by JPS</strong> — Sistema de programacion agentica para Claude Code.<br/>
@@ -446,8 +446,8 @@ Enforcement automatico — no hace falta recordar ejecutarlos:
 | Hook | Evento | Comportamiento |
 |------|--------|----------------|
 | **quality-first-guard.mjs** | PreToolUse (Write/Edit) | **BLOQUEANTE**: verifica que el archivo fue leido antes de modificarlo (v5.15.0) |
-| **healing-budget-guard.mjs** | PreToolUse (Write/Edit) | **BLOQUEANTE**: para al agente tras 8 intentos de healing por feature (v5.18.0) |
-| **pipeline-phase-guard.mjs** | PreToolUse (Write/Edit) | **BLOQUEANTE**: valida dependencias entre fases (DB antes de Feature, etc.) (v5.18.0) |
+| **healing-budget-guard.mjs** | PreToolUse (Write/Edit) | **BLOQUEANTE**: para al agente tras 8 intentos de healing por feature (v5.19.0) |
+| **pipeline-phase-guard.mjs** | PreToolUse (Write/Edit) | **BLOQUEANTE**: valida dependencias entre fases (DB antes de Feature, etc.) (v5.19.0) |
 | **no-bypass-guard.mjs** | PreToolUse (Bash) | **BLOQUEANTE**: impide --no-verify, push --force, reset --hard (v5.13.0) |
 | read-tracker.mjs | PostToolUse (Read) | Registra archivos leidos para quality-first-guard (v5.15.0) |
 | **spec-guard.mjs** | PostToolUse (Write/Edit en src/lib/) | **BLOQUEANTE**: verifica UC activo antes de escribir codigo (v5.7.0) |
@@ -455,8 +455,8 @@ Enforcement automatico — no hace falta recordar ejecutarlos:
 | **commit-spec-guard.mjs** | PostToolUse (git commit) | **BLOQUEANTE** en main + WARNING: UC activo, checkpoint, tamano (v5.7.0) |
 | **pre-commit-lint.mjs** | PostToolUse (git commit) | **BLOQUEANTE**: zero-tolerance lint (0 errores, 0 warnings) |
 | **e2e-gate.mjs** | PostToolUse (git commit) | **BLOQUEANTE**: valida results.json + HTML Evidence Report (v5.13.0) |
-| checkpoint-freshness-guard.mjs | PostToolUse (git commit) | WARNING si checkpoint >30 min durante implementacion (v5.18.0) |
-| uc-lifecycle-guard.mjs | PostToolUse (git push) | WARNING si push sin mover UC a Review (v5.18.0) |
+| checkpoint-freshness-guard.mjs | PostToolUse (git commit) | WARNING si checkpoint >30 min durante implementacion (v5.19.0) |
+| uc-lifecycle-guard.mjs | PostToolUse (git push) | WARNING si push sin mover UC a Review (v5.19.0) |
 | **design-gate.mjs** | PostToolUse (Write/Edit pages/) | **BLOQUEANTE**: requiere HTML Stitch en doc/design/ (v4.2.0) |
 | on-session-end.mjs | Stop | Registra telemetria en .quality/logs/ + heartbeat |
 | implement-checkpoint.mjs | Manual (/implement) | Guarda progreso de fase para resume |
@@ -974,7 +974,7 @@ upgrade_project(name)          # Actualiza al ultimo template del engine
 ```
 specbox-engine/
 ├── CLAUDE.md                          # Instrucciones del engine para Claude
-├── ENGINE_VERSION.yaml                # Version 5.18.0, stacks, servicios, changelog
+├── ENGINE_VERSION.yaml                # Version 5.19.0, stacks, servicios, changelog
 ├── README.md                          # Este archivo
 ├── CHANGELOG.md                       # Historial de cambios desde v1.0.0
 ├── LICENSE                            # MIT
@@ -1003,8 +1003,8 @@ specbox-engine/
 │   │   └── compliance/SKILL.md       #     SpecBox compliance audit
 │   └── hooks/                         #   20 Hook scripts + lib/
 │       ├── quality-first-guard.mjs    #     BLOQUEANTE: read before write (v5.15.0)
-│       ├── healing-budget-guard.mjs   #     BLOQUEANTE: max 8 healing (v5.18.0)
-│       ├── pipeline-phase-guard.mjs   #     BLOQUEANTE: phase ordering (v5.18.0)
+│       ├── healing-budget-guard.mjs   #     BLOQUEANTE: max 8 healing (v5.19.0)
+│       ├── pipeline-phase-guard.mjs   #     BLOQUEANTE: phase ordering (v5.19.0)
 │       ├── no-bypass-guard.mjs        #     BLOQUEANTE: no --no-verify/--force (v5.13.0)
 │       ├── spec-guard.mjs             #     BLOQUEANTE: UC activo para writes (v5.7.0)
 │       ├── branch-guard.mjs           #     BLOQUEANTE: no writes on main (v5.10.0)
@@ -1012,8 +1012,8 @@ specbox-engine/
 │       ├── pre-commit-lint.mjs        #     BLOQUEANTE: zero-tolerance lint
 │       ├── e2e-gate.mjs               #     BLOQUEANTE: evidence validation (v5.13.0)
 │       ├── design-gate.mjs            #     BLOQUEANTE: Stitch design required (v4.2.0)
-│       ├── checkpoint-freshness-guard.mjs # WARNING: stale checkpoint (v5.18.0)
-│       ├── uc-lifecycle-guard.mjs     #     WARNING: push sin move_uc (v5.18.0)
+│       ├── checkpoint-freshness-guard.mjs # WARNING: stale checkpoint (v5.19.0)
+│       ├── uc-lifecycle-guard.mjs     #     WARNING: push sin move_uc (v5.19.0)
 │       ├── read-tracker.mjs           #     Tracks reads for quality-first-guard
 │       ├── on-session-end.mjs         #     Session telemetry + heartbeat
 │       ├── implement-checkpoint.mjs   #     Phase checkpointing
@@ -1304,7 +1304,7 @@ upgrade_all_projects()
 6. **Enforcement > Documentacion** — Los HARD BLOCKS previenen violaciones, no las advertencias (v4.0.1)
 7. **Calidad visual no negociable** — VEG Pilar 1 exige imagenes reales, no placeholders (v4.0.1)
 8. **Trazabilidad innegociable** — Pipeline Integrity impide escribir codigo sin UC activo (v5.7.0)
-9. **Mecanico > Instruccional** — Todo lo mandatory se enforce por hooks BLOQUEANTES, no por prompts (v5.18.0)
+9. **Mecanico > Instruccional** — Todo lo mandatory se enforce por hooks BLOQUEANTES, no por prompts (v5.19.0)
 
 ---
 
@@ -1322,7 +1322,7 @@ Mas informacion en [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) o contacta en 
 
 ---
 
-v5.18.0 | 2026-04-05 | JPS Developer
+v5.19.0 | 2026-04-05 | JPS Developer
 
 ---
 
@@ -1334,7 +1334,7 @@ v5.18.0 | 2026-04-05 | JPS Developer
   <img src=".github/assets/Logo SpecBox.png" alt="SpecBox Engine" width="280" />
 </p>
 
-<h1 align="center">SpecBox Engine v5.18.0 — Compliance Enforcement</h1>
+<h1 align="center">SpecBox Engine v5.19.0 — Compliance Enforcement</h1>
 
 <p align="center">
   <strong>SpecBox Engine by JPS</strong> — An agentic programming system for Claude Code.
@@ -2202,4 +2202,4 @@ More details at [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) or contact **jesu
 
 ---
 
-v5.18.0 | 2026-04-05 | JPS Developer
+v5.19.0 | 2026-04-05 | JPS Developer

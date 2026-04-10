@@ -1,6 +1,6 @@
 {
   "project": "specbox-engine",
-  "timestamp": "2026-04-08T16:45:29Z",
+  "timestamp": "2026-04-10T11:51:58Z",
   "session_active": true,
   "current_phase": "",
   "current_feature": "",
@@ -11,7 +11,7 @@
   "healing_health": "healthy",
   "self_healing_events": 0,
   "last_operation": "idle",
-  "last_commit": "feat: v5.19.0 Hook Schema Fix — settings.json matcher format corrected for Claude Code",
-  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)T5d6884ebc7a0e8b72f9009c50bfb2d3c5f47c38d:%M:HEADZ",
+  "last_commit": "fix: v5.20.1 Hook Schema Patch — remove invalid blocking field, fix timeout units (ms→s)",
+  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)Te9bba2453526ae54630ee159364e07dc1dadab4c:%M:HEADZ",
   "source": "local"
 }

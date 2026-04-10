@@ -46,7 +46,8 @@ def register_hook_tools(mcp: FastMCP, engine_path: Path):
                     desc = line.lstrip("# ").replace("Hook:", "").replace("Hook helper:", "").strip()
                     break
 
-            # Detect if blocking
+            # Detect if blocking by checking which event type it's registered under
+            # PreToolUse hooks block tool execution if they exit non-zero
             blocking = False
             if is_auto:
                 try:
@@ -57,7 +58,7 @@ def register_hook_tools(mcp: FastMCP, engine_path: Path):
                             for hg in ehs:
                                 for h in hg.get("hooks", []):
                                     if f.name in h.get("command", ""):
-                                        blocking = h.get("blocking", False)
+                                        blocking = et == "PreToolUse"
                 except Exception:
                     pass
 

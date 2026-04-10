@@ -1,138 +1,5 @@
 {
   "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .claude/hooks/read-tracker.mjs",
-            "blocking": false,
-            "timeout": 3000
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "if": "Bash(.*git commit.*)",
-            "command": "node .claude/hooks/commit-spec-guard.mjs",
-            "blocking": true,
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "if": "Bash(.*git commit.*)",
-            "command": "node .claude/hooks/pre-commit-lint.mjs",
-            "blocking": true,
-            "timeout": 60000
-          },
-          {
-            "type": "command",
-            "if": "Bash(.*git commit.*)",
-            "command": "node .claude/hooks/e2e-gate.mjs",
-            "blocking": true,
-            "timeout": 15000
-          },
-          {
-            "type": "command",
-            "if": "Bash(.*git commit.*)",
-            "command": "node .claude/hooks/checkpoint-freshness-guard.mjs",
-            "blocking": false,
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "if": "Bash(.*git push.*)",
-            "command": "node .claude/hooks/uc-lifecycle-guard.mjs",
-            "blocking": false,
-            "timeout": 10000
-          }
-        ]
-      },
-      {
-        "matcher": "Write",
-        "hooks": [
-          {
-            "type": "command",
-            "if": "Write(src/.*)",
-            "command": "node .claude/hooks/spec-guard.mjs",
-            "blocking": true,
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "if": "Write(lib/.*)",
-            "command": "node .claude/hooks/spec-guard.mjs",
-            "blocking": true,
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "if": "Write(presentation/pages/.*)",
-            "command": "node .claude/hooks/design-gate.mjs",
-            "blocking": true,
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "if": "Write(src/pages/.*)",
-            "command": "node .claude/hooks/design-gate.mjs",
-            "blocking": true,
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "if": "Write(app/.*)",
-            "command": "node .claude/hooks/design-gate.mjs",
-            "blocking": true,
-            "timeout": 10000
-          }
-        ]
-      },
-      {
-        "matcher": "Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "if": "Edit(src/.*)",
-            "command": "node .claude/hooks/spec-guard.mjs",
-            "blocking": true,
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "if": "Edit(lib/.*)",
-            "command": "node .claude/hooks/spec-guard.mjs",
-            "blocking": true,
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "if": "Edit(presentation/pages/.*)",
-            "command": "node .claude/hooks/design-gate.mjs",
-            "blocking": true,
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "if": "Edit(src/pages/.*)",
-            "command": "node .claude/hooks/design-gate.mjs",
-            "blocking": true,
-            "timeout": 10000
-          },
-          {
-            "type": "command",
-            "if": "Edit(app/.*)",
-            "command": "node .claude/hooks/design-gate.mjs",
-            "blocking": true,
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
         "matcher": "Write",
@@ -140,20 +7,17 @@
           {
             "type": "command",
             "command": "node .claude/hooks/quality-first-guard.mjs",
-            "blocking": true,
-            "timeout": 5000
+            "timeout": 5
           },
           {
             "type": "command",
             "command": "node .claude/hooks/healing-budget-guard.mjs",
-            "blocking": true,
-            "timeout": 5000
+            "timeout": 5
           },
           {
             "type": "command",
             "command": "node .claude/hooks/pipeline-phase-guard.mjs",
-            "blocking": true,
-            "timeout": 5000
+            "timeout": 5
           }
         ]
       },
@@ -163,20 +27,17 @@
           {
             "type": "command",
             "command": "node .claude/hooks/quality-first-guard.mjs",
-            "blocking": true,
-            "timeout": 5000
+            "timeout": 5
           },
           {
             "type": "command",
             "command": "node .claude/hooks/healing-budget-guard.mjs",
-            "blocking": true,
-            "timeout": 5000
+            "timeout": 5
           },
           {
             "type": "command",
             "command": "node .claude/hooks/pipeline-phase-guard.mjs",
-            "blocking": true,
-            "timeout": 5000
+            "timeout": 5
           }
         ]
       },
@@ -187,29 +48,142 @@
             "type": "command",
             "if": "Bash(.*--no-verify.*)",
             "command": "node .claude/hooks/no-bypass-guard.mjs",
-            "blocking": true,
-            "timeout": 5000
+            "timeout": 5
           },
           {
             "type": "command",
             "if": "Bash(.*push.*--force.*)",
             "command": "node .claude/hooks/no-bypass-guard.mjs",
-            "blocking": true,
-            "timeout": 5000
+            "timeout": 5
           },
           {
             "type": "command",
             "if": "Bash(.*push.*-f .*)",
             "command": "node .claude/hooks/no-bypass-guard.mjs",
-            "blocking": true,
-            "timeout": 5000
+            "timeout": 5
           },
           {
             "type": "command",
             "if": "Bash(.*reset --hard.*)",
             "command": "node .claude/hooks/no-bypass-guard.mjs",
-            "blocking": true,
-            "timeout": 5000
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/read-tracker.mjs",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(.*git commit.*)",
+            "command": "node .claude/hooks/commit-spec-guard.mjs",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*git commit.*)",
+            "command": "node .claude/hooks/pre-commit-lint.mjs",
+            "timeout": 60
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*git commit.*)",
+            "command": "node .claude/hooks/e2e-gate.mjs",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*git commit.*)",
+            "command": "node .claude/hooks/checkpoint-freshness-guard.mjs",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*git push.*)",
+            "command": "node .claude/hooks/uc-lifecycle-guard.mjs",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Write(src/.*)",
+            "command": "node .claude/hooks/spec-guard.mjs",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Write(lib/.*)",
+            "command": "node .claude/hooks/spec-guard.mjs",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Write(presentation/pages/.*)",
+            "command": "node .claude/hooks/design-gate.mjs",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Write(src/pages/.*)",
+            "command": "node .claude/hooks/design-gate.mjs",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Write(app/.*)",
+            "command": "node .claude/hooks/design-gate.mjs",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(src/.*)",
+            "command": "node .claude/hooks/spec-guard.mjs",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Edit(lib/.*)",
+            "command": "node .claude/hooks/spec-guard.mjs",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Edit(presentation/pages/.*)",
+            "command": "node .claude/hooks/design-gate.mjs",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Edit(src/pages/.*)",
+            "command": "node .claude/hooks/design-gate.mjs",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Edit(app/.*)",
+            "command": "node .claude/hooks/design-gate.mjs",
+            "timeout": 10
           }
         ]
       }
@@ -220,8 +194,7 @@
           {
             "type": "command",
             "command": "node .claude/hooks/on-session-end.mjs",
-            "blocking": false,
-            "timeout": 10000
+            "timeout": 10
           }
         ]
       }

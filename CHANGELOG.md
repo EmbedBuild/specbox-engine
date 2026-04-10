@@ -2,6 +2,17 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.20.1] - 2026-04-10
+
+### Fixed
+- **Hook Schema Fix (complete)** — removed invalid `blocking` field and corrected `timeout` from milliseconds to seconds across settings.json and template
+  - `blocking` is not a valid Claude Code hook field — PreToolUse hooks block automatically on non-zero exit
+  - `timeout` was in milliseconds (5000, 10000, 60000) but Claude Code expects seconds (5, 10, 60)
+  - `server/tools/hooks.py`: `list_hooks` now infers blocking status from event type (`PreToolUse`) instead of reading the removed field
+  - Root cause: v5.19.0 "Hook Schema Fix" corrected `matcher` format but left `blocking` and `timeout` units untouched
+
+---
+
 ## [5.20.0] - 2026-04-10
 
 ### Added

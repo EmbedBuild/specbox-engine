@@ -169,7 +169,7 @@ def main():
     host = os.getenv("MCP_HOST", "0.0.0.0")
 
     logger = structlog.get_logger(__name__)
-    logger.info("server_starting", transport=transport, host=host, port=port, version="5.16.0")
+    logger.info("server_starting", transport=transport, host=host, port=port, version="5.20.1")
 
     uvicorn_opts = {"timeout_graceful_shutdown": 5}
 

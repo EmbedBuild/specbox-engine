@@ -1,3 +1,6 @@
+# MCP server runtime state
+data/
+
 # Quality system
 .quality/logs/
 .quality/evidence/**/report.md

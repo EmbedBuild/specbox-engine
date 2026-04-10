@@ -1,6 +1,6 @@
 {
   "project": "specbox-engine",
-  "timestamp": "2026-04-08T07:54:29Z",
+  "timestamp": "2026-04-08T16:45:29Z",
   "session_active": true,
   "current_phase": "",
   "current_feature": "",
@@ -11,7 +11,7 @@
   "healing_health": "healthy",
   "self_healing_events": 0,
   "last_operation": "idle",
-  "last_commit": "v 5.18.0",
-  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)T6bd8e5b04377bfa8add0b69c22bb43acb098241d:%M:HEADZ",
+  "last_commit": "feat: v5.19.0 Hook Schema Fix — settings.json matcher format corrected for Claude Code",
+  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)T5d6884ebc7a0e8b72f9009c50bfb2d3c5f47c38d:%M:HEADZ",
   "source": "local"
 }

@@ -422,6 +422,8 @@ def register_onboarding_tools(
         repo_url: str = "",
         developer_name: str = "Jesús Pérez",
         trello_board_name: str = "",
+        multirepo_role: str = "",
+        orchestrator_project: str = "",
         ctx: Context | None = None,
     ) -> dict:
         """Generate onboarding files for a new project and register it in the central index.
@@ -433,6 +435,8 @@ def register_onboarding_tools(
             repo_url: Git repository URL for reference.
             developer_name: Developer name for templates. Defaults to 'Jesús Pérez'.
             trello_board_name: Optional Trello board name. If provided, creates a SpecBox Engine board with workflow lists, custom fields, and labels via the Trello API.
+            multirepo_role: Optional multi-repo role: 'orchestrator' or 'satellite'. Leave empty for standard single-repo projects (default). When 'satellite', the project inherits the board from the orchestrator and generates a settings.local.json with the orchestrator reference.
+            orchestrator_project: Required when multirepo_role='satellite'. Name of the orchestrator project in the registry. Used to inherit the board_id and set the orchestrator path.
             ctx: MCP context (injected automatically). Required when trello_board_name is provided.
 
         Returns the CONTENT of each file that should be created in the project repo
@@ -478,6 +482,39 @@ def register_onboarding_tools(
                 except Exception as e:
                     warnings.append(f"Trello board creation failed: {e}")
 
+        # Multi-repo: inherit board_id from orchestrator and generate settings.local.json
+        multirepo_board_id = ""
+        if multirepo_role == "satellite" and orchestrator_project:
+            if state_path:
+                try:
+                    from .state import _read_registry
+
+                    registry = _read_registry(state_path)
+                    orch_entry = registry.get("projects", {}).get(orchestrator_project, {})
+                    multirepo_board_id = orch_entry.get("trello_board_id", "")
+                    if not board_id and multirepo_board_id:
+                        board_id = multirepo_board_id
+                except Exception as e:
+                    warnings.append(f"Could not read orchestrator registry: {e}")
+
+            # Generate settings.local.json with multi-repo config
+            settings_local = {
+                "multirepo": {
+                    "enabled": True,
+                    "role": "satellite",
+                    "orchestrator": f"../{orchestrator_project}",
+                },
+            }
+            if board_id:
+                settings_local["boardId"] = board_id
+            files[".claude/settings.local.json"] = json.dumps(
+                settings_local, indent=2, ensure_ascii=False
+            )
+
+        elif multirepo_role == "orchestrator":
+            # For orchestrator, just note the role — satellites config is manual
+            pass
+
         # Inject board_id into settings if we got one
         if board_id and ".claude/settings.json" in files:
             try:
@@ -519,6 +556,10 @@ def register_onboarding_tools(
                 }
                 if board_id:
                     registry_entry["trello_board_id"] = board_id
+                if multirepo_role:
+                    registry_entry["multirepo_role"] = multirepo_role
+                if orchestrator_project:
+                    registry_entry["multirepo_group"] = orchestrator_project
                 registry.setdefault("projects", {})[project] = registry_entry
                 _write_registry(state_path, registry)
 
@@ -534,6 +575,10 @@ def register_onboarding_tools(
                 }
                 if board_id:
                     meta["trello_board_id"] = board_id
+                if multirepo_role:
+                    meta["multirepo_role"] = multirepo_role
+                if orchestrator_project:
+                    meta["multirepo_group"] = orchestrator_project
                 _write_meta(project_dir, meta)
                 _invalidate_cache(state_path)
                 registered = True

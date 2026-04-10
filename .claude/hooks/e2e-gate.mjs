@@ -12,6 +12,7 @@
  */
 
 import { readStdin, git, fileExists, findFiles, readJsonFile } from './lib/utils.mjs';
+import { getProjectConfig } from './lib/config.mjs';
 import { execSync } from 'child_process';
 import { dirname, join } from 'path';
 import { readFileSync } from 'fs';
@@ -78,7 +79,12 @@ if (resultsFiles.length === 0) {
 }
 
 // Validate each results.json found
-const VALIDATOR = '.quality/scripts/validate-results-json.js';
+// Multi-repo: validator script may live in the orchestrator repo
+const { orchestratorRoot } = getProjectConfig();
+const VALIDATOR = [
+  '.quality/scripts/validate-results-json.js',
+  join(orchestratorRoot, '.quality/scripts/validate-results-json.js'),
+].find(p => fileExists(p)) || '.quality/scripts/validate-results-json.js';
 
 if (!fileExists(VALIDATOR)) {
   console.log('');

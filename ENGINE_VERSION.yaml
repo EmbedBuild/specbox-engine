@@ -1,8 +1,8 @@
-version: 5.19.0
-codename: "Hook Schema Fix"
+version: 5.20.0
+codename: "Multi-Repo"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-04-08
+release_date: 2026-04-10
 min_claude_code: "1.0.0"
 
 stacks:
@@ -259,8 +259,24 @@ features:
   - matcher-consolidation
   - settings-migration-hint
   - audit-matcher-format-check
+  # New (v5.20.0)
+  - multi-repo-mode
+  - orchestrator-satellite-topology
+  - satellite-onboarding
+  - uc-scope-filtering
 
 changelog:
+  5.20.0:
+    date: 2026-04-10
+    changes:
+      - "feat: multi-repo mode — opt-in orchestrator/satellite topology for multi-repo projects sharing a single board"
+      - "feat: getProjectConfig() returns orchestratorRoot for cross-repo path resolution in hooks"
+      - "feat: design-gate.mjs resolves Stitch designs from orchestrator repo via orchestratorRoot"
+      - "feat: e2e-gate.mjs fallback validator script resolution from orchestrator repo"
+      - "feat: onboard_project() new params multirepo_role and orchestrator_project for satellite onboarding"
+      - "feat: satellite onboarding auto-generates settings.local.json with multi-repo config and inherited boardId"
+      - "feat: find_next_uc() new uc_scope param to filter UCs by satellite assignment"
+      - "feat: registry and meta.json store multirepo_role and multirepo_group fields"
   5.19.0:
     date: 2026-04-08
     changes:

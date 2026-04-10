@@ -2,6 +2,26 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.20.0] - 2026-04-10
+
+### Added
+- **Multi-Repo Mode** — opt-in support for projects with multiple repositories sharing a single board
+  - `lib/config.mjs`: `getProjectConfig()` returns `orchestratorRoot` (defaults to `'.'` for mono-repo, resolves to orchestrator path for satellites)
+  - `design-gate.mjs`: resolves Stitch designs from orchestrator repo via `orchestratorRoot`
+  - `e2e-gate.mjs`: fallback validator script resolution from orchestrator repo
+  - `onboard_project()`: new optional params `multirepo_role` ("orchestrator"|"satellite") and `orchestrator_project` (name of orchestrator in registry)
+  - Satellite onboarding auto-generates `.claude/settings.local.json` with multi-repo config and inherited `boardId`
+  - `find_next_uc()`: new optional `uc_scope` param to filter UCs by satellite assignment
+  - Registry and meta.json store `multirepo_role` and `multirepo_group` fields
+
+### Design Decisions
+- **Not preselected**: multi-repo is disabled by default. Only activates when `multirepo.enabled: true` is in settings.local.json
+- **100% backwards-compatible**: all defaults reproduce mono-repo behavior (`orchestratorRoot='.'`, `uc_scope=None`, optional params with empty defaults)
+- **Upgrade-safe**: multi-repo config lives in `settings.local.json` which is never touched by `upgrade_project`
+- **Install-safe**: hook changes use additive patterns with fallbacks — `path.join('.', x)` === `path.join(x)`
+
+---
+
 ## [5.6.0] - 2026-03-23
 
 ### Added

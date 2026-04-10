@@ -7,6 +7,7 @@
  */
 
 import { readStdin, fileExists, findFiles } from './lib/utils.mjs';
+import { getProjectConfig } from './lib/config.mjs';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -42,7 +43,9 @@ if (!feature) {
 }
 
 // Check if Stitch designs exist for this feature
-const designDir = join('doc', 'design', feature);
+// Multi-repo: designs may live in the orchestrator repo
+const { orchestratorRoot } = getProjectConfig();
+const designDir = join(orchestratorRoot, 'doc', 'design', feature);
 const htmlFiles = findFiles(designDir, /\.html$/);
 const htmlCount = htmlFiles.length;
 

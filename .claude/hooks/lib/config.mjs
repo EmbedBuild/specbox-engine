@@ -7,11 +7,17 @@ import { readJsonFile, fileAge } from './utils.mjs';
 
 /**
  * Read project configuration from .claude/project-config.json and .claude/settings.local.json.
- * Returns { boardId, backendType, isSpecDriven }.
+ * Returns { boardId, backendType, orchestratorRoot, isSpecDriven }.
+ *
+ * Multi-repo support (v5.20):
+ *   If the project declares multirepo.role = "satellite" with an orchestrator path,
+ *   orchestratorRoot resolves to that path. Otherwise defaults to '.' (current repo).
+ *   Hooks that need cross-repo paths (design-gate, e2e-gate) use orchestratorRoot.
  */
 export function getProjectConfig() {
   let boardId = '';
   let backendType = '';
+  let orchestratorRoot = '.';
 
   for (const configFile of ['.claude/project-config.json', '.claude/settings.local.json']) {
     const config = readJsonFile(configFile);
@@ -23,11 +29,18 @@ export function getProjectConfig() {
     if (!backendType) {
       backendType = config.backend_type || '';
     }
+
+    // Multi-repo: resolve orchestrator path for satellite repos
+    const mr = config.multirepo;
+    if (mr?.enabled && mr?.role === 'satellite' && mr?.orchestrator) {
+      orchestratorRoot = mr.orchestrator;
+    }
   }
 
   return {
     boardId,
     backendType,
+    orchestratorRoot,
     isSpecDriven: !!(boardId || backendType),
   };
 }

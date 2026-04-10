@@ -1,4 +1,4 @@
-# SpecBox Engine v5.19.0
+# SpecBox Engine v5.20.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -219,7 +219,7 @@ specbox-engine/
 │   │   ├── features.py    ← 6 tools
 │   │   ├── telemetry.py   ← 6 tools
 │   │   ├── hooks.py       ← 3 tools
-│   │   ├── onboarding.py  ← 9 tools (+ setup_board + archive_project + get_visual_gap_report)
+│   │   ├── onboarding.py  ← 10 tools (detect, status, list, onboard, upgrade, upgrade_all, matrix, wizard, visual_gap, archive)
 │   │   ├── state.py       ← 17 tools
 │   │   ├── spec_driven.py ← 21 tools (backend-agnostic via SpecBackend)
 │   │   ├── migration.py   ← 5 tools (Trello ↔ Plane migration)
@@ -280,7 +280,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /release | "release", "bump version", "sube version", "prepara release" | direct | Full | v5.8 — Audit residuals + update version/changelog/docs + push |
 | /compliance | "check compliance", "audit specbox", "specbox audit", "is specbox up to date" | direct | Bash+Read | v5.18 — Compliance audit + version alignment + auto-fix |
 
-## Hooks (v5.19.0)
+## Hooks (v5.20.0)
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -307,7 +307,7 @@ Automatic enforcement — no need to remember running these manually:
 | checkpoint-freshness-guard | PostToolUse (git commit) | Non-blocking WARNING: warns if checkpoint is stale (>30min) or missing during active UC implementation. |
 | uc-lifecycle-guard | PostToolUse (git push) | Non-blocking WARNING: warns if pushing feature branch without calling move_uc (board out of sync). |
 
-### Compliance Audit (v5.19.0)
+### Compliance Audit (v5.20.0)
 
 The `/compliance` skill and `specbox-audit.mjs` script provide exhaustive SpecBox compliance auditing:
 
@@ -604,6 +604,48 @@ Automatic PRD update with implementation deltas after each /implement phase:
 - **MCP tools**: `get_implementation_status(project_path, item_id)`, `write_implementation_status(...)`
 - **Parser**: Reads Implementation Status from PRDs into structured JSON with `overall_status` and `delta_count`
 
+## Multi-Repo Mode (v5.20.0)
+
+Opt-in support for projects with multiple repositories sharing a single spec board (orchestrator/satellite topology).
+
+### Topology
+
+- **Orchestrator**: Main repo with PRDs, designs, and spec board. Onboarded normally.
+- **Satellite**: Secondary repo (e.g., backend, mobile). Inherits board from orchestrator.
+- **Default**: Standard mono-repo behavior when multi-repo is not configured.
+
+### Configuration
+
+Satellite repos declare multi-repo in `.claude/settings.local.json` (never touched by `upgrade_project`):
+
+```json
+{
+  "multirepo": {
+    "enabled": true,
+    "role": "satellite",
+    "orchestrator": "../orchestrator-project"
+  },
+  "boardId": "inherited-from-orchestrator"
+}
+```
+
+### Affected Components
+
+| Component | Change |
+|-----------|--------|
+| `lib/config.mjs` | `getProjectConfig()` returns `orchestratorRoot` (defaults to `'.'`) |
+| `design-gate.mjs` | Resolves Stitch designs from orchestrator repo |
+| `e2e-gate.mjs` | Fallback validator script resolution from orchestrator |
+| `onboard_project()` | New params `multirepo_role`, `orchestrator_project` |
+| `find_next_uc()` | New `uc_scope` param to filter UCs by satellite |
+| Registry/meta.json | Store `multirepo_role` and `multirepo_group` fields |
+
+### Safety
+
+- 100% backwards-compatible: all defaults reproduce mono-repo behavior
+- Upgrade-safe: config lives in `settings.local.json`
+- Install-safe: hook changes use additive patterns with fallbacks
+
 ## External Skill Registry (v5.0)
 
 External skills with `manifest.yaml` can be installed, versioned, and auto-discovered:
@@ -648,6 +690,6 @@ Deteccion automatica de UCs sin evidencia E2E durante el upgrade de proyectos:
 
 ## Engine Version
 
-Current: v5.19.0 "Hook Schema Fix"
+Current: v5.20.0 "Multi-Repo"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

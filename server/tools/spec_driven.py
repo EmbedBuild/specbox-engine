@@ -1702,7 +1702,9 @@ async def get_delivery_report(board_id: str, ctx: Context) -> dict[str, Any]:
         await backend.close()
 
 
-async def find_next_uc(board_id: str, ctx: Context) -> dict[str, Any] | None:
+async def find_next_uc(
+    board_id: str, ctx: Context, uc_scope: list[str] | None = None,
+) -> dict[str, Any] | None:
     """Find the next Use Case to work on.
 
     Priority:
@@ -1712,6 +1714,7 @@ async def find_next_uc(board_id: str, ctx: Context) -> dict[str, Any] | None:
 
     Args:
         board_id: Board/project ID
+        uc_scope: Optional list of UC IDs to restrict selection (multi-repo satellite filter). When provided, only UCs whose uc_id is in this list are considered. Leave empty/null for all UCs on the board (default, backwards-compatible).
 
     Returns:
         Full UC detail (same as get_uc) or None if nothing in Backlog.
@@ -1722,6 +1725,15 @@ async def find_next_uc(board_id: str, ctx: Context) -> dict[str, Any] | None:
 
         # Find all UCs in Backlog
         ready_ucs = [i for i in items if _is_uc(i) and i.state == "backlog"]
+
+        # Multi-repo: filter by satellite scope if provided
+        if uc_scope:
+            scope_set = set(uc_scope)
+            ready_ucs = [
+                i for i in ready_ucs
+                if _extract_meta_str(i, "uc_id") in scope_set
+            ]
+
         if not ready_ucs:
             return None
 

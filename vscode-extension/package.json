@@ -1,0 +1,178 @@
+{
+  "name": "specbox-engine",
+  "displayName": "SpecBox Engine — Agentic Dev for Claude Code",
+  "description": "Install and manage SpecBox Engine: skills, hooks, MCP servers, and Engram memory for Claude Code agentic development.",
+  "version": "5.21.0",
+  "publisher": "jpsdeveloper",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "agentic",
+    "AI",
+    "MCP",
+    "hooks",
+    "skills",
+    "automation",
+    "spec-driven",
+    "onboarding",
+    "BDD",
+    "specbox",
+    "engram"
+  ],
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jpsdeveloper/specbox-engine"
+  },
+  "activationEvents": [
+    "workspaceContains:ENGINE_VERSION.yaml",
+    "workspaceContains:.claude/settings.json"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "specbox.install",
+        "title": "SpecBox: Install Engine",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "specbox.healthCheck",
+        "title": "SpecBox: Health Check",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "specbox.onboard",
+        "title": "SpecBox: Onboard Project",
+        "icon": "$(wand)"
+      },
+      {
+        "command": "specbox.showStatus",
+        "title": "SpecBox: Show Status"
+      },
+      {
+        "command": "specbox.openDashboard",
+        "title": "SpecBox: Open Sala de Maquinas"
+      },
+      {
+        "command": "specbox.configureMcp",
+        "title": "SpecBox: Configure MCP Servers"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "specbox",
+          "title": "SpecBox Engine",
+          "icon": "media/icon-sidebar.svg"
+        }
+      ]
+    },
+    "views": {
+      "specbox": [
+        {
+          "id": "specbox.status",
+          "name": "Status"
+        },
+        {
+          "id": "specbox.skills",
+          "name": "Skills"
+        }
+      ]
+    },
+    "walkthroughs": [
+      {
+        "id": "specbox.gettingStarted",
+        "title": "Get Started with SpecBox Engine",
+        "description": "Set up agentic development for Claude Code in 3 steps.",
+        "steps": [
+          {
+            "id": "specbox.step.prerequisites",
+            "title": "Check Prerequisites",
+            "description": "Verify that Node.js, Python 3.12+, and Claude Code are installed.\n\n[Run Health Check](command:specbox.healthCheck)",
+            "media": {
+              "markdown": "media/walkthrough/step-prerequisites.md"
+            }
+          },
+          {
+            "id": "specbox.step.install",
+            "title": "Install Engine",
+            "description": "Install 15 skills, 20+ hooks, and quality settings with one click.\n\n[Install SpecBox Engine](command:specbox.install)",
+            "media": {
+              "markdown": "media/walkthrough/step-install.md"
+            }
+          },
+          {
+            "id": "specbox.step.mcp",
+            "title": "Configure MCP Servers",
+            "description": "Set up SpecBox MCP server and Engram persistent memory for Claude Code.\n\n[Configure MCP](command:specbox.configureMcp)",
+            "media": {
+              "markdown": "media/walkthrough/step-mcp.md"
+            }
+          },
+          {
+            "id": "specbox.step.firstProject",
+            "title": "Onboard Your First Project",
+            "description": "Create a CLAUDE.md from the engine template and start using /prd, /plan, /implement.\n\n[Open Onboarding Wizard](command:specbox.onboard)",
+            "media": {
+              "markdown": "media/walkthrough/step-first-project.md"
+            }
+          }
+        ]
+      }
+    ],
+    "viewsWelcome": [
+      {
+        "view": "specbox.status",
+        "contents": "SpecBox Engine is not installed yet.\n\n[Install Engine](command:specbox.install)\n\nOr run the guided setup:\n\n[Start Onboarding Wizard](command:specbox.onboard)\n\n[Learn more](https://github.com/jpsdeveloper/specbox-engine)",
+        "when": "!specbox.installed"
+      }
+    ],
+    "configuration": {
+      "title": "SpecBox Engine",
+      "properties": {
+        "specbox.enginePath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the SpecBox Engine repository. Auto-detected if empty."
+        },
+        "specbox.autoHealthCheck": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run health check on startup when a SpecBox project is detected."
+        },
+        "specbox.mcpAutoStart": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically configure MCP servers (SpecBox + Engram) on install."
+        },
+        "specbox.dashboardUrl": {
+          "type": "string",
+          "default": "http://localhost:8080",
+          "description": "URL for the Sala de Maquinas dashboard."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.5.0"
+  }
+}

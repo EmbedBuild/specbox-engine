@@ -1,4 +1,4 @@
-# SpecBox Engine v5.20.1
+# SpecBox Engine v5.21.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -690,6 +690,6 @@ Deteccion automatica de UCs sin evidencia E2E durante el upgrade de proyectos:
 
 ## Engine Version
 
-Current: v5.20.1 "Multi-Repo"
+Current: v5.21.0 "Onboarding"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

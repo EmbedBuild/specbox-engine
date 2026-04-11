@@ -1,44 +1,100 @@
-# Getting Started - SpecBox Engine v5.19.0
+# Getting Started - SpecBox Engine v5.21.0
 
 ## Requisitos
 
 - [Claude Code](https://claude.ai/code) instalado
+- [VSCode](https://code.visualstudio.com/) (recomendado) o terminal con bash/zsh
 - Git
-- Terminal (bash/zsh)
+- Node.js 18+
+- Python 3.12+ (para el MCP server)
 
 ## Instalacion
 
-### 1. Clonar el repositorio
+### Opcion A: Extensi\u00f3n VSCode (recomendado, cross-platform)
+
+La forma mas rapida de instalar SpecBox Engine en cualquier sistema operativo (Windows, macOS, Linux).
+
+#### 1. Instalar la extension
+
+Busca **"SpecBox Engine"** en el marketplace de VSCode, o desde la terminal:
 
 ```bash
-git clone <repo-url> ~/specbox-engine
-cd ~/specbox-engine
+code --install-extension jpsdeveloper.specbox-engine
 ```
 
-### 2. Instalar commands, skills y hooks
+#### 2. Clonar el repositorio
 
 ```bash
+git clone https://github.com/jpsdeveloper/specbox-engine.git ~/specbox-engine
+```
+
+#### 3. Ejecutar el wizard de onboarding
+
+Abre VSCode y ejecuta desde el Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
+
+```
+SpecBox: Onboard Project
+```
+
+El wizard:
+1. Verifica prerequisitos (Node, Python, Claude Code, Engram)
+2. Localiza el repositorio del engine (auto-deteccion o seleccion manual)
+3. Instala skills, hooks y settings
+4. Configura los MCP servers (SpecBox Engine + Engram)
+5. Muestra un health check final
+
+#### 4. Verificar instalacion
+
+La status bar de VSCode mostrara:
+- `SpecBox v5.21.0` (con check verde) — todo OK
+- `SpecBox v5.21.0` (con alerta) — hay componentes por configurar
+
+Tambien puedes abrir el panel lateral de SpecBox en la barra de actividad para ver el estado de cada componente.
+
+---
+
+### Opcion B: install.sh (macOS/Linux, CI/headless)
+
+Para entornos sin interfaz grafica o automatizacion en CI:
+
+```bash
+git clone https://github.com/jpsdeveloper/specbox-engine.git ~/specbox-engine
+cd ~/specbox-engine
 ./install.sh
 ```
 
 Esto instala:
-- **Commands** como symlinks en `~/.claude/commands/` (legacy)
-- **Skills** copiados a `~/.claude/skills/` (v3.5 — auto-discovery)
-- **Hooks** copiados a `~/.claude/hooks/` (enforcement automatico)
+- **Skills** como symlinks en `~/.claude/skills/`
+- **Hooks** copiados a `~/.claude/hooks/`
+- **Settings** en `~/.claude/settings.json`
+- **GGA** (Gentleman Guardian Angel) para cached lint
 
-### 3. Verificar instalacion
+> **Nota:** `install.sh` no configura los MCP servers. En macOS/Linux, ejecuta manualmente:
+>
+> ```bash
+> # Instalar Engram (memoria persistente — obligatorio)
+> pip install engram
+> # O con pipx:
+> pipx install engram
+> ```
+>
+> Luego configura los MCP servers en `~/.claude/settings.local.json`:
+> ```json
+> {
+>   "mcpServers": {
+>     "engram": {
+>       "command": "engram",
+>       "args": ["mcp", "--tools=agent"]
+>     },
+>     "specbox-engine": {
+>       "command": "uv",
+>       "args": ["run", "--directory", "~/specbox-engine", "specbox-engine"]
+>     }
+>   }
+> }
+> ```
 
-```bash
-# Commands (legacy)
-ls -la ~/.claude/commands/
-
-# Skills (v3.5)
-ls -la ~/.claude/skills/
-# Deberias ver: prd, plan, implement, adapt-ui, optimize-agents, quality-gate, explore
-
-# Hooks
-ls -la ~/.claude/hooks/
-```
+---
 
 ## Uso en un proyecto nuevo
 
@@ -62,35 +118,7 @@ mkdir -p .claude
 cp ~/specbox-engine/templates/settings.json.template .claude/settings.local.json
 ```
 
-### Paso 3: Configurar agentes (opcional)
-
-#### Opcion A: Subagentes legacy
-
-Copia los agentes que necesites:
-
-```bash
-mkdir -p .claude/agents
-cp ~/specbox-engine/agents/orchestrator.md .claude/agents/
-cp ~/specbox-engine/agents/feature-generator.md .claude/agents/
-# ... etc
-```
-
-#### Opcion B: Agent Teams (recomendado)
-
-```bash
-cp ~/specbox-engine/templates/team-config.json.template .claude/team-config.json
-```
-
-Activa Agent Teams en settings.json:
-```json
-{
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  }
-}
-```
-
-### Paso 4: Empezar a desarrollar
+### Paso 3: Empezar a desarrollar
 
 ```bash
 # Crear un PRD para una nueva feature
@@ -102,35 +130,33 @@ Activa Agent Teams en settings.json:
 # Implementar el plan (autopilot end-to-end)
 /implement nombre_del_plan
 
-# Auditar configuracion agentica
-/optimize-agents audit
-
-# Explorar un codebase (read-only)
-/explore
-
 # Verificar calidad antes de PR
 /quality-gate check
+
+# Auditar configuracion agentica
+/optimize-agents audit
 ```
 
 ## Actualizacion del engine
 
+### Con extension VSCode
+1. `git pull` en el repositorio del engine
+2. Ejecutar `SpecBox: Install Engine` desde el Command Palette
+
+### Con install.sh
 ```bash
 cd ~/specbox-engine
 git pull
 ./install.sh
 ```
 
-Los symlinks se actualizan automaticamente ya que apuntan a los archivos del repo.
-
-## Estructura del engine
-
-Ver [CLAUDE.md](../CLAUDE.md) en la raiz del repositorio para la estructura completa.
-
 ## Referencia rapida
 
 | Quiero... | Accion |
 |-----------|--------|
-| Instalar todo | `./install.sh` |
+| Instalar todo (VSCode) | `SpecBox: Onboard Project` |
+| Instalar todo (terminal) | `./install.sh` |
+| Verificar instalacion | `SpecBox: Health Check` |
 | Crear un PRD | `/prd "descripcion"` |
 | Planificar feature | `/plan PROYECTO-N` |
 | Implementar plan | `/implement nombre_plan` |
@@ -140,6 +166,3 @@ Ver [CLAUDE.md](../CLAUDE.md) en la raiz del repositorio para la estructura comp
 | Verificar calidad | `/quality-gate check` |
 | Ver patrones Flutter | `architecture/flutter/` |
 | Ver patrones React | `architecture/react/` |
-| Ver patrones Python | `architecture/python/` |
-| Configurar Supabase | `infra/supabase/patterns.md` |
-| Configurar Stripe | `infra/stripe/patterns.md` |

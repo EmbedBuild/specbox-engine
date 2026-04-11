@@ -483,6 +483,27 @@ if [ -f "$ENGINE_DIR/.claude/settings.json" ]; then
     echo ""
 fi
 
+## --- INSTALL VSCODE EXTENSION (v5.21) ---
+
+echo -e "${GREEN}Installing VSCode extension...${NC}"
+
+if command -v code &>/dev/null || command -v code-insiders &>/dev/null || command -v cursor &>/dev/null; then
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "  Would install VSCode extension via install-ext.mjs"
+    else
+        node "$ENGINE_DIR/vscode-extension/install-ext.mjs" --vsix 2>/dev/null || {
+            echo -e "  ${YELLOW}VSCode extension not pre-built. Building...${NC}"
+            node "$ENGINE_DIR/vscode-extension/install-ext.mjs" 2>/dev/null || {
+                echo -e "  ${YELLOW}Auto-install skipped. Install manually:${NC}"
+                echo -e "    VSCode → Extensions → Install from VSIX → vscode-extension/specbox-engine-*.vsix"
+            }
+        }
+    fi
+else
+    echo -e "  ${YELLOW}VSCode CLI not found. Install extension manually if using VSCode.${NC}"
+fi
+echo ""
+
 ## --- COMPATIBILITY SYMLINK (v4.0) ---
 
 echo -e "${GREEN}Creating compatibility symlink...${NC}"
@@ -513,10 +534,23 @@ else
         fi
     done
 
+    # Check if VSCode extension was installed
+    VSCODE_EXT_STATUS=""
+    if command -v code &>/dev/null; then
+        if code --list-extensions 2>/dev/null | grep -qi "jpsdeveloper.specbox-engine"; then
+            VSCODE_EXT_STATUS="installed"
+        fi
+    fi
+
     echo -e "${GREEN}Installation complete.${NC}"
     echo -e "Commands: /prd, /plan, /implement, /adapt-ui, /optimize-agents"
     echo -e "Skills:   /prd, /visual-setup, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore, /feedback, /check-designs, /acceptance-check, /quickstart, /remote, /release, /compliance"
     echo -e "Quality:  quality-first-guard.mjs (read before write), read-tracker.mjs (session tracking)"
     echo -e "Hooks:    $HOOK_NAMES"
+    if [ "$VSCODE_EXT_STATUS" = "installed" ]; then
+        echo -e "VSCode:   ${GREEN}SpecBox Engine extension installed${NC}"
+    else
+        echo -e "VSCode:   ${YELLOW}Extension not detected. Install from vscode-extension/specbox-engine-*.vsix${NC}"
+    fi
 fi
 echo ""

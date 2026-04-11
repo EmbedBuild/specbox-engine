@@ -1,8 +1,8 @@
-version: 5.20.1
-codename: "Multi-Repo"
+version: 5.21.0
+codename: "Onboarding"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-04-10
+release_date: 2026-04-11
 min_claude_code: "1.0.0"
 
 stacks:

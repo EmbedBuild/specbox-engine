@@ -1,8 +1,8 @@
-# SpecBox Engine v5.21.0
+# SpecBox Engine v5.22.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (110 tools) + Sala de Máquinas + Gherkin BDD.
+> Monorepo unificado: engine + MCP server (114 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010.
 
 ## Que es este repositorio
 
@@ -15,7 +15,8 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (110 tools) + Sala de Máquinas dashboard (React 19)
+- **Server** — MCP server unificado (114 tools) + Sala de Máquinas dashboard (React 19)
+- **Quality Audit** — ISO/IEC 25010 (SQuaRE) on-demand via `/audit` + AG-10 auditor externo
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
 
@@ -202,8 +203,8 @@ specbox-engine/
 ├── .quality/              ← Telemetria y evidencia (v3.1)
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
-├── server/                ← MCP server unificado (v5.5)
-│   ├── server.py          ← FastMCP (110 tools)
+├── server/                ← MCP server unificado (v5.22)
+│   ├── server.py          ← FastMCP (114 tools)
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
@@ -211,7 +212,17 @@ specbox-engine/
 │   │   ├── plane_backend.py    ← PlaneBackend (Plane CE self-hosted)
 │   │   ├── plane_client.py     ← Async httpx client for Plane API v1
 │   │   └── freeform_backend.py ← FreeformBackend (local JSON + Markdown)
-│   ├── tools/             ← 19 tool modules (110 tools)
+│   ├── audit/             ← Quality Audit ISO/IEC 25010 (v5.22)
+│   │   ├── schema.py           ← QualityReport + Finding + schema v1.0
+│   │   ├── scoring.py          ← 0-100 normalization, semáforos, 60/40 mix
+│   │   ├── tool_runner.py      ← Subprocess wrapper (timeout + graceful)
+│   │   ├── tool_check.py       ← Lazy audit-tool availability check
+│   │   ├── signals.py          ← SpecBox MCP signals (AC, evidence, healing, board)
+│   │   ├── orchestrator.py     ← Fan-out 8 analyzers → QualityReport
+│   │   ├── persistence.py      ← Evidence under evidence/audits/ + project_meta
+│   │   ├── analyzers/          ← 8 SQuaRE analyzers (one per characteristic)
+│   │   └── reporters/          ← JSON + ReportLab PDF (NumberedCanvas + embed.build brand)
+│   ├── tools/             ← 20 tool modules (114 tools)
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
 │   │   ├── quality.py     ← 4 tools
@@ -230,7 +241,8 @@ specbox-engine/
 │   │   ├── hints.py       ← 3 tools (get_skill_hint, record, list)
 │   │   ├── live_state.py  ← 4 tools (project state, overview, sessions, refresh)
 │   │   ├── skill_registry.py ← 3 tools (discover, validate, manifest)
-│   │   └── sync.py        ← 2 tools (GitHub sync)
+│   │   ├── sync.py        ← 2 tools (GitHub sync)
+│   │   └── audit.py       ← 4 tools (run_quality_audit, attach_audit_evidence, get_last_audit, check_audit_tools_status)
 │   ├── stitch_client.py   ← Async MCP JSON-RPC client for Google Stitch
 │   ├── trello_client.py   ← Async httpx con retry
 │   ├── board_helpers.py   ← Card parsing, custom fields (Trello)
@@ -279,6 +291,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /remote | "estado de", "resumen de todos", "sesiones activas" | direct | Full | v5.5 — Remote project management for OpenClaw (WhatsApp/Discord) |
 | /release | "release", "bump version", "sube version", "prepara release" | direct | Full | v5.8 — Audit residuals + update version/changelog/docs + push |
 | /compliance | "check compliance", "audit specbox", "specbox audit", "is specbox up to date" | direct | Bash+Read | v5.18 — Compliance audit + version alignment + auto-fix |
+| /audit | "audit project", "quality audit", "ISO 25010", "SQuaRE audit" | direct | Full | v5.22 — Quality Audit ISO/IEC 25010 on-demand (AG-10, 8 analyzers, PDF+JSON) |
 
 ## Hooks (v5.20.1)
 
@@ -688,8 +701,86 @@ Deteccion automatica de UCs sin evidencia E2E durante el upgrade de proyectos:
 - **REST endpoint**: `GET /api/benchmark/public` — JSON metrics (no auth required)
 - **Output**: `docs/benchmarks/snapshot_{date}.md` with Metodología section
 
+## Quality Audit — ISO/IEC 25010 (v5.22)
+
+On-demand auditoría de calidad de software bajo estándar SQuaRE. Invocación
+manual via `/audit [project]`, nunca automática. Produce PDF con brand
+embed.build + JSON schema v1.0 persistidos como evidencia del proyecto.
+
+### Características auditadas (8 bloques)
+
+1. **Functional Suitability** — completeness via AC status + AG-09 verdicts
+2. **Performance Efficiency** — large files, hot-path heuristics, perf config presence
+3. **Compatibility** — lockfile presence, declared engine versions, infra
+4. **Usability** — README, CLAUDE.md, docs, Stitch designs
+5. **Reliability** — healing ratio + test pass rate
+6. **Security** — semgrep (OWASP Top 10) + gitleaks (secrets) + pip-audit/npm audit (deps) + checkov (IaC)
+7. **Maintainability** — **mix 60/40 documentado**: 60% clásico (lizard, jscpd, file size, test ratio) + 40% SpecBox (AC, evidencia, healing, board, PRD divergence)
+8. **Portability** — Dockerfile/compose, .env.example, hardcoded paths scan
+
+Cada bloque emite: `score` 0-100, `traffic_light`, `raw_metrics`,
+`findings[]` con severidad, `recommendations[]` priorizadas por AG-10.
+
+### Herramientas externas (instalación perezosa)
+
+Todas son **opcionales**. Al lanzar `/audit`, el skill:
+1. Llama `check_audit_tools_status(project_path)` — detecta qué falta.
+2. Si faltan, pregunta al usuario: instalar / continuar sin ellas / cancelar.
+3. Si instala → ejecuta `.quality/scripts/install-audit-tools.sh --yes`.
+4. Si continúa sin ellas → el audit reporta gaps en `tools_used` sin abortar.
+
+Nada se instala durante `install.sh` o `upgrade_project`. Install completamente
+on-demand y consentido.
+
+| Tool | Para | Installer | Stack hint |
+|------|------|-----------|------------|
+| semgrep | SAST OWASP Top 10 | `uv pip install semgrep` | multi |
+| gitleaks | Secret scanning | `brew install gitleaks` (macOS) / `go install ...` | multi |
+| pip-audit | Python deps | `uv pip install pip-audit` | python |
+| npm | Node/JS deps | Node.js install | react/node |
+| checkov | IaC | `uv pip install checkov` | si hay Dockerfile/TF |
+| lizard | Cyclomatic complexity | `uv pip install lizard` | multi |
+| jscpd | Duplication | `npm install -g jscpd` | multi |
+
+### MCP tools (4)
+
+| Tool | Uso |
+|------|-----|
+| `run_quality_audit(project, scope, project_path)` | Ejecuta los 8 analizadores y devuelve `QualityReport` bruto + `audit_tools_status` |
+| `attach_audit_evidence(project, report)` | Persiste PDF + JSON bajo `evidence/audits/` y actualiza `project_meta.last_audit` |
+| `get_last_audit(project)` | Devuelve el resumen del último audit registrado en `meta.json` |
+| `check_audit_tools_status(project_path)` | Reporta qué tools externas están instaladas / faltan + comandos de instalación |
+
+### Agente AG-10 Quality Auditor
+
+Distinto de **AG-08** (gate interno por fase en `/implement`). AG-10 es
+externo, on-demand, no bloqueante, y su responsabilidad es **sintetizar**
+justificaciones y recomendaciones sobre el `QualityReport` bruto que
+produce el tool — nunca modifica código ni ejecuta tests.
+
+Definición: `agents/ag-10-quality-auditor.md`.
+
+### Evidencia persistida
+
+```
+STATE_PATH/projects/<project>/evidence/audits/
+  audit_YYYYMMDDTHHMMSSZ.json    ← schema v1.0
+  audit_YYYYMMDDTHHMMSSZ.pdf     ← brand embed.build, NumberedCanvas
+```
+
+El `project_meta.last_audit` se actualiza tras `attach_audit_evidence` para
+que la Sala de Máquinas muestre el último audit sin escanear el filesystem.
+
+### Fuera de alcance v1 (reservado para v2)
+
+- Hooks automáticos post-`/implement`
+- Gates bloqueantes por score mínimo
+- Histórico / tendencias / diffs entre auditorías
+- Dashboard web dedicado
+- Integración con CI/CD externo
+
 ## Engine Version
 
-Current: v5.21.0 "Onboarding"
+Current: v5.22.0 "Quality Audit"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

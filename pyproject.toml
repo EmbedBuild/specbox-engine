@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "5.21.0"
-description = "SpecBox Engine v5.21.0 — unified MCP server with 110 tools for spec-driven development"
+version = "5.22.0"
+description = "SpecBox Engine v5.22.0 — unified MCP server with 114 tools for spec-driven development"
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.0.0",
@@ -11,6 +11,7 @@ dependencies = [
     "fpdf2>=2.8.0",
     "markdown>=3.5",
     "structlog>=24.0.0",
+    "reportlab>=4.0.0",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +20,13 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "respx>=0.22.0",
     "ruff>=0.5.0",
+]
+# Optional external tools for the Quality Audit (ISO/IEC 25010) module.
+# All are auto-detected; missing tools degrade gracefully at runtime.
+audit = [
+    "semgrep>=1.70.0",
+    "pip-audit>=2.7.0",
+    "lizard>=1.17.0",
 ]
 
 [project.scripts]

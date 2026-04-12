@@ -1,8 +1,8 @@
-version: 5.21.0
-codename: "Onboarding"
+version: 5.22.0
+codename: "Quality Audit"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-04-11
+release_date: 2026-04-12
 min_claude_code: "1.0.0"
 
 stacks:
@@ -264,8 +264,51 @@ features:
   - orchestrator-satellite-topology
   - satellite-onboarding
   - uc-scope-filtering
+  # New (v5.22.0) — Quality Audit
+  - quality-audit-iso25010
+  - squared-8-characteristics
+  - ag10-quality-auditor
+  - audit-slash-command
+  - run-quality-audit-mcp-tool
+  - attach-audit-evidence-mcp-tool
+  - get-last-audit-mcp-tool
+  - check-audit-tools-status-mcp-tool
+  - reportlab-pdf-branded
+  - embed-build-brand-loader
+  - maintainability-60-40-mix
+  - lazy-audit-tool-installer
 
 changelog:
+  5.22.0:
+    date: 2026-04-12
+    codename: "Quality Audit"
+    changes:
+      - "feat: Quality Audit ISO/IEC 25010 (SQuaRE) v1 — on-demand /audit slash command"
+      - "feat: AG-10 Quality Auditor — independent external auditor (distinct from AG-08 internal gate)"
+      - "feat: 8 SQuaRE analyzers — functional_suitability, performance_efficiency, compatibility, usability, reliability, security, maintainability, portability"
+      - "feat: 4 new MCP tools — run_quality_audit, attach_audit_evidence, get_last_audit, check_audit_tools_status (total 110→114)"
+      - "feat: Maintainability scored as 60% classic (lizard, jscpd, file size, test ratio) + 40% SpecBox signals (AC status, UC evidence, healing ratio, board blocks, PRD divergence) with explicit breakdown"
+      - "feat: ReportLab PDF with NumberedCanvas pattern, cover page without header/footer, 8 sections + appendix with metadata and tools used"
+      - "feat: embed.build brand loader (embed-build-brand skill) with graceful fallback to black + cyan #29F3E3"
+      - "feat: Security analyzer runs semgrep (OWASP Top 10), gitleaks (secrets), pip-audit/npm audit (deps), checkov (IaC) — all optional and graceful"
+      - "feat: Lazy audit-tool installer — check_audit_tools_status reports missing tools; .quality/scripts/install-audit-tools.sh installs on-demand with user consent (never during install.sh or upgrade_project)"
+      - "feat: stack-aware tool filtering — npm only relevant for React/Node, pip-audit only for Python"
+      - "feat: JSON schema v1.0 versioned for future diffs/comparisons in v2"
+      - "feat: Evidence persisted under STATE_PATH/projects/<p>/evidence/audits/audit_<ts>.{pdf,json}"
+      - "feat: project_meta.last_audit updated on attach_audit_evidence for Sala de Máquinas surfacing"
+      - "feat: 19 new tests (schema round-trip, scoring, tool_runner, brand fallback, signals, orchestrator end-to-end, reporters, tool_check with stack filter)"
+      - "feat: reportlab>=4.0.0 added as hard dependency; fpdf2 pdf_generator.py untouched"
+      - "feat: optional-deps [audit] group in pyproject.toml with semgrep, pip-audit, lizard"
+      - "docs: agents/ag-10-quality-auditor.md, commands/audit.md, Quality Audit section in CLAUDE.md"
+      - "scope v1 excludes: automatic hooks post-/implement, blocking gates by score, history/trends/diffs, web dashboard, CI/CD integration — reserved for v2"
+  5.21.0:
+    date: 2026-04-11
+    codename: "Onboarding"
+    changes:
+      - "feat: VSCode extension scaffold for cross-platform install + self-update"
+      - "chore: data/ added to .gitignore (MCP server runtime state)"
+      - "fix: v5.20.1 hook schema patch — removed invalid blocking field, fixed timeout units (ms→s)"
+
   5.20.0:
     date: 2026-04-10
     changes:

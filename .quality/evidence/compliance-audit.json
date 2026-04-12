@@ -1,9 +1,9 @@
 {
   "project": "specbox-engine",
   "project_path": "/Users/jesusperezsanchez/Desktop/Proyectos/0_jps_iautomat/jpsdeveloper/specbox-engine",
-  "timestamp": "2026-04-08T07:48:24.280Z",
-  "engine_version": "5.18.0",
-  "project_version": "5.18.0",
+  "timestamp": "2026-04-12T11:57:31.053Z",
+  "engine_version": "5.22.0",
+  "project_version": "5.22.0",
   "needs_upgrade": false,
   "overall_score": 80,
   "overall_grade": "B (Moderate gaps)",
@@ -19,7 +19,7 @@
         {
           "name": "Version aligned",
           "pass": true,
-          "detail": "Both at v5.18.0"
+          "detail": "Both at v5.22.0"
         },
         {
           "name": "Registered in engine state",

@@ -1,0 +1,28 @@
+# Skill Manifest — manual-test
+# SpecBox Engine v5.20+
+
+name: manual-test
+version: 1.0.0
+author: JPS Developer
+description: >
+  Systematic manual testing with live bug resolution and stakeholder evidence.
+  Generates test itineraries from UCs/USs, prepares seed data, guides the user
+  step-by-step through interactive testing, diagnoses and fixes bugs in real-time,
+  and produces auditable evidence for stakeholders.
+compatibility:
+  - flutter
+  - react
+  - go
+  - python
+
+triggers:
+  - manual-test
+  - pruebas manuales
+  - testing manual
+  - QA
+  - pre-release
+  - stakeholder demo
+  - test evidence
+
+depends_on:
+  - quality-gate

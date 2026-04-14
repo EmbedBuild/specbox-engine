@@ -5,8 +5,7 @@ description: >
   Use when the user says "visual setup", "setup design", "configure brand",
   "design system", "visual identity", "brand kit", or wants to set up
   Stitch + VEG + brand tokens before running /plan.
-context: fork
-agent: Plan
+context: direct
 ---
 
 # /visual-setup (Global)

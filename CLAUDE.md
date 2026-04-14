@@ -151,7 +151,7 @@ specbox-engine/
 │   │   ├── mcp-report.mjs
 │   │   └── e2e-report.mjs
 │   └── settings.json      ← Hooks config
-├── commands/              ← Commands (referencia legacy)
+├── commands/              ← Commands (deprecados — stubs históricos, lógica activa en .claude/skills/)
 │   ├── prd.md
 │   ├── plan.md
 │   ├── implement.md
@@ -265,10 +265,26 @@ specbox-engine/
 
 ## Para contribuir
 
-1. Las Skills en `.claude/skills/` son los archivos activos del sistema
-2. Los commands en `commands/` se mantienen como referencia legacy
-3. Tras modificar una Skill, ejecutar `./install.sh` para actualizar en global
-4. Versionar cambios en ENGINE_VERSION.yaml
+1. Las Skills en `.claude/skills/` son los archivos activos del sistema (invocados via slash commands `/prd`, `/plan`, etc.)
+2. Los `.claude/skills/*` globales (`~/.claude/skills/*`) son **symlinks** al repo tras `./install.sh` — los cambios en el repo se reflejan en global automáticamente, NO hace falta reinstalar tras editar un SKILL.md
+3. Los `commands/*.md` del repo están **deprecados** — quedan como stubs históricos, no contienen la lógica activa. Todo desarrollo nuevo va en `.claude/skills/`
+4. Al crear o modificar un skill, respetar el modelo de frontmatter (ver sección "Skill Frontmatter Model" abajo)
+5. Versionar cambios en ENGINE_VERSION.yaml
+
+## Skill Frontmatter Model
+
+El campo `context:` del frontmatter de un SKILL.md determina cómo el harness de Claude Code ejecuta el skill. Elegir mal la combinación rompe el skill de formas sutiles.
+
+| Combinación | Ejecución | Cuándo usarla |
+|-------------|-----------|---------------|
+| `context: direct` | Sesión principal, herramientas completas (Read, Write, Edit, Bash, MCPs). Contamina el contexto de la sesión. | Skills **operativos** que escriben artefactos al filesystem, llaman MCPs de escritura, crean PRs, adjuntan evidencia. Ejemplos: `prd`, `plan`, `visual-setup`, `implement`, `feedback`, `release`, `compliance`, `remote`. |
+| `context: fork` + `agent: Explore` | Delega al sub-agente nativo Explore, read-only por diseño. Aísla el contexto de la sesión principal. | Skills **read-only** que analizan código y devuelven un informe. Ejemplos: `explore`, `adapt-ui`, `check-designs`, `optimize-agents` (modo audit). |
+| `context: fork` **sin** `agent:` | **ROTO.** El harness no sabe a quién delegar — el sub-agente recibe el SKILL.md como contexto descriptivo, no como instrucción, y responde "no se me ha pedido nada". | Nunca. |
+| `context: fork` + `agent: Plan` | Funciona pero fuerza modo read-only (el sub-agente nativo Plan es un arquitecto read-only). El skill puede llamar MCPs externos pero **no puede escribir al filesystem local**. | Nunca para skills de SpecBox — causa bugs silenciosos tipo "el plan se adjunta a Trello pero no se escribe `doc/plans/*.md`". |
+
+**Regla simple**: si el skill escribe archivos o crea artefactos locales → `direct`. Si el skill solo lee y reporta → `fork` + `agent: Explore`.
+
+**Test rápido** para confirmar que un skill funciona: ejecutar su slash command en una sesión nueva (los cambios en SKILL.md no afectan sesiones ya abiertas). Si el skill responde "espero tu solicitud" o falla con error de escritura, el frontmatter está mal.
 
 ## Available Skills (v5.5)
 
@@ -276,9 +292,9 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 
 | Skill | Trigger phrases | Mode | Tools | Notes |
 |-------|----------------|------|-------|-------|
-| /prd | "create PRD", "new feature", "write requirements" | fork:Plan | Full | Definition Quality Gate (Paso 2.5) valida AC-XX |
-| /visual-setup | "visual setup", "configure brand", "design system", "brand kit" | fork:Plan | Full | v5.14 — Brand Kit + Stitch DS + VEG + Multi-FF |
-| /plan | "plan feature", "technical plan", "analyze for implementation" | fork:Plan | Full | VEG generation (Paso 2.5b) |
+| /prd | "create PRD", "new feature", "write requirements" | direct | Full | Definition Quality Gate (Paso 2.5) valida AC-XX |
+| /visual-setup | "visual setup", "configure brand", "design system", "brand kit" | direct | Full | v5.14 — Brand Kit + Stitch DS + VEG + Multi-FF |
+| /plan | "plan feature", "technical plan", "analyze for implementation" | direct | Full | VEG generation (Paso 2.5b) |
 | /implement | "implement plan", "execute plan", "autopilot" | direct | Full | Self-healing + AG-09 + Spec-Code Sync + merge secuencial |
 | /adapt-ui | "scan UI", "map components", "detect widgets" | fork:Explore | Read-only | |
 | /optimize-agents | "audit agents", "optimize system", "agent score" | fork:Explore | Read-only | |

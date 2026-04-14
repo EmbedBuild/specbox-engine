@@ -5,8 +5,7 @@ description: >
   Use when the user says "create PRD", "new feature", "write requirements",
   "define feature", or references creating specifications for implementation.
   Supports Trello (spec-driven) and Plane work item creation.
-context: fork
-agent: Plan
+context: direct
 ---
 
 # /prd (Global)

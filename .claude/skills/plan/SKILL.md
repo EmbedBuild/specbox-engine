@@ -5,8 +5,7 @@ description: >
   agent mapping, and Stitch design generation. Use when the user says
   "plan feature", "create plan", "technical plan", "analyze for implementation",
   or references planning before coding. Reads PRDs from Plane/Trello.
-context: fork
-agent: Plan
+context: direct
 ---
 
 # /plan (Global)

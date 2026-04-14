@@ -279,6 +279,18 @@ features:
   - lazy-audit-tool-installer
 
 changelog:
+  5.22.1:
+    date: 2026-04-15
+    codename: "Quality Audit"
+    changes:
+      - "fix: plan/prd/visual-setup skills pasan de context: fork+agent:Plan (read-only roto) a context: direct — el sub-agente Plan es read-only, los skills podían llamar MCPs pero no escribir doc/plans/*.md"
+      - "fix: acceptance-check y quickstart con frontmatter obsoleto (triggers:, mode:, tools:) normalizados al formato actual (context: direct + description: extendido)"
+      - "fix: /compliance self-audit ya no da falsos negativos estructurales — IS_SELF_AUDIT detecta cuando projectPath === ENGINE_ROOT y marca Registered/Spec-Driven como N/A"
+      - "refactor: commands/audit.md migrado a .claude/skills/audit/SKILL.md — último command legacy eliminado, concepto de slash-command-legacy desaparece del engine"
+      - "refactor: 7 commands legacy eliminados del repo (adapt-ui, feedback, implement, optimize-agents, plan, prd, quality-gate); install.sh limpio sin gestión de commands"
+      - "chore: manual-test skill traído al repo (vivía suelto en ~/.claude/skills/ sin versionar)"
+      - "docs: CLAUDE.md nueva sección Skill Frontmatter Model + correcciones a afirmaciones obsoletas sobre commands/ e install.sh post-edición"
+      - "compliance: self-audit 100% A+ (Full Compliance) sin críticos, warnings o recommendations"
   5.22.0:
     date: 2026-04-12
     codename: "Quality Audit"

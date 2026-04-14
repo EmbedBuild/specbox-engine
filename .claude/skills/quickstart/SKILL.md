@@ -1,10 +1,10 @@
 ---
 name: quickstart
-description: "Interactive tutorial — guides new developers through the full SpecBox Engine pipeline with a demo project"
-triggers: ["quickstart", "tutorial", "getting started", "learn engine", "onboarding tutorial"]
-context: fork
-mode: direct
-tools: ["Read", "Write", "Bash", "Glob"]
+description: >
+  Interactive tutorial — guides new developers through the full SpecBox Engine
+  pipeline with a demo project. Use when the user says "quickstart", "tutorial",
+  "getting started", "learn engine", or needs onboarding to the engine.
+context: direct
 ---
 
 # /quickstart — Tutorial Guiado Interactivo

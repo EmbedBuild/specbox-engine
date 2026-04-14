@@ -42,6 +42,12 @@ const ENGINE_ROOT = resolve(__dirname, '..', '..');
 const GLOBAL_HOOKS_DIR = join(process.env.HOME || '~', '.claude', 'hooks');
 const GLOBAL_SKILLS_DIR = join(process.env.HOME || '~', '.claude', 'skills');
 
+// Self-audit: when the audited project IS the engine itself, some checks
+// don't apply (the engine isn't onboarded as a spec-driven project against
+// itself, and has no Trello/Plane/FreeForm backend — it's the meta-tool,
+// not a consumer of it). We detect this by resolving both paths and comparing.
+const IS_SELF_AUDIT = resolve(projectPath) === resolve(ENGINE_ROOT);
+
 // ============================================================
 // AUDIT CATEGORIES
 // ============================================================
@@ -49,6 +55,7 @@ const GLOBAL_SKILLS_DIR = join(process.env.HOME || '~', '.claude', 'skills');
 const results = {
   project: basename(projectPath),
   project_path: projectPath,
+  self_audit: IS_SELF_AUDIT,
   timestamp: new Date().toISOString(),
   engine_version: null,
   project_version: null,
@@ -104,16 +111,24 @@ function auditVersionAlignment() {
     });
   }
 
-  // Check meta.json in engine state
-  const metaFile = join(ENGINE_ROOT, 'data', 'state', 'projects', basename(projectPath), 'meta.json');
-  const legacyMeta = join(ENGINE_ROOT, '.quality', 'state', 'projects', basename(projectPath), 'meta.json');
-  const metaExists = existsSync(metaFile) || existsSync(legacyMeta);
-  checks.push({
-    name: 'Registered in engine state',
-    pass: metaExists,
-    fix: !metaExists ? 'Run onboard_project to register this project' : undefined,
-    critical: !metaExists,
-  });
+  // Check meta.json in engine state (skipped in self-audit mode)
+  if (IS_SELF_AUDIT) {
+    checks.push({
+      name: 'Registered in engine state',
+      pass: true,
+      detail: 'N/A (self-audit: the engine is not a consumer of itself)',
+    });
+  } else {
+    const metaFile = join(ENGINE_ROOT, 'data', 'state', 'projects', basename(projectPath), 'meta.json');
+    const legacyMeta = join(ENGINE_ROOT, '.quality', 'state', 'projects', basename(projectPath), 'meta.json');
+    const metaExists = existsSync(metaFile) || existsSync(legacyMeta);
+    checks.push({
+      name: 'Registered in engine state',
+      pass: metaExists,
+      fix: !metaExists ? 'Run onboard_project to register this project' : undefined,
+      critical: !metaExists,
+    });
+  }
 
   return { name: 'Version Alignment', weight: 15, checks };
 }
@@ -377,6 +392,17 @@ function auditSkillsInstallation() {
 function auditSpecDrivenCompliance() {
   const checks = [];
 
+  // Self-audit short-circuit: the engine itself doesn't consume its own
+  // spec-driven pipeline, so none of these checks apply.
+  if (IS_SELF_AUDIT) {
+    checks.push({
+      name: 'Spec-driven configured',
+      pass: true,
+      detail: 'N/A (self-audit: engine development uses PRs, not US/UC)',
+    });
+    return { name: 'Spec-Driven Compliance', weight: 15, checks };
+  }
+
   // Check if project is spec-driven
   const projectConfig = join(projectPath, '.claude', 'project-config.json');
   const settingsLocal = join(projectPath, '.claude', 'settings.local.json');
@@ -531,7 +557,7 @@ function printReport() {
   console.log('║           SpecBox Engine — Compliance Audit                 ║');
   console.log('╚══════════════════════════════════════════════════════════════╝');
   console.log('');
-  console.log(`  Project:        ${results.project}`);
+  console.log(`  Project:        ${results.project}${IS_SELF_AUDIT ? ' (self-audit)' : ''}`);
   console.log(`  Engine version: v${results.engine_version}`);
   console.log(`  Project version: v${results.project_version}`);
   console.log(`  Needs upgrade:  ${results.needs_upgrade ? 'YES' : 'No'}`);

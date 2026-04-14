@@ -1,8 +1,8 @@
-version: 5.22.0
+version: 5.22.1
 codename: "Quality Audit"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-04-12
+release_date: 2026-04-15
 min_claude_code: "1.0.0"
 
 stacks:

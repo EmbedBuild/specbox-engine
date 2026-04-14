@@ -1,4 +1,4 @@
-# SpecBox Engine v5.22.0
+# SpecBox Engine v5.22.1
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -73,7 +73,7 @@ cd specbox-engine
 ./install.sh
 ```
 
-Esto instala Skills en `~/.claude/skills/`, hooks en `~/.claude/hooks/` y commands en `~/.claude/commands/`.
+Esto instala Skills en `~/.claude/skills/` y hooks en `~/.claude/hooks/`.
 
 ## Flujo de desarrollo
 
@@ -151,7 +151,6 @@ specbox-engine/
 │   │   ├── mcp-report.mjs
 │   │   └── e2e-report.mjs
 │   └── settings.json      ← Hooks config
-├── commands/              ← Commands (deprecados — stubs históricos, lógica activa en .claude/skills/)
 │   ├── prd.md
 │   ├── plan.md
 │   ├── implement.md
@@ -267,9 +266,8 @@ specbox-engine/
 
 1. Las Skills en `.claude/skills/` son los archivos activos del sistema (invocados via slash commands `/prd`, `/plan`, etc.)
 2. Los `.claude/skills/*` globales (`~/.claude/skills/*`) son **symlinks** al repo tras `./install.sh` — los cambios en el repo se reflejan en global automáticamente, NO hace falta reinstalar tras editar un SKILL.md
-3. Los `commands/*.md` del repo están **deprecados** — quedan como stubs históricos, no contienen la lógica activa. Todo desarrollo nuevo va en `.claude/skills/`
-4. Al crear o modificar un skill, respetar el modelo de frontmatter (ver sección "Skill Frontmatter Model" abajo)
-5. Versionar cambios en ENGINE_VERSION.yaml
+3. Al crear o modificar un skill, respetar el modelo de frontmatter (ver sección "Skill Frontmatter Model" abajo)
+4. Versionar cambios en ENGINE_VERSION.yaml
 
 ## Skill Frontmatter Model
 
@@ -302,8 +300,8 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /explore | "analyze codebase", "explore code", "understand architecture" | fork:Explore | Read-only | |
 | /feedback | "report feedback", "found a bug", "this doesn't work" | direct | Full | AG-10 + GitHub issue + invalida acceptance |
 | /check-designs | "check designs", "design compliance", "verify designs" | fork:Explore | Read-only | Retroactive Stitch compliance scan |
-| /acceptance-check | "check acceptance", "validate AC", "acceptance gate" | fork | Full | v5.0 — Standalone BDD acceptance without /implement |
-| /quickstart | "quickstart", "tutorial", "getting started" | fork | Full | v5.0 — Interactive onboarding tutorial (< 5 min) |
+| /acceptance-check | "check acceptance", "validate AC", "acceptance gate" | direct | Full | v5.0 — Standalone BDD acceptance without /implement |
+| /quickstart | "quickstart", "tutorial", "getting started" | direct | Full | v5.0 — Interactive onboarding tutorial (< 5 min) |
 | /remote | "estado de", "resumen de todos", "sesiones activas" | direct | Full | v5.5 — Remote project management for OpenClaw (WhatsApp/Discord) |
 | /release | "release", "bump version", "sube version", "prepara release" | direct | Full | v5.8 — Audit residuals + update version/changelog/docs + push |
 | /compliance | "check compliance", "audit specbox", "specbox audit", "is specbox up to date" | direct | Bash+Read | v5.18 — Compliance audit + version alignment + auto-fix |
@@ -797,6 +795,6 @@ que la Sala de Máquinas muestre el último audit sin escanear el filesystem.
 
 ## Engine Version
 
-Current: v5.22.0 "Quality Audit"
+Current: v5.22.1 "Quality Audit"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

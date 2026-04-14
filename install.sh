@@ -1,6 +1,6 @@
 #!/bin/bash
 # SpecBox Engine - Installer
-# Instala commands, skills y hooks globales en ~/.claude/
+# Instala skills y hooks globales en ~/.claude/
 # Usage: ./install.sh [--uninstall] [--dry-run]
 #        ./install.sh --skill <path|git-url> [--local]
 #        ./install.sh --remove-skill <name>
@@ -8,7 +8,6 @@
 set -e
 
 ENGINE_DIR="$(cd "$(dirname "$0")" && pwd)"
-CLAUDE_COMMANDS_DIR="$HOME/.claude/commands"
 VERSION=$(grep 'version:' "$ENGINE_DIR/ENGINE_VERSION.yaml" | head -1 | awk '{print $2}')
 
 # Colors
@@ -195,21 +194,6 @@ fi
 if [ "$UNINSTALL" = true ]; then
     echo -e "${YELLOW}Uninstalling SpecBox Engine...${NC}"
 
-    # Remove commands (symlinks)
-    for cmd in "$ENGINE_DIR"/commands/*.md; do
-        [ -f "$cmd" ] || continue
-        filename=$(basename "$cmd")
-        target="$CLAUDE_COMMANDS_DIR/$filename"
-        if [ -L "$target" ]; then
-            if [ "$DRY_RUN" = true ]; then
-                echo -e "  Would remove command: ${RED}$filename${NC}"
-            else
-                rm "$target"
-                echo -e "  Removed command: ${RED}$filename${NC}"
-            fi
-        fi
-    done
-
     # Remove skills (symlinks)
     SKILLS_DIR="$HOME/.claude/skills"
     for skill_dir in "$ENGINE_DIR"/.claude/skills/*/; do
@@ -263,75 +247,6 @@ if [ "$UNINSTALL" = true ]; then
 fi
 
 # --- INSTALL ---
-echo -e "${GREEN}Installing commands to $CLAUDE_COMMANDS_DIR${NC}"
-echo ""
-
-# Create commands dir if needed
-if [ ! -d "$CLAUDE_COMMANDS_DIR" ]; then
-    if [ "$DRY_RUN" = true ]; then
-        echo -e "  Would create: ${BLUE}$CLAUDE_COMMANDS_DIR${NC}"
-    else
-        mkdir -p "$CLAUDE_COMMANDS_DIR"
-        echo -e "  Created: ${BLUE}$CLAUDE_COMMANDS_DIR${NC}"
-    fi
-fi
-
-# Install each command as symlink
-installed=0
-updated=0
-skipped=0
-
-for cmd in "$ENGINE_DIR"/commands/*.md; do
-    [ -f "$cmd" ] || continue
-    filename=$(basename "$cmd")
-    target="$CLAUDE_COMMANDS_DIR/$filename"
-
-    if [ -L "$target" ]; then
-        # Symlink exists - check if points to same place
-        current_target=$(readlink "$target")
-        if [ "$current_target" = "$cmd" ]; then
-            skipped=$((skipped + 1))
-            continue
-        else
-            # Different target - update
-            if [ "$DRY_RUN" = true ]; then
-                echo -e "  Would update: ${YELLOW}$filename${NC} → $cmd"
-            else
-                rm "$target"
-                ln -s "$cmd" "$target"
-                echo -e "  Updated: ${YELLOW}$filename${NC}"
-            fi
-            updated=$((updated + 1))
-        fi
-    elif [ -f "$target" ]; then
-        # Regular file exists - backup and replace
-        if [ "$DRY_RUN" = true ]; then
-            echo -e "  Would backup and replace: ${YELLOW}$filename${NC}"
-        else
-            mv "$target" "${target}.backup.$(date +%Y%m%d%H%M%S)"
-            ln -s "$cmd" "$target"
-            echo -e "  Replaced: ${YELLOW}$filename${NC} (backup created)"
-        fi
-        updated=$((updated + 1))
-    else
-        # New install
-        if [ "$DRY_RUN" = true ]; then
-            echo -e "  Would install: ${GREEN}$filename${NC} → $cmd"
-        else
-            ln -s "$cmd" "$target"
-            echo -e "  Installed: ${GREEN}$filename${NC}"
-        fi
-        installed=$((installed + 1))
-    fi
-done
-
-echo ""
-echo -e "${GREEN}Summary:${NC}"
-echo -e "  New:     ${GREEN}$installed${NC}"
-echo -e "  Updated: ${YELLOW}$updated${NC}"
-echo -e "  Unchanged: $skipped"
-echo ""
-
 ## --- INSTALL SKILLS (v3.5) ---
 
 SKILLS_DIR="$HOME/.claude/skills"
@@ -543,7 +458,6 @@ else
     fi
 
     echo -e "${GREEN}Installation complete.${NC}"
-    echo -e "Commands: /audit (commands/ is deprecated — all other slash commands are skills in .claude/skills/)"
     echo -e "Skills:   /prd, /visual-setup, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore, /feedback, /check-designs, /acceptance-check, /quickstart, /remote, /release, /compliance, /audit"
     echo -e "Quality:  quality-first-guard.mjs (read before write), read-tracker.mjs (session tracking)"
     echo -e "Hooks:    $HOOK_NAMES"

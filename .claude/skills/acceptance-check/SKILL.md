@@ -1,10 +1,11 @@
 ---
 name: acceptance-check
-description: "Standalone acceptance check — validates AC from PRD against code without full /implement pipeline"
-triggers: ["acceptance check", "check acceptance", "validate AC", "verify acceptance", "acceptance gate"]
-context: fork
-mode: direct
-tools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "Agent"]
+description: >
+  Standalone acceptance check — validates AC from PRD against code without
+  full /implement pipeline. Use when the user says "check acceptance",
+  "validate AC", "verify acceptance", "acceptance gate", or needs to verify
+  acceptance criteria for a PR or external contribution.
+context: direct
 ---
 
 # /acceptance-check (Standalone BDD Acceptance Gate)

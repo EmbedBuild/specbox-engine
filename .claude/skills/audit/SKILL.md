@@ -1,3 +1,13 @@
+---
+name: quality-audit
+description: >
+  ISO/IEC 25010 (SQuaRE) quality audit on-demand for onboarded projects.
+  Use when the user says "audit project", "quality audit", "ISO 25010",
+  "SQuaRE audit", "audita el proyecto", or wants a comprehensive quality
+  report across 8 characteristics with PDF + JSON evidence.
+context: direct
+---
+
 # /audit — ISO/IEC 25010 Quality Audit (on-demand)
 
 > v5.21+ — Módulo Quality Audit v1

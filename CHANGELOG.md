@@ -2,6 +2,38 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.22.1] - 2026-04-15
+
+Patch release centrado en consolidar el modelo de frontmatter de skills, eliminar los `commands/*.md` legacy del repo y dejar el compliance audit del propio engine en 100% sin falsos negativos estructurales.
+
+### Fixed
+- **Skill Frontmatter Bug** — skills operativos (`plan`, `prd`, `visual-setup`) usaban `context: fork` + `agent: Plan`, lo que los delegaba al sub-agente nativo Plan de Claude Code (arquitecto read-only). Resultado: los skills podían llamar MCPs externos (Trello, Stitch) pero no podían escribir archivos al filesystem local
+  - Síntoma reproducible: `/plan US-24` adjuntaba el plan como PDF en la card de Trello pero nunca creaba `doc/plans/us-24_plan.md`
+  - Fix: los 3 skills pasan a `context: direct` (ejecución en sesión principal con herramientas completas)
+  - Los 4 skills read-only (`explore`, `adapt-ui`, `check-designs`, `optimize-agents`) siguen con `context: fork` + `agent: Explore` — correcto, son análisis sin escritura
+- **Frontmatter obsoleto en `acceptance-check` y `quickstart`** — ambos skills tenían el formato antiguo `context: fork` + `mode: direct` + `triggers:` + `tools:` (campos que el harness actual ignora). Normalizados a `context: direct` con `description:` extendido con triggers inline — ahora son auto-descubribles y se ejecutan en sesión principal con permisos de escritura (ambos crean archivos)
+- **`/compliance` self-audit falso negativo** — `specbox-audit.mjs` reportaba 2 checks críticos cuando se ejecutaba sobre el propio engine (`Registered in engine state` y `Spec-driven configured`). Son comprobaciones que no aplican al engine como meta-proyecto: no se onboardea consigo mismo ni usa su propia pipeline Trello/Plane/FreeForm. Añadida detección `IS_SELF_AUDIT` que resuelve cuando `projectPath === ENGINE_ROOT` y marca esos checks como "N/A (self-audit)" con pass=true. El header del report muestra "(self-audit)" y el JSON incluye `self_audit: true` para trazabilidad. Score del self-audit ahora: 100% A+
+
+### Changed
+- **`commands/audit.md` migrado a skill** — `/audit` pasa a ser `.claude/skills/audit/SKILL.md` con frontmatter correcto (`context: direct` — escribe PDF + JSON de evidencia). Contenido funcional idéntico al command legacy. Ahora descubrible por el harness vía `description:` y alineado con el resto de skills del engine
+- **CLAUDE.md — sección "Skill Frontmatter Model"** — nueva sección documentando cuándo usar cada combinación (`direct` vs `fork + agent: Explore`) y cuáles son combinaciones rotas (`fork` solo, `fork + agent: Plan` para skills de escritura). Incluye test rápido para detectar skills mal configurados
+- **CLAUDE.md — afirmaciones obsoletas corregidas** — eliminada la mención a `commands/` como "referencia legacy" y la instrucción de reinstalar tras editar un SKILL.md (los skills globales son symlinks al repo, los cambios se propagan automáticamente)
+- **Tabla "Available Skills" actualizada** — `prd`, `plan`, `visual-setup`, `acceptance-check`, `quickstart`, `audit` ahora muestran el modo real (`direct`)
+- **`install.sh` limpio** — eliminada toda la lógica de instalación/uninstall de `commands/*.md` (ya no existe ese directorio); removida variable `CLAUDE_COMMANDS_DIR`. La sección "Commands:" del summary final también eliminada. El installer ahora gestiona solo skills + hooks + GGA + VSCode extension
+
+### Removed
+- **7 commands legacy** eliminados del repo (`commands/adapt-ui.md`, `feedback.md`, `implement.md`, `optimize-agents.md`, `plan.md`, `prd.md`, `quality-gate.md`) y sus symlinks colgantes en `~/.claude/commands/`. Todos tenían equivalente activo en `.claude/skills/*` desde hace versiones
+- **`commands/audit.md`** — migrado a `.claude/skills/audit/SKILL.md`, el archivo command original eliminado
+- **Directorio `commands/` del repo** — queda vacío y git lo purga automáticamente. El concepto de "command legacy" desaparece del engine por completo — a partir de esta versión **todos los slash commands son skills**
+
+### Added
+- **`manual-test` al repo** — el skill `manual-test` vivía suelto en `~/.claude/skills/manual-test/` como directorio plano sin versionar. Se trae al repo (`.claude/skills/manual-test/` con `SKILL.md` + `manifest.yaml` + `templates/`) para que sea symlinkeable como el resto tras `install.sh`
+
+### Compliance
+- `/compliance` sobre el propio engine: **100% — A+ (Full Compliance)** tras todos los fixes de esta versión. Todos los bloques a 100% sin críticos, warnings o recommendations
+
+---
+
 ## [5.20.1] - 2026-04-10
 
 ### Fixed

@@ -1,4 +1,4 @@
-version: 5.22.1
+version: 5.22.2
 codename: "Quality Audit"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
@@ -279,6 +279,16 @@ features:
   - lazy-audit-tool-installer
 
 changelog:
+  5.22.2:
+    date: 2026-04-15
+    codename: "Quality Audit"
+    changes:
+      - "fix(docker): retirar COPY commands/ del Dockerfile — el directorio fue borrado en 1cce755 pero el Dockerfile no se actualizó, tumbando todos los builds del VPS desde v5.22.1 con 'failed to compute cache key: /commands: not found'"
+      - "fix(onboarding): _render_template usaba placeholders lowercase ({project_name}, {stack}) pero los templates usan UPPERCASE ({PROJECT_NAME}, {STACK}, {ENGINE_VERSION}, {DATE}, etc.) — ningún placeholder se sustituía y upgrade_project propagaba tokens crudos a los proyectos destino"
+      - "fix(templates): CLAUDE.md.template tenía 'SpecBox Engine v5.6.0' hardcoded en dos sitios (header + footer) en vez de {ENGINE_VERSION}, por lo que los proyectos upgraded quedaban marcados con una versión histórica"
+      - "fix(templates): quality-baseline.json.template tenía placeholders numéricos entre comillas ({COVERAGE_PERCENT}, {TOTAL_TESTS}...) que producían JSON inválido tras sustitución — reemplazados por tokens sin comillas con defaults 0"
+      - "feat(onboarding): _render_template devuelve (content, unresolved_placeholders); regex con lookbehind (?<!\\$) detecta tokens UPPERCASE no sustituidos sin tocar ${SHELL_VARS} como ${FREEPIK_API_KEY}. Los call-sites propagan warnings en el response de upgrade_project para fallar ruidoso si un futuro template añade un placeholder sin registrar default"
+      - "feat(onboarding): template_vars extendido con 25 claves UPPERCASE cubriendo todos los templates (CLAUDE.md, settings.json, team-config.json, quality-baseline.json) con defaults razonables ('TBD', strings vacíos, ceros)"
   5.22.1:
     date: 2026-04-15
     codename: "Quality Audit"

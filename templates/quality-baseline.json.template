@@ -12,37 +12,37 @@
     "policy": "zero-tolerance",
     "command": "{LINT_COMMAND}"
   },
-  
+
   "coverage": {
-    "current": "{COVERAGE_PERCENT}",
-    "baseline": "{COVERAGE_PERCENT}",
+    "current": {COVERAGE_PERCENT},
+    "baseline": {COVERAGE_PERCENT},
     "target": 85,
     "policy": "ratchet",
     "ratchetDirection": "up",
     "command": "{COVERAGE_COMMAND}"
   },
-  
+
   "tests": {
-    "total": "{TOTAL_TESTS}",
-    "passing": "{PASSING_TESTS}",
+    "total": {TOTAL_TESTS},
+    "passing": {PASSING_TESTS},
     "failing": 0,
     "skipped": 0,
     "policy": "no-regression",
     "command": "{TEST_COMMAND}"
   },
-  
+
   "architecture": {
-    "layerViolations": "{VIOLATIONS_COUNT}",
+    "layerViolations": {VIOLATIONS_COUNT},
     "policy": "ratchet"
   },
-  
+
   "deadCode": {
-    "count": "{DEAD_CODE_COUNT}",
+    "count": {DEAD_CODE_COUNT},
     "policy": "ratchet"
   },
-  
+
   "deps": {
-    "outdated": "{OUTDATED_COUNT}",
+    "outdated": {OUTDATED_COUNT},
     "vulnerable": 0,
     "policy": "info"
   },
@@ -68,6 +68,7 @@
     "reportPath": "doc/test_cases/reports/",
     "command": "{E2E_COMMAND}"
   },
+
 
   "designCompliance": {
     "totalFeaturesWithUI": 0,

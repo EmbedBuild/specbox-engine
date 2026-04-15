@@ -100,42 +100,102 @@ def _generate_onboarding_files(
     Returns (files_dict, quality_dirs, warnings).
     """
     roles = _STACK_ROLES.get(stack, _STACK_ROLES.get("python", []))
-    template_vars = {
-        "project_name": project,
-        "stack": stack,
-        "stacks": stack,
-        "infra": ", ".join(infra_list) if infra_list else "none",
-        "developer_name": developer_name,
+    engine_version = _read_engine_version(engine_path)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    infra_joined = ", ".join(infra_list) if infra_list else "none"
+    primary_service = infra_list[0] if infra_list else "none"
+
+    # Placeholder map for _render_template. Keys are matched case-sensitively
+    # against {KEY} tokens in the template files under templates/.
+    # All placeholders that appear in any template MUST have an entry here —
+    # otherwise the raw {TOKEN} leaks into the generated file.
+    template_vars: dict[str, str] = {
+        # Identity / metadata
+        "PROJECT_NAME": project,
+        "STACK": stack,
+        "INFRA": infra_joined,
+        "DEVELOPER_NAME": developer_name,
+        "ENGINE_VERSION": engine_version,
+        "DATE": now_iso,
+        "ISO_TIMESTAMP": now_iso,
+
+        # CLAUDE.md descriptive placeholders (neutral defaults — user edits later)
+        "VERSION": "",
+        "BACKEND": primary_service,
+        "DATABASE": "",
+        "ARCHITECTURE_DESCRIPTION": (
+            f"Patrones estandar para stack {stack}. "
+            "Editar esta seccion con la arquitectura especifica del proyecto."
+        ),
+        "PROJECT_SPECIFIC_RULE_1": "TODO: regla especifica del proyecto",
+        "PROJECT_SPECIFIC_RULE_2": "TODO: regla especifica del proyecto",
+        "UI_STYLE": "TBD",
+        "UI_STYLE_ID": "TBD",
+        "SERVICE_1": primary_service,
+        "PROJECT_ID": "TBD",
+        "STITCH_PROJECT_ID": "TBD",
+        "PLANE_PROJECT": "TBD",
+        "PLANE_PROJECT_ID": "TBD",
+        "USER_ID": "TBD",
+        "STACK_HOOKS": f"(hooks estandar para {stack})",
+
+        # quality-baseline.json numeric/string defaults.
+        # The template was updated so numeric placeholders have NO surrounding
+        # quotes — substituting with "0" keeps the JSON syntactically valid.
+        "LINT_COMMAND": "",
+        "COVERAGE_PERCENT": "0",
+        "COVERAGE_COMMAND": "",
+        "TOTAL_TESTS": "0",
+        "PASSING_TESTS": "0",
+        "TEST_COMMAND": "",
+        "VIOLATIONS_COUNT": "0",
+        "DEAD_CODE_COUNT": "0",
+        "OUTDATED_COUNT": "0",
+        "E2E_COMMAND": "",
     }
 
     files: dict[str, str] = {}
     warnings: list[str] = []
     templates_dir = engine_path / "templates"
 
+    def _render_and_track(rel_label: str, path: Path) -> str:
+        """Render a template and append a warning for any unresolved placeholder."""
+        rendered, unresolved = _render_template(path, template_vars)
+        if unresolved:
+            warnings.append(
+                f"{rel_label}: unresolved placeholders {unresolved} — "
+                "add defaults in _generate_onboarding_files.template_vars"
+            )
+        return rendered
+
     # CLAUDE.md
     template_file = templates_dir / "CLAUDE.md.template"
     if template_file.exists():
-        files["CLAUDE.md"] = _render_template(template_file, template_vars)
+        files["CLAUDE.md"] = _render_and_track("CLAUDE.md", template_file)
     else:
         warnings.append("CLAUDE.md template not found — generate manually")
 
     # .claude/settings.json
     template_file = templates_dir / "settings.json.template"
     if template_file.exists():
-        files[".claude/settings.json"] = _render_template(template_file, template_vars)
+        files[".claude/settings.json"] = _render_and_track(
+            ".claude/settings.json", template_file,
+        )
     else:
         warnings.append("settings.json template not found — generate manually")
 
     # team-config.json
     template_file = templates_dir / "team-config.json.template"
     if template_file.exists():
-        files["team-config.json"] = _render_template(template_file, template_vars)
+        files["team-config.json"] = _render_and_track(
+            "team-config.json", template_file,
+        )
     else:
         team_config = {
             "project": project,
             "stack": stack,
             "roles": roles,
-            "created": datetime.now(timezone.utc).isoformat(),
+            "created": now_iso,
         }
         files["team-config.json"] = json.dumps(team_config, indent=2, ensure_ascii=False)
         warnings.append("team-config.json generated from defaults (no template found)")
@@ -143,10 +203,16 @@ def _generate_onboarding_files(
     # quality-baseline.json
     baseline_template = templates_dir / "quality-baseline.json.template"
     if baseline_template.exists():
-        content = _render_template(baseline_template, template_vars)
+        content = _render_and_track(
+            f".quality/baselines/{project}.json", baseline_template,
+        )
         try:
             baseline = json.loads(content)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as exc:
+            warnings.append(
+                f".quality/baselines/{project}.json: template JSON invalid after "
+                f"render ({exc}) — falling back to _create_initial_baseline"
+            )
             baseline = _create_initial_baseline(project, stack)
     else:
         baseline = _create_initial_baseline(project, stack)
@@ -235,15 +301,41 @@ def _detect_infra(project_path: Path) -> list[str]:
     return sorted(infra)
 
 
-def _render_template(template_path: Path, variables: dict[str, str]) -> str:
-    """Render a template file by substituting {variable} placeholders."""
+import re as _re
+
+# Matches UPPERCASE placeholder tokens like {PROJECT_NAME}, {ENGINE_VERSION}.
+# Requires a non-$ preceding char (or start-of-string) to skip shell-style
+# ${VAR} substitutions that also contain {VAR}. Tokens must start with an
+# uppercase letter and contain only uppercase letters, digits, and underscores.
+_PLACEHOLDER_RE = _re.compile(r"(?<!\$)\{([A-Z][A-Z0-9_]*)\}")
+
+
+def _render_template(
+    template_path: Path,
+    variables: dict[str, str],
+) -> tuple[str, list[str]]:
+    """Render a template by substituting {KEY} placeholders.
+
+    Returns (rendered_content, unresolved_placeholders).
+
+    Matching is case-sensitive and only UPPERCASE tokens are considered.
+    Lowercase braces like {feature} or {stack} inside example paths are
+    left untouched (they are documentation, not placeholders). Shell-style
+    ${VAR} substitutions are also preserved.
+
+    If any UPPERCASE placeholder remains unresolved after substitution, it
+    is reported in the second return value so callers can surface a warning
+    instead of silently leaking raw tokens into generated files.
+    """
     if not template_path.exists():
-        return ""
+        return "", []
 
     content = template_path.read_text(encoding="utf-8")
     for key, value in variables.items():
         content = content.replace(f"{{{key}}}", value)
-    return content
+
+    unresolved = sorted({m.group(1) for m in _PLACEHOLDER_RE.finditer(content)})
+    return content, unresolved
 
 
 def _create_initial_baseline(project_name: str, stack: str) -> dict:

@@ -1,6 +1,6 @@
 # {PROJECT_NAME}
 
-> Generado con SpecBox Engine v5.6.0
+> Generado con SpecBox Engine v{ENGINE_VERSION}
 
 ## Stack
 
@@ -362,4 +362,4 @@ Si el PRD no tiene seccion Audiencia, el pipeline funciona como siempre (legacy)
 ---
 
 *Generado: {DATE}*
-*Engine: SpecBox Engine v5.6.0*
+*Engine: SpecBox Engine v{ENGINE_VERSION}*

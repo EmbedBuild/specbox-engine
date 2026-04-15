@@ -53,7 +53,7 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
     # ------------------------------------------------------------------
     @mcp.custom_route("/health", methods=["GET"])
     async def health(request: Request) -> JSONResponse:
-        return _json({"status": "ok", "version": "5.22.1"})
+        return _json({"status": "ok", "version": "5.22.2"})
 
     # ------------------------------------------------------------------
     # GET /api/sala — Global dashboard

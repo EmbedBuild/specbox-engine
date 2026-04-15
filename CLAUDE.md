@@ -1,4 +1,4 @@
-# SpecBox Engine v5.22.1
+# SpecBox Engine v5.22.2
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -795,6 +795,6 @@ que la Sala de Máquinas muestre el último audit sin escanear el filesystem.
 
 ## Engine Version
 
-Current: v5.22.1 "Quality Audit"
+Current: v5.22.2 "Quality Audit"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

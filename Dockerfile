@@ -30,7 +30,6 @@ COPY agents/ agents/
 COPY agent-teams/ agent-teams/
 COPY templates/ templates/
 COPY rules/ rules/
-COPY commands/ commands/
 COPY doc/ doc/
 COPY docs/ docs/
 COPY .quality/ .quality/

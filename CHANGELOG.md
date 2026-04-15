@@ -2,6 +2,48 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.23.0] - IN PROGRESS — "Full Mutations"
+
+> **Status**: Design locked, implementation pending. See [doc/design/v5.23.0-full-mutations.md](doc/design/v5.23.0-full-mutations.md) for the full technical design.
+> **Branch**: `feature/full-mutations-v5.23.0`
+> **Target tool count**: 114 → 138 (+24)
+
+Minor release que cierra el hueco de mutaciones granulares sobre spec-driven items. v5.22.x exponía lectura completa y transiciones de estado pero obligaba a reimportar spec completo (destructivo) o editar a mano en Trello/Plane para cualquier cambio de metadata, rompiendo la promesa spec-driven. Este release añade 24 tools organizadas en 4 tiers cubriendo: (1) mutaciones granulares de US/UC/AC con batch variants, (2) gestión de hitos de pago H1..H4 y multirepo/satellites, (3) operaciones de board (quality, archival, diff), y (4) automatización de acceptance consolidada por hito. Todas las tools son backend-agnósticas vía `SpecBackend` ABC. No hay breaking changes — las 114 tools existentes mantienen firma y semántica.
+
+**Principio rector del release**: batch-first. Cada tool granular con caso de uso batch real tiene su variante batch como tool de primera clase (no afterthought), y el docstring de la granular referencia su batch equivalente en el primer párrafo para que el LLM la descubra al seleccionar tool. Esto minimiza el consumo de tokens MCP en loops de N items. Guardado como regla permanente en engram `architecture/mcp-batch-first`.
+
+### Design (shipped in this commit)
+
+- **`doc/design/v5.23.0-full-mutations.md`** — diseño técnico completo: las 24 tools con firmas Python exactas, return shapes, errores estructurados, validación en tool-layer vs ABC, plan de tests por tier (~60 tests nuevos), plan de release, 24 ACs refinados del addendum original (AC-01..AC-24), 5 open questions documentadas. Este archivo es la **única fuente de verdad** para las sesiones de implementación pendientes.
+- **Branch `feature/full-mutations-v5.23.0`** — creada desde main en este mismo commit para que las sesiones siguientes arranquen con rama lista.
+
+### Planned (pending implementation — siguientes sesiones)
+
+**Tier 1 — Granular mutations** (`server/tools/spec_mutations.py` — 8 tools):
+`update_uc`, `update_uc_batch`, `update_us`, `update_ac`, `update_ac_batch`, `add_ac`, `delete_ac`, `add_uc`
+
+**Tier 2 — Milestone & multirepo** (`server/tools/milestone_management.py` — 8 tools):
+`set_uc_milestone`, `set_uc_milestone_batch`, `set_uc_satellite`, `get_milestone_status`, `rebalance_milestones`, `get_satellite_queue`, `sync_multirepo_state`, `get_cross_repo_dependencies`
+
+**Tier 3 — Board operations** (`server/tools/board_operations.py` — 5 tools):
+`validate_ac_quality`, `set_ac_metadata`, `link_uc_parent`, `delete_uc`, `get_board_diff`
+
+**Tier 4 — Acceptance automation** (`server/tools/acceptance_automation.py` — 3 tools):
+`bulk_update_hours_from_description`, `estimate_from_ac`, `milestone_acceptance_check`
+
+**ABC deltas** (mínimos, confirmados tras exploración):
+- `SpecBackend.update_acceptance_criterion` — nuevo método para reescribir texto de AC (checklist item en Trello, sub-work-item en Plane, item JSON en FreeForm)
+- `SpecBackend.archive_item` — nuevo método para archivar UCs sin delete físico (Trello: lista "Archived"; Plane: estado Cancelled + comentario; FreeForm: `archive.json`)
+
+**Files adicionales tocados en el release cut**:
+`ENGINE_VERSION.yaml`, `CLAUDE.md`, `pyproject.toml`, `server/server.py`, `templates/settings.json.template`
+
+### AC-21 (post-merge manual test)
+
+Smoke test end-to-end contra el board real `69cd517b0a0bde849084a262` (proyecto `potencial_digital_2026`) verificando `set_uc_milestone_batch`, `bulk_update_hours_from_description`, `get_milestone_status("H1")`, y `milestone_acceptance_check("H1")`. Marcado por el usuario como test manual post-merge para no mezclar validación con board de producción durante `/implement`.
+
+---
+
 ## [5.22.1] - 2026-04-15
 
 Patch release centrado en consolidar el modelo de frontmatter de skills, eliminar los `commands/*.md` legacy del repo y dejar el compliance audit del propio engine en 100% sin falsos negativos estructurales.

@@ -571,6 +571,63 @@ class FreeformBackend(SpecBackend):
         self._regenerate_progress()
         return result
 
+    async def update_acceptance_criterion(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+        *,
+        text: str | None = None,
+        done: bool | None = None,
+    ) -> ChecklistItemDTO:
+        items = self._load_items()
+        for item in items:
+            if item.get("parent_id") != uc_item_id:
+                continue
+            if "AC" not in item.get("labels", []):
+                continue
+            parsed_id, _ = parse_item_id(item.get("name", ""), "AC")
+            if parsed_id != ac_id:
+                continue
+            if text is not None:
+                item["name"] = f"[{ac_id}] {text}"
+            if done is not None:
+                item["state"] = "done" if done else "backlog"
+            if text is not None or done is not None:
+                item["updated_at"] = _now_iso()
+                self._save_items(items)
+                self._regenerate_progress()
+
+            _, clean_name = parse_item_id(item["name"], "AC")
+            return ChecklistItemDTO(
+                id=ac_id,
+                text=clean_name or item["name"],
+                done=item.get("state") == "done",
+                backend_id=item["id"],
+            )
+
+        raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
+
+    async def delete_acceptance_criterion(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+    ) -> None:
+        items = self._load_items()
+        for idx, item in enumerate(items):
+            if item.get("parent_id") != uc_item_id:
+                continue
+            if "AC" not in item.get("labels", []):
+                continue
+            parsed_id, _ = parse_item_id(item.get("name", ""), "AC")
+            if parsed_id == ac_id:
+                items.pop(idx)
+                self._save_items(items)
+                self._regenerate_progress()
+                return
+        raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
+
     # ── SpecBackend: Comments ────────────────────────────────────
 
     async def add_comment(

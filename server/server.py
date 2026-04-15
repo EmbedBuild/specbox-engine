@@ -25,6 +25,7 @@ from .tools.hooks import register_hook_tools
 from .tools.onboarding import register_onboarding_tools
 from .tools.state import register_state_tools
 from .tools.spec_driven import register_spec_driven_tools
+from .tools.spec_mutations import register_spec_mutations_tools
 from .tools.migration import register_migration_tools
 from .tools.sync import register_sync_tools
 from .tools.acceptance import register_acceptance_tools
@@ -128,6 +129,11 @@ register_resources(mcp, ENGINE_PATH)
 
 # Register spec-driven tools (21 tools)
 register_spec_driven_tools(mcp)
+
+# Register Tier 1 mutation tools (v5.23.0 Full Mutations — 8 tools:
+# update_uc, update_uc_batch, update_us, update_ac, update_ac_batch,
+# add_ac, delete_ac, add_uc)
+register_spec_mutations_tools(mcp)
 
 # Register migration tools (5 tools: migrate_preview, migrate_project, migrate_status, set_migration_target, switch_backend)
 register_migration_tools(mcp)

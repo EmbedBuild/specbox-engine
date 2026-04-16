@@ -28,6 +28,7 @@ from .tools.spec_driven import register_spec_driven_tools
 from .tools.spec_mutations import register_spec_mutations_tools
 from .tools.milestone_management import register_milestone_management_tools
 from .tools.board_operations import register_board_operations_tools
+from .tools.acceptance_automation import register_acceptance_automation_tools
 from .tools.migration import register_migration_tools
 from .tools.sync import register_sync_tools
 from .tools.acceptance import register_acceptance_tools
@@ -147,6 +148,11 @@ register_milestone_management_tools(mcp)
 # validate_ac_quality, set_ac_metadata, link_uc_parent, delete_uc,
 # get_board_diff)
 register_board_operations_tools(mcp)
+
+# Register Tier 4 acceptance automation tools (v5.23.0 — 3 tools:
+# bulk_update_hours_from_description, estimate_from_ac,
+# milestone_acceptance_check)
+register_acceptance_automation_tools(mcp)
 
 # Register migration tools (5 tools: migrate_preview, migrate_project, migrate_status, set_migration_target, switch_backend)
 register_migration_tools(mcp)

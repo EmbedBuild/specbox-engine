@@ -483,7 +483,7 @@ Orquestador: Parsea plan → Extrae fases → Persiste plan en Engram
 Para cada fase, el orquestador ejecuta:
 
 ```
-1. PREPARAR contexto (max ~8,700 tokens):
+1. PREPARAR contexto (max ~20,000 tokens — v5.24.0 expandido para Opus 4.7):
    - Extraer SOLO la seccion de la fase del plan
    - Cargar overview de arquitectura del stack (~500 words max)
    - Listar archivos que la fase va a modificar (paths, no contenido)
@@ -905,12 +905,12 @@ Each spawned Task has a context budget. The main agent MUST control what goes in
 
 | Concepto | Budget máximo | Notas |
 |----------|--------------|-------|
-| Phase description | ~500 tokens | Del plan, solo la sección de la fase |
-| Architecture rules | ~2,000 tokens | Solo el overview del stack, no todos los docs |
-| Relevant source files | ~5,000 tokens | Solo archivos que la fase modifica |
-| Stack patterns | ~1,000 tokens | Patterns relevantes (ej: solo BLoC si es state mgmt) |
-| Checkpoint state | ~200 tokens | JSON minimal del checkpoint anterior |
-| **Total per task** | **~8,700 tokens** | **< 5% de la ventana de contexto** |
+| Phase description | ~1,500 tokens | Del plan, sección completa de la fase (v5.24.0: ampliado para incluir edge cases) |
+| Architecture rules | ~4,500 tokens | Overview del stack + patrones relevantes para la fase |
+| Relevant source files | ~11,000 tokens | Archivos que la fase modifica + dependencias cercanas (v5.24.0: permite contexto más rico) |
+| Stack patterns | ~2,500 tokens | Patterns relevantes (ej: BLoC + repository + testing si es state mgmt) |
+| Checkpoint state | ~500 tokens | JSON del checkpoint anterior + resumen de fases completadas |
+| **Total per task** | **~20,000 tokens** | **~2% de ventana de Opus 4.7 (1M context)** — v5.24.0: expandido de ~8,700 |
 
 ### Context Loading Rules
 

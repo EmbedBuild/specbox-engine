@@ -97,7 +97,7 @@ Crear `doc/testing/manual-test-evidence.md` usando la plantilla:
 
 **Proyecto**: {nombre}
 **Tester**: {nombre del usuario} (rol)
-**Asistido por**: Claude Code (Opus 4.6)
+**Asistido por**: Claude Code (Opus 4.7)
 **Fecha inicio**: {fecha}
 **Entorno**: localhost ({stack}) + {BD}
 

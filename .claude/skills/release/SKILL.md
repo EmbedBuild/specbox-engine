@@ -245,7 +245,7 @@ git commit -m "feat: v{nueva_version} {codename} — {resumen de 1 linea}
 
 {lista de cambios principales, max 5 lineas}
 
-Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ### 6.3 Push

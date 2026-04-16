@@ -131,7 +131,7 @@
     },
     "rules": {
       "isolation": "Cada sub-agente recibe contexto limpio, sin estado de fases anteriores",
-      "budgetPerTask": "~8,700 tokens max de contexto inyectado",
+      "budgetPerTask": "~20,000 tokens max de contexto inyectado (v5.24.0: expandido para Opus 4.7)",
       "orchestratorBudget": "<15% de la ventana de contexto total",
       "reportFormat": "files_created, files_modified, lint_result, phase_status, errors (max 3 lines)"
     }
@@ -154,6 +154,6 @@
     "goOnly": "Orchestrator + GoSpecialist + DBInfra + QAReviewer + AcceptanceTester + AcceptanceValidator",
     "appsScriptOnly": "Orchestrator + AppScriptSpecialist + QAReviewer",
     "fullStack": "Orchestrator + todos los roles relevantes",
-    "contextBudget": "Cada Task recibe max ~8,700 tokens. Si una fase excede 30% de ventana, splitear en sub-fases."
+    "contextBudget": "Cada Task recibe max ~20,000 tokens (v5.24.0: expandido para Opus 4.7). Si una fase excede 30% de ventana, splitear en sub-fases."
   }
 }

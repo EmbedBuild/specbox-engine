@@ -1,5 +1,5 @@
-version: 5.23.0
-codename: "Full Mutations"
+version: 5.24.0
+codename: "Opus 4.7 Tuning"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-04-16
@@ -310,8 +310,25 @@ features:
   - delete-acceptance-criterion-abc
   - archive-item-abc
   - batch-first-tool-design
+  # New (v5.24.0)
+  - opus-4-7-tuning
+  - context-budget-expanded-20k
+  - ag-09b-opus-upgrade
+  - ag-10-audit-opus-upgrade
 
 changelog:
+  5.24.0:
+    date: 2026-04-16
+    codename: "Opus 4.7 Tuning"
+    changes:
+      - "feat: Context budget per /implement phase expanded 8,700 → 20,000 tokens to leverage Opus 4.7 1M context window (~2% of window, previously ~4.35% of 200K). Sub-budgets rebalanced: phase desc 500→1,500, architecture 2,000→4,500, source files 5,000→11,000, stack patterns 1,000→2,500, checkpoint 200→500"
+      - "feat: AG-09b Acceptance Validator upgraded sonnet → opus. Rationale: validar US completas con >3 UCs encadenados + evidencia visual embebida + PRD + git diff excede razonamiento óptimo de sonnet. Opus 4.7 reduce falsos ACCEPTED/REJECTED en criterios ambiguos"
+      - "feat: AG-10 Quality Auditor (externo, /audit) upgraded sonnet → opus. Rationale: síntesis de 8 analizadores ISO 25010 + signals SpecBox + mix 60/40 maintainability genera reports >15K tokens; Opus 4.7 mejora calidad de recomendaciones priorizadas y narrativa del PDF final"
+      - "docs: Updated context budget references across CLAUDE.md, rules/GLOBAL_RULES.md, README.md (ES+EN), .claude/skills/implement/SKILL.md, templates/team-config.json.template"
+      - "docs: Co-Authored-By footer updated Opus 4.6 → Opus 4.7 in .claude/skills/release/SKILL.md and manual-test template"
+      - "note: No model IDs are hardcoded — all references remain semantic (opus/sonnet/haiku). Harness resolves to latest Opus 4.7 automatically"
+
+
   5.23.0:
     date: 2026-04-16
     codename: "Full Mutations"

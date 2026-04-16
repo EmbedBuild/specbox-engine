@@ -918,10 +918,10 @@ Sistema de gestion de contexto para mantener el orquestador dentro de limites.
 
 | Operacion | Budget max |
 |-----------|-----------|
-| Fase de implementacion | ~8,700 tokens |
+| Fase de implementacion | ~20,000 tokens (v5.24.0: expandido para Opus 4.7) |
 | Resumen de sub-agente | Max 5 lineas |
 | Plan (lectura unica) | Sin limite |
-| Checkpoint | ~200 tokens |
+| Checkpoint | ~500 tokens |
 
 **Reglas de pruning:**
 - Agressive pruning despues de cada fase
@@ -1941,10 +1941,10 @@ Context management system to keep the orchestrator within limits.
 
 | Operation | Max budget |
 |-----------|-----------|
-| Implementation phase | ~8,700 tokens |
+| Implementation phase | ~20,000 tokens (v5.24.0: expanded for Opus 4.7) |
 | Sub-agent summary | Max 5 lines |
 | Plan (single read) | No limit |
-| Checkpoint | ~200 tokens |
+| Checkpoint | ~500 tokens |
 
 **Pruning rules:** Aggressive pruning after each phase, external persistence (checkpoints, Engram), compact summaries by default, fork isolation for sub-agents.
 

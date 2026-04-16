@@ -92,7 +92,7 @@ Antes de entregar el report enriquecido, AG-10 debe confirmar:
 
 ## Modelo recomendado
 
-`sonnet` — la tarea es síntesis estructurada larga sobre datos ya calculados.
+`opus` (v5.24.0) — El audit ISO/IEC 25010 genera un `QualityReport` con 8 analizadores + signals SpecBox + mix 60/40 de maintainability. La síntesis de recomendaciones priorizadas requiere cruzar findings de los 8 bloques y producir narrativa coherente que el PDF final incorpora. Opus 4.7 mejora la calidad de recomendaciones en reports largos (>15K tokens de datos analizados) y aprovecha 1M context para no truncar evidencia. Anterior: sonnet (v5.22.0).
 
 ## Alcance v1 vs v2 (explícito)
 

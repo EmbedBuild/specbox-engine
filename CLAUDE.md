@@ -1,4 +1,4 @@
-# SpecBox Engine v5.23.0
+# SpecBox Engine v5.24.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -437,10 +437,10 @@ Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP 
 - `SPECBOX_SYNC_TOKEN` — auth para endpoints de heartbeat y sync (VPS + local)
 - `GITHUB_TOKEN` — para GitHub API (solo VPS)
 
-## Context Engineering (v3.5)
+## Context Engineering (v5.24.0)
 
 - Skills with `context: fork` run in isolated subagents — they don't pollute your main session
-- /implement delegates phases to isolated Tasks with a **context budget of ~8,700 tokens per phase**
+- /implement delegates phases to isolated Tasks with a **context budget of ~20,000 tokens per phase** (v5.24.0: expanded from 8,700 to leverage Opus 4.7 1M context window)
 - Read-only Skills (explore, optimize-agents, adapt-ui) cannot modify files
 - File ownership per agent is documented in .claude/skills/implement/file-ownership.md
 - Context budget estimator: `.quality/scripts/context-budget.sh <path> [--detail]`
@@ -461,7 +461,7 @@ Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP 
 | `validate-results-json.js` | `.quality/scripts/validate-results-json.js <path> [--check-evidence]` | Validate results.json against contract (used by e2e-gate.mjs hook) |
 | `specbox-audit.mjs` | `.quality/scripts/specbox-audit.mjs [path] [--json] [--fix] [--verbose]` | Compliance audit: version, hooks, settings, quality infra, skills, spec-driven |
 
-## Agents (v3.5)
+## Agents (v5.24.0)
 
 | ID | Rol | Archivo | Modelo |
 |----|-----|---------|--------|
@@ -473,10 +473,11 @@ Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP 
 | AG-05 | n8n Specialist | `agents/n8n-specialist.md` | sonnet |
 | AG-06 | Design Specialist | `agents/design-specialist.md` | sonnet |
 | AG-07 | Apps Script Specialist | `agents/appscript-specialist.md` | sonnet |
-| AG-08 | Quality Auditor | `agents/quality-auditor.md` | sonnet |
+| AG-08 | Quality Auditor (interno, /implement) | `agents/quality-auditor.md` | sonnet |
 | AG-09a | Acceptance Tester | `agents/acceptance-tester.md` | sonnet |
-| AG-09b | Acceptance Validator | `agents/acceptance-validator.md` | sonnet |
+| AG-09b | Acceptance Validator | `agents/acceptance-validator.md` | **opus** (v5.24.0) |
 | AG-10 | Developer Tester | `agents/developer-tester.md` | sonnet |
+| AG-10 | Quality Auditor (externo, /audit) | `agents/ag-10-quality-auditor.md` | **opus** (v5.24.0) |
 
 ## Acceptance Engine (v3.8)
 
@@ -800,6 +801,6 @@ que la Sala de Máquinas muestre el último audit sin escanear el filesystem.
 
 ## Engine Version
 
-Current: v5.23.0 "Full Mutations"
+Current: v5.24.0 "Opus 4.7 Tuning"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

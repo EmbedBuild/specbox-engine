@@ -514,7 +514,7 @@ Orquestador: Lee plan → Extrae fases
 
 | Operación | Budget máximo | Contexto típico |
 |-----------|--------------|-----------------|
-| Fase de /implement | ~8,700 tokens | Plan section + architecture overview + source files |
+| Fase de /implement | ~20,000 tokens | Plan section + architecture overview + source files (v5.24.0: expandido de 8,700 para Opus 4.7) |
 | /explore (fork) | ~15,000 tokens | Project scan + file analysis |
 | /plan (fork) | ~12,000 tokens | PRD + architecture + existing code analysis |
 | /prd (fork) | ~5,000 tokens | Feature description + project context |

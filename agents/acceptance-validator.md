@@ -361,7 +361,7 @@ Cuando AG-09b emite CONDITIONAL o REJECTED:
 
 ## Modelo recomendado
 
-**sonnet** — Necesita razonamiento profundo para evaluar si una implementación cumple un criterio funcional cruzando `.feature`, JSON Cucumber report, screenshots y git diff.
+**opus** (v5.24.0) — Validar US completas (múltiples UCs) con evidencia visual embebida + PRD + git diff excede el razonamiento óptimo de sonnet cuando hay >3 UCs encadenados. Opus 4.7 con 1M context permite validar US largas sin fragmentar, y su razonamiento más profundo reduce falsos ACCEPTED/REJECTED en criterios ambiguos. Anterior: sonnet (v3.8-v5.23.0).
 
 ---
 

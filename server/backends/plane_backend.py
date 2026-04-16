@@ -625,6 +625,91 @@ class PlaneBackend(SpecBackend):
 
         return result
 
+    async def _find_ac_child(
+        self, board_id: str, uc_item_id: str, ac_id: str
+    ) -> ItemDTO | None:
+        children = await self.get_item_children(board_id, uc_item_id)
+        for child in children:
+            if "AC" not in child.labels:
+                continue
+            parsed_id, _ = parse_item_id(child.name, "AC")
+            if parsed_id == ac_id:
+                return child
+        return None
+
+    async def update_acceptance_criterion(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+        *,
+        text: str | None = None,
+        done: bool | None = None,
+    ) -> ChecklistItemDTO:
+        ac_item = await self._find_ac_child(board_id, uc_item_id, ac_id)
+        if not ac_item:
+            raise ValueError(
+                f"AC '{ac_id}' not found as child of UC item '{uc_item_id}'"
+            )
+
+        data: dict[str, Any] = {}
+        if text is not None:
+            data["name"] = f"[{ac_id}] {text}"
+        if done is not None:
+            target_state = "done" if done else "backlog"
+            state_id = await self._resolve_state_id(board_id, target_state)
+            if state_id:
+                data["state"] = state_id
+
+        if data:
+            await self.client.update_work_item(board_id, ac_item.id, **data)
+
+        # Return DTO reflecting intended state
+        final_text = text if text is not None else parse_item_id(ac_item.name, "AC")[1]
+        if done is None:
+            done_state = self._is_state_completed(board_id, ac_item.state_id)
+        else:
+            done_state = done
+        return ChecklistItemDTO(
+            id=ac_id,
+            text=final_text,
+            done=done_state,
+            backend_id=ac_item.id,
+        )
+
+    async def delete_acceptance_criterion(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+    ) -> None:
+        ac_item = await self._find_ac_child(board_id, uc_item_id, ac_id)
+        if not ac_item:
+            raise ValueError(
+                f"AC '{ac_id}' not found as child of UC item '{uc_item_id}'"
+            )
+        await self.client.delete_work_item(board_id, ac_item.id)
+
+    # ── SpecBackend: Archival ────────────────────────────────────
+
+    async def archive_item(
+        self, board_id: str, item_id: str, *, reason: str,
+    ) -> dict[str, Any]:
+        from datetime import datetime, timezone
+
+        cancelled_state_id = await self._resolve_state_id(board_id, "cancelled")
+        if not cancelled_state_id:
+            # Fallback: try "done" if "cancelled" doesn't exist
+            cancelled_state_id = await self._resolve_state_id(board_id, "done")
+
+        now = datetime.now(timezone.utc).isoformat()
+        if cancelled_state_id:
+            await self.client.update_work_item(board_id, item_id, state=cancelled_state_id)
+
+        comment_html = f"<p>Archived ({now}): {reason}</p>"
+        await self.client.create_comment(board_id, item_id, comment_html)
+        return {"archive_location": "cancelled_state", "archived_at": now}
+
     # ── SpecBackend: Comments ────────────────────────────────────
 
     async def add_comment(

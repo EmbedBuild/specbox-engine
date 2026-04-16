@@ -285,6 +285,18 @@ class _MockBackend(SpecBackend):
     async def create_acceptance_criteria(self, board_id, uc_item_id, criteria) -> list:
         return []
 
+    async def update_acceptance_criterion(
+        self, board_id, uc_item_id, ac_id, *, text=None, done=None
+    ):
+        from server.spec_backend import ChecklistItemDTO as _CL
+        return _CL(id=ac_id, text=text or "", done=bool(done))
+
+    async def delete_acceptance_criterion(self, board_id, uc_item_id, ac_id) -> None:
+        return None
+
+    async def archive_item(self, board_id, item_id, *, reason=""):
+        return {"archive_location": "test", "archived_at": "2026-01-01T00:00:00+00:00"}
+
     async def add_comment(self, board_id, item_id, text) -> CommentDTO:
         return CommentDTO(id="c1", text=text)
 

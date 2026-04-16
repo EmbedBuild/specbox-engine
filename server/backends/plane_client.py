@@ -249,6 +249,12 @@ class PlaneClient:
             json=data,
         )
 
+    async def delete_work_item(self, project_id: str, item_id: str) -> None:
+        await self._request(
+            "DELETE",
+            self._proj_path(project_id, f"issues/{item_id}/"),
+        )
+
     # ── Comments ─────────────────────────────────────────────────
 
     async def list_comments(

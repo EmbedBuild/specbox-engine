@@ -488,6 +488,105 @@ class TrelloBackend(SpecBackend):
             )
         return result
 
+    async def update_acceptance_criterion(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+        *,
+        text: str | None = None,
+        done: bool | None = None,
+    ) -> ChecklistItemDTO:
+        checklists = await self.client.get_card_checklists(uc_item_id)
+        checkitem_id = self._find_checkitem_id(checklists, ac_id, "")
+        if not checkitem_id:
+            raise ValueError(f"AC '{ac_id}' not found on card {uc_item_id}")
+
+        new_name: str | None = None
+        if text is not None:
+            new_name = f"{ac_id}: {text}"
+
+        new_state: str | None = None
+        if done is not None:
+            new_state = "complete" if done else "incomplete"
+
+        if new_name is None and new_state is None:
+            # Nothing to update — resolve current values for the return DTO.
+            parsed = parse_checklist_acs(checklists)
+            current = next((a for a in parsed if a.id == ac_id), None)
+            return ChecklistItemDTO(
+                id=ac_id,
+                text=current.text if current else "",
+                done=current.done if current else False,
+                backend_id=checkitem_id,
+            )
+
+        await self.client.update_checklist_item(
+            uc_item_id, checkitem_id, state=new_state, name=new_name
+        )
+
+        # Resolve the final state for the return DTO.
+        updated = await self.client.get_card_checklists(uc_item_id)
+        parsed = parse_checklist_acs(updated)
+        current = next((a for a in parsed if a.id == ac_id), None)
+        return ChecklistItemDTO(
+            id=ac_id,
+            text=current.text if current else (text or ""),
+            done=current.done if current else bool(done),
+            backend_id=checkitem_id,
+        )
+
+    async def delete_acceptance_criterion(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+    ) -> None:
+        checklists = await self.client.get_card_checklists(uc_item_id)
+        checkitem_id = self._find_checkitem_id(checklists, ac_id, "")
+        if not checkitem_id:
+            raise ValueError(f"AC '{ac_id}' not found on card {uc_item_id}")
+        await self.client.delete_checklist_item(uc_item_id, checkitem_id)
+
+    # ── Archival ─────────────────────────────────────────────────
+
+    async def archive_item(
+        self, board_id: str, item_id: str, *, reason: str,
+    ) -> dict[str, Any]:
+        from datetime import datetime, timezone
+
+        # Try to find or create an "Archived" list
+        lists = await self.client.get_board_lists(board_id)
+        archived_list = next(
+            (l for l in lists if l.get("name", "").lower() in ("archived", "archivado")),
+            None,
+        )
+
+        now = datetime.now(timezone.utc).isoformat()
+        if archived_list:
+            await self.client.move_card(item_id, archived_list["id"])
+            await self.client.add_comment(item_id, f"Archived ({now}): {reason}")
+            return {"archive_location": "archived_list", "archived_at": now}
+
+        # Fallback: try creating the list
+        try:
+            new_list = await self.client.create_list(board_id, "Archived")
+            await self.client.move_card(item_id, new_list["id"])
+            await self.client.add_comment(item_id, f"Archived ({now}): {reason}")
+            return {"archive_location": "archived_list", "archived_at": now}
+        except Exception:
+            # Final fallback: add "archived" label
+            labels = await self.client.get_board_labels(board_id)
+            arch_label = next(
+                (l for l in labels if l.get("name", "").lower() == "archived"),
+                None,
+            )
+            if not arch_label:
+                arch_label = await self.client.create_label(board_id, "archived", "black")
+            await self.client.add_label_to_card(item_id, arch_label["id"])
+            await self.client.add_comment(item_id, f"Archived via label ({now}): {reason}")
+            return {"archive_location": "archived_label", "archived_at": now}
+
     # ── Comments ─────────────────────────────────────────────────
 
     async def add_comment(

@@ -203,11 +203,28 @@ class TrelloClient:
             "POST", f"/checklists/{checklist_id}/checkItems", params={"name": name, "pos": pos}
         )
 
-    async def update_checklist_item(self, card_id: str, checkitem_id: str, state: str = "complete") -> dict:
+    async def update_checklist_item(
+        self,
+        card_id: str,
+        checkitem_id: str,
+        state: str | None = None,
+        name: str | None = None,
+    ) -> dict:
+        params: dict[str, Any] = {}
+        if state is not None:
+            params["state"] = state
+        if name is not None:
+            params["name"] = name
         return await self._request(
             "PUT",
             f"/cards/{card_id}/checkItem/{checkitem_id}",
-            params={"state": state},
+            params=params,
+        )
+
+    async def delete_checklist_item(self, card_id: str, checkitem_id: str) -> None:
+        await self._request(
+            "DELETE",
+            f"/cards/{card_id}/checkItem/{checkitem_id}",
         )
 
     async def get_card_checklists(self, card_id: str) -> list[dict]:

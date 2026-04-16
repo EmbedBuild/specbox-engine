@@ -1,7 +1,7 @@
 """
-SpecBox Engine MCP Server v5.22.2
+SpecBox Engine MCP Server v5.23.0
 
-Unified MCP endpoint: 114 tools (engine + spec-driven + migration + telemetry + stitch + quality-audit).
+Unified MCP endpoint: 138 tools (engine + spec-driven + mutations + milestones + board-ops + acceptance + migration + telemetry + stitch + quality-audit).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
 
 Architecture:
@@ -25,6 +25,10 @@ from .tools.hooks import register_hook_tools
 from .tools.onboarding import register_onboarding_tools
 from .tools.state import register_state_tools
 from .tools.spec_driven import register_spec_driven_tools
+from .tools.spec_mutations import register_spec_mutations_tools
+from .tools.milestone_management import register_milestone_management_tools
+from .tools.board_operations import register_board_operations_tools
+from .tools.acceptance_automation import register_acceptance_automation_tools
 from .tools.migration import register_migration_tools
 from .tools.sync import register_sync_tools
 from .tools.acceptance import register_acceptance_tools
@@ -64,7 +68,7 @@ STATE_PATH.mkdir(parents=True, exist_ok=True)
 mcp = FastMCP(
     "specbox-engine",
     instructions="""
-    MCP server for the SpecBox Engine v5.22.2 — an agentic programming system for Claude Code.
+    MCP server for the SpecBox Engine v5.23.0 — an agentic programming system for Claude Code.
 
     Use these tools to:
     - Query implementation plans and their status
@@ -129,6 +133,27 @@ register_resources(mcp, ENGINE_PATH)
 # Register spec-driven tools (21 tools)
 register_spec_driven_tools(mcp)
 
+# Register Tier 1 mutation tools (v5.23.0 Full Mutations — 8 tools:
+# update_uc, update_uc_batch, update_us, update_ac, update_ac_batch,
+# add_ac, delete_ac, add_uc)
+register_spec_mutations_tools(mcp)
+
+# Register Tier 2 milestone & multirepo tools (v5.23.0 — 8 tools:
+# set_uc_milestone, set_uc_milestone_batch, set_uc_satellite,
+# get_milestone_status, rebalance_milestones, get_satellite_queue,
+# sync_multirepo_state, get_cross_repo_dependencies)
+register_milestone_management_tools(mcp)
+
+# Register Tier 3 board operation tools (v5.23.0 — 5 tools:
+# validate_ac_quality, set_ac_metadata, link_uc_parent, delete_uc,
+# get_board_diff)
+register_board_operations_tools(mcp)
+
+# Register Tier 4 acceptance automation tools (v5.23.0 — 3 tools:
+# bulk_update_hours_from_description, estimate_from_ac,
+# milestone_acceptance_check)
+register_acceptance_automation_tools(mcp)
+
 # Register migration tools (5 tools: migrate_preview, migrate_project, migrate_status, set_migration_target, switch_backend)
 register_migration_tools(mcp)
 
@@ -175,7 +200,7 @@ def main():
     host = os.getenv("MCP_HOST", "0.0.0.0")
 
     logger = structlog.get_logger(__name__)
-    logger.info("server_starting", transport=transport, host=host, port=port, version="5.22.2")
+    logger.info("server_starting", transport=transport, host=host, port=port, version="5.23.0")
 
     uvicorn_opts = {"timeout_graceful_shutdown": 5}
 

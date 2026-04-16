@@ -1,8 +1,8 @@
-# SpecBox Engine v5.22.2
+# SpecBox Engine v5.23.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (114 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010.
+> Monorepo unificado: engine + MCP server (138 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010.
 
 ## Que es este repositorio
 
@@ -15,7 +15,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (114 tools) + Sala de Máquinas dashboard (React 19)
+- **Server** — MCP server unificado (138 tools) + Sala de Máquinas dashboard (React 19)
 - **Quality Audit** — ISO/IEC 25010 (SQuaRE) on-demand via `/audit` + AG-10 auditor externo
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
@@ -202,8 +202,8 @@ specbox-engine/
 ├── .quality/              ← Telemetria y evidencia (v3.1)
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
-├── server/                ← MCP server unificado (v5.22)
-│   ├── server.py          ← FastMCP (114 tools)
+├── server/                ← MCP server unificado (v5.23)
+│   ├── server.py          ← FastMCP (138 tools)
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
@@ -221,7 +221,7 @@ specbox-engine/
 │   │   ├── persistence.py      ← Evidence under evidence/audits/ + project_meta
 │   │   ├── analyzers/          ← 8 SQuaRE analyzers (one per characteristic)
 │   │   └── reporters/          ← JSON + ReportLab PDF (NumberedCanvas + embed.build brand)
-│   ├── tools/             ← 20 tool modules (114 tools)
+│   ├── tools/             ← 24 tool modules (138 tools)
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
 │   │   ├── quality.py     ← 4 tools
@@ -232,6 +232,11 @@ specbox-engine/
 │   │   ├── onboarding.py  ← 10 tools (detect, status, list, onboard, upgrade, upgrade_all, matrix, wizard, visual_gap, archive)
 │   │   ├── state.py       ← 17 tools
 │   │   ├── spec_driven.py ← 21 tools (backend-agnostic via SpecBackend)
+│   │   ├── spec_mutations.py ← 8 tools (v5.23.0 Tier 1: update_uc/us/ac, add_ac/uc, delete_ac + batch variants)
+│   │   ├── milestone_management.py ← 8 tools (v5.23.0 Tier 2: milestones H1-H4, satellite, rebalance, cross-repo deps)
+│   │   ├── board_operations.py ← 5 tools (v5.23.0 Tier 3: validate_ac_quality, set_ac_metadata, link_uc_parent, delete_uc, get_board_diff)
+│   │   ├── acceptance_automation.py ← 3 tools (v5.23.0 Tier 4: bulk_update_hours, estimate_from_ac, milestone_acceptance_check)
+│   │   ├── _mutation_helpers.py ← Internal helpers for Tier 1-4 (constants, validators, finders, merge_meta, classify_ac)
 │   │   ├── migration.py   ← 5 tools (Trello ↔ Plane migration)
 │   │   ├── stitch.py      ← 13 tools (Stitch MCP proxy)
 │   │   ├── heartbeat_stats.py ← 1 tool (get_heartbeat_stats)
@@ -795,6 +800,6 @@ que la Sala de Máquinas muestre el último audit sin escanear el filesystem.
 
 ## Engine Version
 
-Current: v5.22.2 "Quality Audit"
+Current: v5.23.0 "Full Mutations"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

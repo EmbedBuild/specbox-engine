@@ -286,6 +286,58 @@ class SpecBackend(ABC):
         In Plane: creates sub-work-items with label AC.
         """
 
+    @abstractmethod
+    async def update_acceptance_criterion(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+        *,
+        text: str | None = None,
+        done: bool | None = None,
+    ) -> ChecklistItemDTO:
+        """Rewrite an AC's text and/or change its done state.
+
+        Only non-None fields are updated. Distinct from mark_acceptance_criterion
+        which only toggles done.
+
+        In Trello: renames the checklist item and/or updates its state.
+        In Plane: updates the sub-work-item name and/or state.
+        In FreeForm: updates items.json and regenerates the progress README.
+
+        Raises ValueError if the AC is not found.
+        """
+
+    @abstractmethod
+    async def delete_acceptance_criterion(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+    ) -> None:
+        """Remove an AC from a UC.
+
+        Used by delete_ac to implement deletion + renumbering. Raises
+        ValueError if the AC is not found.
+        """
+
+    # ── Archival ─────────────────────────────────────────────────
+
+    @abstractmethod
+    async def archive_item(
+        self, board_id: str, item_id: str, *, reason: str,
+    ) -> dict[str, Any]:
+        """Archive an item without physical deletion.
+
+        Each backend implements archival differently:
+        - Trello: move card to "Archived" list (create if needed), or add
+          "archived" label as fallback.
+        - Plane: move work item to "Cancelled" state + add comment with reason.
+        - FreeForm: move entry from items.json to archive.json.
+
+        Returns: {"archive_location": str, "archived_at": str}
+        """
+
     # ── Comments ─────────────────────────────────────────────────
 
     @abstractmethod

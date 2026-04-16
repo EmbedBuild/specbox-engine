@@ -26,6 +26,7 @@ from .tools.onboarding import register_onboarding_tools
 from .tools.state import register_state_tools
 from .tools.spec_driven import register_spec_driven_tools
 from .tools.spec_mutations import register_spec_mutations_tools
+from .tools.milestone_management import register_milestone_management_tools
 from .tools.migration import register_migration_tools
 from .tools.sync import register_sync_tools
 from .tools.acceptance import register_acceptance_tools
@@ -134,6 +135,12 @@ register_spec_driven_tools(mcp)
 # update_uc, update_uc_batch, update_us, update_ac, update_ac_batch,
 # add_ac, delete_ac, add_uc)
 register_spec_mutations_tools(mcp)
+
+# Register Tier 2 milestone & multirepo tools (v5.23.0 — 8 tools:
+# set_uc_milestone, set_uc_milestone_batch, set_uc_satellite,
+# get_milestone_status, rebalance_milestones, get_satellite_queue,
+# sync_multirepo_state, get_cross_repo_dependencies)
+register_milestone_management_tools(mcp)
 
 # Register migration tools (5 tools: migrate_preview, migrate_project, migrate_status, set_migration_target, switch_backend)
 register_migration_tools(mcp)

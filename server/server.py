@@ -1,7 +1,7 @@
 """
-SpecBox Engine MCP Server v5.22.2
+SpecBox Engine MCP Server v5.23.0
 
-Unified MCP endpoint: 114 tools (engine + spec-driven + migration + telemetry + stitch + quality-audit).
+Unified MCP endpoint: 138 tools (engine + spec-driven + mutations + milestones + board-ops + acceptance + migration + telemetry + stitch + quality-audit).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
 
 Architecture:
@@ -68,7 +68,7 @@ STATE_PATH.mkdir(parents=True, exist_ok=True)
 mcp = FastMCP(
     "specbox-engine",
     instructions="""
-    MCP server for the SpecBox Engine v5.22.2 — an agentic programming system for Claude Code.
+    MCP server for the SpecBox Engine v5.23.0 — an agentic programming system for Claude Code.
 
     Use these tools to:
     - Query implementation plans and their status
@@ -200,7 +200,7 @@ def main():
     host = os.getenv("MCP_HOST", "0.0.0.0")
 
     logger = structlog.get_logger(__name__)
-    logger.info("server_starting", transport=transport, host=host, port=port, version="5.22.2")
+    logger.info("server_starting", transport=transport, host=host, port=port, version="5.23.0")
 
     uvicorn_opts = {"timeout_graceful_shutdown": 5}
 

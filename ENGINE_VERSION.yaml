@@ -1,8 +1,8 @@
-version: 5.22.2
-codename: "Quality Audit"
+version: 5.23.0
+codename: "Full Mutations"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-04-15
+release_date: 2026-04-16
 min_claude_code: "1.0.0"
 
 stacks:
@@ -277,8 +277,62 @@ features:
   - embed-build-brand-loader
   - maintainability-60-40-mix
   - lazy-audit-tool-installer
+  # New (v5.23.0) — Full Mutations
+  - spec-mutations-tier1
+  - update-uc-tool
+  - update-uc-batch-tool
+  - update-us-tool
+  - update-ac-tool
+  - update-ac-batch-tool
+  - add-ac-tool
+  - delete-ac-tool
+  - add-uc-tool
+  - milestone-management-tier2
+  - set-uc-milestone-tool
+  - set-uc-milestone-batch-tool
+  - set-uc-satellite-tool
+  - get-milestone-status-tool
+  - rebalance-milestones-tool
+  - get-satellite-queue-tool
+  - sync-multirepo-state-tool
+  - get-cross-repo-dependencies-tool
+  - board-operations-tier3
+  - validate-ac-quality-tool
+  - set-ac-metadata-tool
+  - link-uc-parent-tool
+  - delete-uc-tool
+  - get-board-diff-tool
+  - acceptance-automation-tier4
+  - bulk-update-hours-from-description-tool
+  - estimate-from-ac-tool
+  - milestone-acceptance-check-tool
+  - update-acceptance-criterion-abc
+  - delete-acceptance-criterion-abc
+  - archive-item-abc
+  - batch-first-tool-design
 
 changelog:
+  5.23.0:
+    date: 2026-04-16
+    codename: "Full Mutations"
+    changes:
+      - "feat: 24 new MCP tools for granular spec-driven mutations — organized in 4 tiers (8+8+5+3), total tool count 114→138"
+      - "feat: Tier 1 — Granular mutations: update_uc, update_uc_batch, update_us, update_ac, update_ac_batch, add_ac, delete_ac, add_uc"
+      - "feat: Tier 2 — Milestone & multirepo: set_uc_milestone, set_uc_milestone_batch, set_uc_satellite, get_milestone_status, rebalance_milestones, get_satellite_queue, sync_multirepo_state, get_cross_repo_dependencies"
+      - "feat: Tier 3 — Board operations: validate_ac_quality, set_ac_metadata, link_uc_parent, delete_uc, get_board_diff"
+      - "feat: Tier 4 — Acceptance automation: bulk_update_hours_from_description, estimate_from_ac, milestone_acceptance_check"
+      - "feat: 3 new SpecBackend ABC methods — update_acceptance_criterion, delete_acceptance_criterion, archive_item — implemented in all 3 backends"
+      - "feat: Batch-first design principle — batch tools call list_items once (not per-item), granular docstrings reference batch equivalents"
+      - "feat: All mutation tools idempotent — second call with same args returns reason: no_change"
+      - "feat: Structured error returns — {error, code} dict instead of exceptions to MCP client"
+      - "feat: Shared helpers module _mutation_helpers.py — validators, finders, merge_meta, classify_ac, compute_distribution"
+      - "feat: TrelloClient extended — update_checklist_item accepts name param, new delete_checklist_item"
+      - "feat: PlaneClient extended — new delete_work_item method"
+      - "feat: archive_item per backend — Trello: archived list/label fallback, Plane: cancelled state+comment, FreeForm: archive.json"
+      - "feat: rebalance_milestones greedy algorithm — sorts UCs by AC count, assigns to milestone with largest gap"
+      - "feat: milestone_acceptance_check verdicts — GO (≥95%), CONDITIONAL_GO (≥80%), NO_GO"
+      - "feat: 78 new tests across 5 test files (helpers, backends, 4 tier tool tests), 0 regressions"
+      - "docs: doc/design/v5.23.0-full-mutations.md — complete technical design with 24 ACs"
   5.22.2:
     date: 2026-04-15
     codename: "Quality Audit"

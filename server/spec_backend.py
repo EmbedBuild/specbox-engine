@@ -321,6 +321,23 @@ class SpecBackend(ABC):
         ValueError if the AC is not found.
         """
 
+    # ── Archival ─────────────────────────────────────────────────
+
+    @abstractmethod
+    async def archive_item(
+        self, board_id: str, item_id: str, *, reason: str,
+    ) -> dict[str, Any]:
+        """Archive an item without physical deletion.
+
+        Each backend implements archival differently:
+        - Trello: move card to "Archived" list (create if needed), or add
+          "archived" label as fallback.
+        - Plane: move work item to "Cancelled" state + add comment with reason.
+        - FreeForm: move entry from items.json to archive.json.
+
+        Returns: {"archive_location": str, "archived_at": str}
+        """
+
     # ── Comments ─────────────────────────────────────────────────
 
     @abstractmethod

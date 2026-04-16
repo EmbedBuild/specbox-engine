@@ -294,6 +294,9 @@ class _MockBackend(SpecBackend):
     async def delete_acceptance_criterion(self, board_id, uc_item_id, ac_id) -> None:
         return None
 
+    async def archive_item(self, board_id, item_id, *, reason=""):
+        return {"archive_location": "test", "archived_at": "2026-01-01T00:00:00+00:00"}
+
     async def add_comment(self, board_id, item_id, text) -> CommentDTO:
         return CommentDTO(id="c1", text=text)
 

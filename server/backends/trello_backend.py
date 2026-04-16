@@ -548,6 +548,45 @@ class TrelloBackend(SpecBackend):
             raise ValueError(f"AC '{ac_id}' not found on card {uc_item_id}")
         await self.client.delete_checklist_item(uc_item_id, checkitem_id)
 
+    # ── Archival ─────────────────────────────────────────────────
+
+    async def archive_item(
+        self, board_id: str, item_id: str, *, reason: str,
+    ) -> dict[str, Any]:
+        from datetime import datetime, timezone
+
+        # Try to find or create an "Archived" list
+        lists = await self.client.get_board_lists(board_id)
+        archived_list = next(
+            (l for l in lists if l.get("name", "").lower() in ("archived", "archivado")),
+            None,
+        )
+
+        now = datetime.now(timezone.utc).isoformat()
+        if archived_list:
+            await self.client.move_card(item_id, archived_list["id"])
+            await self.client.add_comment(item_id, f"Archived ({now}): {reason}")
+            return {"archive_location": "archived_list", "archived_at": now}
+
+        # Fallback: try creating the list
+        try:
+            new_list = await self.client.create_list(board_id, "Archived")
+            await self.client.move_card(item_id, new_list["id"])
+            await self.client.add_comment(item_id, f"Archived ({now}): {reason}")
+            return {"archive_location": "archived_list", "archived_at": now}
+        except Exception:
+            # Final fallback: add "archived" label
+            labels = await self.client.get_board_labels(board_id)
+            arch_label = next(
+                (l for l in labels if l.get("name", "").lower() == "archived"),
+                None,
+            )
+            if not arch_label:
+                arch_label = await self.client.create_label(board_id, "archived", "black")
+            await self.client.add_label_to_card(item_id, arch_label["id"])
+            await self.client.add_comment(item_id, f"Archived via label ({now}): {reason}")
+            return {"archive_location": "archived_label", "archived_at": now}
+
     # ── Comments ─────────────────────────────────────────────────
 
     async def add_comment(

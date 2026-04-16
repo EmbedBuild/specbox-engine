@@ -27,6 +27,7 @@ from .tools.state import register_state_tools
 from .tools.spec_driven import register_spec_driven_tools
 from .tools.spec_mutations import register_spec_mutations_tools
 from .tools.milestone_management import register_milestone_management_tools
+from .tools.board_operations import register_board_operations_tools
 from .tools.migration import register_migration_tools
 from .tools.sync import register_sync_tools
 from .tools.acceptance import register_acceptance_tools
@@ -141,6 +142,11 @@ register_spec_mutations_tools(mcp)
 # get_milestone_status, rebalance_milestones, get_satellite_queue,
 # sync_multirepo_state, get_cross_repo_dependencies)
 register_milestone_management_tools(mcp)
+
+# Register Tier 3 board operation tools (v5.23.0 — 5 tools:
+# validate_ac_quality, set_ac_metadata, link_uc_parent, delete_uc,
+# get_board_diff)
+register_board_operations_tools(mcp)
 
 # Register migration tools (5 tools: migrate_preview, migrate_project, migrate_status, set_migration_target, switch_backend)
 register_migration_tools(mcp)

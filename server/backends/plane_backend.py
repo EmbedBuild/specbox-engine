@@ -690,6 +690,26 @@ class PlaneBackend(SpecBackend):
             )
         await self.client.delete_work_item(board_id, ac_item.id)
 
+    # ── SpecBackend: Archival ────────────────────────────────────
+
+    async def archive_item(
+        self, board_id: str, item_id: str, *, reason: str,
+    ) -> dict[str, Any]:
+        from datetime import datetime, timezone
+
+        cancelled_state_id = await self._resolve_state_id(board_id, "cancelled")
+        if not cancelled_state_id:
+            # Fallback: try "done" if "cancelled" doesn't exist
+            cancelled_state_id = await self._resolve_state_id(board_id, "done")
+
+        now = datetime.now(timezone.utc).isoformat()
+        if cancelled_state_id:
+            await self.client.update_work_item(board_id, item_id, state=cancelled_state_id)
+
+        comment_html = f"<p>Archived ({now}): {reason}</p>"
+        await self.client.create_comment(board_id, item_id, comment_html)
+        return {"archive_location": "cancelled_state", "archived_at": now}
+
     # ── SpecBackend: Comments ────────────────────────────────────
 
     async def add_comment(

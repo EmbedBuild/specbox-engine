@@ -628,6 +628,44 @@ class FreeformBackend(SpecBackend):
                 return
         raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
 
+    # ── SpecBackend: Archival ────────────────────────────────────
+
+    async def archive_item(
+        self, board_id: str, item_id: str, *, reason: str,
+    ) -> dict[str, Any]:
+        items = self._load_items()
+        target = None
+        target_idx = -1
+        for idx, item in enumerate(items):
+            if item["id"] == item_id:
+                target = item
+                target_idx = idx
+                break
+
+        if target is None:
+            raise ValueError(f"Item '{item_id}' not found in items.json")
+
+        target["archived_at"] = _now_iso()
+        target["archive_reason"] = reason
+
+        # Move to archive.json
+        archive_path = self.root / "archive.json"
+        archive: list[dict[str, Any]] = []
+        if archive_path.exists():
+            try:
+                archive = json.loads(archive_path.read_text())
+            except (json.JSONDecodeError, OSError):
+                archive = []
+        archive.append(target)
+        archive_path.write_text(json.dumps(archive, indent=2, ensure_ascii=False))
+
+        # Remove from items.json
+        items.pop(target_idx)
+        self._save_items(items)
+        self._regenerate_progress()
+
+        return {"archive_location": "archive.json", "archived_at": target["archived_at"]}
+
     # ── SpecBackend: Comments ────────────────────────────────────
 
     async def add_comment(

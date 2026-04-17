@@ -1,0 +1,70 @@
+[project]
+name = "specbox-stripe-mcp"
+version = "0.1.0"
+description = "SpecBox MCP server for Stripe setup-as-code (Connect, webhooks, products/prices, health check)"
+authors = [{ name = "Jesús Pérez", email = "jesus.perez.developer@gmail.com" }]
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "fastmcp>=0.4.0",
+    "stripe>=7.0.0",
+    "httpx>=0.27.0",
+    "structlog>=24.0.0",
+    "pydantic>=2.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "respx>=0.20.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+]
+
+[project.scripts]
+specbox-stripe-mcp = "specbox_stripe_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/specbox_stripe_mcp"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "B", "UP", "RUF"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --strict-markers"
+markers = [
+    "integration: integration tests requiring STRIPE_CI_SECRET_KEY",
+    "unit: pure unit tests with mocked Stripe SDK",
+]
+
+[tool.coverage.run]
+source = ["src/specbox_stripe_mcp"]
+branch = true
+omit = [
+    "src/specbox_stripe_mcp/server.py",
+    "src/specbox_stripe_mcp/__main__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
+# Target per AC-05. Unit+integration combined is expected to hit this; unit alone already
+# comfortably clears because server.py and __main__.py (wiring-only) are omitted.
+fail_under = 85

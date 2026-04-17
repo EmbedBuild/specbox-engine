@@ -630,6 +630,38 @@ Proxy completo de Google Stitch a traves del SpecBox Engine MCP server. Permite 
 - Timeout de 6 minutos para operaciones de generacion
 - Retry con backoff exponencial para errores transitorios
 
+## SpecBox-Stripe MCP (v0.1 alpha — independent package)
+
+Setup-as-code para Stripe, complementando al Stripe MCP oficial (que cubre runtime de negocio pero no setup). Empaquetado como `packages/specbox-stripe-mcp/` con stack Python + FastMCP + stripe SDK — mismo runtime que el engine pero versionado y desplegado de forma independiente.
+
+### Tools (H1 MVP)
+
+| Tool | Uso |
+|------|-----|
+| `verify_connect_enabled` | Gate de entrada: ¿puede esta platform crear cuentas Connect Express? Canary create+delete. |
+| `setup_webhook_endpoints` | Crea o reutiliza los 2 webhook endpoints (platform + connect) con eventos correctos. Idempotente por metadata + url + connect. Recupera secret con `expand=['secret']` en reuse. |
+| `setup_products_and_prices` | Reconcilia catálogo por `tier_key`. Products mutables, prices inmutables (shape drift → new price + archive old). |
+| `get_setup_status` | Health check read-only. Verdict ∈ {ready, partial, not_setup} + remediation_steps. |
+
+### Principios
+
+- Idempotencia por `metadata.specbox_managed="true"` + lookup key natural (url, tier_key, seller_idx).
+- Test-mode por defecto; `sk_live_*` rechazado salvo `allow_live_mode=true` + token literal.
+- Evidencia fire-and-forget: cada call escribe observación Engram + heartbeat `stripe_mcp_call` al engine, pero ningún fallo en esas integraciones rompe la tool.
+- Secrets nunca a disco — se devuelven al caller, que los inyecta vía `specbox-supabase.set_edge_secret` (PRD hermano, pendiente).
+
+### Roadmap
+
+- **H1 (v0.1 alpha)** — T1-T4 + telemetría + tests ✅ (88% coverage, 98 unit + integration suite gated por `STRIPE_CI_SECRET_KEY`)
+- **H2 (v1.0 GA)** — integración con `/stripe-connect` Paso 9.5 (bloqueado por set_edge_secret), docs públicas, benchmarks
+- **H3 (v1.1)** — `setup_test_sellers`, `teardown_test_mode`, alias store, OAuth v2
+
+### Referencias
+
+- PRD: [doc/prd/specbox_stripe_mcp_prd.md](doc/prd/specbox_stripe_mcp_prd.md)
+- README: [packages/specbox-stripe-mcp/README.md](packages/specbox-stripe-mcp/README.md)
+- Tracking: FreeForm backend `ff-2051992d4368`, US-SPECBOX-STRIPE
+
 ## Spec-Code Sync (v5.0)
 
 Automatic PRD update with implementation deltas after each /implement phase:

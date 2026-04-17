@@ -1,4 +1,4 @@
-# SpecBox Engine v5.24.0
+# SpecBox Engine v5.25.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -289,7 +289,7 @@ El campo `context:` del frontmatter de un SKILL.md determina cómo el harness de
 
 **Test rápido** para confirmar que un skill funciona: ejecutar su slash command en una sesión nueva (los cambios en SKILL.md no afectan sesiones ya abiertas). Si el skill responde "espero tu solicitud" o falla con error de escritura, el frontmatter está mal.
 
-## Available Skills (v5.5)
+## Available Skills (v5.25)
 
 Skills are auto-discoverable. Claude will use them when relevant. You can also invoke them explicitly.
 
@@ -311,8 +311,9 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /release | "release", "bump version", "sube version", "prepara release" | direct | Full | v5.8 — Audit residuals + update version/changelog/docs + push |
 | /compliance | "check compliance", "audit specbox", "specbox audit", "is specbox up to date" | direct | Bash+Read | v5.18 — Compliance audit + version alignment + auto-fix |
 | /audit | "audit project", "quality audit", "ISO 25010", "SQuaRE audit" | direct | Full | v5.22 — Quality Audit ISO/IEC 25010 on-demand (AG-10, 8 analyzers, PDF+JSON) |
+| /stripe-connect | "stripe connect", "marketplace billing", "integrar pagos marketplace" | direct | Full | v5.25 — Marketplace Connect (Express + Direct charges + subscriptions embedded) + Supabase + React/Flutter |
 
-## Hooks (v5.20.1)
+## Hooks (v5.25.0)
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -336,6 +337,7 @@ Automatic enforcement — no need to remember running these manually:
 | e2e-report | Manual (called by /implement) | Reports Playwright E2E test results to MCP telemetry |
 | **healing-budget-guard** | PreToolUse (Write/Edit) | **BLOCKING**: counts healing.jsonl entries per feature. Blocks at 8 attempts (HARD limit). Prevents infinite healing loops. |
 | **pipeline-phase-guard** | PreToolUse (Write/Edit) | **BLOCKING**: reads pipeline_state.json to verify phase dependencies are met. Prevents out-of-order execution (e.g., feature code before DB). |
+| **stripe-safety-guard** | PreToolUse (Write/Edit on billing paths) | **BLOCKING**: scans `src/billing/`, `lib/billing/`, `supabase/functions/stripe-*`. Blocks 5 anti-patterns: sk_live_* hardcoded, webhook sin firma, webhook sin idempotencia (`stripe_processed_events`), `redirectToCheckout`/`ui_mode:hosted`, Payment Links. Escape hatches: `// stripe-safety-guard:ignore` / `:disable-file`. v5.25 — scaffoldeado por `/stripe-connect`. |
 | checkpoint-freshness-guard | PostToolUse (git commit) | Non-blocking WARNING: warns if checkpoint is stale (>30min) or missing during active UC implementation. |
 | uc-lifecycle-guard | PostToolUse (git push) | Non-blocking WARNING: warns if pushing feature branch without calling move_uc (board out of sync). |
 
@@ -801,6 +803,6 @@ que la Sala de Máquinas muestre el último audit sin escanear el filesystem.
 
 ## Engine Version
 
-Current: v5.24.0 "Opus 4.7 Tuning"
+Current: v5.25.0 "Stripe Connect"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

@@ -1,0 +1,7 @@
+{
+  "_comment": "SpecBox /stripe-connect — fragment merged into project's package.json. Do not commit this file; /stripe-connect merges these keys into dependencies and removes this file after merge.",
+  "dependencies": {
+    "@stripe/stripe-js": "^3.0.0",
+    "@stripe/react-stripe-js": "^2.8.0"
+  }
+}

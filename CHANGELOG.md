@@ -2,6 +2,55 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.25.0] - 2026-04-17 — "Stripe Connect"
+
+Minor release introduciendo la primera skill operativa del dominio **billing**: `/stripe-connect` scaffoldea una integración Stripe Connect marketplace completa (Express + Direct charges + subscriptions embedded) en proyectos **Supabase + React/Flutter** en un único comando. PRD y plan técnico en [doc/prds/stripe_connect_skill_prd.md](doc/prds/stripe_connect_skill_prd.md) y [doc/plans/stripe_connect_skill_plan.md](doc/plans/stripe_connect_skill_plan.md).
+
+### Added
+
+**Nueva skill `/stripe-connect`** (`context: direct`, 12 pasos conversacionales):
+- Detecta stack frontend (React / Flutter Web / Flutter Mobile), backend (Supabase obligatorio en v1), spec backend (Trello/Plane/FreeForm) y presencia de VEG
+- Pregunta solo 2 cosas: confirmación stack + fee default %, todo lo demás se infiere
+- Crea US-SPONSORSHIP con 12 UCs (UC-301..UC-312) en el spec backend del proyecto
+- Escribe ~30 archivos: backend Supabase, frontend React/Flutter, docs parametrizadas, hook, Gherkin features, fragmento MCP
+- Fallback automático a FreeForm local si el spec backend remoto está offline
+- Abort limpio si backend no es Supabase (otros backends → v2)
+
+**Templates parametrizados** (`.claude/skills/stripe-connect/templates/`):
+- **Backend Supabase** (9 archivos): 5 Edge Functions (`create-rider-account-link`, `create-fan-subscription` con `application_fee_percent` dinámico, `cancel-fan-subscription`, `create-rider-dashboard-link`, `stripe-webhook`) + 4 migraciones SQL idempotentes (riders con stripe fields, sponsorships con lifecycle completo, stripe_processed_events para idempotencia, RLS policies default-deny)
+- **Frontend React** (5 archivos): `stripe-provider.tsx` con `stripeAccount` header para Direct charges, `sponsor-rider-form.tsx` con `<PaymentElement>` + `<ExpressCheckoutElement>`, `use-sponsorship.ts`, `rider-onboarding-button.tsx` con warning fiscal, `package.json.fragment.json`
+- **Frontend Flutter** (7 archivos): `stripe_service.dart` con Apple/Google Pay default on, `sponsor_rider_controller.dart` (variante Riverpod), `apple_pay_button.dart` + `google_pay_button.dart`, `rider_onboarding_launcher.dart` con modal de warning fiscal, `api_interceptor.dart` (Dio) con header `Stripe-Account`, `pubspec.fragment.yaml`
+- **Documentación** (5 archivos): `infra-stripe-README.md` con checklist envvars + despliegue, `connect-setup.md` con activación Connect, `apple-google-pay-setup.md` (Merchant ID Apple, domain verification), `events-catalog.md` (10 eventos críticos con acción backend), `test-scenarios.md` (comandos `stripe trigger` + test clocks por UC)
+- **Tests Gherkin** (12 archivos): `UC-301.feature` a `UC-312.feature` en español con mínimo 1 escenario feliz + 1 negativo cada uno. UC-306 incluye test de idempotencia con `stripe events resend`
+- **MCP wiring** (1 fragmento JSON): cable el Stripe MCP oficial en `.claude/settings.local.json` del proyecto sin reemplazar config existente
+
+**Hook `stripe-safety-guard.mjs`** (`.claude/hooks/`, también copiable a proyectos):
+- PreToolUse sobre Write/Edit en `src/billing/`, `lib/billing/`, `supabase/functions/stripe-*|-webhook|create-*-subscription`
+- 5 detectores BLOCKING con mensajes accionables: sk_live_* hardcoded, webhook sin `constructEvent`/`constructEventAsync`, webhook sin referencia a `stripe_processed_events`, `redirectToCheckout` o `ui_mode: hosted`, Payment Link URL
+- Escape hatches: `// stripe-safety-guard:ignore` (línea), `:disable-file`, `:ignore-signature`, `:ignore-idempotency`
+- Registrado en `.claude/settings.json` y `templates/settings.json.template` para todos los proyectos futuros
+- **30 tests sintéticos** en `.quality/hooks/stripe-safety-guard.test.mjs` (10 positivos, 20 negativos). 30/30 pasan
+
+### Design decisions (rechazos explícitos)
+
+Documentados en el PRD para referencia futura:
+- **NO envolver API de Stripe en tools MCP del engine** — duplica SDK oficial + Stripe MCP oficial, consume contexto. La skill orquesta piezas existentes
+- **NO Destination/Separate charges en v1** — Direct charges obligatorio por constraint fiscal (seller como merchant of record → tributa su IRPF, no el de la plataforma)
+- **NO Checkout hosted / Payment Links** — embedded-only por diseño (Payment Element + Payment Sheet)
+- **NO Customer Portal** — con Direct charges el Customer vive en la connected account, cancelación via API propia (UC-309)
+- **NO otros backends en v1** — Supabase únicamente; Neon/Firestore/FastAPI → v2 cuando aparezca proyecto real que lo pida
+- **NO SaaS vanilla** — `/stripe` hermana (sin Connect) → v2 reutilizando templates depurados con Connect
+
+### Caso piloto de validación
+
+Marketplace de micropatrocinios para pilotos de motociclismo no profesionales. Fans suscriben al piloto 10/15/20€ mensuales. Plataforma cobra fee dinámico (15% estándar, menos para ambassadors) vía `application_fee_percent`. Pilotos reciben el resto directamente en su cuenta Stripe Connect Express. Validación end-to-end reservada para la fase manual sobre el proyecto real (AC-41..AC-44 del PRD).
+
+### Scope v1 vs fuera de v1
+
+Ver [doc/prds/stripe_connect_skill_prd.md](doc/prds/stripe_connect_skill_prd.md) sección "Alcance" para el desglose completo.
+
+---
+
 ## [5.23.0] - 2026-04-16 — "Full Mutations"
 
 Minor release que cierra el hueco de mutaciones granulares sobre spec-driven items. Tool count: 114 → **138** (+24). Diseño técnico completo en [doc/design/v5.23.0-full-mutations.md](doc/design/v5.23.0-full-mutations.md).

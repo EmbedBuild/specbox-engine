@@ -1,0 +1,12 @@
+{
+  "_comment": "SpecBox /stripe-connect — fragment merged into project's .claude/settings.local.json under mcpServers. Do not commit this file; /stripe-connect merges and deletes it. Official Stripe MCP endpoint may evolve — verify at https://docs.stripe.com/mcp before production use.",
+  "mcpServers": {
+    "stripe": {
+      "url": "https://mcp.stripe.com/v1",
+      "transport": "http",
+      "env": {
+        "STRIPE_API_KEY": "${STRIPE_SECRET_KEY}"
+      }
+    }
+  }
+}

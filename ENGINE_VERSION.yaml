@@ -1,8 +1,8 @@
-version: 5.24.0
-codename: "Opus 4.7 Tuning"
+version: 5.25.0
+codename: "Stripe Connect"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-04-16
+release_date: 2026-04-17
 min_claude_code: "1.0.0"
 
 stacks:

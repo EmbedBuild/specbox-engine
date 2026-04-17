@@ -1,6 +1,6 @@
 # Referencia de Commands y Skills
 
-> **v5.19.0:** Los commands han sido migrados a **Agent Skills** en `.claude/skills/`. Los archivos en `commands/` se mantienen como referencia. Las Skills son la version activa con auto-discovery, context isolation y hooks.
+> **v5.25.0:** Los commands han sido migrados a **Agent Skills** en `.claude/skills/`. Los archivos en `commands/` se mantienen como referencia. Las Skills son la version activa con auto-discovery, context isolation y hooks.
 
 ## Instalacion
 
@@ -12,20 +12,30 @@
 
 Instala:
 - **Commands** (legacy) como symlinks en `~/.claude/commands/`
-- **Skills** (v3.5) copiados a `~/.claude/skills/`
-- **Hooks** (v3.5) copiados a `~/.claude/hooks/`
+- **Skills** copiados a `~/.claude/skills/`
+- **Hooks** copiados a `~/.claude/hooks/`
 
-## Skills disponibles (v3.5)
+## Skills disponibles (v5.25.0)
 
 | Skill | Modo | Descripcion |
 |-------|------|-------------|
-| /prd | fork:Plan | Genera PRDs estructurados |
-| /plan | fork:Plan | Planes tecnicos con UI analysis y Stitch |
-| /implement | direct | Autopilot end-to-end con checkpoint/resume |
-| /adapt-ui | fork:Explore | Mapeo de componentes UI |
-| /optimize-agents | fork:Explore | Auditoria del sistema agentico |
+| /prd | direct | Genera PRDs estructurados con Definition Quality Gate |
+| /visual-setup | direct | Brand Kit + Stitch DS + VEG + Multi-Form-Factor |
+| /plan | direct | Planes tecnicos con UI analysis, VEG y Stitch |
+| /implement | direct | Autopilot end-to-end con checkpoint/resume + AG-09 |
+| /adapt-ui | fork:Explore | Mapeo de componentes UI (read-only) |
+| /optimize-agents | fork:Explore | Auditoria del sistema agentico (read-only) |
 | /quality-gate | direct | Gates de calidad adaptativos |
 | /explore | fork:Explore | Exploracion read-only del codebase |
+| /feedback | direct | Captura feedback manual + GitHub issues |
+| /check-designs | fork:Explore | Compliance retroactivo de diseños Stitch |
+| /acceptance-check | direct | Standalone BDD acceptance sin /implement |
+| /quickstart | direct | Tutorial interactivo para nuevos usuarios |
+| /remote | direct | Remote project management (WhatsApp/Discord via OpenClaw) |
+| /release | direct | Audit + version bump + changelog + push |
+| /compliance | direct | Compliance audit del engine |
+| /audit | direct | Quality Audit ISO/IEC 25010 (SQuaRE, AG-10) |
+| /stripe-connect | direct | **v5.25.0** Scaffold de marketplace Stripe Connect (Express + Direct charges + embedded) |
 
 Las Skills con `fork` corren en subagentes aislados — no contaminan la sesion principal.
 

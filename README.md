@@ -2,14 +2,16 @@
   <img src=".github/assets/Logo SpecBox.png" alt="SpecBox Engine" width="280" />
 </p>
 
-<h1 align="center">SpecBox Engine v5.19.0 — Compliance Enforcement</h1>
+<h1 align="center">SpecBox Engine v5.25.0 — Stripe Connect</h1>
 
 <p align="center">
   <strong>SpecBox Engine by JPS</strong> — Sistema de programacion agentica para Claude Code.<br/>
   <a href="#english-version">English version below</a>
 </p>
 
-Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 110 tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane/FreeForm para desarrollo profesional con Claude Code.
+Monorepo unificado que contiene Agent Skills auto-descubribles, hooks de calidad, patrones de arquitectura multi-stack, templates de agentes, MCP server con 138 tools, dashboard embebido (Sala de Maquinas), y pipeline spec-driven con Trello/Plane/FreeForm para desarrollo profesional con Claude Code.
+
+**Novedad v5.25.0**: nueva skill [`/stripe-connect`](.claude/skills/stripe-connect/SKILL.md) — scaffoldea una integración Stripe Connect marketplace completa (Express + Direct charges + subscriptions embedded) en proyectos Supabase + React/Flutter en un solo comando. Ver [docs/skills/stripe-connect.md](docs/skills/stripe-connect.md).
 
 ---
 
@@ -313,6 +315,30 @@ Exploracion del codebase sin capacidad de modificar archivos. Modo fork con Expl
 ```
 
 Crea GitHub issues, vincula a AC-XX del PRD, bloquea merge si no resuelto.
+
+---
+
+### `/stripe-connect` — Scaffolder de Stripe Connect marketplace (v5.25.0)
+
+```
+/stripe-connect                      # Preflight + preguntas mínimas + generación
+```
+
+Scaffoldea una integración Stripe Connect marketplace completa en proyectos Supabase + React/Flutter en un único comando. Connect Express + Direct charges + subscriptions embedded (Payment Element/Sheet + Apple/Google Pay). Embedded-only por diseño — nunca redirect a stripe.com.
+
+**Genera:**
+- US-SPONSORSHIP con 12 UCs (UC-301..UC-312) en el spec backend
+- 5 Edge Functions Supabase + 4 migraciones SQL con RLS
+- Templates frontend React (4 archivos) o Flutter (7 archivos)
+- Hook `stripe-safety-guard.mjs` (bloquea webhooks sin firma, sin idempotencia, Checkout hosted, sk_live hardcoded, Payment Links)
+- Diseños Stitch de 6 pantallas si hay VEG configurado
+- 12 tests Gherkin de aceptación (en español, con `stripe trigger` + test clocks)
+- Docs parametrizadas (README de setup, Connect, Apple/Google Pay, events catalog, test scenarios)
+- Cableado del Stripe MCP oficial en `.claude/settings.local.json`
+
+**Alcance v1:** Supabase + React/Flutter + Connect Express + Direct charges + subscriptions. Otros backends y SaaS vanilla (`/stripe` hermana) reservados para v2.
+
+Ver [docs/skills/stripe-connect.md](docs/skills/stripe-connect.md) para flujo completo.
 
 ---
 
@@ -778,7 +804,7 @@ Ahora son **HARD BLOCKS** que detienen el pipeline.
 
 ## MCP Server
 
-Servidor MCP unificado con 110 tools en 19 modulos.
+Servidor MCP unificado con 138 tools en 24 modulos.
 
 ### Arquitectura
 
@@ -798,7 +824,7 @@ server/
 │   └── freeform_backend.py #  FreeformBackend (JSON + Markdown local)
 ├── models.py              # Pydantic models (US, UC, AC)
 ├── pdf_generator.py       # Markdown → PDF
-├── tools/                 # 19 modulos, 110 tools
+├── tools/                 # 24 modulos, 138 tools
 │   ├── engine.py          # 3 tools: version, status, stacks
 │   ├── plans.py           # 3 tools: list, read, architecture
 │   ├── quality.py         # 4 tools: baseline, logs, evidence
@@ -1032,7 +1058,7 @@ specbox-engine/
 │   ├── board_helpers.py               #   Card parsing
 │   ├── models.py                      #   Pydantic models
 │   ├── pdf_generator.py               #   Markdown → PDF
-│   ├── tools/                         #   19 modules, 110 tools
+│   ├── tools/                         #   24 modules, 138 tools
 │   │   ├── engine.py                  #     Version, status, rules
 │   │   ├── plans.py                   #     Plans management
 │   │   ├── quality.py                 #     Quality baselines
@@ -1322,7 +1348,7 @@ Mas informacion en [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) o contacta en 
 
 ---
 
-v5.19.0 | 2026-04-05 | JPS Developer
+v5.25.0 | 2026-04-17 | JPS Developer
 
 ---
 
@@ -1334,13 +1360,15 @@ v5.19.0 | 2026-04-05 | JPS Developer
   <img src=".github/assets/Logo SpecBox.png" alt="SpecBox Engine" width="280" />
 </p>
 
-<h1 align="center">SpecBox Engine v5.19.0 — Compliance Enforcement</h1>
+<h1 align="center">SpecBox Engine v5.25.0 — Stripe Connect</h1>
 
 <p align="center">
   <strong>SpecBox Engine by JPS</strong> — An agentic programming system for Claude Code.
 </p>
 
-Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 110 tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane/FreeForm for professional development with Claude Code.
+Unified monorepo containing auto-discoverable Agent Skills, quality hooks, multi-stack architecture patterns, agent templates, MCP server with 138 tools, embedded dashboard (Sala de Maquinas), and spec-driven pipeline with Trello/Plane/FreeForm for professional development with Claude Code.
+
+**New in v5.25.0**: new skill [`/stripe-connect`](.claude/skills/stripe-connect/SKILL.md) — scaffolds a complete Stripe Connect marketplace integration (Express + Direct charges + embedded subscriptions) in Supabase + React/Flutter projects with a single command. See [docs/skills/stripe-connect.md](docs/skills/stripe-connect.md).
 
 ---
 
@@ -1560,6 +1588,18 @@ Read-only codebase exploration in fork mode with Explore agent.
 ### `/feedback` — Manual Testing Feedback
 
 Creates GitHub issues, links to AC-XX from PRD, blocks merge if unresolved.
+
+---
+
+### `/stripe-connect` — Stripe Connect marketplace scaffolder (v5.25.0)
+
+Scaffolds a complete Stripe Connect marketplace integration (Express + Direct charges + embedded subscriptions via Payment Element/Sheet + Apple/Google Pay) in Supabase + React/Flutter projects in a single command. Embedded-only by design — never redirects to stripe.com.
+
+**Generates:** US-SPONSORSHIP + 12 UCs (UC-301..UC-312) in the project's spec backend, 5 Supabase Edge Functions + 4 SQL migrations with RLS, frontend templates (React 4 files or Flutter 7 files), `stripe-safety-guard.mjs` hook (blocks webhooks without signature/idempotency, hosted Checkout, sk_live hardcoded, Payment Links), 6 Stitch screen designs if VEG is configured, 12 Gherkin `.feature` acceptance tests with `stripe trigger` + test clocks, parameterized docs, and wires the official Stripe MCP.
+
+**v1 scope:** Supabase + React/Flutter + Connect Express + Direct charges + subscriptions. Other backends and SaaS vanilla (`/stripe` sibling) reserved for v2.
+
+See [docs/skills/stripe-connect.md](docs/skills/stripe-connect.md) for the complete flow.
 
 ---
 
@@ -1841,7 +1881,7 @@ HARD BLOCKS that prevent the most critical protocol violations during autonomous
 
 ## MCP Server
 
-Unified MCP server with 110 tools in a single endpoint.
+Unified MCP server with 138 tools in a single endpoint.
 
 ### Architecture
 
@@ -1999,7 +2039,7 @@ specbox-engine/
 │   │   ├── trello_backend.py         #     TrelloBackend
 │   │   ├── plane_backend.py          #     PlaneBackend
 │   │   └── plane_client.py           #     PlaneClient
-│   ├── tools/                         #   19 modules, 110 tools
+│   ├── tools/                         #   24 modules, 138 tools
 │   └── dashboard/                     #   Sala de Maquinas (React 19 + Vite)
 │
 ├── agents/                            # 12 Agent templates (AG-01 to AG-10)
@@ -2202,4 +2242,4 @@ More details at [COMMERCIAL_LICENSE.md](COMMERCIAL_LICENSE.md) or contact **jesu
 
 ---
 
-v5.19.0 | 2026-04-05 | JPS Developer
+v5.25.0 | 2026-04-17 | JPS Developer

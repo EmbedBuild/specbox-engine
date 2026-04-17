@@ -1,4 +1,4 @@
-# Getting Started - SpecBox Engine v5.21.0
+# Getting Started - SpecBox Engine v5.25.0
 
 ## Requisitos
 
@@ -46,8 +46,8 @@ El wizard:
 #### 4. Verificar instalacion
 
 La status bar de VSCode mostrara:
-- `SpecBox v5.21.0` (con check verde) — todo OK
-- `SpecBox v5.21.0` (con alerta) — hay componentes por configurar
+- `SpecBox v5.25.0` (con check verde) — todo OK
+- `SpecBox v5.25.0` (con alerta) — hay componentes por configurar
 
 Tambien puedes abrir el panel lateral de SpecBox en la barra de actividad para ver el estado de cada componente.
 

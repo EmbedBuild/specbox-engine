@@ -30,6 +30,11 @@
             "type": "command",
             "command": "node .claude/hooks/pipeline-phase-guard.mjs",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/stripe-safety-guard.mjs",
+            "timeout": 5
           }
         ]
       },
@@ -49,6 +54,11 @@
           {
             "type": "command",
             "command": "node .claude/hooks/pipeline-phase-guard.mjs",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/stripe-safety-guard.mjs",
             "timeout": 5
           }
         ]

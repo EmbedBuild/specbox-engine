@@ -27,6 +27,7 @@ from ..lib.heartbeat import report_heartbeat
 from ..lib.response import err, ok
 from ..lib.safety import SafetyError, guard_live_mode
 from ..lib.stripe_client import StripeClient
+from ..lib.stripe_utils import as_dict
 
 logger = logging.getLogger("specbox_stripe_mcp.tools.verify_connect_enabled")
 
@@ -232,24 +233,34 @@ def verify_connect_enabled(
 
 
 def _extract_platform_info(account: Any, *, mode: str) -> dict[str, Any]:
-    """Shape the relevant subset of Stripe Account into the contract fields."""
-    caps_dict = {}
-    try:
-        caps_dict = dict(account.get("capabilities", {}) or {})
-    except Exception:
+    """Shape the relevant subset of Stripe Account into the contract fields.
+
+    Normalizes the StripeObject to a plain dict first (see
+    ``lib/stripe_utils.as_dict``) to avoid Python-3.14 ``.get()`` collisions.
+    """
+    acct = as_dict(account)
+
+    caps_dict = acct.get("capabilities") or {}
+    if not isinstance(caps_dict, dict):
         caps_dict = {}
     capabilities_available = sorted(caps_dict.keys())
+
+    business_profile = acct.get("business_profile") or {}
+    settings = acct.get("settings") or {}
+    dashboard = settings.get("dashboard") if isinstance(settings, dict) else {}
+    dashboard = dashboard or {}
+
     display_name = (
-        account.get("business_profile", {}).get("name")
-        or account.get("settings", {}).get("dashboard", {}).get("display_name")
-        or account.get("email")
+        (business_profile.get("name") if isinstance(business_profile, dict) else None)
+        or (dashboard.get("display_name") if isinstance(dashboard, dict) else None)
+        or acct.get("email")
         or ""
     )
     return {
-        "platform_account_id": account.get("id", ""),
+        "platform_account_id": acct.get("id", ""),
         "display_name": display_name,
-        "country": account.get("country", ""),
-        "default_currency": account.get("default_currency", ""),
+        "country": acct.get("country", ""),
+        "default_currency": acct.get("default_currency", ""),
         "capabilities_available": capabilities_available,
         "mode": mode,
     }
@@ -278,7 +289,7 @@ def _run_canary(client: StripeClient) -> tuple[bool, str | None]:
     except stripe.error.StripeError as exc:  # type: ignore[attr-defined]
         return False, _classify_connect_error(exc)
 
-    probe_id = probe.get("id", "")
+    probe_id = as_dict(probe).get("id", "")
     if not probe_id:
         return False, "E_STRIPE_ERROR"
 

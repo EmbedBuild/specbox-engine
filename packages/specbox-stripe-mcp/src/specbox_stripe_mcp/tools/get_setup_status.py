@@ -28,6 +28,7 @@ from ..lib.idempotency import is_specbox_managed
 from ..lib.response import err, ok
 from ..lib.safety import SafetyError, guard_live_mode
 from ..lib.stripe_client import StripeClient
+from ..lib.stripe_utils import as_dict, as_dict_list
 
 logger = logging.getLogger("specbox_stripe_mcp.tools.get_setup_status")
 
@@ -72,7 +73,7 @@ def get_setup_status(
 
     # --- Connect check: we infer from capabilities rather than mutate via canary ---
     try:
-        account = client.call(
+        account_raw = client.call(
             "accounts.retrieve", lambda: stripe.Account.retrieve()
         )
     except stripe.error.AuthenticationError as exc:  # type: ignore[attr-defined]
@@ -90,6 +91,7 @@ def get_setup_status(
         )
         return err(code="E_STRIPE_ERROR", message=f"account.retrieve: {exc}")
 
+    account = as_dict(account_raw)
     caps = dict(account.get("capabilities") or {})
     connect_enabled = _infer_connect_enabled(account, caps)
 
@@ -113,7 +115,7 @@ def get_setup_status(
             )
         except stripe.error.StripeError as exc:  # type: ignore[attr-defined]
             return err(code="E_STRIPE_ERROR", message=f"webhook_endpoints.list: {exc}")
-        webhooks = list(listing.get("data") or [])
+        webhooks = as_dict_list(listing)
         plat = _pick_webhook(
             webhooks, url=expected_webhook_url, connect=False, expected_events=expected_platform_events,
         )
@@ -149,7 +151,7 @@ def get_setup_status(
         except stripe.error.StripeError as exc:  # type: ignore[attr-defined]
             return err(code="E_STRIPE_ERROR", message=f"products.list: {exc}")
         products = [
-            p for p in (products_listing.get("data") or [])
+            p for p in as_dict_list(products_listing)
             if is_specbox_managed(p.get("metadata"))
         ]
         tier_to_product = {
@@ -176,7 +178,7 @@ def get_setup_status(
                 logger.warning("prices.list failed for %s: %s", product.get("id"), exc)
                 continue
             managed_prices = [
-                pr for pr in (price_listing.get("data") or [])
+                pr for pr in as_dict_list(price_listing)
                 if is_specbox_managed(pr.get("metadata"))
                 and str(pr.get("currency", "")).lower() == expected_currency.lower()
             ]

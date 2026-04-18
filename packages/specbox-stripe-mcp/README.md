@@ -172,6 +172,15 @@ get_setup_status(
 - **Idempotency keys** are deterministic per (tool, lookup-key, api_version)
   so two concurrent calls collapse into one Stripe object.
 
+## Compatibility
+
+- **Python**: 3.11, 3.12, 3.13, 3.14 (declared in `pyproject.toml` as
+  `>=3.11,<3.15`).
+- **Stripe SDK**: `stripe>=7.0.0`. All SDK responses are normalized to plain
+  dicts at the tool boundary via `lib/stripe_utils.as_dict()` to avoid the
+  Python-3.14 `StripeObject.get()` / `__getattr__` collision (see v0.1.1
+  changelog and `tests/unit/test_stripe_object_py314.py` for details).
+
 ## Running tests
 
 ```bash

@@ -1,4 +1,4 @@
-# SpecBox Engine v5.26.0
+# SpecBox Engine v5.26.1
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -869,6 +869,6 @@ que la Sala de Máquinas muestre el último audit sin escanear el filesystem.
 
 ## Engine Version
 
-Current: v5.26.0 "Supabase Edge Secrets"
+Current: v5.26.1 "Supabase Edge Secrets"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

@@ -425,6 +425,85 @@ Aviso al usuario:
 
 ---
 
+## Paso 9.5 — Inyectar secrets en Supabase Edge Functions (opcional, via specbox-supabase MCP)
+
+**Objetivo**: eliminar la acción manual de copiar los 4 secrets al dashboard de
+Supabase. Requiere que el MCP `specbox-supabase` esté registrado en el entorno
+del usuario (ver `packages/specbox-supabase-mcp/README.md`).
+
+### 9.5.1 Detectar disponibilidad del MCP
+
+Intentar una llamada trivial a `mcp__specbox-supabase__list_edge_secrets_tool`
+con un `supabase_access_token` y `project_ref` del `.claude/settings.local.json`
+del proyecto. Si:
+
+- La tool no existe en el entorno → **degradar a flujo manual** (Paso 11 listará
+  los 4 secrets para copy-paste en el dashboard, como hoy).
+- La tool existe pero retorna `error.code == "E_INVALID_TOKEN"` → pedir al
+  usuario un PAT válido y reintentar. Link: <https://supabase.com/dashboard/account/tokens>.
+- La tool existe y responde `success=true` → continuar a 9.5.2.
+
+### 9.5.2 Invocar `set_edge_secret`
+
+```python
+mcp__specbox-supabase__set_edge_secret_tool({
+  supabase_access_token: env.SUPABASE_ACCESS_TOKEN,
+  project_ref: settings.supabase.project_ref,
+  secrets: {
+    STRIPE_SECRET_KEY:              env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET_PLATFORM: env.STRIPE_WEBHOOK_SECRET_PLATFORM,
+    STRIPE_WEBHOOK_SECRET_CONNECT:  env.STRIPE_WEBHOOK_SECRET_CONNECT,
+    DEFAULT_APPLICATION_FEE_PERCENT: "20"
+  },
+  project_hint: "{proyecto}"
+})
+```
+
+Si `success=false`:
+- `E_INVALID_INPUT` → revisar formato del PAT (`sbp_*`) y `project_ref` (20
+  chars lowercase).
+- `E_PROJECT_NOT_FOUND` → verificar que el `project_ref` pertenece al PAT del
+  usuario.
+- Cualquier otro → abortar e instruir al usuario a inyectar manualmente.
+
+### 9.5.3 Confirmar con `list_edge_secrets`
+
+```python
+mcp__specbox-supabase__list_edge_secrets_tool({
+  supabase_access_token: env.SUPABASE_ACCESS_TOKEN,
+  project_ref: settings.supabase.project_ref,
+  expected_names: ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET_PLATFORM",
+                   "STRIPE_WEBHOOK_SECRET_CONNECT", "DEFAULT_APPLICATION_FEE_PERCENT"]
+})
+```
+
+Si `data.missing_names == []` → registrar en Engram y continuar al Paso 10.
+
+Aviso al usuario:
+```
+✓ Secrets Supabase inyectados automáticamente vía specbox-supabase MCP:
+  STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET_PLATFORM,
+  STRIPE_WEBHOOK_SECRET_CONNECT, DEFAULT_APPLICATION_FEE_PERCENT
+```
+
+### 9.5.4 Fallback (MCP no disponible)
+
+Mostrar el bloque manual de siempre y continuar sin abortar:
+```
+⚠ specbox-supabase MCP no detectado. Copia estos 4 secrets manualmente en:
+  dashboard.supabase.com/project/{project_ref}/settings/functions
+
+  STRIPE_SECRET_KEY                = <from .env>
+  STRIPE_WEBHOOK_SECRET_PLATFORM   = <from stripe listen output>
+  STRIPE_WEBHOOK_SECRET_CONNECT    = <from stripe listen output>
+  DEFAULT_APPLICATION_FEE_PERCENT  = 20
+
+  Para automatizarlo en ejecuciones futuras: ver
+  packages/specbox-supabase-mcp/README.md
+```
+
+---
+
 ## Paso 10 — Generar Gherkin `.feature` de aceptación (AC-37..AC-40)
 
 Copiar 12 `.feature` desde `templates/tests/` a `tests/acceptance/sponsorship/` del proyecto:
@@ -467,19 +546,22 @@ Creado:
 
 Siguientes pasos (en orden):
 
-1. Rellena las envvars de infra/stripe/README.md (5 minutos):
-   STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET_PLATFORM,
-   STRIPE_WEBHOOK_SECRET_CONNECT, STRIPE_PUBLISHABLE_KEY
+1. Activa Connect en dashboard.stripe.com/test/connect (1 click — irreducible).
 
-2. Activa Connect en dashboard.stripe.com/test/connect
-
-3. Aplica migraciones:
+2. Aplica migraciones:
    supabase db push
 
-4. Arranca el relay de webhooks (otra terminal):
+3. Arranca el relay de webhooks (otra terminal):
    stripe listen --forward-to http://localhost:54321/functions/v1/stripe-webhook
 
-5. Ejecuta /plan UC-301 para empezar por el onboarding del seller.
+4. Ejecuta /plan UC-301 para empezar por el onboarding del seller.
+
+{if specbox-supabase MCP disponible (ver Paso 9.5):
+   Los 4 secrets ya fueron inyectados automáticamente en Supabase.
+ else:
+   5. Copia los 4 secrets (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET_PLATFORM,
+      STRIPE_WEBHOOK_SECRET_CONNECT, DEFAULT_APPLICATION_FEE_PERCENT) al
+      dashboard de Supabase manualmente, como indica el Paso 9.5.4.}
 
 Advertencia fiscal (España):
   Los sellers necesitan estar dados de alta como autónomos o disponer de

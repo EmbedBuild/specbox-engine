@@ -1,4 +1,4 @@
-# SpecBox Engine v5.25.0
+# SpecBox Engine v5.26.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -662,6 +662,40 @@ Setup-as-code para Stripe, complementando al Stripe MCP oficial (que cubre runti
 - README: [packages/specbox-stripe-mcp/README.md](packages/specbox-stripe-mcp/README.md)
 - Tracking: FreeForm backend `ff-2051992d4368`, US-SPECBOX-STRIPE
 
+## SpecBox-Supabase MCP (v0.1 alpha — independent package)
+
+Setup-as-code para Supabase Edge Function secrets, complementando al MCP oficial de Supabase (que no cubre secrets management — gap en [supabase-community/supabase-mcp#120](https://github.com/supabase-community/supabase-mcp/issues/120)). Cierra la última acción manual del flujo `/stripe-connect`: inyectar los 4 secrets de Stripe en las Edge Functions del proyecto. Empaquetado como `packages/specbox-supabase-mcp/` con stack Python + FastMCP + httpx + Supabase Management API.
+
+### Tools (H1 MVP)
+
+| Tool | Uso |
+|------|-----|
+| `set_edge_secret` | Bulk POST /v1/projects/{ref}/secrets. Idempotente (GET previo para computar previously_present/absent). Valores NUNCA en logs ni Engram. |
+| `list_edge_secrets` | GET read-only. Devuelve nombres + updated_at (nunca valores). Si expected_names, computa missing_names/extra_names. |
+| `unset_edge_secret` | Bulk DELETE con confirm_token literal. Pre-action Engram audit observation antes del DELETE. |
+
+### Principios
+
+- Idempotencia por existence-by-name (la API de Supabase sobrescribe bulk POST).
+- Test-mode not applicable (Supabase no tiene modos); seguridad destructiva vía `confirm_token` literal en unset.
+- PAT redactado en logs (`sbp_****<last6>`); valores de secrets nunca persisten.
+- Reuso de `lib/response.py`, `lib/engram_writer.py`, `lib/heartbeat.py` vía copy-from-stripe (Opción A del PRD §6).
+
+### Integración con /stripe-connect
+
+Paso 9.5 de la skill invoca `set_edge_secret` con los 4 secrets obtenidos de los pasos 9.5.2 previos. Graceful degradation si el MCP no está registrado (fallback a copy-paste manual en dashboard).
+
+### Roadmap
+
+- **H1 (v0.1 alpha)** — T1 (set), T2 (list), T3 (unset) + telemetría + tests + docs + integración con `/stripe-connect` ✅ (91% coverage)
+- **H2 (v1.1)** — `base_url` self-hosted support (parcialmente implementado), alias store para PATs multi-proyecto
+
+### Referencias
+
+- PRD: [doc/prd/specbox_supabase_mcp_prd.md](doc/prd/specbox_supabase_mcp_prd.md)
+- README: [packages/specbox-supabase-mcp/README.md](packages/specbox-supabase-mcp/README.md)
+- Tracking: FreeForm backend `ff-2051992d4368`, US-SPECBOX-SUPABASE (7 UCs, 36 ACs)
+
 ## Spec-Code Sync (v5.0)
 
 Automatic PRD update with implementation deltas after each /implement phase:
@@ -835,6 +869,6 @@ que la Sala de Máquinas muestre el último audit sin escanear el filesystem.
 
 ## Engine Version
 
-Current: v5.25.0 "Stripe Connect"
+Current: v5.26.0 "Supabase Edge Secrets"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

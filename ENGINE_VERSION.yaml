@@ -1,8 +1,8 @@
-version: 5.25.0
-codename: "Stripe Connect"
+version: 5.26.0
+codename: "Supabase Edge Secrets"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-04-17
+release_date: 2026-04-18
 min_claude_code: "1.0.0"
 
 stacks:
@@ -315,8 +315,45 @@ features:
   - context-budget-expanded-20k
   - ag-09b-opus-upgrade
   - ag-10-audit-opus-upgrade
+  # New (v5.25.0) — Stripe Connect
+  - stripe-connect-skill
+  - stripe-safety-guard-hook
+  - marketplace-billing-scaffold
+  - specbox-stripe-mcp
+  # New (v5.26.0) — Supabase Edge Secrets
+  - specbox-supabase-mcp
+  - supabase-management-api-wrapper
+  - edge-secrets-automation
+  - stripe-connect-end-to-end
 
 changelog:
+  5.26.0:
+    date: 2026-04-18
+    codename: "Supabase Edge Secrets"
+    changes:
+      - "feat: New package packages/specbox-supabase-mcp/ — SpecBox MCP server wrapping Supabase Management API for Edge Function secrets automation (Python + FastMCP + httpx)"
+      - "feat: Tool set_edge_secret — bulk POST /v1/projects/{ref}/secrets with idempotency (GET previo) + computation of previously_present/absent for accurate heartbeat"
+      - "feat: Tool list_edge_secrets — read-only GET, returns names + timestamps (values never exposed by Supabase API), with optional expected_names diff computing missing_names/extra_names"
+      - "feat: Tool unset_edge_secret — bulk DELETE with mandatory literal confirm_token + pre-action Engram audit observation before DELETE is issued"
+      - "feat: Transversal telemetry — PAT redaction (sbp_****<last6>), heartbeat event_type=supabase_mcp_call, healing events on 429/connection retry recovery, Engram observations with names-only (values never logged)"
+      - "feat: Integration into /stripe-connect skill — new Paso 9.5 invokes set_edge_secret with the 4 Stripe secrets, closes end-to-end flow. Graceful degradation to manual copy-paste if MCP not registered. UNBLOCKS UC-7 of specbox-stripe-mcp"
+      - "feat: 70 unit tests, 90.91% coverage (target 85%). Integration suite gated by SUPABASE_CI_ACCESS_TOKEN + SUPABASE_CI_PROJECT_REF with autouse supabase_teardown fixture cleaning SPECBOX_CI_* secrets"
+      - "docs: PRD doc/prd/specbox_supabase_mcp_prd.md (16 sections) documenting motivation, 3 tools contracts, security invariants, rollout phases"
+      - "docs: CLAUDE.md new section 'SpecBox-Supabase MCP' after SpecBox-Stripe MCP with tool catalog, principles, roadmap, references"
+      - "note: Supabase Management API research confirmed POST/GET/DELETE /v1/projects/{ref}/secrets official endpoints. MCP oficial de Supabase NO cubre secrets (gap en supabase-community/supabase-mcp#120)"
+      - "note: Tracks in FreeForm backend ff-2051992d4368 as US-SPECBOX-SUPABASE (7 UCs, 36 ACs, all H1 done)"
+
+  5.25.0:
+    date: 2026-04-17
+    codename: "Stripe Connect"
+    changes:
+      - "feat: New skill /stripe-connect scaffolds a complete Stripe Connect marketplace integration (Express + Direct charges + embedded subscriptions) for Supabase + React/Flutter projects"
+      - "feat: Generates US-SPONSORSHIP with 12 UCs in the project's spec backend, backend Edge Functions + SQL migrations with RLS, frontend templates with Payment Element/Sheet + Apple/Google Pay + Express Checkout"
+      - "feat: New hook stripe-safety-guard.mjs blocks 5 anti-patterns on billing paths: sk_live_* hardcoded, webhook sin firma, webhook sin idempotencia (stripe_processed_events), redirectToCheckout/ui_mode:hosted, Payment Links"
+      - "feat: New package packages/specbox-stripe-mcp/ — SpecBox MCP server for Stripe setup-as-code. 4 MVP tools (verify_connect_enabled, setup_webhook_endpoints, setup_products_and_prices, get_setup_status) + transversal telemetry + 103 unit tests + 87% coverage"
+      - "feat: Wires official Stripe MCP in .claude/settings.local.json. Zero-breaking-change: degrades gracefully if MCPs not registered"
+      - "docs: PRD doc/prd/specbox_stripe_mcp_prd.md (16 sections) + CLAUDE.md new section SpecBox-Stripe MCP"
+
   5.24.0:
     date: 2026-04-16
     codename: "Opus 4.7 Tuning"

@@ -30,6 +30,7 @@ from ..lib.idempotency import (
 from ..lib.response import err, ok
 from ..lib.safety import SafetyError, guard_live_mode
 from ..lib.stripe_client import StripeClient
+from ..lib.stripe_utils import as_dict, as_dict_list
 
 logger = logging.getLogger("specbox_stripe_mcp.tools.setup_products_and_prices")
 
@@ -117,8 +118,9 @@ def setup_products_and_prices(
             message=f"Failed to list products: {exc}",
         )
 
+    # Normalize ListObject → list[dict] to avoid StripeObject.get() collisions.
     existing_products = [
-        p for p in (products_listing.get("data") or [])
+        p for p in as_dict_list(products_listing)
         if is_specbox_managed(p.get("metadata"))
     ]
     existing_by_tier: dict[str, dict[str, Any]] = {
@@ -178,7 +180,7 @@ def setup_products_and_prices(
                 logger.warning("failed to archive product %s: %s", product.get("id"), exc)
                 continue
             archived_products.append(
-                {"id": archived.get("id", product["id"]), "tier_key": tier}
+                {"id": as_dict(archived).get("id", product["id"]), "tier_key": tier}
             )
 
     duration_ms = (time.monotonic() - started) * 1000
@@ -278,7 +280,7 @@ def _reconcile_tier(
     product = existing_by_tier.get(tier)
     if product is None:
         try:
-            product = client.call(
+            product_raw = client.call(
                 "products.create",
                 lambda: stripe.Product.create(
                     name=desired_name,
@@ -292,12 +294,13 @@ def _reconcile_tier(
         except stripe.error.InvalidRequestError as exc:  # type: ignore[attr-defined]
             _maybe_raise_currency(exc)
             raise
+        product = as_dict(product_raw)
         product_res = _product_result(product, tier=tier, created_or_reused="created")
     else:
         name_differs = product.get("name") != desired_name
         desc_differs = (product.get("description") or None) != (desired_description or None)
         if name_differs or desc_differs:
-            product = client.call(
+            product_raw = client.call(
                 "products.update",
                 lambda pid=product["id"]: stripe.Product.modify(
                     pid,
@@ -305,6 +308,7 @@ def _reconcile_tier(
                     description=desired_description,
                 ),
             )
+            product = as_dict(product_raw)
             product_res = _product_result(product, tier=tier, created_or_reused="updated")
         else:
             product_res = _product_result(product, tier=tier, created_or_reused="reused")
@@ -318,7 +322,7 @@ def _reconcile_tier(
     except stripe.error.StripeError:  # type: ignore[attr-defined]
         raise
 
-    existing_prices = list(price_listing.get("data") or [])
+    existing_prices = as_dict_list(price_listing)
     match = _find_price_match(
         existing_prices,
         unit_amount=unit_amount,
@@ -332,7 +336,7 @@ def _reconcile_tier(
         if not is_specbox_managed(match.get("metadata")):
             # Still reusable shape-wise; tag it so future runs recognize it.
             try:
-                match = client.call(
+                match_raw = client.call(
                     "prices.adopt",
                     lambda pid=match["id"]: stripe.Price.modify(
                         pid,
@@ -343,6 +347,7 @@ def _reconcile_tier(
                         },
                     ),
                 )
+                match = as_dict(match_raw)
             except stripe.error.StripeError as exc:  # type: ignore[attr-defined]
                 raise _PriceConflictError(
                     f"price {match.get('id')} conflicts for tier {tier}: {exc}"
@@ -368,7 +373,7 @@ def _reconcile_tier(
         if trial_days:
             recurring["trial_period_days"] = int(trial_days)
         try:
-            created_price = client.call(
+            created_price_raw = client.call(
                 "prices.create",
                 lambda: stripe.Price.create(
                     product=product["id"],
@@ -385,6 +390,7 @@ def _reconcile_tier(
                     ),
                 ),
             )
+            created_price = as_dict(created_price_raw)
         except stripe.error.InvalidRequestError as exc:  # type: ignore[attr-defined]
             _maybe_raise_currency(exc)
             raise

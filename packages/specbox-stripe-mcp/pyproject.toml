@@ -1,10 +1,16 @@
 [project]
 name = "specbox-stripe-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "SpecBox MCP server for Stripe setup-as-code (Connect, webhooks, products/prices, health check)"
 authors = [{ name = "Jesús Pérez", email = "jesus.perez.developer@gmail.com" }]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.15"
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
 license = { text = "MIT" }
 dependencies = [
     "fastmcp>=0.4.0",

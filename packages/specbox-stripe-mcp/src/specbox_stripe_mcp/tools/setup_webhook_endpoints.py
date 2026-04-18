@@ -34,6 +34,7 @@ from ..lib.idempotency import (
 from ..lib.response import err, ok
 from ..lib.safety import SafetyError, guard_live_mode
 from ..lib.stripe_client import DEFAULT_API_VERSION, StripeClient
+from ..lib.stripe_utils import as_dict, as_dict_list
 
 logger = logging.getLogger("specbox_stripe_mcp.tools.setup_webhook_endpoints")
 
@@ -144,7 +145,9 @@ def setup_webhook_endpoints(
             message=f"Failed to list webhook endpoints: {exc}",
         )
 
-    existing = list(listing.get("data", []) or [])
+    # Normalize the ListObject → list[dict] once. Avoids StripeObject.get()
+    # attribute-lookup collisions under Python 3.14.
+    existing = as_dict_list(listing)
 
     try:
         platform_result = _reconcile_one(
@@ -303,7 +306,7 @@ def _reconcile_one(
             return _format_result(match, secret=secret, created_or_reused="reused", connect=connect)
         # Update to align events + description.
         try:
-            updated = client.call(
+            updated_raw = client.call(
                 "webhook_endpoints.update",
                 lambda eid=match["id"]: stripe.WebhookEndpoint.modify(
                     eid,
@@ -314,6 +317,7 @@ def _reconcile_one(
         except stripe.error.InvalidRequestError as exc:  # type: ignore[attr-defined]
             _raise_classified(exc, events=events)
             raise
+        updated = as_dict(updated_raw)
         secret = updated.get("secret") or _fetch_secret(client, updated["id"])
         return _format_result(updated, secret=secret, created_or_reused="updated", connect=connect)
 
@@ -323,7 +327,7 @@ def _reconcile_one(
         TOOL_NAME, url, connect, sorted(events), api_version
     )
     try:
-        created = client.call(
+        created_raw = client.call(
             "webhook_endpoints.create",
             lambda: stripe.WebhookEndpoint.create(
                 url=url,
@@ -338,6 +342,7 @@ def _reconcile_one(
     except stripe.error.InvalidRequestError as exc:  # type: ignore[attr-defined]
         _raise_classified(exc, events=events)
         raise
+    created = as_dict(created_raw)
     # On CREATE the secret is present directly in the response.
     secret = created.get("secret") or _fetch_secret(client, created["id"])
     return _format_result(created, secret=secret, created_or_reused="created", connect=connect)
@@ -374,7 +379,7 @@ def _fetch_secret(client: StripeClient, endpoint_id: str) -> str:
     except stripe.error.StripeError as exc:  # type: ignore[attr-defined]
         logger.warning("failed to expand secret for %s: %s", endpoint_id, exc)
         return ""
-    return refreshed.get("secret", "") or ""
+    return as_dict(refreshed).get("secret", "") or ""
 
 
 def _build_description(*, connect: bool, project_hint: str, prefix: str | None) -> str:

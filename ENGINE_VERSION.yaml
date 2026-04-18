@@ -1,4 +1,4 @@
-version: 5.26.0
+version: 5.26.1
 codename: "Supabase Edge Secrets"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
@@ -327,6 +327,16 @@ features:
   - stripe-connect-end-to-end
 
 changelog:
+  5.26.1:
+    date: 2026-04-18
+    codename: "Supabase Edge Secrets"
+    changes:
+      - "fix(specbox-stripe-mcp): normalize StripeObject via to_dict_recursive() before .get() access (Python 3.14 compat). Affects all 4 tools (verify_connect_enabled, setup_webhook_endpoints, setup_products_and_prices, get_setup_status) reading Stripe API responses. Detected in moto.fan integration — cuenta acct_1TGSBuRjinbf6Ah6"
+      - "feat(specbox-stripe-mcp): new shared helper lib/stripe_utils.py with as_dict() + as_dict_list() for Stripe SDK object normalization. Single responsibility, reused across every tool boundary"
+      - "test(specbox-stripe-mcp): 15 new regression tests in tests/unit/test_stripe_object_py314.py using a StripeObjectLike mock that reproduces the Python-3.14 AttributeError: get pathology. Suite covers 4 tools + the helper itself + negative control"
+      - "chore(specbox-stripe-mcp): bump package 0.1.0 → 0.1.1. pyproject requires-python updated to '>=3.11,<3.15'. README Compatibility section added documenting the fix"
+      - "note: 118 unit tests passing, 86.94% coverage (target 85%). Pre-fix CI passed because all unit mocks used plain dicts; the regression suite now uses StripeObjectLike that actively breaks .get() so a revert of the fix is caught immediately"
+
   5.26.0:
     date: 2026-04-18
     codename: "Supabase Edge Secrets"

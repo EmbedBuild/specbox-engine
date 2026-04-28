@@ -104,10 +104,44 @@ handle secret injection manually — but the MCP itself is usable standalone
 
 ---
 
+## Alias store / OAuth v2 — promoted from H3 to H2
+
+**Status**: planned for v0.3 (was previously v1.1 backlog).
+
+**Why promoted**: US-STRIPE-SWITCH-ACCOUNT (FreeForm board `ff-bc73b5d69f91`)
+needs an alias store as a hard dependency. Switching the active Stripe account
+of a SpecBox project requires holding multiple credentials at once (e.g.
+`prod` and `staging`), addressing them by alias instead of passing raw
+`sk_live_*` / `sk_test_*` strings, and rotating them safely. The switch
+workflow cannot be implemented on top of v0.2 alone.
+
+**Sketch contract**:
+
+```python
+# Encrypted at rest (.claude/secrets/stripe_aliases.enc.json) using AES-256-GCM
+# with a key derived from the macOS Keychain (or a passphrase fallback).
+store_stripe_alias(alias_name="prod", stripe_api_key="sk_live_...", project_path=".")
+list_stripe_aliases(project_path=".")  # → names + last_used_at + key mode (test/live), no values
+delete_stripe_alias(alias_name="legacy", project_path=".", confirm_token="…literal…")
+
+# Existing tools take account_alias as an alternative to stripe_api_key.
+verify_account_setup(account_alias="prod", account_mode="connect")
+```
+
+**Open items**:
+- Where to derive the encryption key from on Linux/Windows when there is no
+  macOS Keychain. Probably libsecret + DPAPI fallback chain.
+- Migration of in-memory keys passed via the existing `stripe_api_key`
+  argument — keep both signatures or force aliases?
+
+---
+
 ## References
 
 - PRD: `doc/prd/specbox_stripe_mcp_prd.md`
 - Main tracking: SpecBox FreeForm board `ff-2051992d4368`, US-SPECBOX-STRIPE
-- H1 milestone (shipped): UC-1, UC-2, UC-3, UC-4, UC-8, UC-9, UC-10
-- H2 milestone (blocked on dependency): UC-7
-- H3 milestone (v1.1 backlog): UC-5, UC-6
+- v0.2 tracking: SpecBox FreeForm board `ff-bc73b5d69f91`, US-STRIPE-MCP-V2
+- H1 milestone (shipped, v0.1): UC-1, UC-2, UC-3, UC-4, UC-8, UC-9, UC-10
+- v0.2 milestone (shipped, US-STRIPE-MCP-V2): account_mode discriminator on T1/T2/T4
+- H2 milestone (planned for v0.3): UC-7 (Paso 9.5 wiring) + alias store / OAuth v2
+- H3 milestone (v1.1 backlog): UC-5 setup_test_sellers, UC-6 teardown_test_mode

@@ -1,0 +1,7 @@
+{
+    "_comment": "Merge these dependencies into your project's package.json. The /stripe-standard skill does this automatically; this file documents the deps a consumer would have to add manually.",
+    "dependencies": {
+        "@stripe/stripe-js": "^3.0.0",
+        "@stripe/react-stripe-js": "^2.7.0"
+    }
+}

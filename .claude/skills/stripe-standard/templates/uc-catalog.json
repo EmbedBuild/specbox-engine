@@ -1,0 +1,196 @@
+{
+  "_comment": "Canonical UC catalog for /stripe-standard. The skill filters this list by the --modes flag the user passes. UCs with modes=['always'] are included regardless. Each UC has 5-10 testable ACs (Definition Quality Gate compliant). Hours are realistic per stack (React or Flutter), not summed.",
+  "ucs": [
+    {
+      "uc_id": "UC-401",
+      "name": "Crear stripe_customers tras signup (always)",
+      "actor": "Edge Function stripe-create-customer",
+      "hours": 4,
+      "modes": ["always"],
+      "context": "Cuando un usuario se registra en la app, hay que crear su Stripe Customer y persistir el mapping user_id ↔ stripe_customer_id. Idempotente: si ya existe, lo reutiliza.",
+      "acceptance_criteria": [
+        "AC-01: La Edge Function stripe-create-customer requiere JWT válido del usuario; rechaza con 401 si no hay token.",
+        "AC-02: Si stripe_customers ya tiene una row para el user_id, devuelve el customer existente sin llamar a Stripe API.",
+        "AC-03: Si no existe, llama a Stripe Customers.create con email del JWT y metadata {user_id, source:'specbox-standard'}.",
+        "AC-04: Persiste la row en stripe_customers con created_at y updated_at automáticos vía trigger.",
+        "AC-05: Errores de Stripe API (rate limit, 5xx) se devuelven con status 503 + retry hint, sin filtrar el secret key en logs.",
+        "AC-06: Test de integración crea 2 usuarios, verifica que el segundo signup del mismo usuario reusa el customer existente."
+      ]
+    },
+    {
+      "uc_id": "UC-402",
+      "name": "Single subscription flow (single_sub)",
+      "actor": "Edge Function stripe-create-subscription + frontend SubscriptionForm",
+      "hours": 8,
+      "modes": ["single_sub"],
+      "context": "El usuario contrata UNA suscripción mensual o anual a un precio fijo. Sin tiers, sin upgrades. Caso clásico SaaS '$X/mes'.",
+      "acceptance_criteria": [
+        "AC-01: Frontend (React PaymentElement / Flutter PaymentSheet) muestra el price seleccionado y permite confirmación in-page sin redirect.",
+        "AC-02: Edge Function llama a Subscriptions.create con payment_behavior='default_incomplete' y expand=['pending_setup_intent'] para soportar 3DS.",
+        "AC-03: Tras confirmación 3DS exitosa, webhook recibe customer.subscription.created y persiste en stripe_subscriptions con status='active'.",
+        "AC-04: Apple Pay / Google Pay disponibles automáticamente cuando device/browser los soporta (sin código extra).",
+        "AC-05: Errores de método de pago (card declined, insufficient funds) muestran mensaje legible al usuario sin revelar detalles internos.",
+        "AC-06: Si el usuario ya tiene una sub activa, frontend redirige a billing-portal en vez de mostrar el form (idempotencia UX).",
+        "AC-07: Test E2E cubre signup → subscribe → assert active in DB → cancel."
+      ]
+    },
+    {
+      "uc_id": "UC-403",
+      "name": "Tiered subscriptions con upgrade/downgrade (tiered_sub)",
+      "actor": "Edge Function stripe-create-subscription + frontend SubscriptionForm",
+      "hours": 10,
+      "modes": ["tiered_sub"],
+      "context": "El usuario elige entre N planes (ej: Free / Pro / Business). Puede cambiar de plan en cualquier momento con prorations automáticas.",
+      "acceptance_criteria": [
+        "AC-01: Frontend muestra catálogo de tiers leído de stripe_products + stripe_prices con metadata.tier_key.",
+        "AC-02: Switch de tier llama a Subscriptions.update con proration_behavior='create_prorations' y items[].price=new_price_id.",
+        "AC-03: Webhook customer.subscription.updated actualiza stripe_subscriptions.price_id y status sin perder current_period_end.",
+        "AC-04: Si el nuevo tier requiere 3DS adicional, frontend gestiona el SCA challenge y reintenta.",
+        "AC-05: Tier downgrade aplica al final del periodo actual (no inmediato), reflejado en cancel_at_period_end=false + price_id futuro guardado.",
+        "AC-06: Test E2E sube de free → pro → business y verifica prorations correctas.",
+        "AC-07: UC respeta paywall: si user en free intenta acceder feature pro, paywall_gate redirige a /pricing."
+      ]
+    },
+    {
+      "uc_id": "UC-404",
+      "name": "Metered billing con usage records (metered)",
+      "actor": "Edge Function stripe-report-usage + frontend UsageMeter",
+      "hours": 12,
+      "modes": ["metered"],
+      "context": "Facturación por uso: el usuario tiene una sub con price_metered (sin precio fijo, solo $X por unidad). El backend reporta usage_records cada vez que el usuario consume.",
+      "acceptance_criteria": [
+        "AC-01: Edge Function stripe-report-usage acepta {user_id, quantity, timestamp?} con JWT y persiste vía Stripe Usage Records API.",
+        "AC-02: Reportes son idempotentes: misma combinación (subscription_item, timestamp) no genera doble usage record.",
+        "AC-03: Webhook invoice.created al final del periodo muestra el cálculo correcto en el invoice (quantity * unit_amount).",
+        "AC-04: Frontend UsageMeter polling cada 30s muestra usage actual del periodo + proyección de factura.",
+        "AC-05: Si el usuario alcanza un soft limit (configurable), UI avisa + Edge Function envía email vía Resend (opcional).",
+        "AC-06: Test de integración reporta 100 usage records + verifica el invoice generado.",
+        "AC-07: Endpoint stripe-report-usage tiene rate limit por user_id para evitar abuse."
+      ]
+    },
+    {
+      "uc_id": "UC-405",
+      "name": "One-shot checkout para compras únicas (one_shot)",
+      "actor": "Edge Function stripe-create-payment-intent + frontend CheckoutEmbedded",
+      "hours": 6,
+      "modes": ["one_shot"],
+      "context": "Compra única sin recurrencia: e-commerce, donaciones, lifetime deals, productos digitales. Usa PaymentIntent + Embedded Checkout.",
+      "acceptance_criteria": [
+        "AC-01: Frontend CheckoutEmbedded usa loadStripe + initEmbeddedCheckout (NO redirectToCheckout, NO ui_mode='hosted').",
+        "AC-02: Edge Function stripe-create-payment-intent acepta {amount, currency, metadata} y devuelve client_secret.",
+        "AC-03: Webhook payment_intent.succeeded persiste el order en una tabla del proyecto (no incluida en el scaffold; el dev la añade).",
+        "AC-04: Apple Pay / Google Pay y Express Checkout (Link, etc.) habilitados por default vía automatic_payment_methods=true.",
+        "AC-05: Si el pago falla, frontend muestra mensaje específico (decline_code legible) sin filtrar info de Stripe.",
+        "AC-06: Test E2E cubre embedded checkout → succeed con tarjeta test 4242 → success page.",
+        "AC-07: Pago en EUR con IVA opcional vía Stripe Tax si está activo en la cuenta."
+      ]
+    },
+    {
+      "uc_id": "UC-406",
+      "name": "Webhook handler con verificación de firma e idempotencia (always)",
+      "actor": "Edge Function stripe-webhook",
+      "hours": 8,
+      "modes": ["always"],
+      "context": "Único endpoint que recibe TODOS los eventos de Stripe Standard. Verifica firma con stripe.webhooks.constructEventAsync, persiste event_id en stripe_processed_events para idempotencia, y rutea al handler interno.",
+      "acceptance_criteria": [
+        "AC-01: La función verifica stripe-signature header con STRIPE_WEBHOOK_SECRET y retorna 400 si falla.",
+        "AC-02: Si event.id ya existe en stripe_processed_events, retorna 200 OK sin re-procesar (idempotencia).",
+        "AC-03: Inserta event.id en stripe_processed_events ANTES de procesar, dentro de transacción para evitar race conditions.",
+        "AC-04: Handler maneja al menos: customer.created, customer.subscription.created/updated/deleted, invoice.paid, invoice.payment_failed, payment_intent.succeeded, checkout.session.completed.",
+        "AC-05: Errores de procesamiento se loggean (con event.id, sin secrets) y devuelven 500 — Stripe reintentará.",
+        "AC-06: Test de unit con eventos firmados correctamente y firmados con clave incorrecta verifica los 2 paths.",
+        "AC-07: Logs nunca contienen el raw body completo (puede tener PII); solo event.id, type, timestamp."
+      ]
+    },
+    {
+      "uc_id": "UC-407",
+      "name": "Customer Portal vía stripe-create-portal-session (always)",
+      "actor": "Edge Function stripe-create-portal-session + frontend BillingPortalLink",
+      "hours": 4,
+      "modes": ["always"],
+      "context": "Stripe ofrece un Customer Portal hosted donde el usuario puede gestionar sus payment methods, ver invoices, cancelar sub, etc. En Standard sí podemos abrirlo (en Connect el customer vive en otra cuenta).",
+      "acceptance_criteria": [
+        "AC-01: Edge Function llama BillingPortal.Session.create con customer y return_url, devuelve url al frontend.",
+        "AC-02: Frontend BillingPortalLink abre la url en nueva pestaña / browser externo (Flutter usa url_launcher).",
+        "AC-03: El portal está pre-configurado en Stripe Dashboard (la skill no lo configura — solo lo invoca).",
+        "AC-04: Si el customer no existe (caso edge: row borrada manualmente), Edge Function devuelve 404 con mensaje claro.",
+        "AC-05: return_url default = window.location.origin + '/account'."
+      ]
+    },
+    {
+      "uc_id": "UC-408",
+      "name": "Cancellation flow con grace period (single_sub, tiered_sub, metered)",
+      "actor": "Customer Portal + webhook handler",
+      "hours": 4,
+      "modes": ["single_sub", "tiered_sub", "metered"],
+      "context": "Usuario cancela desde el Customer Portal. Stripe marca cancel_at_period_end=true. Webhook recibe customer.subscription.updated y persistimos. El acceso del usuario se mantiene hasta current_period_end.",
+      "acceptance_criteria": [
+        "AC-01: Webhook customer.subscription.updated detecta cancel_at_period_end transition false→true y actualiza stripe_subscriptions.",
+        "AC-02: PaywallGate del frontend sigue dando acceso mientras current_period_end > now().",
+        "AC-03: Webhook customer.subscription.deleted (al final del periodo) marca status='canceled' y revoca acceso en siguiente petición.",
+        "AC-04: Test cubre cancel inmediato (status=canceled) y cancel programado (cancel_at_period_end=true).",
+        "AC-05: Resend opcional envía email 'Cancelaste tu suscripción, sigue activa hasta XYZ' tras webhook (solo si infra Resend está activa)."
+      ]
+    },
+    {
+      "uc_id": "UC-409",
+      "name": "Dunning: invoice.payment_failed handling (single_sub, tiered_sub, metered)",
+      "actor": "Edge Function stripe-webhook + Resend (opcional)",
+      "hours": 5,
+      "modes": ["single_sub", "tiered_sub", "metered"],
+      "context": "Cuando un cobro recurrente falla (tarjeta caducada, fondos insuficientes), Stripe reintenta automáticamente. La app debe avisar al usuario y eventualmente revocar acceso.",
+      "acceptance_criteria": [
+        "AC-01: Webhook invoice.payment_failed actualiza stripe_subscriptions.status='past_due' o 'unpaid' según invoice.attempt_count.",
+        "AC-02: Tras N intentos fallidos (configurable en dashboard de Stripe), status pasa a 'unpaid' y PaywallGate revoca acceso.",
+        "AC-03: Email opcional vía Resend tras primer fallo con link al Customer Portal para actualizar payment method.",
+        "AC-04: Cuando el usuario actualiza el método y Stripe cobra, webhook invoice.paid devuelve status a 'active'.",
+        "AC-05: Test con tarjeta test 4000000000000341 (decline) verifica todo el flujo dunning."
+      ]
+    },
+    {
+      "uc_id": "UC-410",
+      "name": "Refunds vía Stripe MCP runtime (always)",
+      "actor": "Stripe MCP oficial (no es código nuevo de la skill)",
+      "hours": 2,
+      "modes": ["always"],
+      "context": "La skill no genera código de refunds — eso es runtime puro y va por el Stripe MCP oficial. Solo documenta cómo hacerlo y deja un ejemplo en doc/stripe-standard-runbook.md.",
+      "acceptance_criteria": [
+        "AC-01: doc/stripe-standard-runbook.md tiene sección 'Refunds' con comando exacto del Stripe MCP oficial: stripe refunds create payment_intent=pi_X amount=N.",
+        "AC-02: Runbook explica diferencia entre refund full vs partial vs application_fee (no aplica en Standard).",
+        "AC-03: Webhook charge.refunded actualiza orders/subscriptions según corresponda (handler genérico).",
+        "AC-04: Test del webhook handler con evento charge.refunded fixture."
+      ]
+    },
+    {
+      "uc_id": "UC-411",
+      "name": "Paywall enforcement frontend (always)",
+      "actor": "Frontend PaywallGate (React/Flutter)",
+      "hours": 5,
+      "modes": ["always"],
+      "context": "Componente que envuelve features premium y verifica que el usuario tenga sub activa antes de mostrarlas. Centraliza toda la lógica de 'qué requiere pago'.",
+      "acceptance_criteria": [
+        "AC-01: PaywallGate consulta stripe_subscriptions.status del usuario actual vía Supabase RLS.",
+        "AC-02: Si status ∈ {active, trialing}, renderiza children. Si no, redirige a /pricing.",
+        "AC-03: Soporta tier-based: <PaywallGate requireTier='pro'> verifica metadata.tier_key del precio activo.",
+        "AC-04: Loading state mientras se resuelve el query (skeleton, no flash de contenido).",
+        "AC-05: Test con usuario sin sub, con sub free, con sub pro verifica los 3 paths.",
+        "AC-06: Hook use-billing centraliza el query y se reutiliza entre PaywallGate y BillingPortalLink."
+      ]
+    },
+    {
+      "uc_id": "UC-412",
+      "name": "Setup products & prices vía specbox-stripe-mcp (always)",
+      "actor": "Skill /stripe-standard via mcp__specbox-stripe__setup_products_and_prices",
+      "hours": 3,
+      "modes": ["always"],
+      "context": "La skill puede llamar al MCP setup-as-code para crear products + prices automáticamente, en vez de pedir al usuario que los cree en el dashboard. Idempotente por tier_key.",
+      "acceptance_criteria": [
+        "AC-01: Si specbox-stripe-mcp está disponible, la skill llama setup_products_and_prices con un catálogo derivado de las modalidades activadas.",
+        "AC-02: Catálogo por defecto incluye al menos {tier_key:'basic', unit_amount:500, currency:'eur'} para single_sub o {one_time:true} para one_shot.",
+        "AC-03: Si el MCP no está disponible, la skill escribe doc/stripe-standard-catalog.md con las instrucciones manuales.",
+        "AC-04: setup_products_and_prices es idempotente: re-ejecución no duplica products/prices.",
+        "AC-05: Resultado se guarda en doc/tracking/stripe-standard-tier-mapping.json para que /implement lo lea."
+      ]
+    }
+  ]
+}

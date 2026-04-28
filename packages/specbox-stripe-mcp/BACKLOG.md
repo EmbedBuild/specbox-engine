@@ -104,35 +104,28 @@ handle secret injection manually — but the MCP itself is usable standalone
 
 ---
 
-## Alias store / OAuth v2 — promoted from H3 to H2
+## Alias store + switch_stripe_account — SHIPPED in v0.3
 
-**Status**: planned for v0.3 (was previously v1.1 backlog).
+**Status**: shipped 2026-04-29. See CHANGELOG `[0.3.0]`.
 
-**Why promoted**: US-STRIPE-SWITCH-ACCOUNT (FreeForm board `ff-bc73b5d69f91`)
-needs an alias store as a hard dependency. Switching the active Stripe account
-of a SpecBox project requires holding multiple credentials at once (e.g.
-`prod` and `staging`), addressing them by alias instead of passing raw
-`sk_live_*` / `sk_test_*` strings, and rotating them safely. The switch
-workflow cannot be implemented on top of v0.2 alone.
+The alias store and the `switch_stripe_account` tool landed in v0.3 as
+US-STRIPE-SWITCH-ACCOUNT (board `ff-bc73b5d69f91`). The plaintext-key
+argument on existing tools was kept as the primary interface — alias
+support inside other tools (e.g. `verify_account_setup(account_alias=...)`)
+was descoped after a decision to keep the surface simple. Callers that
+want to use aliases resolve them by calling
+`mcp__specbox-stripe__list_stripe_aliases_tool_mcp` first or via the
+`/stripe-switch-account` skill.
 
-**Sketch contract**:
+**Open items deferred to a future minor**:
 
-```python
-# Encrypted at rest (.claude/secrets/stripe_aliases.enc.json) using AES-256-GCM
-# with a key derived from the macOS Keychain (or a passphrase fallback).
-store_stripe_alias(alias_name="prod", stripe_api_key="sk_live_...", project_path=".")
-list_stripe_aliases(project_path=".")  # → names + last_used_at + key mode (test/live), no values
-delete_stripe_alias(alias_name="legacy", project_path=".", confirm_token="…literal…")
-
-# Existing tools take account_alias as an alternative to stripe_api_key.
-verify_account_setup(account_alias="prod", account_mode="connect")
-```
-
-**Open items**:
-- Where to derive the encryption key from on Linux/Windows when there is no
-  macOS Keychain. Probably libsecret + DPAPI fallback chain.
-- Migration of in-memory keys passed via the existing `stripe_api_key`
-  argument — keep both signatures or force aliases?
+- libsecret (Linux) / DPAPI (Windows) backends for the master key — today
+  Linux/CI rely on the `SPECBOX_ALIAS_PASSPHRASE` env var.
+- `account_alias` parameter on `verify_account_setup`,
+  `setup_webhook_endpoints`, `get_setup_status` so that consumer skills
+  can use aliases natively without an extra resolve step.
+- OAuth v2 against Stripe's Connect OAuth flow (only relevant when we
+  add platform-onboarding tooling — not on the immediate roadmap).
 
 ---
 

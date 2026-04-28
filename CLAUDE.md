@@ -313,6 +313,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /audit | "audit project", "quality audit", "ISO 25010", "SQuaRE audit" | direct | Full | v5.22 — Quality Audit ISO/IEC 25010 on-demand (AG-10, 8 analyzers, PDF+JSON) |
 | /stripe-connect | "stripe connect", "marketplace billing", "integrar pagos marketplace" | direct | Full | v5.25 — Marketplace Connect (Express + Direct charges + subscriptions embedded) + Supabase + React/Flutter |
 | /stripe-standard | "stripe standard", "stripe sin connect", "subscriptions saas", "billing saas", "monta pagos saas" | direct | Full | v5.27 — Stripe Standard (no Connect) + 4 modalidades (single/tiered/metered/one_shot) + Supabase + React/Flutter |
+| /stripe-switch-account | "switch stripe account", "rotar cuenta stripe", "cambiar cuenta stripe" | direct | Full | v5.28 — Stripe credentials rotation (alias store + switch_stripe_account tool, both Standard and Connect modes, dry-run + automatic rollback) |
 
 ## Hooks (v5.25.0)
 

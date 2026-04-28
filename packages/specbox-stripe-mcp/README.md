@@ -56,7 +56,9 @@ caller, and vice versa. v0.1 endpoints (no `specbox_account_mode` metadata)
 are silently migrated on first reuse — no breaking change for existing
 deployments.
 
-## Tool catalog (v0.2)
+## Tool catalog (v0.3)
+
+### Setup-as-code (v0.1 → v0.2)
 
 | Tool | Intent | Modes supported | Input | Output (key fields) |
 |------|--------|-----------------|-------|---------------------|
@@ -66,8 +68,26 @@ deployments.
 | `setup_products_and_prices` | Reconcile catalog by tier_key | both (mode-agnostic) | `stripe_api_key`, `catalog[]`, `archive_unmanaged_tiers?` | `products[]`, `prices[]`, `archived[]`, `tier_mapping` |
 | `get_setup_status` | Read-only health check | `standard`, `connect` | `stripe_api_key`, `account_mode`, `expected_webhook_url?`, `expected_tier_keys?`, `expected_platform_events?`, `expected_connect_events?` (connect only) | `verdict` ∈ {ready, partial, not_setup}, `checks`, `remediation_steps`, `account_mode` |
 
-v1.1 will add an alias store (encrypted on-disk credentials), `setup_test_sellers`
-and `teardown_test_mode` (H2/H3 backlog).
+### Credentials rotation (v0.3)
+
+| Tool | Intent | Input | Output (key fields) |
+|------|--------|-------|---------------------|
+| `store_stripe_alias` | Persist a Stripe credential under a short alias name (encrypted on disk) | `alias_name`, `stripe_api_key`, `project_path` | `alias_name`, `mode`, `created_at`, `store_path` |
+| `list_stripe_aliases_tool` | List aliases registered for this project — metadata only, NEVER values | `project_path` | `aliases[]`, `count` |
+| `delete_stripe_alias` | Delete an alias entry (requires literal `confirm_token`) | `alias_name`, `project_path`, `confirm_token` | `alias_name`, `deleted` |
+| `switch_stripe_account` | Rotate a project's active Stripe account end-to-end | `from_alias`, `to_alias`, `account_mode`, `project_path`, `platform_url`, `platform_events[]`, `connect_events[]?`, `catalog[]?`, `supabase_pat?`, `supabase_project_ref?`, `scope_action`, `confirm_token?`, `dry_run` | `source_summary`, `destination_summary`, `plan`, `executed[]`, `rollback_log[]`, `runbook_path` |
+
+The encrypted alias store lives at `.claude/secrets/stripe_aliases.enc.json`.
+AES-256-GCM with key derived from macOS Keychain (default) or
+`SPECBOX_ALIAS_PASSPHRASE` env var (Linux/CI fallback). The skill
+[`/stripe-switch-account`](../../.claude/skills/stripe-switch-account/SKILL.md)
+provides a UX layer over `switch_stripe_account` (alias listing, plan
+preview, literal confirmation, automatic rollback). Operational runbook in
+[`doc/skills/stripe_switch_account_runbook.md`](../../doc/skills/stripe_switch_account_runbook.md).
+
+### Future
+
+H3 backlog: `setup_test_sellers`, `teardown_test_mode` (Connect-mode test data utilities).
 
 ## Standard response envelope
 

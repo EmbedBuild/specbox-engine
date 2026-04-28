@@ -127,6 +127,7 @@ class TestAcceptance:
 
         out = get_setup_status(
             stripe_api_key=TEST_KEY,
+            account_mode="connect",
             expected_webhook_url=WEBHOOK_URL,
             expected_tier_keys=TIERS,
             expected_platform_events=PLATFORM_EVENTS,
@@ -155,6 +156,7 @@ class TestAcceptance:
 
         out = get_setup_status(
             stripe_api_key=TEST_KEY,
+            account_mode="connect",
             expected_webhook_url=WEBHOOK_URL,
             expected_platform_events=PLATFORM_EVENTS,
             expected_connect_events=CONNECT_EVENTS,
@@ -181,6 +183,7 @@ class TestAcceptance:
 
         out = get_setup_status(
             stripe_api_key=TEST_KEY,
+            account_mode="connect",
             expected_tier_keys=TIERS,
             project_hint="motofan",
         )
@@ -198,6 +201,7 @@ class TestAcceptance:
 
         out = get_setup_status(
             stripe_api_key=TEST_KEY,
+            account_mode="connect",
             expected_tier_keys=TIERS,
             project_hint="motofan",
         )
@@ -224,6 +228,7 @@ class TestAcceptance:
 
         get_setup_status(
             stripe_api_key=TEST_KEY,
+            account_mode="connect",
             expected_webhook_url=WEBHOOK_URL,
             expected_tier_keys=TIERS,
             project_hint="motofan",
@@ -231,6 +236,7 @@ class TestAcceptance:
         # Call a second time — same result, still no mutations.
         get_setup_status(
             stripe_api_key=TEST_KEY,
+            account_mode="connect",
             expected_webhook_url=WEBHOOK_URL,
             expected_tier_keys=TIERS,
             project_hint="motofan",
@@ -252,6 +258,7 @@ class TestAcceptance:
 
         out = get_setup_status(
             stripe_api_key=TEST_KEY,
+            account_mode="connect",
             expected_webhook_url=WEBHOOK_URL,
             expected_platform_events=PLATFORM_EVENTS,
             expected_connect_events=CONNECT_EVENTS,
@@ -262,3 +269,239 @@ class TestAcceptance:
         assert pf["present"] is True
         assert pf["events_ok"] is False
         assert "capability.updated" in pf["missing_events"]
+
+
+# --- UC-003 v0.2 — modal-aware checks ----------------------------------------
+
+
+class TestUC003StandardModeChecks:
+    """AC-01: standard mode reports key + webhook_platform + products only."""
+
+    def test_standard_excludes_connect_checks(self, patch_stripe) -> None:  # type: ignore[no-untyped-def]
+        """AC-01: standard mode → checks has key + platform_webhook + products,
+        but NO webhook_connect or connect_enabled keys."""
+        m = patch_stripe
+        m["acc"].return_value = _account(with_connect=True)
+        m["wh"].return_value = _Listing(
+            data=[_webhook(wid="we_pf", connect=False, events=PLATFORM_EVENTS)]
+        )
+        m["plist"].return_value = _Listing(
+            data=[_product(f"prod_{t}", t) for t in TIERS]
+        )
+        m["prlist"].side_effect = lambda product, **_: _Listing(
+            data=[_price(f"price_{product}", product, product.replace("prod_", ""))]
+        )
+
+        out = get_setup_status(
+            stripe_api_key=TEST_KEY,
+            account_mode="standard",
+            expected_webhook_url=WEBHOOK_URL,
+            expected_tier_keys=TIERS,
+            expected_platform_events=PLATFORM_EVENTS,
+            project_hint="saas-app",
+        )
+
+        checks = out["data"]["checks"]
+        assert "key" in checks
+        assert "platform_webhook_endpoint" in checks
+        assert "products_found" in checks
+        # Standard mode MUST NOT include connect-specific checks.
+        assert "connect_webhook_endpoint" not in checks
+        assert "connect_enabled" not in checks
+        assert out["data"]["account_mode"] == "standard"
+
+    def test_standard_account_mode_field_present(self, patch_stripe) -> None:  # type: ignore[no-untyped-def]
+        """AC-01: data.account_mode is set to 'standard'."""
+        m = patch_stripe
+        m["acc"].return_value = _account(with_connect=True)
+        m["wh"].return_value = _Listing(data=[])
+        m["plist"].return_value = _Listing(data=[])
+
+        out = get_setup_status(
+            stripe_api_key=TEST_KEY,
+            account_mode="standard",
+            project_hint="saas-app",
+        )
+
+        assert out["data"]["account_mode"] == "standard"
+
+
+class TestUC003ConnectModeChecks:
+    """AC-02: connect mode preserves v0.1 checks."""
+
+    def test_connect_includes_all_v01_checks(self, patch_stripe) -> None:  # type: ignore[no-untyped-def]
+        """AC-02: connect mode → checks include webhook_connect and connect_enabled."""
+        m = patch_stripe
+        m["acc"].return_value = _account(with_connect=True)
+        m["wh"].return_value = _Listing(
+            data=[
+                _webhook(wid="we_pf", connect=False, events=PLATFORM_EVENTS),
+                _webhook(wid="we_cn", connect=True, events=CONNECT_EVENTS),
+            ]
+        )
+        m["plist"].return_value = _Listing(
+            data=[_product(f"prod_{t}", t) for t in TIERS]
+        )
+        m["prlist"].side_effect = lambda product, **_: _Listing(
+            data=[_price(f"price_{product}", product, product.replace("prod_", ""))]
+        )
+
+        out = get_setup_status(
+            stripe_api_key=TEST_KEY,
+            account_mode="connect",
+            expected_webhook_url=WEBHOOK_URL,
+            expected_tier_keys=TIERS,
+            expected_platform_events=PLATFORM_EVENTS,
+            expected_connect_events=CONNECT_EVENTS,
+            project_hint="motofan",
+        )
+
+        checks = out["data"]["checks"]
+        for key in (
+            "platform_webhook_endpoint",
+            "connect_webhook_endpoint",
+            "connect_enabled",
+            "products_found",
+        ):
+            assert key in checks
+
+
+class TestUC003StandardVerdicts:
+    """AC-03/04/05: verdict computation in standard mode."""
+
+    def test_standard_verdict_ready(self, patch_stripe) -> None:  # type: ignore[no-untyped-def]
+        """AC-03: 3 checks pass in standard → verdict='ready'."""
+        m = patch_stripe
+        m["acc"].return_value = _account(with_connect=False)  # Connect off is fine in standard
+        m["wh"].return_value = _Listing(
+            data=[_webhook(wid="we_pf", connect=False, events=PLATFORM_EVENTS)]
+        )
+        m["plist"].return_value = _Listing(
+            data=[_product(f"prod_{t}", t) for t in TIERS]
+        )
+        m["prlist"].side_effect = lambda product, **_: _Listing(
+            data=[_price(f"price_{product}", product, product.replace("prod_", ""))]
+        )
+
+        out = get_setup_status(
+            stripe_api_key=TEST_KEY,
+            account_mode="standard",
+            expected_webhook_url=WEBHOOK_URL,
+            expected_tier_keys=TIERS,
+            expected_platform_events=PLATFORM_EVENTS,
+            project_hint="saas-app",
+        )
+
+        assert out["data"]["verdict"] == "ready"
+
+    def test_standard_verdict_partial_when_webhook_missing(  # type: ignore[no-untyped-def]
+        self, patch_stripe
+    ) -> None:
+        """AC-04: key OK but webhook missing → verdict='partial' in standard."""
+        m = patch_stripe
+        m["acc"].return_value = _account(with_connect=False)
+        m["wh"].return_value = _Listing(data=[])  # no webhooks
+        m["plist"].return_value = _Listing(data=[])
+
+        out = get_setup_status(
+            stripe_api_key=TEST_KEY,
+            account_mode="standard",
+            expected_webhook_url=WEBHOOK_URL,
+            expected_platform_events=PLATFORM_EVENTS,
+            project_hint="saas-app",
+        )
+
+        assert out["data"]["verdict"] == "partial"
+
+    def test_standard_verdict_partial_when_products_missing(  # type: ignore[no-untyped-def]
+        self, patch_stripe
+    ) -> None:
+        """AC-04 variant: webhook OK but products missing → 'partial'."""
+        m = patch_stripe
+        m["acc"].return_value = _account(with_connect=False)
+        m["wh"].return_value = _Listing(
+            data=[_webhook(wid="we_pf", connect=False, events=PLATFORM_EVENTS)]
+        )
+        m["plist"].return_value = _Listing(data=[])  # no products
+
+        out = get_setup_status(
+            stripe_api_key=TEST_KEY,
+            account_mode="standard",
+            expected_webhook_url=WEBHOOK_URL,
+            expected_tier_keys=TIERS,
+            expected_platform_events=PLATFORM_EVENTS,
+            project_hint="saas-app",
+        )
+
+        assert out["data"]["verdict"] == "partial"
+
+
+class TestUC003StandardRemediation:
+    """AC-06: remediation_steps never mention 'activate Connect' in standard mode."""
+
+    def test_standard_remediation_no_connect_mention(self, patch_stripe) -> None:  # type: ignore[no-untyped-def]
+        """AC-06: remediation in standard mode does not say 'Activate Connect'."""
+        m = patch_stripe
+        # Connect is OFF, but in standard mode that should be irrelevant.
+        m["acc"].return_value = _account(with_connect=False)
+        m["wh"].return_value = _Listing(data=[])
+        m["plist"].return_value = _Listing(data=[])
+
+        out = get_setup_status(
+            stripe_api_key=TEST_KEY,
+            account_mode="standard",
+            expected_webhook_url=WEBHOOK_URL,
+            expected_platform_events=PLATFORM_EVENTS,
+            project_hint="saas-app",
+        )
+
+        full_remediation = " ".join(out["data"]["remediation_steps"]).lower()
+        assert "activate connect" not in full_remediation
+        assert "connect/overview" not in full_remediation
+
+    def test_connect_remediation_mentions_connect_when_disabled(  # type: ignore[no-untyped-def]
+        self, patch_stripe
+    ) -> None:
+        """AC-06 inverse: connect mode + connect disabled → remediation mentions Connect."""
+        m = patch_stripe
+        m["acc"].return_value = _account(with_connect=False)
+        m["wh"].return_value = _Listing(data=[])
+        m["plist"].return_value = _Listing(data=[])
+
+        out = get_setup_status(
+            stripe_api_key=TEST_KEY,
+            account_mode="connect",
+            project_hint="motofan",
+        )
+
+        full_remediation = " ".join(out["data"]["remediation_steps"]).lower()
+        assert "activate connect" in full_remediation
+
+
+class TestUC003ArgumentValidation:
+    def test_invalid_account_mode_rejected(self, patch_stripe) -> None:  # type: ignore[no-untyped-def]
+        m = patch_stripe
+        out = get_setup_status(
+            stripe_api_key=TEST_KEY,
+            account_mode="hybrid",  # type: ignore[arg-type]
+            project_hint="x",
+        )
+        assert out["error"]["code"] == "E_INVALID_ARGUMENT"
+        m["acc"].assert_not_called()
+
+    def test_standard_warns_on_expected_connect_events(self, patch_stripe) -> None:  # type: ignore[no-untyped-def]
+        """expected_connect_events in standard mode emits a warning, doesn't fail."""
+        m = patch_stripe
+        m["acc"].return_value = _account(with_connect=True)
+        m["wh"].return_value = _Listing(data=[])
+        m["plist"].return_value = _Listing(data=[])
+
+        out = get_setup_status(
+            stripe_api_key=TEST_KEY,
+            account_mode="standard",
+            expected_connect_events=CONNECT_EVENTS,
+            project_hint="saas-app",
+        )
+
+        assert out["success"] is True
+        assert any("ignored" in w.lower() for w in out.get("warnings", []))

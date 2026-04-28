@@ -1,25 +1,30 @@
-"""T4 — get_setup_status.
+"""T4 — get_setup_status (v0.2).
 
 Read-only health check answering: "Is the Stripe setup for this project complete?"
 
-Combines:
-- verify_connect_enabled (with skip_canary=True to avoid mutating state)
-- webhook endpoint inventory (platform + connect, events alignment)
-- product/price inventory by tier_key
+Modal-aware in v0.2 — the set of checks performed depends on account_mode:
+
+account_mode='standard' (SaaS, e-commerce, B2B):
+  Checks: key + platform_webhook_endpoint + products. NO webhook_connect, NO
+  connect_enabled. The remediation_steps never mention "activate Connect".
+
+account_mode='connect' (marketplace platforms):
+  Checks: key + platform_webhook_endpoint + connect_webhook_endpoint + products
+  + connect_enabled. Mirrors v0.1 behavior.
 
 NEVER creates, modifies, or deletes a Stripe resource. Safe to call repeatedly.
 
 Verdicts:
-- "ready"     — all checks pass
-- "partial"   — Connect enabled, but some webhooks/products missing or misaligned
-- "not_setup" — Connect not enabled
+- "ready"     — all applicable checks pass
+- "partial"   — at least one applicable check passes, at least one fails
+- "not_setup" — no applicable checks pass (or, in connect mode, Connect not enabled)
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from typing import Any, Literal
 
 import stripe
 
@@ -34,10 +39,14 @@ logger = logging.getLogger("specbox_stripe_mcp.tools.get_setup_status")
 
 TOOL_NAME = "get_setup_status"
 
+AccountMode = Literal["standard", "connect"]
+VALID_MODES: tuple[str, ...] = ("standard", "connect")
+
 
 def get_setup_status(
     *,
     stripe_api_key: str,
+    account_mode: AccountMode,
     expected_webhook_url: str | None = None,
     expected_tier_keys: list[str] | None = None,
     expected_currency: str = "eur",
@@ -47,8 +56,32 @@ def get_setup_status(
     allow_live_mode: bool = False,
     live_mode_confirm_token: str | None = None,
 ) -> dict[str, Any]:
-    """Inspect Stripe and return a pass/partial/not_setup verdict plus per-check details."""
+    """Inspect Stripe and return a verdict + per-check details for the requested mode.
+
+    Args:
+        account_mode: 'standard' or 'connect'. Required. Determines which checks
+            apply. In 'standard' mode, expected_connect_events is ignored with a
+            warning; the connect_webhook_endpoint and connect_enabled checks are
+            not performed.
+    """
     started = time.monotonic()
+
+    if account_mode not in VALID_MODES:
+        return err(
+            code="E_INVALID_ARGUMENT",
+            message=(
+                f"account_mode must be one of {list(VALID_MODES)}; got "
+                f"{account_mode!r}."
+            ),
+            remediation="Pass account_mode='standard' or 'connect'.",
+        )
+
+    warnings_out: list[str] = []
+    if account_mode == "standard" and expected_connect_events is not None:
+        warnings_out.append(
+            "expected_connect_events is ignored in account_mode='standard'."
+        )
+
     try:
         mode = guard_live_mode(
             stripe_api_key,
@@ -61,6 +94,7 @@ def get_setup_status(
             success=False,
             duration_ms=(time.monotonic() - started) * 1000,
             mode="invalid" if safety_exc.code == "E_INVALID_KEY" else "live",
+            account_mode=account_mode,
             code=safety_exc.code,
         )
         return err(
@@ -71,7 +105,7 @@ def get_setup_status(
 
     client = StripeClient(api_key=stripe_api_key)
 
-    # --- Connect check: we infer from capabilities rather than mutate via canary ---
+    # --- Account retrieval (both modes) ---
     try:
         account_raw = client.call(
             "accounts.retrieve", lambda: stripe.Account.retrieve()
@@ -80,30 +114,33 @@ def get_setup_status(
         _emit_heartbeat(
             project=project_hint, success=False,
             duration_ms=(time.monotonic() - started) * 1000, mode=mode,
-            code="E_INVALID_KEY",
+            account_mode=account_mode, code="E_INVALID_KEY",
         )
         return err(code="E_INVALID_KEY", message=str(exc))
     except stripe.error.StripeError as exc:  # type: ignore[attr-defined]
         _emit_heartbeat(
             project=project_hint, success=False,
             duration_ms=(time.monotonic() - started) * 1000, mode=mode,
-            code="E_STRIPE_ERROR",
+            account_mode=account_mode, code="E_STRIPE_ERROR",
         )
         return err(code="E_STRIPE_ERROR", message=f"account.retrieve: {exc}")
 
     account = as_dict(account_raw)
     caps = dict(account.get("capabilities") or {})
-    connect_enabled = _infer_connect_enabled(account, caps)
 
+    # --- Build checks based on mode ---
     checks: dict[str, Any] = {
-        "connect_enabled": connect_enabled,
+        "key": {"present": True, "mode": mode},
         "platform_webhook_endpoint": {"present": False, "id": None, "events_ok": False},
-        "connect_webhook_endpoint": {"present": False, "id": None, "events_ok": False},
         "products_found": [],
         "products_missing": [],
         "prices_found": {},
         "prices_missing": [],
     }
+    if account_mode == "connect":
+        checks["connect_enabled"] = _infer_connect_enabled(account, caps)
+        checks["connect_webhook_endpoint"] = {"present": False, "id": None, "events_ok": False}
+
     remediation_steps: list[str] = []
 
     # --- Webhook checks ---
@@ -117,13 +154,12 @@ def get_setup_status(
             return err(code="E_STRIPE_ERROR", message=f"webhook_endpoints.list: {exc}")
         webhooks = as_dict_list(listing)
         plat = _pick_webhook(
-            webhooks, url=expected_webhook_url, connect=False, expected_events=expected_platform_events,
-        )
-        conn = _pick_webhook(
-            webhooks, url=expected_webhook_url, connect=True, expected_events=expected_connect_events,
+            webhooks,
+            url=expected_webhook_url,
+            connect=False,
+            expected_events=expected_platform_events,
         )
         checks["platform_webhook_endpoint"] = plat
-        checks["connect_webhook_endpoint"] = conn
         if not plat["present"]:
             remediation_steps.append(
                 "Run setup_webhook_endpoints to create the missing platform webhook."
@@ -132,16 +168,25 @@ def get_setup_status(
             remediation_steps.append(
                 f"Platform webhook missing events: {plat.get('missing_events', [])}"
             )
-        if not conn["present"]:
-            remediation_steps.append(
-                "Run setup_webhook_endpoints to create the missing connect webhook."
-            )
-        elif not conn["events_ok"]:
-            remediation_steps.append(
-                f"Connect webhook missing events: {conn.get('missing_events', [])}"
-            )
 
-    # --- Product/Price checks ---
+        if account_mode == "connect":
+            conn = _pick_webhook(
+                webhooks,
+                url=expected_webhook_url,
+                connect=True,
+                expected_events=expected_connect_events,
+            )
+            checks["connect_webhook_endpoint"] = conn
+            if not conn["present"]:
+                remediation_steps.append(
+                    "Run setup_webhook_endpoints to create the missing connect webhook."
+                )
+            elif not conn["events_ok"]:
+                remediation_steps.append(
+                    f"Connect webhook missing events: {conn.get('missing_events', [])}"
+                )
+
+    # --- Product/Price checks (mode-agnostic) ---
     if expected_tier_keys:
         try:
             products_listing = client.call(
@@ -194,39 +239,37 @@ def get_setup_status(
 
     # --- Verdict ---
     verdict, summary = _compute_verdict(
-        connect_enabled=connect_enabled,
+        account_mode=account_mode,
         checks=checks,
         expected_webhook_url=expected_webhook_url,
         expected_tier_keys=expected_tier_keys,
     )
-    if verdict == "not_setup" and not connect_enabled:
-        remediation_steps.insert(
-            0,
-            _dashboard_hint(mode),
-        )
+
+    # --- Connect-only remediation hint ---
+    if account_mode == "connect":
+        connect_enabled = checks.get("connect_enabled", False)
+        if not connect_enabled:
+            remediation_steps.insert(0, _dashboard_hint(mode))
 
     duration_ms = (time.monotonic() - started) * 1000
     _emit_heartbeat(
         project=project_hint, success=True, duration_ms=duration_ms, mode=mode,
-        code="OK",
+        account_mode=account_mode, code="OK",
     )
-    return ok(
-        {
-            "verdict": verdict,
-            "checks": checks,
-            "summary": summary,
-            "remediation_steps": remediation_steps,
-            "mode": mode,
-            "platform_account_id": account.get("id", ""),
-        }
-    )
+    data = {
+        "verdict": verdict,
+        "checks": checks,
+        "summary": summary,
+        "remediation_steps": remediation_steps,
+        "mode": mode,
+        "account_mode": account_mode,
+        "platform_account_id": account.get("id", ""),
+    }
+    return ok(data, warnings=warnings_out or None)
 
 
 def _infer_connect_enabled(account: dict[str, Any], caps: dict[str, Any]) -> bool:
-    # If Connect is active, the platform account reports platform-specific properties:
-    # - settings.platform_payments with charges_enabled
-    # - capabilities listing platform payments
-    # We use a permissive heuristic: any capability present OR settings.platform.* indicates Connect.
+    """Permissive heuristic: any capability present OR platform settings indicate Connect."""
     if caps:
         return True
     settings = account.get("settings") or {}
@@ -277,34 +320,72 @@ def _pick_webhook(
 
 def _compute_verdict(
     *,
-    connect_enabled: bool,
+    account_mode: str,
     checks: dict[str, Any],
     expected_webhook_url: str | None,
     expected_tier_keys: list[str] | None,
 ) -> tuple[str, str]:
-    total_checks = 1  # connect always counted
-    passed = 1 if connect_enabled else 0
+    """Verdict computation differs by mode.
 
+    standard mode: 1 base check (key) + optional webhook_platform + optional products.
+    connect mode: 1 base check (connect_enabled) + key implicit + optional webhook
+    platform/connect + optional products. Connect not enabled is a hard not_setup.
+    """
+    if account_mode == "standard":
+        total = 1  # key always counted
+        passed = 1  # key passed if we got here (account.retrieve worked)
+        if expected_webhook_url:
+            total += 1
+            plat = checks["platform_webhook_endpoint"]
+            if plat["present"] and plat["events_ok"]:
+                passed += 1
+        if expected_tier_keys:
+            total += len(expected_tier_keys)
+            passed += len([
+                t for t in checks["products_found"]
+                if t in checks["prices_found"]
+            ])
+
+        if passed == 0:
+            return (
+                "not_setup",
+                "No SpecBox-managed Stripe resources found. Run the setup tools to provision them.",
+            )
+        if passed == total:
+            return "ready", f"{passed}/{total} checks pass. Ready to continue."
+        return (
+            "partial",
+            f"{passed}/{total} checks pass. See remediation_steps for the missing items.",
+        )
+
+    # connect mode
+    connect_enabled = bool(checks.get("connect_enabled"))
+    if not connect_enabled:
+        return (
+            "not_setup",
+            "Stripe Connect is not activated. Enable it in the dashboard before continuing.",
+        )
+
+    total = 1  # connect_enabled
+    passed = 1
     if expected_webhook_url:
-        total_checks += 2
+        total += 2
         if checks["platform_webhook_endpoint"]["present"] and checks["platform_webhook_endpoint"]["events_ok"]:
             passed += 1
         if checks["connect_webhook_endpoint"]["present"] and checks["connect_webhook_endpoint"]["events_ok"]:
             passed += 1
     if expected_tier_keys:
-        total_checks += len(expected_tier_keys)
-        passed += len(checks["products_found"]) - len([
+        total += len(expected_tier_keys)
+        passed += len([
             t for t in checks["products_found"]
-            if t not in checks["prices_found"]
+            if t in checks["prices_found"]
         ])
 
-    if not connect_enabled:
-        return "not_setup", "Stripe Connect is not activated. Enable it in the dashboard before continuing."
-    if passed == total_checks:
-        return "ready", f"{passed}/{total_checks} checks pass. Ready to continue."
+    if passed == total:
+        return "ready", f"{passed}/{total} checks pass. Ready to continue."
     return (
         "partial",
-        f"{passed}/{total_checks} checks pass. See remediation_steps for the missing items.",
+        f"{passed}/{total} checks pass. See remediation_steps for the missing items.",
     )
 
 
@@ -323,6 +404,7 @@ def _emit_heartbeat(
     success: bool,
     duration_ms: float,
     mode: str,
+    account_mode: str,
     code: str,
 ) -> None:
     try:
@@ -334,8 +416,9 @@ def _emit_heartbeat(
                 "success": success,
                 "duration_ms": round(duration_ms, 2),
                 "mode": mode,
+                "account_mode": account_mode,
                 "code": code,
-                "idempotency_hit": True,  # read-only: always a "hit"
+                "idempotency_hit": True,
             },
         )
     except Exception as exc:

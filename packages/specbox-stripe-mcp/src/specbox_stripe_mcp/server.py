@@ -156,6 +156,7 @@ def setup_products_and_prices_tool(
 @mcp.tool()
 def get_setup_status_tool(
     stripe_api_key: str,
+    account_mode: str,
     expected_webhook_url: str | None = None,
     expected_tier_keys: list[str] | None = None,
     expected_currency: str = "eur",
@@ -167,11 +168,18 @@ def get_setup_status_tool(
 ) -> dict:
     """Read-only health check for the Stripe setup of this project.
 
+    account_mode='standard' validates: key + platform_webhook + products. Does
+    NOT check Connect activation or connect-scope webhook.
+
+    account_mode='connect' validates: key + Connect activation + platform and
+    connect webhooks + products. Mirrors v0.1.
+
     Returns ``data.verdict`` in {"ready", "partial", "not_setup"} plus per-check
     details and ``remediation_steps`` when not ready. Never mutates Stripe.
     """
     return get_setup_status(
         stripe_api_key=stripe_api_key,
+        account_mode=account_mode,  # type: ignore[arg-type]
         expected_webhook_url=expected_webhook_url,
         expected_tier_keys=expected_tier_keys,
         expected_currency=expected_currency,

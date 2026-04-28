@@ -317,6 +317,7 @@ class TestT4SurvivesStripeObject:
              patch("stripe.WebhookEndpoint.list", return_value=webhooks):
             out = get_setup_status(
                 stripe_api_key=TEST_KEY,
+                account_mode="connect",
                 expected_webhook_url="https://x.test/wh",
                 expected_platform_events=["account.updated"],
                 expected_connect_events=["customer.subscription.created"],

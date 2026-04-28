@@ -1,8 +1,8 @@
-version: 5.26.1
-codename: "Supabase Edge Secrets"
+version: 5.27.0
+codename: "Stripe Standard + Switch Account"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-04-18
+release_date: 2026-04-29
 min_claude_code: "1.0.0"
 
 stacks:
@@ -325,8 +325,36 @@ features:
   - supabase-management-api-wrapper
   - edge-secrets-automation
   - stripe-connect-end-to-end
+  # New (v5.27.0) — Stripe Standard + Switch Account
+  - specbox-stripe-mcp-v0.3
+  - stripe-account-mode-discriminator
+  - stripe-standard-skill
+  - stripe-standard-4-modalities
+  - stripe-switch-account-skill
+  - stripe-alias-store-encrypted
+  - switch-stripe-account-tool
+  - switch-account-dry-run-rollback
 
 changelog:
+  5.27.0:
+    date: 2026-04-29
+    codename: "Stripe Standard + Switch Account"
+    changes:
+      - "feat(specbox-stripe-mcp): v0.2.0 — account_mode discriminator ('standard' | 'connect') decouples Connect from verify_account_setup, setup_webhook_endpoints and get_setup_status. Standard mode skips Connect canary, creates 1 webhook (vs 2 in Connect), produces mode-aware verdicts. Backward-compat preserved: verify_connect_enabled becomes a deprecated shim. Cross-mode resources do not collide; v0.1 endpoints silently migrate on first reuse"
+      - "feat: New skill /stripe-standard scaffolds a complete Stripe billing integration for non-Connect accounts (SaaS, e-commerce, B2B) on Supabase + React/Flutter. 4 opt-in modalities as flags: single_sub, tiered_sub, metered, one_shot"
+      - "feat: /stripe-standard generates 7 Edge Functions (Deno), 4 SQL migrations with RLS, 7 React templates (PaymentElement + ExpressCheckout + Embedded Checkout), 7 Flutter templates (PaymentSheet + Apple/Google Pay), 6 mode-gated Stitch design prompts, 5 acceptance test templates (Playwright + Patrol)"
+      - "feat: Skill /stripe-standard generates US-STRIPE-CHECKOUT with 12 canonical UCs (UC-401..UC-412) tagged by modality so import_spec only creates UCs for activated modes"
+      - "feat(specbox-stripe-mcp): v0.3.0 — encrypted alias store (lib/alias_store.py) for holding multiple Stripe credentials per project under short names. AES-256-GCM with macOS Keychain backend (default) or PBKDF2-HMAC-SHA256 from SPECBOX_ALIAS_PASSPHRASE (Linux/CI fallback). Plaintext keys NEVER logged or returned. Auto-adds .claude/secrets/ to .gitignore on first store"
+      - "feat(specbox-stripe-mcp): switch_stripe_account tool orchestrates account rotation end-to-end: pre-flight inventory, idempotent webhook + product replication on destination, Supabase Edge Function secrets rotation via Management API, scope_action on source (keep_old_active default | archive_products_only | deactivate_webhooks_only | full_archive). Default dry_run=True. Automatic rollback via append-only journal with doc/SWITCH_FAILURE_RUNBOOK.md generated when rollback itself fails"
+      - "feat: New skill /stripe-switch-account wraps switch_stripe_account_tool with UX layer (alias listing, dry-run plan in Markdown, literal 'Yes, switch from X to Y' confirmation, progress streaming). Both account_mode='standard' and 'connect' supported"
+      - "feat(specbox-stripe-mcp): 4 new MCP tools — store_stripe_alias_tool, list_stripe_aliases_tool_mcp, delete_stripe_alias_tool, switch_stripe_account_tool. Total tools in package: 9 (was 5 in v0.2)"
+      - "docs: doc/skills/stripe_switch_account_runbook.md with operational playbook, scope_action decision matrix, walkthroughs, failure modes, security notes"
+      - "docs: .claude/skills/stripe-standard/templates/docs/getting-started.md (5-min setup tutorial) and decision-tree.md (when to use stripe-standard vs stripe-connect)"
+      - "test(specbox-stripe-mcp): 183 unit tests (was 130 in v0.2) covering alias store lifecycle (23 tests, including wrong-passphrase decryption failure) and switch_stripe_account argument validation + dry-run snapshot (9 tests)"
+      - "test(specbox-stripe-mcp): 14 integration tests collected total (12 from STANDARD + 2 SWITCH round-trip a → b → a, gated by STRIPE_CI_SECRET_KEY_A/_B)"
+      - "chore(specbox-stripe-mcp): cryptography>=42.0.0 added to required dependencies (alias store needs it). pyproject.toml bumped 0.1.1 → 0.2.0 → 0.3.0"
+      - "note: 25/25 UCs closed across 3 User Stories (US-STRIPE-MCP-V2, US-STRIPE-STANDARD, US-STRIPE-SWITCH-ACCOUNT) on FreeForm board ff-bc73b5d69f91"
+
   5.26.1:
     date: 2026-04-18
     codename: "Supabase Edge Secrets"

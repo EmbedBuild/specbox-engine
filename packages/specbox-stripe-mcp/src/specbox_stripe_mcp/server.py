@@ -88,9 +88,10 @@ def verify_connect_enabled_tool(
 @mcp.tool()
 def setup_webhook_endpoints_tool(
     stripe_api_key: str,
+    account_mode: str,
     platform_url: str,
     platform_events: list[str],
-    connect_events: list[str],
+    connect_events: list[str] | None = None,
     connect_url: str | None = None,
     api_version: str | None = None,
     project_hint: str = "unknown",
@@ -98,14 +99,20 @@ def setup_webhook_endpoints_tool(
     allow_live_mode: bool = False,
     live_mode_confirm_token: str | None = None,
 ) -> dict:
-    """Create or idempotently reuse the 2 SpecBox-managed webhook endpoints.
+    """Create or idempotently reuse the SpecBox-managed webhook endpoints.
 
-    Returns ``data.platform`` and ``data.connect``, each with ``id``, ``secret``,
-    ``events``, and ``created_or_reused`` in {"created","reused","updated"}.
-    Secrets for reused endpoints are fetched via Stripe's ``expand=['secret']``.
+    account_mode='standard' creates 1 endpoint (platform-scope only) and rejects
+    connect_events / connect_url. account_mode='connect' creates 2 endpoints
+    (platform + connect) and requires connect_events.
+
+    Returns ``data.platform`` (and ``data.connect`` in connect mode), each with
+    ``id``, ``secret``, ``events``, and ``created_or_reused`` in
+    {"created","reused","updated"}. Secrets for reused endpoints are fetched
+    via Stripe's ``expand=['secret']``.
     """
     return setup_webhook_endpoints(
         stripe_api_key=stripe_api_key,
+        account_mode=account_mode,  # type: ignore[arg-type]
         platform_url=platform_url,
         platform_events=platform_events,
         connect_events=connect_events,

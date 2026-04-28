@@ -48,6 +48,7 @@ class TestSetupWebhookEdges:
         with patch("stripe.WebhookEndpoint.list", side_effect=stripe.error.APIConnectionError("down")):  # type: ignore[attr-defined]
             out = setup_webhook_endpoints(
                 stripe_api_key=TEST_KEY,
+                account_mode="connect",
                 platform_url="https://x.test/wh",
                 platform_events=["a.b"],
                 connect_events=["c.d"],
@@ -56,14 +57,18 @@ class TestSetupWebhookEdges:
         assert out["error"]["code"] == "E_STRIPE_ERROR"
 
     def test_empty_connect_events_rejected(self) -> None:
+        """Connect mode with empty connect_events surfaces as E_MISSING_ARGUMENT
+        in v0.2 (was E_INVALID_INPUT in v0.1). The semantic is the same — a
+        required-by-mode argument is missing — but the code is more precise."""
         out = setup_webhook_endpoints(
             stripe_api_key=TEST_KEY,
+            account_mode="connect",
             platform_url="https://x.test/wh",
             platform_events=["a.b"],
             connect_events=[],
             project_hint="p",
         )
-        assert out["error"]["code"] == "E_INVALID_INPUT"
+        assert out["error"]["code"] == "E_MISSING_ARGUMENT"
 
     def test_limit_reached_mapped(self) -> None:
         class _EmptyList(dict):
@@ -75,6 +80,7 @@ class TestSetupWebhookEdges:
                    )):
             out = setup_webhook_endpoints(
                 stripe_api_key=TEST_KEY,
+                account_mode="connect",
                 platform_url="https://x.test/wh",
                 platform_events=["account.updated"],
                 connect_events=["customer.subscription.created"],

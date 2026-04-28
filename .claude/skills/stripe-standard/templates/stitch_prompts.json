@@ -1,0 +1,43 @@
+{
+  "_comment": "Stitch prompts for /stripe-standard. The skill loops through these and calls mcp__stitch__generate_screen_from_text per screen. Each entry has: screen_name, file (relative to doc/design/stripe_standard/), modes_required (list — generated only if at least one is active), prompt template with placeholders {project_name}, {brand_primary}, {brand_font}, {currency}.",
+  "device_default": "DESKTOP",
+  "model_default": "GEMINI_3_PRO",
+  "screens": [
+    {
+      "screen_name": "Pricing / Paywall",
+      "file": "paywall.html",
+      "modes_required": ["always"],
+      "prompt": "Design a SaaS pricing page for {project_name} in LIGHT MODE.\n\nDesign System:\n- Theme: Light Mode\n- Background: #F5F5F5 (page), #FFFFFF (cards)\n- Primary: {brand_primary}\n- Text: #1F2937 (primary), #6B7280 (secondary)\n- Borders: #E5E7EB, radius 12px\n- Font: {brand_font}\n- Shadows: subtle shadow-sm on cards\n\nLayout: 3-column tier comparison (Basic / Pro / Business) on desktop. Each tier card includes: tier name, price/month, 5 feature bullets, primary CTA. Highlight the 'Pro' tier with a thin colored border + '⭐ Recomendado' badge.\n\nAdd a small toggle 'Mensual / Anual' above the tiers (annual shows discount). FAQ section below: 4 collapsed items.\n\nStates: only loaded state — no empty/loading needed.\nIcons: Material Symbols\nLayout: Desktop 1280px wide"
+    },
+    {
+      "screen_name": "Billing Portal Entry",
+      "file": "billing-portal.html",
+      "modes_required": ["always"],
+      "prompt": "Design an account billing summary screen for {project_name} in LIGHT MODE.\n\nDesign System: Light Mode, primary {brand_primary}, font {brand_font}.\n\nMain card shows the user's current subscription:\n- Plan name (e.g. 'Pro')\n- Status badge (Active / Past due / Canceled)\n- Renews on date\n- Next invoice amount\n- Payment method preview ('Visa •••• 4242')\n- Primary CTA: 'Manage in Stripe →' (opens portal)\n\nSecondary section below: 'Recent invoices' list with 5 items (date, amount, status pill, download icon).\n\nStates: loaded. Empty state for 'no subscription yet' with CTA back to pricing.\nLayout: Single-column, max-width 720px centered."
+    },
+    {
+      "screen_name": "Checkout Success",
+      "file": "checkout-success.html",
+      "modes_required": ["always"],
+      "prompt": "Design a minimal checkout success screen in LIGHT MODE.\n\nMain element: large green circle with white checkmark icon.\nBelow: H1 '¡Listo!', subtitle '{project_name} ya está activo. Te enviamos el recibo a tu email.'\nPrimary CTA: 'Ir al panel' centered below.\n\nNo distracting elements. White background, generous whitespace. Mobile-first portrait layout that also looks clean on desktop centered."
+    },
+    {
+      "screen_name": "Checkout Cancel",
+      "file": "checkout-cancel.html",
+      "modes_required": ["always"],
+      "prompt": "Design a neutral checkout cancellation screen in LIGHT MODE.\n\nMain element: gray icon (info or document, NOT red — this is not an error).\nH1: 'Pago cancelado', subtitle 'No se hizo ningún cargo. Puedes volver a intentarlo cuando quieras.'\nPrimary CTA: 'Volver a precios', secondary CTA: 'Ir al panel'.\n\nNon-aggressive design — emphasize the user is still welcome. Same minimal aesthetic as the success screen."
+    },
+    {
+      "screen_name": "Subscription Management",
+      "file": "subscription-management.html",
+      "modes_required": ["single_sub", "tiered_sub", "metered"],
+      "prompt": "Design a subscription management dashboard for {project_name} in LIGHT MODE.\n\nDesign System: Light Mode, primary {brand_primary}, font {brand_font}, currency {currency}.\n\nThree main sections:\n1. Current plan card (full width): plan name, monthly cost, next renewal date, status badge, two actions ('Cambiar plan' / 'Cancelar al final del periodo').\n2. Plan comparison table (3 tiers, current one highlighted) with upgrade/downgrade buttons inline.\n3. Invoices history table: date, description, amount, status, PDF download.\n\nStates: loaded with data. Loading skeleton. Empty 'no invoices yet'.\nLayout: Desktop 1280px, sidebar nav on the left."
+    },
+    {
+      "screen_name": "Metered Usage Dashboard",
+      "file": "metered-usage-dashboard.html",
+      "modes_required": ["metered"],
+      "prompt": "Design a metered billing usage dashboard for {project_name} in LIGHT MODE.\n\nDesign System: Light Mode, primary {brand_primary}, font {brand_font}, currency {currency}.\n\nTop metric cards row (4 cards): 'Uso este periodo' with big number + unit (e.g. '12,450 API calls'), 'Factura proyectada' (e.g. '24.50 EUR'), 'Días al cierre del periodo', 'Tu plan' with unit price.\n\nMain chart: line/bar chart showing daily usage for the current period (30 days), with a horizontal soft-limit line.\n\nBelow the chart: 'Detalle por endpoint/feature' table with usage breakdown (5-10 rows, sortable).\n\nStates: loaded with sample data. 'Cargando uso...' skeleton.\nLayout: Desktop 1280px wide, sidebar nav on the left."
+    }
+  ]
+}

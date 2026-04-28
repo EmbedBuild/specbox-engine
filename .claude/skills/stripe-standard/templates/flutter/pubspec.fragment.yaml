@@ -1,0 +1,7 @@
+# Merge these dependencies into your project's pubspec.yaml. The /stripe-standard
+# skill does this automatically; this file documents the deps a consumer would
+# add manually.
+dependencies:
+  flutter_stripe: ^11.0.0
+  url_launcher: ^6.2.0
+  supabase_flutter: ^2.5.0

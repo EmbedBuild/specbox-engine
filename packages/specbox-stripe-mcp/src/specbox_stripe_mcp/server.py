@@ -11,9 +11,15 @@ import os
 
 from fastmcp import FastMCP
 
+from .tools.alias_management import (
+    delete_stripe_alias,
+    list_stripe_aliases_tool,
+    store_stripe_alias,
+)
 from .tools.get_setup_status import get_setup_status
 from .tools.setup_products_and_prices import setup_products_and_prices
 from .tools.setup_webhook_endpoints import setup_webhook_endpoints
+from .tools.switch_account import switch_stripe_account
 from .tools.verify_account_setup import verify_account_setup
 from .tools.verify_connect_enabled import verify_connect_enabled
 
@@ -185,6 +191,112 @@ def get_setup_status_tool(
         expected_currency=expected_currency,
         expected_platform_events=expected_platform_events,
         expected_connect_events=expected_connect_events,
+        project_hint=project_hint,
+        allow_live_mode=allow_live_mode,
+        live_mode_confirm_token=live_mode_confirm_token,
+    )
+
+
+# ---------------------------------------------------------------------------
+# v0.3 — alias store + switch_stripe_account (US-STRIPE-SWITCH-ACCOUNT)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def store_stripe_alias_tool(
+    alias_name: str,
+    stripe_api_key: str,
+    project_path: str,
+) -> dict:
+    """Persist a Stripe API credential under ``alias_name`` in this project.
+
+    Stored encrypted with AES-256-GCM (key derived from macOS Keychain or
+    SPECBOX_ALIAS_PASSPHRASE). The file lives at
+    .claude/secrets/stripe_aliases.enc.json — added to .gitignore on first
+    write. Plaintext keys are NEVER logged.
+    """
+    return store_stripe_alias(
+        alias_name=alias_name,
+        stripe_api_key=stripe_api_key,
+        project_path=project_path,
+    )
+
+
+@mcp.tool()
+def list_stripe_aliases_tool_mcp(project_path: str) -> dict:
+    """List the aliases registered for this project (names + modes only)."""
+    return list_stripe_aliases_tool(project_path=project_path)
+
+
+@mcp.tool()
+def delete_stripe_alias_tool(
+    alias_name: str,
+    project_path: str,
+    confirm_token: str,
+) -> dict:
+    """Delete an alias entry. Requires confirm_token literal:
+
+    ``"I want to delete the {alias_name} alias"``
+    """
+    return delete_stripe_alias(
+        alias_name=alias_name,
+        project_path=project_path,
+        confirm_token=confirm_token,
+    )
+
+
+@mcp.tool()
+def switch_stripe_account_tool(
+    from_alias: str,
+    to_alias: str,
+    account_mode: str,
+    project_path: str,
+    platform_url: str,
+    platform_events: list[str],
+    connect_events: list[str] | None = None,
+    connect_url: str | None = None,
+    catalog: list[dict] | None = None,
+    supabase_pat: str | None = None,
+    supabase_project_ref: str | None = None,
+    scope_action: str = "keep_old_active",
+    confirm_token: str | None = None,
+    dry_run: bool = True,
+    project_hint: str = "unknown",
+    allow_live_mode: bool = False,
+    live_mode_confirm_token: str | None = None,
+) -> dict:
+    """Rotate the active Stripe account of a SpecBox project.
+
+    By default runs in dry-run mode (returns the plan without mutating
+    anything). Pass ``dry_run=false`` to execute. The destination resources
+    are converged via setup_webhook_endpoints + setup_products_and_prices
+    semantics; idempotent so re-runs are safe.
+
+    scope_action controls what to do with the source account:
+      - keep_old_active   (default, safe — zero-downtime rollback possible)
+      - archive_products_only
+      - deactivate_webhooks_only
+      - full_archive       (requires confirm_token literal)
+
+    Failures during execution trigger an automatic rollback. If rollback
+    itself fails, doc/SWITCH_FAILURE_RUNBOOK.md is generated for the human
+    to recover by hand.
+    """
+    return switch_stripe_account(
+        from_alias=from_alias,
+        to_alias=to_alias,
+        account_mode=account_mode,  # type: ignore[arg-type]
+        project_path=project_path,
+        platform_url=platform_url,
+        platform_events=platform_events,
+        connect_events=connect_events,
+        connect_url=connect_url,
+        catalog=catalog,
+        supabase_pat=supabase_pat,
+        supabase_project_ref=supabase_project_ref,
+        scope_action=scope_action,  # type: ignore[arg-type]
+        confirm_token=confirm_token,
+        dry_run=dry_run,
         project_hint=project_hint,
         allow_live_mode=allow_live_mode,
         live_mode_confirm_token=live_mode_confirm_token,

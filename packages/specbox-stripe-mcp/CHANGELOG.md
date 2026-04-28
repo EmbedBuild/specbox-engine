@@ -4,6 +4,68 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-04-29
+
+### Added — credentials rotation (US-STRIPE-SWITCH-ACCOUNT)
+
+- **Encrypted alias store** (`lib/alias_store.py`) for holding multiple Stripe
+  credentials per project, addressed by short names (e.g. `prod`, `staging`,
+  `legacy`). AES-256-GCM with two key derivation backends:
+  - macOS Keychain entry `com.specbox.stripe-alias-store` (default on Darwin).
+  - PBKDF2-HMAC-SHA256 from `SPECBOX_ALIAS_PASSPHRASE` env var (Linux/CI
+    fallback; takes precedence over Keychain when set, so the same code
+    works in both environments). 480k iterations.
+  - Plaintext keys are NEVER logged, returned, or written to Engram. Only
+    metadata (alias name, key mode, timestamps) is exposed.
+  - Auto-adds `.claude/secrets/` to project `.gitignore` on first store.
+- **3 new MCP tools** for managing aliases:
+  - `store_stripe_alias_tool(alias_name, stripe_api_key, project_path)`
+  - `list_stripe_aliases_tool_mcp(project_path)` — returns metadata only.
+  - `delete_stripe_alias_tool(alias_name, project_path, confirm_token)` —
+    requires literal token `"I want to delete the {alias_name} alias"`.
+- **`switch_stripe_account` tool** (`tools/switch_account.py`) orchestrates a
+  full account rotation:
+  - Pre-flight: enumerates SpecBox-managed resources on source + destination,
+    checks for collisions, builds a structured plan.
+  - T1-T3 against destination: idempotent webhook + product replication
+    using the existing `setup_webhook_endpoints` and
+    `setup_products_and_prices` semantics.
+  - Supabase Edge Function secrets rotation via the Management API
+    (or fallback to `doc/PENDING_SWITCH_SECRETS.md`).
+  - 4 `scope_action` modes for the source account: `keep_old_active`
+    (default, safe), `archive_products_only`, `deactivate_webhooks_only`,
+    `full_archive` (requires literal `confirm_token`).
+  - **Default `dry_run=True`** — must be explicitly disabled to mutate.
+  - **Automatic rollback** via append-only journal on any failure;
+    `doc/SWITCH_FAILURE_RUNBOOK.md` generated when rollback itself fails.
+  - Both `account_mode='standard'` (3 secrets, 1 webhook) and
+    `'connect'` (4 secrets, 2 webhooks) supported.
+- **New skill `/stripe-switch-account`** (`.claude/skills/stripe-switch-account/SKILL.md`)
+  wrapping the tool with a UX layer: lists aliases, prompts for `from`/`to`,
+  shows the dry-run plan in Markdown, asks for literal confirmation,
+  executes, and surfaces the runbook if rollback fails.
+- **Runbook documentation** (`doc/skills/stripe_switch_account_runbook.md`)
+  with operational playbook, scope_action decision matrix, walkthrough for
+  happy path + rollback, failure modes, security notes.
+- **2 new integration tests** (gated by `STRIPE_CI_SECRET_KEY_A` and
+  `STRIPE_CI_SECRET_KEY_B` — two distinct test accounts):
+  `test_switch_test_to_test` (round-trip a → b → a + idempotency) and
+  `test_dry_run_only_against_real_accounts` (snapshot-and-compare against
+  real Stripe inventories).
+
+### Changed
+
+- `pyproject.toml`: `cryptography>=42.0.0` added to dependencies (required
+  by the alias store).
+- README updated with v0.3 alias store and switch_stripe_account sections.
+
+### Migration v0.2 → v0.3
+
+No breaking changes. `cryptography` becomes a required dependency. Existing
+v0.2 callers of `verify_account_setup`, `setup_webhook_endpoints`, and
+`get_setup_status` continue to work unchanged. The alias store is opt-in;
+projects that pass raw `stripe_api_key` to existing tools keep doing so.
+
 ## [0.2.0] — 2026-04-29
 
 ### Added

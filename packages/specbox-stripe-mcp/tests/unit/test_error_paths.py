@@ -48,6 +48,7 @@ class TestSetupWebhookEdges:
         with patch("stripe.WebhookEndpoint.list", side_effect=stripe.error.APIConnectionError("down")):  # type: ignore[attr-defined]
             out = setup_webhook_endpoints(
                 stripe_api_key=TEST_KEY,
+                account_mode="connect",
                 platform_url="https://x.test/wh",
                 platform_events=["a.b"],
                 connect_events=["c.d"],
@@ -56,14 +57,18 @@ class TestSetupWebhookEdges:
         assert out["error"]["code"] == "E_STRIPE_ERROR"
 
     def test_empty_connect_events_rejected(self) -> None:
+        """Connect mode with empty connect_events surfaces as E_MISSING_ARGUMENT
+        in v0.2 (was E_INVALID_INPUT in v0.1). The semantic is the same — a
+        required-by-mode argument is missing — but the code is more precise."""
         out = setup_webhook_endpoints(
             stripe_api_key=TEST_KEY,
+            account_mode="connect",
             platform_url="https://x.test/wh",
             platform_events=["a.b"],
             connect_events=[],
             project_hint="p",
         )
-        assert out["error"]["code"] == "E_INVALID_INPUT"
+        assert out["error"]["code"] == "E_MISSING_ARGUMENT"
 
     def test_limit_reached_mapped(self) -> None:
         class _EmptyList(dict):
@@ -75,6 +80,7 @@ class TestSetupWebhookEdges:
                    )):
             out = setup_webhook_endpoints(
                 stripe_api_key=TEST_KEY,
+                account_mode="connect",
                 platform_url="https://x.test/wh",
                 platform_events=["account.updated"],
                 connect_events=["customer.subscription.created"],
@@ -121,13 +127,13 @@ class TestGetSetupStatusEdges:
     def test_auth_error_maps_to_invalid_key(self) -> None:
         with patch("stripe.Account.retrieve",
                    side_effect=stripe.error.AuthenticationError("bad key")):  # type: ignore[attr-defined]
-            out = get_setup_status(stripe_api_key=TEST_KEY, project_hint="p")
+            out = get_setup_status(stripe_api_key=TEST_KEY, account_mode="connect", project_hint="p")
         assert out["error"]["code"] == "E_INVALID_KEY"
 
     def test_generic_stripe_error(self) -> None:
         with patch("stripe.Account.retrieve",
                    side_effect=stripe.error.APIConnectionError("net")):  # type: ignore[attr-defined]
-            out = get_setup_status(stripe_api_key=TEST_KEY, project_hint="p")
+            out = get_setup_status(stripe_api_key=TEST_KEY, account_mode="connect", project_hint="p")
         assert out["error"]["code"] == "E_STRIPE_ERROR"
 
     def test_webhook_list_fails(self) -> None:
@@ -136,6 +142,7 @@ class TestGetSetupStatusEdges:
                    side_effect=stripe.error.APIConnectionError("net")):  # type: ignore[attr-defined]
             out = get_setup_status(
                 stripe_api_key=TEST_KEY,
+                account_mode="connect",
                 expected_webhook_url="https://x.test/wh",
                 project_hint="p",
             )
@@ -147,6 +154,7 @@ class TestGetSetupStatusEdges:
                    side_effect=stripe.error.APIConnectionError("net")):  # type: ignore[attr-defined]
             out = get_setup_status(
                 stripe_api_key=TEST_KEY,
+                account_mode="connect",
                 expected_tier_keys=["t"],
                 project_hint="p",
             )
@@ -155,6 +163,7 @@ class TestGetSetupStatusEdges:
     def test_live_mode_rejected(self) -> None:
         out = get_setup_status(
             stripe_api_key="sk_" + "live_" + "FixtureABCdef",
+            account_mode="connect",
             project_hint="p",
         )
         assert out["error"]["code"] == "E_LIVE_MODE_NOT_ALLOWED"

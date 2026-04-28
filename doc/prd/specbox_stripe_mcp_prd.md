@@ -1,10 +1,29 @@
 # PRD — `specbox-stripe` MCP
 
-**Status**: Draft v1
+**Status**: Draft v1 (v0.1 H1 shipped) + v0.2 amendment (Account modes, shipped 2026-04-29)
 **Author**: Claude (opus-4-7, via moto.fan session 2026-04-17)
 **Target executor**: SpecBox Engine team
-**Related skills**: `/stripe-connect`, `/manual-test`, `/stripe` (future v2 SaaS variant)
+**Related skills**: `/stripe-connect`, `/stripe-standard` (in progress), `/manual-test`
 **Sibling gap**: `specbox-supabase` MCP — `set_edge_secret` tool (tracked separately, same root cause)
+
+> **v0.2 amendment (2026-04-29) — Account modes as first-class citizens**
+>
+> The original v0.1 scope assumed Connect Express was the only target. Real
+> demand showed that the 80% of Stripe consumers (SaaS subscriptions,
+> e-commerce, B2B invoicing, donations, paywalls) do not need Connect at all,
+> and forcing them through it produces unnecessary failures (`E_CONNECT_NOT_ENABLED`
+> on perfectly valid accounts) and confusing webhook duplication.
+>
+> v0.2 adds an `account_mode: Literal["standard", "connect"]` discriminator
+> to `verify_account_setup`, `setup_webhook_endpoints`, and `get_setup_status`.
+> Standard mode skips the Connect canary, creates a single webhook endpoint,
+> and produces mode-aware verdicts/remediation. Connect mode preserves v0.1
+> behavior. Cross-mode resources do not collide; v0.1 endpoints migrate
+> silently on first reuse. The deprecated `verify_connect_enabled` alias
+> emits a `DeprecationWarning` and will be removed in v0.3.
+>
+> See `packages/specbox-stripe-mcp/CHANGELOG.md` for the full migration guide.
+> Tracking: SpecBox FreeForm board `ff-bc73b5d69f91`, US-STRIPE-MCP-V2.
 
 ---
 

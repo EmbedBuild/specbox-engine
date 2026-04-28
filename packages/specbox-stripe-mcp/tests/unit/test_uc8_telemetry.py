@@ -47,7 +47,7 @@ class TestAC01EngramObservation:
             return "obs_test"
 
         with patch(
-            "specbox_stripe_mcp.tools.verify_connect_enabled.write_config_observation",
+            "specbox_stripe_mcp.tools.verify_account_setup.write_config_observation",
             side_effect=capture,
         ), patch("stripe.Account.retrieve", return_value=_account()), patch(
             "stripe.Account.create", return_value={"id": "acct_probe"}
@@ -58,7 +58,9 @@ class TestAC01EngramObservation:
         assert len(captured) == 1
         obs = captured[0]
         assert obs["project"] == "motofan"
-        assert "verify_connect_enabled" in obs["title"]
+        # Shim delegates to verify_account_setup, which is the tool actually
+        # writing the engram observation.
+        assert "verify_account_setup" in obs["title"]
         # Observation content has no secrets and mentions mode + duration + tool.
         # Make sure no part of the test key leaks into the observation.
         assert "DUMMYfixtureKEY" not in obs["content"]
@@ -74,7 +76,7 @@ class TestAC01EngramObservation:
             raise RuntimeError("engram offline")
 
         with patch(
-            "specbox_stripe_mcp.tools.verify_connect_enabled.write_config_observation",
+            "specbox_stripe_mcp.tools.verify_account_setup.write_config_observation",
             side_effect=explode,
         ), patch("stripe.Account.retrieve", return_value=_account()), patch(
             "stripe.Account.create", return_value={"id": "acct_probe"}
@@ -94,7 +96,7 @@ class TestAC02HeartbeatAlwaysEmitted:
             captured.append(payload)
 
         with patch(
-            "specbox_stripe_mcp.tools.verify_connect_enabled.report_heartbeat",
+            "specbox_stripe_mcp.tools.verify_account_setup.report_heartbeat",
             side_effect=cap,
         ), patch("stripe.Account.retrieve", return_value=_account()), patch(
             "stripe.Account.create", return_value={"id": "acct_probe"}
@@ -103,7 +105,8 @@ class TestAC02HeartbeatAlwaysEmitted:
 
         assert captured
         hb = captured[-1]
-        assert hb["tool"] == "verify_connect_enabled"
+        # Shim delegates to verify_account_setup which is the tool emitting telemetry.
+        assert hb["tool"] == "verify_account_setup"
         assert hb["success"] is True
         assert hb["mode"] == "test"
         assert "duration_ms" in hb
@@ -116,7 +119,7 @@ class TestAC02HeartbeatAlwaysEmitted:
             captured.append(payload)
 
         with patch(
-            "specbox_stripe_mcp.tools.verify_connect_enabled.report_heartbeat",
+            "specbox_stripe_mcp.tools.verify_account_setup.report_heartbeat",
             side_effect=cap,
         ):
             out = verify_connect_enabled(stripe_api_key="not-a-key", project_hint="p")

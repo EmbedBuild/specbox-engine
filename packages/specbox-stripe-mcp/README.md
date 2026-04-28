@@ -2,26 +2,72 @@
 
 > SpecBox MCP server for Stripe **setup-as-code**.
 > Complements the [official Stripe MCP](https://mcp.stripe.com/v1): SpecBox-Stripe
-> builds the track (Connect gate, webhooks, products/prices, health check),
+> builds the track (account-mode gate, webhooks, products/prices, health check),
 > Stripe MCP runs business operations on top of it.
 
 ## What it does
 
 Closes the setup-as-code gap that the official Stripe MCP does not cover, so
-SpecBox skills like `/stripe-connect` can leave a project **operational
-end-to-end** without a single manual dashboard click (beyond the irreducible
-"enable Connect" toggle).
+SpecBox skills like `/stripe-connect` (marketplace) and `/stripe-standard`
+(SaaS, e-commerce, B2B) can leave a project **operational end-to-end** without
+a single manual dashboard click (beyond the irreducible "enable Connect"
+toggle, which only applies to marketplace platforms).
 
-## Tool catalog (v0.1 MVP)
+## Account modes (v0.2)
 
-| Tool | Intent | Input | Output (key fields) |
-|------|--------|-------|---------------------|
-| `verify_connect_enabled` | Can I create Connect Express accounts? | `stripe_api_key`, `project_hint`, `skip_canary?` | `enabled`, `platform_account_id`, `capabilities_available`, `mode` |
-| `setup_webhook_endpoints` | Create/reuse the 2 webhook endpoints | `stripe_api_key`, `platform_url`, `platform_events[]`, `connect_events[]`, `connect_url?`, `api_version?` | `platform.{id,secret,events,created_or_reused}`, `connect.{...}` |
-| `setup_products_and_prices` | Reconcile catalog by tier_key | `stripe_api_key`, `catalog[]`, `archive_unmanaged_tiers?` | `products[]`, `prices[]`, `archived[]`, `tier_mapping` |
-| `get_setup_status` | Read-only health check | `stripe_api_key`, `expected_webhook_url?`, `expected_tier_keys?`, `expected_platform_events?`, `expected_connect_events?` | `verdict` ∈ {ready, partial, not_setup}, `checks`, `remediation_steps` |
+Every tool takes an `account_mode` argument that determines what gets validated,
+created and reported.
 
-v1.1 will add `setup_test_sellers` and `teardown_test_mode` (H3 backlog).
+| Mode | Use cases | Webhook endpoints | Connect canary |
+|------|-----------|-------------------|----------------|
+| `standard` | SaaS subscriptions, e-commerce, B2B invoicing, donations, paywalls | 1 endpoint (platform-scope) | not used |
+| `connect` | Marketplace platforms with sellers (Express/Custom/Standard) | 2 endpoints (platform + connect) | optional; skip with `skip_canary=True` |
+
+```python
+# Standard (SaaS, e-commerce)
+verify_account_setup(
+    stripe_api_key="sk_test_...",
+    account_mode="standard",
+)
+setup_webhook_endpoints(
+    stripe_api_key="sk_test_...",
+    account_mode="standard",
+    platform_url="https://app.example.com/api/stripe-webhook",
+    platform_events=["customer.subscription.updated", "invoice.paid"],
+)
+
+# Connect (marketplace)
+verify_account_setup(
+    stripe_api_key="sk_test_...",
+    account_mode="connect",
+)
+setup_webhook_endpoints(
+    stripe_api_key="sk_test_...",
+    account_mode="connect",
+    platform_url="https://app.example.com/api/stripe-webhook",
+    platform_events=["account.updated"],
+    connect_events=["customer.subscription.created", "invoice.paid"],
+)
+```
+
+Cross-mode resources do not collide: an endpoint stamped with
+`metadata.specbox_account_mode='standard'` is never reused by a `connect`
+caller, and vice versa. v0.1 endpoints (no `specbox_account_mode` metadata)
+are silently migrated on first reuse — no breaking change for existing
+deployments.
+
+## Tool catalog (v0.2)
+
+| Tool | Intent | Modes supported | Input | Output (key fields) |
+|------|--------|-----------------|-------|---------------------|
+| `verify_account_setup` | Can I use this Stripe account in this mode? | `standard`, `connect` | `stripe_api_key`, `account_mode`, `project_hint`, `skip_canary?` | `enabled`, `platform_account_id`, `capabilities_available`, `mode`, `account_mode` |
+| `verify_connect_enabled` | DEPRECATED alias | `connect` only | (same as v0.1) | (same as v0.1) — emits `DeprecationWarning` |
+| `setup_webhook_endpoints` | Create/reuse the SpecBox-managed webhook endpoints | `standard`, `connect` | `stripe_api_key`, `account_mode`, `platform_url`, `platform_events[]`, `connect_events[]?`, `connect_url?`, `api_version?` | `platform.{id,secret,events,created_or_reused}`, `connect.{...}` (connect mode only), `account_mode` |
+| `setup_products_and_prices` | Reconcile catalog by tier_key | both (mode-agnostic) | `stripe_api_key`, `catalog[]`, `archive_unmanaged_tiers?` | `products[]`, `prices[]`, `archived[]`, `tier_mapping` |
+| `get_setup_status` | Read-only health check | `standard`, `connect` | `stripe_api_key`, `account_mode`, `expected_webhook_url?`, `expected_tier_keys?`, `expected_platform_events?`, `expected_connect_events?` (connect only) | `verdict` ∈ {ready, partial, not_setup}, `checks`, `remediation_steps`, `account_mode` |
+
+v1.1 will add an alias store (encrypted on-disk credentials), `setup_test_sellers`
+and `teardown_test_mode` (H2/H3 backlog).
 
 ## Standard response envelope
 

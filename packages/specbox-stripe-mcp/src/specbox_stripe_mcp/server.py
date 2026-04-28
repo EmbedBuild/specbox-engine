@@ -14,6 +14,7 @@ from fastmcp import FastMCP
 from .tools.get_setup_status import get_setup_status
 from .tools.setup_products_and_prices import setup_products_and_prices
 from .tools.setup_webhook_endpoints import setup_webhook_endpoints
+from .tools.verify_account_setup import verify_account_setup
 from .tools.verify_connect_enabled import verify_connect_enabled
 
 logging.basicConfig(
@@ -33,6 +34,37 @@ mcp = FastMCP(
 
 
 @mcp.tool()
+def verify_account_setup_tool(
+    stripe_api_key: str,
+    account_mode: str,
+    project_hint: str = "unknown",
+    allow_live_mode: bool = False,
+    live_mode_confirm_token: str | None = None,
+    skip_canary: bool = False,
+) -> dict:
+    """Verify a Stripe account is usable for the requested account_mode.
+
+    account_mode='standard' (SaaS, e-commerce, B2B): only confirms the key works
+    via GET /v1/account. No canary, no Connect probe.
+
+    account_mode='connect' (marketplace platforms): runs a canary create+delete
+    of an Express probe account to confirm Connect is activated. Pass
+    skip_canary=True to skip the probe and infer enablement from account
+    retrieval only (useful when the platform rate-limits canaries).
+
+    Use this as the first step of any SpecBox payments skill.
+    """
+    return verify_account_setup(
+        stripe_api_key=stripe_api_key,
+        account_mode=account_mode,  # type: ignore[arg-type]
+        project_hint=project_hint,
+        allow_live_mode=allow_live_mode,
+        live_mode_confirm_token=live_mode_confirm_token,
+        skip_canary=skip_canary,
+    )
+
+
+@mcp.tool()
 def verify_connect_enabled_tool(
     stripe_api_key: str,
     project_hint: str = "unknown",
@@ -40,10 +72,9 @@ def verify_connect_enabled_tool(
     live_mode_confirm_token: str | None = None,
     skip_canary: bool = False,
 ) -> dict:
-    """Check whether Stripe Connect is enabled for the platform account behind this key.
+    """DEPRECATED in v0.2 — use verify_account_setup_tool(account_mode='connect').
 
-    Use this as the first step of any SpecBox payments skill. If enabled=false, the skill
-    should abort with the remediation URL (dashboard activation is manual and irreducible).
+    Backward-compatible alias. Emits a DeprecationWarning. Will be removed in v0.3.
     """
     return verify_connect_enabled(
         stripe_api_key=stripe_api_key,
@@ -57,9 +88,10 @@ def verify_connect_enabled_tool(
 @mcp.tool()
 def setup_webhook_endpoints_tool(
     stripe_api_key: str,
+    account_mode: str,
     platform_url: str,
     platform_events: list[str],
-    connect_events: list[str],
+    connect_events: list[str] | None = None,
     connect_url: str | None = None,
     api_version: str | None = None,
     project_hint: str = "unknown",
@@ -67,14 +99,20 @@ def setup_webhook_endpoints_tool(
     allow_live_mode: bool = False,
     live_mode_confirm_token: str | None = None,
 ) -> dict:
-    """Create or idempotently reuse the 2 SpecBox-managed webhook endpoints.
+    """Create or idempotently reuse the SpecBox-managed webhook endpoints.
 
-    Returns ``data.platform`` and ``data.connect``, each with ``id``, ``secret``,
-    ``events``, and ``created_or_reused`` in {"created","reused","updated"}.
-    Secrets for reused endpoints are fetched via Stripe's ``expand=['secret']``.
+    account_mode='standard' creates 1 endpoint (platform-scope only) and rejects
+    connect_events / connect_url. account_mode='connect' creates 2 endpoints
+    (platform + connect) and requires connect_events.
+
+    Returns ``data.platform`` (and ``data.connect`` in connect mode), each with
+    ``id``, ``secret``, ``events``, and ``created_or_reused`` in
+    {"created","reused","updated"}. Secrets for reused endpoints are fetched
+    via Stripe's ``expand=['secret']``.
     """
     return setup_webhook_endpoints(
         stripe_api_key=stripe_api_key,
+        account_mode=account_mode,  # type: ignore[arg-type]
         platform_url=platform_url,
         platform_events=platform_events,
         connect_events=connect_events,
@@ -118,6 +156,7 @@ def setup_products_and_prices_tool(
 @mcp.tool()
 def get_setup_status_tool(
     stripe_api_key: str,
+    account_mode: str,
     expected_webhook_url: str | None = None,
     expected_tier_keys: list[str] | None = None,
     expected_currency: str = "eur",
@@ -129,11 +168,18 @@ def get_setup_status_tool(
 ) -> dict:
     """Read-only health check for the Stripe setup of this project.
 
+    account_mode='standard' validates: key + platform_webhook + products. Does
+    NOT check Connect activation or connect-scope webhook.
+
+    account_mode='connect' validates: key + Connect activation + platform and
+    connect webhooks + products. Mirrors v0.1.
+
     Returns ``data.verdict`` in {"ready", "partial", "not_setup"} plus per-check
     details and ``remediation_steps`` when not ready. Never mutates Stripe.
     """
     return get_setup_status(
         stripe_api_key=stripe_api_key,
+        account_mode=account_mode,  # type: ignore[arg-type]
         expected_webhook_url=expected_webhook_url,
         expected_tier_keys=expected_tier_keys,
         expected_currency=expected_currency,

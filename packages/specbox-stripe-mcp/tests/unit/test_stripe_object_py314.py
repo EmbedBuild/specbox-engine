@@ -233,6 +233,7 @@ class TestT2SurvivesStripeObject:
                    side_effect=[created_platform, created_connect]):
             out = setup_webhook_endpoints(
                 stripe_api_key=TEST_KEY,
+                account_mode="connect",
                 platform_url="https://x.test/wh",
                 platform_events=["account.updated"],
                 connect_events=["customer.subscription.created"],
@@ -316,6 +317,7 @@ class TestT4SurvivesStripeObject:
              patch("stripe.WebhookEndpoint.list", return_value=webhooks):
             out = get_setup_status(
                 stripe_api_key=TEST_KEY,
+                account_mode="connect",
                 expected_webhook_url="https://x.test/wh",
                 expected_platform_events=["account.updated"],
                 expected_connect_events=["customer.subscription.created"],

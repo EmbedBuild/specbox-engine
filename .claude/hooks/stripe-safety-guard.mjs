@@ -17,6 +17,10 @@
  *               to skip the check. Use sparingly, document why.
  *
  * v5.25.0 — Stripe Connect skill
+ * v5.27.0 — Reused unchanged by /stripe-standard (Stripe non-Connect accounts).
+ *           The same anti-patterns apply: sk_live_*, missing signature
+ *           verification, missing idempotency, hosted checkout, Payment Links.
+ *           Standard mode has 1 webhook endpoint instead of 2 — still scanned.
  */
 
 import { readFileSync, existsSync } from 'fs';

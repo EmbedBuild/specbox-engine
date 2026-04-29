@@ -4,6 +4,23 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] — 2026-04-29
+
+### Fixed
+
+- **`as_dict()` returned `{}` for stripe SDK 7.x objects on Python 3.14**, causing every tool to crash with `KeyError: 'id'` (or similar) on the first dict access after a successful API call. The pre-fix `as_dict()` looked up `to_dict_recursive()` first (legacy SDK ≤5) and fell back to `dict(obj)` — but stripe SDK 7.x renamed the canonical serialization method to `to_dict()`, and `dict(StripeObject)` returns `{}` on Python 3.14 because `StripeObject` is not mapping-like in the strict sense.
+- Reproduced 2026-04-29 against a real `sk_test_*` account: `setup_products_and_prices` crashed at `setup_products_and_prices.py:320` (`product["id"]` access inside `_reconcile_tier`) immediately after `Product.create` succeeded with HTTP 200.
+- The fix now tries `to_dict()` first (SDK 7+ canonical), then `to_dict_recursive()` (legacy ≤5), then `dict(obj)`, then `{}`. Plain dicts pass through unchanged. Nested `StripeObject` values inside the result are also normalized in case `to_dict()` was non-recursive on some object types.
+
+### Added
+
+- New regression test suite `tests/unit/test_stripe_object_sdk7.py` (10 tests) with a `StripeSdk7Object` mock that explicitly does NOT have `to_dict_recursive` (the source of the bug). The pre-fix code reproduces the same `KeyError: 'id'` against this mock; the fixed code passes.
+
+### Notes
+
+- This patches a regression introduced by v0.1.1 (2026-04-18) which added `as_dict()` thinking `to_dict_recursive()` was universal across stripe SDK versions. It was not — SDK 7.x doesn't expose it. Symptom only manifested on Python 3.14 because Python ≤3.13's `dict(StripeObject)` happens to extract fields correctly via the iteration protocol; on 3.14 it returns `{}`.
+- All 4 tools were affected (`verify_account_setup`, `setup_webhook_endpoints`, `setup_products_and_prices`, `get_setup_status`), although in practice only `setup_products_and_prices` and `setup_webhook_endpoints` triggered hard crashes (the other two access fields via `.get()` defaults). Now uniformly fixed at the `as_dict()` boundary.
+
 ## [0.3.0] — 2026-04-29
 
 ### Added — credentials rotation (US-STRIPE-SWITCH-ACCOUNT)

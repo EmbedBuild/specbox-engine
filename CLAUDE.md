@@ -1,4 +1,4 @@
-# SpecBox Engine v5.27.0
+# SpecBox Engine v5.27.1
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -871,6 +871,6 @@ que la Sala de Máquinas muestre el último audit sin escanear el filesystem.
 
 ## Engine Version
 
-Current: v5.27.0 "Stripe Standard + Switch Account"
+Current: v5.27.1 "Stripe Standard + Switch Account"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

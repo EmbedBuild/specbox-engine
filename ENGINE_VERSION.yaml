@@ -1,4 +1,4 @@
-version: 5.27.0
+version: 5.27.1
 codename: "Stripe Standard + Switch Account"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
@@ -336,6 +336,15 @@ features:
   - switch-account-dry-run-rollback
 
 changelog:
+  5.27.1:
+    date: 2026-04-29
+    codename: "Stripe Standard + Switch Account"
+    changes:
+      - "fix(specbox-stripe-mcp): v0.3.1 — as_dict() now tries to_dict() (SDK 7+ canonical) before to_dict_recursive() (legacy SDK <=5). Stripe SDK 7.x renamed the canonical serialization method to to_dict() and dropped to_dict_recursive(). The previous as_dict() fell back to dict(StripeObject) which returns {} on Python 3.14 because StripeObject is not strictly mapping-like. Result: every tool received {} after every successful API call and crashed with KeyError 'id' (or similar) on the next obj['id'] access"
+      - "fix(specbox-stripe-mcp): bug confirmed by reproducing setup_products_and_prices against a real sk_test account on 2026-04-29. Crashed at setup_products_and_prices.py:320 (product['id'] inside _reconcile_tier) immediately after Product.create returned HTTP 200. Fix validated end-to-end: same script now succeeds and is idempotent on re-run"
+      - "test(specbox-stripe-mcp): tests/unit/test_stripe_object_sdk7.py — 10 new regression tests with a StripeSdk7Object mock that explicitly does NOT have to_dict_recursive (replicating real SDK 7 shape). Pre-fix code reproduces the same KeyError 'id'; fixed code passes. Combined with the existing 15-test test_stripe_object_py314.py (legacy SDK <=5 path) the package now covers both SDK eras"
+      - "note: 193 unit tests passing (was 183), ruff clean. Backward-compat preserved — projects pinned to legacy stripe SDKs continue to work via the to_dict_recursive() fallback path"
+
   5.27.0:
     date: 2026-04-29
     codename: "Stripe Standard + Switch Account"

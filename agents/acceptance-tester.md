@@ -269,10 +269,75 @@ reporter: [
 npx bddgen && npx playwright test tests/acceptance/ --reporter=html,json
 ```
 
-### Flutter Mobile (Patrol v4 — native automation)
+### Flutter Mobile — Maestro (recomendado, v5.28+) o Patrol (legacy)
 
-> **Usar cuando**: los ACs requieren permisos del sistema, notificaciones, cámara, biometría, WebViews.
-> Si los ACs solo necesitan interacción con widgets en browser, usar Flutter Web (Playwright).
+> **Decisión por defecto**: Maestro (YAML, black-box, cross-platform iOS+Android).
+> **Mantén Patrol** si el test necesita acceso a estado interno Dart (Provider, BLoC), mockear servicios desde el lado app, o ya tienes una suite Patrol estable que migrar no aporta ROI.
+> Para Flutter Web → Playwright (Maestro y Playwright comparten el mismo techo en CanvasKit; Playwright sigue siendo nuestra elección).
+> Referencias: `architecture/flutter/maestro-setup.md` · `architecture/flutter/patrol-setup.md`
+
+#### Opción A — Maestro (recomendada por defecto)
+
+```yaml
+# .maestro/flows/UC-XXX_{feature}/AC-01_{descripcion}.yaml
+appId: com.embedbuild.myapp
+name: "AC-01: usuario crea propiedad con datos válidos"
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "btn_login"
+- inputText: "test@embed.build"
+- tapOn:
+    id: "btn_submit"
+- assertVisible: "Mis propiedades"
+- takeScreenshot: AC-01_step_1_logged_in
+
+- tapOn:
+    id: "fab_add_property"
+- inputText: "Depto Centro"
+- tapOn:
+    id: "btn_save"
+- assertVisible: "Depto Centro"
+- takeScreenshot: AC-01_step_2_save_success
+```
+
+**Convención obligatoria de screenshots**: `AC-XX_step_N_descripcion`. El generator usa este patrón para correlacionar.
+
+**Widgets addressable**: usa `Semantics.identifier` (Flutter 3.19+) en código Dart. Las `Key` no funcionan — Maestro lee la accessibility tree.
+
+```dart
+Semantics(
+  identifier: 'btn_save',
+  child: ElevatedButton(onPressed: _save, child: Text('Guardar')),
+)
+```
+
+**Ejecución:**
+```bash
+maestro test --format junit \
+  --output build/maestro/results.xml \
+  --output-dir build/maestro/UC-XXX/ \
+  .maestro/flows/UC-XXX_{feature}/
+```
+
+**Generar HTML Evidence Report (post-test):**
+```bash
+node .quality/scripts/maestro-evidence-generator.js \
+  --uc-id UC-XXX --us-id US-XX --feature {feature} \
+  --junit build/maestro/results.xml \
+  --screenshots build/maestro/UC-XXX/ \
+  --output .quality/evidence/{feature}/acceptance/e2e-evidence-report.html
+```
+
+**Notas Maestro:**
+- `source` en results.json: `maestro-junit-xml` (registrado en spec v5.28).
+- iOS: simulador en inglés para diálogos del sistema (mismo issue que Patrol).
+- Flake nativa: Maestro auto-retry built-in. No es necesario `pumpAndSettle`.
+- AG-09b no distingue Maestro vs Patrol — el HTML report y results.json son idénticos en estructura.
+
+#### Opción B — Patrol v4 (legacy, mantener si aplican condiciones arriba)
+
 > Referencia completa: `architecture/flutter/patrol-setup.md`
 
 ```yaml
@@ -834,13 +899,22 @@ function generateEvidenceReport(feature: string, ucId: string, evidenceDir: stri
 }
 ```
 
-### 8.5. Auto-invocación de generators (Patrol y Python)
+### 8.5. Auto-invocación de generators (Maestro, Patrol y Python)
 
 > Para Flutter Web y React, el paso 8 genera el HTML inline (Playwright afterAll).
-> Para Flutter Mobile (Patrol) y Python (pytest-bdd), AG-09a DEBE invocar el generator
+> Para Flutter Mobile (Maestro o Patrol) y Python (pytest-bdd), AG-09a DEBE invocar el generator
 > como paso automático — NO dejar para invocación manual.
 
-**Flutter Mobile (Patrol) — auto-invocar tras paso 5:**
+**Flutter Mobile (Maestro — recomendado) — auto-invocar tras paso 5:**
+```bash
+node .quality/scripts/maestro-evidence-generator.js \
+  --uc-id UC-XXX --feature {feature} --us-id US-XX \
+  --junit build/maestro/results.xml \
+  --screenshots build/maestro/UC-XXX/ \
+  --output .quality/evidence/{feature}/acceptance/e2e-evidence-report.html
+```
+
+**Flutter Mobile (Patrol — legacy) — auto-invocar tras paso 5:**
 ```bash
 node .quality/scripts/patrol-evidence-generator.js \
   --uc-id UC-XXX --feature {feature} --us-id US-XX \
@@ -959,4 +1033,4 @@ git commit -m "test(acceptance): add Gherkin scenarios for UC-XXX"
 
 ---
 
-*SpecBox Engine v5.19.0 — Acceptance Tester (Hybrid E2E: Playwright Web + Patrol Mobile + Gherkin BDD + Evidence Reports)*
+*SpecBox Engine v5.28.0 — Acceptance Tester (Hybrid E2E: Playwright Web + Maestro/Patrol Mobile + Gherkin BDD + Evidence Reports)*

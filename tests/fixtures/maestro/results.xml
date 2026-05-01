@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Maestro Test Suite" tests="3" failures="1" errors="0" skipped="0" time="12.345">
+  <testcase name="AC-01: usuario crea propiedad con datos válidos" classname="UC-001_crear_propiedad" time="4.21"/>
+  <testcase name="AC-02: validación inline en nombre vacío" classname="UC-001_crear_propiedad" time="2.13">
+    <failure message="assertVisible failed: 'Error: nombre requerido'">
+Element with text 'Error: nombre requerido' was not visible after 5000ms timeout
+    </failure>
+  </testcase>
+  <testcase name="AC-03: usuario acepta permisos de cámara" classname="UC-001_crear_propiedad" time="6.00"/>
+</testsuite>

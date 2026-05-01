@@ -1,0 +1,185 @@
+# Maestro E2E for Flutter Mobile — SpecBox Engine v5.28+
+#
+# Runs Maestro flows on Android emulator + iOS simulator, generates
+# HTML Evidence Report via SpecBox post-processor, and uploads results
+# as artifacts. Validates results.json against the SpecBox contract.
+#
+# Required repo structure:
+#   .maestro/flows/UC-XXX_{feature}/AC-XX_*.yaml
+#   .quality/scripts/maestro-evidence-generator.js
+#   .quality/scripts/validate-results-json.js
+#
+# Inputs (matrix or env):
+#   UC_ID:    e.g. UC-001
+#   US_ID:    e.g. US-01
+#   FEATURE:  feature snake_case, e.g. crear_propiedad
+
+name: Maestro E2E
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - '.maestro/**'
+      - 'pubspec.yaml'
+
+jobs:
+  android:
+    name: Maestro · Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      UC_ID: UC-001
+      US_ID: US-01
+      FEATURE: crear_propiedad
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.38.x'
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+
+      - run: flutter pub get
+      - run: flutter build apk --debug
+
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
+
+      - name: Enable KVM (for emulator perf)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run Maestro flows on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb install -r build/app/outputs/flutter-apk/app-debug.apk
+            mkdir -p build/maestro
+            maestro test \
+              --format junit \
+              --output build/maestro/results.xml \
+              --output-dir build/maestro/${{ env.UC_ID }}/ \
+              .maestro/flows/${{ env.UC_ID }}_${{ env.FEATURE }}/
+
+      - name: Generate HTML Evidence Report
+        if: always()
+        run: |
+          mkdir -p .quality/evidence/${{ env.FEATURE }}/acceptance
+          node .quality/scripts/maestro-evidence-generator.js \
+            --uc-id ${{ env.UC_ID }} \
+            --us-id ${{ env.US_ID }} \
+            --feature ${{ env.FEATURE }} \
+            --junit build/maestro/results.xml \
+            --screenshots build/maestro/${{ env.UC_ID }}/ \
+            --output .quality/evidence/${{ env.FEATURE }}/acceptance/e2e-evidence-report.html
+
+      - name: Validate results.json against SpecBox contract
+        if: always()
+        run: |
+          node .quality/scripts/validate-results-json.js \
+            .quality/evidence/${{ env.FEATURE }}/acceptance/results.json \
+            --check-evidence
+
+      - name: Upload Maestro evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-evidence-android-${{ env.UC_ID }}
+          path: |
+            .quality/evidence/${{ env.FEATURE }}/acceptance/
+            build/maestro/
+
+  ios:
+    name: Maestro · iOS
+    runs-on: macos-14
+    timeout-minutes: 60
+    env:
+      UC_ID: UC-001
+      US_ID: US-01
+      FEATURE: crear_propiedad
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.38.x'
+
+      - run: flutter pub get
+      - run: flutter build ios --simulator --debug --no-codesign
+
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> $GITHUB_PATH
+
+      - name: Boot iOS simulator
+        run: |
+          xcrun simctl boot "iPhone 16 Pro" || true
+          xcrun simctl install booted build/ios/iphonesimulator/Runner.app
+
+      - name: Run Maestro flows on iOS simulator
+        run: |
+          mkdir -p build/maestro
+          maestro test \
+            --format junit \
+            --output build/maestro/results.xml \
+            --output-dir build/maestro/${{ env.UC_ID }}/ \
+            .maestro/flows/${{ env.UC_ID }}_${{ env.FEATURE }}/
+
+      - name: Generate HTML Evidence Report
+        if: always()
+        run: |
+          mkdir -p .quality/evidence/${{ env.FEATURE }}/acceptance
+          node .quality/scripts/maestro-evidence-generator.js \
+            --uc-id ${{ env.UC_ID }} \
+            --us-id ${{ env.US_ID }} \
+            --feature ${{ env.FEATURE }} \
+            --junit build/maestro/results.xml \
+            --screenshots build/maestro/${{ env.UC_ID }}/ \
+            --output .quality/evidence/${{ env.FEATURE }}/acceptance/e2e-evidence-report.html
+
+      - name: Validate results.json against SpecBox contract
+        if: always()
+        run: |
+          node .quality/scripts/validate-results-json.js \
+            .quality/evidence/${{ env.FEATURE }}/acceptance/results.json \
+            --check-evidence
+
+      - name: Upload Maestro evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-evidence-ios-${{ env.UC_ID }}
+          path: |
+            .quality/evidence/${{ env.FEATURE }}/acceptance/
+            build/maestro/

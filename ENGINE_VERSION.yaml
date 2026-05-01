@@ -1,8 +1,8 @@
-version: 5.27.1
-codename: "Stripe Standard + Switch Account"
+version: 5.28.0
+codename: "Maestro Flutter E2E"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-04-29
+release_date: 2026-05-02
 min_claude_code: "1.0.0"
 
 stacks:
@@ -334,8 +334,28 @@ features:
   - stripe-alias-store-encrypted
   - switch-stripe-account-tool
   - switch-account-dry-run-rollback
+  # New (v5.28.0) — Maestro Flutter E2E
+  - maestro-flutter-runner-default
+  - maestro-evidence-generator
+  - maestro-github-actions-template
+  - flutter-semantics-identifier-guidance
+  - patrol-legacy-path-supported
 
 changelog:
+  5.28.0:
+    date: 2026-05-02
+    codename: "Maestro Flutter E2E"
+    changes:
+      - "feat: Maestro (mobile-dev-inc) added as the recommended Flutter Mobile E2E runner. Replaces Patrol v4 as default for new projects; Patrol remains supported as a legacy path for cases that need Dart-side state access or assertions YAML cannot express well"
+      - "feat: New stack adapter architecture/flutter/maestro-setup.md — install, Semantics.identifier guidance (Flutter 3.19+), YAML flow examples with screenshot naming convention AC-XX_step_N_description, native dialog handling, troubleshooting, when-to-use-Patrol-instead matrix"
+      - "feat: New post-processor .quality/scripts/maestro-evidence-generator.js — parses Maestro JUnit XML + screenshots into the same HTML Evidence Report and results.json contract that Patrol/Playwright produce. AG-09b cannot distinguish the origin"
+      - "feat: results.json contract extended with source='maestro-junit-xml' (doc/specs/results-json-spec.md). validate-results-json.js requires no change — source field accepts free strings, only stack and evidence_type are enum-checked"
+      - "feat: agents/acceptance-tester.md — Flutter Mobile section now offers Option A (Maestro, recommended) and Option B (Patrol, legacy). Auto-invocation block 8.5 documents both generators"
+      - "feat: templates/github-actions/maestro-e2e.yml — CI template for Android emulator + iOS simulator, includes Evidence Report generation and contract validation"
+      - "docs: CLAUDE.md — new section 'Maestro Flutter E2E (v5.28.0)' explaining rationale, when to choose Patrol, integration points, and inherited Flutter limitations (CanvasKit web fragility, no desktop support)"
+      - "note: Flutter Web stays on Playwright. Maestro web support over CanvasKit is fragile (issue mobile-dev-inc/maestro#2591), same structural ceiling as Playwright; switching tools does not solve the root problem"
+      - "note: No breaking changes. Existing Patrol-based projects continue to work unchanged. Migration to Maestro is opt-in per project"
+
   5.27.1:
     date: 2026-04-29
     codename: "Stripe Standard + Switch Account"

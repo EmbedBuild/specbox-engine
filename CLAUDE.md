@@ -1,4 +1,4 @@
-# SpecBox Engine v5.27.1
+# SpecBox Engine v5.28.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -460,7 +460,8 @@ Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP 
 | `analyze-sessions.sh` | `.quality/scripts/analyze-sessions.sh [--last N]` | Telemetry: sessions, context tokens, healing, checkpoints |
 | `context-budget.sh` | `.quality/scripts/context-budget.sh <path> [--detail]` | Estimate token cost of files/directories |
 | `design-baseline.sh` | `.quality/scripts/design-baseline.sh [path] [--update\|--init]` | Measure design compliance, enforce ratchet (L0/L1/L2) |
-| `patrol-evidence-generator.js` | `.quality/scripts/patrol-evidence-generator.js --junit <xml> --screenshots <dir> ...` | Generate HTML Evidence Report from Patrol v4 results |
+| `maestro-evidence-generator.js` | `.quality/scripts/maestro-evidence-generator.js --junit <xml> --screenshots <dir> ...` | Generate HTML Evidence Report from Maestro results (v5.28+, recommended for Flutter Mobile) |
+| `patrol-evidence-generator.js` | `.quality/scripts/patrol-evidence-generator.js --junit <xml> --screenshots <dir> ...` | Generate HTML Evidence Report from Patrol v4 results (legacy Flutter Mobile) |
 | `api-evidence-generator.js` | `.quality/scripts/api-evidence-generator.js --cucumber <json> --responses <dir> ...` | Generate HTML Evidence Report from Python API test results |
 | `validate-results-json.js` | `.quality/scripts/validate-results-json.js <path> [--check-evidence]` | Validate results.json against contract (used by e2e-gate.mjs hook) |
 | `specbox-audit.mjs` | `.quality/scripts/specbox-audit.mjs [path] [--json] [--fix] [--verbose]` | Compliance audit: version, hooks, settings, quality infra, skills, spec-driven |
@@ -510,6 +511,38 @@ puede abrir en cualquier browser. UI stacks embeben screenshots base64; Python e
 response logs JSON formateados. El report tiene la misma estructura visual en todos los stacks.
 Contrato formal: `doc/specs/results-json-spec.md`. Template: `doc/templates/e2e-evidence-report-template.md`.
 Decisión arquitectónica: `doc/decisions/e2e-flutter-strategy.md`.
+
+## Maestro Flutter E2E (v5.28.0)
+
+Maestro (mobile-dev-inc) es el runner **recomendado por defecto** para Flutter Mobile desde v5.28. Patrol v4 sigue soportado como ruta legacy y se mantiene para casos que requieran acceso a estado interno Dart o aserciones que YAML no expresa bien.
+
+### Por qué Maestro
+
+- **Anti-flakiness por diseño**: auto-retry y wait-for-stability built-in. Resuelve la mayor parte del dolor histórico con Patrol en CI.
+- **YAML, no Dart**: QA y PMs pueden escribir flows. Misma semántica BDD que el resto del engine.
+- **Black-box cross-platform**: el mismo flow YAML corre en iOS y Android.
+- **Production builds testables**: opera sobre APK/IPA reales, no requiere debug/profile.
+
+### Cuándo elegir Patrol en lugar de Maestro
+
+- El test necesita leer estado Dart-side (Provider, BLoC, GetIt singleton)
+- Necesitas mockear servicios desde el lado app desde el test
+- Ya tienes una suite Patrol estable y migrar no aporta ROI
+
+### Integración en SpecBox
+
+- **Adapter de stack**: `architecture/flutter/maestro-setup.md` (instalación, semantics, YAML, troubleshooting)
+- **Generator de evidencia**: `.quality/scripts/maestro-evidence-generator.js` produce el mismo HTML Evidence Report y `results.json` que Patrol — AG-09b no distingue el origen
+- **Template CI**: `templates/github-actions/maestro-e2e.yml` (Android emulator + iOS simulator)
+- **Source en results.json**: `maestro-junit-xml` (registrado en `doc/specs/results-json-spec.md`)
+- **Hook compatibility**: `e2e-gate.mjs` y `validate-results-json.js` aceptan Maestro sin cambios — el contrato es source-agnostic
+
+### Limitaciones conocidas (heredadas)
+
+- **Flutter Web sobre CanvasKit es frágil** (mismo techo que Playwright) — SpecBox sigue usando Playwright para Web
+- **Flutter Desktop NO soportado** por Maestro
+- **iOS solo en inglés** para diálogos del sistema (mismo issue que Patrol)
+- **Maestro Cloud (paralelización)** es paid — la CLI local gratis ejecuta serial
 
 ## Visual Experience Generation — VEG (v3.9)
 
@@ -871,6 +904,6 @@ que la Sala de Máquinas muestre el último audit sin escanear el filesystem.
 
 ## Engine Version
 
-Current: v5.27.1 "Stripe Standard + Switch Account"
+Current: v5.28.0 "Maestro Flutter E2E"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

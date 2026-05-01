@@ -77,7 +77,8 @@
 | Stack | source | Descripción |
 |-------|--------|-------------|
 | Flutter Web | `playwright-cucumber` | Playwright + playwright-bdd |
-| Flutter Mobile | `patrol-junit-xml` | Patrol v4 + JUnit XML |
+| Flutter Mobile | `maestro-junit-xml` | **Recomendado** — Maestro YAML flows + JUnit XML (v5.28+) |
+| Flutter Mobile | `patrol-junit-xml` | Legacy soportado — Patrol v4 + JUnit XML |
 | React | `playwright-cucumber` | Playwright + playwright-bdd |
 | Python | `pytest-bdd` | pytest-bdd + httpx |
 

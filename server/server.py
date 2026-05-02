@@ -43,6 +43,8 @@ from .tools.app_docs import register_app_docs_tools
 from .app_docs.autopilot import register_autopilot_tools
 from .app_docs.queue import register_queue_tools
 from .app_docs.canonical import register_canonical_tools
+from .app_docs.discovery import register_discovery_tools
+from .app_docs.migrate_freeform import register_freeform_migration_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -222,6 +224,16 @@ register_queue_tools(mcp, ENGINE_PATH)
 # After 3 consecutive identical confirmations, decisions get promoted to
 # canonicals and reused without asking. Local-first; mirrored in app_spec.md.
 register_canonical_tools(mcp, ENGINE_PATH)
+
+# Register backend auto-discovery (v5.29.0 PR-8)
+# Skills call detect_project_backend(project_path) in Paso 0 to know which
+# backend the project uses without asking the user.
+register_discovery_tools(mcp, ENGINE_PATH)
+
+# Register Trello/Plane → FreeForm migration tool (v5.29.0 PR-8)
+# Inverse of migrate_project; downloads remote items+comments+attachments
+# to the local FreeForm directory. Validates absolute target_path (PR-1).
+register_freeform_migration_tools(mcp, ENGINE_PATH)
 
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)

@@ -2,6 +2,115 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.31.0] - 2026-05-02 — "Stitch Autopilot"
+
+Closes the gap between SpecBox and Google's official Stitch best practices,
+removing the most common source of autopilot blockers in `/visual-setup` and
+`/plan` Paso 2.5b. Modelo default sigue siendo `GEMINI_3_PRO` — la prioridad
+declarada del usuario es calidad de diseño, no reducir tiempo. Flash queda
+únicamente como red de seguridad opt-in
+(`specbox.stitch.fallback.flash_safety_net=false` por defecto). Plan técnico
+completo en [doc/plans/v5.31.0_stitch_autopilot_plan.md](doc/plans/v5.31.0_stitch_autopilot_plan.md).
+
+### Added
+
+- **DESIGN.md canonical format** ([google-labs-code/design.md](https://github.com/google-labs-code/design.md))
+  with Pydantic schema (rejects named colors at parse time), generator with
+  6 VEG archetype defaults (corporate / startup / creative / consumer /
+  gen_z / gov), serializer in fixed section order per spec, signature-based
+  drift detection. New module `server/design_md/`.
+- **Two new MCP tools**: `generate_design_md_tool` (synthesises
+  `doc/design/DESIGN.md` from Brand Kit + VEG + canonical app docs,
+  idempotent, persists provenance + signature in `meta.json`) and
+  `upload_design_md_to_stitch` (registers DESIGN.md against a Stitch
+  project; mode `inline-prefix` until Google ships a native attach
+  endpoint).
+- **`/visual-setup` Paso 3.7 + 3.8** invoke the two new tools right after
+  the existing Stitch Design System creation. Existing flow preserved.
+- **4-layer prompt template v2** (Context ≤80 words / Components bullets /
+  Style hex-only / Platform) at `design/stitch/prompt-template-v2.md` and
+  module `server/stitch_prompt/`. New MCP tool `validate_stitch_prompt`
+  with `warn` (default) and `strict` modes; detects E1 named colors
+  (auto-resolves against DESIGN.md palette), E2 layout+components mixing
+  (proposes split, robust to single-line mixed intents), W1-W4 length and
+  structure warnings.
+- **Fallback chain** at `server/stitch_orchestration/fallback.py` —
+  ladder `edit_baseline → variants_refine → regenerate`, optional
+  `flash_safety_net` last-resort marking results `degraded=True`. Error
+  classification (transient | quota | content | unknown). New MCP tool
+  `stitch_generate_screen_v2` over a thin `_StitchOpsAdapter` against the
+  real `StitchClient`.
+- **Batched build_site** at `server/stitch_orchestration/batching.py` —
+  partitions screens into ≤4-screen groups (priority: explicit `group`
+  tag → route prefix → order chunks), runs `build_site` per partition,
+  applies a final unifying `edit_screens` pass when >1 batch is needed.
+  New MCP tool `stitch_build_site_batched_v2`.
+- **Quota tracking** at `server/stitch_quota/computation.py` — pure
+  aggregator over `stitch_usage.jsonl` by month and model class.
+  Pro=Experimental (200/mo), Flash=Standard (350/mo). Counts only
+  successful generations; metadata operations are free. New MCP tool
+  `get_stitch_quota_status` with optional `write_cache=True` that
+  persists a compact summary at `.quality/stitch_quota.json`.
+- **Heartbeat enriched** with a `stitch_quota` field appended *after*
+  the v5.30.0 Session Continuity block (`handoff_present`,
+  `context_pressure` preserved). Best-effort: null when no cache exists.
+- **PreToolUse hook `stitch-quota-guard.mjs`** — warns at ≥80% on either
+  bucket (exit 0); blocks (exit 2) when PRO is exhausted AND
+  `flash_safety_net=false`. Registered in `.claude/settings.json`
+  matching `mcp__SpecBox-MCP__stitch_.*`.
+- **Settings template** gains `stitch.fallback`, `stitch.quota`,
+  `stitch.prompt.validator_mode` blocks. Defaults preserve v5.30
+  behaviour: PRO model, no Flash safety net, validator in `warn` mode.
+
+### Changed
+
+- `pyproject.toml` and CLAUDE.md bumped to v5.31.0; tool count 158 → 163.
+- New section "Stitch Autopilot (v5.31.0)" in CLAUDE.md right after the
+  existing "Stitch MCP Proxy (v5.6.0)" describes the 5 capas, settings
+  shape, and compatibility notes. Hooks table gains a row for
+  `stitch-quota-guard`.
+- `heartbeat-sender.mjs` — appends `stitch_quota` after the v5.30.0
+  block (no overwrites, no reordering).
+
+### Decisions
+
+- **Model default stays GEMINI_3_PRO**. Calidad over velocidad.
+  `flash_safety_net=false` by default.
+- **Slot v5.31.0 reassigned** from "delegación de fases de /implement
+  a Tasks aisladas" (originally reserved by PR #20's commit message)
+  to Stitch Autopilot, after confirming no PRs or active branches
+  existed for that work. The /implement phase delegation moves to a
+  future v5.32+ with its own dedicated plan.
+
+### Compatibility
+
+- **100% backwards-compatible.** v1 Stitch tools (the 13 originals) stay
+  registered alongside the new v2 tools. `/plan` Paso 2.5b is **NOT**
+  modified — it continues to use v1 by default. The migration of
+  `/plan` Paso 2.5b to v2 will land in a follow-up patch (`v5.31.x`)
+  once telemetry from the warn-only validator confirms a low
+  false-positive rate.
+- Projects without `doc/design/DESIGN.md` continue to behave like v5.30:
+  the heartbeat `stitch_quota` field stays null, the validator passes
+  through prompts unchanged in warn mode.
+
+### Tests
+
+- 131 new tests, all green:
+  - 38 in `test_design_md.py` (schema, archetypes, generator, writer
+    round-trip, signature stability)
+  - 15 in `test_stitch_v2_design_md.py` (MCP tool wiring for the
+    DESIGN.md tools)
+  - 25 in `test_stitch_prompt.py` (builder + validator + tool)
+  - 27 in `test_stitch_orchestration.py` (fallback ladder, partitioning,
+    end-to-end batched build with FakeOps)
+  - 26 in `test_stitch_quota.py` (classification, monthly aggregation,
+    payload thresholds, file loader, MCP tool, cache writes)
+- Pre-existing failures on `main` (`test_acceptance_check::test_registers_two_tools`
+  and the `test_spec_mutations` / `test_milestone_management` TypeErrors
+  documented in the v5.29 changelog) are unrelated to this release and
+  remain.
+
 ## [5.30.0] - 2026-05-02 — "Session Continuity"
 
 Minor release dedicada a **preservar el contexto cuando una sesión de Claude Code se hace larga**. Antes de v5.30, una compactación o `/clear` perdía toda decisión, hot file y "próximo paso" que no estuviera persistido en commits o checkpoints — el usuario tenía que poner al día a la siguiente sesión a mano. v5.30 introduce un protocolo de handoff explícito + carga automática del estado en la nueva sesión + observabilidad de presión de contexto en vivo. Plan técnico completo en [doc/plans/v5.30.0_session_continuity_plan.md](doc/plans/v5.30.0_session_continuity_plan.md).

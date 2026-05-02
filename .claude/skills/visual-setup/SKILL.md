@@ -34,6 +34,36 @@ Configura la identidad visual completa de un proyecto ANTES de empezar a desarro
 
 ---
 
+## Paso 0.0 — Leer documentos canónicos (v5.29.0)
+
+**ANTES de cualquier otro paso**, llama a la tool MCP:
+
+```
+get_inheritable_values_tool(project_path=".")
+```
+
+Si `app_spec.md` ya define identidad visual (`brand_visual` zone con valores reales — no plantilla):
+
+| Flag | Si es `True`, salta el paso |
+|------|------------------------------|
+| `veg_archetype` definido | Paso 1 (recopilar identidad estética) — la dirección visual está fijada a nivel de proyecto |
+| `veg_mode_known` | Paso 1 (modo VEG) — heredado |
+
+En ese caso, pregunta solo:
+
+```
+He detectado en doc/app/app_spec.md:
+  - VEG arquetipo: {valor}
+  - Modo VEG: {valor}
+
+¿Quieres usarlos para esta sesión de visual-setup, o prefieres redefinir?
+  [s] usar app_spec    [r] redefinir    [c] cancelar
+```
+
+Si el usuario responde `r`, el flujo legacy de Paso 1 se activa. Si responde `s`, salta directamente a generación de tokens (Paso 2 si existe, o el paso equivalente del flujo).
+
+---
+
 ## Paso 0: Detectar Estado Actual
 
 ### 0.1 Verificar artefactos existentes

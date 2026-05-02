@@ -29,6 +29,7 @@ File structure:
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -50,6 +51,19 @@ from ..spec_backend import (
 )
 
 logger = structlog.get_logger(__name__)
+
+# ── Exceptions ───────────────────────────────────────────────────────
+
+
+class FreeformPathError(ValueError):
+    """Raised when FreeformBackend receives an invalid root path.
+
+    Most commonly: a relative path passed to a remote MCP server.
+    The MCP process resolves the relative path against its own CWD
+    (the VPS), not the client's repo, which causes data to be written
+    in the wrong filesystem.
+    """
+
 
 # ── Constants ────────────────────────────────────────────────────────
 
@@ -113,8 +127,32 @@ class FreeformBackend(SpecBackend):
     Thread-safe for single-writer scenarios (typical Claude Code usage).
     """
 
-    def __init__(self, root: str) -> None:
-        self.root = Path(root)
+    def __init__(self, root: str, *, allow_relative: bool = False) -> None:
+        """Initialize FreeformBackend with a project root path.
+
+        Args:
+            root: Path to the FreeForm data directory. MUST be absolute
+                unless ``allow_relative`` is explicitly True.
+            allow_relative: Escape hatch for tests and tools that operate
+                on a known-local CWD. Production callers (``set_auth_token``)
+                resolve to absolute before calling, so this stays False.
+
+        Raises:
+            FreeformPathError: If ``root`` is relative and ``allow_relative``
+                is False. This guards against the silent-failure mode where
+                a remote MCP server resolves a relative path against its
+                own CWD instead of the client's repo.
+        """
+        path = Path(root)
+        if not path.is_absolute() and not allow_relative:
+            raise FreeformPathError(
+                f"FreeformBackend requires an absolute root path, got {root!r}. "
+                "Relative paths are unsafe with a remote MCP server because "
+                "they resolve against the server's CWD, not the client's repo. "
+                "Pass an absolute path (e.g. /Users/me/myproject/doc/tracking) "
+                "or use the /app-init skill which auto-detects it."
+            )
+        self.root = path
         self._items_cache: list[dict[str, Any]] | None = None
 
     # ── File I/O primitives ──────────────────────────────────────

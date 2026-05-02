@@ -514,6 +514,8 @@ def register_onboarding_tools(
         repo_url: str = "",
         developer_name: str = "Jesús Pérez",
         trello_board_name: str = "",
+        backend_type: str = "",
+        freeform_root_absolute: str = "",
         multirepo_role: str = "",
         orchestrator_project: str = "",
         ctx: Context | None = None,
@@ -527,6 +529,8 @@ def register_onboarding_tools(
             repo_url: Git repository URL for reference.
             developer_name: Developer name for templates. Defaults to 'Jesús Pérez'.
             trello_board_name: Optional Trello board name. If provided, creates a SpecBox Engine board with workflow lists, custom fields, and labels via the Trello API.
+            backend_type: Tracking backend selection (v5.29.0). One of "freeform", "trello", "plane". Defaults to "freeform" — the recommended v5.29.0 default for projects without external client reporting requirements. If "trello" and trello_board_name is set, creates the board. If empty AND trello_board_name is provided, "trello" is inferred for backward compatibility.
+            freeform_root_absolute: Absolute path to the FreeForm tracking directory when backend_type="freeform". When omitted, defaults to "<repo_root>/doc/tracking" — but the caller is responsible for resolving <repo_root> client-side because the MCP server may run remotely (see PR-1). The /app-init skill handles this automatically.
             multirepo_role: Optional multi-repo role: 'orchestrator' or 'satellite'. Leave empty for standard single-repo projects (default). When 'satellite', the project inherits the board from the orchestrator and generates a settings.local.json with the orchestrator reference.
             orchestrator_project: Required when multirepo_role='satellite'. Name of the orchestrator project in the registry. Used to inherit the board_id and set the orchestrator path.
             ctx: MCP context (injected automatically). Required when trello_board_name is provided.
@@ -538,6 +542,17 @@ def register_onboarding_tools(
         If trello_board_name is given, includes the board_id in the generated settings.
 
         Use to onboard a new project into the SpecBox Engine ecosystem with quality gates and agent teams."""
+        # v5.29.0: backend_type selection. Default = freeform unless legacy
+        # trello_board_name is provided (back-compat). Validate against the
+        # known set early so the rest of the flow can rely on it.
+        if not backend_type:
+            backend_type = "trello" if trello_board_name else "freeform"
+        if backend_type not in {"freeform", "trello", "plane"}:
+            return {
+                "error": f"Invalid backend_type {backend_type!r}. "
+                         "Must be one of: freeform, trello, plane.",
+                "code": "INVALID_BACKEND_TYPE",
+            }
         detected_stack = stack or "unknown"
         infra_list = [s.strip() for s in infra.split(",") if s.strip()] if infra else []
         roles = _STACK_ROLES.get(detected_stack, _STACK_ROLES.get("python", []))
@@ -622,6 +637,48 @@ def register_onboarding_tools(
                     "Could not inject board_id into settings.json — "
                     f"add trello.board_id = {board_id!r} manually"
                 )
+
+        # v5.29.0: write the canonical specbox.* block into settings.local.json
+        # so /prd, /plan, /implement etc. detect the backend without asking.
+        # FreeForm requires an absolute path (BLOCKER fix from PR-1) — when the
+        # caller did not provide one, leave it empty and surface a warning so
+        # the /app-init skill can resolve it client-side.
+        from pathlib import Path as _Path
+
+        freeform_root = freeform_root_absolute.strip() if freeform_root_absolute else ""
+        if backend_type == "freeform" and freeform_root and not _Path(freeform_root).is_absolute():
+            warnings.append(
+                f"freeform_root_absolute={freeform_root!r} is not absolute — "
+                "ignored. Pass an absolute path or rely on /app-init to resolve it."
+            )
+            freeform_root = ""
+
+        specbox_block: dict[str, object] = {
+            "backend_type": backend_type,
+            "autopilot": {
+                "level": "equilibrado",
+                "image_budget_eur_per_feature": 5,
+            },
+        }
+        if backend_type == "freeform" and freeform_root:
+            specbox_block["freeform_root_absolute"] = freeform_root
+        if backend_type == "trello" and board_id:
+            specbox_block["trello_board_id"] = board_id
+
+        # Merge into settings.local.json if it already exists (multirepo case),
+        # otherwise create a fresh one.
+        existing_local = files.get(".claude/settings.local.json")
+        try:
+            local_data = json.loads(existing_local) if existing_local else {}
+        except json.JSONDecodeError:
+            local_data = {}
+        local_data.setdefault("specbox", {})
+        # Preserve user-provided values if any; only add what's missing.
+        for k, v in specbox_block.items():
+            local_data["specbox"].setdefault(k, v)
+        files[".claude/settings.local.json"] = json.dumps(
+            local_data, indent=2, ensure_ascii=False
+        )
 
         # Register in state registry
         registered = False

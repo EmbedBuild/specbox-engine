@@ -47,6 +47,7 @@ from .app_docs.discovery import register_discovery_tools
 from .app_docs.migrate_freeform import register_freeform_migration_tools
 from .app_docs.migration_v529 import register_v529_migration_tools
 from .app_docs.sync import register_sync_tools as register_app_sync_tools
+from .app_docs.drift_detector import register_drift_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -247,6 +248,12 @@ register_v529_migration_tools(mcp, ENGINE_PATH)
 # — the building blocks for the drift detector (PR-15) and the
 # transactional decorators on spec-mutation tools (PR-12).
 register_app_sync_tools(mcp, ENGINE_PATH)
+
+# Register multi-source drift detector (v5.29.0 PR-15)
+# detect_app_docs_drift inspects lockfiles / brand-kit refs / canonical
+# decisions / roadmap-vs-tracking; emits signals to app_docs_drift.jsonl
+# and exposes a compact heartbeat payload for Sala de Máquinas.
+register_drift_tools(mcp, ENGINE_PATH)
 
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)

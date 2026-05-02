@@ -2,7 +2,7 @@
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (138 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010.
+> Monorepo unificado: engine + MCP server (158 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010.
 
 ## Que es este repositorio
 
@@ -15,7 +15,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (138 tools) + Sala de Máquinas dashboard (React 19)
+- **Server** — MCP server unificado (158 tools) + Sala de Máquinas dashboard (React 19)
 - **Quality Audit** — ISO/IEC 25010 (SQuaRE) on-demand via `/audit` + AG-10 auditor externo
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
@@ -203,7 +203,7 @@ specbox-engine/
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
 ├── server/                ← MCP server unificado (v5.23)
-│   ├── server.py          ← FastMCP (138 tools)
+│   ├── server.py          ← FastMCP (158 tools)
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
@@ -221,7 +221,7 @@ specbox-engine/
 │   │   ├── persistence.py      ← Evidence under evidence/audits/ + project_meta
 │   │   ├── analyzers/          ← 8 SQuaRE analyzers (one per characteristic)
 │   │   └── reporters/          ← JSON + ReportLab PDF (NumberedCanvas + embed.build brand)
-│   ├── tools/             ← 24 tool modules (138 tools)
+│   ├── tools/             ← 24 tool modules (158 tools)
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
 │   │   ├── quality.py     ← 4 tools

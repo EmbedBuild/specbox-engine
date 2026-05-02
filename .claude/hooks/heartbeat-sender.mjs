@@ -132,6 +132,28 @@ try {
   }
 } catch { /* ignore */ }
 
+// v5.32.0 — Implement Task Isolation: surface task isolation health.
+// Cache is written by context-budget-guard.mjs and file-ownership-guard.mjs
+// hooks plus the SKILL.md (Paso 5.0) post-Task block. Best-effort: when
+// the user has never run /implement under v5.32, the field stays null.
+let taskIsolation = null;
+try {
+  const TI_CACHE = '.quality/task_isolation.json';
+  if (fileExists(TI_CACHE)) {
+    const t = readJsonFile(TI_CACHE);
+    if (t) {
+      taskIsolation = {
+        enabled: t.enabled === true,
+        tasks_run_total: t.tasks_run_total ?? 0,
+        tasks_failed_budget: t.tasks_failed_budget ?? 0,
+        tasks_failed_ownership: t.tasks_failed_ownership ?? 0,
+        last_feature_slug: t.last_feature_slug ?? null,
+        last_event_at: t.last_event_at ?? null,
+      };
+    }
+  }
+} catch { /* ignore */ }
+
 // Build heartbeat payload
 const payload = {
   project: projectName,
@@ -152,6 +174,7 @@ const payload = {
   handoff_age_minutes: handoffAgeMin,
   context_pressure: contextPressure,
   stitch_quota: stitchQuota,
+  task_isolation: taskIsolation,
 };
 
 async function run() {

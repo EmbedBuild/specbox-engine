@@ -9,6 +9,26 @@ description: >
 disable-model-invocation: true
 ---
 
+## Working set (v5.32.0)
+
+`/implement` mantiene 4 archivos en `.quality/evidence/{feature}/`:
+
+| Archivo | Vida | Quien escribe | Quien lee |
+|---------|------|---------------|-----------|
+| `pipeline_state.json` | Toda la run | Orquestador (Paso 0.4a + tras cada fase) | `pipeline-phase-guard.mjs` |
+| `execution_context.json` | Toda la run (immutable) | Orquestador (Paso 0.4b) | Cada Task delegado, hooks |
+| `phase_outputs.jsonl` | Append-only durante la run | Cada Task al cierre | Spec-Code Sync (Paso 5.1.1b, 8.5.1a) |
+| `checkpoint.json` | Toda la run, sobrescrito | Orquestador post-fase | Resume al iniciar nueva sesion |
+
+Y `.quality/active_agent.json` en raiz del proyecto, **transient** (escrito
+antes de cada `Task(AG-XX)`, borrado tras retorno) — leido por
+`file-ownership-guard.mjs` para validar Write/Edit.
+
+Telemetria adicional:
+- `.quality/task_isolation.json` — counters (tasks_run_total,
+  tasks_failed_budget, tasks_failed_ownership). Bumped por los hooks
+  y por el bloque post-Task del Paso 5.0. Leido por `heartbeat-sender.mjs`.
+
 ## Checkpoint System
 
 Before starting, check for existing checkpoint:
@@ -218,6 +238,42 @@ Escribir el estado inicial:
 
 **IMPORTANTE**: Este archivo es OBLIGATORIO. Sin el, `pipeline-phase-guard.mjs` permite todo
 (modo permisivo). Con el, enforce mecánico del orden de fases.
+
+### 0.4b Inicializar Execution Context (v5.32.0)
+
+Inmediatamente despues de pipeline_state, escribir tambien el `execution_context.json`
+que cada Task delegado leera para conocer branch / feature / stack sin que el
+orquestador los repita verbatim en cada prompt (causa raiz de la exhaustion de
+contexto en UCs grandes — ver doc/plans/v5.32.0_implement_task_isolation_plan.md).
+
+```python
+from server.implement_context import write_execution_context, compute_plan_hash
+
+write_execution_context(
+    feature_slug=feature,
+    branch=branch,                     # se conocera en Paso 1; aqui pasar valor
+                                       # tentativo y refrescar tras crear la rama
+                                       # con update_last_updated()
+    stack=stack,                       # detectado en Paso 0.x
+    project_name=project_name,
+    project_root_absolute=str(Path.cwd()),
+    engine_version="5.32.0",
+    uc_id=uc_id,
+    us_id=us_id,
+    backend_type=backend_type,         # freeform | trello | plane
+    board_id=board_id,
+    plan_path=str(plan_path),
+    plan_hash=compute_plan_hash(plan_path),
+    autopilot_level=autopilot_level,   # equilibrado | conservador | ...
+)
+```
+
+Esto crea `.quality/evidence/{feature}/execution_context.json` con escritura
+atomica e idempotente (no churnea el archivo si el contenido no cambia).
+
+**Contrato de uso**: a partir de aqui, cualquier Task delegado por /implement
+debe arrancar leyendo este archivo en lugar de recibir branch/feature/stack
+en el prompt. Ver Paso 5.X.0 para el bloque reusable de invocacion.
 
 ### 0.5 Validacion pre-vuelo (HARD BLOCKS)
 
@@ -1016,6 +1072,99 @@ If the result exceeds 30% of context window → split the phase into sub-phases.
 > Cada fase se delega a un sub-agente limpio. El orquestador NO ejecuta codigo.
 > Ver Paso 2.3 para el protocolo de delegacion.
 
+### 5.0 Protocolo de delegacion (v5.32.0 — bloque reusable)
+
+> Este bloque se aplica ANTES de cada `Task(AG-XX)` del Paso 5.1 y de los
+> Pasos 7.5 (AG-09a) / 7.7 (AG-09b). Garantiza:
+> - aislamiento real de contexto por Task
+> - validacion mecanica de budget (16k tokens por defecto, ver
+>   `context-budget-guard.mjs`)
+> - validacion mecanica de file ownership por agente
+>   (`file-ownership-guard.mjs` lee `.quality/active_agent.json`)
+> - delta estructurado por fase escrito a `phase_outputs.jsonl` por el
+>   propio Task, consumido por Paso 5.1.1b sin git diff vivo
+
+**Antes** de spawnear `Task(AG-XX)`:
+
+```python
+import json, time, uuid
+from pathlib import Path
+
+# Marcar el agente activo para que file-ownership-guard.mjs lo lea
+Path(".quality/active_agent.json").write_text(json.dumps({
+    "agent": "AG-01",                       # codigo del agente delegado
+    "feature_slug": feature,
+    "phase": "feature",                     # ID corto de la fase
+    "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+}))
+```
+
+**Construccion del prompt del Task** (NO repetir branch/feature/stack en
+prosa — el Task los lee del execution_context):
+
+```
+You are AG-01 (Feature Generator) for a SpecBox /implement run.
+
+CONTEXT (read-only, source of truth):
+  Read your execution context from .quality/evidence/{feature_slug}/execution_context.json.
+  This file contains: branch, stack, project_root_absolute, plan_path, etc.
+  DO NOT trust values embedded in this prompt — read the file.
+
+PHASE BRIEF:
+  {SOLO la seccion de esta fase, no el plan completo}
+
+OWNERSHIP (enforced by file-ownership-guard.mjs):
+  You may only write/edit files inside: {ownership_paths from file-ownership.md}.
+  Suspicious paths (../, /abs) will be blocked. If you need to touch files
+  outside your ownership, report it as a pending dependency in your delta.
+
+QUALITY RULES:
+  - Lint 0/0/0 BLOCKING; compile BLOCKING; tests pass BLOCKING.
+  - If lint fails, apply self-healing (Level 1 first, then Level 2).
+  - Healing budget: max 8 attempts per feature (healing-budget-guard.mjs).
+
+REQUIRED FINAL ACTION (before returning):
+  Append a structured delta to .quality/evidence/{feature_slug}/phase_outputs.jsonl
+  following the schema documented in doc/specs/phase-outputs-spec.md.
+  Mandatory fields: schema_version=1, phase, phase_index, agent, status.
+  Recommended: files_created, files_modified, summary, duration_s,
+               tokens_used_prompt, tokens_used_response, healing_attempts.
+
+RETURN FORMAT (besides the JSONL append):
+  - phase_status: complete | failed | needs_healing
+  - summary: 1-3 sentences for the orchestrator
+  - errors: [brief, max 3 lines if any]
+```
+
+**Spawnear** `Task(AG-XX, prompt)` — el harness de Claude Code se encarga
+del aislamiento real del contexto.
+
+**Despues** del retorno del Task:
+
+```python
+# Limpieza obligatoria del marcador de agente activo
+try:
+    Path(".quality/active_agent.json").unlink()
+except FileNotFoundError:
+    pass
+
+# Bumpear el contador de telemetria (lo lee heartbeat-sender.mjs)
+# context-budget-guard.mjs ya bumpeo tasks_run_total al spawnearlo;
+# aqui actualizamos last_feature_slug para que Sala de Maquinas
+# muestre el feature en curso.
+isolation_cache = Path(".quality/task_isolation.json")
+data = json.loads(isolation_cache.read_text()) if isolation_cache.exists() else {}
+data["enabled"] = True
+data["last_feature_slug"] = feature
+data["last_event_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+isolation_cache.parent.mkdir(parents=True, exist_ok=True)
+isolation_cache.write_text(json.dumps(data, indent=2))
+```
+
+**Si el Task falla / crashea**: el `try/finally` debe garantizar siempre la
+limpieza de `active_agent.json`. El siguiente Task encontrara el archivo
+borrado y operara con guard en modo no-op (no asume agente activo).
+
 ### 5.1 Para cada fase del plan
 
 El orquestador lanza un Task por fase con el Phase Task Template:
@@ -1106,25 +1255,41 @@ al inicio para que el guard no bloquee las fases dependientes:
 
 Esto permite que `pipeline-phase-guard.mjs` valide el orden sin falsos positivos.
 
-### 5.1.1b Implementation Delta (Post-Phase) — v5.0 Spec-Code Sync
+### 5.1.1b Implementation Delta (Post-Phase) — v5.0 Spec-Code Sync (v5.32.0 update)
 
-Despues de guardar el checkpoint, generar el delta block para tracking spec-code:
+> **v5.32.0**: la fuente de verdad para los deltas paso de "lo que el orquestador
+> observa via git diff" a `phase_outputs.jsonl`. El propio Task escribe su delta
+> al final de su corrida (Paso 5.0 lo exige), asi que aqui solo agregamos.
+> Esto sobrevive a Tasks aislados que escriben en otra sesion.
 
-1. Recopilar del reporte de fase: `files_created`, `files_modified`, `phase_status`, `decisions`
-2. Leer archivos esperados del plan (si disponible en `doc/plans/`)
-3. Verificar si hubo self-healing (leer `.quality/evidence/${feature}/healing.jsonl`, ultima linea)
-4. Generar bloque delta con `generate_phase_delta()` (max 500 tokens):
-   - Si implementacion conforme al plan → "Sin deltas — implementacion conforme al plan"
-   - Si fase fallo → "Fase fallida — pendiente de resolucion" + error resumido
-   - Si self-healing → linea adicional con tipo y resultado
-5. Acumular en variable del orquestador: `implementation_deltas.append(delta_block)`
+Despues de guardar el checkpoint, agregar el delta block:
 
-El orquestador mantiene en memoria durante toda la sesion:
+```python
+from server.implement_context import aggregate_for_spec_sync
+
+# Lee phase_outputs.jsonl y devuelve el SpecSyncAggregate
+agg = aggregate_for_spec_sync(feature)
+
+# agg.overall_status ∈ {ok, partial, error, empty}
+# agg.delta_count                              — files tocados (sum across phases)
+# agg.files_created / files_modified / files_deleted   — listas dedupeadas
+# agg.phases                                   — uno por fase, en orden de ejecucion
+# agg.total_duration_s, agg.total_healing_attempts
 ```
-implementation_deltas: list[str] = []  # uno por fase completada
-```
 
-**IMPORTANTE:** Este paso es informativo (nunca bloquea). Si falla la generacion del delta, continuar normalmente.
+Reglas de uso:
+- Si `agg.overall_status == "error"` → linea: "Fase {phase} fallida — pendiente de resolucion"
+- Si `agg.total_healing_attempts > 0` → linea adicional con count y nivel maximo
+- Si todo conforme al plan → linea: "Sin deltas — implementacion conforme al plan"
+
+El orquestador YA NO mantiene `implementation_deltas: list[str]` en memoria.
+Cualquier consulta posterior (Paso 7.7a, Paso 8.5.1a) re-llama a
+`aggregate_for_spec_sync(feature)` — la fuente esta en disco.
+
+**IMPORTANTE:** Este paso es informativo (nunca bloquea). Si `phase_outputs.jsonl`
+no existe (Task legacy que no lo escribio), `aggregate_for_spec_sync` retorna
+`overall_status="empty"` y el orquestador continua con la observacion via
+git diff como fallback (compat con flujo pre-v5.32).
 
 ### 5.2 Reglas por stack durante implementacion
 
@@ -1723,22 +1888,34 @@ Si existe `.quality/evidence/${feature}/feedback-summary.json`:
          → Cuando el usuario apruebe: continuar con 8.5.2
 ```
 
-### 8.5.1a Escribir Implementation Status en PRD (v5.0 Spec-Code Sync)
+### 8.5.1a Escribir Implementation Status en PRD (v5.0 Spec-Code Sync — v5.32.0 update)
 
 Antes del merge, escribir el Implementation Status en el PRD:
 
 1. Localizar PRD del feature/US actual:
    - Si spec-driven: buscar en `doc/prds/` por us_id o feature name
    - Si freeform: ya se hizo en Paso 7.7a (saltar este paso)
-2. Compilar `implementation_deltas[]` en seccion Markdown con `compile_uc_status(uc_id, branch, deltas)`
-3. Append al PRD con `append_implementation_status(prd_path, uc_id, branch, implementation_deltas)`
-4. Commit del PRD actualizado:
+2. **(v5.32.0)** Construir el aggregate desde phase_outputs.jsonl en lugar de
+   acumulado del orquestador:
+   ```python
+   from server.implement_context import aggregate_for_spec_sync
+   agg = aggregate_for_spec_sync(feature)
+   # agg.phases es la lista que antes llamabamos implementation_deltas
+   ```
+3. Compilar el aggregate en seccion Markdown con
+   `compile_uc_status(uc_id, branch, agg.phases)` (la firma de
+   `compile_uc_status` acepta tanto la lista vieja de strings como la
+   lista nueva de dicts; mantiene compat con flujos pre-v5.32).
+4. Append al PRD con `append_implementation_status(prd_path, uc_id, branch, agg.phases)`
+5. Commit del PRD actualizado:
    ```bash
    git add doc/prds/{prd_file}
    git commit -m "docs({feature}): add Implementation Status for {uc_id}"
    git push origin {branch}
    ```
-5. Si no se encuentra PRD → WARNING, no bloquear el merge
+6. Si no se encuentra PRD → WARNING, no bloquear el merge.
+7. Si `agg.overall_status == "empty"` → WARNING (probable Task legacy que no
+   escribio phase_outputs.jsonl); fallback al flujo pre-v5.32 con git diff.
 
 **Tambien disponible como MCP tool:** `write_implementation_status(project_path, uc_id, branch, phase_deltas)`
 **Consulta posterior:** `get_implementation_status(project_path, item_id)` — devuelve JSON con deltas y overall_status

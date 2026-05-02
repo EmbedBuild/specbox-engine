@@ -1,5 +1,5 @@
-version: 5.28.0
-codename: "Maestro Flutter E2E"
+version: 5.29.0
+codename: "Cognitive Load Reduction"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-05-02
@@ -342,6 +342,23 @@ features:
   - patrol-legacy-path-supported
 
 changelog:
+  5.29.0:
+    date: 2026-05-02
+    codename: "Cognitive Load Reduction"
+    changes:
+      - "fix(BLOCKER): FreeForm path resolution with remote MCP. Previously a client calling set_auth_token(backend_type='freeform', root_path='doc/tracking') against a remote MCP server would silently write items.json on the VPS filesystem instead of the client repo, because Path('doc/tracking') resolves against the server CWD. v5.29 now (1) requires absolute paths in FreeformBackend with a FreeformPathError on relative + remote-MCP, (2) auto-resolves relative paths against the server CWD only when the MCP runs locally, (3) ships .claude/hooks/lib/freeform-path.mjs to compute the absolute path client-side from `git rev-parse --show-toplevel`. 16 tests cover the matrix"
+      - "chore: consolidate src/ → server/ to eliminate fossil dual-package state. Pre-v5.29, the repo carried a `src/` directory that was bit-identical to `server/` yet listed in .gitignore — tests imported `from src.*` but no script kept `src/` in sync. Clean clones broke at pytest collection time. v5.29 migrates 29 test files to `server.*` and removes the gitignore entry. Pytest collects 501 tests in a fresh clone now"
+      - "feat: Capa 1 — canonical project documents `doc/app/app_prd.md` and `doc/app/app_spec.md`. Each document is partitioned into manual / auto / hybrid zones via `<!-- @specbox:zone -->` markers. New `/app-init` skill (idempotent: init / refresh / upgrade-zones modes) creates them with templates from templates/app_*.md.template. Read by /prd, /plan, /visual-setup in their new Paso 0.0 to inherit project-level decisions instead of asking the user repeatedly. 29 tests for the parser + signature + replace_zone_body, plus integration tests for read_app_docs and get_inheritable_values MCP tools"
+      - "feat: Capa 2 — autopilot policy engine with 4 tiers (low / conservador / equilibrado / agresivo) and 19 catalogued decision_keys covering every fricción point in /prd, /plan, /visual-setup, /implement, /feedback. Default level for v5.29 is `equilibrado` (auto-confirms cosmetic + visual-derived when confidence is high enough). Policy lives in both .claude/hooks/lib/autopilot.mjs (JS, for hooks) and server/app_docs/autopilot.py (Python, for MCP tools); a parity test prevents catalog drift. Inviolable rules (image_cost_over_budget, destructive_action, branch_to_main_push) ignore tier and overrides. Every auto-decision logs to .quality/autopilot_decisions.jsonl. 32 JS + 38 Py tests"
+      - "feat: Capa 3 — deferred decisions queue at `doc/app/decisions_queue.md`. Off by default in v5.29 (`autopilot.queue_enabled=false`). When enabled, deferrable gates accumulate as pending entries instead of blocking the pipeline; new /queue review skill resolves them in batch. Inviolable-for-queue list: destructive_action, image_cost_over_budget, branch_to_main_push, definition_quality_gate, feature_problem_definition, feedback_field_classification — these always remain synchronous. 12 tests"
+      - "feat: Capa 4 — canonical decisions store at .quality/canonical_decisions.json. Three identical consecutive confirmations of the same decision_key promote a value to canonical; subsequent runs reuse it without asking. Auto-invalidates when the user picks a different value (reason='user_chose_different_value'). Mirror surfaces in app_spec.md zone canonical_decisions via the sync layer. Local-first: Engram is not required. 15 tests"
+      - "feat: Capa 5 sync enforcement (warning-only mode in v5.29.0; flips to BLOCKING in v5.29.1). Five components: server/app_docs/sync.py orchestrator with verify_app_docs / apply_app_docs_sync / record_sync_signature; @requires_app_docs_sync decorator with payload extractors and strict-mode hatch; pre-commit hook .claude/hooks/app-docs-sync-guard.mjs (signature parity with the Python implementation); /app-sync skill with --check/--repair/--review/--rebuild-from-tracking subcommands; multi-source drift detector covering S1 stack lockfiles, S2 brand-kit dangling refs, S3 roadmap-vs-tracking mismatch, S4 undocumented canonicals. Telemetry to .quality/app_docs_drift.jsonl + heartbeat payload for Sala de Máquinas. 13+11+7+12 tests"
+      - "feat: FreeForm first-class — `onboard_project` defaults to backend_type='freeform' when no Trello/Plane is requested. Generated settings.local.json carries a canonical `specbox.{backend_type, autopilot, freeform_root_absolute}` block. New detect_project_backend MCP tool with 5-level priority chain (specbox.backend_type → tracking_dir signal → legacy settings → app_spec.md zone → freeform default). New migrate_to_freeform tool for Trello/Plane → FreeForm conversion with absolute-path validation. 9 tests"
+      - "feat: v5.28→v5.29 migration tooling for 10 hypothetical project states. detect_v529_migration_case classifies a project (empty / freeform-local / freeform-vps / trello / plane / multirepo / feature-in-progress / pending-feedback / manual-app-md / fresh-clone) and run_v529_migration applies the safe automatic subset (settings only). Cases that need user-mediated steps (3 VPS, 7 active UC, 9 manual app_md) are deferred with explanatory reports. 18 tests"
+      - "default: New projects ship with autopilot.level=equilibrado (≤8 fricción points/feature vs ≥17 baseline) and backend_type=freeform (no external client reporting needed). Trello/Plane remains opt-in for projects with reporting requirements"
+      - "compat: 100% backwards-compatible. Projects without doc/app/, without specbox.autopilot section, or with backend_type unset behave exactly like v5.28 (level=low implicit, ask everything, no drift detection). The migration is opt-in: the user runs /app-init when ready"
+      - "tests: 200+ new tests across the v5.29 surface (Python + Node test runner). Pre-existing failures in test_pdf_generator.py (reportlab recursion), test_server.py (stale assertions), test_spec_mutations.py (InMemoryBackend regression), and test_milestone_management.py are documented tech debt unrelated to v5.29 work"
+
   5.28.0:
     date: 2026-05-02
     codename: "Maestro Flutter E2E"

@@ -1,4 +1,4 @@
-# SpecBox Engine v5.28.0
+# SpecBox Engine v5.29.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -902,8 +902,119 @@ que la Sala de Máquinas muestre el último audit sin escanear el filesystem.
 - Dashboard web dedicado
 - Integración con CI/CD externo
 
+## Cognitive Load Reduction (v5.29.0)
+
+Sistema de documentos canónicos `doc/app/app_prd.md` y `doc/app/app_spec.md` que `/prd`, `/plan` y `/visual-setup` consultan en su Paso 0.0 para evitar repreguntar al usuario lo que ya está decidido a nivel de proyecto. Se complementa con un motor de autopilot de 4 niveles (low / conservador / equilibrado / agresivo) que reduce las interrupciones por feature de ≥17 (baseline v5.28) a ≤8 en el preset por defecto `equilibrado`.
+
+### Documentos canónicos (`doc/app/`)
+
+| Archivo | Contenido | Mantenedor |
+|---------|-----------|------------|
+| `app_prd.md` | Visión, audiencia + JTBD, perímetro v1/v2/never, métricas, roadmap de US, stakeholders | usuario (5 zonas manual) + engine (1 zona auto: roadmap) |
+| `app_spec.md` | Stack, tracking backend, brand & visual, convenciones, autopilot, decisiones canónicas | engine (3 zonas auto: stack, tracking_backend, autopilot) + usuario (2 manual) + ambos (1 hybrid: canonical_decisions) |
+
+Cada documento se divide en **zonas con políticas distintas**: `manual` (solo usuario), `auto` (engine reescribe tras eventos), `hybrid` (append-only, ambos contribuyen). Las zonas se delimitan con marcadores HTML `<!-- @specbox:zone start kind="..." id="..." -->` invisibles en renderizado.
+
+### Skills v5.29.0
+
+| Skill | Trigger | Modo | Propósito |
+|-------|---------|------|-----------|
+| `/app-init` | "app init", "init app docs", "create canonical docs" | direct | Crea o refresca `doc/app/app_prd.md` y `doc/app/app_spec.md`. 3 modos: init (5 preguntas mínimas), refresh (solo zonas auto), upgrade-zones (insertar marcadores en docs manuales). |
+| `/app-sync` | "app sync", "check app drift", "reparar app docs" | direct | Verifica/repara/revisa drift entre canónicos y realidad. 4 subcomandos: --check, --repair, --review, --rebuild-from-tracking. |
+| `/queue review` | "queue review", "revisar cola", "resolver pendientes" | direct | Procesa decisiones diferidas en `doc/app/decisions_queue.md`. Off por default (`autopilot.queue_enabled=false`). |
+
+### Autopilot
+
+Configuración en `.claude/settings.local.json`:
+
+```json
+{
+  "specbox": {
+    "backend_type": "freeform",
+    "freeform_root_absolute": "/Users/.../doc/tracking",
+    "autopilot": {
+      "level": "equilibrado",
+      "image_budget_eur_per_feature": 5,
+      "auto_confirm_overrides": [],
+      "always_ask_overrides": [],
+      "queue_enabled": false
+    },
+    "app_docs_sync": {
+      "block_on_drift": false
+    }
+  }
+}
+```
+
+Niveles:
+
+- `low` (v5.28 default implícito): pregunta todo. Sin sección autopilot, este es el comportamiento.
+- `conservador`: solo auto-confirma cosmético (tokens, stitch_design_per_screen, design_system_update_check).
+- `equilibrado` (recomendado, v5.29 default): cosmético + visual derivado si confianza alta (veg_preview score≥0.8, image_cost dentro de budget) + heredables desde `app_spec.md`.
+- `agresivo`: añade definition_quality_gate auto si AC score≥0.7. Recomendable solo después de validar `equilibrado` durante 1-2 semanas.
+
+**Inviolables** (nunca auto-confirman): `image_cost_over_budget`, `destructive_action`, `branch_to_main_push`. Las acciones destructivas siempre se preguntan/bloquean independientemente del nivel y de los overrides del usuario.
+
+Tabla canónica de los 19 `decision_keys` documentada en `doc/plans/v5.29.0_cognitive_load_reduction_plan.md` sección 3.
+
+### Sync enforcement (Capa 5, warning-only en v5.29.0)
+
+5 piezas que mantienen los canónicos alineados con la realidad:
+
+| Pieza | Archivo | Rol |
+|-------|---------|-----|
+| Orquestador sync | `server/app_docs/sync.py` | `verify_app_docs`, `apply_app_docs_sync(event)`, `record_signature` |
+| Decorador transactional | `server/app_docs/decorators.py` | `@requires_app_docs_sync` para tools mutadoras |
+| Hook pre-commit | `.claude/hooks/app-docs-sync-guard.mjs` | Detecta drift por signature; warning en v5.29.0, bloqueante en v5.29.1 |
+| Skill `/app-sync` | `.claude/skills/app-sync/` | Resolución manual de drift |
+| Drift detector multi-fuente | `server/app_docs/drift_detector.py` | S1 stack lockfiles, S2 brand-kit dangling refs, S3 roadmap-vs-tracking, S4 canonical undocumented |
+
+Telemetría unificada en `.quality/app_docs_drift.jsonl`. Heartbeat payload compacto disponible vía `app_docs_drift_for_heartbeat` para Sala de Máquinas.
+
+Para promover el hook a bloqueante (v5.29.1+):
+```json
+{ "specbox": { "app_docs_sync": { "block_on_drift": true } } }
+```
+
+### FreeForm first-class
+
+`onboard_project` ahora defaults a `backend_type="freeform"` cuando no se pide Trello/Plane explícitamente. Trello/Plane sigue disponible para proyectos con reporting externo a clientes, pero ya no es el default.
+
+Auto-discovery vía `detect_project_backend(project_path)` con prioridad de 5 niveles:
+
+1. `.claude/settings.local.json` → `specbox.backend_type` explícito
+2. `doc/tracking/items.json` presente (signal de filesystem)
+3. Legacy: `settings.local.json` → `trello.boardId` / `plane.projectId`
+4. `doc/app/app_spec.md` zona "tracking_backend"
+5. Default: `freeform`
+
+Migración Trello/Plane → FreeForm: nueva tool `migrate_to_freeform_tool(project, target_path, dry_run=True)` que descarga items + comments + attachment URLs al filesystem local. Validación de path absoluto (FreeForm requiere absoluto desde v5.29 por el BLOCKER fix).
+
+### BLOCKER fix: FreeForm + remote MCP
+
+Pre-v5.29 había un bug crítico silencioso: `set_auth_token(backend_type='freeform', root_path='doc/tracking')` con MCP en VPS escribía en el filesystem del VPS, no del cliente. v5.29 ahora:
+
+- Rechaza paths relativos en `FreeformBackend.__init__` con `FreeformPathError`.
+- En `set_auth_token`, resuelve paths relativos contra el server CWD solo cuando MCP es local (sin `SPECBOX_ENGINE_MCP_URL`). Con MCP remoto, exige path absoluto del cliente.
+- Helper cliente `.claude/hooks/lib/freeform-path.mjs` calcula el absoluto desde `git rev-parse --show-toplevel`.
+
+Migration tooling para 10 casos hipotéticos (`detect_v529_migration_case`):
+
+| Case | Estado del proyecto | Acción |
+|------|---------------------|--------|
+| 1 | Empty | `/app-init` |
+| 2 | v5.28 FreeForm + local MCP | Warn, recomendar path absoluto |
+| 3 | v5.28 FreeForm + remote MCP | **BACKUP REQUIRED**, descargar VPS data, reconciliar |
+| 4 | v5.28 Trello | Sin cambios; `/app-init` opcional |
+| 5 | v5.28 Plane | Idem 4 |
+| 6 | Multirepo | Solo el orchestrator corre `/app-init`; satellites heredan |
+| 7 | Active UC | Diferir migración hasta cierre del UC |
+| 8 | Pending feedback | No-destructivo; cae a la rama de backend |
+| 9 | Manual app_*.md sin marcadores | `/app-init --upgrade-zones` con backup obligatorio |
+| 10 | Fresh clone | `./install.sh` primero |
+
 ## Engine Version
 
-Current: v5.28.0 "Maestro Flutter E2E"
+Current: v5.29.0 "Cognitive Load Reduction"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

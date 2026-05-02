@@ -36,6 +36,12 @@ from ..stitch_prompt import (
     build_prompt,
     validate_and_normalize,
 )
+from ..stitch_quota import (
+    DEFAULT_LIMIT_EXPERIMENTAL,
+    DEFAULT_LIMIT_STANDARD,
+    compute_quota_payload,
+)
+from ..stitch_quota.computation import load_entries
 
 logger = structlog.get_logger(__name__)
 
@@ -454,6 +460,100 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 "stitch_build_site_batched_v2",
                 status="error",
                 reason=type(exc).__name__,
+            )
+            return {"error": str(exc), "project": project}
+
+    @mcp.tool
+    async def get_stitch_quota_status(
+        ctx: Context,
+        project: str,
+        month: str | None = None,
+        warn_pct: float = 80.0,
+        standard_limit: int = DEFAULT_LIMIT_STANDARD,
+        experimental_limit: int = DEFAULT_LIMIT_EXPERIMENTAL,
+        write_cache: bool = True,
+        project_root: str | None = None,
+    ) -> dict:
+        """Compute current Stitch quota usage from telemetry.
+
+        Aggregates ``stitch_usage.jsonl`` entries by month and model
+        class (Pro=Experimental, Flash=Standard). Stitch's published
+        ceilings are 350 Standard + 200 Experimental per month with no
+        upgrade path; this tool surfaces consumption so autopilot and
+        the user can avoid the late-month cliff.
+
+        Only successful generation calls count; metadata operations
+        (set_api_key, generate_design_md, validate_stitch_prompt, list
+        and read tools) do not consume quota.
+
+        Args:
+            project: SpecBox project slug.
+            month: YYYY-MM. Default: current UTC month.
+            warn_pct: Threshold for warning surface. Default 80.
+            standard_limit / experimental_limit: Override Google's
+                defaults if Stitch communicates a different ceiling.
+            write_cache: When True (default) and ``project_root`` is
+                provided, persist a compact summary at
+                ``{project_root}/.quality/stitch_quota.json`` so
+                heartbeat-sender.mjs can pick it up without invoking
+                this tool every time.
+            project_root: Required only when ``write_cache=True``.
+
+        Returns:
+            ``{status, month, standard, experimental, warning, summary,
+              reset_at}``.
+        """
+
+        try:
+            jsonl = state_path / "projects" / project / "stitch_usage.jsonl"
+            entries = load_entries(jsonl)
+            payload = compute_quota_payload(
+                entries,
+                month=month,
+                warn_pct=warn_pct,
+                standard_limit=standard_limit,
+                experimental_limit=experimental_limit,
+            )
+
+            response = {
+                "status": "ok",
+                "project": project,
+                "month": payload.snapshot.month,
+                "standard": {
+                    "used": payload.snapshot.standard_used,
+                    "limit": payload.snapshot.standard_limit,
+                    "remaining": payload.snapshot.standard_limit
+                    - payload.snapshot.standard_used,
+                    "percent": round(payload.snapshot.standard_pct, 1),
+                },
+                "experimental": {
+                    "used": payload.snapshot.experimental_used,
+                    "limit": payload.snapshot.experimental_limit,
+                    "remaining": payload.snapshot.experimental_limit
+                    - payload.snapshot.experimental_used,
+                    "percent": round(payload.snapshot.experimental_pct, 1),
+                },
+                "warning": payload.warning,
+                "summary": payload.summary,
+                "reset_at": payload.reset_at,
+            }
+
+            if write_cache and project_root:
+                cache_path = (
+                    Path(project_root).expanduser().resolve()
+                    / ".quality" / "stitch_quota.json"
+                )
+                cache_path.parent.mkdir(parents=True, exist_ok=True)
+                cache_path.write_text(
+                    json.dumps(response, indent=2, ensure_ascii=False),
+                    encoding="utf-8",
+                )
+                response["cache_written"] = str(cache_path)
+
+            return response
+        except Exception as exc:
+            logger.error(
+                "get_stitch_quota_status_error", project=project, error=str(exc)
             )
             return {"error": str(exc), "project": project}
 

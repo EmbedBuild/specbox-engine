@@ -111,6 +111,27 @@ try {
   }
 } catch { /* ignore */ }
 
+// v5.31.0 — Stitch Autopilot: enrich payload with cached quota state.
+// The cache is written by the get_stitch_quota_status MCP tool. If the
+// user never ran it, the field stays null and Sala de Máquinas hides
+// the indicator gracefully.
+let stitchQuota = null;
+try {
+  const QUOTA_CACHE = '.quality/stitch_quota.json';
+  if (fileExists(QUOTA_CACHE)) {
+    const q = readJsonFile(QUOTA_CACHE);
+    if (q && q.standard && q.experimental) {
+      stitchQuota = {
+        month: q.month || null,
+        standard_pct: q.standard.percent ?? null,
+        experimental_pct: q.experimental.percent ?? null,
+        warning: q.warning || null,
+        reset_at: q.reset_at || null,
+      };
+    }
+  }
+} catch { /* ignore */ }
+
 // Build heartbeat payload
 const payload = {
   project: projectName,
@@ -130,6 +151,7 @@ const payload = {
   handoff_present: handoffPresent,
   handoff_age_minutes: handoffAgeMin,
   context_pressure: contextPressure,
+  stitch_quota: stitchQuota,
 };
 
 async function run() {

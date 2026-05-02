@@ -16,12 +16,12 @@ for _mod_name in ("fastmcp", "fpdf", "httpx"):
         _stub.FPDF = MagicMock  # type: ignore[attr-defined]
         sys.modules[_mod_name] = _stub
 
-from src.spec_backend import (
+from server.spec_backend import (
     ChecklistItemDTO,
     ItemDTO,
     ModuleDTO,
 )
-from src.tools.spec_driven import import_spec
+from server.tools.spec_driven import import_spec
 
 
 # ── Fixtures ────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ class TestImportSpecFreshBoard:
     async def test_creates_us_uc_ac(self, mock_ctx):
         backend = _make_backend()
 
-        with patch("src.tools.spec_driven.get_session_backend", return_value=backend):
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             result = await import_spec("board1", _make_spec(), mock_ctx)
 
         assert result["created"]["us"] == 1
@@ -117,7 +117,7 @@ class TestImportSpecFreshBoard:
         """create_module receives only the us_id, not the full name."""
         backend = _make_backend()
 
-        with patch("src.tools.spec_driven.get_session_backend", return_value=backend):
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             await import_spec("board1", _make_spec(), mock_ctx)
 
         backend.create_module.assert_called_once_with("board1", "US-01")
@@ -125,7 +125,7 @@ class TestImportSpecFreshBoard:
     async def test_links_uc_to_module(self, mock_ctx):
         backend = _make_backend()
 
-        with patch("src.tools.spec_driven.get_session_backend", return_value=backend):
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             await import_spec("board1", _make_spec(), mock_ctx)
 
         backend.add_items_to_module.assert_called_once()
@@ -164,7 +164,7 @@ class TestImportSpecIdempotent:
             ]
         )
 
-        with patch("src.tools.spec_driven.get_session_backend", return_value=backend):
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             result = await import_spec("board1", _make_spec(), mock_ctx)
 
         # Nothing created, everything updated
@@ -202,7 +202,7 @@ class TestImportSpecPartial:
             return_value=ModuleDTO(id="mod-existing", name="US-01")
         )
 
-        with patch("src.tools.spec_driven.get_session_backend", return_value=backend):
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             result = await import_spec("board1", _make_spec(), mock_ctx)
 
         assert result["created"]["us"] == 0
@@ -230,7 +230,7 @@ class TestImportSpecPartial:
             ]
         )
 
-        with patch("src.tools.spec_driven.get_session_backend", return_value=backend):
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             result = await import_spec("board1", _make_spec(), mock_ctx)
 
         assert result["created"]["ac"] == 1  # Only AC-02 created
@@ -258,7 +258,7 @@ class TestImportSpecUpdates:
 
         backend.find_item_by_field = AsyncMock(side_effect=find_mock)
 
-        with patch("src.tools.spec_driven.get_session_backend", return_value=backend):
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             await import_spec("board1", _make_spec(), mock_ctx)
 
         # update_item called for US with new name
@@ -282,7 +282,7 @@ class TestImportSpecUpdates:
         backend.find_item_by_field = AsyncMock(side_effect=find_mock)
         backend.get_acceptance_criteria = AsyncMock(return_value=[])
 
-        with patch("src.tools.spec_driven.get_session_backend", return_value=backend):
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             await import_spec("board1", _make_spec(), mock_ctx)
 
         # update_item called for UC
@@ -301,7 +301,7 @@ class TestImportSpecParentLinking:
     async def test_uc_gets_parent_id(self, mock_ctx):
         backend = _make_backend()
 
-        with patch("src.tools.spec_driven.get_session_backend", return_value=backend):
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             await import_spec("board1", _make_spec(), mock_ctx)
 
         # create_item for UC should have parent_id = US item id
@@ -318,7 +318,7 @@ class TestImportSpecStateMapping:
     async def test_us_created_in_user_stories_state(self, mock_ctx):
         backend = _make_backend()
 
-        with patch("src.tools.spec_driven.get_session_backend", return_value=backend):
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             await import_spec("board1", _make_spec(), mock_ctx)
 
         us_create_call = backend.create_item.call_args_list[0]
@@ -327,7 +327,7 @@ class TestImportSpecStateMapping:
     async def test_uc_created_in_backlog_state(self, mock_ctx):
         backend = _make_backend()
 
-        with patch("src.tools.spec_driven.get_session_backend", return_value=backend):
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             await import_spec("board1", _make_spec(), mock_ctx)
 
         uc_create_call = backend.create_item.call_args_list[1]
@@ -354,7 +354,7 @@ class TestImportSpecErrors:
 
         backend.create_item = AsyncMock(side_effect=create_side_effect)
 
-        with patch("src.tools.spec_driven.get_session_backend", return_value=backend):
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             result = await import_spec("board1", _make_spec(), mock_ctx)
 
         assert result["created"]["us"] == 1

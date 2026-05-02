@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.delta_generator import generate_phase_delta, compile_uc_status
+from server.delta_generator import generate_phase_delta, compile_uc_status
 
 
 class TestGeneratePhaseDelta:

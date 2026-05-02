@@ -63,7 +63,15 @@ structlog.configure(
 # ENGINE_PATH: In monorepo, engine content is at the repo root (parent of server/)
 ENGINE_PATH = Path(os.getenv("ENGINE_PATH", Path(__file__).parent.parent)).resolve()
 STATE_PATH = Path(os.getenv("STATE_PATH", "/data/state"))
-STATE_PATH.mkdir(parents=True, exist_ok=True)
+try:
+    STATE_PATH.mkdir(parents=True, exist_ok=True)
+except OSError:
+    # Filesystem may be read-only (e.g. test environment importing this module).
+    # Tools that actually need STATE_PATH will fail loudly when they try to
+    # write; the import itself must not. logger isn't bound yet at this point
+    # in the module, so we emit a stderr warning instead.
+    import sys
+    print(f"[specbox] STATE_PATH not writable: {STATE_PATH}", file=sys.stderr)
 
 mcp = FastMCP(
     "specbox-engine",

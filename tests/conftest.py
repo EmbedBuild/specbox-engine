@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 
-from src.trello_client import TrelloClient
+from server.trello_client import TrelloClient
 
 
 @pytest.fixture

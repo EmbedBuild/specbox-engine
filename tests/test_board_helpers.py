@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.board_helpers import (
+from server.board_helpers import (
     build_custom_field_map,
     build_uc_description,
     build_us_description,

@@ -14,9 +14,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.backends.freeform_backend import FreeformBackend
-from src.backends.plane_backend import PlaneBackend
-from src.backends.trello_backend import TrelloBackend
+from server.backends.freeform_backend import FreeformBackend
+from server.backends.plane_backend import PlaneBackend
+from server.backends.trello_backend import TrelloBackend
 
 
 # ── Trello ───────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.pdf_generator import markdown_to_pdf, _clean_markdown
+from server.pdf_generator import markdown_to_pdf, _clean_markdown
 
 
 class TestMarkdownToPdf:

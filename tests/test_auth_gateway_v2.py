@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock
 
-from src.auth_gateway import (
+from server.auth_gateway import (
     get_session_backend,
     get_session_client,
     store_session_credentials,
@@ -12,8 +12,8 @@ from src.auth_gateway import (
     AUTH_STATE_KEY,
     BACKEND_STATE_KEY,
 )
-from src.backends.trello_backend import TrelloBackend
-from src.backends.plane_backend import PlaneBackend
+from server.backends.trello_backend import TrelloBackend
+from server.backends.plane_backend import PlaneBackend
 
 
 # ── get_session_backend ──────────────────────────────────────────────

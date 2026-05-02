@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from src.benchmark_generator import (
+from server.benchmark_generator import (
     anonymize_project_name,
     generate_benchmark,
     render_benchmark_markdown,

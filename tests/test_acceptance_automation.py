@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.spec_backend import (
+from server.spec_backend import (
     AttachmentDTO,
     BackendUser,
     BoardConfig,
@@ -20,7 +20,7 @@ from src.spec_backend import (
     ModuleDTO,
     SpecBackend,
 )
-from src.tools import acceptance_automation as aa
+from server.tools import acceptance_automation as aa
 
 
 # ── In-memory backend ────────────────────────────────────────────────

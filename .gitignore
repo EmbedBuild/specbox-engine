@@ -16,7 +16,6 @@ node_modules/
 __pycache__/
 *.pyc
 .venv/
-/src
 *.egg-info/
 .pytest_cache/
 

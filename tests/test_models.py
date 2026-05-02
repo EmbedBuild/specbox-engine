@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from src.models import (
+from server.models import (
     WORKFLOW_LIST_NAMES,
     LIST_NAME_TO_STATE,
     AcceptanceCriterion,

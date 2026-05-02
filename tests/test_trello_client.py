@@ -4,7 +4,7 @@ import pytest
 import httpx
 import respx
 
-from src.trello_client import TrelloClient
+from server.trello_client import TrelloClient
 
 
 @pytest.fixture

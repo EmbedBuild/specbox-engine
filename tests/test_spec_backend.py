@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from unittest.mock import AsyncMock
 
-from src.spec_backend import (
+from server.spec_backend import (
     AttachmentDTO,
     BackendUser,
     BoardConfig,

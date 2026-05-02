@@ -3,7 +3,7 @@
 import asyncio
 import pytest
 
-from src.server import mcp
+from server.server import mcp
 
 
 class TestServerSetup:

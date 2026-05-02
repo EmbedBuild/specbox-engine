@@ -14,7 +14,7 @@ import pytest
 
 def _register_tools(engine_path: Path, state_path: Path) -> dict:
     """Register acceptance tools on a mock MCP and return them as a dict."""
-    from src.tools.acceptance import register_acceptance_tools
+    from server.tools.acceptance import register_acceptance_tools
 
     mcp = MagicMock()
     tools: dict = {}

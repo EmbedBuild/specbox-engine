@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from src.prd_writer import find_prd_path, append_implementation_status
+from server.prd_writer import find_prd_path, append_implementation_status
 
 
 @pytest.fixture

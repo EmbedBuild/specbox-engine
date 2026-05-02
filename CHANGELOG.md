@@ -2,6 +2,67 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.31.1] - 2026-05-02 — "Stitch Autopilot — /plan migration"
+
+Patch release que cierra el out-of-scope explícito de v5.31.0: migra
+`/plan` Paso 6 al pipeline v2. A partir de esta release, todas las
+generaciones de Stitch invocadas por `/plan` pasan por el validator de
+prompts y la fallback chain — el agente ya no llama `mcp__stitch__generate_screen_from_text`
+directamente. Se añaden Pasos 5.5 (pre-check DESIGN.md + cuota), 6.3.1
+(validar prompt antes de generar), 6.3.3 (refinamiento incremental con
+`baseline_screen_id`) y 6.7 (batched build_site cuando hay >5 pantallas).
+
+### Changed
+
+- **`/plan` Paso 6.3** — `mcp__stitch__generate_screen_from_text` →
+  `stitch_generate_screen_v2`. La instrucción "no reintentar manualmente
+  en timeout" del SKILL.md ahora explica que la fallback chain
+  (edit_baseline → variants_refine → regenerate) lo hace
+  automáticamente, y que el agente debe presentar `attempts[]` al
+  usuario si el outcome es `failed`.
+- **`/plan` Paso 6.3.1** (nuevo) — toda generación es precedida por
+  `validate_stitch_prompt(mode="warn", project_root=...)`. Tabla de
+  acción para `valid+warnings`, `requires_split`, modo strict.
+- **`/plan` Paso 6.3.3** (nuevo) — documenta uso de `baseline_screen_id`
+  para forzar `edit_baseline` sobre `regenerate` en refinamientos
+  incrementales (preserva trabajo + ahorra cuota PRO).
+
+### Added
+
+- **`/plan` Paso 5.5** entre Paso 5 y Paso 6:
+  - 5.5.1 verifica `doc/design/DESIGN.md`. Si no existe pero hay Brand
+    Kit, lo genera automáticamente. Si no hay ninguno, avisa y pide
+    confirmación.
+  - 5.5.2 registra DESIGN.md frente al Stitch project (mode
+    `inline-prefix`) para que las generaciones lo prependan
+    automáticamente.
+  - 5.5.3 pre-warning de cuota antes del loop de generación. Tabla de
+    acción tiered: <80% silencioso, 80-100% pregunta, ≥100% bloquea
+    hasta safety net opt-in o reset.
+- **`/plan` Paso 6.7** (nuevo) — multi-pantalla con
+  `stitch_build_site_batched_v2` cuando hay >5 pantallas relacionadas.
+  Documenta cuándo conviene (flujo cohesivo) vs cuándo mantener serial
+  (pantallas independientes), y cómo asignar `group` para particionado
+  fino.
+
+### Compatibility
+
+- 100% backwards-compatible. Las 13 tools v1 siguen registradas; los
+  proyectos que tengan forks personales del SKILL.md verán que el
+  call site cambió y deberán mergear, pero ningún proyecto rompe
+  funcionalmente.
+- Sin cambios de settings necesarios. Defaults preservan calidad-first:
+  `GEMINI_3_PRO`, `flash_safety_net=false`, validator en `warn`.
+
+### Decisions
+
+- **Modelo default sigue siendo `GEMINI_3_PRO`**. La migración no
+  cambia las decisiones de calidad de v5.31.0 — solo activa
+  programáticamente lo que ya estaba construido y disponible.
+- **Validator en `warn` mode** durante la migración. Promoción a
+  `strict` queda como decisión empírica futura tras 2 semanas de
+  telemetría.
+
 ## [5.31.0] - 2026-05-02 — "Stitch Autopilot"
 
 Closes the gap between SpecBox and Google's official Stitch best practices,

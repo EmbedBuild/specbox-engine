@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v5.30.0 — "Session Continuity" (sobre v5.29 "Cognitive Load Reduction")<br/>
+  v5.31.1 — "Stitch Autopilot — /plan migration" (sobre v5.31.0 "Stitch Autopilot")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,22 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v5.31
+
+**v5.31.0 — "Stitch Autopilot"** alinea la integración de Google Stitch con sus best practices oficiales y elimina los bloqueadores recurrentes de autopilot al generar diseños:
+
+- **DESIGN.md canónico** ([formato oficial Google](https://github.com/google-labs-code/design.md)) generado automáticamente desde Brand Kit + VEG. Resuelve el drift visual entre pantallas en raíz.
+- **Pipeline v2 con fallback chain** (`edit_baseline → variants_refine → regenerate`) — los timeouts y errores transitorios ya no rompen autopilot.
+- **Validator de prompts en 4 capas** (Context / Components / Style con hex codes / Platform) — primera generación más cerca de la marca, menos iteración.
+- **Batched build_site** para planes con >5 pantallas + pasada final de tema unificado.
+- **Quota tracking** (350 Standard + 200 Experimental) con warnings ≥80% y hook bloqueante a 100% (Flash safety net opt-in).
+
+**Modelo default sigue siendo `GEMINI_3_PRO`**. Calidad-first. Flash queda solo como red de seguridad opt-in.
+
+**v5.31.1** activa todo lo anterior en `/plan` Paso 6 (antes seguía usando v1 directo). Migración transparente — sin cambios de settings necesarios.
 
 ---
 
@@ -284,7 +300,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v5.29.0 — "Cognitive Load Reduction"
+> v5.31.1 — "Stitch Autopilot — /plan migration" (over v5.31.0 "Stitch Autopilot")
 
 ## What is this?
 
@@ -296,6 +312,20 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v5.31
+
+**v5.31.0 — "Stitch Autopilot"** aligns the Google Stitch integration with its official best practices and removes the recurring autopilot blockers when generating designs:
+
+- **Canonical DESIGN.md** ([Google's official format](https://github.com/google-labs-code/design.md)) auto-generated from Brand Kit + VEG. Solves cross-screen visual drift at the root.
+- **v2 pipeline with fallback chain** (`edit_baseline → variants_refine → regenerate`) — timeouts and transient errors no longer break autopilot.
+- **4-layer prompt validator** (Context / Components / Style with hex codes / Platform) — first generations closer to the brand, less iteration.
+- **Batched build_site** for plans with >5 screens + final unified-theme pass.
+- **Quota tracking** (350 Standard + 200 Experimental) with warnings ≥80% and a blocking hook at 100% (Flash safety net opt-in).
+
+**Default model stays `GEMINI_3_PRO`**. Quality-first. Flash is only an opt-in safety net.
+
+**v5.31.1** activates the above inside `/plan` Paso 6 (which until v5.31.0 still used the legacy v1 tool directly). Transparent migration — no settings change required.
 
 ## Why v5.29.0?
 

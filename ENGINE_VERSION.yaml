@@ -1,4 +1,4 @@
-version: 5.31.0
+version: 5.31.1
 codename: "Stitch Autopilot"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
@@ -355,6 +355,17 @@ features:
   - flash-safety-net-opt-in
 
 changelog:
+  5.31.1:
+    date: 2026-05-02
+    codename: "Stitch Autopilot — /plan migration"
+    changes:
+      - "feat: /plan Paso 6.3 migrated from `mcp__stitch__generate_screen_from_text` (v1) to the v5.31.0 v2 pipeline. Each prompt now goes through `validate_stitch_prompt` (warn mode) BEFORE generation, then through `stitch_generate_screen_v2` which applies the fallback chain edit_baseline → variants_refine → regenerate automatically. Skill no longer instructs the agent to retry manually on timeout — the orchestration layer handles it"
+      - "feat: new /plan Paso 5.5 'Stitch Autopilot — Pre-check' between Paso 5 (save plan) and Paso 6 (generate). Three substeps: 5.5.1 verify `doc/design/DESIGN.md` exists (auto-generate from Brand Kit if not, warn user if neither exists), 5.5.2 register DESIGN.md against the Stitch project via `upload_design_md_to_stitch` (mode=inline-prefix), 5.5.3 quota pre-warning via `get_stitch_quota_status` with a tiered action table (<80% silent, 80-100% ask, ≥100% block until safety net opt-in or reset)"
+      - "feat: new /plan Paso 6.7 'Multi-pantalla con batching' for plans with >5 related screens. Uses `stitch_build_site_batched_v2` which auto-partitions into ≤4-screen groups (priority: explicit `group` tag → route prefix → order chunks) and applies a unified theme pass across all generated screens. Documented when to use vs. when to keep the serial 6.3 flow (independent screens stay serial)"
+      - "feat: new /plan Paso 6.3.1 prompt validation step with action table for valid+warnings, requires_split, and strict-mode invalid responses. Paso 6.3.3 documents incremental refinement via `baseline_screen_id` so the fallback chain can prefer `edit_baseline` over `regenerate` when a previous version exists"
+      - "compat: 100% backwards-compatible. The v1 tools (mcp__stitch__generate_screen_from_text et al.) remain registered but are no longer invoked from /plan. Projects that customised the Paso 6 prompts in their own forks will need to merge the new validator/v2 flow when they sync; no settings change required for the default behaviour"
+      - "decision: model default stays GEMINI_3_PRO. flash_safety_net stays opt-in (off by default) — calidad-first. The validator stays in 'warn' mode by default; promotion to 'strict' is a settings flip when telemetry confirms low false-positive rate"
+
   5.31.0:
     date: 2026-05-02
     codename: "Stitch Autopilot"

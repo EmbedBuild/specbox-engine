@@ -1,4 +1,4 @@
-# SpecBox Engine v5.31.0
+# SpecBox Engine v5.31.1
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -704,7 +704,7 @@ Proxy completo de Google Stitch a traves del SpecBox Engine MCP server. Permite 
 - Timeout de 6 minutos para operaciones de generacion
 - Retry con backoff exponencial para errores transitorios
 
-## Stitch Autopilot (v5.31.0)
+## Stitch Autopilot (v5.31.0 + /plan migration v5.31.1)
 
 Capa que se asienta encima del Stitch MCP Proxy v1 para resolver los bloqueos
 recurrentes de autopilot causados por (a) drift visual entre pantallas, (b)
@@ -712,6 +712,11 @@ fallos terminales de generación sin recuperación, (c) falta de visibilidad
 sobre la cuota mensual de Google Stitch (350 Standard + 200 Experimental, sin
 upgrade), y (d) prompts mal estructurados que producen primeras generaciones
 peores de lo necesario.
+
+**v5.31.1 update**: `/plan` ya está migrado al pipeline v2. Cada generación
+pasa por `validate_stitch_prompt` → `stitch_generate_screen_v2` (con fallback
+chain) y los planes con >5 pantallas usan `stitch_build_site_batched_v2`. Ver
+Paso 5.5 (pre-check DESIGN.md + cuota) y Paso 6.3/6.7 del SKILL.md de `/plan`.
 
 **Decisión de calidad**: el modelo default sigue siendo `GEMINI_3_PRO`. Flash
 NO es default — solo está disponible como red de seguridad opt-in
@@ -791,9 +796,10 @@ NO es default — solo está disponible como red de seguridad opt-in
   son aditivas (`generate_design_md_tool`, `upload_design_md_to_stitch`,
   `validate_stitch_prompt`, `stitch_generate_screen_v2`,
   `stitch_build_site_batched_v2`, `get_stitch_quota_status`).
-- `/plan` Paso 2.5b NO se modifica en esta release — sigue usando v1 por
-  defecto. La migración del call site ocurrirá en un patch v5.31.x cuando
-  la telemetría del validator confirme baja tasa de falsos positivos.
+- `/plan` Paso 6 fue migrado al pipeline v2 en v5.31.1 (esta release).
+  Antes de v5.31.1 `/plan` usaba `mcp__stitch__generate_screen_from_text`
+  directo; desde v5.31.1 valida prompts antes de generar y usa
+  `stitch_generate_screen_v2` con fallback chain.
 - Solo se modifica `/visual-setup` (añade Paso 3.7 + 3.8) y
   `heartbeat-sender.mjs` (añade campo `stitch_quota` después del bloque
   v5.30 de Session Continuity).
@@ -1154,6 +1160,6 @@ Migration tooling para 10 casos hipotéticos (`detect_v529_migration_case`):
 
 ## Engine Version
 
-Current: v5.31.0 "Stitch Autopilot"
+Current: v5.31.1 "Stitch Autopilot — /plan migration"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

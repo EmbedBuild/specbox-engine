@@ -504,6 +504,79 @@ lib/
 
 ---
 
+## Paso 5.5: Stitch Autopilot — Pre-check (v5.31.0+)
+
+> Solo si el plan tiene pantallas (saltar Paso 6 si es feature backend-only).
+> Este paso prepara el pipeline v2 (DESIGN.md canónico + cuota observada)
+> para que la generación del Paso 6 sea fiable y trazable.
+
+### 5.5.1 Verificar DESIGN.md canónico
+
+DESIGN.md (formato oficial Google: github.com/google-labs-code/design.md)
+es leído por Stitch como contexto persistente en cada generación, y es lo
+que evita el drift visual entre pantallas. SpecBox lo materializa via
+`/visual-setup` Paso 3.7.
+
+```
+¿Existe doc/design/DESIGN.md en el proyecto?
+├── SI → Continuar a 5.5.2
+└── NO → Tomar UNA de estas rutas:
+    a) Si existe doc/brand/brand_kit.md (Brand Kit ya configurado):
+       Llamar generate_design_md_tool(
+         project="{project_slug}",
+         project_root="{absolute_path}"
+       )
+       Continuar a 5.5.2
+    b) Si NO existe brand_kit.md:
+       AVISAR al usuario:
+       "No hay DESIGN.md ni Brand Kit. Las pantallas saldrán con
+        defaults del arquetipo VEG 'startup' y mayor riesgo de drift.
+        Recomendado: corre /visual-setup primero. ¿Continuar igual?"
+       Continuar a 5.5.2 si el usuario confirma; abortar Paso 6 si no.
+```
+
+### 5.5.2 Registrar DESIGN.md frente al proyecto Stitch
+
+Si DESIGN.md existe Y hay `stitch.projectId` configurado:
+
+```
+upload_design_md_to_stitch(
+  project="{project_slug}",
+  stitch_project_id="{stitch.projectId}",
+  project_root="{absolute_path}"
+)
+```
+
+Modo `inline-prefix` hoy (Stitch MCP no expone endpoint nativo de
+attach todavía). Las tools v2 de generación leen este registro y
+prepended el contenido de DESIGN.md a cada prompt automáticamente.
+
+### 5.5.3 Pre-warning de cuota
+
+Antes de entrar al loop de generación, consultar cuota Stitch
+mensual (350 Standard + 200 Experimental, no upgradeable):
+
+```
+get_stitch_quota_status(
+  project="{project_slug}",
+  project_root="{absolute_path}",
+  write_cache=true
+)
+```
+
+Tomar acción según el resultado:
+
+| Estado | Acción |
+|--------|--------|
+| `experimental.percent < 80` | Continuar a Paso 6 sin avisar |
+| `experimental.percent ≥ 80` y `< 100` | AVISAR al usuario: "Cuota PRO al X% — quedan N generaciones. ¿Continuar?" |
+| `experimental.percent ≥ 100` | BLOQUEAR Paso 6: "Cuota PRO agotada hasta {reset_at}. Opciones: (a) activar `flash_safety_net` en settings.local.json para usar Flash como degradación; (b) esperar al reset; (c) generar pantallas manualmente." |
+
+El cache `.quality/stitch_quota.json` que escribe esta tool es el que el
+heartbeat lee para reportar `stitch_quota` a Sala de Máquinas.
+
+---
+
 ## Paso 6: Generar Diseños en Google Stitch (OBLIGATORIO via MCP)
 
 > Esta sección genera diseños HTML automáticamente usando el MCP de Stitch.
@@ -653,24 +726,73 @@ Layout: Desktop (1280px wide)
 Icons: Material Symbols
 ```
 
-### 6.3 Ejecutar generación en Stitch (MCP)
+### 6.3 Ejecutar generación en Stitch (pipeline v2 — v5.31.0+)
 
-Para cada pantalla identificada:
+**Importante**: a partir de v5.31.0 NO se usa `mcp__stitch__generate_screen_from_text`
+directamente. Las llamadas pasan por el pipeline v2 que añade prompt
+validation, fallback chain, telemetría granular, y propaga el DESIGN.md
+canónico como contexto persistente.
+
+#### 6.3.1 Validar prompt antes de generar
+
+Para cada pantalla, validar el prompt construido en 6.2:
 
 ```
-mcp__stitch__generate_screen_from_text(
-  projectId: "[stitch.projectId]",
-  prompt: "[prompt construido en 6.2]",
-  deviceType: "[stitch.deviceType]",    // DESKTOP por defecto
-  modelId: "[stitch.modelId]"           // GEMINI_3_PRO por defecto
+validate_stitch_prompt(
+  project="{project_slug}",
+  prompt="{prompt construido}",
+  mode="warn",
+  project_root="{absolute_path}"
+)
+```
+
+Tomar acción según el resultado:
+
+| Resultado | Acción |
+|-----------|--------|
+| `valid=true`, sin warnings | Continuar a 6.3.2 con el prompt original |
+| `valid=true`, con warnings | Mostrar warnings al usuario; usar `normalized_prompt` (color-substitutions ya resueltas) y continuar |
+| `requires_split=true` | Avisar: "El prompt mezcla layout + componentes. Voy a dividirlo en {N} llamadas: layout primero, componentes después." Iterar 6.3.2 una vez por cada `split_prompts[i]` |
+| `valid=false` (modo strict) | Pedir al usuario revisar el prompt antes de seguir |
+
+#### 6.3.2 Generar con fallback chain
+
+```
+stitch_generate_screen_v2(
+  project="{project_slug}",
+  stitch_project_id="{stitch.projectId}",
+  prompt="{normalized_prompt o split_prompt[i]}",
+  device_type="{stitch.deviceType}",       // DESKTOP por defecto
+  model_id="{stitch.modelId}",             // GEMINI_3_PRO por defecto (calidad-first)
+  baseline_screen_id=null,                 // null en primera generación; ver 6.3.3
+  flash_safety_net=false,                  // opt-in en settings.local.json
+  max_total_attempts=3
 )
 ```
 
 **Reglas de ejecución:**
-- Generar UNA pantalla a la vez (la tool tarda minutos por pantalla)
-- NO reintentar si falla por timeout — usar `mcp__stitch__get_screen` después
-- Si `output_components` contiene sugerencias, presentarlas al usuario
-- Esperar confirmación antes de generar la siguiente pantalla
+- Generar UNA pantalla a la vez (la tool tarda minutos por pantalla en PRO).
+- **NO reintentar manualmente si falla**: el pipeline v2 ya aplica
+  `edit_baseline → variants_refine → regenerate` automáticamente. Si la
+  respuesta es `outcome: "failed"`, presentar el campo `attempts[]` al usuario
+  y preguntar qué hacer (ajustar prompt, omitir pantalla, etc.).
+- Si `outcome: "ok_degraded"` (Flash safety net), avisar al usuario: la
+  pantalla salió en Flash y debería regenerarse manualmente con PRO cuando
+  la cuota se reinicie. La respuesta incluye `degraded_reason`.
+- Si `output_components` o sugerencias del result, presentarlas al usuario
+  igual que antes.
+
+#### 6.3.3 Pasada incremental (cuando aplica)
+
+Si una pantalla tiene una versión previa (ej. usuario quiere refinar),
+pasar el `screen_id` previo como `baseline_screen_id` para que el pipeline
+priorice `edit_baseline` sobre regenerar from scratch — preserva trabajo
+parcial y consume menos cuota.
+
+#### 6.3.4 Confirmación entre pantallas
+
+- Presentar el resultado de la pantalla generada al usuario.
+- Esperar confirmación antes de la siguiente pantalla.
 
 ### 6.4 Obtener y guardar HTML
 
@@ -714,6 +836,49 @@ Después de cada pantalla generada, preguntar:
 - "¿Quieres generar la siguiente pantalla: [nombre]?"
 - "¿Quieres ajustar el prompt antes de generar?"
 - "¿Saltamos el diseño y pasamos a implementación?"
+
+### 6.7 Multi-pantalla con batching (cuando aplica — v5.31.0+)
+
+> Solo aplica si el plan tiene **>5 pantallas relacionadas** que comparten un
+> mismo flujo o área funcional (ej. dashboard con varias vistas, marketplace
+> con landing + listing + detalle + cart + checkout). Si las pantallas son
+> independientes, mantén el flujo serial 6.3.
+
+Stitch's `build_site` tiene un límite duro de ~5 pantallas conectadas por
+llamada. Para superar ese techo sin romper consistencia visual, usar:
+
+```
+stitch_build_site_batched_v2(
+  project="{project_slug}",
+  stitch_project_id="{stitch.projectId}",
+  screens=[
+    {"name": "landing", "prompt": "{prompt validado}", "route": "/", "order": 1, "group": "public"},
+    {"name": "listing", "prompt": "{prompt validado}", "route": "/marketplace", "order": 2, "group": "public"},
+    {"name": "detail",  "prompt": "{prompt validado}", "route": "/marketplace/:id", "order": 3, "group": "public"},
+    {"name": "cart",    "prompt": "{prompt validado}", "route": "/cart", "order": 4, "group": "checkout"},
+    {"name": "checkout","prompt": "{prompt validado}", "route": "/checkout", "order": 5, "group": "checkout"},
+    {"name": "confirm", "prompt": "{prompt validado}", "route": "/confirm", "order": 6, "group": "checkout"},
+    ...
+  ],
+  batch_size=4,
+  apply_unified_theme_pass=true,
+  unified_theme_prompt=null   // null usa el default referenciando DESIGN.md
+)
+```
+
+**Reglas:**
+- Validar **cada** prompt con `validate_stitch_prompt` antes de incluirlo
+  en `screens[]` (mismo flujo que 6.3.1).
+- Particionado automático prioriza `group` explícito → prefijo de `route`
+  → chunks por `order`. Si quieres control fino, asigna `group`.
+- `apply_unified_theme_pass=true` (default) ejecuta una pasada final de
+  `edit_screens` por pantalla que homogeniza header/nav/footer/buttons
+  contra DESIGN.md. Sin esta pasada, batches distintos pueden divergir.
+- El response devuelve `batches[]` con duración y status por batch +
+  `unified_pass[]` con el resultado de la pasada final + flags
+  `total_screens`, `total_batches`, `unified_pass_applied`.
+- Para descargar el HTML de cada pantalla generada por el batched build,
+  seguir usando `mcp__stitch__get_screen` (Paso 6.4) screen-by-screen.
 
 ---
 

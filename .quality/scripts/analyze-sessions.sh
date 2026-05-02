@@ -78,6 +78,31 @@ if [ "$TOTAL_SESSIONS" -gt 0 ]; then
   fi
 fi
 
+# v5.30.0 — Handoff rate (% sessions ending with .quality/handoff.md present)
+SESSIONS_WITH_HANDOFF=0
+for logfile in $LOG_FILES; do
+  if command -v jq &>/dev/null; then
+    COUNT=$(jq -r 'select(.handoff_path != null and .handoff_path != "") | 1' "$logfile" 2>/dev/null | wc -l | tr -d ' ')
+  else
+    COUNT=$(grep -c '"handoff_path": "[^"]' "$logfile" 2>/dev/null || echo 0)
+  fi
+  SESSIONS_WITH_HANDOFF=$((SESSIONS_WITH_HANDOFF + COUNT))
+done
+if [ "$TOTAL_SESSIONS" -gt 0 ]; then
+  HANDOFF_RATE=$((SESSIONS_WITH_HANDOFF * 100 / TOTAL_SESSIONS))
+  echo ""
+  echo "  ─── Session Continuity (v5.30) ───"
+  echo "  Sessions with handoff: $SESSIONS_WITH_HANDOFF / $TOTAL_SESSIONS"
+  echo "  Handoff rate:          ${HANDOFF_RATE}%"
+  if [ "$HANDOFF_RATE" -ge 80 ]; then
+    echo "  Continuity health:     🟢 Excellent (≥80% target met)"
+  elif [ "$HANDOFF_RATE" -ge 50 ]; then
+    echo "  Continuity health:     🟡 Moderate (handoff often skipped)"
+  else
+    echo "  Continuity health:     🔴 Low — consider invoking /handoff before compactation"
+  fi
+fi
+
 echo ""
 
 # Healing summary

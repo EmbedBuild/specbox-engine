@@ -1,0 +1,40 @@
+---
+generated_at: {{generated_at}}
+generator: specbox-handoff-v1
+schema_version: 1
+project: {{project}}
+session_id: {{session_id}}
+trigger: {{trigger}}
+ttl_minutes: 1440
+branch: {{branch}}
+active_uc: {{active_uc}}
+---
+
+# SpecBox Handoff — {{project}}
+
+## State snapshot
+- **Branch**: {{branch}}
+- **Active UC**: {{active_uc_display}}
+- **Backend**: {{backend}}
+- **Last commit**: {{last_commit_sha}} "{{last_commit_subject}}"
+- **Healing events this session**: {{healing_events}}
+- **Open feedback (blocking)**: {{blocking_feedback}}
+- **Context tokens estimated this session**: {{context_tokens_est}}
+
+## What this session did
+{{what_this_session_did}}
+
+## Decisions taken (with key)
+{{decisions_taken}}
+
+## Open questions
+{{open_questions}}
+
+## Hot files (top N by edits this session)
+{{hot_files}}
+
+## Next concrete step
+{{next_concrete_step}}
+
+## Pointers para la próxima sesión
+{{pointers}}

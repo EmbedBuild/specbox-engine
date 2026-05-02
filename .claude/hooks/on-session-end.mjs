@@ -79,14 +79,33 @@ appendLine(LOG_FILE, logEntry);
 console.log(`[TELEMETRY] Session logged to ${LOG_FILE} (est. ${contextTokens} tokens, ${filesModified} files)`);
 
 // Persist session summary to Engram (REQUERIDO)
+// v5.30.0: structured JSON payload + branch-scoped topic key, replacing the
+// free-form string used in v5.29.x. Old observations remain readable; new
+// sessions can be filtered with `mem_search "session:<project>:<branch>"`.
 if (commandExists('engram')) {
-  const engramSummary = `Session ended at ${timestamp} | Project: ${basename(process.cwd())} | Files modified: ${filesModified} | Context tokens: ${contextTokens} | Healing events: ${healingEvents} | Active feature: ${activeFeature}`;
-  const engramChild = spawn('engram', ['save', 'session-summary', engramSummary], {
+  const projectSlug = basename(process.cwd()).replace(/_/g, '-');
+  const branch = git('branch --show-current') || 'unknown';
+  const handoffPath = '.quality/handoff.md';
+  const handoffPresent = fileExists(handoffPath);
+  const payload = {
+    type: 'session_end',
+    schema_version: 1,
+    project: projectSlug,
+    branch,
+    ended_at: timestamp,
+    files_modified: filesModified,
+    context_tokens_est: contextTokens,
+    healing_events: healingEvents,
+    active_feature: activeFeature,
+    handoff_path: handoffPresent ? handoffPath : null,
+  };
+  const topicKey = `session:${projectSlug}:${branch}`;
+  const engramChild = spawn('engram', ['save', topicKey, JSON.stringify(payload)], {
     detached: true,
     stdio: 'ignore',
   });
   engramChild.unref();
-  console.log('[ENGRAM] Session summary persisted to Engram memory');
+  console.log(`[ENGRAM] Session summary persisted (topic: ${topicKey}, handoff: ${handoffPresent ? 'present' : 'none'})`);
 } else {
   // Detect OS and suggest appropriate install method
   console.log('');

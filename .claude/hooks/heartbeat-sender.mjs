@@ -7,7 +7,7 @@
  */
 
 import { git, getProjectName, readJsonFile, fileExists, findFiles, mkdir, appendLine, now } from './lib/utils.mjs';
-import { heartbeat, getApiBase } from './lib/http.mjs';
+import { getApiBase } from './lib/http.mjs';
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
@@ -82,6 +82,35 @@ for (const fbFile of fbFiles) {
   }
 }
 
+// v5.30.0 — Session Continuity: enrich payload with handoff + context_pressure.
+let handoffPresent = false;
+let handoffAgeMin = null;
+const HANDOFF_PATH = '.quality/handoff.md';
+if (fileExists(HANDOFF_PATH)) {
+  handoffPresent = true;
+  try {
+    const { statSync } = await import('fs');
+    handoffAgeMin = Math.round((Date.now() - statSync(HANDOFF_PATH).mtimeMs) / 60000);
+  } catch { /* ignore */ }
+}
+
+// Latest session_end log entry → context tokens estimate
+let contextPressure = null;
+try {
+  const today = timestamp.slice(0, 10);
+  const sessionsLog = `.quality/logs/sessions_${today}.jsonl`;
+  if (fileExists(sessionsLog)) {
+    const lines = readFileSync(sessionsLog, 'utf-8').split('\n').filter(Boolean);
+    if (lines.length > 0) {
+      const last = JSON.parse(lines[lines.length - 1]);
+      const tokens = last.context_tokens_est || 0;
+      const pct = Math.round((tokens / 1_000_000) * 100);
+      const level = tokens > 700000 ? 'critical' : tokens > 400000 ? 'warn' : 'healthy';
+      contextPressure = { tokens_est: tokens, pct_of_window: pct, level };
+    }
+  }
+} catch { /* ignore */ }
+
 // Build heartbeat payload
 const payload = {
   project: projectName,
@@ -98,6 +127,9 @@ const payload = {
   last_operation: lastOperation,
   last_commit: lastCommit,
   last_commit_at: lastCommitAt,
+  handoff_present: handoffPresent,
+  handoff_age_minutes: handoffAgeMin,
+  context_pressure: contextPressure,
 };
 
 async function run() {

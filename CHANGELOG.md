@@ -2,6 +2,36 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.30.0] - 2026-05-02 — "Session Continuity"
+
+Minor release dedicada a **preservar el contexto cuando una sesión de Claude Code se hace larga**. Antes de v5.30, una compactación o `/clear` perdía toda decisión, hot file y "próximo paso" que no estuviera persistido en commits o checkpoints — el usuario tenía que poner al día a la siguiente sesión a mano. v5.30 introduce un protocolo de handoff explícito + carga automática del estado en la nueva sesión + observabilidad de presión de contexto en vivo. Plan técnico completo en [doc/plans/v5.30.0_session_continuity_plan.md](doc/plans/v5.30.0_session_continuity_plan.md).
+
+### Added
+
+- **`/handoff` skill** ([.claude/skills/handoff/SKILL.md](.claude/skills/handoff/SKILL.md)) que persiste estado fino de sesión a `.quality/handoff.md` (Markdown narrativo) y a Engram como observación estructurada bajo topic `session:<project>:<branch>`. Idempotente. Capa human-readable que complementa el checkpoint mecánico de `/implement`. CLAUDE.md instruye a Claude a invocarla **antes** de proponer compactación.
+- **`SessionStart` hook** ([.claude/hooks/session-start.mjs](.claude/hooks/session-start.mjs)) que inyecta `.quality/handoff.md` (si existe y es <24h) como `additionalContext` al arrancar la nueva sesión. Cap a 14 000 chars (~3.5k tokens). Marca `[STALE]` cuando supera `ttl_minutes`. Fallback: UC activo + último checkpoint + zonas auto de `app_spec.md`.
+- **`pre-read-budget-guard` hook** ([.claude/hooks/pre-read-budget-guard.mjs](.claude/hooks/pre-read-budget-guard.mjs)) — PreToolUse(Read) **no bloqueante** que estima tokens del archivo (chars/4) y avisa si supera `warn_pct` de la ventana de Claude (default 5% de 1M). Empuja a usar Grep/Explore en vez de Read masivo. Configurable vía `.claude/settings.local.json` → `specbox.context_budget`.
+- **Builder puro** [.claude/hooks/lib/handoff-builder.mjs](.claude/hooks/lib/handoff-builder.mjs) con API `computeSessionId / buildHandoffData / renderHandoff / writeHandoff`. Auto-redacta `sk_live_*`, `sk_test_*` y tokens >=32 chars. `session_id` determinista (12 chars) por `cwd+date` para correlación cross-tool.
+- **Contrato formal** [doc/specs/handoff-spec.md](doc/specs/handoff-spec.md) con frontmatter (9 campos) + 7 secciones obligatorias + tamaño máximo 14000 chars. Validador en [.quality/scripts/validate-handoff.mjs](.quality/scripts/validate-handoff.mjs). Template en [templates/handoff.md.template](templates/handoff.md.template). Fixtures cubren casos válidos + 3 inválidos en [tests/fixtures/handoff/](tests/fixtures/handoff/).
+- **Heartbeat enriquecido** ([.claude/hooks/heartbeat-sender.mjs](.claude/hooks/heartbeat-sender.mjs)) reporta `handoff_present`, `handoff_age_minutes` y `context_pressure` ({tokens_est, pct_of_window, level∈{healthy,warn,critical}}). El endpoint `/api/heartbeat` los persiste para Sala de Máquinas.
+- **Métrica `handoff_rate`** en [.quality/scripts/analyze-sessions.sh](.quality/scripts/analyze-sessions.sh): % de sesiones que terminaron con `.quality/handoff.md` presente. ≥80% verde, 50-80% amarillo, <50% rojo.
+- **CLAUDE.md sección Session Continuity** con el protocolo "antes de proponer compactar → ejecutá /handoff". Tabla de hooks v5.30 incluye `session-start` y `pre-read-budget-guard`. Tabla de skills incluye `/handoff`.
+- **19 smoke tests nuevos** (todos verdes, sin framework externo): [tests/hooks/handoff-builder.test.mjs](tests/hooks/handoff-builder.test.mjs) (13) + [tests/hooks/session-start.test.mjs](tests/hooks/session-start.test.mjs) (6).
+
+### Changed
+
+- **`on-session-end.mjs`** ahora escribe a Engram un payload JSON estructurado en lugar del string libre que usaba v5.29.x. Topic key cambia a `session:<project>:<branch>` para permitir filtrado por rama. La forma vieja sigue siendo legible — solo el emisor cambió.
+- **`heartbeat-sender.mjs`** payload contiene 3 campos nuevos (handoff_present, handoff_age_minutes, context_pressure). [server/dashboard_api.py](server/dashboard_api.py) `POST /api/heartbeat` los acepta y persiste.
+
+### Compatibility
+
+- 100% backwards-compatible. Proyectos sin `/handoff` siguen funcionando: SessionStart hook solo emite cuando hay state local; budget guard solo avisa; el refactor de Engram preserva la lectura de observaciones legacy.
+- Proyectos en v5.29.0 pueden adoptar v5.30 selectivamente vía `/compliance --fix`.
+
+### Out of scope (deferido a v5.31)
+
+- Delegación de fases de `/implement` a Tasks aisladas (idea original O6 del plan). Esta release reduce el **coste** de quedarse sin contexto vía continuity; v5.31 atacará la **probabilidad** vía mejor aislamiento.
+
 ## [5.29.0] - 2026-05-02 — "Cognitive Load Reduction"
 
 Minor release diseñada para que un usuario pueda llevar **múltiples proyectos en paralelo** sin que el engine le interrumpa más de la cuenta. Baseline v5.28: ≥17 puntos de fricción por feature; v5.29 con preset `equilibrado`: ≤8. PRD y plan técnico completos en [doc/prds/cognitive_load_reduction_prd.md](doc/prds/cognitive_load_reduction_prd.md) y [doc/plans/v5.29.0_cognitive_load_reduction_plan.md](doc/plans/v5.29.0_cognitive_load_reduction_plan.md).

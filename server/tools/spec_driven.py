@@ -214,20 +214,50 @@ async def set_auth_token(
 
     if backend_type == "freeform":
         # FreeForm authentication (local filesystem, no API)
-        root = root_path.strip() if root_path else "doc/tracking"
+        import os
+        from pathlib import Path
+
+        from ..backends.freeform_backend import FreeformBackend, FreeformPathError
+
+        raw_root = root_path.strip() if root_path else "doc/tracking"
+        is_remote_mcp = bool(os.environ.get("SPECBOX_ENGINE_MCP_URL", "").strip())
+
+        # Resolve relative paths against the MCP process CWD ONLY when running
+        # locally. With a remote MCP, the server CWD ≠ client CWD, so a
+        # relative path silently writes to the wrong filesystem (the BLOCKER
+        # we're fixing in v5.29.0).
+        if not Path(raw_root).is_absolute():
+            if is_remote_mcp:
+                return {
+                    "error": (
+                        "FreeForm backend requires an absolute root_path when "
+                        "the MCP server is remote (SPECBOX_ENGINE_MCP_URL is set). "
+                        "Relative paths are resolved against the server CWD, not "
+                        "your repo, so data would be written on the VPS. "
+                        f"Got: {raw_root!r}. "
+                        "Pass an absolute path (e.g. /Users/me/myproject/doc/tracking) "
+                        "or use the /app-init skill which auto-detects it."
+                    ),
+                    "code": "FREEFORM_PATH_MUST_BE_ABSOLUTE",
+                }
+            # Local MCP: resolve relative against the server CWD (== client CWD).
+            root = str(Path(raw_root).resolve())
+        else:
+            root = raw_root
 
         try:
-            from ..backends.freeform_backend import FreeformBackend
-
             backend = FreeformBackend(root=root)
             user = await backend.validate_auth()
             await backend.close()
+        except FreeformPathError as e:
+            logger.error("freeform_path_error", error=str(e))
+            return {"error": str(e), "code": "FREEFORM_PATH_MUST_BE_ABSOLUTE"}
         except Exception as e:
             logger.error("freeform_auth_error", error=str(e))
             return {"error": f"FreeForm init failed: {str(e)}", "code": "FREEFORM_ERROR"}
 
         await store_freeform_credentials(ctx, root)
-        logger.info("auth_token_set", backend="freeform", root=root)
+        logger.info("auth_token_set", backend="freeform", root=root, is_remote_mcp=is_remote_mcp)
 
         return {
             "success": True,

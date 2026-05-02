@@ -1,5 +1,5 @@
-version: 5.32.0
-codename: "Implement Task Isolation"
+version: 5.32.1
+codename: "Release Skill — README + CHANGELOG enforcement"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-05-02
@@ -362,8 +362,24 @@ features:
   - validate-phase-outputs-script
   - implement-skill-paso-5-0
   - heartbeat-task-isolation
+  # New (v5.32.1) — Release Skill enforcement
+  - release-skill-readme-step
+  - release-skill-changelog-step
+  - version-consistency-validator
+  - release-skill-pre-commit-check
 
 changelog:
+  5.32.1:
+    date: 2026-05-02
+    codename: "Release Skill — README + CHANGELOG enforcement"
+    changes:
+      - "feat: /release SKILL.md gains 4 new mandatory steps. Paso 4.5 'Actualizar README.md' enforces bumping the Spanish subtitle, the 'Lo nuevo en vX' block, the English subtitle, and the 'What's new in vX' block — preserving historical blocks instead of replacing them. Paso 5.5 'Actualizar CHANGELOG.md' enforces inserting a new top-of-file entry with Added/Changed/Decisions/Compatibility/Tests sections. Paso 7 'Pre-commit Consistency Check' runs the new validator before allowing the commit. Paso 6.2 git add now lists README.md and CHANGELOG.md explicitly"
+      - "feat: new .quality/scripts/version-consistency-check.mjs — zero-deps validator that reads ENGINE_VERSION.yaml as canonical and verifies the version appears in pyproject.toml, CLAUDE.md (header + Engine Version footer), CHANGELOG.md (top entry), and README.md (ES + EN subtitles). Per-file diagnosis to stderr: OK / MISMATCH (got X.Y.Z) / MISSING. Exit 0 = aligned, exit 1 = at least one file out of sync. /release Paso 7 invokes it as a hard block before the commit"
+      - "feat: tests/scripts/version-consistency-check.test.mjs — 8 smoke tests with synthetic mini-repos in /tmp covering happy path, README out of sync, CHANGELOG missing new entry, CLAUDE.md header forgotten, pyproject misaligned, ENGINE_VERSION.yaml unreadable (canonical missing), README file absent, and several files out of sync simultaneously"
+      - "decision: convertir la regla 'README en cada bump' (que vivía en memoria persistida desde v5.31.1) en un guardrail mecánico verificable. Misma filosofía que aplicamos en v5.32 con Task isolation guards: no confiar en convenciones, hacerlas verificables. La memoria sigue presente para sesiones que aún no carguen el SKILL actualizado"
+      - "decision: el validador ABORTA la release en exit 1 — NO es advertencia. Si tiene falso positivo, reportarlo como bug en lugar de saltarse el bloqueo (igual que el resto de hooks v5.32)"
+      - "compat: 100% backwards-compatible. Ninguna release pre-v5.32.1 se vio afectada — el validador solo se invoca desde el nuevo Paso 7 del SKILL. Proyectos que usan la skill /release de versiones anteriores siguen funcionando sin el guardrail (degradación graceful: solo se pierden los nuevos steps, no rompe nada)"
+
   5.32.0:
     date: 2026-05-02
     codename: "Implement Task Isolation"

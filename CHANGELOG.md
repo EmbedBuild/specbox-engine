@@ -2,6 +2,75 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.32.1] - 2026-05-02 — "Release Skill — README + CHANGELOG enforcement"
+
+Convierte la regla "README + CHANGELOG en cada bump" en un guardrail mecánico
+verificable. La regla vivía en memoria persistida desde v5.31.1 y dependía de
+que la sesión la cargara — frágil. v5.32.1 la mueve al SKILL de `/release`
+como pasos obligatorios y añade un validador que aborta la release si
+cualquiera de los 5 archivos de versión queda desincronizado. Misma filosofía
+que aplicamos en v5.32 con los Task isolation guards: no confiar en
+convenciones, hacerlas verificables.
+
+### Added
+
+- **`/release` SKILL.md Paso 4.5 'Actualizar README.md'** — paso obligatorio
+  con sub-steps 4.5.1-4.5.5 que detallan las 4 ubicaciones a bumpear
+  (subtítulo ES, bloque "Lo nuevo en vX", subtítulo EN, bloque "What's new
+  in vX") y la verificación con `grep`. Documenta la regla del patch sobre
+  minor existente: en patch releases NO se añade nuevo bloque "Lo nuevo en
+  vX.Y.Z" — se actualiza el bloque vX.Y existente con una línea adicional.
+- **`/release` SKILL.md Paso 5.5 'Actualizar CHANGELOG.md'** — paso
+  obligatorio que detalla el formato de la entrada nueva (Added / Changed /
+  Decisions / Compatibility / Tests) y la verificación con `head -10 | grep`.
+- **`/release` SKILL.md Paso 7 'Pre-commit Consistency Check'** —
+  bloqueante. Ejecuta el nuevo validador antes del `git commit` del Paso 6.
+  Si exit 1, aborta la release.
+- **`.quality/scripts/version-consistency-check.mjs`** — validador zero-deps
+  que lee `ENGINE_VERSION.yaml` como canónico y verifica la versión en
+  `pyproject.toml`, `CLAUDE.md` (header + footer Engine Version),
+  `CHANGELOG.md` (entrada superior), `README.md` (subtítulo ES + EN). Per-
+  file diagnosis a stderr (OK / MISMATCH / MISSING). Exit 0 = aligned, 1 =
+  out of sync.
+- **`tests/scripts/version-consistency-check.test.mjs`** — 8 smoke tests
+  con mini-repos sintéticos en `/tmp` cubriendo happy path, README out of
+  sync, CHANGELOG missing new entry, CLAUDE.md header forgotten, pyproject
+  misaligned, ENGINE_VERSION.yaml unreadable, README file absent, y varios
+  archivos out of sync simultáneamente.
+
+### Changed
+
+- **`/release` SKILL.md Paso 6.2** — `git add` ahora lista explícitamente
+  `README.md` y `CHANGELOG.md` además de los archivos previos.
+- README.md y CHANGELOG.md de este repo ahora bumpean con esta release
+  siguiendo el nuevo protocolo (patch sobre minor: actualizar bloque
+  existente con línea adicional, no nuevo bloque).
+
+### Decisions
+
+- **Mecanizar > Recordar.** La regla "README en cada bump" vivía sólo en
+  memoria persistida desde v5.31.1. Funcional cuando la sesión la cargaba,
+  frágil cuando no. v5.32.1 la convierte en código verificable.
+- **Validador aborta, no avisa.** Exit 1 detiene la release. Si genera falso
+  positivo, reportar como bug en lugar de bypasear.
+- **Patch sobre minor preserva el bloque "Lo nuevo en vX.Y"** — añade una
+  línea, no un nuevo bloque. Mantiene el README legible cuando hay varios
+  patches consecutivos.
+
+### Compatibility
+
+- 100% backwards-compatible. Releases pre-v5.32.1 no se ven afectadas — el
+  validador sólo se invoca desde el nuevo Paso 7. Proyectos que usen una
+  copia anterior del SKILL `/release` siguen funcionando sin el guardrail
+  (degradación graceful).
+
+### Tests
+
+- 8 nuevos tests verdes para el validador (`version-consistency-check.test.mjs`).
+- Smoke manual contra el repo actual (todo en v5.32.0 al momento del
+  desarrollo) verificó que el validador detecta correctamente el estado
+  alineado antes del bump.
+
 ## [5.32.0] - 2026-05-02 — "Implement Task Isolation"
 
 Cierra el out-of-scope explícito de v5.30.0 (PR #20): el SKILL.md de

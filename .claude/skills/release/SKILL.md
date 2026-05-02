@@ -218,10 +218,125 @@ Revisar cada seccion de CLAUDE.md y actualizar si los cambios del release la afe
 
 ---
 
+## Paso 4.5: Actualizar README.md (OBLIGATORIO — v5.32.1+)
+
+> **Regla**: el README se bumpea en TODA release (major, minor o patch).
+> Ningun `/release` puede pasar al Paso 6 (commit) sin haber tocado este
+> archivo. El validador del Paso 7 abortara la release si la version del
+> README no coincide con `ENGINE_VERSION.yaml`.
+
+El README tiene 4 ubicaciones que deben actualizarse en CADA release. Ningun
+bloque historico ("Lo nuevo en vX" / "What's new in vX" anteriores) se borra
+— se preservan para contexto historico segun el protocolo establecido en
+v5.31.1.
+
+### 4.5.1 Subtitulo en espanol (linea ~9)
+
+```markdown
+  v{nueva_version} — "{codename}" (sobre vX.Y "{codename anterior}")
+```
+
+### 4.5.2 Bloque "Lo nuevo en vX.Y" (espanol, arriba de la primera "Por que vX.X" existente)
+
+Insertar (NO reemplazar) un nuevo bloque:
+
+```markdown
+## Lo nuevo en v{nueva_version_minor_or_major}
+
+**v{nueva_version} — "{codename}"** {1-2 frases del cambio principal}:
+
+- **{cambio 1}** — {1 linea}
+- **{cambio 2}** — {1 linea}
+- ...
+
+100% backwards-compatible. {nota sobre defaults o migracion si aplica}.
+
+---
+```
+
+Si la version es un **patch** (X.Y.Z con Z>0) y ya existe un bloque
+"Lo nuevo en vX.Y" del minor previo, NO se anade un nuevo bloque
+"Lo nuevo en vX.Y.Z". En su lugar, se actualiza el subtitulo del bloque
+existente con una linea adicional al final:
+
+```markdown
+**v{X.Y.Z}** {1 frase resumen del patch}.
+```
+
+### 4.5.3 Subtitulo en ingles (busqueda: `# SpecBox Engine — English version`)
+
+```markdown
+> v{nueva_version} — "{codename}" (over vX.Y "{codename anterior}")
+```
+
+### 4.5.4 Bloque "What's new in vX.Y" (ingles, simetrico al espanol)
+
+Mismo patron que 4.5.2 pero traducido al ingles.
+
+### 4.5.5 Verificacion
+
+Tras editar:
+
+```bash
+grep -n "v{nueva_version}" README.md | head
+# Debe haber al menos 4 menciones (subtitulo ES + bloque ES + subtitulo EN + bloque EN).
+```
+
+---
+
 ## Paso 5: Actualizar pyproject.toml
 
 ```toml
 version = "{nueva_version}"
+```
+
+---
+
+## Paso 5.5: Actualizar CHANGELOG.md (OBLIGATORIO — v5.32.1+)
+
+> **Regla**: el CHANGELOG.md tambien se bumpea en TODA release. La entrada
+> nueva va al inicio (debajo del header), arriba de la entrada anterior —
+> NO se reemplaza ni se borra ninguna entrada historica.
+
+### 5.5.1 Insertar nueva entrada al inicio
+
+```markdown
+## [{nueva_version}] - {YYYY-MM-DD} — "{codename}"
+
+{1 parrafo de contexto: que problema cierra y como}.
+
+### Added
+
+- **{componente 1}** — {descripcion}
+- **{componente 2}** — {descripcion}
+
+### Changed
+
+- {cambios sobre archivos existentes}
+
+### Decisions
+
+- {decisiones de diseno tomadas en la release}
+
+### Compatibility
+
+- {nota sobre backwards-compatibility, defaults, migracion}
+
+### Tests
+
+- N nuevos tests, todos verdes:
+  - {breakdown por archivo}
+- Pre-existing failures on `main` documentados en releases previas
+  permanecen.
+
+## [version_anterior] - ...
+```
+
+### 5.5.2 Verificacion
+
+```bash
+head -10 CHANGELOG.md | grep -E "^## \[{nueva_version}\]"
+# Debe matchear. Si no, abortar.
 ```
 
 ---
@@ -240,13 +355,17 @@ Mostrar resumen al usuario de todos los archivos que se van a commitear.
 ### 6.2 Commit
 
 ```bash
-git add ENGINE_VERSION.yaml CLAUDE.md pyproject.toml [otros archivos corregidos en auditoria]
+git add ENGINE_VERSION.yaml CLAUDE.md pyproject.toml CHANGELOG.md README.md \
+        [otros archivos corregidos en auditoria]
 git commit -m "feat: v{nueva_version} {codename} — {resumen de 1 linea}
 
 {lista de cambios principales, max 5 lineas}
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
+
+> **README.md y CHANGELOG.md SON OBLIGATORIOS en el `git add`**. Si el
+> validador del Paso 7 detecta que faltan, la release se aborta.
 
 ### 6.3 Push
 
@@ -265,6 +384,44 @@ git push
 - Auditoria: {resultado}
 - Pushed to: {remote}/{branch}
 ```
+
+---
+
+## Paso 7: Pre-commit Consistency Check (BLOQUEANTE — v5.32.1+)
+
+> **Regla**: ANTES del `git commit` del Paso 6, correr el validador automatico
+> que verifica que los 5 archivos de version estan alineados. Si falla,
+> abortar la release y reportar al usuario los archivos desincronizados.
+
+### 7.1 Ejecutar validador
+
+```bash
+node .quality/scripts/version-consistency-check.mjs
+```
+
+El script lee la version canonica de `ENGINE_VERSION.yaml` y verifica que
+aparezca en:
+
+1. `pyproject.toml` (campo `version = "..."`)
+2. `CLAUDE.md` (header `# SpecBox Engine vX.Y.Z` + footer `Current: vX.Y.Z`)
+3. `CHANGELOG.md` (entrada `## [X.Y.Z] - ...` al inicio)
+4. `README.md` (subtitulo ES + subtitulo EN)
+
+### 7.2 Interpretacion del resultado
+
+| Exit code | Significado | Accion |
+|-----------|-------------|--------|
+| 0 | Todas las versiones alineadas | Continuar a Paso 6 (commit) |
+| 1 | Al menos un archivo desincronizado | **ABORTAR** release. Stderr lista los archivos y la version detectada en cada uno |
+
+### 7.3 Si falla
+
+1. Volver a los Pasos 3, 4, 4.5, 5, 5.5 y corregir el archivo desincronizado.
+2. Re-ejecutar el validador.
+3. Solo cuando devuelva exit 0, proceder al Paso 6.
+
+**NUNCA** bypasear este check. Si el validador tiene un falso positivo, repor
+tarlo como bug en lugar de saltarse el bloqueo.
 
 ---
 

@@ -19,9 +19,17 @@ from pathlib import Path
 import structlog
 from fastmcp import Context, FastMCP
 
+from ..auth_gateway import get_stitch_client
 from ..design_md.generator import GeneratorInputs, generate_design_md
 from ..design_md.io import compute_signature, load, save
 from ..design_md.archetypes import ArchetypeId
+from ..stitch_orchestration import (
+    FallbackOutcome,
+    FallbackStrategy,
+    ScreenSpec,
+    build_site_batched,
+    generate_screen_with_fallback,
+)
 from ..stitch_prompt import (
     PromptLayers,
     ValidatorMode,
@@ -274,6 +282,182 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
 
 
     @mcp.tool
+    async def stitch_generate_screen_v2(
+        ctx: Context,
+        project: str,
+        stitch_project_id: str,
+        prompt: str,
+        device_type: str = "DESKTOP",
+        model_id: str = "GEMINI_3_PRO",
+        baseline_screen_id: str | None = None,
+        flash_safety_net: bool = False,
+        max_total_attempts: int = 3,
+    ) -> dict:
+        """Generate a screen with the v5.31.0 fallback chain.
+
+        Strategy ladder when the natural call fails:
+            edit_baseline → variants_refine → regenerate
+        and, opt-in, ``flash_safety_net`` (Flash as last-resort, marks
+        the result ``degraded=True``).
+
+        Args:
+            project: SpecBox project slug.
+            stitch_project_id: Target Stitch project ID.
+            prompt: The generation prompt (already validated upstream).
+            device_type: DESKTOP|MOBILE|TABLET|AGNOSTIC.
+            model_id: Stitch model. Default GEMINI_3_PRO (per user
+                preference for quality).
+            baseline_screen_id: If a previous screen exists for this
+                spot, supply its ID — it unlocks the EDIT_BASELINE and
+                VARIANTS_REFINE strategies. Without it, the chain
+                degrades to REGENERATE only.
+            flash_safety_net: Default False. When True, an extra Flash
+                attempt runs as last resort if the PRO chain exhausts.
+                Use for unattended autopilot where any output is better
+                than failure.
+
+        Returns:
+            ``{status, outcome, final_strategy, model_used, attempts,
+              degraded, degraded_reason, result}``.
+        """
+
+        try:
+            client = await _v2_get_client(ctx, project, state_path)
+            ops = _StitchOpsAdapter(client)
+            result = await generate_screen_with_fallback(
+                ops,
+                stitch_project_id,
+                prompt,
+                device_type=device_type,
+                model_id=model_id,
+                baseline_screen_id=baseline_screen_id,
+                enable_flash_safety_net=flash_safety_net,
+                max_total_attempts=max_total_attempts,
+            )
+
+            _log_v2(
+                project,
+                "stitch_generate_screen_v2",
+                outcome=result.outcome.value,
+                final_strategy=result.final_strategy,
+                model_used=result.model_used,
+                degraded=result.degraded,
+                attempt_count=len(result.attempts),
+            )
+
+            return {
+                "status": "ok" if result.outcome != FallbackOutcome.FAILED else "error",
+                "project": project,
+                "outcome": result.outcome.value,
+                "final_strategy": result.final_strategy,
+                "model_used": result.model_used,
+                "attempts": result.attempts,
+                "degraded": result.degraded,
+                "degraded_reason": result.degraded_reason,
+                "result": result.result,
+                "error": result.error,
+            }
+        except Exception as exc:
+            logger.error(
+                "stitch_generate_screen_v2_error", project=project, error=str(exc)
+            )
+            _log_v2(
+                project,
+                "stitch_generate_screen_v2",
+                status="error",
+                reason=type(exc).__name__,
+            )
+            return {"error": str(exc), "project": project}
+
+    @mcp.tool
+    async def stitch_build_site_batched_v2(
+        ctx: Context,
+        project: str,
+        stitch_project_id: str,
+        screens: list[dict],
+        batch_size: int = 4,
+        apply_unified_theme_pass: bool = True,
+        unified_theme_prompt: str | None = None,
+    ) -> dict:
+        """Multi-screen build that auto-partitions when needed.
+
+        Stitch's native ``build_site`` reliably handles up to ~5 connected
+        screens; beyond that it tends to drift or fail. This wrapper
+        partitions ``screens`` into groups of ≤``batch_size`` (preferring
+        explicit groups, then route prefix, then order chunks) and
+        applies a final pass that unifies the theme across all generated
+        screens.
+
+        Args:
+            screens: list of dicts with ``name``, ``prompt``, optional
+                ``route`` (default ``/``), ``order``, ``group``.
+            batch_size: max screens per Stitch ``build_site`` call.
+                Default 4.
+            apply_unified_theme_pass: if True and the build needed >1
+                batch, run a final ``edit_screens`` pass with
+                ``unified_theme_prompt`` to align the visual language.
+            unified_theme_prompt: override the default standardisation
+                prompt (which references DESIGN.md component patterns).
+
+        Returns:
+            ``{status, total_screens, total_batches, batches[],
+              unified_pass[], unified_pass_applied}``.
+        """
+
+        try:
+            client = await _v2_get_client(ctx, project, state_path)
+            ops = _StitchOpsAdapter(client)
+            specs = [
+                ScreenSpec(
+                    name=s["name"],
+                    prompt=s.get("prompt", ""),
+                    route=s.get("route", "/"),
+                    order=int(s.get("order", 0)),
+                    group=s.get("group"),
+                )
+                for s in screens
+            ]
+            extra: dict = {}
+            if unified_theme_prompt:
+                extra["unified_theme_prompt"] = unified_theme_prompt
+            result = await build_site_batched(
+                ops,
+                stitch_project_id,
+                specs,
+                batch_size=batch_size,
+                apply_unified_theme_pass=apply_unified_theme_pass,
+                **extra,
+            )
+
+            _log_v2(
+                project,
+                "stitch_build_site_batched_v2",
+                total_screens=result["total_screens"],
+                total_batches=result["total_batches"],
+                unified_pass_applied=result["unified_pass_applied"],
+            )
+
+            return {
+                "status": "ok",
+                "project": project,
+                "stitch_project_id": stitch_project_id,
+                **result,
+            }
+        except Exception as exc:
+            logger.error(
+                "stitch_build_site_batched_v2_error",
+                project=project,
+                error=str(exc),
+            )
+            _log_v2(
+                project,
+                "stitch_build_site_batched_v2",
+                status="error",
+                reason=type(exc).__name__,
+            )
+            return {"error": str(exc), "project": project}
+
+    @mcp.tool
     async def validate_stitch_prompt(
         ctx: Context,
         project: str,
@@ -360,6 +544,90 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 reason=type(exc).__name__,
             )
             return {"error": str(exc), "project": project}
+
+# ── Adapter to bridge real StitchClient → orchestration Protocol ──────
+
+
+class _StitchOpsAdapter:
+    """Adapt :class:`server.stitch_client.StitchClient` to the Protocol
+    expected by ``stitch_orchestration``.
+
+    Only renames are needed: the real client calls
+    ``generate_screen_from_text`` whereas the orchestration Protocol
+    expects ``generate_screen``.
+    """
+
+    def __init__(self, client) -> None:
+        self._client = client
+
+    async def generate_screen(
+        self, project_id, prompt, *, device_type="DESKTOP", model_id="GEMINI_3_PRO"
+    ):
+        return await self._client.generate_screen_from_text(
+            project_id, prompt, device_type=device_type, model_id=model_id
+        )
+
+    async def edit_screens(
+        self, project_id, screen_id, prompt, *, device_type=None, model_id=None
+    ):
+        return await self._client.edit_screens(
+            project_id, screen_id, prompt, device_type=device_type, model_id=model_id
+        )
+
+    async def generate_variants(
+        self,
+        project_id,
+        screen_id,
+        *,
+        prompt=None,
+        variant_count=1,
+        creative_range="REFINE",
+        aspects=None,
+    ):
+        return await self._client.generate_variants(
+            project_id,
+            screen_id,
+            prompt=prompt,
+            variant_count=variant_count,
+            creative_range=creative_range,
+            aspects=aspects,
+        )
+
+    async def build_site(self, project_id, routes):
+        return await self._client.build_site(project_id, routes)
+
+
+async def _v2_get_client(ctx: Context, project: str, state_path: Path):
+    """Resolve a StitchClient. Mirrors the v1 ``_get_client_for_project``
+    fallback (session → meta.json on disk) so v1 and v2 share behaviour.
+    """
+
+    try:
+        return await get_stitch_client(ctx, project)
+    except RuntimeError:
+        pass
+    # Disk fallback (same shape as v1 _get_client_for_project)
+    project_dir = state_path / "projects" / project
+    meta_file = project_dir / "meta.json"
+    if meta_file.exists():
+        try:
+            meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            key_b64 = meta.get("stitch_key_b64")
+            if key_b64:
+                import base64
+
+                from ..auth_gateway import store_stitch_credentials
+
+                api_key = base64.b64decode(key_b64).decode()
+                await store_stitch_credentials(ctx, project, api_key)
+                return await get_stitch_client(ctx, project)
+        except (json.JSONDecodeError, OSError, ValueError):
+            pass
+    raise RuntimeError(
+        f"No Stitch API Key configured for project '{project}'. "
+        "Call stitch_set_api_key(project, api_key) first."
+    )
+
 
 # ── Internal helpers (module-private, importable from later phases) ────
 

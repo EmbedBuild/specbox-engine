@@ -62,6 +62,23 @@ He detectado en doc/app/app_spec.md:
 
 Si el usuario responde `r`, el flujo legacy de Paso 1 se activa. Si responde `s`, salta directamente a generación de tokens (Paso 2 si existe, o el paso equivalente del flujo).
 
+### 0.0.1 — Política de Autopilot aplicable a /visual-setup
+
+Antes de cada confirmación, llama a `evaluateDecision(decision_key, context)` desde `.claude/hooks/lib/autopilot.mjs`:
+
+| Pregunta del skill | decision_key | Default si auto |
+|--------------------|--------------|------------------|
+| "¿Quieres actualizar o empezar de cero?" (Paso 0 si COMPLETO) | `design_system_update_check` | `equilibrado`+: conservar existente |
+| Dirección estética (Paso 1, 7 opciones) | `feature_aesthetic_direction` | `equilibrado`+: hereda de `app_spec.md` cuando `hasAppSpec=true` |
+| "¿Confirmas estos tokens?" (Paso 2.X) | `tokens_confirmation` | `conservador`+: auto-confirma siempre |
+| Stitch API key faltante | `stitch_api_key_missing` | siempre `ask` |
+
+Tras cada auto-confirmación visible al usuario:
+
+```
+ℹ️  Tokens auto-confirmados (autopilot: equilibrado, decision_key: tokens_confirmation)
+```
+
 ---
 
 ## Paso 0: Detectar Estado Actual

@@ -28,6 +28,20 @@ Captura feedback de testing manual del desarrollador, genera evidencia local y c
 
 ---
 
+## Paso 0.0 — Política de Autopilot v5.29.0
+
+Antes de cada pregunta, llama a `evaluateDecision(decision_key, context)` desde `.claude/hooks/lib/autopilot.mjs`.
+
+| Pregunta del skill | decision_key | Default si auto |
+|--------------------|--------------|------------------|
+| Recopilación de campos del feedback (Paso 2) | `feedback_field_classification` | siempre `ask` (calidad de spec) |
+| Crear GitHub issue | `destructive_action` | siempre `ask` (acción visible externa) |
+| Marcar AC como inválido (puede invalidar AG-09) | `destructive_action` | siempre `ask` |
+
+**Regla**: la calidad del feedback no se compromete con autopilot. Esta skill captura información del usuario sobre bugs detectados — la información debe ser completa o se corrompe la trazabilidad.
+
+---
+
 ## Paso 0: Detectar Contexto del Feature
 
 ### 0.1 Resolver feature name

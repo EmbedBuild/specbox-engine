@@ -55,6 +55,29 @@ Si `read_app_docs_tool` retorna `has_app_spec=False`, continúa en modo legacy (
    para evitar repreguntas en futuras features.
 ```
 
+### 0.0.1 — Política de Autopilot aplicable a /plan
+
+Antes de cada pregunta o gate de confirmación, llama a `evaluateDecision(decision_key, context)` desde `.claude/hooks/lib/autopilot.mjs`. Si retorna `auto`, aplica el default + log; si retorna `ask`, pregunta.
+
+| Pregunta del skill | decision_key | Default si auto |
+|--------------------|--------------|------------------|
+| Modo VEG (Paso 2.5b.1) | `veg_mode_selection` | hereda de `app_spec.md` cuando `veg_mode_known=true` |
+| VEG preview confirmation (Paso 2.5b.3) | `veg_preview` | `equilibrado`: auto si score≥0.8; `agresivo`: ≥0.7; otros tiers preguntan |
+| Stitch config decision (Paso 4.6.6 si projectId falta) | `stitch_config_decision` | siempre `ask` (no se auto-confirma) |
+| Stitch API key faltante | `stitch_api_key_missing` | siempre `ask` |
+| Origen del plan ambigüo (Paso 0.1) | `origin_detection` | `equilibrado`+ con coincidencia única → auto |
+| Aesthetic direction (heredable) | `feature_aesthetic_direction` | hereda de `app_spec.md` cuando `hasAppSpec=true` |
+
+**Reglas inviolables**:
+- Si el VEG preview score < 0.7 nunca auto-confirmar.
+- Generar diseños Stitch costosos no entra aquí: ese gate es la advertencia de costes (Paso 3.5.0) que es `image_cost_under_budget` / `image_cost_over_budget` (este último siempre `ask`).
+
+Tras cada auto-decisión, mostrar:
+
+```
+ℹ️  modo VEG heredado de doc/app/app_spec.md: per_icp (autopilot: equilibrado)
+```
+
 ---
 
 ## Paso 0: Detectar Origen y Extraer Requisitos

@@ -52,6 +52,30 @@ Solo captura **deltas específicos de la feature** que está pidiendo el usuario
 
 Y continúa con el flujo v5.28 (preguntar todo) sin bloquear.
 
+### 0.0.1 — Política de Autopilot aplicable a /prd
+
+Cada vez que estés a punto de hacer una pregunta al usuario, identifica el `decision_key` correspondiente y delega la decisión al helper `evaluateDecision` (`.claude/hooks/lib/autopilot.mjs`). Si retorna `action: "auto"`, **aplica el default sin preguntar** y registra la decisión en `.quality/autopilot_decisions.jsonl`. Si retorna `action: "ask"`, pregunta como en v5.28.
+
+| Pregunta del skill | decision_key | Default si auto |
+|--------------------|--------------|------------------|
+| "¿Qué problema resuelve?" (Paso 2 #1) | `feature_problem_definition` | siempre `ask` (no auto) |
+| "¿Quién es el usuario objetivo?" (Paso 2 #2) | `feature_ui_interaction_profile` | hereda `audience_text` de `app_prd.md` cuando `hasAppPrd=true` |
+| "¿A quién va dirigida la app?" (Paso 2 #4) | `feature_ui_interaction_profile` | hereda de `app_prd.md` cuando `audience_defined=true` |
+| Definition Quality Gate (Paso 2.5) — AC vagos | `definition_quality_gate` | en `agresivo` con `score>=0.7` auto-confirma; en otros tiers siempre itera |
+| Backend ambigüo en Paso 0.2 | `backend_selection` | `equilibrado`+ → freeform por defecto |
+
+**Inviolables que /prd debe respetar**:
+- Si el AC objetivamente falla calidad (score <0.7), nunca auto-confirmar — itera.
+- Acciones que crean cards en Trello/Plane reales son `destructive_action` parcial: confirmar antes del primer create.
+
+Tras cada auto-decisión, mostrar al usuario una línea como:
+
+```
+ℹ️  audiencia heredada de doc/app/app_prd.md (autopilot: equilibrado)
+```
+
+Para que tenga visibilidad de qué se está saltando.
+
 ---
 
 ## Paso 0: Detectar Modo y Origen

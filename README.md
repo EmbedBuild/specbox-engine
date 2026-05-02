@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v5.31.1 — "Stitch Autopilot — /plan migration" (sobre v5.31.0 "Stitch Autopilot")<br/>
+  v5.32.0 — "Implement Task Isolation" (sobre v5.31 "Stitch Autopilot")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,20 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v5.32
+
+**v5.32.0 — "Implement Task Isolation"** cierra el out-of-scope explícito de v5.30: el SKILL.md de `/implement` ya documentaba la delegación a Tasks aisladas, pero el contrato no estaba mecánicamente forzado. v5.32 añade los 5 guardrails que faltaban — sin rediseñar la arquitectura — y los cablea de forma observable:
+
+- **`execution_context.json`** persistido por feature (branch / stack / paths). Cada Task lo lee del disco en lugar de recibir esos valores en el prompt → fixea la causa raíz del context exhaustion en UCs grandes.
+- **`context-budget-guard.mjs`** PreToolUse(Task) — estima tokens, warn @ 16k (default), strict como settings flip.
+- **`file-ownership-guard.mjs`** PreToolUse(Write/Edit) — valida la ruta contra el ownership del agente activo. Suspicious paths (`..`, `/abs`) siempre BLOCKED.
+- **`phase_outputs.jsonl`** — cada Task escribe su delta estructurado al cierre. Spec-Code Sync deja de depender de `git diff` vivo desde el orquestador.
+- **Heartbeat enriquecido** con `task_isolation: {enabled, tasks_run_total, tasks_failed_*}` para Sala de Máquinas.
+
+100% backwards-compatible. Modos `warn` por defecto durante la migración.
 
 ---
 
@@ -300,7 +314,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v5.31.1 — "Stitch Autopilot — /plan migration" (over v5.31.0 "Stitch Autopilot")
+> v5.32.0 — "Implement Task Isolation" (over v5.31 "Stitch Autopilot")
 
 ## What is this?
 
@@ -312,6 +326,20 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v5.32
+
+**v5.32.0 — "Implement Task Isolation"** closes the explicit out-of-scope from v5.30: the `/implement` SKILL.md already documented Task delegation, but the contract wasn't mechanically enforced. v5.32 adds the 5 missing guardrails — without redesigning the architecture — and wires them observably:
+
+- **`execution_context.json`** persisted per-feature (branch / stack / paths). Each Task reads it from disk instead of receiving those values in the prompt → fixes the root cause of context exhaustion on large UCs.
+- **`context-budget-guard.mjs`** PreToolUse(Task) — estimates tokens, warns @ 16k (default), strict as a settings flip.
+- **`file-ownership-guard.mjs`** PreToolUse(Write/Edit) — validates the path against the active agent's ownership. Suspicious paths (`..`, `/abs`) always BLOCKED.
+- **`phase_outputs.jsonl`** — every Task writes a structured delta at close. Spec-Code Sync no longer depends on live `git diff` from the orchestrator.
+- **Enriched heartbeat** with `task_isolation: {enabled, tasks_run_total, tasks_failed_*}` for Sala de Máquinas.
+
+100% backwards-compatible. `warn` modes default during the migration.
+
+---
 
 ## What's new in v5.31
 

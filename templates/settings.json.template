@@ -237,6 +237,15 @@
       "google-apps-script": "tests/acceptance/features/"
     }
   },
+  "implement": {
+    "task_isolation": {
+      "enabled": true,
+      "task_budget_tokens": 16000,
+      "task_budget_mode": "warn",
+      "ownership_mode": "warn",
+      "_v5_32_note": "v5.32.0 'Implement Task Isolation'. Modes: warn (default — emit stderr WARNING but never block) | strict (BLOCK with exit 2) | off (no-op). Promote to strict after 2 weeks of telemetry confirms low false-positive rate. The 16000 budget leaves a 20% margin over the ideal 20k declared in the SKILL.md for the Task's response tokens (~4k)."
+    }
+  },
   "stitch": {
     "projectId": "{STITCH_PROJECT_ID}",
     "deviceType": "DESKTOP",

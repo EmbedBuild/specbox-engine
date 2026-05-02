@@ -21,6 +21,11 @@
           },
           {
             "type": "command",
+            "command": "node .claude/hooks/file-ownership-guard.mjs",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "node .claude/hooks/stripe-safety-guard.mjs",
             "timeout": 5
           }
@@ -46,8 +51,23 @@
           },
           {
             "type": "command",
+            "command": "node .claude/hooks/file-ownership-guard.mjs",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "node .claude/hooks/stripe-safety-guard.mjs",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/context-budget-guard.mjs",
+            "timeout": 3
           }
         ]
       },

@@ -5,14 +5,14 @@ from __future__ import annotations
 import pytest
 from unittest.mock import AsyncMock, patch, PropertyMock
 
-from src.spec_backend import (
+from server.spec_backend import (
     BackendUser,
     BoardConfig,
     ChecklistItemDTO,
     CommentDTO,
     ItemDTO,
 )
-from src.backends.plane_backend import (
+from server.backends.plane_backend import (
     PlaneBackend,
     _extract_meta_from_html,
     _build_description_html,

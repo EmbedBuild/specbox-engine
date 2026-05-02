@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.spec_backend import (
+from server.spec_backend import (
     AttachmentDTO,
     BackendUser,
     BoardConfig,
@@ -22,7 +22,7 @@ from src.spec_backend import (
     ModuleDTO,
     SpecBackend,
 )
-from src.tools import spec_mutations as sm
+from server.tools import spec_mutations as sm
 
 
 # ── In-memory backend ────────────────────────────────────────────────

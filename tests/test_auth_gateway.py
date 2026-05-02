@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock, call
 
-from src.auth_gateway import (
+from server.auth_gateway import (
     get_session_client,
     store_session_credentials,
     clear_session_credentials,

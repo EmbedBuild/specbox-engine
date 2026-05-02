@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import AsyncMock
 
-from src.board_helpers import (
+from server.board_helpers import (
     find_card_by_custom_field,
     get_list_id_by_name,
     get_list_id_for_state,

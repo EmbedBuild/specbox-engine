@@ -8,8 +8,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.spec_backend import ChecklistItemDTO, ItemDTO
-from src.tools import _mutation_helpers as mh
+from server.spec_backend import ChecklistItemDTO, ItemDTO
+from server.tools import _mutation_helpers as mh
 
 
 # ── validate_milestone / validate_link_type ──────────────────────────

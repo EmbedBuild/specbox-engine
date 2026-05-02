@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from src.hint_manager import (
+from server.hint_manager import (
     MAX_HINT_COUNT,
     COMPLETED_UC_THRESHOLD,
     get_hint_text,

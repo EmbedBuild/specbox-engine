@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.prd_parser import parse_implementation_status, UCImplementationStatus
+from server.prd_parser import parse_implementation_status, UCImplementationStatus
 
 
 SAMPLE_PRD = """# PRD: Test Feature

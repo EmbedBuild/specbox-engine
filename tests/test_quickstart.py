@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from src.hint_manager import get_hint_text, get_available_hints
+from server.hint_manager import get_hint_text, get_available_hints
 
 
 # Path to the engine root (tests/ is one level below)

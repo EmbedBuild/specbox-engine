@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.spec_backend import (
+from server.spec_backend import (
     AttachmentDTO,
     BackendUser,
     BoardConfig,
@@ -21,7 +21,7 @@ from src.spec_backend import (
     ModuleDTO,
     SpecBackend,
 )
-from src.tools import board_operations as bo
+from server.tools import board_operations as bo
 
 
 # ── In-memory backend ────────────────────────────────────────────────
@@ -123,7 +123,7 @@ class InMemoryBackend(SpecBackend):
         self.archived.append(item_id)
         if item_id in self.items:
             del self.items[item_id]
-        from src.tools._mutation_helpers import utc_now_iso
+        from server.tools._mutation_helpers import utc_now_iso
         return {"archive_location": "test_archive", "archived_at": utc_now_iso()}
 
     async def add_comment(self, board_id, item_id, text):
@@ -329,7 +329,7 @@ async def test_board_diff_detects_changes(tmp_path, ctx, monkeypatch):
 
 
 async def test_freeform_archive_item(tmp_path):
-    from src.backends.freeform_backend import FreeformBackend
+    from server.backends.freeform_backend import FreeformBackend
     be = FreeformBackend(root=str(tmp_path / "tracking"))
     uc = await be.create_item("b", "UC-001: Test", labels=["UC"], meta={"uc_id": "UC-001"})
     result = await be.archive_item("b", uc.id, reason="obsolete")

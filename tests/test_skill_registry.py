@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from src.skill_registry import (
+from server.skill_registry import (
     check_dependencies,
     discover_skills_for_context,
     list_all_skills,

@@ -4,14 +4,14 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from dataclasses import field
 
-from src.tools.migration import (
+from server.tools.migration import (
     _classify_items,
     _build_external_id,
     _read_source,
     migrate_preview,
     switch_backend,
 )
-from src.spec_backend import ItemDTO, ChecklistItemDTO, CommentDTO
+from server.spec_backend import ItemDTO, ChecklistItemDTO, CommentDTO
 
 
 # ── _classify_items ──────────────────────────────────────────────────
@@ -132,7 +132,7 @@ class TestMigratePreview:
 
         ctx = AsyncMock()
 
-        with patch("src.tools.migration.get_session_backend", return_value=mock_backend):
+        with patch("server.tools.migration.get_session_backend", return_value=mock_backend):
             result = await migrate_preview(
                 source_type="trello",
                 source_id="board1",

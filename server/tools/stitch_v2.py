@@ -22,6 +22,12 @@ from fastmcp import Context, FastMCP
 from ..design_md.generator import GeneratorInputs, generate_design_md
 from ..design_md.io import compute_signature, load, save
 from ..design_md.archetypes import ArchetypeId
+from ..stitch_prompt import (
+    PromptLayers,
+    ValidatorMode,
+    build_prompt,
+    validate_and_normalize,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -266,6 +272,94 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
             )
             return {"error": str(exc), "project": project}
 
+
+    @mcp.tool
+    async def validate_stitch_prompt(
+        ctx: Context,
+        project: str,
+        prompt: str,
+        mode: str = "warn",
+        project_root: str | None = None,
+    ) -> dict:
+        """Validate a Stitch prompt against the v5.31.0 best-practice rules.
+
+        Detects:
+          E1 named colors without hex equivalents
+          E2 prompts mixing layout + component changes (proposes split)
+          W1 prompt body >500 chars (excluding DESIGN.md prefix)
+          W2 Layer 1 (CONTEXT) >80 words
+          W3 Layer 2 (COMPONENTS) written as prose instead of bullets
+          W4 named colors auto-resolved against DESIGN.md palette
+
+        Args:
+            project: SpecBox project slug.
+            prompt: The full prompt string to validate.
+            mode: 'warn' (default — issues reported, prompt still allowed)
+                or 'strict' (errors set valid=False).
+            project_root: If provided, the validator loads
+                ``{project_root}/doc/design/DESIGN.md`` and uses its
+                palette to auto-resolve named colors.
+
+        Returns:
+            ``{status, valid, normalized_prompt, warnings, errors,
+              requires_split, split_prompts, color_substitutions}``.
+        """
+
+        try:
+            try:
+                vmode = ValidatorMode(mode.lower())
+            except ValueError:
+                return {"error": f"unknown mode {mode!r}; expected 'warn' or 'strict'"}
+
+            palette = None
+            if project_root:
+                design_md_path = (
+                    Path(project_root).expanduser().resolve()
+                    / "doc" / "design" / "DESIGN.md"
+                )
+                if design_md_path.exists():
+                    try:
+                        doc = load(design_md_path)
+                        palette = doc.front_matter.colors
+                    except Exception as exc:
+                        logger.warning(
+                            "validate_stitch_prompt_palette_load_failed",
+                            project=project,
+                            error=str(exc),
+                        )
+
+            result = validate_and_normalize(prompt, palette=palette, mode=vmode)
+
+            _log_v2(
+                project,
+                "validate_stitch_prompt",
+                valid=result.valid,
+                error_count=len(result.errors),
+                warning_count=len(result.warnings),
+                requires_split=result.requires_split,
+            )
+
+            return {
+                "status": "ok",
+                "project": project,
+                "valid": result.valid,
+                "normalized_prompt": result.normalized_prompt,
+                "warnings": result.warnings,
+                "errors": result.errors,
+                "requires_split": result.requires_split,
+                "split_prompts": result.split_prompts,
+                "color_substitutions": result.color_substitutions,
+                "char_count": result.char_count_excluding_design_md,
+            }
+        except Exception as exc:
+            logger.error("validate_stitch_prompt_error", project=project, error=str(exc))
+            _log_v2(
+                project,
+                "validate_stitch_prompt",
+                status="error",
+                reason=type(exc).__name__,
+            )
+            return {"error": str(exc), "project": project}
 
 # ── Internal helpers (module-private, importable from later phases) ────
 

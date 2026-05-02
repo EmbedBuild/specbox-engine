@@ -1,0 +1,61 @@
+# App PRD — {project_name}
+
+**Última actualización:** {date_iso}
+**Versión del documento:** 1
+**Mantenido por:** /app-init (idempotente) y eventos del pipeline
+
+---
+
+<!-- @specbox:zone start kind="manual" id="vision" -->
+## 1. Visión
+
+{Una o dos frases describiendo qué es esta aplicación, para quién, y qué problema resuelve. Esta zona es de edición manual — el engine la lee como contexto pero nunca la modifica.}
+<!-- @specbox:zone end -->
+
+<!-- @specbox:zone start kind="manual" id="audience" -->
+## 2. Audiencia + JTBD
+
+**Modo VEG aplicable:** {uniforme | per_profile | per_icp}
+
+### Targets
+- **{target_name}** — {descripción + JTBD racional + JTBD emocional}
+
+### ICPs (si modo per_icp)
+- **{icp_name}** — {descripción + JTBD}
+<!-- @specbox:zone end -->
+
+<!-- @specbox:zone start kind="manual" id="scope" -->
+## 3. Perímetro
+
+### v1 (in scope)
+- {feature de alto nivel — sin AC granulares}
+
+### v2+ (out of scope hoy, planeado)
+- {feature futura}
+
+### Nunca (out of scope permanente)
+- {explícito para evitar scope creep recurrente}
+<!-- @specbox:zone end -->
+
+<!-- @specbox:zone start kind="hybrid" id="success_metrics" merge="append_only" -->
+## 4. Métricas de éxito
+
+{Lista de métricas. Tú añades las definiciones; el engine añade observaciones cuando una US ACCEPTED las afecta.}
+<!-- @specbox:zone end -->
+
+<!-- @specbox:zone start kind="auto" id="roadmap" auto_sync_on="complete_uc,move_uc,add_uc,delete_uc,mark_ac_batch" -->
+## 5. Roadmap de US
+
+{Esta zona la mantiene el engine. NO EDITES MANUALMENTE — los cambios serán sobrescritos en la próxima sincronización tras eventos del pipeline.}
+
+| US | Título | Estado | UCs | Última actualización |
+|----|--------|--------|-----|----------------------|
+| (vacío) | (`/app-init` lo poblará desde el backend de tracking) | | | |
+<!-- @specbox:zone end -->
+
+<!-- @specbox:zone start kind="manual" id="stakeholders" -->
+## 6. Stakeholders
+
+- **Product owner:** {nombre}
+- **Reporting externo:** {sí — board id "..." | no, FreeForm interno}
+<!-- @specbox:zone end -->

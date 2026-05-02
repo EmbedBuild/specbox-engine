@@ -89,6 +89,16 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "matcher": "mcp__SpecBox-MCP__stitch_.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/stitch-quota-guard.mjs",
+            "timeout": 3
+          }
+        ]
       }
     ],
     "PostToolUse": [

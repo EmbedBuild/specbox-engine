@@ -806,6 +806,63 @@ Google Stitch configurado:
 ¿Todo correcto?
 ```
 
+### 3.7 Generar DESIGN.md canónico (v5.31.0)
+
+Una vez configurado el Design System de Stitch, materializar también un
+`DESIGN.md` canónico — formato oficial de Google
+(github.com/google-labs-code/design.md) que Stitch lee como contexto
+persistente en cada generación. Sin esto, las pantallas tienden a
+derivar visualmente entre sí.
+
+```
+generate_design_md_tool(
+  project="{project-slug}",
+  project_root="{absolute_path_a_la_raiz_del_proyecto}",
+  project_name="{Nombre Visible}",
+  archetype_override=None  # opcional: corporate|startup|creative|consumer|gen_z|gov
+)
+```
+
+Esto crea `doc/design/DESIGN.md` con:
+- YAML front-matter con `colors`, `typography`, `rounded`, `spacing`, `components` (todos en hex codes o token references — nunca nombres de color)
+- Body Markdown con secciones `Overview`, `Colors`, `Typography`, `Layout`, `Elevation & Depth`, `Shapes`, `Components`, `Do's and Don'ts`
+
+El generador lee el Brand Kit recién creado (`doc/brand/brand_kit.md`),
+el VEG si ya existe, y los documentos canónicos `doc/app/app_prd.md` /
+`doc/app/app_spec.md`. Si falta cualquier input, completa con el
+arquetipo VEG más cercano (default `startup`).
+
+Inmediatamente después, registrar el DESIGN.md frente al proyecto Stitch:
+
+```
+upload_design_md_to_stitch(
+  project="{project-slug}",
+  stitch_project_id="{stitch_project_id}",
+  project_root="{absolute_path}"
+)
+```
+
+Hoy esto registra DESIGN.md en `meta.json` con modo `inline-prefix`:
+las herramientas de generación posteriores (Phase 4 fallback +
+batched build) anteponen el contenido al prompt automáticamente. El
+día que Google añada un endpoint nativo de attach, el comportamiento
+upgradea sin requerir cambio del skill.
+
+### 3.8 Confirmar DESIGN.md
+
+```
+DESIGN.md canónico generado:
+├── Path: doc/design/DESIGN.md
+├── Signature: {sha256_first_8}
+├── Archetype detectado: {auto|override}
+├── Secciones presentes: {sections_list}
+└── Registrado en proyecto Stitch: {stitch_project_id} (modo inline-prefix)
+
+A partir de ahora, /plan y /implement leerán este DESIGN.md como fuente
+de verdad visual. Si modificas el Brand Kit, vuelve a correr este skill
+o `generate_design_md_tool` para regenerarlo (idempotente).
+```
+
 ---
 
 ## Paso 4: Configurar VEG Base

@@ -1,8 +1,8 @@
-# SpecBox Engine v5.30.0
+# SpecBox Engine v5.31.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (158 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010.
+> Monorepo unificado: engine + MCP server (163 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010.
 
 ## Que es este repositorio
 
@@ -316,7 +316,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /stripe-switch-account | "switch stripe account", "rotar cuenta stripe", "cambiar cuenta stripe" | direct | Full | v5.27 — Stripe credentials rotation (alias store + switch_stripe_account tool, both Standard and Connect modes, dry-run + automatic rollback) |
 | /handoff | "handoff", "save state", "guarda contexto", "voy a hacer compactación" | direct | Read+Bash+Write | v5.30 — Persiste estado fino a `.quality/handoff.md` + Engram structured + heartbeat. **Llamar ANTES de proponer compactación**. |
 
-## Hooks (v5.30.0)
+## Hooks (v5.31.0)
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -345,6 +345,7 @@ Automatic enforcement — no need to remember running these manually:
 | uc-lifecycle-guard | PostToolUse (git push) | Non-blocking WARNING: warns if pushing feature branch without calling move_uc (board out of sync). |
 | **session-start** | SessionStart | Non-blocking: injects `.quality/handoff.md` (if fresh), active UC + checkpoint, and auto zones from `app_spec.md` as `additionalContext` for the new session. Capped at 14k chars. v5.30. |
 | **pre-read-budget-guard** | PreToolUse (Read) | Non-blocking WARNING: estimates tokens for the file being read; warns if ≥ `specbox.context_budget.warn_pct` of the window (default 5% of 1M). v5.30. |
+| **stitch-quota-guard** | PreToolUse (mcp__SpecBox-MCP__stitch_*) | WARNING ≥80% PRO/Flash; **BLOCKING** when PRO is exhausted AND `flash_safety_net=false`. Reads cached quota from `.quality/stitch_quota.json` (written by `get_stitch_quota_status`). No-op when no cache. v5.31. |
 
 ### Compliance Audit (v5.20.1)
 
@@ -703,6 +704,106 @@ Proxy completo de Google Stitch a traves del SpecBox Engine MCP server. Permite 
 - Timeout de 6 minutos para operaciones de generacion
 - Retry con backoff exponencial para errores transitorios
 
+## Stitch Autopilot (v5.31.0)
+
+Capa que se asienta encima del Stitch MCP Proxy v1 para resolver los bloqueos
+recurrentes de autopilot causados por (a) drift visual entre pantallas, (b)
+fallos terminales de generación sin recuperación, (c) falta de visibilidad
+sobre la cuota mensual de Google Stitch (350 Standard + 200 Experimental, sin
+upgrade), y (d) prompts mal estructurados que producen primeras generaciones
+peores de lo necesario.
+
+**Decisión de calidad**: el modelo default sigue siendo `GEMINI_3_PRO`. Flash
+NO es default — solo está disponible como red de seguridad opt-in
+(`specbox.stitch.fallback.flash_safety_net=false` por defecto).
+
+### 5 capas (todas aditivas, v1 sigue funcionando)
+
+1. **DESIGN.md canónico** — formato oficial Google
+   ([google-labs-code/design.md](https://github.com/google-labs-code/design.md)).
+   `/visual-setup` Paso 3.7 invoca `generate_design_md_tool` que sintetiza
+   `doc/design/DESIGN.md` (YAML front-matter + Markdown body) desde Brand Kit
+   + VEG + canónicos `app_prd.md` / `app_spec.md`. Cuando faltan inputs,
+   completa desde 6 arquetipos VEG (corporate / startup / creative / consumer
+   / gen_z / gov). `upload_design_md_to_stitch` lo registra contra el
+   proyecto Stitch en modo `inline-prefix` (Stitch MCP no expone hoy un
+   endpoint nativo de attach — el contenido se prepende al prompt).
+
+2. **Prompt template 4-capas + validador** — Context (≤80 palabras) /
+   Components (lista) / Style (hex codes) / Platform.
+   `validate_stitch_prompt` corre por defecto en modo `warn` (errores
+   reportados pero no bloqueantes durante 2 semanas para medir falsos
+   positivos antes de promover a `strict`). Detecta E1 colores nombrados
+   (auto-resuelve contra DESIGN.md), E2 prompts que mezclan layout +
+   componentes (propone split layout-first / components-second), W1
+   longitud >500 chars (excluye prefijo DESIGN.md), W2 Layer 1 verbosa,
+   W3 Layer 2 escrita como prosa.
+
+3. **Fallback chain** — `stitch_generate_screen_v2` aplica el ladder
+   `edit_baseline → variants_refine → regenerate` cuando la llamada
+   natural falla. Clasifica el error (`transient | quota | content |
+   unknown`) para decidir si reintentar. Si todas las estrategias PRO
+   fallan AND `flash_safety_net=true`, último intento con
+   `GEMINI_3_FLASH` marcando el resultado `degraded=true`.
+
+4. **Batched build_site** — `stitch_build_site_batched_v2` particiona
+   pantallas en grupos de ≤4 (priorizando tag `group` explícito, luego
+   prefijo de `route`, luego chunks ordenados) y aplica una pasada final
+   de `edit_screens` con un prompt de unificación de tema cuando hay >1
+   batch. Resuelve el límite duro de ~5 pantallas conectadas por
+   `build_site` que Google reporta en foros.
+
+5. **Quota tracking + safety net opt-in** —
+   `get_stitch_quota_status` agrega `stitch_usage.jsonl` por mes y modelo,
+   surfacea warning a ≥80% y mensaje de exhausted a 100%, persiste un
+   cache compacto en `.quality/stitch_quota.json` que el heartbeat
+   enriquecido (`stitch_quota` field, después del bloque v5.30 de
+   Session Continuity) sube a Sala de Máquinas. El hook
+   `stitch-quota-guard.mjs` (PreToolUse para tools `mcp__SpecBox-MCP__stitch_*`)
+   warnea ≥80% y bloquea (exit 2) cuando PRO está exhausted Y
+   `flash_safety_net=false`.
+
+### Settings (`templates/settings.json.template` → `stitch`)
+
+```json
+{
+  "stitch": {
+    "modelId": "GEMINI_3_PRO",
+    "fallback": {
+      "enabled": true,
+      "strategy": ["edit_baseline", "variants_refine", "regenerate"],
+      "flash_safety_net": false,
+      "max_total_attempts": 3
+    },
+    "quota": {
+      "warn_pct": 80,
+      "standard_limit": 350,
+      "experimental_limit": 200
+    },
+    "prompt": { "validator_mode": "warn" }
+  }
+}
+```
+
+### Compatibilidad
+
+- 100% backwards-compatible: las 13 tools v1 siguen registradas. Las 6 tools v2
+  son aditivas (`generate_design_md_tool`, `upload_design_md_to_stitch`,
+  `validate_stitch_prompt`, `stitch_generate_screen_v2`,
+  `stitch_build_site_batched_v2`, `get_stitch_quota_status`).
+- `/plan` Paso 2.5b NO se modifica en esta release — sigue usando v1 por
+  defecto. La migración del call site ocurrirá en un patch v5.31.x cuando
+  la telemetría del validator confirme baja tasa de falsos positivos.
+- Solo se modifica `/visual-setup` (añade Paso 3.7 + 3.8) y
+  `heartbeat-sender.mjs` (añade campo `stitch_quota` después del bloque
+  v5.30 de Session Continuity).
+
+### Plan completo
+
+[doc/plans/v5.31.0_stitch_autopilot_plan.md](doc/plans/v5.31.0_stitch_autopilot_plan.md)
+documenta los 5 cambios, fases de implementación, riesgos, métricas de
+éxito y rollback plan.
+
 ## SpecBox-Stripe MCP (v0.1 alpha — independent package)
 
 Setup-as-code para Stripe, complementando al Stripe MCP oficial (que cubre runtime de negocio pero no setup). Empaquetado como `packages/specbox-stripe-mcp/` con stack Python + FastMCP + stripe SDK — mismo runtime que el engine pero versionado y desplegado de forma independiente.
@@ -1053,6 +1154,6 @@ Migration tooling para 10 casos hipotéticos (`detect_v529_migration_case`):
 
 ## Engine Version
 
-Current: v5.30.0 "Session Continuity"
+Current: v5.31.0 "Stitch Autopilot"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

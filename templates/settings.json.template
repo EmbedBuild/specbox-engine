@@ -240,7 +240,25 @@
   "stitch": {
     "projectId": "{STITCH_PROJECT_ID}",
     "deviceType": "DESKTOP",
-    "modelId": "GEMINI_3_PRO"
+    "modelId": "GEMINI_3_PRO",
+    "_v5_31_note": "v5.31.0 'Stitch Autopilot' adds the fallback + quota blocks below. Defaults preserve v5.30 behaviour (PRO model, no Flash safety net, no quota blocking).",
+    "fallback": {
+      "enabled": true,
+      "strategy": ["edit_baseline", "variants_refine", "regenerate"],
+      "flash_safety_net": false,
+      "max_total_attempts": 3,
+      "_flash_safety_net_note": "OFF by default — calidad-first. Set to true ONLY if you prefer 'autopilot never breaks' over 'PRO-quality or nothing'. When true, results generated as Flash last-resort are marked degraded=true with a recommended_action."
+    },
+    "quota": {
+      "warn_pct": 80,
+      "standard_limit": 350,
+      "experimental_limit": 200,
+      "_limits_note": "Google's published Stitch ceilings as of v5.31.0. Override only if Stitch communicates a different cap for your account."
+    },
+    "prompt": {
+      "validator_mode": "warn",
+      "_validator_mode_note": "warn|strict — default 'warn' for the first 2 weeks post-release. Promote to 'strict' once telemetry confirms <2% false-positive rate."
+    }
   },
   "plane": {
     "defaultProject": "{PLANE_PROJECT}",

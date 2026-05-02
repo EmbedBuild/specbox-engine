@@ -1,5 +1,5 @@
-version: 5.30.0
-codename: "Session Continuity"
+version: 5.31.0
+codename: "Stitch Autopilot"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-05-02
@@ -340,8 +340,42 @@ features:
   - maestro-github-actions-template
   - flutter-semantics-identifier-guidance
   - patrol-legacy-path-supported
+  # New (v5.31.0) — Stitch Autopilot
+  - design-md-canonical-format
+  - design-md-generator
+  - design-md-archetypes-six
+  - upload-design-md-to-stitch
+  - stitch-prompt-template-v2
+  - stitch-prompt-validator
+  - stitch-fallback-chain
+  - stitch-build-site-batched
+  - stitch-quota-tracking
+  - stitch-quota-guard-hook
+  - heartbeat-stitch-quota
+  - flash-safety-net-opt-in
 
 changelog:
+  5.31.0:
+    date: 2026-05-02
+    codename: "Stitch Autopilot"
+    changes:
+      - "feat: DESIGN.md canonical format adopted (github.com/google-labs-code/design.md). New server/design_md/ module with Pydantic schema (hex-or-{token.ref} validation rejecting named colors at parse time), generator that synthesises a DESIGN.md from optional inputs (brand_kit.md, veg.md, app_prd.md vision zone, app_spec.md), 6 VEG archetype defaults (corporate / startup / creative / consumer / gen_z / gov), serializer with fixed section order per spec, and signature-based drift detection (excludes generated_at from hash). 38 tests"
+      - "feat: two new MCP tools — generate_design_md_tool (synthesises doc/design/DESIGN.md, idempotent, persists provenance + signature in meta.json) and upload_design_md_to_stitch (registers DESIGN.md against a Stitch project; mode=inline-prefix today since the Stitch MCP has no native attach endpoint, upgrades transparently if Google adds one). 15 tests"
+      - "feat: /visual-setup gains Paso 3.7 (generate DESIGN.md) + Paso 3.8 (confirmation block) right after the existing 3.6. Existing visual-setup flow unchanged; the new step runs after the Brand Kit and Stitch design system are configured"
+      - "feat: 4-layer prompt template v2 (Context / Components / Style / Platform) per Google Stitch's official prompting guide. Builder at server/stitch_prompt/builder.py, validator at server/stitch_prompt/validator.py with E1 (named colors → auto-resolve from DESIGN.md palette or reject), E2 (layout + components mixing → propose split, robust against single-line mixed intents via sentence boundary splitting), W1 (>500 char body excluding DESIGN.md prefix), W2 (>80 word Layer 1), W3 (Layer 2 as prose). Default mode is 'warn' for backwards-compat — strict is a settings flip, not a code change. New MCP tool validate_stitch_prompt. 25 tests"
+      - "feat: fallback chain at server/stitch_orchestration/fallback.py — Strategy ladder edit_baseline → variants_refine → regenerate, with optional flash_safety_net last-resort that marks results degraded=True. Error classification (transient | quota | content | unknown) drives retry decision. Skips baseline-dependent strategies if no baseline_screen_id. 14 tests with a scriptable in-memory FakeOps stand-in"
+      - "feat: batched build_site at server/stitch_orchestration/batching.py — partitions screens into groups of ≤batch_size (priority: explicit 'group' tag → route prefix → order chunks), runs Stitch's native build_site per partition, applies a final unifying edit_screens pass when >1 batch is needed. New MCP tool stitch_build_site_batched_v2. 13 tests"
+      - "feat: new MCP tool stitch_generate_screen_v2 wrapping the fallback chain over the real StitchClient via a thin _StitchOpsAdapter. Default model GEMINI_3_PRO (calidad-first). flash_safety_net is OFF by default — must be opted into via settings.local.json or per-call to engage Flash as last resort"
+      - "feat: quota tracking at server/stitch_quota/computation.py — pure aggregator over stitch_usage.jsonl by calendar month and model class (Pro=Experimental 200/mo, Flash=Standard 350/mo, Google's published ceilings with no upgrade path). classify_model treats unknowns as PRO since that's the SpecBox default; counts only successful generation calls; metadata operations and validations don't consume. compute_quota_payload derives summary, warning at >=80%, exhausted at 100%, reset_at on the first day of next UTC month with year-rollover. 26 tests"
+      - "feat: new MCP tool get_stitch_quota_status with optional write_cache=True that persists a compact summary at {project_root}/.quality/stitch_quota.json so heartbeat-sender.mjs picks it up without re-invoking the tool"
+      - "feat: heartbeat-sender.mjs gains a stitch_quota field appended AFTER the v5.30.0 Session Continuity block (handoff_present / context_pressure preserved intact). Best-effort: when the user has never run get_stitch_quota_status, the field stays null and Sala de Máquinas hides the indicator gracefully"
+      - "feat: new PreToolUse hook .claude/hooks/stitch-quota-guard.mjs. Warns at >=80% on PRO or Flash bucket (exit 0). Blocks (exit 2) when PRO is exhausted AND flash_safety_net is OFF in settings. No-op for non-Stitch tools and when no quota cache exists. The hook only reads the cache; it never re-invokes the quota tool"
+      - "feat: design/stitch/prompt-template-v2.md — human-readable doc of the 4-layer template + the rules the validator enforces. Pairs with the legacy template-v1 which stays in place for backwards compat"
+      - "decision: model default stays GEMINI_3_PRO. The user's stated priority is calidad-first; the plan considered defaulting to Flash but rejected it. Flash is exclusively a safety net, opt-in via specbox.stitch.fallback.flash_safety_net=true"
+      - "decision: slot v5.31.0 was originally reserved by the v5.30.0 commit message for 'delegación de fases de /implement a Tasks aisladas'. After confirming there were no open PRs or active branches for that work, the slot was reassigned to Stitch Autopilot — higher priority for unblocking autopilot today. The /implement phase delegation moves to a future v5.32+ with its own dedicated plan"
+      - "compat: 100% backwards-compatible. v1 Stitch tools (the 13 originals: stitch_set_api_key … stitch_build_site) stay registered alongside the new v2 tools. /plan and /implement skills are NOT modified in this release — they continue to use v1 tools by default. Projects opt into v2 by calling the new tools explicitly. A follow-up patch release (v5.31.1 if needed) will migrate /plan Paso 2.5b to use the new pipeline once telemetry from the warn-only validator confirms low false-positive rate"
+      - "tests: 131 new tests, all green, isolated from pre-existing failures (test_acceptance_check::test_registers_two_tools, test_spec_mutations / test_milestone_management TypeErrors documented in v5.29 changelog)"
+
   5.30.0:
     date: 2026-05-02
     codename: "Session Continuity"

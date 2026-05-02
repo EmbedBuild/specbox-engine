@@ -1,4 +1,4 @@
-# SpecBox Engine v5.32.0
+# SpecBox Engine v5.32.1
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1224,6 +1224,6 @@ documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
 
 ## Engine Version
 
-Current: v5.32.0 "Implement Task Isolation"
+Current: v5.32.1 "Release Skill — README + CHANGELOG enforcement"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

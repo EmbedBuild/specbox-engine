@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v5.32.0 — "Implement Task Isolation" (sobre v5.31 "Stitch Autopilot")<br/>
+  v5.32.1 — "Release Skill — README + CHANGELOG enforcement" (sobre v5.32.0 "Implement Task Isolation")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -36,6 +36,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Heartbeat enriquecido** con `task_isolation: {enabled, tasks_run_total, tasks_failed_*}` para Sala de Máquinas.
 
 100% backwards-compatible. Modos `warn` por defecto durante la migración.
+
+**v5.32.1** convierte la regla "README + CHANGELOG en cada bump" en un guardrail mecánico: el skill `/release` ahora bumpea ambos archivos como pasos obligatorios y un nuevo validador `version-consistency-check.mjs` aborta la release si cualquiera de los 5 archivos de versión queda desincronizado.
 
 ---
 
@@ -314,7 +316,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v5.32.0 — "Implement Task Isolation" (over v5.31 "Stitch Autopilot")
+> v5.32.1 — "Release Skill — README + CHANGELOG enforcement" (over v5.32.0 "Implement Task Isolation")
 
 ## What is this?
 
@@ -338,6 +340,8 @@ A system that turns Claude Code into a serious teammate:
 - **Enriched heartbeat** with `task_isolation: {enabled, tasks_run_total, tasks_failed_*}` for Sala de Máquinas.
 
 100% backwards-compatible. `warn` modes default during the migration.
+
+**v5.32.1** turns the "bump README + CHANGELOG on every release" rule into a mechanical guardrail: the `/release` skill now bumps both files as mandatory steps and a new `version-consistency-check.mjs` validator aborts the release if any of the 5 version files drifts out of sync.
 
 ---
 

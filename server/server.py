@@ -41,6 +41,7 @@ from .tools.stitch import register_stitch_tools
 from .tools.audit import register_audit_tools
 from .tools.app_docs import register_app_docs_tools
 from .app_docs.autopilot import register_autopilot_tools
+from .app_docs.queue import register_queue_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -210,6 +211,11 @@ register_app_docs_tools(mcp, ENGINE_PATH)
 # to ask, auto-confirm, or block. Mirrors the JS catalog in
 # .claude/hooks/lib/autopilot.mjs.
 register_autopilot_tools(mcp, ENGINE_PATH)
+
+# Register Decisions Queue tools (v5.29.0 PR-6 — deferred decisions, off by default)
+# When autopilot.queue_enabled=true, deferrable gates accumulate here instead of
+# blocking the pipeline. The /queue review skill resolves them in batch.
+register_queue_tools(mcp, ENGINE_PATH)
 
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)

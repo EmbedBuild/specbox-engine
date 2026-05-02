@@ -38,6 +38,7 @@ from .tools.skill_registry import register_skill_registry_tools
 from .tools.live_state import register_live_state_tools
 from .tools.heartbeat_stats import register_heartbeat_stats_tools
 from .tools.stitch import register_stitch_tools
+from .tools.stitch_v2 import register_stitch_v2_tools
 from .tools.audit import register_audit_tools
 from .tools.app_docs import register_app_docs_tools
 from .app_docs.autopilot import register_autopilot_tools
@@ -201,6 +202,12 @@ register_heartbeat_stats_tools(mcp, STATE_PATH)
 # stitch_edit_screen, stitch_generate_variants, stitch_extract_design_context,
 # stitch_build_site)
 register_stitch_tools(mcp, STATE_PATH)
+
+# Register Stitch Autopilot v2 tools (v5.31.0 — incremental, sits on top
+# of v1). Phase 1+2: generate_design_md_tool, upload_design_md_to_stitch.
+# Phases 3-5 will add prompt validator, batched build, fallback chain,
+# quota tracking in this same module.
+register_stitch_v2_tools(mcp, STATE_PATH)
 
 # Register Quality Audit tools (3 tools: run_quality_audit, attach_audit_evidence, get_last_audit)
 # ISO/IEC 25010 (SQuaRE) v1 — on-demand audit with 8 characteristic analyzers,

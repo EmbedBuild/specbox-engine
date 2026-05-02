@@ -2,6 +2,93 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.32.0] - 2026-05-02 — "Implement Task Isolation"
+
+Cierra el out-of-scope explícito de v5.30.0 (PR #20): el SKILL.md de
+`/implement` ya **documentaba** la delegación a Tasks aisladas, pero el
+contrato no estaba mecánicamente forzado. v5.32 añade los 5 guardrails
+que faltaban — sin rediseñar la arquitectura — y los cablea de forma
+observable. En modo warn por defecto durante la migración. Plan técnico
+completo en [doc/plans/v5.32.0_implement_task_isolation_plan.md](doc/plans/v5.32.0_implement_task_isolation_plan.md).
+
+### Added
+
+- **`execution_context.json`** persistido en `.quality/evidence/{feature}/`
+  con `branch`, `feature_slug`, `stack`, `project_root_absolute`, `plan_hash`
+  y demás. Cada Task delegado lee este archivo en lugar de recibir esos
+  valores verbatim en el prompt — fixea la causa raíz del context exhaustion
+  en UCs grandes. Helpers en `server/implement_context/execution_context.py`
+  (Pydantic, atomic write, idempotente) y `.claude/hooks/lib/execution-context.mjs`
+  (read-only para hooks).
+- **`context-budget-guard.mjs`** PreToolUse(Task). Estima tokens via chars/4
+  (zero-deps) y warn|block según
+  `specbox.implement.task_isolation.task_budget_mode` (default `warn`,
+  budget 16000). Bumpea counters en `.quality/task_isolation.json`.
+- **`file-ownership-guard.mjs`** PreToolUse(Write/Edit). Lee
+  `.quality/active_agent.json` (transient) para identificar el agente activo
+  y valida la ruta contra el ownership map en
+  `.claude/skills/implement/file-ownership.md`. Modes warn|strict|off. Path
+  traversal (`..`, `/abs`) siempre BLOCKED. Sugiere el owner correcto al
+  bloquear. Parser y glob → regex en `lib/ownership-map.mjs`.
+- **`phase_outputs.jsonl`** append-only por feature con un delta estructurado
+  por Task: `files_created/modified/deleted`, `summary`, `duration_s`,
+  `tokens_used_*`, `healing_attempts`, `status`. Schema v1 definido en
+  `doc/specs/phase-outputs-spec.md`. Validador zero-deps en
+  `.quality/scripts/validate-phase-outputs.mjs`. Aggregator
+  `aggregate_for_spec_sync` reemplaza el cálculo de deltas vía git diff que
+  vivía en el contexto del orquestador.
+- **`/implement` SKILL.md** Paso 0.4b (escribir execution_context.json),
+  Paso 5.0 (bloque reusable antes/después de cada `Task(AG-XX)`: write
+  active_agent → spawn → cleanup → bump counters), Paso 5.1.1b y 8.5.1a
+  (consumen `aggregate_for_spec_sync` en vez de la lista en memoria del
+  orquestador). Banner "Working set (v5.32.0)" al inicio del SKILL.
+- **Heartbeat enriquecido** con `task_isolation: {enabled, tasks_run_total,
+  tasks_failed_budget, tasks_failed_ownership, last_feature_slug,
+  last_event_at}` añadido **después** del bloque v5.31 Stitch Autopilot
+  (que sigue intacto, igual que el bloque v5.30 Session Continuity).
+
+### Changed
+
+- `pyproject.toml`, `ENGINE_VERSION.yaml`, `CLAUDE.md` bumpean a 5.32.0.
+- `templates/settings.json.template` añade el bloque
+  `specbox.implement.task_isolation` con defaults preservando comportamiento
+  pre-v5.32 (modes warn).
+- `.claude/settings.json` registra los dos nuevos hooks.
+
+### Decisions
+
+- **Modo `warn` por defecto** en ambos guards. Promoción a `strict` queda
+  como settings flip tras 2 semanas de telemetría — no es cambio de código.
+- **NO se rediseña** el SKILL.md de `/implement`. La delegación ya estaba
+  documentada (líneas 469-536, 496-506). v5.32 implementa los 5 guardrails
+  para que el contrato sea verificable y observable.
+- **Healing sigue dentro del mismo Task** que falló. Mover healing a Task
+  propio queda como v5.32.1 — release minimalista primero.
+
+### Compatibility
+
+- **100% backwards-compatible.** Proyectos sin `execution_context.json` ni
+  `phase_outputs.jsonl` ven los guards como no-ops; el heartbeat reporta
+  `task_isolation: null`; Spec-Code Sync cae al fallback de `git diff`.
+- Los hooks v1 (`quality-first-guard`, `healing-budget-guard`,
+  `pipeline-phase-guard`, `stripe-safety-guard`) siguen ejecutándose en
+  Write/Edit antes de `file-ownership-guard`.
+
+### Tests
+
+- 69 tests nuevos, todos verdes:
+  - `test_implement_context.py` (18) — schema, paths, write/read,
+    idempotency, plan hash, atomic writes
+  - `test_phase_outputs.py` (17) — schema, append/read, aggregation,
+    dedup, status logic
+  - `tests/hooks/context-budget-guard.test.mjs` (11) — token estimator
+    + hook end-to-end
+  - `tests/hooks/file-ownership-guard.test.mjs` (23) — parser, globs,
+    suspicious paths, hook modes
+- Pre-existing failures on `main` (`test_acceptance_check::test_registers_two_tools`
+  y los TypeErrors en `test_spec_mutations` / `test_milestone_management`
+  documentados en v5.29 changelog) NO causados por este PR y persisten.
+
 ## [5.31.1] - 2026-05-02 — "Stitch Autopilot — /plan migration"
 
 Patch release que cierra el out-of-scope explícito de v5.31.0: migra

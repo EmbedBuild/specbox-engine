@@ -1,4 +1,4 @@
-# SpecBox Engine v5.31.1
+# SpecBox Engine v5.32.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1158,8 +1158,72 @@ Migration tooling para 10 casos hipotéticos (`detect_v529_migration_case`):
 | 9 | Manual app_*.md sin marcadores | `/app-init --upgrade-zones` con backup obligatorio |
 | 10 | Fresh clone | `./install.sh` primero |
 
+## Implement Task Isolation (v5.32.0)
+
+Cierra el out-of-scope explícito de v5.30.0 (PR #20): forzar mecánicamente
+la delegación a Tasks aisladas que el SKILL.md de `/implement` ya documentaba
+pero no enforcer. v5.32 añade los 5 guardrails que faltaban — sin rediseñar
+la arquitectura — y los cablea de forma observable.
+
+### Working set por feature
+
+`.quality/evidence/{feature}/` mantiene 4 archivos:
+
+| Archivo | Vida | Quien escribe | Quien lee |
+|---------|------|---------------|-----------|
+| `pipeline_state.json` | toda la run | orquestador (Paso 0.4a + tras cada fase) | `pipeline-phase-guard.mjs` |
+| `execution_context.json` | toda la run, immutable | orquestador (Paso 0.4b) | cada Task delegado, hooks |
+| `phase_outputs.jsonl` | append-only durante la run | cada Task al cierre | Spec-Code Sync (Paso 5.1.1b, 8.5.1a) |
+| `checkpoint.json` | toda la run, sobrescrito | orquestador post-fase | resume al iniciar nueva sesion |
+
+`.quality/active_agent.json` — **transient** (escrito antes de cada
+`Task(AG-XX)`, borrado tras retorno) — leido por
+`file-ownership-guard.mjs` para validar Write/Edit del agente activo.
+
+`.quality/task_isolation.json` — telemetría (counters bumped por hooks +
+SKILL post-Task block; consumido por heartbeat-sender).
+
+### Tools / módulos (Python)
+
+- `server/implement_context/execution_context.py` — Pydantic model + atomic write.
+- `server/implement_context/phase_outputs.py` — append/read/aggregate.
+- `aggregate_for_spec_sync(feature)` → `SpecSyncAggregate` con `overall_status`, `delta_count`, `files_*` deduped, `phases[]`, `total_duration_s`, `total_healing_attempts`.
+
+### Hooks nuevos
+
+- `context-budget-guard.mjs` — PreToolUse(Task). Estima tokens del prompt (chars/4) y warn|block según `specbox.implement.task_isolation.task_budget_mode` (default `warn`, budget `16000`).
+- `file-ownership-guard.mjs` — PreToolUse(Write/Edit). Valida la ruta contra el ownership del agente declarado en `active_agent.json`. Modes warn|strict|off. Suspicious paths (`..`, `/abs`) siempre BLOCKED.
+
+### Settings
+
+```json
+{
+  "specbox": {
+    "implement": {
+      "task_isolation": {
+        "enabled": true,
+        "task_budget_tokens": 16000,
+        "task_budget_mode": "warn",
+        "ownership_mode": "warn"
+      }
+    }
+  }
+}
+```
+
+### Compatibilidad
+
+100% backwards-compatible. Cualquier proyecto sin `execution_context.json`
+ni `phase_outputs.jsonl` ve los guards como no-ops, el heartbeat con
+`task_isolation: null`, y Spec-Code Sync cae al fallback de `git diff`.
+
+### Plan completo
+
+[doc/plans/v5.32.0_implement_task_isolation_plan.md](doc/plans/v5.32.0_implement_task_isolation_plan.md)
+documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
+
 ## Engine Version
 
-Current: v5.31.1 "Stitch Autopilot — /plan migration"
+Current: v5.32.0 "Implement Task Isolation"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

@@ -1,5 +1,5 @@
-version: 5.31.1
-codename: "Stitch Autopilot"
+version: 5.32.0
+codename: "Implement Task Isolation"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-05-02
@@ -353,8 +353,34 @@ features:
   - stitch-quota-guard-hook
   - heartbeat-stitch-quota
   - flash-safety-net-opt-in
+  # New (v5.32.0) — Implement Task Isolation
+  - execution-context-persistent
+  - context-budget-guard-hook
+  - file-ownership-guard-hook
+  - phase-outputs-jsonl
+  - phase-outputs-aggregator
+  - validate-phase-outputs-script
+  - implement-skill-paso-5-0
+  - heartbeat-task-isolation
 
 changelog:
+  5.32.0:
+    date: 2026-05-02
+    codename: "Implement Task Isolation"
+    changes:
+      - "feat: execution_context.json — `.quality/evidence/{feature}/execution_context.json` persists branch/feature/stack/board_id/plan_hash atomically (tempfile + os.replace, idempotent on unchanged content). Each Task delegated by /implement reads this file instead of receiving these values verbatim in its prompt — fixes the root cause of orchestrator context exhaustion. Helpers in server/implement_context/execution_context.py (Pydantic, extra='forbid') and .claude/hooks/lib/execution-context.mjs (read-only for hooks). 18 tests"
+      - "feat: context-budget-guard.mjs — PreToolUse(Task) hook estimating prompt tokens via chars/4 heuristic. Settings: specbox.implement.task_isolation.{task_budget_tokens=16000, task_budget_mode=warn|strict|off}. warn (default) emits stderr WARNING and exit 0; strict emits BLOCKED + exit 2 with actionable message ('move shared context to execution_context.json'). Bumps tasks_run_total / tasks_failed_budget counters in .quality/task_isolation.json. Token counter at lib/token-counter.mjs is zero-deps. 11 tests"
+      - "feat: file-ownership-guard.mjs — PreToolUse(Write/Edit) hook that validates the target path against the ownership of the active sub-agent (read from .quality/active_agent.json transient marker). Settings: specbox.implement.task_isolation.ownership_mode=warn|strict|off. Always blocks suspicious paths (../, /abs) regardless of mode. Unknown agent → fail-open WARNING. Suggests the correct owner when blocking ('Path supabase/migrations/01.sql is owned by AG-03'). Parser at lib/ownership-map.mjs reads .claude/skills/implement/file-ownership.md as source of truth (no JSON copy that would drift). Token-by-token glob → regex handles /**/ mid-pattern, leading/trailing **, single * and ? without crossing /. 23 tests"
+      - "feat: phase_outputs.jsonl — append-only structured delta per Task at .quality/evidence/{feature}/phase_outputs.jsonl. Schema: {schema_version, ts, phase, phase_index, agent, status, files_created/modified/deleted, summary, duration_s, tokens_used_*, healing_attempts, error}. Pydantic model with extra='forbid'. aggregate_for_spec_sync() collapses entries (deduped first-seen-order) for Spec-Code Sync. Zero-deps validator at .quality/scripts/validate-phase-outputs.mjs. Contract documented in doc/specs/phase-outputs-spec.md. 17 tests"
+      - "feat: SKILL.md /implement updated. New 'Working set (v5.32.0)' banner documenting the four evidence files. New Paso 0.4b writes execution_context.json. New Paso 5.0 'Protocolo de delegacion' is a reusable block applied before/after every Task(AG-XX): write active_agent.json, build prompt that points to execution_context.json (does NOT repeat branch/feature/stack in prose), spawn Task, delete active_agent.json, bump task_isolation counters. Paso 5.1.1b and 8.5.1a now consume aggregate_for_spec_sync(feature) instead of the orchestrator's in-memory implementation_deltas. Falls back to legacy git diff path when phase_outputs.jsonl is empty (compat)"
+      - "feat: heartbeat-sender.mjs adds task_isolation field AFTER the v5.31 Stitch Autopilot block (preserves handoff_present, context_pressure, stitch_quota intact). Best-effort: null when .quality/task_isolation.json is absent. Surface to Sala de Maquinas: enabled, tasks_run_total, tasks_failed_budget, tasks_failed_ownership, last_feature_slug, last_event_at"
+      - "feat: settings registered. file-ownership-guard.mjs in PreToolUse(Write) and PreToolUse(Edit) AFTER pipeline-phase-guard. context-budget-guard.mjs in PreToolUse(Task) — new matcher. settings.json validated."
+      - "decision: warn mode is the default for both new guards. Promotion to strict is a settings flip after 2 weeks of telemetry — not a code change."
+      - "decision: did NOT redesign /implement. The SKILL.md already documented Task delegation (lines 469-536, 496-506); v5.32 implements the 5 guardrails (G1-G5) that were missing for that contract to be mechanically forced and observable."
+      - "decision: healing keeps running inside the same Task that failed (no separate healing Task). Moving healing to its own isolated Task is deferred to v5.32.1 — minimalist first release."
+      - "compat: 100% backwards-compatible. The v1 hooks (quality-first-guard, healing-budget-guard, pipeline-phase-guard, stripe-safety-guard) keep running in Write/Edit. New guards run AFTER them. Legacy /implement runs without execution_context.json or phase_outputs.jsonl degrade gracefully — guards become no-ops, heartbeat field stays null. Spec-Code Sync falls back to git diff when phase_outputs.jsonl is empty."
+      - "tests: 69 new tests, all green. test_implement_context.py (18), test_phase_outputs.py (17), context-budget-guard.test.mjs (11), file-ownership-guard.test.mjs (23). Pre-existing failures on main (test_acceptance_check::test_registers_two_tools, test_spec_mutations / test_milestone_management TypeErrors documented in v5.29 changelog) unrelated and persist."
+
   5.31.1:
     date: 2026-05-02
     codename: "Stitch Autopilot — /plan migration"

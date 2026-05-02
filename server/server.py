@@ -45,6 +45,7 @@ from .app_docs.queue import register_queue_tools
 from .app_docs.canonical import register_canonical_tools
 from .app_docs.discovery import register_discovery_tools
 from .app_docs.migrate_freeform import register_freeform_migration_tools
+from .app_docs.migration_v529 import register_v529_migration_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -234,6 +235,11 @@ register_discovery_tools(mcp, ENGINE_PATH)
 # Inverse of migrate_project; downloads remote items+comments+attachments
 # to the local FreeForm directory. Validates absolute target_path (PR-1).
 register_freeform_migration_tools(mcp, ENGINE_PATH)
+
+# Register v5.28→v5.29 migration helpers (PR-9)
+# detect_v529_migration_case classifies a project into one of 10 hypothetical
+# states; run_v529_migration applies the narrow safe subset (settings only).
+register_v529_migration_tools(mcp, ENGINE_PATH)
 
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)

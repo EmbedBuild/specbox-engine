@@ -716,6 +716,10 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
             "last_operation": body.get("last_operation", "idle"),
             "last_commit": body.get("last_commit") or None,
             "last_commit_at": body.get("last_commit_at") or None,
+            # v5.30.0 — Session Continuity
+            "handoff_present": body.get("handoff_present", False),
+            "handoff_age_minutes": body.get("handoff_age_minutes"),
+            "context_pressure": body.get("context_pressure"),
         }
 
         _write_project_state(project_dir, state_data)

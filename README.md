@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v5.29.0 — "Cognitive Load Reduction"<br/>
+  v5.30.0 — "Session Continuity" (sobre v5.29 "Cognitive Load Reduction")<br/>
   <a href="#english-version">English version below</a>
 </p>
 

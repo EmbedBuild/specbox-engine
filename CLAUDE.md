@@ -1,4 +1,4 @@
-# SpecBox Engine v5.29.0
+# SpecBox Engine v5.30.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -289,7 +289,7 @@ El campo `context:` del frontmatter de un SKILL.md determina cómo el harness de
 
 **Test rápido** para confirmar que un skill funciona: ejecutar su slash command en una sesión nueva (los cambios en SKILL.md no afectan sesiones ya abiertas). Si el skill responde "espero tu solicitud" o falla con error de escritura, el frontmatter está mal.
 
-## Available Skills (v5.25)
+## Available Skills (v5.30)
 
 Skills are auto-discoverable. Claude will use them when relevant. You can also invoke them explicitly.
 
@@ -314,8 +314,9 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /stripe-connect | "stripe connect", "marketplace billing", "integrar pagos marketplace" | direct | Full | v5.25 — Marketplace Connect (Express + Direct charges + subscriptions embedded) + Supabase + React/Flutter |
 | /stripe-standard | "stripe standard", "stripe sin connect", "subscriptions saas", "billing saas", "monta pagos saas" | direct | Full | v5.27 — Stripe Standard (no Connect) + 4 modalidades (single/tiered/metered/one_shot) + Supabase + React/Flutter |
 | /stripe-switch-account | "switch stripe account", "rotar cuenta stripe", "cambiar cuenta stripe" | direct | Full | v5.27 — Stripe credentials rotation (alias store + switch_stripe_account tool, both Standard and Connect modes, dry-run + automatic rollback) |
+| /handoff | "handoff", "save state", "guarda contexto", "voy a hacer compactación" | direct | Read+Bash+Write | v5.30 — Persiste estado fino a `.quality/handoff.md` + Engram structured + heartbeat. **Llamar ANTES de proponer compactación**. |
 
-## Hooks (v5.25.0)
+## Hooks (v5.30.0)
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -342,6 +343,8 @@ Automatic enforcement — no need to remember running these manually:
 | **stripe-safety-guard** | PreToolUse (Write/Edit on billing paths) | **BLOCKING**: scans `src/billing/`, `lib/billing/`, `supabase/functions/stripe-*`. Blocks 5 anti-patterns: sk_live_* hardcoded, webhook sin firma, webhook sin idempotencia (`stripe_processed_events`), `redirectToCheckout`/`ui_mode:hosted`, Payment Links. Escape hatches: `// stripe-safety-guard:ignore` / `:disable-file`. v5.25 — scaffoldeado por `/stripe-connect`. |
 | checkpoint-freshness-guard | PostToolUse (git commit) | Non-blocking WARNING: warns if checkpoint is stale (>30min) or missing during active UC implementation. |
 | uc-lifecycle-guard | PostToolUse (git push) | Non-blocking WARNING: warns if pushing feature branch without calling move_uc (board out of sync). |
+| **session-start** | SessionStart | Non-blocking: injects `.quality/handoff.md` (if fresh), active UC + checkpoint, and auto zones from `app_spec.md` as `additionalContext` for the new session. Capped at 14k chars. v5.30. |
+| **pre-read-budget-guard** | PreToolUse (Read) | Non-blocking WARNING: estimates tokens for the file being read; warns if ≥ `specbox.context_budget.warn_pct` of the window (default 5% of 1M). v5.30. |
 
 ### Compliance Audit (v5.20.1)
 
@@ -450,6 +453,41 @@ Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP 
 - Context budget estimator: `.quality/scripts/context-budget.sh <path> [--detail]`
 - Session context metrics logged automatically via on-session-end hook
 - Full context engineering rules in `rules/GLOBAL_RULES.md` section "Context Engineering"
+
+## Session Continuity (v5.30.0)
+
+SpecBox provee persistencia de sesión más rica que la compactación nativa de Claude Code. Antes de proponer al usuario "compactar", "iniciar nueva sesión" o `/clear`:
+
+1. **Ejecutá `/handoff`** — persiste el estado fino de la sesión a `.quality/handoff.md` y a Engram como observación estructurada con topic `session:<project>:<branch>`.
+2. Confirmá al usuario que el handoff fue exitoso (validador: `node .quality/scripts/validate-handoff.mjs .quality/handoff.md`).
+3. Solo entonces, sugerí compactar/cerrar.
+
+La nueva sesión arranca con el handoff cargado vía hook `session-start.mjs`, que inyecta:
+- El contenido completo de `.quality/handoff.md` si existe y es < 24h ([FRESH]) o con marca [STALE] si es más viejo.
+- Si no hay handoff: UC activo + último checkpoint + zonas auto de `app_spec.md` (tracking_backend, autopilot, stack).
+- Output capeado a 14 000 caracteres (~3.5k tokens).
+
+**Cuándo es obligatorio el handoff**:
+- Antes de proponer compactación al usuario.
+- Antes de `/clear`.
+- Cuando hay UC activo (`.quality/active_uc.json` existe).
+- Cuando hay checkpoint < 30 min.
+
+**Cuándo es opcional**:
+- Cierre voluntario sin trabajo en progreso.
+- Sesiones puramente exploratorias.
+
+**Anti-pattern**: ejecutar `/handoff` en cada turno. Una vez por sesión (o antes de compactar) basta. El handoff es idempotente pero pesa contra el contexto.
+
+Componentes:
+- Skill: `.claude/skills/handoff/SKILL.md`
+- Builder: `.claude/hooks/lib/handoff-builder.mjs` (puro, testeable)
+- SessionStart hook: `.claude/hooks/session-start.mjs`
+- Validador: `.quality/scripts/validate-handoff.mjs`
+- Spec: `doc/specs/handoff-spec.md`
+- Pre-read budget guard: `.claude/hooks/pre-read-budget-guard.mjs` (warning no bloqueante para Read >5% de la ventana)
+
+Heartbeat enriquecido (v5.30.0) reporta `handoff_present`, `handoff_age_minutes` y `context_pressure` ({tokens_est, pct_of_window, level}). La Sala de Máquinas los expone en `/api/heartbeat`.
 
 ## Quality Scripts
 
@@ -1015,6 +1053,6 @@ Migration tooling para 10 casos hipotéticos (`detect_v529_migration_case`):
 
 ## Engine Version
 
-Current: v5.29.0 "Cognitive Load Reduction"
+Current: v5.30.0 "Session Continuity"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

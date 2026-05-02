@@ -24,6 +24,14 @@ from .execution_context import (
     update_last_updated,
     write_execution_context,
 )
+from .phase_outputs import (
+    PhaseOutput,
+    SpecSyncAggregate,
+    aggregate_for_spec_sync,
+    append_phase_output,
+    phase_outputs_path,
+    read_phase_outputs,
+)
 
 __all__ = [
     "SCHEMA_VERSION",
@@ -33,4 +41,11 @@ __all__ = [
     "read_execution_context",
     "update_last_updated",
     "write_execution_context",
+    # phase_outputs
+    "PhaseOutput",
+    "SpecSyncAggregate",
+    "aggregate_for_spec_sync",
+    "append_phase_output",
+    "phase_outputs_path",
+    "read_phase_outputs",
 ]

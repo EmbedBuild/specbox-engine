@@ -42,6 +42,36 @@ Autopilot de implementacion: lee un plan, crea rama, ejecuta todas las fases, ge
 
 ---
 
+## Paso 0.0 — Política de Autopilot v5.29.0
+
+**ANTES de cualquier otro paso**, llama a la tool MCP `get_inheritable_values_tool(project_path=".")` para conocer el `autopilot_level` del proyecto y los valores heredables desde `app_*.md`.
+
+Antes de cada gate o pregunta, llama a `evaluateDecision(decision_key, context)` desde `.claude/hooks/lib/autopilot.mjs`. Si retorna `auto`, aplica el default + log; si `ask`, pregunta como en v5.28; si `block`, bloquea con el mensaje del helper.
+
+| Pregunta / gate | decision_key | Default si auto |
+|-----------------|--------------|------------------|
+| Origen ambigüo (Paso 0.1, sin argumento) | `origin_detection` | `equilibrado`+: usar match único |
+| Uncommitted changes warning (Paso 0.2) | `uncommitted_changes_warning` | siempre `ask` |
+| Stitch design por pantalla (Paso 3) | `stitch_design_per_screen` | `conservador`+: auto si HTML existe |
+| Image cost ≤ presupuesto (Paso 3.5.0) | `image_cost_under_budget` | `equilibrado`+: auto cuando coste ≤ budget de `app_spec.md` sección 5 |
+| Image cost > presupuesto (Paso 3.5.0) | `image_cost_over_budget` | siempre `ask` (inviolable) |
+| Stitch API key faltante | `stitch_api_key_missing` | siempre `ask` |
+| Push directo a main | `branch_to_main_push` | siempre `block` (inviolable) |
+| Acciones destructivas (reset, force-push) | `destructive_action` | siempre `ask` (inviolable, además bloqueado por no-bypass-guard) |
+
+**Reglas inviolables**:
+- Image cost > presupuesto **nunca** auto-confirma. Para subir el límite, edita `app_spec.md` sección 5 → autopilot.
+- Push a main siempre bloqueado por hook `branch-guard.mjs` y `commit-spec-guard.mjs`. /implement no debe intentar bypassearlo.
+- Acceptance Validator (AG-09b) verdict ACCEPTED **no** se auto-confirma — eso es validación de calidad y vive aparte del autopilot.
+
+Tras cada auto-decisión visible al usuario:
+
+```
+ℹ️  Diseños Stitch existentes auto-confirmados (autopilot: equilibrado, decision_key: stitch_design_per_screen)
+```
+
+---
+
 ## Paso 0: Cargar y Validar Plan
 
 ### 0.1 Localizar el plan

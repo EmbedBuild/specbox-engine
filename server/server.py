@@ -40,6 +40,7 @@ from .tools.heartbeat_stats import register_heartbeat_stats_tools
 from .tools.stitch import register_stitch_tools
 from .tools.audit import register_audit_tools
 from .tools.app_docs import register_app_docs_tools
+from .app_docs.autopilot import register_autopilot_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -203,6 +204,12 @@ register_audit_tools(mcp, ENGINE_PATH, STATE_PATH)
 # Skills consult these in their Paso 0 to inherit project-level decisions
 # instead of asking the user repeatedly. See doc/plans/v5.29.0_*.md sección 2.
 register_app_docs_tools(mcp, ENGINE_PATH)
+
+# Register Autopilot evaluation tools (v5.29.0 PR-5 — policy engine for skills)
+# Skills consult evaluate_autopilot_decision before each gate to know whether
+# to ask, auto-confirm, or block. Mirrors the JS catalog in
+# .claude/hooks/lib/autopilot.mjs.
+register_autopilot_tools(mcp, ENGINE_PATH)
 
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)

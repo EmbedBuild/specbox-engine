@@ -2,6 +2,194 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.29.0] - 2026-05-02 — "Cognitive Load Reduction"
+
+Minor release diseñada para que un usuario pueda llevar **múltiples proyectos en paralelo** sin que el engine le interrumpa más de la cuenta. Baseline v5.28: ≥17 puntos de fricción por feature; v5.29 con preset `equilibrado`: ≤8. PRD y plan técnico completos en [doc/prds/cognitive_load_reduction_prd.md](doc/prds/cognitive_load_reduction_prd.md) y [doc/plans/v5.29.0_cognitive_load_reduction_plan.md](doc/plans/v5.29.0_cognitive_load_reduction_plan.md).
+
+### Added
+
+**Capa 1 — Documentos canónicos del proyecto** (`doc/app/`):
+- `app_prd.md` y `app_spec.md` con zonas tipadas: `manual` (solo usuario), `auto` (solo engine reescribe), `hybrid` (append-only). Marcadores HTML invisibles `<!-- @specbox:zone start kind="..." id="..." -->`.
+- Nueva skill `/app-init` (`context: direct`, idempotente) con 3 modos: `init` (5 preguntas mínimas), `refresh` (solo zonas auto), `upgrade-zones` (insertar marcadores en docs creados a mano con backup obligatorio).
+- Templates `templates/app_prd.md.template` y `templates/app_spec.md.template` con 6 zonas cada uno.
+- Parser `server/app_docs/zones.py`: `parse_document`, `validate_document`, `compute_signature` (SHA-256 sobre tuplas (id, kind, body) ordenadas, preamble-insensitive), `replace_zone_body` (rewrite seguro preservando marcadores).
+- Tools MCP `read_app_docs_tool` y `get_inheritable_values_tool` que `/prd`, `/plan`, `/visual-setup` consultan en su Paso 0 para heredar audiencia, stack, modo VEG, backend sin repreguntar.
+
+**Capa 2 — Autopilot policy engine**:
+- 4 tiers (`low` / `conservador` / `equilibrado` / `agresivo`) con 19 `decision_keys` catalogados (ver [doc/plans/v5.29.0_*.md](doc/plans/v5.29.0_cognitive_load_reduction_plan.md) sección 3).
+- Implementación dual-language: `.claude/hooks/lib/autopilot.mjs` (JS, hooks) + `server/app_docs/autopilot.py` (Python, MCP tools). Test de paridad asegura que ambos catálogos no derivan.
+- Reglas inviolables (no auto-confirman a ningún tier ni override): `image_cost_over_budget`, `destructive_action`, `branch_to_main_push` (este último siempre `block`, nunca `ask`).
+- Trazabilidad: cada auto-decisión escribe línea en `.quality/autopilot_decisions.jsonl` con timestamp, decision_key, level, valor, razón.
+- Config en `.claude/settings.local.json`: `specbox.autopilot.{level, image_budget_eur_per_feature, auto_confirm_overrides, always_ask_overrides, queue_enabled}`.
+
+**Capa 3 — Cola diferida** (off por defecto en v5.29.0, activa en v5.29.1):
+- `doc/app/decisions_queue.md` con secciones Pendientes / Resueltas. Cada entrada con `engine_id` único `dq-<utc>-<rand>-<key>`.
+- Nueva skill `/queue review` (`context: direct`) para resolver decisiones en batch (confirmar / ajustar / revertir / skip).
+- Tools MCP `enqueue_decision_tool`, `list_decisions_queue`, `resolve_queue_entry`.
+- Inviolables-for-queue: `destructive_action`, `image_cost_over_budget`, `branch_to_main_push`, `definition_quality_gate`, `feature_problem_definition`, `feedback_field_classification` (nunca aceptan diferimiento).
+
+**Capa 4 — Decisiones canónicas**:
+- Almacén local `.quality/canonical_decisions.json`. Tras 3 confirmaciones idénticas consecutivas, una decisión se promueve a canónica y se reutiliza sin preguntar.
+- Auto-invalida cuando el usuario elige un valor distinto (reason `user_chose_different_value`) y arranca un counter limpio.
+- Tools MCP `get_canonical_decision`, `record_canonical_confirmation`, `list_canonical_decisions`, `revoke_canonical_decision`.
+- Engram **no requerido**: el sistema funciona local-first; si Engram está disponible, los callers pueden además persistir cross-session con `topic_key="autopilot/{project}/{decision_key}"`.
+
+**Capa 5 — Sync enforcement** (modo warning-only en v5.29.0; flips a blocking en v5.29.1 vía `specbox.app_docs_sync.block_on_drift=true`):
+- Orquestador `server/app_docs/sync.py`: `verify_app_docs`, `apply_app_docs_sync(event, payload)`, `record_signature`. 12 events cableados al map `EVENT_ZONE_MAP`: `complete_uc`/`move_uc`/`add_uc`/`delete_uc`/`mark_ac_batch` → roadmap; `set_auth_token` → tracking_backend; `lockfile_change`/`framework_detected`/`release_version_bump` → stack; `autopilot_config_change` → autopilot; `canonical_decision_created`/`_revoked` → canonical_decisions.
+- Decorador `@requires_app_docs_sync(event_type, payload_extractor=, skip_when=)` en `server/app_docs/decorators.py` con built-in extractors para `set_auth_token`, eventos UC, eventos canonical. Strict-mode opt-in (`SPECBOX_APP_DOCS_STRICT_SYNC=true`) promueve fallos a top-level `ok=false`.
+- Hook pre-commit `.claude/hooks/app-docs-sync-guard.mjs`. Reimplementa el parser de zonas + signature en JS puro (sin dependencia Python en commit-time) — test de paridad byte-a-byte con la implementación Python. Skip cuando: no `doc/app/`, sin `.quality/app_docs_sync.lock`, o con `.quality/active_uc.json` activo (Caso 7 de la migración). Telemetría a `.quality/app_docs_drift.jsonl`.
+- Skill `/app-sync` con 4 subcomandos: `--check` (CI-friendly), `--repair` (auto-reconciliación con confirmación previa), `--review` (caso por caso interactivo), `--rebuild-from-tracking` (emergencia con literal `"RECONSTRUIR"` confirmation y backup obligatorio).
+- Drift detector multi-fuente `server/app_docs/drift_detector.py` con 4 signals para drift implícito que el hook por sí solo no captura: **S1** lockfiles presentes pero no declarados en `app_spec.md` zona `stack` (12 lockfiles conocidos), **S2** referencias a paths Markdown en `brand_visual` que no existen, **S3** roadmap dice `done` pero ningún UC para esa US está done en `doc/tracking/items.json` (FreeForm-only en v5.29.0), **S4** entrada activa en `canonical_decisions.json` no documentada en `app_spec.md` zona `canonical_decisions`.
+- Tools MCP `verify_app_docs`, `apply_app_docs_sync`, `record_app_docs_signature`, `detect_app_docs_drift`, `app_docs_drift_for_heartbeat` (compact summary para Sala de Máquinas).
+
+**FreeForm First-Class**:
+- `onboard_project` defaults a `backend_type="freeform"` cuando no se pide Trello/Plane explícitamente. Genera `settings.local.json` con bloque canónico `specbox.{backend_type, autopilot.level=equilibrado, freeform_root_absolute}`.
+- Auto-discovery `server/app_docs/discovery.py` con cadena de prioridad de 5 niveles: (1) `specbox.backend_type` explícito → (2) `doc/tracking/items.json` filesystem signal → (3) legacy `trello.boardId`/`plane.projectId` → (4) `app_spec.md` zona `tracking_backend` → (5) default `freeform`. Tool MCP `detect_project_backend`.
+- Migración Trello/Plane → FreeForm: `migrate_to_freeform_tool(project, target_path, dry_run=True)` descarga items + comments + attachment metadata al filesystem local con `config.json` y reporte Markdown bajo `doc/migrations/`. Valida path absoluto (BLOCKER fix). Inverse del `migrate_project` Trello↔Plane existente; código separado intencionalmente.
+
+**Migración v5.28 → v5.29**:
+- Tool `detect_v529_migration_case(project_path)` clasifica el proyecto en uno de 10 estados conocidos (empty / freeform-local / freeform-vps / trello / plane / multirepo / feature-in-progress / pending-feedback / manual-app-md / fresh-clone) y retorna un MigrationPlan con steps + severity + backup_required.
+- Tool `run_v529_migration(project_path, apply=False, backend_type="freeform")` aplica el subset seguro (solo `settings.local.json`). Casos sensibles (3 VPS, 7 active UC, 9 manual app_md) reportan como `mode: "deferred"` sin tocar nada — esos requieren intervención usuario via `/app-init` o pasos manuales.
+
+### Fixed
+
+**BLOCKER silencioso de FreeForm + remote MCP**:
+- Pre-v5.29: `set_auth_token(backend_type="freeform", root_path="doc/tracking")` con MCP en VPS resolvía el path relativo contra el CWD del proceso del VPS, no del cliente. Datos se escribían en el filesystem del VPS sin error visible.
+- Fix: `FreeformBackend.__init__` ahora exige path absoluto, lanza `FreeformPathError` si recibe relativo (con `allow_relative=True` como escape hatch para tests). `set_auth_token` detecta MCP remoto via env `SPECBOX_ENGINE_MCP_URL`, rechaza paths relativos en remote, y resuelve transparentemente en local.
+- Helper cliente `.claude/hooks/lib/freeform-path.mjs` con `resolveFreeformPath(p)` y `isRemoteMcp()` para que skills/hooks construyan el absoluto desde `git rev-parse --show-toplevel`.
+
+**Consolidación `src/` → `server/`** (deuda fósil eliminada):
+- Pre-v5.29 el repo cargaba un directorio `src/` bit-idéntico a `server/` pero gitignored desde v5.21.0. Sin script de sync; los tests importaban `from src.*` y un `git clone` limpio fallaba con `ModuleNotFoundError`. Sin CI = nadie lo notó.
+- 29 test files migrados de `from src.X` / `import src.X` / `patch("src.X")` a las rutas canónicas `server.X`. Línea `/src` eliminada de `.gitignore`. Directorio `src/` borrado.
+- `server/server.py:STATE_PATH.mkdir` ahora atrapa `OSError` para no abortar imports en filesystems read-only (deuda preexistente que destapó la consolidación). 501 tests collect en clone limpio post-fix.
+
+### Changed
+
+- `onboard_project` añade parámetros `backend_type: str = ""` y `freeform_root_absolute: str = ""`. Default = freeform cuando no se pasa `trello_board_name` (back-compat con scripts v5.28).
+- `/prd`, `/plan`, `/visual-setup` añaden bloque "Paso 0.0 — Leer documentos canónicos" que llama `get_inheritable_values_tool` antes de cualquier otra captura. Soft fallback a v5.28 cuando `doc/app/` no existe.
+- `/implement` añade "Paso 0.0 — Política de Autopilot" con tabla de 8 decision_keys aplicables (origin_detection, uncommitted_changes_warning, stitch_design_per_screen, image_cost_under_budget, image_cost_over_budget inviolable, stitch_api_key_missing, branch_to_main_push siempre block, destructive_action).
+- `/feedback` añade política autopilot mínima — `feedback_field_classification` y `destructive_action` (creación de GitHub issue) siempre `ask`.
+
+### Defaults v5.29.0
+
+- Backend: `freeform` (cuando no hay reporting externo a cliente).
+- Autopilot level: `equilibrado`.
+- Image budget: 5€/feature.
+- Cola diferida: `queue_enabled=false`.
+- Sync enforcement: `block_on_drift=false` (warning-only).
+
+### Backwards compatibility
+
+- 100% backwards-compatible: sin `doc/app/`, sin sección `autopilot`, sin `decisions_queue.md`, sin canonicals — el proyecto se comporta idéntico a v5.28.
+- Hooks v5.28 instalados siguen funcionando; los nuevos son aditivos.
+- Default implícito sin sección `autopilot`: `level=low` (= v5.28 ask-everything).
+
+### Tests
+
+- 222 tests nuevos verde (190 Python + 32 Node test runner). Distribución: BLOCKER fix (16), zonas (29), app_docs tools (10), autopilot Python (38), autopilot JS (32), cola diferida (12), canonicals (15), FreeForm first-class (9), migración v5.29 (18), sync orchestrator (13), decoradores (11), hook (7), drift detector (12).
+- Pre-existing failures unaffected (test_pdf_generator reportlab Python 3.14, test_server stale assertions del repo histórico, test_spec_mutations InMemoryBackend missing `archive_item`, test_milestone_management mismo issue).
+
+---
+
+## [5.28.0] - 2026-05-01 — "Maestro Flutter E2E"
+
+Minor release que añade **Maestro (mobile-dev-inc)** como runner E2E recomendado para Flutter Mobile, complementando a Patrol v4 que sigue soportado como ruta legacy.
+
+### Added
+
+**Stack adapter `architecture/flutter/maestro-setup.md`**:
+- Instalación, semantics (Flutter 3.19+ `Semantics.identifier` guidance), YAML flow examples con convención de naming `AC-XX_step_N_description` para screenshots, native dialog handling, troubleshooting.
+- Matriz "when to use Patrol instead": estado Dart-side (Provider, BLoC, GetIt singleton), mocks desde la app, suite Patrol estable existente sin ROI de migrar.
+
+**Post-processor `.quality/scripts/maestro-evidence-generator.js`**:
+- Parsea Maestro JUnit XML + screenshots y genera el mismo HTML Evidence Report y `results.json` que Patrol/Playwright. AG-09b no distingue el origen.
+- Contrato `results.json` extendido con `source="maestro-junit-xml"` (registrado en [doc/specs/results-json-spec.md](doc/specs/results-json-spec.md)). `validate-results-json.js` no requirió cambios — el campo `source` acepta strings libres.
+
+**Agent updates**:
+- `agents/acceptance-tester.md` — sección Flutter Mobile ahora ofrece Option A (Maestro, recomendado) y Option B (Patrol, legacy). Auto-invocation block 8.5 documenta ambos generators.
+- Template CI `templates/github-actions/maestro-e2e.yml` — Android emulator + iOS simulator, incluye Evidence Report generation y validación de contrato.
+
+**CLAUDE.md**: nueva sección "Maestro Flutter E2E (v5.28.0)" explicando rationale, when to choose Patrol, integration points, y limitaciones heredadas (CanvasKit web fragility, no desktop support, iOS solo inglés en diálogos sistema).
+
+### Notes
+
+- Flutter Web sigue en Playwright. Maestro web sobre CanvasKit es frágil (issue mobile-dev-inc/maestro#2591), mismo techo estructural — cambiar herramienta no resuelve el problema raíz.
+- Sin breaking changes. Proyectos Patrol existentes siguen funcionando. Migración a Maestro es opt-in por proyecto.
+
+---
+
+## [5.27.1] - 2026-04-29 — Patch (`specbox-stripe-mcp` SDK 7.x compat)
+
+Patch release para arreglar incompatibilidad silenciosa con stripe-python SDK 7.x en Python 3.14.
+
+### Fixed
+
+- **`specbox-stripe-mcp` v0.3.1**: `as_dict()` ahora prueba `to_dict()` (canónico SDK 7+) antes de `to_dict_recursive()` (legacy SDK ≤5). Stripe SDK 7.x renombró el método canónico de serialización a `to_dict()` y eliminó `to_dict_recursive()`. El `as_dict()` previo caía a `dict(StripeObject)` que retorna `{}` en Python 3.14 porque `StripeObject` no es estrictamente mapping-like. Resultado: cada tool recibía `{}` después de cada llamada API exitosa y crasheaba con `KeyError 'id'` en el siguiente `obj['id']`.
+- Bug confirmado reproduciendo `setup_products_and_prices` contra una cuenta `sk_test` real el 2026-04-29. Crash en `setup_products_and_prices.py:320` (`product['id']` dentro de `_reconcile_tier`) inmediatamente después de que `Product.create` retornara HTTP 200. Fix validado end-to-end: mismo script ahora succeeds e idempotente en re-run.
+
+### Tests
+
+- 10 tests nuevos en `tests/unit/test_stripe_object_sdk7.py` con un mock `StripeSdk7Object` que explícitamente NO tiene `to_dict_recursive` (replicando el shape real de SDK 7). Pre-fix code reproduce el mismo `KeyError 'id'`; código fixed pasa.
+- Combinado con los 15 tests existentes de `test_stripe_object_py314.py` (legacy SDK ≤5 path), el paquete cubre ambas eras del SDK.
+- 193 unit tests pasando (era 183), ruff clean. Backward-compat preservado — proyectos pinned a stripe SDKs legacy siguen funcionando vía el fallback `to_dict_recursive()`.
+
+---
+
+## [5.27.0] - 2026-04-28 — "Stripe Standard + Switch Account"
+
+Minor release con dos skills nuevas en el dominio billing: `/stripe-standard` (Stripe sin Connect) y `/stripe-switch-account` (rotación segura de credenciales).
+
+### Added
+
+**Skill `/stripe-standard`** (`context: direct`, scaffolder Stripe sin Connect):
+- 4 modalidades canónicas (flags opt-in): single subscription, tiered subscriptions, metered billing, one-shot checkout.
+- Genera US-STRIPE-CHECKOUT con hasta 12 UCs en el spec backend del proyecto.
+- Backend Edge Functions + SQL migrations con RLS, frontend templates con Payment Element/Sheet + Apple/Google Pay + Express Checkout.
+- Reutiliza el hook `stripe-safety-guard` de v5.25.
+- Stitch designs (si VEG configurado), events catalog, MCP wiring oficial Stripe.
+- Scope v1: Supabase únicamente; las 4 modalidades son flags así que el usuario opta in.
+
+**Skill `/stripe-switch-account`** (`context: direct`):
+- Rotación segura de credenciales Stripe. Wrapper UX sobre `switch_stripe_account` MCP tool.
+- Muestra alias store actual, pide from/to, ejecuta dry-run, formatea plan en Markdown, pide confirmación literal, ejecuta, surface runbook de rollback si falla.
+- Soporta `account_mode='standard'` (SaaS, e-commerce) y `'connect'` (marketplace).
+
+**`specbox-stripe-mcp` v0.3.0**:
+- Decoupled Connect-specific functionality — `setup_*` tools detectan account mode y se adaptan.
+- Alias store en `state.json` para gestionar múltiples cuentas Stripe del mismo proyecto.
+- Tool `switch_stripe_account` con dry-run + execute modes.
+
+### Notes
+
+- v0.3.0 backwards-compatible con proyectos onboardeados con v0.2.x — alias store se inicializa lazy.
+
+---
+
+## [5.26.0] - 2026-04-22 — "Supabase Edge Secrets"
+
+Minor release que cierra la última acción manual del flujo `/stripe-connect`: inyectar secrets en las Edge Functions del proyecto Supabase. Cubre un gap del MCP oficial de Supabase ([supabase-community/supabase-mcp#120](https://github.com/supabase-community/supabase-mcp/issues/120)).
+
+### Added
+
+**Paquete nuevo `packages/specbox-supabase-mcp/`** (Python + FastMCP + httpx wrapper de Supabase Management API):
+- Tool `set_edge_secret` — bulk POST `/v1/projects/{ref}/secrets`. Idempotente (GET previo para computar `previously_present`/`absent`). Valores **NUNCA** en logs ni Engram.
+- Tool `list_edge_secrets` — GET read-only. Devuelve nombres + `updated_at` (nunca valores). Si `expected_names`, computa `missing_names`/`extra_names`.
+- Tool `unset_edge_secret` — bulk DELETE con `confirm_token` literal. Pre-action Engram audit observation antes del DELETE.
+
+**Skill `/stripe-connect` Paso 9.5**:
+- Invoca `set_edge_secret` con los 4 secrets obtenidos de los pasos 9.5.2 previos.
+- Graceful degradation si el MCP no está registrado (fallback a copy-paste manual en dashboard).
+
+**CLAUDE.md**:
+- Nueva sección "SpecBox-Supabase MCP (v0.1 alpha)" documentando 3 tools H1, principios (idempotencia por existence-by-name, PAT redactado en logs como `sbp_****<last6>`, valores nunca persisten), integración con `/stripe-connect`, y referencias.
+
+### Notes
+
+- 91% test coverage. Reuso de `lib/response.py`, `lib/engram_writer.py`, `lib/heartbeat.py` vía copy-from-stripe (Opción A del PRD §6).
+- `base_url` para self-hosted Supabase parcialmente implementado (alpha) — refinamiento en v1.1.
+
+---
+
 ## [5.25.0] - 2026-04-17 — "Stripe Connect"
 
 Minor release introduciendo la primera skill operativa del dominio **billing**: `/stripe-connect` scaffoldea una integración Stripe Connect marketplace completa (Express + Direct charges + subscriptions embedded) en proyectos **Supabase + React/Flutter** en un único comando. PRD y plan técnico en [doc/prds/stripe_connect_skill_prd.md](doc/prds/stripe_connect_skill_prd.md) y [doc/plans/stripe_connect_skill_plan.md](doc/plans/stripe_connect_skill_plan.md).

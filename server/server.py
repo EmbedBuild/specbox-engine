@@ -1,7 +1,7 @@
 """
-SpecBox Engine MCP Server v5.23.0
+SpecBox Engine MCP Server v5.29.0
 
-Unified MCP endpoint: 138 tools (engine + spec-driven + mutations + milestones + board-ops + acceptance + migration + telemetry + stitch + quality-audit).
+Unified MCP endpoint: 158 tools (engine + spec-driven + mutations + milestones + board-ops + acceptance + migration + telemetry + stitch + quality-audit + app-docs sync layer).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
 
 Architecture:
@@ -85,7 +85,7 @@ except OSError:
 mcp = FastMCP(
     "specbox-engine",
     instructions="""
-    MCP server for the SpecBox Engine v5.23.0 — an agentic programming system for Claude Code.
+    MCP server for the SpecBox Engine v5.29.0 — an agentic programming system for Claude Code.
 
     Use these tools to:
     - Query implementation plans and their status

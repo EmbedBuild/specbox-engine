@@ -42,6 +42,7 @@ from .tools.audit import register_audit_tools
 from .tools.app_docs import register_app_docs_tools
 from .app_docs.autopilot import register_autopilot_tools
 from .app_docs.queue import register_queue_tools
+from .app_docs.canonical import register_canonical_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -216,6 +217,11 @@ register_autopilot_tools(mcp, ENGINE_PATH)
 # When autopilot.queue_enabled=true, deferrable gates accumulate here instead of
 # blocking the pipeline. The /queue review skill resolves them in batch.
 register_queue_tools(mcp, ENGINE_PATH)
+
+# Register Canonical Decisions store (v5.29.0 PR-7 — Capa 4)
+# After 3 consecutive identical confirmations, decisions get promoted to
+# canonicals and reused without asking. Local-first; mirrored in app_spec.md.
+register_canonical_tools(mcp, ENGINE_PATH)
 
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)

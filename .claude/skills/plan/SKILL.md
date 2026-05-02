@@ -27,6 +27,36 @@ Genera un plan de implementacion detallado con analisis de componentes UI.
 
 ---
 
+## Paso 0.0 — Leer documentos canónicos (v5.29.0)
+
+**ANTES de cualquier otro paso**, llama a la tool MCP:
+
+```
+get_inheritable_values_tool(project_path=".")
+```
+
+Devuelve un dict que indica qué decisiones de proyecto ya están definidas y son heredables, evitando repreguntar:
+
+| Flag | Si es `True`, NO preguntes |
+|------|------------------------------|
+| `stack_known` | Stack técnico para análisis de UI Components — usa `stack_text` |
+| `veg_mode_known` | Modo VEG (Paso 2.5b) — heredado de `app_spec.md` sección 3 |
+| `veg_archetype` | Arquetipo VEG ya elegido a nivel de proyecto |
+| `backend_type` | Backend tracking (freeform/trello/plane) — usa para decidir cómo guardar el plan |
+| `autopilot_level` | Nivel de autopilot — afecta a qué confirmaciones del Paso 2.5b se auto-aceptan |
+| `image_budget_eur_per_feature` | Presupuesto de imágenes — leído por el Paso 3.5.0 advertencia de costes |
+
+**Regla de oro**: si el valor del proyecto contradice algo que el usuario está pidiendo en esta feature, advierte explícitamente y pide confirmación antes de proceder. Si no hay contradicción, hereda silenciosamente.
+
+Si `read_app_docs_tool` retorna `has_app_spec=False`, continúa en modo legacy (preguntar todo) y al final del Paso 0 sugiere:
+
+```
+⚠️  Sin doc/app/app_spec.md, /plan opera en modo legacy. Considera /app-init
+   para evitar repreguntas en futuras features.
+```
+
+---
+
 ## Paso 0: Detectar Origen y Extraer Requisitos
 
 ```

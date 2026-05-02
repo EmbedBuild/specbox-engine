@@ -22,6 +22,38 @@ Genera un PRD (Product Requirements Document) y crea Work Items en Trello o Plan
 
 ---
 
+## Paso 0.0 — Leer documentos canónicos (v5.29.0)
+
+**ANTES de cualquier otro paso**, llama a la tool MCP:
+
+```
+get_inheritable_values_tool(project_path=".")
+```
+
+El resultado es un dict con flags y valores que indican qué decisiones de proyecto ya están definidas en `doc/app/app_prd.md` y `doc/app/app_spec.md`. Úsalo para **no repreguntar** lo que ya está respondido:
+
+| Flag | Si es `True`, NO preguntes |
+|------|------------------------------|
+| `audience_defined` | Audiencia / targets / ICPs (Paso 2.X de captura) — usa `audience_text` |
+| `scope_defined` | Perímetro v1/v2/nunca (Paso 2.Y) — heredado de app_prd.md sección 3 |
+| `veg_mode_known` | Modo VEG (uniforme/per_profile/per_icp) |
+| `stack_known` | Stack técnico — usa `stack_text` |
+| `backend_type` | Backend de tracking (freeform/trello/plane) |
+| `autopilot_level` | Nivel de autopilot |
+
+Solo captura **deltas específicos de la feature** que está pidiendo el usuario. La audiencia general del proyecto, el JTBD genérico, el tono — todo eso vive en `app_prd.md` y se hereda.
+
+**Si `read_app_docs_tool` retorna `has_app_prd=False`**, el proyecto aún no tiene documentos canónicos. Recomienda al usuario:
+
+```
+⚠️  No encuentro doc/app/. Considera ejecutar /app-init antes de /prd para
+   evitar repreguntas cross-feature. Procediendo en modo legacy...
+```
+
+Y continúa con el flujo v5.28 (preguntar todo) sin bloquear.
+
+---
+
 ## Paso 0: Detectar Modo y Origen
 
 ### 0.1 Detectar modo

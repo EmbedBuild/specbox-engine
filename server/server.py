@@ -39,6 +39,7 @@ from .tools.live_state import register_live_state_tools
 from .tools.heartbeat_stats import register_heartbeat_stats_tools
 from .tools.stitch import register_stitch_tools
 from .tools.audit import register_audit_tools
+from .tools.app_docs import register_app_docs_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -197,6 +198,11 @@ register_stitch_tools(mcp, STATE_PATH)
 # ISO/IEC 25010 (SQuaRE) v1 — on-demand audit with 8 characteristic analyzers,
 # ReportLab PDF (embed.build brand) + JSON schema v1.0, persisted under evidence/audits/.
 register_audit_tools(mcp, ENGINE_PATH, STATE_PATH)
+
+# Register App Docs tools (v5.29.0 — read canonical project docs)
+# Skills consult these in their Paso 0 to inherit project-level decisions
+# instead of asking the user repeatedly. See doc/plans/v5.29.0_*.md sección 2.
+register_app_docs_tools(mcp, ENGINE_PATH)
 
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)

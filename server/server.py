@@ -46,6 +46,7 @@ from .app_docs.canonical import register_canonical_tools
 from .app_docs.discovery import register_discovery_tools
 from .app_docs.migrate_freeform import register_freeform_migration_tools
 from .app_docs.migration_v529 import register_v529_migration_tools
+from .app_docs.sync import register_sync_tools as register_app_sync_tools
 from .resources.engine_resources import register_resources
 from .dashboard_api import register_dashboard_routes
 
@@ -240,6 +241,12 @@ register_freeform_migration_tools(mcp, ENGINE_PATH)
 # detect_v529_migration_case classifies a project into one of 10 hypothetical
 # states; run_v529_migration applies the narrow safe subset (settings only).
 register_v529_migration_tools(mcp, ENGINE_PATH)
+
+# Register app-docs sync orchestrator (v5.29.0 PR-11)
+# Provides verify_app_docs, apply_app_docs_sync, record_app_docs_signature
+# — the building blocks for the drift detector (PR-15) and the
+# transactional decorators on spec-mutation tools (PR-12).
+register_app_sync_tools(mcp, ENGINE_PATH)
 
 # Dashboard REST API + static files (La Sala de Máquinas)
 register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)

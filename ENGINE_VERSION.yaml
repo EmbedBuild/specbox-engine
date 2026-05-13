@@ -1,8 +1,8 @@
-version: 5.32.1
-codename: "Release Skill — README + CHANGELOG enforcement"
+version: 5.33.0
+codename: "FreeForm Path Safety"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-05-02
+release_date: 2026-05-13
 min_claude_code: "1.0.0"
 
 stacks:
@@ -367,8 +367,27 @@ features:
   - release-skill-changelog-step
   - version-consistency-validator
   - release-skill-pre-commit-check
+  # New (v5.33.0) — FreeForm Path Safety
+  - freeform-path-guard-hook
+  - freeform-path-auto-rewrite
+  - detect-local-root-path-tool
+  - app-init-handshake-protocol
+  - freeform-path-defense-in-depth
 
 changelog:
+  5.33.0:
+    date: 2026-05-13
+    codename: "FreeForm Path Safety"
+    changes:
+      - "feat: new PreToolUse hook .claude/hooks/freeform-path-guard.mjs that intercepts mcp__SpecBox-MCP__set_auth_token and mcp__SpecBox-MCP__onboard_project. When backend_type='freeform' and the FreeForm root path is relative (or the default 'doc/tracking' is implicit), the hook auto-rewrites it to an absolute path resolved against `git rev-parse --show-toplevel` via hookSpecificOutput.updatedInput. Exit 2 (block) only when the CWD is not a git repo and the path cannot be resolved unambiguously. Every rewrite is logged to .quality/logs/freeform-path-rewrites.jsonl for audit. Registered in settings.json under a new PreToolUse matcher 'mcp__SpecBox-MCP__(set_auth_token|onboard_project)' with 3s timeout"
+      - "feat: new MCP tool detect_local_root_path() in server/tools/onboarding.py. Read-only handshake that declares the FreeForm path-resolution contract — requires_absolute_path, default_relative_path, client_resolution_recipe (`git rev-parse --show-toplevel`), and the hook helper path. Serves as executable documentation for /app-init, claude.ai mobile clients, and external integrations that talk to the MCP without Claude Code hooks installed"
+      - "feat: /app-init SKILL.md Paso 2.3 reinforced. New 3-step handshake: (1) call detect_local_root_path() first to declare the contract, (2) resolve ABS_TRACKING from PROJECT_ROOT computed in Paso 1, (3) pass the absolute path to set_auth_token. Adds explicit note about the hook as defense in depth — the skill still passes the absolute explicitly, the hook is the safety net for non-Claude-Code clients"
+      - "decision: auto-rewrite silencioso preferred over block-with-message. The harness's PreToolUse protocol supports hookSpecificOutput.updatedInput (exit 0) to mutate tool args before the call, so the bug becomes mechanically impossible instead of a user-visible error. Server-side guard FREEFORM_PATH_MUST_BE_ABSOLUTE (v5.29.0) remains as last-resort defense"
+      - "decision: 3-layer defense kept additive — Layer 1 /app-init explicit, Layer 2 hook universal, Layer 3 server-side reject. Each layer is independent and reinforces the others without coupling. Removing any one layer does not unblock the bug while the others stand"
+      - "decision: hook covers both set_auth_token (root_path arg) and onboard_project (freeform_root_absolute arg), and also the implicit case where onboard_project is called with no backend_type AND no trello_board_name (engine defaults to freeform). Tested across 8 scenarios — relative path, absolute path, non-watched tool, trello backend, implicit freeform, empty default, non-git CWD block, audit log written"
+      - "compat: 100% backwards-compatible. Pre-v5.33 clients (no hook installed) keep hitting the v5.29 server-side guard with the same error message. New clients get the silent auto-rewrite. /app-init from v5.29-v5.32 keeps working — the SKILL change only adds the new handshake step, the legacy ABS_TRACKING=\\$(pwd)/doc/tracking pattern still produces the same absolute path"
+      - "out-of-scope: extending the hook to claude.ai mobile (different transport, no PreToolUse hook support today). Mobile clients still rely on the server-side guard until Anthropic adds equivalent hook support. detect_local_root_path() partially compensates by surfacing the contract via MCP discovery"
+
   5.32.1:
     date: 2026-05-02
     codename: "Release Skill — README + CHANGELOG enforcement"

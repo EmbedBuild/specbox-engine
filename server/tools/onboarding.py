@@ -368,6 +368,62 @@ def register_onboarding_tools(
 ):
 
     @mcp.tool
+    def detect_local_root_path() -> dict:
+        """Declare the FreeForm path-resolution contract for the calling client.
+
+        Returns the rules a Claude Code client must follow when configuring a
+        FreeForm tracking backend. Because the MCP server may run remotely
+        (on a VPS), it cannot observe the client's working directory: any
+        relative path the client sends would be resolved against the server's
+        own CWD and the tracking folder would land on the wrong filesystem.
+
+        The contract surfaced here is the single source of truth used by:
+          - the /app-init skill (Paso 1.5),
+          - the freeform-path-guard PreToolUse hook (auto-rewrites relative
+            paths to absolute via `git rev-parse --show-toplevel`),
+          - the server-side FreeformBackend guard
+            (rejects relative paths when SPECBOX_ENGINE_MCP_URL is set).
+
+        Use this as a read-only handshake before calling set_auth_token or
+        onboard_project with backend_type='freeform'. The tool does not
+        write anywhere; it only reports the rules the caller must obey.
+
+        Returns:
+            dict with:
+              is_remote_mcp: bool — whether SPECBOX_ENGINE_MCP_URL is set
+                on the SERVER process. Note: the client must check the same
+                env var on its own side; the two values can differ.
+              requires_absolute_path: bool — always True when the server
+                is remote. True is the safest default and is what the
+                client should assume.
+              default_relative_path: str — the conventional relative path
+                ("doc/tracking") that should be resolved against the
+                client's git toplevel.
+              client_resolution_recipe: str — exact shell command the
+                client should run to compute the absolute path.
+              hook_helper: str — path to the JS helper that already
+                implements this logic for Claude Code clients.
+        """
+        import os
+
+        return {
+            "is_remote_mcp": bool(os.environ.get("SPECBOX_ENGINE_MCP_URL", "").strip()),
+            "requires_absolute_path": True,
+            "default_relative_path": "doc/tracking",
+            "client_resolution_recipe": (
+                'ABS_TRACKING="$(git rev-parse --show-toplevel)/doc/tracking"'
+            ),
+            "hook_helper": ".claude/hooks/lib/freeform-path.mjs",
+            "summary": (
+                "FreeForm tracking paths must be absolute on the client "
+                "filesystem. Resolve 'doc/tracking' against `git rev-parse "
+                "--show-toplevel` before calling set_auth_token or "
+                "onboard_project. The freeform-path-guard hook does this "
+                "automatically when invoked from Claude Code."
+            ),
+        }
+
+    @mcp.tool
     def detect_project_stack(project_path: str) -> dict:
         """Detect the technology stack and infrastructure of a project without modifying anything.
         Args:

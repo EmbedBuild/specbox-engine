@@ -1,8 +1,8 @@
-# SpecBox Engine v5.32.1
+# SpecBox Engine v5.33.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (163 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010.
+> Monorepo unificado: engine + MCP server (164 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010.
 
 ## Que es este repositorio
 
@@ -15,7 +15,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (158 tools) + Sala de Máquinas dashboard (React 19)
+- **Server** — MCP server unificado (159 tools) + Sala de Máquinas dashboard (React 19)
 - **Quality Audit** — ISO/IEC 25010 (SQuaRE) on-demand via `/audit` + AG-10 auditor externo
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
@@ -203,7 +203,7 @@ specbox-engine/
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
 ├── server/                ← MCP server unificado (v5.23)
-│   ├── server.py          ← FastMCP (158 tools)
+│   ├── server.py          ← FastMCP (159 tools)
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
@@ -221,7 +221,7 @@ specbox-engine/
 │   │   ├── persistence.py      ← Evidence under evidence/audits/ + project_meta
 │   │   ├── analyzers/          ← 8 SQuaRE analyzers (one per characteristic)
 │   │   └── reporters/          ← JSON + ReportLab PDF (NumberedCanvas + embed.build brand)
-│   ├── tools/             ← 24 tool modules (158 tools)
+│   ├── tools/             ← 24 tool modules (159 tools)
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
 │   │   ├── quality.py     ← 4 tools
@@ -229,7 +229,7 @@ specbox-engine/
 │   │   ├── features.py    ← 6 tools
 │   │   ├── telemetry.py   ← 6 tools
 │   │   ├── hooks.py       ← 3 tools
-│   │   ├── onboarding.py  ← 10 tools (detect, status, list, onboard, upgrade, upgrade_all, matrix, wizard, visual_gap, archive)
+│   │   ├── onboarding.py  ← 11 tools (detect_local_root_path, detect, status, list, onboard, upgrade, upgrade_all, matrix, wizard, visual_gap, archive)
 │   │   ├── state.py       ← 17 tools
 │   │   ├── spec_driven.py ← 21 tools (backend-agnostic via SpecBackend)
 │   │   ├── spec_mutations.py ← 8 tools (v5.23.0 Tier 1: update_uc/us/ac, add_ac/uc, delete_ac + batch variants)
@@ -316,7 +316,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /stripe-switch-account | "switch stripe account", "rotar cuenta stripe", "cambiar cuenta stripe" | direct | Full | v5.27 — Stripe credentials rotation (alias store + switch_stripe_account tool, both Standard and Connect modes, dry-run + automatic rollback) |
 | /handoff | "handoff", "save state", "guarda contexto", "voy a hacer compactación" | direct | Read+Bash+Write | v5.30 — Persiste estado fino a `.quality/handoff.md` + Engram structured + heartbeat. **Llamar ANTES de proponer compactación**. |
 
-## Hooks (v5.31.0)
+## Hooks (v5.33.0)
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -346,6 +346,7 @@ Automatic enforcement — no need to remember running these manually:
 | **session-start** | SessionStart | Non-blocking: injects `.quality/handoff.md` (if fresh), active UC + checkpoint, and auto zones from `app_spec.md` as `additionalContext` for the new session. Capped at 14k chars. v5.30. |
 | **pre-read-budget-guard** | PreToolUse (Read) | Non-blocking WARNING: estimates tokens for the file being read; warns if ≥ `specbox.context_budget.warn_pct` of the window (default 5% of 1M). v5.30. |
 | **stitch-quota-guard** | PreToolUse (mcp__SpecBox-MCP__stitch_*) | WARNING ≥80% PRO/Flash; **BLOCKING** when PRO is exhausted AND `flash_safety_net=false`. Reads cached quota from `.quality/stitch_quota.json` (written by `get_stitch_quota_status`). No-op when no cache. v5.31. |
+| **freeform-path-guard** | PreToolUse (mcp__SpecBox-MCP__set_auth_token, mcp__SpecBox-MCP__onboard_project) | Auto-rewrites relative FreeForm `root_path` / `freeform_root_absolute` to an absolute path resolved against `git rev-parse --show-toplevel` via `hookSpecificOutput.updatedInput`. Covers the implicit-default case (`onboard_project` with no `backend_type` AND no `trello_board_name`). **BLOCKING** (exit 2) only when CWD is not a git repo and resolution is ambiguous. Logs every rewrite to `.quality/logs/freeform-path-rewrites.jsonl`. Defense in depth on top of the v5.29 server-side guard. v5.33. |
 
 ### Compliance Audit (v5.20.1)
 
@@ -1143,6 +1144,13 @@ Pre-v5.29 había un bug crítico silencioso: `set_auth_token(backend_type='freef
 - En `set_auth_token`, resuelve paths relativos contra el server CWD solo cuando MCP es local (sin `SPECBOX_ENGINE_MCP_URL`). Con MCP remoto, exige path absoluto del cliente.
 - Helper cliente `.claude/hooks/lib/freeform-path.mjs` calcula el absoluto desde `git rev-parse --show-toplevel`.
 
+**v5.33.0 — Defense in depth**: la rama 1 (`/app-init` resuelve el absoluto explícitamente) ya estaba en v5.29. v5.33 añade dos capas más para clientes que no pasan por `/app-init`:
+
+- **Hook universal `.claude/hooks/freeform-path-guard.mjs`** (PreToolUse) intercepta `mcp__SpecBox-MCP__set_auth_token` y `mcp__SpecBox-MCP__onboard_project`. Si el path es relativo (o si la default `"doc/tracking"` queda implícita), el hook lo reescribe al absoluto del repo cliente via `hookSpecificOutput.updatedInput` antes de que la llamada salga al MCP. Auto-rewrite silencioso, no bloquea. Bloquea exit 2 solo cuando el CWD no es git y la resolución es ambigua. Audit trail en `.quality/logs/freeform-path-rewrites.jsonl`.
+- **Tool MCP `detect_local_root_path()`** declara el contrato (requires_absolute_path, default_relative_path, client_resolution_recipe). Read-only, sirve a `/app-init`, claude.ai mobile y integraciones externas como documentación ejecutable.
+
+Las 3 capas son aditivas e independientes. Removerla cualquiera no desbloquea el bug mientras las otras estén en pie.
+
 Migration tooling para 10 casos hipotéticos (`detect_v529_migration_case`):
 
 | Case | Estado del proyecto | Acción |
@@ -1224,6 +1232,6 @@ documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
 
 ## Engine Version
 
-Current: v5.32.1 "Release Skill — README + CHANGELOG enforcement"
+Current: v5.33.0 "FreeForm Path Safety"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

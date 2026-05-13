@@ -94,11 +94,17 @@ Ejecuta esta detección antes de hacer nada:
 
 Si la pregunta 5 = `[a] FreeForm`:
 
-1. Crea `doc/tracking/` (relativo al repo) y resuélvelo a absoluto:
+1. **Handshake con el MCP** — llama primero a `detect_local_root_path()`. La
+   tool devuelve el contrato: `requires_absolute_path: true`,
+   `default_relative_path: "doc/tracking"` y la receta exacta para resolver
+   el absoluto del lado cliente. No escribe nada; solo declara las reglas.
+2. **Resolver al absoluto local** — usar `PROJECT_ROOT` calculado en el
+   Paso 1 (`git rev-parse --show-toplevel`):
    ```bash
-   ABS_TRACKING="$(pwd)/doc/tracking"
+   ABS_TRACKING="$PROJECT_ROOT/doc/tracking"
    ```
-2. Llama a la tool MCP `set_auth_token`:
+   Crear `doc/tracking/` en disco (si no existe) bajo esa ruta.
+3. Llamar a la tool MCP `set_auth_token` con la ruta absoluta:
    ```
    set_auth_token(
      api_key="freeform",
@@ -107,7 +113,17 @@ Si la pregunta 5 = `[a] FreeForm`:
      root_path=ABS_TRACKING  # ¡absoluto, requerido por v5.29!
    )
    ```
-3. Llama a `setup_board(board_name=PROJECT_NAME)` para inicializar la estructura.
+4. Llamar a `setup_board(board_name=PROJECT_NAME)` para inicializar la
+   estructura.
+
+> **Defensa en profundidad (v5.33+)**: aunque por error se llamase a
+> `set_auth_token` u `onboard_project` con una ruta relativa, el hook
+> `freeform-path-guard.mjs` la reescribe automáticamente al absoluto
+> del repo del cliente antes de que la llamada llegue al MCP, y deja
+> traza en `.quality/logs/freeform-path-rewrites.jsonl`. Aun así,
+> `/app-init` debe pasar el absoluto explícito — el hook es red de
+> seguridad para clientes externos (claude.ai mobile, integraciones,
+> otros skills), no licencia para descuidar el contrato.
 
 ### 2.4 — Asegurar `.claude/settings.local.json`
 

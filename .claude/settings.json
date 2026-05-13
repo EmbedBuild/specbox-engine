@@ -119,6 +119,16 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "matcher": "mcp__SpecBox-MCP__(set_auth_token|onboard_project)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/freeform-path-guard.mjs",
+            "timeout": 3
+          }
+        ]
       }
     ],
     "PostToolUse": [

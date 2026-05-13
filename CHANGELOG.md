@@ -2,6 +2,102 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.33.0] - 2026-05-13 — "FreeForm Path Safety"
+
+Convierte el BLOCKER de v5.29 (FreeForm + MCP remoto escribiendo el tracking en
+el VPS) en un bug mecánicamente imposible. v5.29 ya tenía el server-side guard
+(`FREEFORM_PATH_MUST_BE_ABSOLUTE`) y la skill `/app-init` resolvía el absoluto
+explícitamente, pero cualquier cliente que llamara a `set_auth_token` u
+`onboard_project` por fuera de la skill (claude.ai mobile, integraciones
+externas, otros skills) seguía siendo vulnerable: el server tiraba error y el
+usuario tenía que copiar/pegar el path absoluto a mano. v5.33 añade dos capas
+más para que el path llegue auto-resuelto al MCP, no para que muera ahí.
+
+### Added
+
+- **`.claude/hooks/freeform-path-guard.mjs`** — nuevo hook PreToolUse que
+  intercepta `mcp__SpecBox-MCP__set_auth_token` y
+  `mcp__SpecBox-MCP__onboard_project`. Cuando `backend_type='freeform'` y el
+  path es relativo (o la default `"doc/tracking"` queda implícita), el hook
+  reescribe el argumento al absoluto del repo cliente via
+  `git rev-parse --show-toplevel` usando el protocolo nativo del harness
+  (`hookSpecificOutput.updatedInput`, exit 0). Cubre el caso implícito donde
+  `onboard_project` se llama sin `backend_type` AND sin `trello_board_name`
+  (engine defaults a freeform). Bloquea con exit 2 solo cuando el CWD no es
+  git y la resolución sería ambigua. Cada reescritura queda en
+  `.quality/logs/freeform-path-rewrites.jsonl` para audit trail.
+- **`detect_local_root_path()`** — nueva tool MCP read-only en
+  `server/tools/onboarding.py`. Declara el contrato:
+  `requires_absolute_path`, `default_relative_path`,
+  `client_resolution_recipe` (la receta exacta de shell), `hook_helper`
+  (path al helper JS). Sirve a `/app-init`, claude.ai mobile e integraciones
+  externas como documentación ejecutable del protocolo de path resolution.
+- **`/app-init` Paso 2.3 reforzado** — 3-step handshake: (1) llamar
+  primero a `detect_local_root_path()` para declarar el contrato, (2)
+  resolver `ABS_TRACKING` desde `PROJECT_ROOT` computado en Paso 1, (3)
+  pasar el absoluto explícito a `set_auth_token`. Nota nueva sobre el hook
+  como defensa en profundidad — la skill sigue pasando el absoluto, el
+  hook es red de seguridad para clientes que no usan la skill.
+
+### Changed
+
+- **`.claude/settings.json`** — nuevo matcher en PreToolUse
+  `mcp__SpecBox-MCP__(set_auth_token|onboard_project)` que invoca
+  `freeform-path-guard.mjs` con timeout 3s.
+- **`CLAUDE.md`** — header bumpeado a v5.33.0, sección "Hooks" añade fila
+  para `freeform-path-guard`, sección "BLOCKER fix: FreeForm + remote MCP"
+  añade párrafo "Defense in depth" documentando las 3 capas aditivas.
+  Tools count actualizado en 4 lugares (163→164 total, 158→159 server.py,
+  10→11 onboarding.py).
+
+### Decisions
+
+- **Auto-rewrite silencioso > block-with-message.** El protocolo PreToolUse
+  del harness soporta `hookSpecificOutput.updatedInput` (exit 0) para
+  mutar argumentos antes de la llamada, así que el bug se vuelve
+  mecánicamente imposible en lugar de generar un error visible que el
+  usuario tiene que arreglar manualmente. El server-side guard
+  `FREEFORM_PATH_MUST_BE_ABSOLUTE` de v5.29 sigue activo como última red.
+- **3 capas aditivas e independientes.** Capa 1 (`/app-init` explícita) +
+  Capa 2 (hook universal) + Capa 3 (server-side reject). Cada capa
+  refuerza a las otras sin acoplarse. Quitar cualquiera no desbloquea el
+  bug mientras las otras estén en pie.
+- **Hook cubre las 2 tools + caso implícito.** Tanto `set_auth_token`
+  (arg `root_path`) como `onboard_project` (arg `freeform_root_absolute`),
+  y también `onboard_project` sin `backend_type` AND sin
+  `trello_board_name` donde el engine cae a freeform por default. 8
+  escenarios probados.
+
+### Compatibility
+
+- 100% backwards-compatible. Clientes pre-v5.33 sin el hook instalado
+  siguen hitting el server-side guard de v5.29 con el mismo error
+  message. Clientes nuevos con el hook obtienen auto-rewrite silencioso.
+  La skill `/app-init` de v5.29-v5.32 sigue funcionando — el cambio en
+  SKILL.md solo añade el handshake nuevo, el patrón legacy
+  `ABS_TRACKING=$(pwd)/doc/tracking` sigue produciendo el mismo absoluto.
+
+### Out of scope
+
+- Extender el hook a claude.ai mobile (transport distinto, hoy sin
+  soporte de PreToolUse hooks). Mobile sigue dependiendo del server-side
+  guard hasta que Anthropic añada soporte equivalente.
+  `detect_local_root_path()` compensa parcialmente surfaceando el
+  contrato via MCP discovery.
+
+### Tests
+
+- 8 smoke tests del hook ejecutados manualmente vía stdin simulado:
+  relativo → reescribe ✅, absoluto → no-op ✅, tool no watched →
+  no-op ✅, trello backend → no-op ✅, `onboard_project` implicit
+  freeform → reescribe + stampea `backend_type` ✅, root vacío → reescribe
+  al canónico ✅, no-git CWD → bloquea exit 2 ✅, log JSONL escrito ✅.
+- Sintaxis validada: `node --check freeform-path-guard.mjs` ✅,
+  `ast.parse(onboarding.py)` ✅, `json.load(settings.json)` ✅.
+- Pre-existing failures en `main` (test_acceptance_check, test_spec_mutations,
+  test_milestone_management, test_pdf_generator) documentados desde v5.29
+  permanecen y son ortogonales a esta release.
+
 ## [5.32.1] - 2026-05-02 — "Release Skill — README + CHANGELOG enforcement"
 
 Convierte la regla "README + CHANGELOG en cada bump" en un guardrail mecánico

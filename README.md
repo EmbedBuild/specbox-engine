@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v5.32.1 — "Release Skill — README + CHANGELOG enforcement" (sobre v5.32.0 "Implement Task Isolation")<br/>
+  v5.33.0 — "FreeForm Path Safety" (sobre v5.32.1 "Release Skill — README + CHANGELOG enforcement")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,18 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v5.33
+
+**v5.33.0 — "FreeForm Path Safety"** convierte el BLOCKER de v5.29 (FreeForm + MCP remoto escribiendo en el VPS) en un bug mecánicamente imposible. v5.29 ya lo resolvía a nivel `/app-init` y server-side; v5.33 añade dos capas más para cubrir clientes que no pasan por la skill:
+
+- **Hook universal `freeform-path-guard.mjs`** — PreToolUse intercepta `set_auth_token` y `onboard_project`. Si el path es relativo (o `doc/tracking` queda implícito), lo reescribe al absoluto del repo via `git rev-parse --show-toplevel` antes de que la llamada salga al MCP. Auto-rewrite silencioso vía `hookSpecificOutput.updatedInput`. Audit trail en `.quality/logs/freeform-path-rewrites.jsonl`.
+- **Tool MCP `detect_local_root_path()`** — read-only handshake que declara el contrato (requires_absolute_path, client_resolution_recipe). Sirve a `/app-init`, claude.ai mobile e integraciones externas como documentación ejecutable.
+- **`/app-init` Paso 2.3 reforzado** — 3-step handshake: handshake con la tool del contrato, resolución explícita desde PROJECT_ROOT, pasa absoluto a `set_auth_token`. El hook queda como red de seguridad para clientes que no usan la skill.
+
+3 capas aditivas e independientes. Remover cualquiera no desbloquea el bug mientras las otras estén en pie. 100% backwards-compatible — clientes pre-v5.33 sin el hook siguen hitting el server-side guard de v5.29.
 
 ---
 
@@ -316,7 +328,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v5.32.1 — "Release Skill — README + CHANGELOG enforcement" (over v5.32.0 "Implement Task Isolation")
+> v5.33.0 — "FreeForm Path Safety" (over v5.32.1 "Release Skill — README + CHANGELOG enforcement")
 
 ## What is this?
 
@@ -328,6 +340,18 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v5.33
+
+**v5.33.0 — "FreeForm Path Safety"** turns the v5.29 BLOCKER (FreeForm + remote MCP writing the tracking folder on the VPS) into a mechanically impossible bug. v5.29 fixed it at the `/app-init` and server-side levels; v5.33 adds two more layers covering clients that don't go through the skill:
+
+- **Universal hook `freeform-path-guard.mjs`** — PreToolUse intercepts `set_auth_token` and `onboard_project`. If the path is relative (or `doc/tracking` is the implicit default), it auto-rewrites to the absolute repo path via `git rev-parse --show-toplevel` before the call reaches the MCP. Silent auto-rewrite via `hookSpecificOutput.updatedInput`. Audit trail at `.quality/logs/freeform-path-rewrites.jsonl`.
+- **MCP tool `detect_local_root_path()`** — read-only handshake declaring the contract (requires_absolute_path, client_resolution_recipe). Serves `/app-init`, claude.ai mobile, and external integrations as executable documentation.
+- **`/app-init` Paso 2.3 reinforced** — 3-step handshake: call the contract tool, resolve from PROJECT_ROOT explicitly, pass absolute to `set_auth_token`. The hook remains as safety net for clients that don't use the skill.
+
+3 additive, independent layers. Removing any one does not unblock the bug while the others stand. 100% backwards-compatible — pre-v5.33 clients without the hook still hit the v5.29 server-side guard.
+
+---
 
 ## What's new in v5.32
 

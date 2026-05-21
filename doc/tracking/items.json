@@ -3,7 +3,7 @@
     "id": "item-82a63201",
     "name": "[US-NATIVE-BACKEND] SpecBox para equipos sobre Postgres nativo",
     "description": "Como equipo de desarrolladores que usa SpecBox sobre la misma app, quiero un backend centralizado con identidad y coordinacion de UCs, para trabajar en paralelo sin pisarnos las US/UC ni colisionar branches. Alcance v1 = H1+H2+H3 (Modo A: Postgres interno en VPS, solo el MCP tiene credenciales).",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": null,
     "labels": [
       "US"
@@ -20,7 +20,7 @@
     "id": "item-33bc7652",
     "name": "[UC-101] Implementar NativeBackend sobre el SpecBackend ABC",
     "description": "",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -90,7 +90,7 @@
     "id": "item-159c330e",
     "name": "[UC-102] Esquema Postgres multi-tenant",
     "description": "",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -161,7 +161,7 @@
     "id": "item-9dc3f457",
     "name": "[UC-103] Seleccion de backend Nativo opt-in por proyecto",
     "description": "",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -231,7 +231,7 @@
     "id": "item-3009cba1",
     "name": "[UC-201] Modelo de developer y token",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -250,7 +250,7 @@
     "id": "ac-84df3502",
     "name": "[AC-10] Tabla developers con developer_id (estable, PK), display_name y token_hash; tokens hasheados, nunca en claro (verificado: la columna no contiene el token literal).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-3009cba1",
     "labels": [
       "AC"
@@ -258,7 +258,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-10",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398170+00:00"
   },
@@ -266,7 +267,7 @@
     "id": "ac-d30c624e",
     "name": "[AC-11] Un dev declara su token en settings.local.json (specbox.native.token); el cliente MCP lo adjunta en cada llamada y el token nunca se escribe en logs del server (verificado grepeando logs).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-3009cba1",
     "labels": [
       "AC"
@@ -274,7 +275,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-11",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398173+00:00"
   },
@@ -282,7 +284,7 @@
     "id": "item-9f50e538",
     "name": "[UC-202] Autenticacion y autorizacion en el MCP (Frontera 1)",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -301,7 +303,7 @@
     "id": "ac-45d55143",
     "name": "[AC-12] Una llamada a tool del backend Nativo sin token valido es rechazada con UNAUTHENTICATED y no toca Postgres.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-9f50e538",
     "labels": [
       "AC"
@@ -309,7 +311,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-12",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398178+00:00"
   },
@@ -317,7 +320,7 @@
     "id": "ac-67ce65ab",
     "name": "[AC-13] Token valido pero a proyecto no asociado -> FORBIDDEN; al proyecto correcto procede.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-9f50e538",
     "labels": [
       "AC"
@@ -325,7 +328,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-13",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398181+00:00"
   },
@@ -333,7 +337,7 @@
     "id": "ac-e10885c9",
     "name": "[AC-14] La credencial de servicio de Postgres (Frontera 2) se lee solo de la env del VPS; no aparece en ninguna respuesta de tool ni en settings.local.json de ningun dev.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-9f50e538",
     "labels": [
       "AC"
@@ -341,7 +345,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-14",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398183+00:00"
   },
@@ -349,7 +354,7 @@
     "id": "item-0547015f",
     "name": "[UC-203] Tool whoami",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -368,7 +373,7 @@
     "id": "ac-2793a2bc",
     "name": "[AC-15] whoami() devuelve developer_id y display_name resueltos desde el token; con token invalido devuelve UNAUTHENTICATED sin filtrar si el dev existe.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-0547015f",
     "labels": [
       "AC"
@@ -376,7 +381,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-15",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398188+00:00"
   },
@@ -384,7 +390,7 @@
     "id": "item-4eea23e6",
     "name": "[UC-301] Tabla de claims con exclusion mutua",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -403,7 +409,7 @@
     "id": "ac-4d34fb5f",
     "name": "[AC-16] Tabla uc_claims con constraint UNIQUE(uc_id); dos claim_uc concurrentes sobre el mismo UC -> exactamente un claim concedido y uno rechazado con ALREADY_CLAIMED.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-4eea23e6",
     "labels": [
       "AC"
@@ -411,7 +417,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-16",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398193+00:00"
   },
@@ -419,7 +426,7 @@
     "id": "ac-3a0d2c2a",
     "name": "[AC-17] release_uc(uc_id) solo lo ejecuta el dueno del claim; ajeno -> NOT_CLAIM_OWNER y el claim permanece.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-4eea23e6",
     "labels": [
       "AC"
@@ -427,7 +434,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-17",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398196+00:00"
   },
@@ -435,7 +443,7 @@
     "id": "item-5d063811",
     "name": "[UC-302] start_uc consulta claims",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -454,7 +462,7 @@
     "id": "ac-a5500f1b",
     "name": "[AC-18] start_uc sobre UC sin claim crea el claim a nombre del dev y pasa el UC a in_progress en la misma transaccion (sin claim huerfano si falla el cambio de estado).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-5d063811",
     "labels": [
       "AC"
@@ -462,7 +470,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-18",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398201+00:00"
   },
@@ -470,7 +479,7 @@
     "id": "ac-949334a1",
     "name": "[AC-19] start_uc sobre UC ya reclamado por otro dev devuelve conflicto con owner, claimed_at y branch.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-5d063811",
     "labels": [
       "AC"
@@ -478,7 +487,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-19",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398204+00:00"
   },
@@ -486,7 +496,7 @@
     "id": "item-1e9b6e49",
     "name": "[UC-303] find_next_uc excluye reclamados",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -505,7 +515,7 @@
     "id": "ac-a72c5b50",
     "name": "[AC-20] find_next_uc sobre backend Nativo no devuelve UCs con claim activo de otro dev; con dos devs y dos UCs disponibles, cada find_next_uc simultaneo devuelve UCs distintos.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-1e9b6e49",
     "labels": [
       "AC"
@@ -513,7 +523,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-20",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398209+00:00"
   },
@@ -521,7 +532,7 @@
     "id": "item-4a1a33fa",
     "name": "[UC-304] active_uc.json como cache + branch_registry",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -540,7 +551,7 @@
     "id": "ac-fac21fa0",
     "name": "[AC-21] Tras start_uc, .quality/active_uc.json se escribe local con referencia al claim remoto (uc_id, developer_id, claimed_at); se trata como cache y spec-guard.mjs lo acepta offline.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-4a1a33fa",
     "labels": [
       "AC"
@@ -548,7 +559,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-21",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398214+00:00"
   },
@@ -556,7 +568,7 @@
     "id": "ac-322476ae",
     "name": "[AC-22] Con red, spec-guard.mjs revalida el claim contra el MCP antes de permitir escribir codigo; si el claim ya no es del dev, bloquea con mensaje que indica el conflicto.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-4a1a33fa",
     "labels": [
       "AC"
@@ -564,7 +576,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-22",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398216+00:00"
   },
@@ -572,7 +585,7 @@
     "id": "ac-95a4cf81",
     "name": "[AC-23] branch_registry registra (project_id, uc_id, branch, dev); registrar un branch con nombre ya usado por otro dev para otro UC es rechazado, y el naming sugerido incluye el uc_id (feature/{uc_id}-{slug}).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-4a1a33fa",
     "labels": [
       "AC"
@@ -580,7 +593,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-23",
-      "tipo": "AC"
+      "tipo": "AC",
+      "done": true
     },
     "created_at": "2026-05-21T19:59:28.398219+00:00"
   }

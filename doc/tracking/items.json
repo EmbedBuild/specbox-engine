@@ -602,7 +602,7 @@
     "id": "item-4b62f295",
     "name": "[US-NATIVE-SUPABASE] Migrar el Native Backend de Postgres-VPS a Supabase gestionado",
     "description": "Como mantenedor de SpecBox, quiero que el Native Backend use una instancia Supabase gestionada (proyecto SpecBox-DataBase, ref nywjsvumsvxlpflpbord, Postgres 17, eu-west-3) en lugar del Postgres self-hosted del VPS, para externalizar backups/parches/monitorizacion y ganar pooler + dashboard, sin reescribir la identidad de developers (UC-201) ni romper los demas backends (Trello/Plane/FreeForm). Decisiones: conexion via Supabase Pooler transaction-mode (6543, statement_cache_size=0); migraciones via Supabase CLI/apply_migration; identidad propia intacta.",
-    "state": "in_progress",
+    "state": "done",
     "parent_id": null,
     "labels": [
       "US"
@@ -619,7 +619,7 @@
     "id": "item-ad3a2c23",
     "name": "[UC-401] Conexion asyncpg al Supabase Pooler (transaction-mode)",
     "description": "Repuntar server/db/pool.py al Supabase Pooler en transaction-mode. El DSN sigue entrando SOLO por SPECBOX_NATIVE_DSN (Frontera 2 intacta). Resolver el gotcha de PgBouncer transaction-mode con asyncpg y forzar SSL.",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-4b62f295",
     "labels": [
       "UC"
@@ -705,7 +705,7 @@
     "id": "item-b08d4390",
     "name": "[UC-402] Schema sobre las migraciones nativas de Supabase (CLI/apply_migration)",
     "description": "Migrar el esquema 0001-0003 (projects, user_stories, use_cases, acceptance_criteria, developers, project_members, uc_claims, branch_registry) al sistema de migraciones de Supabase con ledger supabase_migrations, en lugar del runner casero migrate.py. Las migraciones quedan versionadas y rastreables en el dashboard.",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-4b62f295",
     "labels": [
       "UC"
@@ -791,7 +791,7 @@
     "id": "item-f8f4efff",
     "name": "[UC-403] RLS y policies sobre las tablas public (silenciar advisors)",
     "description": "Activar Row Level Security en todas las tablas del Native Backend en el schema public y definir policies. Aunque el MCP accede con service_role (que ignora RLS), el advisor de seguridad de Supabase marca como critico cualquier tabla public sin RLS. Cerrar ese gap.",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-4b62f295",
     "labels": [
       "UC"
@@ -860,7 +860,7 @@
     "id": "item-3c98b967",
     "name": "[UC-404] Gestion y rotacion de la credencial Supabase (Frontera 2)",
     "description": "Definir donde vive el DSN del Pooler de Supabase en VPS y CI, como se rota, y como se distingue de la antigua credencial del Postgres-VPS. La credencial es el service-role/DB password de Supabase. Incluye el runbook de retirada del Postgres viejo.",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-4b62f295",
     "labels": [
       "UC"
@@ -929,7 +929,7 @@
     "id": "item-6b5c152c",
     "name": "[UC-405] Dev local y suite de conformidad contra Supabase",
     "description": "Adaptar el flujo de desarrollo y la suite de conformidad parametrizada (test_native_backend_conformance.py, test_native_schema.py, test_native_dispatch.py) para que corran contra Supabase (rama de base de datos efimera o stack local de Supabase) sin romper el path no-DB de CI que hoy skipea limpio.",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-4b62f295",
     "labels": [
       "UC"
@@ -947,7 +947,7 @@
     "id": "ac-49870090",
     "name": "[AC-38] Con SPECBOX_NATIVE_DSN apuntando a una base Supabase (branch DB efimera o supabase start local), la suite test_native_backend_conformance.py corre el parametro 'native' (no skipea) y pasa en verde, incluido el round-trip optimistic-version (AC-03).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-6b5c152c",
     "labels": [
       "AC"
@@ -956,7 +956,7 @@
     "meta": {
       "ac_id": "AC-38",
       "tipo": "AC",
-      "done": false
+      "done": true
     },
     "created_at": "2026-05-21T22:07:15.622820+00:00"
   },

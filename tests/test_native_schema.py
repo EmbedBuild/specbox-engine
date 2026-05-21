@@ -17,8 +17,6 @@ machines without a database stay green instead of hanging or hard-failing.
 
 from __future__ import annotations
 
-import asyncio
-import os
 import uuid
 
 import asyncpg
@@ -27,43 +25,14 @@ import pytest
 from server.db.migrate import apply_migrations
 from server.db.pool import close_pool, init_pool
 
-# ── Module-level skip guard ──────────────────────────────────────────────
-# Frontier 2: the DSN is normally env-only. For tests we honour an explicit
-# override and fall back to the documented dev DSN (docker-compose.dev.yml).
-_DEV_DSN = "postgresql://specbox:specbox_dev_only@localhost:55432/specbox_native"
-DSN = os.environ.get("SPECBOX_NATIVE_DSN", _DEV_DSN)
+# ── Module-level skip guard (shared, TLS-aware — UC-405) ──────────────────
+# DSN + probe live in tests/_native_db.py so Supabase TLS handling is applied
+# consistently across native test modules [AC-38, AC-39].
+from tests._native_db import DSN, reachable
 
-
-def _probe(dsn: str) -> None:
-    """Confirm Postgres is reachable, in a throwaway event loop.
-
-    Runs at import time. We build a dedicated loop and tear it down fully so
-    we never leave a closed loop as the asyncio default — that would poison
-    the pool created later under pytest-asyncio's own loop (Python 3.14).
-    """
-
-    async def _connect() -> None:
-        conn = await asyncio.wait_for(asyncpg.connect(dsn), timeout=2.0)
-        try:
-            await conn.execute("SELECT 1")
-        finally:
-            await conn.close()
-
-    loop = asyncio.new_event_loop()
-    try:
-        loop.run_until_complete(_connect())
-    finally:
-        loop.close()
-        asyncio.set_event_loop(None)
-
-
-try:
-    _probe(DSN)
-except Exception as exc:  # noqa: BLE001 — any failure means "no DB", just skip
-    pytest.skip(
-        f"dev Postgres not reachable ({exc!r}); run docker compose -f docker-compose.dev.yml up -d",
-        allow_module_level=True,
-    )
+_ok, _reason = reachable()
+if not _ok:
+    pytest.skip(_reason, allow_module_level=True)
 
 
 # ── Fixture: pool + migrations, with per-test row cleanup ────────────────

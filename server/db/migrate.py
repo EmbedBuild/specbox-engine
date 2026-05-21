@@ -1,10 +1,24 @@
 """Idempotent migration runner for the SpecBox NativeBackend (UC-102).
 
+DEPRECATED FOR PRODUCTION (UC-402) [AC-31]
+==========================================
+Production runs on a managed Supabase Postgres, and the **source of truth for
+the schema is the Supabase migration ledger** (``supabase/migrations/*.sql``,
+applied via ``supabase db push`` / the ``apply_migration`` MCP tool and tracked
+in ``supabase_migrations.schema_migrations``). Do NOT run this runner against
+the production Supabase database — that would create a second, divergent source
+of truth.
+
+This runner is retained ONLY for **local dev and tests**: it lets the
+conformance suite spin a throwaway Postgres (docker-compose.dev.yml) or a
+Supabase branch DB up to the same schema without invoking the Supabase CLI. The
+``server/db/migrations/*.sql`` files it reads are kept byte-for-byte in sync
+with ``supabase/migrations/*.sql``.
+
 Applies every ``*.sql`` file under a migrations directory in lexical order.
 The migrations themselves are written to be re-appliable (CREATE TABLE/INDEX
-IF NOT EXISTS), so :func:`apply_migrations` is safe to call repeatedly — there
-is no separate ledger table in UC-102 scope; idempotency is a property of the
-SQL [AC-04].
+IF NOT EXISTS), so :func:`apply_migrations` is safe to call repeatedly —
+idempotency is a property of the SQL [AC-04, AC-29].
 
 Accepts either an asyncpg ``Pool`` or a single ``Connection`` so callers and
 tests can run migrations against whatever handle they hold.

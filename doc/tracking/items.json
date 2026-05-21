@@ -161,7 +161,7 @@
     "id": "item-9dc3f457",
     "name": "[UC-103] Seleccion de backend Nativo opt-in por proyecto",
     "description": "",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -180,7 +180,7 @@
     "id": "ac-b31765c3",
     "name": "[AC-07] set_auth_token(backend_type='native') registra el proyecto contra Postgres; detect_project_backend devuelve 'native' cuando specbox.backend_type='native' esta en settings.local.json, con prioridad sobre senales de filesystem.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-9dc3f457",
     "labels": [
       "AC"
@@ -188,7 +188,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-07",
-      "tipo": "AC"
+      "tipo": "AC",
+      "evidence": "tests/test_native_dispatch.py: resolución + store + detect native."
     },
     "created_at": "2026-05-21T19:59:28.398160+00:00"
   },
@@ -196,7 +197,7 @@
     "id": "ac-236dbfa7",
     "name": "[AC-08] Con backend Nativo, import_spec persiste US/UC/AC en Postgres y list_us/list_uc la recuperan identica (round-trip campo a campo).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-9dc3f457",
     "labels": [
       "AC"
@@ -204,7 +205,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-08",
-      "tipo": "AC"
+      "tipo": "AC",
+      "evidence": "test_round_trip_us_uc_ac: import/list idéntico vía sesión native."
     },
     "created_at": "2026-05-21T19:59:28.398163+00:00"
   },
@@ -212,7 +214,7 @@
     "id": "ac-7cba765b",
     "name": "[AC-09] Un proyecto Trello/Plane/FreeForm sigue funcionando sin cambios cuando NativeBackend esta disponible (suite de regresion de los 3 backends en verde).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-9dc3f457",
     "labels": [
       "AC"
@@ -220,7 +222,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-09",
-      "tipo": "AC"
+      "tipo": "AC",
+      "evidence": "test_*_still_resolves: freeform/plane/trello sin regresión."
     },
     "created_at": "2026-05-21T19:59:28.398165+00:00"
   },

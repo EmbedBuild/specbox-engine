@@ -20,6 +20,12 @@ RUN apt-get update \
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir .
 
+# Cache-bust: bump this ARG (or pass --build-arg CACHEBUST=$(date)) to force a
+# fresh recopy of all engine content + server code below. Needed because some
+# CI/PaaS builders (e.g. EasyPanel) reuse a stale :latest image and skip the
+# COPY cache-key re-evaluation, leaving an old engine version baked in.
+ARG CACHEBUST=2026-05-22-v5.33.0
+
 # Copy engine content
 COPY ENGINE_VERSION.yaml CLAUDE.md install.sh ./
 COPY .claude/ .claude/

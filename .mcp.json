@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "SpecBox-MCP": {
+      "type": "stdio",
+      "command": "/Users/jesusperezsanchez/Desktop/Proyectos/0_jps_iautomat/jpsdeveloper/specbox-engine/.venv/bin/specbox-engine",
+      "args": [],
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "STATE_PATH": "/Users/jesusperezsanchez/Desktop/Proyectos/0_jps_iautomat/jpsdeveloper/specbox-engine/.quality/specbox-state"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "US": {
+    "id": "lbl-f1889402",
+    "name": "US",
+    "color": "#3B82F6"
+  },
+  "UC": {
+    "id": "lbl-dc5707e6",
+    "name": "UC",
+    "color": "#22C55E"
+  },
+  "AC": {
+    "id": "lbl-7b3bd5ed",
+    "name": "AC",
+    "color": "#A855F7"
+  },
+  "Infra": {
+    "id": "lbl-2dbead7c",
+    "name": "Infra",
+    "color": "#EAB308"
+  },
+  "Bloqueado": {
+    "id": "lbl-b82812de",
+    "name": "Bloqueado",
+    "color": "#EF4444"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "project": "specbox-engine",
+  "backend_type": "freeform",
+  "board_id": "ff-ed0c02f4565a",
+  "freeform_root_absolute": "/Users/jesusperezsanchez/Desktop/Proyectos/0_jps_iautomat/jpsdeveloper/specbox-engine/doc/tracking",
+  "stack": "python",
+  "autopilot": {
+    "level": "equilibrado",
+    "image_budget_eur_per_feature": 5
+  }
+}

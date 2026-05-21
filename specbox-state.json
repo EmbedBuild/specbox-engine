@@ -1,6 +1,6 @@
 {
   "project": "specbox-engine",
-  "timestamp": "2026-05-19T07:21:40Z",
+  "timestamp": "2026-05-21T19:52:33Z",
   "session_active": true,
   "current_phase": "",
   "current_feature": "",
@@ -11,12 +11,12 @@
   "healing_health": "healthy",
   "self_healing_events": 0,
   "last_operation": "idle",
-  "last_commit": "feat: v5.33.0 FreeForm Path Safety — auto-rewrite hook + detect_local_root_path tool (#25)",
-  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)T87dda718733fd361ae9dfd0e6be14e00383d5e72:%M:HEADZ",
+  "last_commit": "pre native backend",
+  "last_commit_at": "%Y->- (HEAD -> main)Tad9d31207e15988d189ba96c271502cc90ce7275:%M:HEADZ",
   "handoff_present": true,
-  "handoff_age_minutes": 23508,
+  "handoff_age_minutes": 27139,
   "context_pressure": {
-    "tokens_est": 190,
+    "tokens_est": 2799,
     "pct_of_window": 0,
     "level": "healthy"
   },

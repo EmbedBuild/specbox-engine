@@ -1,0 +1,12 @@
+{
+  "feature": "uc-101-native-backend-abc",
+  "has_ui": false,
+  "has_db": true,
+  "completed_phases": [
+    "stitch_designs",
+    "design_to_code",
+    "db_infra"
+  ],
+  "current_phase": "tests",
+  "last_updated": "2026-05-21T20:48:36Z"
+}

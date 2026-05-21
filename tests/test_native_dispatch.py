@@ -22,14 +22,11 @@ test E touches Postgres and is gated by the module-level reachability probe
 
 from __future__ import annotations
 
-import asyncio
 import json
-import os
 import uuid
 from pathlib import Path
 from unittest.mock import AsyncMock
 
-import asyncpg
 import pytest
 
 from server.auth_gateway import (
@@ -42,6 +39,9 @@ from server.backends.freeform_backend import FreeformBackend
 from server.backends.native_backend import NativeBackend
 from server.backends.plane_backend import PlaneBackend
 from server.backends.trello_backend import TrelloBackend
+# DSN + reachability probe live in tests/_native_db.py so Supabase TLS handling
+# is applied consistently across native test modules [AC-38, AC-39].
+from tests._native_db import DSN, reachable
 
 
 def _mock_ctx(state_map: dict[str, object]) -> AsyncMock:
@@ -178,39 +178,10 @@ class TestNoRegression:
 
 # ── E) AC-08 native session round-trip [needs PG — SKIP if unreachable] ──
 #
-# Module-level reachability probe (mirrors tests/test_native_schema.py). The
-# class below is only meaningful with a live dev Postgres; we gate it with a
-# class-level skip flag computed once so the no-DB CI path stays green.
-
-_DEV_DSN = "postgresql://specbox:specbox_dev_only@localhost:55432/specbox_native"
-DSN = os.environ.get("SPECBOX_NATIVE_DSN", _DEV_DSN)
-
-
-def _probe(dsn: str) -> None:
-    """Confirm Postgres is reachable in a throwaway event loop (import-time)."""
-
-    async def _connect() -> None:
-        conn = await asyncio.wait_for(asyncpg.connect(dsn), timeout=2.0)
-        try:
-            await conn.execute("SELECT 1")
-        finally:
-            await conn.close()
-
-    loop = asyncio.new_event_loop()
-    try:
-        loop.run_until_complete(_connect())
-    finally:
-        loop.close()
-        asyncio.set_event_loop(None)
-
-
-try:
-    _probe(DSN)
-    _PG_REACHABLE = True
-    _PG_SKIP_REASON = ""
-except Exception as exc:  # noqa: BLE001 — any failure means "no DB", just skip
-    _PG_REACHABLE = False
-    _PG_SKIP_REASON = f"dev Postgres not reachable ({exc!r}); run docker compose -f docker-compose.dev.yml up -d"
+# The class below is only meaningful with a live DB; we gate it with a
+# class-level skip flag computed once so the no-DB CI path stays green
+# [AC-38, AC-39]. DSN + probe come from tests/_native_db (imported at top).
+_PG_REACHABLE, _PG_SKIP_REASON = reachable()
 
 
 class StatefulCtx:

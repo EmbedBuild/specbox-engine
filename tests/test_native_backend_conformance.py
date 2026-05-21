@@ -28,7 +28,6 @@ module-level reachability probe mirrors ``test_native_schema.py``.
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 from collections.abc import AsyncIterator
 
@@ -40,41 +39,12 @@ from server.backends.native_backend import NativeBackend, StaleVersionError
 from server.db.migrate import apply_migrations
 from server.db.pool import close_pool, init_pool
 
-# ── Module-level reachability probe (mirrors test_native_schema.py) ───────
-_DEV_DSN = "postgresql://specbox:specbox_dev_only@localhost:55432/specbox_native"
-DSN = os.environ.get("SPECBOX_NATIVE_DSN", _DEV_DSN)
+# ── Module-level reachability probe (shared, TLS-aware — UC-405) ──────────
+# DSN + probe live in tests/_native_db.py so Supabase TLS handling is applied
+# consistently across all native test modules [AC-38, AC-39].
+from tests._native_db import DSN, reachable
 
-
-def _probe(dsn: str) -> None:
-    """Confirm Postgres is reachable, in a throwaway event loop.
-
-    Runs at import time in a dedicated loop that is fully torn down so we never
-    leave a closed loop as the asyncio default (which would poison the pool
-    created later under pytest-asyncio's own loop).
-    """
-
-    async def _connect() -> None:
-        conn = await asyncio.wait_for(asyncpg.connect(dsn), timeout=2.0)
-        try:
-            await conn.execute("SELECT 1")
-        finally:
-            await conn.close()
-
-    loop = asyncio.new_event_loop()
-    try:
-        loop.run_until_complete(_connect())
-    finally:
-        loop.close()
-        asyncio.set_event_loop(None)
-
-
-try:
-    _probe(DSN)
-    PG_OK = True
-    PG_SKIP_REASON = ""
-except Exception as exc:  # noqa: BLE001 — any failure means "no DB", just skip
-    PG_OK = False
-    PG_SKIP_REASON = f"dev Postgres not reachable ({exc!r}); run docker compose -f docker-compose.dev.yml up -d"
+PG_OK, PG_SKIP_REASON = reachable()
 
 
 def _unique_pid(tag: str) -> str:

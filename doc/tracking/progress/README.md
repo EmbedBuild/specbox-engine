@@ -7,6 +7,7 @@
 | US | Nombre | Estado | UCs Done | UCs Total | % |
 |-----|--------|--------|----------|-----------|---|
 | US-NATIVE-BACKEND | [US-NATIVE-BACKEND] SpecBox para equipos sobre Postgres nativo | Done | 10 | 10 | 100% |
+| US-NATIVE-SUPABASE | [US-NATIVE-SUPABASE] Migrar el Native Backend de Postgres-VPS a Supabase gestionado | In Progress | 0 | 5 | 0% |
 
 ## Use Cases
 
@@ -22,3 +23,8 @@
 | UC-302 | US-NATIVE-BACKEND | Done | 2 | 2 | 100% |
 | UC-303 | US-NATIVE-BACKEND | Done | 1 | 1 | 100% |
 | UC-304 | US-NATIVE-BACKEND | Done | 3 | 3 | 100% |
+| UC-401 | US-NATIVE-SUPABASE | Review | 4 | 4 | 100% |
+| UC-402 | US-NATIVE-SUPABASE | Review | 4 | 4 | 100% |
+| UC-403 | US-NATIVE-SUPABASE | Review | 3 | 3 | 100% |
+| UC-404 | US-NATIVE-SUPABASE | Review | 3 | 3 | 100% |
+| UC-405 | US-NATIVE-SUPABASE | Review | 2 | 3 | 67% |

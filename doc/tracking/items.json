@@ -597,5 +597,401 @@
       "done": true
     },
     "created_at": "2026-05-21T19:59:28.398219+00:00"
+  },
+  {
+    "id": "item-4b62f295",
+    "name": "[US-NATIVE-SUPABASE] Migrar el Native Backend de Postgres-VPS a Supabase gestionado",
+    "description": "Como mantenedor de SpecBox, quiero que el Native Backend use una instancia Supabase gestionada (proyecto SpecBox-DataBase, ref nywjsvumsvxlpflpbord, Postgres 17, eu-west-3) en lugar del Postgres self-hosted del VPS, para externalizar backups/parches/monitorizacion y ganar pooler + dashboard, sin reescribir la identidad de developers (UC-201) ni romper los demas backends (Trello/Plane/FreeForm). Decisiones: conexion via Supabase Pooler transaction-mode (6543, statement_cache_size=0); migraciones via Supabase CLI/apply_migration; identidad propia intacta.",
+    "state": "in_progress",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "meta": {
+      "us_id": "US-NATIVE-SUPABASE",
+      "tipo": "US",
+      "horas": "34"
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "item-ad3a2c23",
+    "name": "[UC-401] Conexion asyncpg al Supabase Pooler (transaction-mode)",
+    "description": "Repuntar server/db/pool.py al Supabase Pooler en transaction-mode. El DSN sigue entrando SOLO por SPECBOX_NATIVE_DSN (Frontera 2 intacta). Resolver el gotcha de PgBouncer transaction-mode con asyncpg y forzar SSL.",
+    "state": "review",
+    "parent_id": "item-4b62f295",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-401",
+      "us_id": "US-NATIVE-SUPABASE",
+      "tipo": "UC",
+      "horas": "8"
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-f0b6e866",
+    "name": "[AC-24] init_pool/create_pool pasa statement_cache_size=0 a asyncpg; un round-trip de escritura+lectura US/UC contra el Pooler (puerto 6543) no lanza 'prepared statement already exists' ni DuplicatePreparedStatementError tras 2 llamadas consecutivas con el mismo SQL.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-ad3a2c23",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-24",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-7d8b6e2d",
+    "name": "[AC-25] La conexion exige TLS: el DSN incluye sslmode=require (o equivalente) y un intento sin SSL es rechazado; el handshake contra db.nywjsvumsvxlpflpbord.supabase.co se completa.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-ad3a2c23",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-25",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-66e7a2d3",
+    "name": "[AC-26] SPECBOX_NATIVE_DSN sigue siendo la UNICA fuente de la credencial: pool.py no acepta el DSN por argumento de tool ni por config de sesion (salvo el override de tests ya existente), y el DSN nunca aparece en logs ni en mensajes de error.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-ad3a2c23",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-26",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-a77f59e0",
+    "name": "[AC-27] Los limites del pool (min/max_size) se ajustan al limite de conexiones del plan del Pooler; con max_size por encima del limite, el arranque o el primer acquire falla con un error claro que nombra el limite, no un timeout opaco.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-ad3a2c23",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-27",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "item-b08d4390",
+    "name": "[UC-402] Schema sobre las migraciones nativas de Supabase (CLI/apply_migration)",
+    "description": "Migrar el esquema 0001-0003 (projects, user_stories, use_cases, acceptance_criteria, developers, project_members, uc_claims, branch_registry) al sistema de migraciones de Supabase con ledger supabase_migrations, en lugar del runner casero migrate.py. Las migraciones quedan versionadas y rastreables en el dashboard.",
+    "state": "review",
+    "parent_id": "item-4b62f295",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-402",
+      "us_id": "US-NATIVE-SUPABASE",
+      "tipo": "UC",
+      "horas": "9"
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-567086f9",
+    "name": "[AC-28] El esquema completo (0001-0003) se aplica al proyecto Supabase via apply_migration / supabase db push y queda registrado en el ledger supabase_migrations; list_migrations devuelve las 3 (o sus equivalentes) con su nombre versionado.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-b08d4390",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-28",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-851f2cbd",
+    "name": "[AC-29] Re-aplicar las migraciones es idempotente: una segunda pasada no falla ni duplica tablas (CREATE ... IF NOT EXISTS se conserva) y el ledger no registra entradas duplicadas para la misma version.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-b08d4390",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-29",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-3fb98461",
+    "name": "[AC-30] Tras aplicar, list_tables('public') sobre el proyecto Supabase devuelve projects, user_stories, use_cases, acceptance_criteria, developers, project_members, uc_claims y branch_registry con las columnas y FKs definidas (incluida version INTEGER en US/UC/AC).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-b08d4390",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-30",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-a6a75526",
+    "name": "[AC-31] El runner casero migrate.py queda deprecado o restringido a entorno local/tests: la documentacion (CLAUDE.md / plan) indica explicitamente que produccion usa migraciones Supabase, evitando dos fuentes de verdad del schema.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-b08d4390",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-31",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "item-f8f4efff",
+    "name": "[UC-403] RLS y policies sobre las tablas public (silenciar advisors)",
+    "description": "Activar Row Level Security en todas las tablas del Native Backend en el schema public y definir policies. Aunque el MCP accede con service_role (que ignora RLS), el advisor de seguridad de Supabase marca como critico cualquier tabla public sin RLS. Cerrar ese gap.",
+    "state": "review",
+    "parent_id": "item-4b62f295",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-403",
+      "us_id": "US-NATIVE-SUPABASE",
+      "tipo": "UC",
+      "horas": "6"
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-ac489e47",
+    "name": "[AC-32] ALTER TABLE ... ENABLE ROW LEVEL SECURITY esta aplicado a las 8 tablas del Native Backend; get_advisors(type='security') no devuelve hallazgos de severidad ERROR del tipo 'RLS Disabled in Public' para ninguna de ellas.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-f8f4efff",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-32",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-ab672986",
+    "name": "[AC-33] El acceso del MCP con la service_role key sigue funcionando end-to-end (un import_spec + find_next_uc + start_uc completo) pese a RLS activo, confirmando que el rol de servicio bypassa las policies como se espera.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-f8f4efff",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-33",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-0bef09a5",
+    "name": "[AC-34] Existe al menos una policy explicita por tabla (no solo RLS habilitado sin policies) documentada en la migracion, de forma que un cliente anon/authenticated NO puede leer ni escribir filas de spec (verificado con la anon key: SELECT devuelve 0 filas o error de permiso).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-f8f4efff",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-34",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "item-3c98b967",
+    "name": "[UC-404] Gestion y rotacion de la credencial Supabase (Frontera 2)",
+    "description": "Definir donde vive el DSN del Pooler de Supabase en VPS y CI, como se rota, y como se distingue de la antigua credencial del Postgres-VPS. La credencial es el service-role/DB password de Supabase. Incluye el runbook de retirada del Postgres viejo.",
+    "state": "review",
+    "parent_id": "item-4b62f295",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-404",
+      "us_id": "US-NATIVE-SUPABASE",
+      "tipo": "UC",
+      "horas": "6"
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-ea94eb31",
+    "name": "[AC-35] Existe un runbook documentado (doc/) que indica: (a) como obtener el DSN del Pooler transaction-mode desde el dashboard de Supabase, (b) en que variable/secreto vive en el VPS y en CI (SPECBOX_NATIVE_DSN), (c) el procedimiento de rotacion sin downtime.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-3c98b967",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-35",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-e611c4af",
+    "name": "[AC-36] La credencial del Postgres-VPS antiguo (specbox_dev_only / DSN viejo) queda retirada de la config de produccion tras verificar que el MCP opera contra Supabase; el runbook incluye el paso de teardown del contenedor/instancia VPS y la verificacion previa de que no quedan datos sin migrar.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-3c98b967",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-36",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-32fa9d8d",
+    "name": "[AC-37] Ningun secreto de Supabase (service_role key, DB password, DSN completo) queda commiteado al repo ni impreso en logs: una busqueda de los prefijos conocidos en el arbol git y en los logs de arranque del MCP no encuentra coincidencias.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-3c98b967",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-37",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "item-6b5c152c",
+    "name": "[UC-405] Dev local y suite de conformidad contra Supabase",
+    "description": "Adaptar el flujo de desarrollo y la suite de conformidad parametrizada (test_native_backend_conformance.py, test_native_schema.py, test_native_dispatch.py) para que corran contra Supabase (rama de base de datos efimera o stack local de Supabase) sin romper el path no-DB de CI que hoy skipea limpio.",
+    "state": "review",
+    "parent_id": "item-4b62f295",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-405",
+      "us_id": "US-NATIVE-SUPABASE",
+      "tipo": "UC",
+      "horas": "5"
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-49870090",
+    "name": "[AC-38] Con SPECBOX_NATIVE_DSN apuntando a una base Supabase (branch DB efimera o supabase start local), la suite test_native_backend_conformance.py corre el parametro 'native' (no skipea) y pasa en verde, incluido el round-trip optimistic-version (AC-03).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-6b5c152c",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-38",
+      "tipo": "AC",
+      "done": false
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-7aefee08",
+    "name": "[AC-39] Sin SPECBOX_NATIVE_DSN alcanzable, los tests native siguen haciendo skip limpio (no error) — el path no-DB de CI se mantiene verde, preservando el comportamiento actual de skipif(not PG_OK).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-6b5c152c",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-39",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "ac-556cb3c2",
+    "name": "[AC-40] La documentacion de dev (CLAUDE.md / architecture) describe como levantar el entorno Supabase para tests (branch DB o local) y como exportar SPECBOX_NATIVE_DSN, reemplazando la referencia a docker-compose.dev.yml o aclarando su rol residual solo-local.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-6b5c152c",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-40",
+      "tipo": "AC",
+      "done": true
+    },
+    "created_at": "2026-05-21T22:07:15.622820+00:00"
   }
 ]

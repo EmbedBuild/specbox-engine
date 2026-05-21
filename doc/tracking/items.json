@@ -87,7 +87,7 @@
     "id": "item-159c330e",
     "name": "[UC-102] Esquema Postgres multi-tenant",
     "description": "",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -106,7 +106,7 @@
     "id": "ac-35b8fdb0",
     "name": "[AC-04] Migracion SQL versionada crea projects, user_stories, use_cases, acceptance_criteria con project_id como FK; aplicarla sobre BBDD vacia y re-aplicarla (idempotente) no produce error.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-159c330e",
     "labels": [
       "AC"
@@ -114,7 +114,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-04",
-      "tipo": "AC"
+      "tipo": "AC",
+      "evidence": "tests/test_native_schema.py (4 passed against dev Postgres); migración idempotente verificada 2x."
     },
     "created_at": "2026-05-21T19:59:28.398149+00:00"
   },
@@ -122,7 +123,7 @@
     "id": "ac-c0b3ef68",
     "name": "[AC-05] Una consulta de los UCs de project_id=A nunca devuelve filas de project_id=B (test inserta specs en dos proyectos y comprueba aislamiento en cada metodo de lectura).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-159c330e",
     "labels": [
       "AC"
@@ -130,7 +131,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-05",
-      "tipo": "AC"
+      "tipo": "AC",
+      "evidence": "tests/test_native_schema.py (4 passed against dev Postgres); migración idempotente verificada 2x."
     },
     "created_at": "2026-05-21T19:59:28.398152+00:00"
   },

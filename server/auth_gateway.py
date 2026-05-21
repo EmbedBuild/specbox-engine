@@ -1,14 +1,21 @@
 """Auth module - Per-session credential management via FastMCP Context.
 
-Supports multiple backends (Trello, Plane, FreeForm) and service proxies (Stitch).
-Each MCP client provides credentials by calling set_auth_token() as the
-first operation. Credentials are stored in the FastMCP session state and
-isolated between clients.
+Supports multiple backends (Trello, Plane, FreeForm, Native) and service
+proxies (Stitch). Each MCP client provides credentials by calling
+set_auth_token() as the first operation. Credentials are stored in the
+FastMCP session state and isolated between clients.
 
 Backend selection:
 - Trello: api_key + token → TrelloBackend
 - Plane: base_url + api_key + workspace_slug → PlaneBackend
 - FreeForm: root_path → FreeformBackend (local filesystem, no API)
+- Native: project_id → NativeBackend (Postgres, multi-tenant)
+
+FRONTIER 2 — Native credential security:
+The Native backend NEVER stores a DSN or any database credential in the
+session. Only the project_id (tenant root) is kept in session state. The
+database credential lives exclusively in the SPECBOX_NATIVE_DSN environment
+variable, read by server.db.pool — the single connection chokepoint.
 
 Service proxies:
 - Stitch: api_key per project → StitchClient
@@ -54,6 +61,12 @@ async def get_session_backend(ctx: Context) -> "SpecBackend":
             from .backends.freeform_backend import FreeformBackend
 
             return FreeformBackend(root=config["root_path"])
+        elif backend_type == "native":
+            # FRONTIER 2: only the project_id is in session — never a DSN.
+            # The DB credential is read from SPECBOX_NATIVE_DSN by the pool.
+            from .backends.native_backend import NativeBackend
+
+            return NativeBackend(project_id=config["project_id"])
         else:
             from .backends.trello_backend import TrelloBackend
 
@@ -71,9 +84,11 @@ async def get_session_backend(ctx: Context) -> "SpecBackend":
     raise RuntimeError(
         "Backend credentials not configured for this session. "
         "Call set_auth_token(api_key, token) for Trello, "
-        "set_auth_token(api_key, base_url, workspace_slug) for Plane, or "
+        "set_auth_token(api_key, base_url, workspace_slug) for Plane, "
         "set_auth_token(api_key='freeform', token='', backend_type='freeform', "
-        "root_path='doc/tracking') for FreeForm first."
+        "root_path='doc/tracking') for FreeForm, or "
+        "set_auth_token(api_key='', token='', backend_type='native', "
+        "project_id='my-project') for Native first."
     )
 
 
@@ -129,6 +144,25 @@ async def store_freeform_credentials(ctx: Context, root_path: str) -> None:
         {
             "backend_type": "freeform",
             "root_path": root_path,
+        },
+    )
+
+
+async def store_native_credentials(ctx: Context, project_id: str) -> None:
+    """Store Native backend selection in the session state.
+
+    FRONTIER 2 — credential security: NO DSN or database credential is ever
+    stored in the session. Only the ``project_id`` (the tenant root) is kept.
+    The actual database credential lives exclusively in the
+    ``SPECBOX_NATIVE_DSN`` environment variable and is read by
+    :func:`server.db.pool.get_pool` — the single connection chokepoint. This
+    keeps secrets out of session state entirely.
+    """
+    await ctx.set_state(
+        BACKEND_STATE_KEY,
+        {
+            "backend_type": "native",
+            "project_id": project_id,
         },
     )
 

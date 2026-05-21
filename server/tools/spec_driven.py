@@ -26,6 +26,7 @@ from fastmcp import Context
 from ..auth_gateway import (
     get_session_backend,
     store_freeform_credentials,
+    store_native_credentials,
     store_plane_credentials,
     store_session_credentials,
 )
@@ -189,6 +190,7 @@ async def set_auth_token(
     base_url: str = "",
     workspace_slug: str = "",
     root_path: str = "",
+    project_id: str = "",
 ) -> dict[str, Any]:
     """Configure backend API credentials for this session.
 
@@ -196,21 +198,69 @@ async def set_auth_token(
     Credentials are isolated per session — other users cannot access yours.
 
     Args:
-        api_key: API key (Trello: 32-char key; Plane: API token; FreeForm: ignored, pass "freeform")
-        token: API token (Trello: 64-char OAuth token; Plane/FreeForm: ignored, pass "")
-        backend_type: "trello" (default), "plane", or "freeform"
+        api_key: API key (Trello: 32-char key; Plane: API token; FreeForm/Native: ignored)
+        token: API token (Trello: 64-char OAuth token; Plane/FreeForm/Native: ignored, pass "")
+        backend_type: "trello" (default), "plane", "freeform", or "native"
         base_url: Plane base URL (e.g., "https://plane.example.com"); required for Plane
         workspace_slug: Plane workspace slug; required for Plane
         root_path: FreeForm data directory (default: "doc/tracking"); required for FreeForm
+        project_id: Native backend tenant id (Postgres projects.project_id); required for Native.
+            FRONTIER 2: the database credential is NEVER passed here — it lives in the
+            SPECBOX_NATIVE_DSN env var, read by the connection pool. Only project_id is needed.
 
     Returns:
         Authentication status with user info if successful.
     """
-    if backend_type != "freeform" and (not api_key or not api_key.strip()):
+    if backend_type not in ("freeform", "native") and (not api_key or not api_key.strip()):
         return {"error": "api_key is required", "code": "MISSING_API_KEY"}
 
     api_key = api_key.strip() if api_key else ""
     token = token.strip() if token else ""
+
+    if backend_type == "native":
+        # Native authentication (Postgres, multi-tenant). api_key/token are
+        # ignored — the DB credential lives in SPECBOX_NATIVE_DSN (read by the
+        # pool), and only the project_id (tenant root) is stored in session.
+        project_id = project_id.strip() if project_id else ""
+        if not project_id:
+            return {
+                "error": "project_id is required for Native backend",
+                "code": "MISSING_PROJECT_ID",
+            }
+
+        try:
+            from ..backends.native_backend import NativeBackend
+
+            # Annotated as SpecBackend so the shared `backend` local stays
+            # compatible across the freeform/plane/trello branches below.
+            backend: SpecBackend = NativeBackend(project_id=project_id)
+            user = await backend.validate_auth()
+            # Ensure the project row exists (idempotent upsert per UC-101).
+            config = await backend.setup_board(project_id)
+            await backend.close()
+        except Exception as e:
+            logger.error("native_auth_error", error=str(e))
+            return {"error": f"Native init failed: {str(e)}", "code": "NATIVE_ERROR"}
+
+        await store_native_credentials(ctx, project_id)
+        logger.info("auth_token_set", backend="native", project_id=project_id)
+
+        return {
+            "success": True,
+            "backend": "native",
+            "message": f"Native (Postgres) backend initialized for project {project_id}",
+            "board_id": config.board_id,
+            "board_url": config.board_url,
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "fullName": user.display_name,
+            },
+            "summary": (
+                f"Backend Native (Postgres) configurado para el proyecto {project_id}. "
+                "La credencial de BD vive en SPECBOX_NATIVE_DSN, no en la sesión."
+            ),
+        }
 
     if backend_type == "freeform":
         # FreeForm authentication (local filesystem, no API)

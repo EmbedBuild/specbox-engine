@@ -1,6 +1,6 @@
 {
   "project": "specbox-engine",
-  "timestamp": "2026-05-21T22:45:26Z",
+  "timestamp": "2026-05-21T22:54:30Z",
   "session_active": true,
   "current_phase": "",
   "current_feature": "",
@@ -11,12 +11,12 @@
   "healing_health": "healthy",
   "self_healing_events": 0,
   "last_operation": "idle",
-  "last_commit": "chore(tracking): cerrar US-NATIVE-SUPABASE — AC-38 verificado en vivo contra Supabase",
-  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)T7ed4a94b4d0a28a944b0f37b40283bf59e2b0628:%M:HEADZ",
+  "last_commit": "pre eliminacion del salademaquinas",
+  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)Tdc7a3de0b557123202eb1b6fd3dc9211a3a575f3:%M:HEADZ",
   "handoff_present": true,
-  "handoff_age_minutes": 80,
+  "handoff_age_minutes": 89,
   "context_pressure": {
-    "tokens_est": 1551,
+    "tokens_est": 230,
     "pct_of_window": 0,
     "level": "healthy"
   },

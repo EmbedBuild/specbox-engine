@@ -67,6 +67,26 @@ export function getActiveUC() {
 }
 
 /**
+ * Read the native claim cache from the active UC marker, if present.
+ * The marker written by start_uc on a native session carries a `claim` block
+ * (uc_id, developer_id, claimed_at, backend) so this hook can treat the file
+ * as a cache and revalidate it against the MCP when online [AC-21].
+ *
+ * Returns { ucId, developerId, claimedAt } or null when there is no native
+ * claim cached (FreeForm/Trello/Plane markers have no claim block).
+ */
+export function getActiveUCClaim() {
+  const filePath = '.quality/active_uc.json';
+  const data = readJsonFile(filePath);
+  if (!data || !data.claim || data.claim.backend !== 'native') return null;
+  return {
+    ucId: data.claim.uc_id || data.uc_id || '',
+    developerId: data.claim.developer_id || '',
+    claimedAt: data.claim.claimed_at || '',
+  };
+}
+
+/**
  * Check if the active UC marker exists but is stale (>24h).
  * Returns { stale: true, ucId, feature } or null.
  */

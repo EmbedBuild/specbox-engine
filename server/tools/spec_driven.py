@@ -24,6 +24,7 @@ import structlog
 from fastmcp import Context
 
 from ..auth_gateway import (
+    BACKEND_STATE_KEY,
     get_session_backend,
     store_freeform_credentials,
     store_native_credentials,
@@ -52,22 +53,35 @@ logger = structlog.get_logger(__name__)
 ACTIVE_UC_FILENAME = ".quality/active_uc.json"
 
 
-def _write_active_uc_marker(uc_id: str, board_id: str, feature: str = "") -> None:
-    """Write the active UC marker so spec-guard.mjs allows code writes."""
+def _write_active_uc_marker(
+    uc_id: str,
+    board_id: str,
+    feature: str = "",
+    claim: dict[str, Any] | None = None,
+) -> None:
+    """Write the active UC marker so spec-guard.mjs allows code writes.
+
+    For native sessions, ``claim`` carries a reference to the remote claim
+    (``developer_id``, ``claimed_at``) so spec-guard.mjs can treat the local
+    file as a cache and revalidate against the MCP when online [AC-21].
+    """
     marker_path = Path(ACTIVE_UC_FILENAME)
     marker_path.parent.mkdir(parents=True, exist_ok=True)
-    marker_path.write_text(
-        json.dumps(
-            {
-                "uc_id": uc_id,
-                "board_id": board_id,
-                "feature": feature,
-                "started_at": datetime.now(timezone.utc).isoformat(),
-            },
-            indent=2,
-        )
-        + "\n"
-    )
+    payload: dict[str, Any] = {
+        "uc_id": uc_id,
+        "board_id": board_id,
+        "feature": feature,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if claim:
+        # Cache of the remote claim — spec-guard.mjs revalidates this online.
+        payload["claim"] = {
+            "uc_id": claim.get("uc_id", uc_id),
+            "developer_id": claim.get("owner") or claim.get("developer_id", ""),
+            "claimed_at": claim.get("claimed_at", ""),
+            "backend": "native",
+        }
+    marker_path.write_text(json.dumps(payload, indent=2) + "\n")
     logger.info("active_uc_marker_written", uc_id=uc_id, path=str(marker_path))
 
 
@@ -1218,6 +1232,17 @@ async def start_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
     Returns:
         Full UC detail (same as get_uc) for immediate use.
     """
+    # Native sessions go through the claim-aware path: claim + in_progress in
+    # one transaction (no orphan claim) [AC-18], conflict carries owner /
+    # claimed_at / branch [AC-19].
+    native_session = await _get_native_session_config(ctx)
+    if native_session is not None:
+        claim_result = await _start_uc_native(native_session, board_id, uc_id, ctx)
+        if claim_result.get("error"):
+            return claim_result
+        # Fall through to return the full UC detail.
+        return await get_uc(board_id, uc_id, ctx)
+
     backend = await get_session_backend(ctx)
     try:
         uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
@@ -1239,6 +1264,102 @@ async def start_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
 
     # Return full UC detail (creates a new backend session)
     return await get_uc(board_id, uc_id, ctx)
+
+
+async def _get_native_session_config(ctx: Context) -> dict[str, str] | None:
+    """Return the native session config, or None if the session is not native."""
+    config = await ctx.get_state(BACKEND_STATE_KEY)
+    if config and config.get("backend_type") == "native":
+        return config
+    return None
+
+
+async def _start_uc_native(
+    session: dict[str, str], board_id: str, uc_id: str, ctx: Context
+) -> dict[str, Any]:
+    """Claim + set in_progress atomically for a native session [AC-18, AC-19].
+
+    Authenticates (Frontier 1), resolves the UC's DB id, then claims and flips
+    state in one transaction. Writes the active_uc marker with a cache of the
+    remote claim [AC-21]. Returns ``{}``-ish success metadata or a coded error.
+    """
+    from ..coordination.claims import AlreadyClaimedError, start_uc_atomic
+    from ..coordination.identity import (
+        ForbiddenError,
+        UnauthenticatedError,
+        authenticate_and_authorize,
+    )
+    from ..db.pool import get_pool
+
+    project_id = session["project_id"]
+    token = session.get("dev_token", "")
+    pool = await get_pool()
+
+    # Frontier 1 gate.
+    try:
+        async with pool.acquire() as conn:
+            dev = await authenticate_and_authorize(
+                conn, token=token, project_id=project_id
+            )
+    except UnauthenticatedError as e:
+        return {"error": str(e), "code": "UNAUTHENTICATED"}
+    except ForbiddenError as e:
+        return {"error": str(e), "code": "FORBIDDEN"}
+
+    # Resolve the UC's DB id (find by uc_id).
+    backend = await get_session_backend(ctx)
+    try:
+        uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
+    finally:
+        await backend.close()
+    if not uc_item:
+        return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
+
+    try:
+        claim = await start_uc_atomic(
+            pool,
+            project_id=project_id,
+            uc_db_id=uc_item.id,
+            uc_id=uc_id,
+            developer_id=dev.developer_id,
+        )
+    except AlreadyClaimedError as e:
+        # Conflict carries owner / claimed_at / branch [AC-19].
+        return {"error": str(e), **e.to_conflict()}
+
+    _write_active_uc_marker(uc_id, board_id, _extract_meta_str(uc_item, "feature", uc_id), claim=claim.to_public())
+    return {"success": True, "claimed_by": dev.developer_id}
+
+
+async def _native_uc_ids_claimed_by_others(session: dict[str, str]) -> set[str]:
+    """uc_ids claimed by a developer other than the session's dev [AC-20].
+
+    Best-effort: if the session is unauthenticated we still exclude *all* active
+    claims (an unauthenticated reader should not be steered onto someone else's
+    work). Never raises — on any error returns an empty set so find_next_uc
+    degrades to its non-claim behaviour.
+    """
+    from ..coordination.claims import claimed_uc_ids_by_others, list_active_claims
+    from ..coordination.identity import UnauthenticatedError, resolve_developer
+    from ..db.pool import get_pool
+
+    project_id = session["project_id"]
+    token = session.get("dev_token", "")
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            try:
+                dev = await resolve_developer(conn, token)
+                developer_id = dev.developer_id
+            except UnauthenticatedError:
+                developer_id = None
+            if developer_id is not None:
+                return await claimed_uc_ids_by_others(conn, project_id, developer_id)
+            # Unauthenticated → exclude every active claim.
+            return {c.uc_id for c in await list_active_claims(conn, project_id)}
+    except Exception as e:  # noqa: BLE001 — degrade gracefully, never block discovery
+        logger.warning("native_claim_filter_failed", error=str(e))
+        return set()
 
 
 async def complete_uc(
@@ -1823,6 +1944,16 @@ async def find_next_uc(
                 i for i in ready_ucs
                 if _extract_meta_str(i, "uc_id") in scope_set
             ]
+
+        # Native: exclude UCs already claimed by another developer [AC-20] so
+        # two devs running find_next_uc concurrently get distinct UCs.
+        native_session = await _get_native_session_config(ctx)
+        if native_session is not None:
+            claimed = await _native_uc_ids_claimed_by_others(native_session)
+            if claimed:
+                ready_ucs = [
+                    i for i in ready_ucs if _get_uc_id(i) not in claimed
+                ]
 
         if not ready_ucs:
             return None

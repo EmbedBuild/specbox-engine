@@ -9,8 +9,38 @@
  * v5.7.0 — Pipeline Integrity Enforcement
  */
 
+import { execFileSync } from 'node:child_process';
 import { readStdin, fileExists, fileAge, git } from './lib/utils.mjs';
-import { getProjectConfig, getActiveUC, getStaleUC } from './lib/config.mjs';
+import { getProjectConfig, getActiveUC, getActiveUCClaim, getStaleUC } from './lib/config.mjs';
+import { decideNativeClaim } from './lib/native-claim-revalidate.mjs';
+
+/**
+ * Best-effort revalidation of a native claim against the MCP. Returns
+ * { reachable, claim } for decideNativeClaim. Never throws — any failure
+ * (no URL, network error, timeout, bad JSON) yields reachable:false so the
+ * cache is trusted [AC-21]. Online conflicts are surfaced for AC-22.
+ */
+function probeNativeClaim(claim) {
+  const mcpUrl = process.env.SPECBOX_ENGINE_MCP_URL || process.env.DEV_ENGINE_MCP_URL || '';
+  if (!mcpUrl) return { reachable: false };
+  try {
+    const url = `${mcpUrl.replace(/\/$/, '')}/api/native/claim-status`;
+    const out = execFileSync(
+      'curl',
+      [
+        '-fsS', '--max-time', '3',
+        '-G', url,
+        '--data-urlencode', `uc_id=${claim.ucId}`,
+      ],
+      { encoding: 'utf8', timeout: 4000, stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+    const data = JSON.parse(out);
+    // Expected: { uc_id, claim: { developer_id } | null }
+    return { reachable: true, claim: data.claim ?? null };
+  } catch {
+    return { reachable: false };
+  }
+}
 
 const input = readStdin();
 
@@ -67,7 +97,33 @@ if (currentBranch === 'main' || currentBranch === 'master') {
 // --- Spec-driven project: verify active UC ---
 const activeUC = getActiveUC();
 if (activeUC) {
-  // Active UC exists and is fresh → allow
+  // Native claim revalidation (UC-304): the marker is a cache of the remote
+  // claim. Offline → trust it [AC-21]. Online → revalidate; block if the claim
+  // was released or taken over by another dev [AC-22].
+  const claim = getActiveUCClaim();
+  if (claim) {
+    const decision = decideNativeClaim(claim, probeNativeClaim(claim));
+    if (!decision.allow) {
+      const actual = decision.conflict?.actual;
+      console.log('');
+      console.log('============================================================');
+      console.log('  ⛔ SPEC GUARD: Native UC claim no longer yours');
+      console.log('============================================================');
+      console.log(`  File: ${filePath}`);
+      console.log(`  UC: ${claim.ucId}`);
+      if (decision.reason === 'claim-released') {
+        console.log(`  The claim was released remotely (you were ${claim.developerId}).`);
+        console.log('  Re-run start_uc to re-claim before writing code.');
+      } else {
+        console.log(`  The claim is now held by '${actual}' (you are '${claim.developerId}').`);
+        console.log('  Another developer took over this UC. Coordinate or pick another UC.');
+      }
+      console.log('============================================================');
+      console.log('');
+      process.exit(1);
+    }
+  }
+  // Active UC exists and is fresh (and claim still valid / offline) → allow
   process.exit(0);
 }
 

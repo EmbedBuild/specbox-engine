@@ -152,8 +152,9 @@ register_resources(mcp, ENGINE_PATH)
 # Register spec-driven tools (21 tools)
 register_spec_driven_tools(mcp)
 
-# Register native coordination tools — H2 identity (2 tools:
-# register_native_developer, whoami)
+# Register native coordination tools — H2 identity + H3 claims (5 tools:
+# register_native_developer, whoami, claim_uc, release_uc,
+# register_native_branch)
 register_coordination_tools(mcp)
 
 # Register Tier 1 mutation tools (v5.23.0 Full Mutations — 8 tools:

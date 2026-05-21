@@ -1,0 +1,30 @@
+# Postgres efímero para desarrollo y tests del NativeBackend (UC-102+).
+# No forma parte del despliegue de producción (docker-compose.yml) — es solo
+# para correr migraciones y la suite de conformidad en local.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml down -v   # -v borra el volumen
+#
+# El NativeBackend lee su credencial de servicio SOLO de env (Frontera 2 del
+# plan), nunca del config de sesión. En local esa env apunta a este contenedor.
+services:
+  native-postgres:
+    image: postgres:16-alpine
+    container_name: specbox-native-pg-dev
+    restart: unless-stopped
+    ports:
+      - "55432:5432"          # 55432 en host para no chocar con un Postgres local en 5432
+    environment:
+      POSTGRES_DB: specbox_native
+      POSTGRES_USER: specbox
+      POSTGRES_PASSWORD: specbox_dev_only
+    volumes:
+      - native-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U specbox -d specbox_native"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  native-pg-data:

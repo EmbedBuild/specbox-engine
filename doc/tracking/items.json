@@ -20,7 +20,7 @@
     "id": "item-33bc7652",
     "name": "[UC-101] Implementar NativeBackend sobre el SpecBackend ABC",
     "description": "",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-82a63201",
     "labels": [
       "UC"
@@ -39,7 +39,7 @@
     "id": "ac-dc38ae6c",
     "name": "[AC-01] NativeBackend implementa los ~30 metodos abstractos de SpecBackend; un test de conformidad ejecuta la misma suite de contrato que pasa FreeformBackend y termina en verde para NativeBackend.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-33bc7652",
     "labels": [
       "AC"
@@ -47,7 +47,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-01",
-      "tipo": "AC"
+      "tipo": "AC",
+      "evidence": "tests/test_native_backend_conformance.py: 11 tests de contrato × [freeform,native] en verde."
     },
     "created_at": "2026-05-21T19:59:28.398132+00:00"
   },
@@ -55,7 +56,7 @@
     "id": "ac-b82aef8e",
     "name": "[AC-02] Las escrituras usan un pool asyncpg inicializado al arrancar el MCP; 50 ops CRUD concurrentes no agotan el pool ni dejan conexiones colgadas (verificado contando conexiones en pg_stat_activity antes y despues).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-33bc7652",
     "labels": [
       "AC"
@@ -63,7 +64,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-02",
-      "tipo": "AC"
+      "tipo": "AC",
+      "evidence": "test_concurrency_50_ops: 50 ops sin fuga de conexiones (pg_stat_activity)."
     },
     "created_at": "2026-05-21T19:59:28.398135+00:00"
   },
@@ -71,7 +73,7 @@
     "id": "ac-12645348",
     "name": "[AC-03] Cada fila US/UC/AC tiene columna version (entero) que se incrementa en cada UPDATE; un UPDATE con version distinta a la almacenada es rechazado con STALE_VERSION y no muta la fila.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-33bc7652",
     "labels": [
       "AC"
@@ -79,7 +81,8 @@
     "priority": "none",
     "meta": {
       "ac_id": "AC-03",
-      "tipo": "AC"
+      "tipo": "AC",
+      "evidence": "test_optimistic_version_increment: version+1, STALE_VERSION rechaza fila stale."
     },
     "created_at": "2026-05-21T19:59:28.398139+00:00"
   },
@@ -140,7 +143,7 @@
     "id": "ac-720377e3",
     "name": "[AC-06] La Sala de Maquinas (get_sala_de_maquinas / get_all_projects_overview) lista los proyectos en Postgres junto a los de otros backends, sin escanear el filesystem.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-33bc7652",
     "labels": [
       "AC"
@@ -149,7 +152,8 @@
     "meta": {
       "ac_id": "AC-06",
       "tipo": "AC",
-      "scope_note": "Reasignado de UC-102 a UC-101 (2026-05-21): AC-06 mezclaba plano de spec (Postgres) con telemetria (filesystem). Un proyecto Postgres ya aparece en Sala de Maquinas via heartbeat->registry sin tocar get_all_projects_overview. Satisfecho por diseno; no requiere migrar el overview a Postgres en v1."
+      "scope_note": "Reasignado de UC-102 a UC-101 (2026-05-21): AC-06 mezclaba plano de spec (Postgres) con telemetria (filesystem). Un proyecto Postgres ya aparece en Sala de Maquinas via heartbeat->registry sin tocar get_all_projects_overview. Satisfecho por diseno; no requiere migrar el overview a Postgres en v1.",
+      "evidence": "Satisfecho por diseño (Sala de Máquinas vía heartbeat→registry)."
     },
     "created_at": "2026-05-21T19:59:28.398154+00:00"
   },

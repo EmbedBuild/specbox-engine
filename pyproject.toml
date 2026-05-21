@@ -12,6 +12,7 @@ dependencies = [
     "markdown>=3.5",
     "structlog>=24.0.0",
     "reportlab>=4.0.0",
+    "asyncpg>=0.30",
 ]
 
 [project.optional-dependencies]
@@ -46,3 +47,11 @@ line-length = 120
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+
+# asyncpg ships no type stubs / py.typed marker; ignore its missing imports.
+[[tool.mypy.overrides]]
+module = ["asyncpg", "asyncpg.*"]
+ignore_missing_imports = true

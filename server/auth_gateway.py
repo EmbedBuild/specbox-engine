@@ -148,23 +148,47 @@ async def store_freeform_credentials(ctx: Context, root_path: str) -> None:
     )
 
 
-async def store_native_credentials(ctx: Context, project_id: str) -> None:
+async def store_native_credentials(
+    ctx: Context, project_id: str, dev_token: str = ""
+) -> None:
     """Store Native backend selection in the session state.
 
-    FRONTIER 2 — credential security: NO DSN or database credential is ever
-    stored in the session. Only the ``project_id`` (the tenant root) is kept.
-    The actual database credential lives exclusively in the
+    FRONTIER 2 — database credential security: NO DSN or database credential is
+    ever stored in the session. Only the ``project_id`` (the tenant root) is
+    kept. The actual database credential lives exclusively in the
     ``SPECBOX_NATIVE_DSN`` environment variable and is read by
-    :func:`server.db.pool.get_pool` — the single connection chokepoint. This
-    keeps secrets out of session state entirely.
+    :func:`server.db.pool.get_pool` — the single connection chokepoint.
+
+    FRONTIER 1 — developer identity: the per-developer ``dev_token`` (a
+    *user* credential, distinct from the DB credential) authenticates the
+    caller against the ``developers`` table. It is kept in session state so
+    every native tool call can re-authenticate, but it is NEVER logged. When
+    empty, the session is unauthenticated and native identity tools will reject
+    with ``UNAUTHENTICATED``.
     """
-    await ctx.set_state(
-        BACKEND_STATE_KEY,
-        {
-            "backend_type": "native",
-            "project_id": project_id,
-        },
-    )
+    payload: dict[str, str] = {
+        "backend_type": "native",
+        "project_id": project_id,
+    }
+    if dev_token:
+        payload["dev_token"] = dev_token
+    await ctx.set_state(BACKEND_STATE_KEY, payload)
+
+
+async def get_native_session(ctx: Context) -> dict[str, str]:
+    """Return the native session config ``{project_id, dev_token?}``.
+
+    Raises if the session is not a native backend. Used by the coordination
+    tools (whoami, claims) to read the project + developer token without
+    re-deriving the backend.
+    """
+    config = await ctx.get_state(BACKEND_STATE_KEY)
+    if not config or config.get("backend_type") != "native":
+        raise RuntimeError(
+            "No native backend session. Call "
+            "set_auth_token(backend_type='native', project_id=..., token=<dev_token>) first."
+        )
+    return config
 
 
 async def clear_session_credentials(ctx: Context) -> None:

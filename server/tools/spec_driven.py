@@ -199,7 +199,9 @@ async def set_auth_token(
 
     Args:
         api_key: API key (Trello: 32-char key; Plane: API token; FreeForm/Native: ignored)
-        token: API token (Trello: 64-char OAuth token; Plane/FreeForm/Native: ignored, pass "")
+        token: API token (Trello: 64-char OAuth token; Plane/FreeForm: ignored, pass "";
+            Native: the per-developer identity token — authenticates the caller against the
+            developers table. Pass "" for an unauthenticated read-only session.)
         backend_type: "trello" (default), "plane", "freeform", or "native"
         base_url: Plane base URL (e.g., "https://plane.example.com"); required for Plane
         workspace_slug: Plane workspace slug; required for Plane
@@ -242,8 +244,16 @@ async def set_auth_token(
             logger.error("native_auth_error", error=str(e))
             return {"error": f"Native init failed: {str(e)}", "code": "NATIVE_ERROR"}
 
-        await store_native_credentials(ctx, project_id)
-        logger.info("auth_token_set", backend="native", project_id=project_id)
+        # Frontier 1: the per-developer token (the `token` arg, which is
+        # otherwise ignored for native) is stored in session so every native
+        # tool call can re-authenticate. It is NEVER logged — only project_id is.
+        await store_native_credentials(ctx, project_id, dev_token=token)
+        logger.info(
+            "auth_token_set",
+            backend="native",
+            project_id=project_id,
+            authenticated=bool(token),
+        )
 
         return {
             "success": True,

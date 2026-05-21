@@ -25,6 +25,7 @@ from .tools.hooks import register_hook_tools
 from .tools.onboarding import register_onboarding_tools
 from .tools.state import register_state_tools
 from .tools.spec_driven import register_spec_driven_tools
+from .tools.coordination import register_coordination_tools
 from .tools.spec_mutations import register_spec_mutations_tools
 from .tools.milestone_management import register_milestone_management_tools
 from .tools.board_operations import register_board_operations_tools
@@ -150,6 +151,10 @@ register_resources(mcp, ENGINE_PATH)
 
 # Register spec-driven tools (21 tools)
 register_spec_driven_tools(mcp)
+
+# Register native coordination tools — H2 identity (2 tools:
+# register_native_developer, whoami)
+register_coordination_tools(mcp)
 
 # Register Tier 1 mutation tools (v5.23.0 Full Mutations — 8 tools:
 # update_uc, update_uc_batch, update_us, update_ac, update_ac_batch,

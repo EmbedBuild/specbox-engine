@@ -6,7 +6,7 @@ applies a 5-level priority chain that mirrors the v5.28 mental model but
 makes FreeForm the default when nothing else is configured.
 
 Priority (highest to lowest):
-  1. .claude/settings.local.json -> specbox.backend_type
+  1. .claude/settings.local.json -> specbox.backend_type (freeform/trello/plane/native)
   2. doc/tracking/items.json present (filesystem signal)
   3. .claude/settings.local.json -> trello.boardId / plane.projectId
   4. doc/app/app_spec.md zone "tracking_backend" body
@@ -28,12 +28,13 @@ def detect_backend(project_path: str | Path = ".") -> dict[str, Any]:
 
     Returns:
         {
-          "backend_type": "freeform" | "trello" | "plane",
+          "backend_type": "freeform" | "trello" | "plane" | "native",
           "source": "settings_specbox" | "tracking_dir" | "settings_legacy" |
                      "app_spec" | "default_v5_29",
           "freeform_root_absolute": str | None,  # populated only for freeform
           "trello_board_id": str | None,
           "plane_project_id": str | None,
+          "native_project_id": str | None,  # populated only for native
           "warnings": [str, ...],
         }
     """
@@ -52,13 +53,15 @@ def detect_backend(project_path: str | Path = ".") -> dict[str, Any]:
 
     # 1. Explicit specbox.backend_type wins.
     declared = specbox.get("backend_type")
-    if declared in {"freeform", "trello", "plane"}:
+    if declared in {"freeform", "trello", "plane", "native"}:
         return {
             "backend_type": declared,
             "source": "settings_specbox",
             "freeform_root_absolute": specbox.get("freeform_root_absolute"),
             "trello_board_id": specbox.get("trello_board_id"),
             "plane_project_id": specbox.get("plane_project_id"),
+            "native_project_id": specbox.get("native_project_id")
+            or specbox.get("project_id"),
             "warnings": warnings,
         }
 

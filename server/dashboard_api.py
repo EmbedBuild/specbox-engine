@@ -11,7 +11,6 @@ from pathlib import Path
 from fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import JSONResponse, FileResponse, Response
-from starlette.staticfiles import StaticFiles
 
 from .tools.state import (
     _read_registry,
@@ -51,9 +50,24 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
     # ------------------------------------------------------------------
     # GET /health — Container healthcheck (no auth)
     # ------------------------------------------------------------------
+    # Resolve the engine version ONCE from the canonical ENGINE_VERSION.yaml
+    # (read at route registration, not per-request — /health is hit every 30s by
+    # the Docker healthcheck). Previously this was a hardcoded string that drifted
+    # from the real version and made deploys look like no-ops in /health.
+    _health_version = "unknown"
+    _version_file = engine_path / "ENGINE_VERSION.yaml"
+    if _version_file.exists():
+        try:
+            import yaml
+
+            with open(_version_file) as _f:
+                _health_version = (yaml.safe_load(_f) or {}).get("version", "unknown")
+        except Exception:
+            pass
+
     @mcp.custom_route("/health", methods=["GET"])
     async def health(request: Request) -> JSONResponse:
-        return _json({"status": "ok", "version": "5.22.2"})
+        return _json({"status": "ok", "version": _health_version})
 
     # ------------------------------------------------------------------
     # GET /api/sala — Global dashboard
@@ -65,7 +79,7 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
 
         days = int(request.query_params.get("days", "7"))
         import time
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timezone
 
         # Check cache
         cache_file = state_path / "dashboard_cache.json"
@@ -766,7 +780,7 @@ def register_dashboard_routes(mcp: FastMCP, engine_path: Path, state_path: Path)
 
         force = body.get("force", False)
 
-        from .github_sync import sync_all, sync_project, parse_repo_url
+        from .github_sync import sync_all, sync_project
 
         # If specific repos provided, sync only those
         repos = body.get("repos", [])

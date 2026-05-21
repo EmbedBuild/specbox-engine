@@ -1,6 +1,6 @@
 {
   "project": "specbox-engine",
-  "timestamp": "2026-04-12T13:18:22Z",
+  "timestamp": "2026-05-19T07:21:40Z",
   "session_active": true,
   "current_phase": "",
   "current_feature": "",
@@ -11,7 +11,16 @@
   "healing_health": "healthy",
   "self_healing_events": 0,
   "last_operation": "idle",
-  "last_commit": "feat: v5.22.0 Quality Audit — ISO/IEC 25010 on-demand audit module",
-  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)T727c8f0a8bfb39dc3b6985725ff24852c172605f:%M:HEADZ",
+  "last_commit": "feat: v5.33.0 FreeForm Path Safety — auto-rewrite hook + detect_local_root_path tool (#25)",
+  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)T87dda718733fd361ae9dfd0e6be14e00383d5e72:%M:HEADZ",
+  "handoff_present": true,
+  "handoff_age_minutes": 23508,
+  "context_pressure": {
+    "tokens_est": 190,
+    "pct_of_window": 0,
+    "level": "healthy"
+  },
+  "stitch_quota": null,
+  "task_isolation": null,
   "source": "local"
 }

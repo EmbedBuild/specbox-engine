@@ -929,7 +929,7 @@
     "id": "item-6b5c152c",
     "name": "[UC-405] Dev local y suite de conformidad contra Supabase",
     "description": "Adaptar el flujo de desarrollo y la suite de conformidad parametrizada (test_native_backend_conformance.py, test_native_schema.py, test_native_dispatch.py) para que corran contra Supabase (rama de base de datos efimera o stack local de Supabase) sin romper el path no-DB de CI que hoy skipea limpio.",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-4b62f295",
     "labels": [
       "UC"
@@ -1299,7 +1299,7 @@
     "id": "item-74c6d2ff",
     "name": "[UC-405] Regeneracion de evidencias con progreso por UC",
     "description": "",
-    "state": "in_progress",
+    "state": "done",
     "parent_id": "item-5ff5e98c",
     "labels": [
       "UC"

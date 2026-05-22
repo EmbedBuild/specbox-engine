@@ -142,7 +142,7 @@ def _extract_backend_from_spec(spec_path: Path) -> str | None:
         if not m:
             continue
         value = m.group("value").strip()
-        if value in {"freeform", "trello", "plane"}:
+        if value in {"freeform", "trello", "plane", "native"}:
             return value
     return None
 

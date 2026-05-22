@@ -791,7 +791,7 @@
     "id": "item-f8f4efff",
     "name": "[UC-403] RLS y policies sobre las tablas public (silenciar advisors)",
     "description": "Activar Row Level Security en todas las tablas del Native Backend en el schema public y definir policies. Aunque el MCP accede con service_role (que ignora RLS), el advisor de seguridad de Supabase marca como critico cualquier tabla public sin RLS. Cerrar ese gap.",
-    "state": "done",
+    "state": "review",
     "parent_id": "item-4b62f295",
     "labels": [
       "UC"
@@ -1149,7 +1149,7 @@
     "id": "item-f288770e",
     "name": "[UC-403] Manejo del backend Native (entrada y salida)",
     "description": "",
-    "state": "backlog",
+    "state": "in_progress",
     "parent_id": "item-5ff5e98c",
     "labels": [
       "UC"

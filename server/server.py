@@ -33,6 +33,7 @@ from .tools.acceptance_automation import register_acceptance_automation_tools
 from .tools.migration import register_migration_tools
 from .tools.sync import register_sync_tools
 from .tools.acceptance import register_acceptance_tools
+from .tools.evidence_regen import register_evidence_regen_tools
 from .tools.benchmark import register_benchmark_tools
 from .tools.hints import register_hint_tools
 from .tools.skill_registry import register_skill_registry_tools
@@ -61,9 +62,7 @@ structlog.configure(
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.processors.JSONRenderer()
-        if os.getenv("LOG_FORMAT") == "json"
-        else structlog.dev.ConsoleRenderer(),
+        structlog.processors.JSONRenderer() if os.getenv("LOG_FORMAT") == "json" else structlog.dev.ConsoleRenderer(),
     ],
     wrapper_class=structlog.stdlib.BoundLogger,
     context_class=dict,
@@ -82,6 +81,7 @@ except OSError:
     # write; the import itself must not. logger isn't bound yet at this point
     # in the module, so we emit a stderr warning instead.
     import sys
+
     print(f"[specbox] STATE_PATH not writable: {STATE_PATH}", file=sys.stderr)
 
 mcp = FastMCP(
@@ -134,7 +134,7 @@ mcp = FastMCP(
     2. State (read-write): Project registry, sessions, checkpoints, healing,
        acceptance tests, acceptance validations, merge events, E2E results.
        Populated by hooks (fire-and-forget HTTP) and queried by dashboard tools.
-    """
+    """,
 )
 
 # Register engine tools
@@ -184,8 +184,11 @@ register_migration_tools(mcp)
 # Register sync tools (2 tools: get_implementation_status, write_implementation_status)
 register_sync_tools(mcp, ENGINE_PATH)
 
-# Register acceptance tools (2 tools: run_acceptance_check, get_acceptance_report)
+# Register acceptance tools (3 tools: run_acceptance_check, get_acceptance_report, get_e2e_gap_report)
 register_acceptance_tools(mcp, ENGINE_PATH, STATE_PATH)
+
+# Register evidence regeneration tool (UC-405: regenerate_evidence)
+register_evidence_regen_tools(mcp, ENGINE_PATH, STATE_PATH)
 
 # Register benchmark tools (1 tool: generate_benchmark_snapshot)
 register_benchmark_tools(mcp, ENGINE_PATH, STATE_PATH)

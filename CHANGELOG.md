@@ -2,6 +2,80 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.34.0] - 2026-05-22 — "Native Collaboration"
+
+Estrena el **Native Backend**: un cuarto backend del `SpecBackend` ABC (junto a
+Trello / Plane / FreeForm) respaldado por una instancia gestionada de Supabase
+Postgres, pensado para equipos donde varios developers comparten un único board
+source-of-truth. Hasta ahora los backends asumían un solo developer (FreeForm
+local) o un servicio externo de reporting (Trello / Plane); ninguno resolvía la
+concurrencia multi-developer sobre un mismo board. El Native Backend lo hace con
+concurrencia optimista, identidad de developer y claims de UC. Es **opt-in por
+proyecto** y **aditivo** — no toca el comportamiento de los tres backends
+existentes.
+
+### Added
+
+- **Native Backend** (`server/backends/native_backend.py`) — implementa los 26
+  métodos del `SpecBackend` ABC sobre un pool asyncpg contra Supabase Postgres.
+  Despachado desde `auth_gateway.py` solo cuando `backend_type='native'`.
+- **Schema multi-tenant** (`server/db/migrations/0001_native_schema.sql`) —
+  tablas US/UC/AC con guard de **concurrencia optimista** (`expected_version`,
+  pasado vía `meta` para no romper la firma del ABC).
+- **Identidad de developer** (`0002_developers.sql` +
+  `server/coordination/identity.py`) — resolución token→developer, Frontier 1
+  authz (UNAUTHENTICATED cuando el token es desconocido, FORBIDDEN cuando un
+  developer toca un proyecto del que no es miembro). Tools `whoami`,
+  `register_native_developer`.
+- **Claims de UC + registro de ramas** (`0003_claims.sql` +
+  `server/coordination/{claims,branches}.py`) — un developer reserva un UC y
+  registra su rama feature. Tools `claim_uc`, `release_uc`,
+  `register_native_branch`.
+- **`docker-compose.dev.yml`** — Postgres dev local (postgres:16, puerto 55432,
+  db `specbox_native`) para verificar migraciones y tests sin tocar producción.
+
+### Changed
+
+- **Native Backend migrado de Postgres-on-VPS a Supabase gestionado** (proyecto
+  `SpecBox-DataBase`, Postgres 17, eu-west-3). El cutover quedó validado en
+  producción.
+- **`auth_gateway.py`** — rama `native` añadida en `get_session_backend`; el DSN
+  se lee de `SPECBOX_NATIVE_DSN` (nunca se persiste).
+- **Dashboard `/health`** — lee la versión real de `ENGINE_VERSION.yaml` en vez
+  de un string hardcoded.
+- **Dockerfile** — ARG `CACHEBUST` para forzar recopy del engine en rebuilds de
+  EasyPanel.
+
+### Decisions
+
+- El Native Backend es **opt-in y aditivo**, no un reemplazo. Es un cuarto
+  backend; los proyectos que no configuran `backend_type='native'` se comportan
+  exactamente igual que antes. Por eso la release es un **minor** sin breaking
+  changes.
+- **Frontier 2 — seguridad de credenciales**: el DSN vive solo en
+  `SPECBOX_NATIVE_DSN`. Nunca en disco ni en `meta.json`, de modo que una fuga de
+  board export o config no expone acceso a la base.
+- **Concurrencia optimista** (`expected_version`) elegida sobre locking para
+  evitar que un developer con un lock obsoleto bloquee a todo el equipo.
+
+### Compatibility
+
+- 100% backwards-compatible. La firma del `SpecBackend` ABC no cambia
+  (`expected_version` fluye por `meta`). `detect_project_backend` mantiene su
+  cadena de prioridad de 5 niveles; native solo se selecciona si está
+  explícitamente configurado. Sin `SPECBOX_NATIVE_DSN`, el pool native nunca se
+  instancia.
+
+### Tests
+
+- Suites native verdes contra la instancia Supabase real: 50 passed, 0 skipped.
+  - `tests/test_native_schema.py`, `tests/test_native_backend_conformance.py`
+    (conformance parametrizado del ABC), `tests/test_native_dispatch.py`,
+    `tests/test_native_pool_supabase.py`, harness `tests/_native_db.py`.
+- Fallos preexistentes en `main` (mock de `InMemoryBackend` sin `archive_item`
+  en `test_spec_mutations.py`) documentados en releases previas permanecen y son
+  ajenos a este trabajo.
+
 ## [5.33.0] - 2026-05-13 — "FreeForm Path Safety"
 
 Convierte el BLOCKER de v5.29 (FreeForm + MCP remoto escribiendo el tracking en

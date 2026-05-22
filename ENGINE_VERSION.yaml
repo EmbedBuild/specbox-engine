@@ -1,8 +1,8 @@
-version: 5.33.0
-codename: "FreeForm Path Safety"
+version: 5.34.0
+codename: "Native Collaboration"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-05-13
+release_date: 2026-05-22
 min_claude_code: "1.0.0"
 
 stacks:
@@ -373,8 +373,45 @@ features:
   - detect-local-root-path-tool
   - app-init-handshake-protocol
   - freeform-path-defense-in-depth
+  # New (v5.34.0) — Native Collaboration
+  - native-backend
+  - native-backend-postgres-supabase
+  - native-backend-multi-tenant-schema
+  - native-backend-asyncpg-pool
+  - native-backend-spec-abc
+  - native-backend-optimistic-concurrency
+  - native-backend-dispatch-opt-in
+  - native-developer-identity
+  - native-frontier-1-authz
+  - native-frontier-2-credential-security
+  - native-uc-claims
+  - native-branch-registry
+  - native-whoami-tool
+  - native-register-developer-tool
+  - native-claim-uc-tool
+  - native-release-uc-tool
+  - native-register-branch-tool
+  - four-backend-support
+  - docker-cachebust-arg
+  - dashboard-health-real-version
 
 changelog:
+  5.34.0:
+    date: 2026-05-22
+    codename: "Native Collaboration"
+    changes:
+      - "feat: new Native Backend — a fourth SpecBackend implementation (alongside Trello / Plane / FreeForm) backed by a managed Supabase Postgres instance, designed for multi-developer team collaboration where a single source-of-truth board is shared across developers. server/backends/native_backend.py implements all 26 methods of the SpecBackend ABC over an asyncpg pool. Opt-in per project: get_session_backend in server/auth_gateway.py dispatches to NativeBackend only when backend_type='native'; the three existing backends remain the default. The DB credential is read exclusively from the SPECBOX_NATIVE_DSN environment variable and is NEVER stored on disk or in meta.json (Frontier 2 — credential security)"
+      - "feat: multi-tenant Postgres schema (server/db/migrations/0001_native_schema.sql) with optimistic-concurrency guards. Updates to US/UC carry an expected_version (passed via meta['expected_version'] to keep the ABC signature intact) and a mismatch raises a conflict instead of silently overwriting a teammate's change. The pool lives in the same module and is verified against a local Postgres dev instance (docker-compose.dev.yml, postgres:16 on port 55432) and against the production Supabase instance"
+      - "feat: developer identity + authorization (H2). Migration 0002_developers.sql adds a developers table (developer_id PK, display_name, hashed token). server/coordination/identity.py resolves a token → developer, enforces Frontier 1 authz (UNAUTHENTICATED when the token is unknown, FORBIDDEN when a developer touches a project they are not a member of). New MCP tools whoami() and register_native_developer()"
+      - "feat: UC claims + branch registry (H3). Migration 0003_claims.sql plus server/coordination/claims.py and server/coordination/branches.py let a developer claim a UC (preventing two teammates from implementing the same UC concurrently) and register the feature branch tied to a claim. New MCP tools claim_uc(), release_uc(), register_native_branch()"
+      - "feat: Native Backend migrated from a self-hosted Postgres-on-VPS to a managed Supabase instance (project SpecBox-DataBase, Postgres 17, eu-west-3). The native suite (tests/test_native_*.py) runs green against the real Supabase instance — 50 passed, 0 skipped — validating the cutover end-to-end in production"
+      - "fix(dashboard): the Sala de Máquinas /health endpoint now reads the real engine version from ENGINE_VERSION.yaml instead of a hardcoded string, so the dashboard reflects the deployed version accurately"
+      - "build(docker): Dockerfile gains a CACHEBUST ARG to force a fresh re-copy of the engine on EasyPanel rebuilds, fixing stale-layer deploys on the VPS"
+      - "decision: Native Backend is opt-in and additive — it is a fourth backend, not a replacement. Projects that do not set backend_type='native' behave exactly as before. This keeps the release a minor bump with zero breaking changes to Trello / Plane / FreeForm users"
+      - "decision: the native DB credential lives only in SPECBOX_NATIVE_DSN (env), never persisted, so a leaked meta.json or board export cannot expose database access. Optimistic concurrency (expected_version) was chosen over locking to avoid a teammate holding a stale lock blocking the whole team"
+      - "compat: 100% backwards-compatible. The SpecBackend ABC is unchanged in signature (expected_version flows through meta to avoid breaking the three existing backends). detect_project_backend keeps its 5-level priority chain; native is only selected when explicitly configured. Projects without SPECBOX_NATIVE_DSN never instantiate the native pool"
+      - "tests: native suites — test_native_schema.py, test_native_backend_conformance.py (parametrized SpecBackend conformance, the suite that did not exist pre-H1), test_native_dispatch.py, test_native_pool_supabase.py, plus the _native_db.py harness. 50 passed against real Supabase. Pre-existing failures on main (test_spec_mutations InMemoryBackend mock missing archive_item) documented in prior releases remain and are unrelated"
+
   5.33.0:
     date: 2026-05-13
     codename: "FreeForm Path Safety"

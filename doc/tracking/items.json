@@ -1366,7 +1366,7 @@
     "id": "item-9a4d7210",
     "name": "[UC-406] Skill guiado /switch-backend",
     "description": "",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-5ff5e98c",
     "labels": [
       "UC"
@@ -1385,7 +1385,7 @@
     "id": "ac-5943b777",
     "name": "[AC-01] El skill detecta backend actual via detect_project_backend, pregunta destino entre los 3 restantes y solicita credenciales del destino de forma segura (Native: indica env SPECBOX_NATIVE_DSN y NO pide DSN por chat); verificado por SKILL.md que documenta cada paso.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-9a4d7210",
     "labels": [
       "AC"
@@ -1401,7 +1401,7 @@
     "id": "ac-045e9163",
     "name": "[AC-02] Antes de ejecutar muestra preview (migrate_backend dry_run=True) con counts y exige confirmacion literal del usuario; verificado por SKILL.md con paso de confirmacion bloqueante antes de dry_run=False.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-9a4d7210",
     "labels": [
       "AC"
@@ -1417,7 +1417,7 @@
     "id": "ac-eb9b589f",
     "name": "[AC-03] Tras migrar presenta reporte con 4 secciones: switch+consistencia de 3 lugares, aviso de evidencia intacta, lista de estado Native descartado si aplica, y oferta de lanzar regenerate_evidence; verificado por SKILL.md que enumera las 4 secciones.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-9a4d7210",
     "labels": [
       "AC"

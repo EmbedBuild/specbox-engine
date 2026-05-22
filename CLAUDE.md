@@ -350,6 +350,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /stripe-standard | "stripe standard", "stripe sin connect", "subscriptions saas", "billing saas", "monta pagos saas" | direct | Full | v5.27 — Stripe Standard (no Connect) + 4 modalidades (single/tiered/metered/one_shot) + Supabase + React/Flutter |
 | /stripe-switch-account | "switch stripe account", "rotar cuenta stripe", "cambiar cuenta stripe" | direct | Full | v5.27 — Stripe credentials rotation (alias store + switch_stripe_account tool, both Standard and Connect modes, dry-run + automatic rollback) |
 | /handoff | "handoff", "save state", "guarda contexto", "voy a hacer compactación" | direct | Read+Bash+Write | v5.30 — Persiste estado fino a `.quality/handoff.md` + Engram structured + heartbeat. **Llamar ANTES de proponer compactación**. |
+| /switch-backend | "switch backend", "cambiar backend", "migrar de FreeForm a Trello/Plane/Native", "mover el tracking a" | direct | Full | v5.35 — Cambio guiado de backend N×N entre los 4 (FreeForm/Trello/Plane/Native). Preview obligatorio + confirmación literal + switch transaccional (3 lugares con rollback) + regenerate_evidence opt-in. Migración aditiva, no destruye origen. |
 
 ## Hooks (v5.34.0)
 

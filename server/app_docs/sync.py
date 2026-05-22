@@ -28,7 +28,6 @@ from typing import Any
 from fastmcp import FastMCP
 
 from .zones import (
-    ZoneKind,
     compute_signature,
     parse_document,
     replace_zone_body,
@@ -279,7 +278,7 @@ def _render_zone_body(zone_id: str, payload: dict[str, Any], project_path: Path)
         backend = payload.get("backend_type")
         root_abs = payload.get("freeform_root_absolute")
         external_reporting = payload.get("external_reporting", "no")
-        if backend not in {"freeform", "trello", "plane"}:
+        if backend not in {"freeform", "trello", "plane", "native"}:
             return None
         lines = [
             "## 2. Tracking backend",
@@ -292,6 +291,8 @@ def _render_zone_body(zone_id: str, payload: dict[str, Any], project_path: Path)
             lines.append(f"- **Trello board id:** {payload['trello_board_id']}")
         if backend == "plane" and payload.get("plane_project_id"):
             lines.append(f"- **Plane project id:** {payload['plane_project_id']}")
+        if backend == "native" and payload.get("native_project_id"):
+            lines.append(f"- **Native project id:** {payload['native_project_id']}")
         lines.append(f"- **Reporting externo:** {external_reporting}")
         lines.extend(
             [

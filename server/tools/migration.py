@@ -36,7 +36,7 @@ def _classify_items(items: list[ItemDTO]) -> dict[str, list[ItemDTO]]:
     """Classify items into US, UC, AC by labels."""
     result: dict[str, list[ItemDTO]] = {"us": [], "uc": [], "ac": [], "other": []}
     for item in items:
-        labels_lower = [l.lower() for l in item.labels]
+        labels_lower = [label.lower() for label in item.labels]
         if "us" in labels_lower:
             result["us"].append(item)
         elif "uc" in labels_lower:
@@ -176,7 +176,7 @@ async def migrate_preview(
                 state: name
                 for state, name in source["states"].items()
             },
-            "labels": [l.get("name", "") for l in source["labels"]],
+            "labels": [lbl.get("name", "") for lbl in source["labels"]],
         }
     finally:
         await backend.close()
@@ -303,9 +303,7 @@ async def migrate_project(
 
                     # Create module for this US
                     try:
-                        module = await target_backend.create_module(
-                            target_id, f"{us_id}: {us_name}"
-                        )
+                        await target_backend.create_module(target_id, f"{us_id}: {us_name}")
                         migrated["modules"] += 1
                     except Exception as e:
                         logger.warning("migration_module_error", us_id=us_id, error=str(e))
@@ -447,6 +445,180 @@ async def migrate_project(
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# MIGRATE BACKEND (N×N — UC-404 AC-10/AC-11)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _native_pool_from_session(backend: SpecBackend):
+    """Best-effort accessor for a NativeBackend's asyncpg pool.
+
+    Returns the pool if ``backend`` is a NativeBackend with one initialized,
+    else ``None``. Used to drive the native_handling helpers (seed identity /
+    exit report) without importing NativeBackend at module load.
+    """
+    pool = getattr(backend, "_pool", None) or getattr(backend, "pool", None)
+    return pool
+
+
+async def migrate_backend(
+    source_type: str,
+    source_id: str,
+    target_type: str,
+    ctx: Context,
+    target_id: str | None = None,
+    target_name: str | None = None,
+    dry_run: bool = True,
+    native_developer_id: str = "",
+) -> dict[str, Any]:
+    """Migrate a project between ANY two of the four backends (N×N).
+
+    Generalizes ``migrate_project`` (Trello↔Plane) to all four backends
+    (freeform / trello / plane / native) using the UC-401 generic writer,
+    UC-402 state mapping and UC-403 native handling.
+
+    AC-10 (dry_run=True, default): returns a preview with US/UC/AC/comment
+    counts plus the per-item state degradations that would occur on the target.
+    Writes NOTHING — the target stays empty.
+
+    AC-11 (dry_run=False): performs an ADDITIVE migration. The source is left
+    intact (``list_items(source)`` is identical before and after) and the result
+    carries the migrated/skipped counts, the error list and the id_map. When the
+    target is native, the migrating developer identity is seeded; when the source
+    is native, the discarded coordination state is reported.
+
+    Args:
+        source_type: Source backend type (one of the four).
+        source_id: Source board/project id.
+        target_type: Target backend type (one of the four).
+        target_id: Target board/project id (None → create new).
+        target_name: Name for a new target board/project (used when target_id
+            is None).
+        dry_run: Preview only (default True). Set False to execute.
+        native_developer_id: Developer id to seed when target is native
+            (AC-08). Defaults to a generated id when migrating into native.
+
+    Returns:
+        Preview dict (dry_run) or migration-result dict (execution).
+    """
+    from ..migration.backend_dispatch import VALID_BACKENDS
+    from ..migration.state_mapping import map_state_for_migration
+    from ..migration.writer import write_target
+
+    for label, bt in (("source_type", source_type), ("target_type", target_type)):
+        if bt not in VALID_BACKENDS:
+            return {"error": f"Invalid {label} {bt!r}. Must be one of: {', '.join(VALID_BACKENDS)}."}
+    if source_type == target_type and source_id == (target_id or ""):
+        return {"error": "Source and target are the same backend+id; nothing to migrate."}
+
+    source_backend = await get_session_backend(ctx)
+    try:
+        source = await _read_source(source_backend, source_id)
+        source["source_type"] = source_type
+        classified = source["classified"]
+
+        # Compute state degradations for every US/UC against the target backend.
+        degradations: list[dict[str, Any]] = []
+        for item in classified["us"] + classified["uc"]:
+            _state, warning = map_state_for_migration(target_type, item.state)
+            if warning:
+                degradations.append({"item": item.name, **warning})
+
+        total_comments = sum(len(v) for v in source["comments_data"].values())
+        counts = {
+            "user_stories": len(classified["us"]),
+            "use_cases": len(classified["uc"]),
+            "acceptance_criteria": sum(len(v) for v in source["ac_data"].values()),
+            "comments": total_comments,
+            "other_items": len(classified["other"]),
+        }
+
+        if dry_run:
+            return {
+                "dry_run": True,
+                "source": {"type": source_type, "id": source_id, "name": source["board_name"]},
+                "target": {"type": target_type, "id": target_id, "name": target_name},
+                "counts": counts,
+                "state_degradations": degradations,
+                "note": "Preview only — target unchanged. Set dry_run=False to execute.",
+            }
+
+        # ── Execution (AC-11) ────────────────────────────────────────────
+        target_config = await ctx.get_state("migration_target_config")
+        if not target_config:
+            return {
+                "error": "Target backend not configured. Call set_migration_target first "
+                "with credentials for the target backend."
+            }
+
+        from ..migration.backend_dispatch import build_backend
+
+        target_backend = build_backend(target_config["backend_type"], target_config)
+        try:
+            if not target_id:
+                config = await target_backend.setup_board(target_name or source["board_name"])
+                target_id = config.board_id
+                logger.info("migrate_backend_target_created", target_id=target_id)
+
+            # AC-08: seed identity when migrating INTO native.
+            native_seed: dict[str, Any] | None = None
+            if target_type == "native":
+                pool = _native_pool_from_session(target_backend)
+                if pool is not None:
+                    from ..migration.native_handling import seed_native_identity
+
+                    dev_id = native_developer_id or "migrated-owner"
+                    native_seed = await seed_native_identity(
+                        pool, project_id=target_id, developer_id=dev_id
+                    )
+
+            write_result = await write_target(target_backend, target_id, source, source_type)
+
+            # AC-07: report discarded coordination state when leaving native.
+            native_exit: dict[str, Any] | None = None
+            if source_type == "native":
+                pool = _native_pool_from_session(source_backend)
+                if pool is not None:
+                    from ..migration.native_handling import (
+                        build_native_exit_report,
+                        collect_discarded_native_state,
+                    )
+
+                    discarded = await collect_discarded_native_state(pool, source_id)
+                    native_exit = build_native_exit_report(discarded)
+
+            result = {
+                "success": True,
+                "source": {"type": source_type, "id": source_id, "name": source["board_name"]},
+                "target": {"type": target_type, "id": target_id},
+                "migrated": write_result["migrated"],
+                "skipped": write_result["skipped"],
+                "errors": write_result["errors"],
+                "id_map": write_result["id_map"],
+                "state_degradations": degradations,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            if native_seed is not None:
+                result["native_identity_seeded"] = native_seed
+            if native_exit is not None:
+                result.update(native_exit)
+
+            await ctx.set_state(MIGRATION_STATE_KEY, result)
+            logger.info(
+                "migrate_backend_complete",
+                source_type=source_type,
+                target_type=target_type,
+                migrated=write_result["migrated"],
+                skipped=write_result["skipped"],
+                errors=len(write_result["errors"]),
+            )
+            return result
+        finally:
+            await target_backend.close()
+    finally:
+        await source_backend.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # MIGRATE STATUS
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -552,56 +724,76 @@ async def switch_backend(
     backend_type: str,
     board_id: str,
     ctx: Context,
+    project_path: str = ".",
+    freeform_root_absolute: str | None = None,
 ) -> dict[str, Any]:
-    """Switch the active backend for an onboarded project.
+    """Switch the active backend for an onboarded project (any of the four).
 
-    Updates the project registry so all spec-driven tools use the new backend.
-    Does NOT migrate data — use migrate_project first.
+    Atomically updates the THREE sources of truth (AC-12): the engine registry
+    (``projects.json``), the ``tracking_backend`` zone of
+    ``doc/app/app_spec.md`` and the ``specbox.backend_type`` key in
+    ``.claude/settings.local.json``. If any of the three fails to write, the
+    already-written ones are rolled back and an error naming the failing place
+    is returned (AC-13) — leaving the project on its original backend.
+
+    Does NOT migrate data — use ``migrate_backend`` first.
 
     Args:
-        project_slug: Project slug in the engine registry
-        board_id: Board/project ID in the new backend
-        backend_type: "trello" or "plane"
+        project_slug: Project slug in the engine registry.
+        backend_type: Target backend (freeform / trello / plane / native).
+        board_id: Board/project ID in the new backend.
+        project_path: Filesystem root of the project (for app_spec + settings).
+            Defaults to ``"."``.
+        freeform_root_absolute: Absolute tracking path when switching to
+            freeform (defaults to ``<project_path>/doc/tracking``).
 
     Returns:
-        Confirmation with previous and new backend info.
+        Confirmation with previous and new backend info, plus the list of
+        updated places. On rollback, an ``error`` naming the failing place.
     """
-    if backend_type not in ("trello", "plane"):
-        return {"error": f"Invalid backend_type: {backend_type}. Must be 'trello' or 'plane'."}
+    from ..migration.backend_dispatch import VALID_BACKENDS
+    from ..migration.transactional_switch import (
+        TransactionalSwitchError,
+        apply_switch_transactional,
+        _read_registry_snapshot,
+    )
 
-    # Read project registry
-    import json
-    from pathlib import Path
-    import os
+    if backend_type not in VALID_BACKENDS:
+        return {
+            "error": f"Invalid backend_type: {backend_type}. "
+            f"Must be one of: {', '.join(VALID_BACKENDS)}."
+        }
 
-    state_path = Path(os.getenv("STATE_PATH", "/data/state"))
-    registry_path = state_path / "projects.json"
-
-    if not registry_path.exists():
-        return {"error": "Project registry not found"}
-
-    registry = json.loads(registry_path.read_text())
-    projects = registry.get("projects", {})
-
-    if project_slug not in projects:
+    # Surface previous backend info before mutating (registry is the source).
+    snapshot = _read_registry_snapshot(project_slug, None)
+    if not snapshot.get("present"):
         return {"error": f"Project '{project_slug}' not found in registry"}
+    previous_entry = snapshot["entry"] or {}
+    previous_backend = previous_entry.get("spec_backend", "")
+    previous_board_id = previous_entry.get("board_id", "")
 
-    project = projects[project_slug]
-    previous_backend = project.get("spec_backend", "trello")
-    previous_board_id = project.get("board_id", "")
-
-    # Update project config
-    project["spec_backend"] = backend_type
-    project["board_id"] = board_id
-    if previous_backend != backend_type:
-        project.setdefault("backend_history", []).append({
+    try:
+        outcome = apply_switch_transactional(
+            project_slug=project_slug,
+            new_backend=backend_type,
+            new_board_id=board_id,
+            project_path=project_path,
+            freeform_root_absolute=freeform_root_absolute,
+        )
+    except TransactionalSwitchError as exc:
+        logger.error(
+            "backend_switch_rolled_back",
+            project=project_slug,
+            failing_place=exc.place,
+            rolled_back=exc.rolled_back,
+        )
+        return {
+            "error": str(exc),
+            "failing_place": exc.place,
+            "rolled_back": exc.rolled_back,
+            "project": project_slug,
             "backend": previous_backend,
-            "board_id": previous_board_id,
-            "switched_at": datetime.now(timezone.utc).isoformat(),
-        })
-
-    registry["projects"][project_slug] = project
-    registry_path.write_text(json.dumps(registry, indent=2, ensure_ascii=False))
+        }
 
     logger.info(
         "backend_switched",
@@ -609,8 +801,8 @@ async def switch_backend(
         previous=previous_backend,
         new=backend_type,
         board_id=board_id,
+        updated=outcome["updated"],
     )
-
     return {
         "success": True,
         "project": project_slug,
@@ -618,6 +810,7 @@ async def switch_backend(
         "previous_board_id": previous_board_id,
         "new_backend": backend_type,
         "new_board_id": board_id,
+        "updated": outcome["updated"],
     }
 
 
@@ -640,6 +833,12 @@ def register_migration_tools(mcp_instance) -> None:
     )(migrate_project)
 
     mcp_instance.tool(
+        description="Migrate a project between ANY two of the four backends "
+        "(freeform / trello / plane / native). Additive — source stays intact. "
+        "dry_run=True previews counts + state degradations; set False to execute."
+    )(migrate_backend)
+
+    mcp_instance.tool(
         description="Check status of the last migration in this session."
     )(migrate_status)
 
@@ -649,6 +848,7 @@ def register_migration_tools(mcp_instance) -> None:
     )(set_migration_target)
 
     mcp_instance.tool(
-        description="Switch the active backend for a project. "
-        "Updates project registry. Use migrate_project first to move data."
+        description="Switch the active backend for a project (any of the four). "
+        "Atomically updates registry + app_spec + settings with rollback on failure. "
+        "Use migrate_backend first to move data."
     )(switch_backend)

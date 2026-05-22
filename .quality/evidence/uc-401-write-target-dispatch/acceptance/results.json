@@ -1,0 +1,18 @@
+{
+  "feature": "uc-401-write-target-dispatch",
+  "uc_id": "UC-401",
+  "us_id": "US-BACKEND-SWITCH",
+  "evidence_type": "test-suite",
+  "verdict": "ACCEPTED",
+  "ag08": "GO",
+  "ag09b": "ACCEPTED",
+  "coverage_pct": 95,
+  "tests_passed": 17,
+  "tests_failed": 0,
+  "regression_passed": 75,
+  "criteria": [
+    {"ac": "AC-01", "status": "PASS", "evidence": "test_write_target_round_trip_counts, test_write_target_preserves_logical_ids, test_write_target_preserves_ac_done_state, test_write_target_parent_fallback_via_meta_us_id"},
+    {"ac": "AC-02", "status": "PASS", "evidence": "test_build_backend_accepts_four_types[4x], test_build_backend_invalid_names_all_four"},
+    {"ac": "AC-03", "status": "PASS", "evidence": "test_write_target_idempotent_double_pass"}
+  ]
+}

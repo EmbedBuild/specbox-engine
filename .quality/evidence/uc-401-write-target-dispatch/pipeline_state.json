@@ -1,0 +1,14 @@
+{
+  "feature": "uc-401-write-target-dispatch",
+  "has_ui": false,
+  "has_db": false,
+  "completed_phases": [
+    "db_infra",
+    "stitch_designs",
+    "design_to_code",
+    "feature_code",
+    "tests"
+  ],
+  "current_phase": "acceptance",
+  "last_updated": "2026-05-22T18:51:07Z"
+}

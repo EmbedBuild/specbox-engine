@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v5.33.0 — "FreeForm Path Safety" (sobre v5.32.1 "Release Skill — README + CHANGELOG enforcement")<br/>
+  v5.34.0 — "Native Collaboration" (sobre v5.33.0 "FreeForm Path Safety")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,19 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v5.34
+
+**v5.34.0 — "Native Collaboration"** estrena el **Native Backend**: un cuarto backend del `SpecBackend` ABC (junto a Trello / Plane / FreeForm), respaldado por una instancia gestionada de Supabase Postgres, pensado para equipos donde varios developers comparten un único board source-of-truth.
+
+- **Backend Postgres/Supabase multi-tenant** — los 26 métodos del ABC sobre un pool asyncpg, con **concurrencia optimista** (`expected_version`) para que dos developers no pisen el mismo trabajo.
+- **Identidad de developer + autorización** — resolución token→developer, Frontier 1 authz (UNAUTHENTICATED / FORBIDDEN). Nuevas tools `whoami`, `register_native_developer`.
+- **Claims de UC + registro de ramas** — un developer reserva un UC y registra su rama feature. Nuevas tools `claim_uc`, `release_uc`, `register_native_branch`.
+- **Seguridad de credenciales (Frontier 2)** — el DSN vive solo en `SPECBOX_NATIVE_DSN`, nunca en disco ni en `meta.json`.
+
+Opt-in y aditivo: si no configuras `backend_type='native'`, todo se comporta como antes. 100% backwards-compatible — Trello / Plane / FreeForm intactos. Validado en producción contra Supabase real (50 tests verdes).
 
 ---
 
@@ -328,7 +341,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v5.33.0 — "FreeForm Path Safety" (over v5.32.1 "Release Skill — README + CHANGELOG enforcement")
+> v5.34.0 — "Native Collaboration" (over v5.33.0 "FreeForm Path Safety")
 
 ## What is this?
 
@@ -340,6 +353,19 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v5.34
+
+**v5.34.0 — "Native Collaboration"** introduces the **Native Backend**: a fourth `SpecBackend` implementation (alongside Trello / Plane / FreeForm), backed by a managed Supabase Postgres instance, built for teams where multiple developers share a single source-of-truth board.
+
+- **Multi-tenant Postgres/Supabase backend** — all 26 ABC methods over an asyncpg pool, with **optimistic concurrency** (`expected_version`) so two developers don't clobber each other's work.
+- **Developer identity + authorization** — token→developer resolution, Frontier 1 authz (UNAUTHENTICATED / FORBIDDEN). New tools `whoami`, `register_native_developer`.
+- **UC claims + branch registry** — a developer claims a UC and registers its feature branch. New tools `claim_uc`, `release_uc`, `register_native_branch`.
+- **Credential security (Frontier 2)** — the DSN lives only in `SPECBOX_NATIVE_DSN`, never on disk or in `meta.json`.
+
+Opt-in and additive: if you don't set `backend_type='native'`, everything behaves as before. 100% backwards-compatible — Trello / Plane / FreeForm untouched. Validated in production against real Supabase (50 green tests).
+
+---
 
 ## What's new in v5.33
 

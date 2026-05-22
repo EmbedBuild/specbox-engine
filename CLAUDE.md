@@ -1,4 +1,4 @@
-# SpecBox Engine v5.33.0
+# SpecBox Engine v5.34.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -64,6 +64,41 @@ Genera automaticamente Markdowns de progreso legibles:
 - `doc/tracking/progress/UC-XXX.md` — Detalle por UC con ACs y estado
 
 Los hooks de Pipeline Integrity (spec-guard.mjs) funcionan igual con FreeForm.
+
+## Native Backend (v5.34.0)
+
+Cuarto backend del `SpecBackend` ABC (junto a Trello / Plane / FreeForm), respaldado
+por una instancia gestionada de Supabase Postgres. Pensado para **colaboración
+multi-developer**: un único board source-of-truth compartido entre varios developers,
+con concurrencia optimista para que dos personas no pisen el mismo trabajo.
+
+Es **opt-in por proyecto** y **aditivo** — no reemplaza a ningún backend. Los tres
+backends existentes siguen siendo el default; `auth_gateway.py` despacha a
+`NativeBackend` solo cuando `backend_type='native'`.
+
+```
+set_auth_token(api_key="", token="<dev-token>", backend_type="native", project_id="<proj>")
+```
+
+| Componente | Archivo | Rol |
+|------------|---------|-----|
+| NativeBackend | `server/backends/native_backend.py` | 26 métodos del ABC sobre pool asyncpg |
+| Schema multi-tenant | `server/db/migrations/0001_native_schema.sql` | Tablas US/UC/AC + concurrencia optimista (`expected_version`) |
+| Identity | `server/db/migrations/0002_developers.sql` + `server/coordination/identity.py` | Resolución token→developer, Frontier 1 authz (UNAUTHENTICATED / FORBIDDEN) |
+| Claims + branches | `server/db/migrations/0003_claims.sql` + `server/coordination/{claims,branches}.py` | Reserva de UC por developer + registro de rama feature |
+| Tools MCP | `server/tools/coordination.py` | `whoami`, `register_native_developer`, `claim_uc`, `release_uc`, `register_native_branch` |
+
+**Frontier 2 — seguridad de credenciales**: el DSN de la base vive exclusivamente en la
+variable de entorno `SPECBOX_NATIVE_DSN`. Nunca se persiste en disco ni en `meta.json`,
+de modo que una fuga de board export o config no expone acceso a la base.
+
+Postgres dev local para verificar migraciones y tests:
+```bash
+docker compose -f docker-compose.dev.yml up -d   # postgres:16, puerto 55432, db specbox_native
+```
+
+La suite native (`tests/test_native_*.py`) corre verde contra la instancia Supabase real
+gestionada (`SpecBox-DataBase`, Postgres 17, eu-west-3): 50 passed, 0 skipped.
 
 ## Instalacion
 
@@ -316,7 +351,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /stripe-switch-account | "switch stripe account", "rotar cuenta stripe", "cambiar cuenta stripe" | direct | Full | v5.27 — Stripe credentials rotation (alias store + switch_stripe_account tool, both Standard and Connect modes, dry-run + automatic rollback) |
 | /handoff | "handoff", "save state", "guarda contexto", "voy a hacer compactación" | direct | Read+Bash+Write | v5.30 — Persiste estado fino a `.quality/handoff.md` + Engram structured + heartbeat. **Llamar ANTES de proponer compactación**. |
 
-## Hooks (v5.33.0)
+## Hooks (v5.34.0)
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -1232,6 +1267,6 @@ documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
 
 ## Engine Version
 
-Current: v5.33.0 "FreeForm Path Safety"
+Current: v5.34.0 "Native Collaboration"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

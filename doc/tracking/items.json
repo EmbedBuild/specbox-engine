@@ -993,5 +993,440 @@
       "done": true
     },
     "created_at": "2026-05-21T22:07:15.622820+00:00"
+  },
+  {
+    "id": "item-5ff5e98c",
+    "name": "[US-BACKEND-SWITCH] Cambio guiado de backend entre los 4 (FreeForm/Trello/Plane/Native)",
+    "description": "Como desarrollador o equipo que usa SpecBox, quiero cambiar el backend de tracking de mi proyecto entre cualquiera de los 4 (FreeForm/Trello/Plane/Native) de forma guiada, para adaptar el gestor a la fase del proyecto (local -> reporting a cliente -> multi-dev) sin perder datos ni el avance de ejecucion registrado. Generaliza la migracion a N×N (12 pares) + skill /switch-backend + regeneracion de evidencias.",
+    "state": "backlog",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "meta": {
+      "us_id": "US-BACKEND-SWITCH",
+      "tipo": "US",
+      "horas": "52"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "item-c2ede26f",
+    "name": "[UC-401] Lectura/escritura generica entre los 4 backends",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5ff5e98c",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-401",
+      "tipo": "UC",
+      "us_id": "US-BACKEND-SWITCH",
+      "actor": "Engine",
+      "horas": "12"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-036b0b6c",
+    "name": "[AC-01] _write_target(target_backend, target_id, source_data) crea US, UC y AC en cualquiera de los 4 backends a partir del dict de _read_source, preservando jerarquia padre->hijo (parent_id) y el uc_id/us_id/ac_id logico en meta; test de round-trip lee de A, escribe en B y verifica mismo numero de US/UC/AC e IDs logicos.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-c2ede26f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-7d0ad79e",
+    "name": "[AC-02] El dispatch acepta los 4 valores (freeform, trello, plane, native) como origen y destino; backend_type invalido devuelve error que nombra los 4 validos, verificado por test parametrizado sobre los 4 tipos.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-c2ede26f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-aef4057d",
+    "name": "[AC-03] Escritura idempotente via external_id (como migrate_project): reejecutar sobre destino ya poblado no duplica y reporta skipped, verificado con doble pasada y 0 duplicados.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-c2ede26f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "item-25d61a01",
+    "name": "[UC-402] Matriz de mapeo de estados bidireccional entre los 4 backends",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5ff5e98c",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-402",
+      "tipo": "UC",
+      "us_id": "US-BACKEND-SWITCH",
+      "actor": "Engine",
+      "horas": "8"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-7a388262",
+    "name": "[AC-01] Tabla traduce los 5 estados canonicos del ABC (user_stories, backlog, in_progress, review, done) al estado nativo de cada uno de los 4 backends y viceversa; test verifica que un UC in_progress migrado de cualquier origen a cualquier destino re-lee a in_progress.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-25d61a01",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-4cd4232a",
+    "name": "[AC-02] Estado sin equivalente exacto aplica fallback documentado (done->done, intermedio desconocido->backlog) y registra warning en el reporte nombrando UC y estado degradado, verificado con caso sin equivalente.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-25d61a01",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-a934abbc",
+    "name": "[AC-03] La migracion preserva AC marcados done (ChecklistItemDTO.done) entre los 4 backends; test migra UC con 3 de 5 AC done y verifica exactamente esos 3 done en destino.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-25d61a01",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "item-f288770e",
+    "name": "[UC-403] Manejo del backend Native (entrada y salida)",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5ff5e98c",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-403",
+      "tipo": "UC",
+      "us_id": "US-BACKEND-SWITCH",
+      "actor": "Engine",
+      "horas": "10"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-e15da9bc",
+    "name": "[AC-01] Native -> single-user migra avance completo (US/UC/AC con estado, comentarios) y descarta claims/identidad/branches, listandolos en seccion discarded_native_state del reporte con conteo; verificado migrando Native con >=1 claim activo.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f288770e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-b43a53fa",
+    "name": "[AC-02] Cualquier backend -> Native siembra expected_version=1 y asocia identidad del developer actual (whoami/token) en cada US/UC; verificado leyendo en Postgres expected_version=1 y developer_id no nulo.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f288770e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-aeb007d6",
+    "name": "[AC-03] El DSN de Postgres nunca se solicita ni persiste en sesion ni disco; acceso solo via env SPECBOX_NATIVE_DSN (Frontier 2), verificado con grep del DSN en todos los archivos de salida = 0 coincidencias.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f288770e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "item-59e5082b",
+    "name": "[UC-404] Tool migrate_backend N×N + switch_backend generalizado + update transaccional",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5ff5e98c",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-404",
+      "tipo": "UC",
+      "us_id": "US-BACKEND-SWITCH",
+      "actor": "Engine",
+      "horas": "12"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-394cddf6",
+    "name": "[AC-01] migrate_backend(source_type, source_id, target_type, target_id?, dry_run=True) con dry_run=True devuelve preview con counts US/UC/AC/comments y mapeo de estados sin escribir; verificado: destino sigue vacio tras dry-run.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-59e5082b",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-a0ea3dd8",
+    "name": "[AC-02] dry_run=False ejecuta migracion aditiva (origen intacto y legible) y devuelve id_map origen->destino + counts migrados/skipped/errores; verificado: list_items(source) igual antes y despues.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-59e5082b",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-4f3f205b",
+    "name": "[AC-03] switch_backend acepta los 4 backend_types y actualiza atomicamente los 3 lugares (projects.json spec_backend+board_id, zona auto tracking_backend de app_spec.md, specbox.backend_type en settings.local.json); detect_project_backend tras el switch devuelve el nuevo backend.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-59e5082b",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-8d43e543",
+    "name": "[AC-04] Si la actualizacion de cualquiera de los 3 lugares falla, switch_backend revierte los ya escritos (rollback) y devuelve error que nombra el lugar fallido, dejando el proyecto en su backend original; verificado simulando fallo en settings.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-59e5082b",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "item-74c6d2ff",
+    "name": "[UC-405] Regeneracion de evidencias con progreso por UC",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5ff5e98c",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-405",
+      "tipo": "UC",
+      "us_id": "US-BACKEND-SWITCH",
+      "actor": "Engine",
+      "horas": "6"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-643ea6e8",
+    "name": "[AC-01] regenerate_evidence(project, ucs=None) identifica UCs con evidencia previa (escaneo de .quality/evidence/*/acceptance/results.json) y por cada uno reejecuta run_acceptance_check regenerando results.json + HTML; verificado: cada UC procesado tiene results.json con generated_at posterior al inicio.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-74c6d2ff",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-924804f2",
+    "name": "[AC-02] Reporta progreso por UC con formato [X/N] UC-XXX: {PASS|FAIL|SKIP} (n_acs ACs con evidencia) y resumen final con listas regenerados/fallidos/pendientes; verificado sobre proyecto con >=2 UCs.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-74c6d2ff",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-fb937a93",
+    "name": "[AC-03] Resultado persistido en doc/migrations/evidence_regeneration_{timestamp}.md con detalle por UC y resumen; verificado: archivo existe con una entrada por UC procesado.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-74c6d2ff",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "item-9a4d7210",
+    "name": "[UC-406] Skill guiado /switch-backend",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5ff5e98c",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-406",
+      "tipo": "UC",
+      "us_id": "US-BACKEND-SWITCH",
+      "actor": "Desarrollador/equipo",
+      "horas": "4"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-5943b777",
+    "name": "[AC-01] El skill detecta backend actual via detect_project_backend, pregunta destino entre los 3 restantes y solicita credenciales del destino de forma segura (Native: indica env SPECBOX_NATIVE_DSN y NO pide DSN por chat); verificado por SKILL.md que documenta cada paso.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9a4d7210",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-045e9163",
+    "name": "[AC-02] Antes de ejecutar muestra preview (migrate_backend dry_run=True) con counts y exige confirmacion literal del usuario; verificado por SKILL.md con paso de confirmacion bloqueante antes de dry_run=False.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9a4d7210",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
+  },
+  {
+    "id": "ac-eb9b589f",
+    "name": "[AC-03] Tras migrar presenta reporte con 4 secciones: switch+consistencia de 3 lugares, aviso de evidencia intacta, lista de estado Native descartado si aplica, y oferta de lanzar regenerate_evidence; verificado por SKILL.md que enumera las 4 secciones.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9a4d7210",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-22T18:01:11.952952+00:00"
   }
 ]

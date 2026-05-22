@@ -283,9 +283,9 @@ class TestGetAcceptanceReport:
 class TestToolRegistration:
 
     def test_registers_two_tools(self, project_dir, state_dir):
-        """Exactly 2 tools registered."""
+        """Exactly 3 tools registered (run, get_report, get_e2e_gap)."""
         tools = _register_tools(project_dir, state_dir)
-        assert len(tools) == 2
+        assert len(tools) == 3
 
     def test_tool_names(self, project_dir, state_dir):
         tools = _register_tools(project_dir, state_dir)

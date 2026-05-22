@@ -320,3 +320,193 @@ async def test_write_target_idempotent_double_pass(source_data: dict[str, Any]) 
     # No duplication in the target.
     assert len(target.by_label("US")) == 1
     assert len(target.by_label("UC")) == 2
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Best-effort isolation — partial failures don't break write_target
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class _ModuleFlakyBackend(InMemoryBackend):
+    """create_module raises — write_target must keep going (module is best-effort)."""
+
+    async def create_module(self, board_id: str, name: str, description: str = "") -> ModuleDTO:
+        raise RuntimeError("module backend unavailable")
+
+
+async def test_write_target_module_error_does_not_break(source_data: dict[str, Any]) -> None:
+    """writer.py:100-105 — a failing create_module only logs a warning.
+
+    The whole write still succeeds, US/UC/AC counts are intact, no module is
+    counted, and the failure is NOT accumulated in errors[] (module is
+    best-effort, distinct from AC/comment failures which DO surface).
+    """
+    target = _ModuleFlakyBackend()
+
+    result = await write_target(target, "board-b", source_data)
+
+    assert result["migrated"]["us"] == 1
+    assert result["migrated"]["uc"] == 2
+    assert result["migrated"]["ac"] == 3
+    assert result["migrated"]["modules"] == 0
+    # Module failure is swallowed as a warning — never surfaced in errors[].
+    assert result["errors"] == []
+
+
+class _AcCreateFlakyBackend(InMemoryBackend):
+    """create_acceptance_criteria raises — error must land in errors[]."""
+
+    async def create_acceptance_criteria(
+        self, board_id: str, uc_item_id: str, criteria: list[tuple[str, str]]
+    ) -> list[ChecklistItemDTO]:
+        raise RuntimeError("AC store down")
+
+
+async def test_write_target_ac_create_error_accumulates(source_data: dict[str, Any]) -> None:
+    """writer.py:166-171 — a failing create_acceptance_criteria is isolated per-UC.
+
+    UCs are still created, AC count stays 0, and one error per UC-with-ACs is
+    accumulated in errors[] tagged with the logical uc_id.
+    """
+    target = _AcCreateFlakyBackend()
+
+    result = await write_target(target, "board-b", source_data)
+
+    assert result["migrated"]["uc"] == 2
+    assert result["migrated"]["ac"] == 0
+    # Both UCs in source_data carry ACs → two accumulated errors.
+    ac_errors = [e for e in result["errors"] if e.startswith("ACs for")]
+    assert len(ac_errors) == 2
+    assert any("UC-001" in e for e in ac_errors)
+    assert any("UC-002" in e for e in ac_errors)
+
+
+class _AcMarkFlakyBackend(InMemoryBackend):
+    """mark_acceptance_criterion raises — best-effort, must be swallowed."""
+
+    async def mark_acceptance_criterion(
+        self, board_id: str, uc_item_id: str, ac_id: str, passed: bool
+    ) -> ChecklistItemDTO:
+        raise RuntimeError("cannot mark AC done")
+
+
+async def test_write_target_ac_mark_error_swallowed(source_data: dict[str, Any]) -> None:
+    """writer.py:163-164 — a failing mark_acceptance_criterion is best-effort.
+
+    ACs are still created and counted; the done-state re-apply failure for the
+    one done AC is swallowed and never surfaced in errors[].
+    """
+    target = _AcMarkFlakyBackend()
+
+    result = await write_target(target, "board-b", source_data)
+
+    # ACs were created (3 total) despite the mark failure on the done AC.
+    assert result["migrated"]["ac"] == 3
+    assert result["errors"] == []
+
+
+class _CommentFlakyBackend(InMemoryBackend):
+    """add_comment raises — error must land in errors[]."""
+
+    async def add_comment(self, board_id: str, item_id: str, text: str) -> CommentDTO:
+        raise RuntimeError("comment service offline")
+
+
+async def test_write_target_comment_error_accumulates(source_data: dict[str, Any]) -> None:
+    """writer.py:185-186 — a failing add_comment is isolated per-comment.
+
+    US/UC/AC still migrate, comment count stays 0, and the failure is
+    accumulated in errors[] tagged with the source item id.
+    """
+    target = _CommentFlakyBackend()
+
+    result = await write_target(target, "board-b", source_data)
+
+    assert result["migrated"]["us"] == 1
+    assert result["migrated"]["comments"] == 0
+    comment_errors = [e for e in result["errors"] if e.startswith("Comment on")]
+    assert len(comment_errors) == 1
+    assert "src-us-1" in comment_errors[0]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Hierarchy fallback + orphan comment skip
+# ═══════════════════════════════════════════════════════════════════════
+
+
+async def test_write_target_parent_fallback_via_meta_us_id() -> None:
+    """writer.py:124-128 — UC with empty parent_id resolves parent via meta['us_id'].
+
+    The UC carries parent_id="" but meta['us_id']='US-01' pointing at a present
+    US. The fallback loop must locate that US in classified['us'] and wire the
+    migrated UC's parent_id to the migrated US.
+    """
+    us = ItemDTO(
+        id="src-us-1",
+        name="US-01: Cuenta",
+        state="user_stories",
+        labels=["US"],
+        meta={"us_id": "US-01", "tipo": "us"},
+    )
+    # parent_id deliberately empty — hierarchy must be recovered from meta.
+    uc = ItemDTO(
+        id="src-uc-1",
+        name="UC-001: Alta",
+        state="backlog",
+        labels=["UC"],
+        parent_id="",
+        meta={"us_id": "US-01", "uc_id": "UC-001"},
+    )
+    source = {
+        "board_name": "B",
+        "source_type": "plane",
+        "items": [us, uc],
+        "classified": {"us": [us], "uc": [uc], "ac": [], "other": []},
+        "ac_data": {},
+        "comments_data": {},
+        "labels": [],
+        "states": {},
+    }
+
+    target = InMemoryBackend()
+    result = await write_target(target, "board-b", source)
+
+    us_target_id = target.by_label("US")[0].id
+    uc_target = target.by_label("UC")[0]
+    # Fallback resolved the parent purely from meta['us_id'].
+    assert uc_target.parent_id == us_target_id
+    assert result["id_map"]["src-uc-1"] == uc_target.id
+
+
+async def test_write_target_orphan_comment_is_skipped() -> None:
+    """writer.py:177 — a comment whose source_item_id is not in id_map is skipped.
+
+    The comments_data references an item id that was never migrated (no US/UC
+    created it), so id_map.get(...) is None → continue. No comment is created
+    and no error is raised.
+    """
+    us = ItemDTO(
+        id="src-us-1",
+        name="US-01: Cuenta",
+        state="user_stories",
+        labels=["US"],
+        meta={"us_id": "US-01"},
+    )
+    source = {
+        "board_name": "B",
+        "source_type": "trello",
+        "items": [us],
+        "classified": {"us": [us], "uc": [], "ac": [], "other": []},
+        "ac_data": {},
+        # Comment points at an id that never makes it into id_map.
+        "comments_data": {"src-ghost-99": [{"text": "huérfano", "created_at": "2026-01-01"}]},
+        "labels": [],
+        "states": {},
+    }
+
+    target = InMemoryBackend()
+    result = await write_target(target, "board-b", source)
+
+    assert result["migrated"]["comments"] == 0
+    assert result["errors"] == []
+    assert "src-ghost-99" not in result["id_map"]

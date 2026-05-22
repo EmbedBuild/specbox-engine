@@ -1,0 +1,211 @@
+"""Native-specific migration handling for the N×N backend switch (UC-403).
+
+The Native backend (Postgres/Supabase) is the only multi-developer backend.
+When migrating **into** Native (AC-08) we must seed a developer identity so the
+imported board has an identified owner. When migrating **out of** Native (AC-07)
+we must surface the multi-developer coordination state that is *intentionally
+not* carried over to single-user backends (Trello/Plane/FreeForm) — claims,
+developer roster and branch registrations — so the migration report is honest
+about what was discarded.
+
+Frontier 2 [AC-09]
+==================
+This module never reads or builds a DSN. It receives an already-constructed
+``asyncpg.Pool`` and operates only through it. None of its return values ever
+carry a token (clear or hashed) or any connection credential — only stable
+identifiers (uc_id, developer_id, branch names). Serializing any output of this
+module is safe: it can never leak ``SPECBOX_NATIVE_DSN``.
+"""
+
+from __future__ import annotations
+
+import secrets
+from typing import Any
+
+import asyncpg
+import structlog
+
+from ..coordination import claims as claims_mod
+from ..coordination import identity as identity_mod
+
+logger = structlog.get_logger(__name__)
+
+#: Note prepended to the discarded-state section of a Native→other report.
+DISCARD_NOTE = "Claims, developer identity and branch registrations are NOT migrated to single-user backends."
+
+
+# ── AC-07: Native → other (collect what is discarded) ────────────────────
+
+
+async def collect_discarded_native_state(pool: asyncpg.Pool, project_id: str) -> dict[str, Any]:
+    """Collect the multi-developer coordination state that won't be migrated.
+
+    Reads the three Native-only coordination tables for ``project_id``:
+    ``uc_claims`` (active claims), ``developers`` joined via ``project_members``
+    (the roster) and ``branch_registry`` (registered feature branches). None of
+    these have an equivalent on Trello/Plane/FreeForm, so they are reported but
+    not carried over.
+
+    Frontier 2 [AC-09]: the returned dict never contains a token (the developer
+    roster exposes only ``developer_id`` / ``display_name``, never
+    ``token_hash``) nor any DSN.
+
+    Args:
+        pool: An already-constructed asyncpg pool (never a DSN).
+        project_id: The Native project whose coordination state to read.
+
+    Returns:
+        Dict with ``claims`` (list), ``developers`` (list), ``branches`` (list)
+        and ``counts`` (dict with the three lengths).
+    """
+    async with pool.acquire() as conn:
+        active_claims = await claims_mod.list_active_claims(conn, project_id)
+
+        member_rows = await conn.fetch(
+            """
+            SELECT d.developer_id, d.display_name, pm.role
+            FROM project_members pm
+            JOIN developers d ON d.developer_id = pm.developer_id
+            WHERE pm.project_id = $1
+            ORDER BY d.developer_id
+            """,
+            project_id,
+        )
+
+        branch_rows = await conn.fetch(
+            """
+            SELECT branch, uc_id, developer_id
+            FROM branch_registry
+            WHERE project_id = $1
+            ORDER BY branch
+            """,
+            project_id,
+        )
+
+    claims_out = [
+        {
+            "uc_id": claim.uc_id,
+            "developer_id": claim.developer_id,
+            "branch": claim.branch,
+            "claimed_at": claim.claimed_at,
+        }
+        for claim in active_claims
+    ]
+    developers_out = [
+        {
+            "developer_id": row["developer_id"],
+            "display_name": row["display_name"],
+            "role": row["role"],
+        }
+        for row in member_rows
+    ]
+    branches_out = [
+        {
+            "branch": row["branch"],
+            "uc_id": row["uc_id"],
+            "developer_id": row["developer_id"],
+        }
+        for row in branch_rows
+    ]
+
+    logger.info(
+        "discarded_native_state_collected",
+        project_id=project_id,
+        claims=len(claims_out),
+        developers=len(developers_out),
+        branches=len(branches_out),
+    )
+
+    return {
+        "claims": claims_out,
+        "developers": developers_out,
+        "branches": branches_out,
+        "counts": {
+            "claims": len(claims_out),
+            "developers": len(developers_out),
+            "branches": len(branches_out),
+        },
+    }
+
+
+def build_native_exit_report(discarded: dict[str, Any]) -> dict[str, Any]:
+    """Format the ``discarded_native_state`` section of a Native→other report.
+
+    Pure formatter (no I/O): wraps the dict from
+    :func:`collect_discarded_native_state` under a stable section key and adds
+    an explanatory note. Safe to serialize [AC-09] — the input never carries
+    credentials and this function adds none.
+
+    Args:
+        discarded: The dict returned by :func:`collect_discarded_native_state`.
+
+    Returns:
+        Dict with ``discarded_native_state`` (the collected state) and ``note``.
+    """
+    return {
+        "discarded_native_state": discarded,
+        "note": DISCARD_NOTE,
+    }
+
+
+# ── AC-08: other → Native (seed developer identity) ──────────────────────
+
+
+async def seed_native_identity(
+    pool: asyncpg.Pool,
+    project_id: str,
+    developer_id: str,
+    display_name: str | None = None,
+    token: str | None = None,
+) -> dict[str, Any]:
+    """Register the migrating developer and make them a member of the project.
+
+    Called when migrating **into** Native so the imported board has an
+    identified owner [AC-08]. Idempotent: re-running for the same
+    ``developer_id`` / ``project_id`` does not raise (``register_developer`` and
+    ``add_project_member`` both upsert).
+
+    The clear token is never persisted — ``register_developer`` stores only its
+    SHA-256 hash [AC-09/AC-10]. When ``token`` is ``None`` a random throwaway
+    token is generated so a hash exists (the schema requires ``token_hash NOT
+    NULL``); its clear value is discarded immediately and never returned.
+
+    Args:
+        pool: An already-constructed asyncpg pool (never a DSN).
+        project_id: The Native project to associate the developer with.
+        developer_id: Stable, human-readable developer id (e.g. ``"jesus"``).
+        display_name: Human-readable name; defaults to ``developer_id``.
+        token: The developer's clear token; hashed and discarded. If ``None`` a
+            random throwaway is used so registration can proceed.
+
+    Returns:
+        Dict with ``developer_id``, ``registered`` (bool) and ``member_added``
+        (bool). Never carries the token.
+    """
+    effective_token = token if token else secrets.token_hex(32)
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await identity_mod.register_developer(
+                conn,
+                developer_id=developer_id,
+                display_name=display_name or developer_id,
+                token=effective_token,
+            )
+            await identity_mod.add_project_member(
+                conn,
+                project_id=project_id,
+                developer_id=developer_id,
+            )
+
+    logger.info(
+        "native_identity_seeded",
+        project_id=project_id,
+        developer_id=developer_id,
+    )
+
+    return {
+        "developer_id": developer_id,
+        "registered": True,
+        "member_added": True,
+    }

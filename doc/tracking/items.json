@@ -860,7 +860,7 @@
     "id": "item-3c98b967",
     "name": "[UC-404] Gestion y rotacion de la credencial Supabase (Frontera 2)",
     "description": "Definir donde vive el DSN del Pooler de Supabase en VPS y CI, como se rota, y como se distingue de la antigua credencial del Postgres-VPS. La credencial es el service-role/DB password de Supabase. Incluye el runbook de retirada del Postgres viejo.",
-    "state": "done",
+    "state": "review",
     "parent_id": "item-4b62f295",
     "labels": [
       "UC"
@@ -1216,7 +1216,7 @@
     "id": "item-59e5082b",
     "name": "[UC-404] Tool migrate_backend N×N + switch_backend generalizado + update transaccional",
     "description": "",
-    "state": "backlog",
+    "state": "in_progress",
     "parent_id": "item-5ff5e98c",
     "labels": [
       "UC"

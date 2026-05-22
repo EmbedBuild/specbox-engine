@@ -998,7 +998,7 @@
     "id": "item-5ff5e98c",
     "name": "[US-BACKEND-SWITCH] Cambio guiado de backend entre los 4 (FreeForm/Trello/Plane/Native)",
     "description": "Como desarrollador o equipo que usa SpecBox, quiero cambiar el backend de tracking de mi proyecto entre cualquiera de los 4 (FreeForm/Trello/Plane/Native) de forma guiada, para adaptar el gestor a la fase del proyecto (local -> reporting a cliente -> multi-dev) sin perder datos ni el avance de ejecucion registrado. Generaliza la migracion a N×N (12 pares) + skill /switch-backend + regeneracion de evidencias.",
-    "state": "backlog",
+    "state": "review",
     "parent_id": null,
     "labels": [
       "US"
@@ -1366,7 +1366,7 @@
     "id": "item-9a4d7210",
     "name": "[UC-406] Skill guiado /switch-backend",
     "description": "",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-5ff5e98c",
     "labels": [
       "UC"

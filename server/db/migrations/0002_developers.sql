@@ -27,7 +27,25 @@ CREATE TABLE IF NOT EXISTS developers (
 
 -- A token resolves to exactly one developer. UNIQUE on token_hash makes the
 -- token → developer lookup unambiguous and lets resolve_developer use an index.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_developers_token_hash ON developers (token_hash);
+--
+-- Guarded by a column-existence check: migration 0005 (UC-501 AC-03) drops
+-- ``developers.token_hash`` because token storage moves to ``mcp_tokens``. When
+-- the full migration ladder is re-applied after that drop, this CREATE INDEX
+-- would fail with "column token_hash does not exist" — IF NOT EXISTS guards
+-- the *index*, not the column. The DO block makes the whole statement a true
+-- no-op when the column is absent, preserving end-to-end idempotency [AC-05].
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name   = 'developers'
+          AND column_name  = 'token_hash'
+    ) THEN
+        EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS idx_developers_token_hash ON developers (token_hash)';
+    END IF;
+END
+$$;
 
 -- ── project_members ──────────────────────────────────────────────────
 -- Authorization edge [AC-13]: a developer is associated with the projects it

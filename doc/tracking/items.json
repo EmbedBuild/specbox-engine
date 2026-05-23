@@ -1450,7 +1450,7 @@
     "id": "item-0cce1959",
     "name": "[UC-501] Schema rediseñado: github_identities + mcp_tokens + audit_log",
     "description": "",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-aa3187ca",
     "labels": [
       "UC"

@@ -34,11 +34,11 @@ from server.db.pool import (
 )
 
 _SUPABASE_POOLER_DSN = (
-    "postgresql://postgres.nywjsvumsvxlpflpbord:pw@"
+    "postgresql://postgres.abcdefghijklmnopqrst:pw@"
     "aws-0-eu-west-3.pooler.supabase.com:6543/postgres"
 )
 _SUPABASE_DIRECT_DSN = (
-    "postgresql://postgres:pw@db.nywjsvumsvxlpflpbord.supabase.co:5432/postgres"
+    "postgresql://postgres:pw@db.abcdefghijklmnopqrst.supabase.co:5432/postgres"
 )
 _LOCAL_DSN = "postgresql://specbox:specbox_dev_only@localhost:55432/specbox_native"
 

@@ -97,8 +97,9 @@ Postgres dev local para verificar migraciones y tests:
 docker compose -f docker-compose.dev.yml up -d   # postgres:16, puerto 55432, db specbox_native
 ```
 
-La suite native (`tests/test_native_*.py`) corre verde contra la instancia Supabase real
-gestionada (`SpecBox-DataBase`, Postgres 17, eu-west-3): 50 passed, 0 skipped.
+La suite native (`tests/test_native_*.py`) corre verde contra una instancia Supabase
+gestionada del mantenedor (Postgres 17+): 50 passed, 0 skipped. Cada operador del
+MCP es responsable de provisionar su propia instancia Supabase.
 
 ## Instalacion
 

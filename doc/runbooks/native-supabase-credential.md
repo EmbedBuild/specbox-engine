@@ -5,9 +5,10 @@
 > nunca como argumento de tool, nunca en logs ni en el repo.
 
 Este runbook cubre cómo obtener, instalar, rotar y retirar la credencial del
-Native Backend ahora que la base de datos es una instancia **Supabase
-gestionada** (proyecto `SpecBox-DataBase`, ref `nywjsvumsvxlpflpbord`,
-Postgres 17, región `eu-west-3`) en lugar del Postgres self-hosted del VPS.
+Native Backend cuando la base de datos es una instancia **Supabase
+gestionada** (Postgres 17+, región a elección del operador). Cada operador
+del MCP es responsable de su propia instancia Supabase: el repo es público
+y no documenta refs ni credenciales de ninguna instancia concreta.
 
 ---
 
@@ -19,19 +20,19 @@ transaction** (PgBouncer), no por conexión directa. Esto importa: el código de
 statements (`statement_cache_size=0`) precisamente porque el pooler en modo
 transaction no mantiene estado entre sentencias. [AC-24]
 
-1. Dashboard de Supabase → proyecto **SpecBox-DataBase** → **Project Settings →
-   Database → Connection string**.
+1. Dashboard de Supabase → tu proyecto → **Project Settings → Database →
+   Connection string**.
 2. Pestaña **Connection pooling** → **Transaction** mode.
 3. Copiar el URI. Tiene esta forma (host `...pooler.supabase.com`, **puerto
    6543**):
 
    ```
-   postgresql://postgres.nywjsvumsvxlpflpbord:[DB-PASSWORD]@aws-0-eu-west-3.pooler.supabase.com:6543/postgres
+   postgresql://postgres.<PROJECT_REF>:<DB_PASSWORD>@aws-0-<REGION>.pooler.supabase.com:6543/postgres
    ```
 
-4. Sustituir `[DB-PASSWORD]` por la contraseña de la base de datos (la misma de
-   **Database → Database password**; si no se recuerda, se puede **resetear**
-   ahí — ver sección de rotación).
+4. Sustituir `<PROJECT_REF>`, `<REGION>` y `<DB_PASSWORD>` por los valores de
+   tu instancia (la password vive en **Database → Database password**; si no
+   se recuerda, se puede **resetear** ahí — ver sección de rotación).
 
 > TLS: el código fuerza `ssl=require` automáticamente cuando el host es
 > `*.supabase.co` / `*.supabase.com` (ver `_resolve_ssl`), así que el DSN no
@@ -115,9 +116,9 @@ puerto host 55432). Esa credencial y esa instancia se retiran así:
   git grep -nE 'postgresql://postgres\.[a-z]{20}:' || echo "OK: sin DSN commiteado"
   git grep -nE 'service_role|sb_secret|sbp_[A-Za-z0-9]{20,}' || echo "OK: sin keys"
   ```
-- El proyecto `SpecBox-DataBase` deja además el advisor de seguridad **limpio**
-  tras UC-403 (RLS + policies; función `rls_auto_enable` con `EXECUTE` revocado
-  a anon/authenticated).
+- Tras aplicar las migraciones (UC-403) el advisor de seguridad de Supabase
+  queda **limpio**: RLS + policies activas y función `rls_auto_enable` con
+  `EXECUTE` revocado a `anon`/`authenticated`.
 
 ---
 
@@ -141,7 +142,7 @@ Tres formas de darle una DB a los tests:
    crear una *branch* del proyecto en el dashboard de Supabase (o vía el
    Supabase MCP `create_branch`), tomar su DSN del Pooler transaction-mode y:
    ```bash
-   export SPECBOX_NATIVE_DSN='postgresql://postgres.<branch-ref>:<pw>@aws-0-eu-west-3.pooler.supabase.com:6543/postgres'
+   export SPECBOX_NATIVE_DSN='postgresql://postgres.<BRANCH_REF>:<DB_PASSWORD>@aws-0-<REGION>.pooler.supabase.com:6543/postgres'
    .venv/bin/pytest tests/test_native_*.py -q       # native corre, no skipea [AC-38]
    ```
    La rama se descarta al terminar (`delete_branch`) sin tocar producción.

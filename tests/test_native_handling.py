@@ -65,11 +65,15 @@ async def native_pool() -> AsyncIterator[asyncpg.Pool]:
 async def test_collect_discarded_native_state_reports_claim(native_pool):
     """A developer + claim over a UC appears in the discarded-state report. [AC-07]"""
     pid = _unique_pid("exit")
-    be = NativeBackend(project_id=pid, dev_token="seed-token")
+    # Unique token per test: ``mcp_tokens.token_hash`` is UNIQUE so a shared
+    # literal "seed-token" would silently bind to whichever test ran first.
+    seed_token = f"seed-token-{pid}"
+    be = NativeBackend(project_id=pid, dev_token=seed_token)
     await be.setup_board("UC-403 exit test")
     try:
-        # Seed an owner so the claim's FK to developers is satisfied.
-        await seed_native_identity(native_pool, pid, "dev-exit", display_name="Dev Exit")
+        # Seed an owner so the claim's FK to developers is satisfied. Token
+        # is wired through so UC-502's mutation gate accepts ``be``'s calls.
+        await seed_native_identity(native_pool, pid, "dev-exit", display_name="Dev Exit", token=seed_token)
 
         # Create a US + UC, then claim the UC.
         us = await be.create_item(pid, name="US-01: Exit", labels=["US"])
@@ -187,10 +191,13 @@ async def test_seed_native_identity_adds_member_and_is_idempotent(native_pool):
 async def test_migrated_user_story_has_version_1(native_pool):
     """A US created in a migrated Native project carries version == 1. [AC-08]"""
     pid = _unique_pid("ver1")
-    be = NativeBackend(project_id=pid, dev_token="seed-token")
+    # Unique token per test (token_hash UNIQUE in mcp_tokens).
+    seed_token = f"seed-token-{pid}"
+    be = NativeBackend(project_id=pid, dev_token=seed_token)
     await be.setup_board("UC-403 version test")
     try:
-        await seed_native_identity(native_pool, pid, "dev-v")
+        # Token wired through so UC-502's mutation gate accepts ``be``'s calls.
+        await seed_native_identity(native_pool, pid, "dev-v", token=seed_token)
         us = await be.create_item(pid, name="US-01: Imported", labels=["US"])
 
         async with native_pool.acquire() as conn:
@@ -237,10 +244,13 @@ async def test_seed_native_identity_does_not_persist_token(native_pool):
 async def test_serialized_report_never_leaks_dsn(native_pool):
     """json.dumps of the report contains neither the DSN nor its dev password. [AC-09]"""
     pid = _unique_pid("f2")
-    be = NativeBackend(project_id=pid, dev_token="seed-token")
+    # Unique token per test (token_hash UNIQUE in mcp_tokens).
+    seed_token = f"seed-token-{pid}"
+    be = NativeBackend(project_id=pid, dev_token=seed_token)
     await be.setup_board("UC-403 frontier-2 test")
     try:
-        await seed_native_identity(native_pool, pid, "dev-f2", display_name="Frontier Two")
+        # Token wired through so UC-502's mutation gate accepts ``be``'s calls.
+        await seed_native_identity(native_pool, pid, "dev-f2", display_name="Frontier Two", token=seed_token)
         us = await be.create_item(pid, name="US-01: Secret", labels=["US"])
         uc = await be.create_item(pid, name="UC-101: Secret UC", labels=["UC"], parent_id=us.id)
         async with native_pool.acquire() as conn:

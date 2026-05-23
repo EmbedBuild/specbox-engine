@@ -247,10 +247,12 @@ class TestNativeSessionRoundTrip:
 
         try:
             # 1. Build a native session (no DSN passed — Frontier 2). UC-505
-            # makes the dev_token mandatory; this round-trip only exercises
-            # the dispatch + ABC writes (no gate is wired yet — UC-502), so a
-            # dummy token suffices. UC-506 covers the auth-gated scenario
-            # with a real developer + mcp_token + membership.
+            # makes the dev_token mandatory; UC-502 then wires a mutation gate
+            # that re-validates ``(token, project_id)`` against
+            # ``mcp_tokens`` + ``project_members`` on every write. So before we
+            # hit the gate via ``create_item`` we seed the dev identity for
+            # the same clear token used by the session (registered + member).
+            # UC-506 will move this seeding into the dispatch layer itself.
             auth = await set_auth_token(
                 api_key="",
                 token="dev-roundtrip-token",
@@ -260,6 +262,13 @@ class TestNativeSessionRoundTrip:
             )
             assert auth.get("success") is True, f"set_auth_token failed: {auth}"
             assert auth.get("backend") == "native"
+
+            # Seed the developer + mcp_token + membership so the UC-502 gate
+            # accepts the calls below. ``set_auth_token`` already created the
+            # project row through ``setup_board`` so the FKs are satisfied.
+            from server.migration.native_handling import seed_native_identity
+
+            await seed_native_identity(await get_pool(), project_id, "dev-roundtrip", token="dev-roundtrip-token")
 
             # 2. Resolve the backend from the same session.
             backend = await get_session_backend(ctx)

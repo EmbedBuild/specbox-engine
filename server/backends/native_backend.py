@@ -66,7 +66,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import asyncpg
 import structlog
@@ -83,6 +83,9 @@ from ..spec_backend import (
     SpecBackend,
     parse_item_id,
 )
+
+if TYPE_CHECKING:
+    from ..coordination.identity import Developer
 
 logger = structlog.get_logger(__name__)
 
@@ -226,6 +229,22 @@ class NativeBackend(SpecBackend):
 
     async def _pool(self) -> asyncpg.Pool:
         return await get_pool()
+
+    # ── UC-502: mutation gate (cached identity + authorization) ──
+
+    async def _require_membership_cached(self) -> "Developer":
+        """Re-validate identity + membership before every mutation [UC-502].
+
+        Calls the cached gate. Cache hit is ~1µs (dict lookup); cache miss is
+        ~10-25ms (single indexed SELECT on ``mcp_tokens`` + ``project_members``).
+        After a revoke from the panel, the window of exposure is at most
+        ``_CACHE_TTL_SECONDS`` (30s).
+        """
+        from ..coordination.identity import authenticate_and_authorize_cached
+
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            return await authenticate_and_authorize_cached(conn, token=self._dev_token, project_id=self.project_id)
 
     # ── Row -> DTO mapping ───────────────────────────────────────
 
@@ -412,6 +431,7 @@ class NativeBackend(SpecBackend):
         external_id: str = "",
         meta: dict[str, Any] | None = None,
     ) -> ItemDTO:
+        await self._require_membership_cached()
         labels = list(labels or [])
         meta = dict(meta or {})
 
@@ -605,6 +625,7 @@ class NativeBackend(SpecBackend):
         exists, different version) a :class:`StaleVersionError` is raised and
         the row is unchanged. See the module docstring.
         """
+        await self._require_membership_cached()
         clean_meta, expected = _split_expected_version(meta)
 
         # Determine which table holds the item.
@@ -796,6 +817,7 @@ class NativeBackend(SpecBackend):
         ac_id: str,
         passed: bool,
     ) -> ChecklistItemDTO:
+        await self._require_membership_cached()
         pool = await self._pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -825,6 +847,7 @@ class NativeBackend(SpecBackend):
         uc_item_id: str,
         criteria: list[tuple[str, str]],
     ) -> list[ChecklistItemDTO]:
+        await self._require_membership_cached()
         result: list[ChecklistItemDTO] = []
         pool = await self._pool()
         async with pool.acquire() as conn:
@@ -873,6 +896,7 @@ class NativeBackend(SpecBackend):
         provided we no-op-return the current row. The version is still bumped on
         any real change so concurrent edits remain detectable on the next read.
         """
+        await self._require_membership_cached()
         if text is None and done is None:
             # Nothing to change — return current state without bumping version.
             pool = await self._pool()
@@ -923,6 +947,7 @@ class NativeBackend(SpecBackend):
         uc_item_id: str,
         ac_id: str,
     ) -> None:
+        await self._require_membership_cached()
         pool = await self._pool()
         async with pool.acquire() as conn:
             result = await conn.execute(
@@ -950,6 +975,7 @@ class NativeBackend(SpecBackend):
         archival in the item's meta and set state to 'archived' so it falls out
         of active queries while remaining recoverable.
         """
+        await self._require_membership_cached()
         from datetime import datetime, timezone
 
         archived_at = datetime.now(timezone.utc).isoformat()
@@ -998,6 +1024,7 @@ class NativeBackend(SpecBackend):
     # meta under a "comments" list — append-only, mirroring FreeForm's jsonl.
 
     async def add_comment(self, board_id: str, item_id: str, text: str) -> CommentDTO:
+        await self._require_membership_cached()
         from datetime import datetime, timezone
 
         created_at = datetime.now(timezone.utc).isoformat()
@@ -1073,6 +1100,7 @@ class NativeBackend(SpecBackend):
         content: bytes,
         mime_type: str = "application/pdf",
     ) -> AttachmentDTO:
+        await self._require_membership_cached()
         from datetime import datetime, timezone
 
         created_at = datetime.now(timezone.utc).isoformat()

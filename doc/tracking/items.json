@@ -1549,7 +1549,7 @@
     "id": "item-30c97a44",
     "name": "[UC-502] Gate de membresía en mutaciones del NativeBackend con cache TTL 30s",
     "description": "",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-aa3187ca",
     "labels": [
       "UC"

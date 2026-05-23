@@ -158,29 +158,36 @@ async def seed_native_identity(
     display_name: str | None = None,
     token: str | None = None,
 ) -> dict[str, Any]:
-    """Register the migrating developer and make them a member of the project.
+    """Register the migrating developer, mint a token, add them as member.
 
     Called when migrating **into** Native so the imported board has an
-    identified owner [AC-08]. Idempotent: re-running for the same
-    ``developer_id`` / ``project_id`` does not raise (``register_developer`` and
-    ``add_project_member`` both upsert).
+    identified owner [AC-08]. Idempotent on ``developer_id`` /
+    ``(project_id, developer_id)``: ``register_developer`` upserts the
+    ``developers`` row and ``add_project_member`` upserts the membership edge.
 
-    The clear token is never persisted — ``register_developer`` stores only its
-    SHA-256 hash [AC-09/AC-10]. When ``token`` is ``None`` a random throwaway
-    token is generated so a hash exists (the schema requires ``token_hash NOT
-    NULL``); its clear value is discarded immediately and never returned.
+    The clear token is never persisted — only its SHA-256 hash lands in
+    ``mcp_tokens`` [AC-09/AC-10]. When ``token`` is ``None`` a random
+    throwaway is generated so the migrated developer has something to
+    authenticate with; its clear value is discarded immediately and never
+    returned.
+
+    Token semantics (UC-504): token storage moved out of ``developers`` to
+    ``mcp_tokens``. Each call mints a **new** ``mcp_tokens`` row, even when
+    re-seeding the same developer — that mirrors how a real migration would
+    rotate the credential. Old rows remain (revocation is a separate panel
+    operation).
 
     Args:
         pool: An already-constructed asyncpg pool (never a DSN).
         project_id: The Native project to associate the developer with.
         developer_id: Stable, human-readable developer id (e.g. ``"jesus"``).
         display_name: Human-readable name; defaults to ``developer_id``.
-        token: The developer's clear token; hashed and discarded. If ``None`` a
-            random throwaway is used so registration can proceed.
+        token: The developer's clear token; hashed and discarded. If ``None``
+            a random throwaway is used so registration can proceed.
 
     Returns:
         Dict with ``developer_id``, ``registered`` (bool) and ``member_added``
-        (bool). Never carries the token.
+        (bool). Never carries the token nor the minted ``token_id``.
     """
     effective_token = token if token else secrets.token_hex(32)
 
@@ -190,6 +197,10 @@ async def seed_native_identity(
                 conn,
                 developer_id=developer_id,
                 display_name=display_name or developer_id,
+            )
+            await identity_mod.register_mcp_token(
+                conn,
+                developer_id=developer_id,
                 token=effective_token,
             )
             await identity_mod.add_project_member(

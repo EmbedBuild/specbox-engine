@@ -38,6 +38,7 @@ from server.coordination.identity import (
     authorize,
     hash_token,
     register_developer,
+    register_mcp_token,
     resolve_developer,
 )
 
@@ -105,39 +106,74 @@ def test_hash_token_rejects_empty():
         hash_token("   ")
 
 
-# ── register_developer stores only the hash [AC-10] ──────────────────
+# ── register_developer is identity-only (AC-18) ──────────────────────
 
 
-async def test_register_developer_never_passes_clear_token_to_sql():
+async def test_register_developer_takes_no_token():
+    """AC-18: register_developer has no ``token`` parameter."""
     conn = FakeConn()
-    token = "my-clear-token-123"
 
     dev = await register_developer(
         conn,
         developer_id="jesus",
         display_name="Jesús",
-        token=token,
     )
 
     assert dev == Developer(developer_id="jesus", display_name="Jesús")
-    # The clear token must NEVER be an SQL argument — only its hash.
+    # The INSERT must target only developers; no token_hash arg anywhere.
+    flat = conn.all_args_flat()
+    assert "jesus" in flat
+    assert "Jesús" in flat
+    # No SHA-256 hex digest in the args (length 64, hex chars).
+    for arg in flat:
+        if isinstance(arg, str) and len(arg) == 64 and all(c in "0123456789abcdef" for c in arg):
+            raise AssertionError(f"unexpected token hash in SQL args: {arg}")
+
+
+async def test_register_developer_logs_no_secret(capsys):
+    """AC-11/AC-18: register_developer no longer touches tokens — no secret leak path."""
+    conn = FakeConn()
+    await register_developer(conn, developer_id="alice", display_name="Alice")
+    captured = capsys.readouterr()
+    # Belt-and-braces: developer_id is fine in logs; nothing token-shaped should appear.
+    assert "token" not in captured.out.lower() or "token_hash" not in captured.out.lower()
+
+
+# ── register_mcp_token stores only the hash [AC-10, AC-11] ───────────
+
+
+async def test_register_mcp_token_never_passes_clear_token_to_sql():
+    conn = FakeConn()
+    token = "my-clear-token-123"
+
+    tid = await register_mcp_token(
+        conn,
+        developer_id="jesus",
+        token=token,
+    )
+
+    assert tid.startswith("spec_"), "auto-generated token_id should be prefixed"
     flat = conn.all_args_flat()
     assert token not in flat, "clear token leaked into an SQL parameter"
     assert hash_token(token) in flat, "expected the token hash among SQL params"
 
 
-async def test_register_developer_logs_no_token(capsys):
-    """AC-11: the clear token never appears in logs across a register call."""
+async def test_register_mcp_token_logs_no_clear_token(capsys):
+    """AC-11: the clear token never appears in logs across register_mcp_token."""
     conn = FakeConn()
     token = "log-secret-xyz"
 
-    await register_developer(
-        conn, developer_id="alice", display_name="Alice", token=token
-    )
+    await register_mcp_token(conn, developer_id="alice", token=token)
 
     captured = capsys.readouterr()
     assert token not in captured.out
     assert token not in captured.err
+
+
+async def test_register_mcp_token_honours_explicit_token_id():
+    conn = FakeConn()
+    tid = await register_mcp_token(conn, developer_id="jesus", token="t", token_id="spec_fixed_id_123")
+    assert tid == "spec_fixed_id_123"
 
 
 # ── resolve_developer [AC-12, AC-15] ─────────────────────────────────
@@ -241,13 +277,9 @@ async def test_whoami_unauthenticated_for_missing_token(monkeypatch):
 async def test_whoami_returns_identity_for_valid_token(monkeypatch):
     from server.tools import coordination
 
-    fake_pool = FakeConn(
-        fetchrow=lambda sql, *a: {"developer_id": "jesus", "display_name": "Jesús"}
-    )
+    fake_pool = FakeConn(fetchrow=lambda sql, *a: {"developer_id": "jesus", "display_name": "Jesús"})
     monkeypatch.setattr(coordination, "get_pool", AsyncMock(return_value=fake_pool))
-    ctx = _NativeCtx(
-        {"backend_type": "native", "project_id": "p", "dev_token": "good"}
-    )
+    ctx = _NativeCtx({"backend_type": "native", "project_id": "p", "dev_token": "good"})
 
     result = await coordination.whoami(ctx)
     assert result["success"] is True
@@ -291,15 +323,14 @@ try:
     _PG_SKIP_REASON = ""
 except Exception as exc:  # noqa: BLE001
     _PG_REACHABLE = False
-    _PG_SKIP_REASON = (
-        f"dev Postgres not reachable ({exc!r}); "
-        "run docker compose -f docker-compose.dev.yml up -d"
-    )
+    _PG_SKIP_REASON = f"dev Postgres not reachable ({exc!r}); run docker compose -f docker-compose.dev.yml up -d"
 
 
 @pytest.mark.skipif(not _PG_REACHABLE, reason=_PG_SKIP_REASON)
 class TestIdentityRoundTripPG:
     async def test_register_resolve_authorize(self):
+        """End-to-end: register dev + mint token + authorize + revoke. [AC-10/13/17/18]"""
+        from server.coordination.identity import revoke_mcp_token
         from server.db.migrate import apply_migrations
         from server.db.pool import close_pool, init_pool
 
@@ -316,12 +347,13 @@ class TestIdentityRoundTripPG:
                     pid,
                     "H2 test",
                 )
-                # AC-10: stored hashed — the column must not equal the clear token.
-                await register_developer(
-                    conn, developer_id=dev_id, display_name="Tester", token=token
-                )
+                # AC-18: register_developer no longer takes a token.
+                await register_developer(conn, developer_id=dev_id, display_name="Tester")
+                # AC-10/17: token storage lives in mcp_tokens — stored hashed.
+                token_id = await register_mcp_token(conn, developer_id=dev_id, token=token)
                 stored = await conn.fetchval(
-                    "SELECT token_hash FROM developers WHERE developer_id = $1", dev_id
+                    "SELECT token_hash FROM mcp_tokens WHERE token_id = $1",
+                    token_id,
                 )
                 assert stored == hash_token(token)
                 assert stored != token
@@ -332,15 +364,16 @@ class TestIdentityRoundTripPG:
 
                 # After membership → resolves and authorizes.
                 await add_project_member(conn, project_id=pid, developer_id=dev_id)
-                dev = await authenticate_and_authorize(
-                    conn, token=token, project_id=pid
-                )
+                dev = await authenticate_and_authorize(conn, token=token, project_id=pid)
                 assert dev.developer_id == dev_id
+
+                # AC-17: revoked token → UNAUTHENTICATED.
+                assert await revoke_mcp_token(conn, token_id=token_id) is True
+                with pytest.raises(UnauthenticatedError):
+                    await authenticate_and_authorize(conn, token=token, project_id=pid)
 
                 # Cleanup.
                 await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
-                await conn.execute(
-                    "DELETE FROM developers WHERE developer_id = $1", dev_id
-                )
+                await conn.execute("DELETE FROM developers WHERE developer_id = $1", dev_id)
         finally:
             await close_pool()

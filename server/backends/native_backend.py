@@ -947,7 +947,9 @@ class NativeBackend(SpecBackend):
         uc_item_id: str,
         ac_id: str,
     ) -> None:
-        await self._require_membership_cached()
+        dev = await self._require_membership_cached()
+        from ..coordination.audit import OP_DELETE_AC, record_destructive
+
         pool = await self._pool()
         async with pool.acquire() as conn:
             result = await conn.execute(
@@ -956,9 +958,19 @@ class NativeBackend(SpecBackend):
                 uc_item_id,
                 ac_id,
             )
-        # asyncpg returns e.g. 'DELETE 1'
-        if result.split()[-1] == "0":
-            raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
+            # asyncpg returns e.g. 'DELETE 1'. Audit ONLY on a real delete;
+            # a 0-row delete raises below and never reaches the audit insert.
+            if result.split()[-1] == "0":
+                raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
+            # UC-503 AC-02: record the destructive operation after the SQL
+            # has succeeded, on the SAME connection (cheap, no extra acquire).
+            await record_destructive(
+                conn,
+                developer_id=dev.developer_id,
+                project_id=board_id,
+                operation=OP_DELETE_AC,
+                target_id=ac_id,
+            )
 
     # ── SpecBackend: Archival ────────────────────────────────────
 
@@ -975,8 +987,10 @@ class NativeBackend(SpecBackend):
         archival in the item's meta and set state to 'archived' so it falls out
         of active queries while remaining recoverable.
         """
-        await self._require_membership_cached()
+        dev = await self._require_membership_cached()
         from datetime import datetime, timezone
+
+        from ..coordination.audit import OP_ARCHIVE_ITEM, record_destructive
 
         archived_at = datetime.now(timezone.utc).isoformat()
         pool = await self._pool()
@@ -1000,7 +1014,17 @@ class NativeBackend(SpecBackend):
                         item_id,
                         _jsonb({"archived_at": archived_at, "archive_reason": reason}),
                     )
+                    # UC-503 AC-03: audit AFTER the AC archive UPDATE succeeded.
+                    await record_destructive(
+                        conn,
+                        developer_id=dev.developer_id,
+                        project_id=board_id,
+                        operation=OP_ARCHIVE_ITEM,
+                        target_id=item_id,
+                    )
                     return {"archive_location": "meta", "archived_at": archived_at}
+                # Item not found in any table — no destruction happened, no
+                # audit row.
                 raise ValueError(f"Item '{item_id}' not found")
 
             await conn.execute(
@@ -1015,6 +1039,14 @@ class NativeBackend(SpecBackend):
                 board_id,
                 item_id,
                 _jsonb({"archived_at": archived_at, "archive_reason": reason}),
+            )
+            # UC-503 AC-03: audit AFTER the US/UC archive UPDATE succeeded.
+            await record_destructive(
+                conn,
+                developer_id=dev.developer_id,
+                project_id=board_id,
+                operation=OP_ARCHIVE_ITEM,
+                target_id=item_id,
             )
         return {"archive_location": "state=archived", "archived_at": archived_at}
 

@@ -1881,7 +1881,7 @@
     "id": "item-3b7a92c4",
     "name": "[UC-506] Tests adversariales: revoke, cache TTL, audit, regresion conformance",
     "description": "",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-aa3187ca",
     "labels": [
       "UC"

@@ -1433,7 +1433,7 @@
     "id": "item-aa3187ca",
     "name": "[US-NATIVE-SECURITY] Blindar el Native Backend contra mutaciones de identidades revocadas",
     "description": "Como mantenedor del MCP SpecBox, quiero que ningun developer expulsado de un proyecto Native pueda mutar su tracking mas alla de 30 segundos tras el revoke, y que toda operacion destructiva quede registrada, para no ser responsable de dano causado por identidades revocadas y para poder recuperar desde backups si algo se cuela. Cierra el hueco actual donde las 9 mutaciones del NativeBackend no re-validan identidad por call.",
-    "state": "backlog",
+    "state": "review",
     "parent_id": null,
     "labels": [
       "US"
@@ -1881,7 +1881,7 @@
     "id": "item-3b7a92c4",
     "name": "[UC-506] Tests adversariales: revoke, cache TTL, audit, regresion conformance",
     "description": "",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-aa3187ca",
     "labels": [
       "UC"
@@ -1900,7 +1900,7 @@
     "id": "ac-d2e4c311",
     "name": "[AC-01] tests/test_native_revoke_adversarial.py incluye un test end-to-end que: (a) registra dev + token + membresia + crea un proyecto Native con 3 ACs, (b) hace una mutacion exitosa (mark_acceptance_criterion done=True) que entra en cache, (c) revoca el token desde otra conexion, (d) hace inmediatamente otra mutacion dentro del TTL - la mutacion tiene exito (cache hit, comportamiento esperado y documentado), (e) invalida el cache (funcion de test _clear_auth_cache()), (f) intenta otra mutacion - UnauthenticatedError y count de la tabla no cambia. Este test documenta la ventana de exposicion real.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-3b7a92c4",
     "labels": [
       "AC"
@@ -1916,7 +1916,7 @@
     "id": "ac-2858c490",
     "name": "[AC-02] tests/test_native_revoke_adversarial.py incluye un test que: (a) registra dev + token + membresia, (b) ELIMINA al dev de project_members (sin revocar el token), (c) invalida el cache, (d) intenta cada una de las 9 mutaciones - todas lanzan ForbiddenError y los counts de las tablas afectadas no cambian.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-3b7a92c4",
     "labels": [
       "AC"
@@ -1932,7 +1932,7 @@
     "id": "ac-79d2320c",
     "name": "[AC-03] tests/test_native_backend_conformance.py (la suite existente de los 26 metodos del ABC) sigue 100% verde tras los cambios - verificado ejecutando .venv/bin/pytest tests/test_native_backend_conformance.py -q y obteniendo todos los tests en PASS (los fixtures se actualizan para crear el dev + token + membresia antes de instanciar el NativeBackend).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-3b7a92c4",
     "labels": [
       "AC"
@@ -1948,7 +1948,7 @@
     "id": "ac-361bca87",
     "name": "[AC-04] tests/test_audit_log_destructive.py incluye tests que verifican que tras una secuencia de N mutaciones mixtas (creates, updates, marks, deletes, archives), el audit_log contiene exactamente las filas correspondientes a los delete_acceptance_criterion y archive_item exitosos, con developer_id correcto, project_id correcto, operation correcta y target_id correcto; los counts de filas no destructivas son 0 en audit_log.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-3b7a92c4",
     "labels": [
       "AC"

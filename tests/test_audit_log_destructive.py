@@ -92,9 +92,7 @@ async def _seed(
     uc_spec = f"UC-{suffix}"
     backend = NativeBackend(project_id=project_id, dev_token=token)
     us = await backend.create_item(project_id, name=f"{us_spec}: UC-503 fixture", labels=["US"])
-    uc = await backend.create_item(
-        project_id, name=f"{uc_spec}: UC-503 fixture", labels=["UC"], parent_id=us.id
-    )
+    uc = await backend.create_item(project_id, name=f"{uc_spec}: UC-503 fixture", labels=["UC"], parent_id=us.id)
     ac_specs = [("AC-01", "first AC"), ("AC-02", "second AC"), ("AC-03", "third AC")]
     await backend.create_acceptance_criteria(project_id, uc.id, ac_specs)
     return us.id, uc.id, [a[0] for a in ac_specs]
@@ -231,6 +229,90 @@ class TestArchiveItemAudit:
         after = await _count_audit(project_id)
 
         assert after == before
+
+
+# ── AC-25: mixed sequence — only destructive ops write audit ───────────
+
+
+class TestMixedSequenceAuditPrecision:
+    """A realistic mixed sequence must leave EXACTLY one audit row per
+    destructive op — no more, no fewer [AC-25].
+
+    The 5 non-destructive mutators in the middle of the sequence must NOT
+    pollute ``audit_log``; the 3 destructive ones (2 ``delete_ac`` + 1
+    ``archive_item``) must each contribute exactly one row, in order, with
+    the correct ``(developer_id, project_id, operation, target_id)``.
+    """
+
+    async def test_ac25_mixed_sequence_writes_exactly_three_audit_rows(self) -> None:
+        project_id = f"test-uc503-mixed-{uuid.uuid4().hex[:8]}"
+        token = f"tok-{uuid.uuid4().hex[:16]}"
+        developer_id = "dev-mixed"
+        _us, uc_id, ac_ids = await _seed(project_id, developer_id, token)
+        backend = NativeBackend(project_id=project_id, dev_token=token)
+
+        before = await _count_audit(project_id)
+
+        # 3 creates — single-AC ``create_acceptance_criteria`` calls so the
+        # sequence reads as "three create operations" (not one batch). None
+        # of these may write to audit_log.
+        await backend.create_acceptance_criteria(project_id, uc_id, [("AC-04", "fourth AC")])
+        await backend.create_acceptance_criteria(project_id, uc_id, [("AC-05", "fifth AC")])
+        await backend.create_acceptance_criteria(project_id, uc_id, [("AC-06", "sixth AC")])
+
+        # 2 updates — update_acceptance_criterion text changes. Non-destructive.
+        await backend.update_acceptance_criterion(project_id, uc_id, ac_ids[0], text="AC-01 updated")
+        await backend.update_acceptance_criterion(project_id, uc_id, ac_ids[1], text="AC-02 updated")
+
+        # 1 mark — non-destructive.
+        await backend.mark_acceptance_criterion(project_id, uc_id, ac_ids[2], True)
+
+        # 2 destructive deletes — each must add exactly 1 audit row, target_id
+        # equal to the deleted ac_id, operation == OP_DELETE_AC.
+        await backend.delete_acceptance_criterion(project_id, uc_id, "AC-04")
+        await backend.delete_acceptance_criterion(project_id, uc_id, "AC-05")
+
+        # 1 destructive archive — adds 1 audit row, target_id == uc_id,
+        # operation == OP_ARCHIVE_ITEM.
+        await backend.archive_item(project_id, uc_id, reason="UC-506 mixed sequence")
+
+        # ── Assertions ───────────────────────────────────────────────
+        after = await _count_audit(project_id)
+        assert after == before + 3, (
+            f"expected exactly 3 audit rows (2 delete_ac + 1 archive_item), got {after - before}"
+        )
+
+        # Inspect the 3 newest rows in chronological order and pin each one
+        # to its expected (operation, target_id).
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT developer_id, project_id, operation, target_id
+                  FROM audit_log
+                 WHERE project_id = $1
+                 ORDER BY id ASC
+                """,
+                project_id,
+            )
+
+        # All audit rows for this project must come from THIS sequence
+        # (``_seed`` itself does not write audit). The 3 rows must be:
+        #   row 0 → delete_ac AC-04
+        #   row 1 → delete_ac AC-05
+        #   row 2 → archive_item uc_id
+        assert len(rows) == 3, f"project audit_log must contain exactly 3 rows, found {len(rows)}"
+
+        for row in rows:
+            assert row["developer_id"] == developer_id, "every audit row must attribute the correct developer"
+            assert row["project_id"] == project_id, "every audit row must be scoped to this project"
+
+        assert rows[0]["operation"] == OP_DELETE_AC
+        assert rows[0]["target_id"] == "AC-04"
+        assert rows[1]["operation"] == OP_DELETE_AC
+        assert rows[1]["target_id"] == "AC-05"
+        assert rows[2]["operation"] == OP_ARCHIVE_ITEM
+        assert rows[2]["target_id"] == uc_id
 
 
 # ── AC-15: the other 7 mutators never write audit ──────────────────────

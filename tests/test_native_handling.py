@@ -65,7 +65,7 @@ async def native_pool() -> AsyncIterator[asyncpg.Pool]:
 async def test_collect_discarded_native_state_reports_claim(native_pool):
     """A developer + claim over a UC appears in the discarded-state report. [AC-07]"""
     pid = _unique_pid("exit")
-    be = NativeBackend(project_id=pid)
+    be = NativeBackend(project_id=pid, dev_token="seed-token")
     await be.setup_board("UC-403 exit test")
     try:
         # Seed an owner so the claim's FK to developers is satisfied.
@@ -107,7 +107,7 @@ async def test_collect_discarded_native_state_reports_branch(native_pool):
     from server.coordination import branches as branches_mod
 
     pid = _unique_pid("branch")
-    be = NativeBackend(project_id=pid)
+    be = NativeBackend(project_id=pid, dev_token="seed-token")
     await be.setup_board("UC-403 branch test")
     try:
         await seed_native_identity(native_pool, pid, "dev-br")
@@ -132,7 +132,7 @@ async def test_collect_discarded_native_state_reports_branch(native_pool):
 async def test_collect_discarded_empty_when_no_coordination(native_pool):
     """A project with no claims/devs/branches reports zero counts. [AC-07]"""
     pid = _unique_pid("empty")
-    be = NativeBackend(project_id=pid)
+    be = NativeBackend(project_id=pid, dev_token="seed-token")
     await be.setup_board("UC-403 empty test")
     try:
         discarded = await collect_discarded_native_state(native_pool, pid)
@@ -151,7 +151,7 @@ async def test_collect_discarded_empty_when_no_coordination(native_pool):
 async def test_seed_native_identity_adds_member_and_is_idempotent(native_pool):
     """seed_native_identity registers + adds member; second call is a no-op. [AC-08]"""
     pid = _unique_pid("seed")
-    be = NativeBackend(project_id=pid)
+    be = NativeBackend(project_id=pid, dev_token="seed-token")
     await be.setup_board("UC-403 seed test")
     try:
         result = await seed_native_identity(native_pool, pid, "dev-x", display_name="Dev X")
@@ -187,7 +187,7 @@ async def test_seed_native_identity_adds_member_and_is_idempotent(native_pool):
 async def test_migrated_user_story_has_version_1(native_pool):
     """A US created in a migrated Native project carries version == 1. [AC-08]"""
     pid = _unique_pid("ver1")
-    be = NativeBackend(project_id=pid)
+    be = NativeBackend(project_id=pid, dev_token="seed-token")
     await be.setup_board("UC-403 version test")
     try:
         await seed_native_identity(native_pool, pid, "dev-v")
@@ -206,17 +206,26 @@ async def test_migrated_user_story_has_version_1(native_pool):
 
 
 async def test_seed_native_identity_does_not_persist_token(native_pool):
-    """The clear token is never persisted; only its hash lands in developers. [AC-08/AC-09]"""
+    """The clear token is never persisted; only its hash lands in mcp_tokens. [AC-08/AC-09/AC-17]
+
+    UC-504 moved token storage from ``developers.token_hash`` to ``mcp_tokens``.
+    ``seed_native_identity`` now mints an mcp_tokens row instead of writing to
+    the developers table.
+    """
     pid = _unique_pid("notok")
-    be = NativeBackend(project_id=pid)
+    be = NativeBackend(project_id=pid, dev_token="seed-token")
     await be.setup_board("UC-403 token test")
     try:
         secret = "super-secret-token-value"
         await seed_native_identity(native_pool, pid, "dev-t", token=secret)
         async with native_pool.acquire() as conn:
-            token_hash = await conn.fetchval("SELECT token_hash FROM developers WHERE developer_id = $1", "dev-t")
-        assert token_hash is not None
+            token_hash = await conn.fetchval(
+                "SELECT token_hash FROM mcp_tokens WHERE developer_id = $1",
+                "dev-t",
+            )
+        assert token_hash is not None, "seed must mint an mcp_tokens row for the developer"
         assert secret not in token_hash, "the clear token must never be stored"
+        assert len(token_hash) == 64, "the persisted value must be the SHA-256 hex digest"
     finally:
         async with native_pool.acquire() as conn:
             await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
@@ -228,7 +237,7 @@ async def test_seed_native_identity_does_not_persist_token(native_pool):
 async def test_serialized_report_never_leaks_dsn(native_pool):
     """json.dumps of the report contains neither the DSN nor its dev password. [AC-09]"""
     pid = _unique_pid("f2")
-    be = NativeBackend(project_id=pid)
+    be = NativeBackend(project_id=pid, dev_token="seed-token")
     await be.setup_board("UC-403 frontier-2 test")
     try:
         await seed_native_identity(native_pool, pid, "dev-f2", display_name="Frontier Two")

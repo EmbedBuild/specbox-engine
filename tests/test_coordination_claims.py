@@ -150,9 +150,18 @@ def test_suggest_branch_name_embeds_uc_id():
 
 
 async def test_register_branch_success():
-    conn = FakeConn(fetchrow=lambda sql, *a: None if "SELECT" in sql else {
-        "project_id": "p", "branch": "feature/uc-301", "uc_id": "UC-301", "developer_id": "alice",
-    })
+    conn = FakeConn(
+        fetchrow=lambda sql, *a: (
+            None
+            if "SELECT" in sql
+            else {
+                "project_id": "p",
+                "branch": "feature/uc-301",
+                "uc_id": "UC-301",
+                "developer_id": "alice",
+            }
+        )
+    )
     # First fetchrow (SELECT existing) returns None; INSERT ... RETURNING returns the row.
     calls = {"n": 0}
 
@@ -163,9 +172,7 @@ async def test_register_branch_success():
         return {"project_id": "p", "branch": "feature/uc-301", "uc_id": "UC-301", "developer_id": "alice"}
 
     conn = FakeConn(fetchrow=fetchrow)
-    entry = await register_branch(
-        conn, project_id="p", branch="feature/uc-301", uc_id="UC-301", developer_id="alice"
-    )
+    entry = await register_branch(conn, project_id="p", branch="feature/uc-301", uc_id="UC-301", developer_id="alice")
     assert entry.branch == "feature/uc-301"
     assert entry.uc_id == "UC-301"
 
@@ -180,9 +187,7 @@ async def test_register_branch_collision_rejected():
         }
     )
     with pytest.raises(BranchCollisionError) as exc:
-        await register_branch(
-            conn, project_id="p", branch="feature/x", uc_id="UC-301", developer_id="alice"
-        )
+        await register_branch(conn, project_id="p", branch="feature/x", uc_id="UC-301", developer_id="alice")
     assert exc.value.existing_uc == "UC-999"
     assert exc.value.existing_dev == "bob"
 
@@ -215,23 +220,24 @@ try:
     _PG_SKIP_REASON = ""
 except Exception as exc:  # noqa: BLE001
     _PG_REACHABLE = False
-    _PG_SKIP_REASON = (
-        f"dev Postgres not reachable ({exc!r}); "
-        "run docker compose -f docker-compose.dev.yml up -d"
-    )
+    _PG_SKIP_REASON = f"dev Postgres not reachable ({exc!r}); run docker compose -f docker-compose.dev.yml up -d"
 
 
 @pytest.mark.skipif(not _PG_REACHABLE, reason=_PG_SKIP_REASON)
 class TestClaimsRacePG:
     async def _seed(self, pg, pid, devs):
-        from server.coordination.identity import add_project_member, register_developer
+        from server.coordination.identity import (
+            add_project_member,
+            register_developer,
+            register_mcp_token,
+        )
 
         async with pg.acquire() as conn:
-            await conn.execute(
-                "INSERT INTO projects (project_id, name) VALUES ($1, $2)", pid, "H3 race"
-            )
+            await conn.execute("INSERT INTO projects (project_id, name) VALUES ($1, $2)", pid, "H3 race")
             for d in devs:
-                await register_developer(conn, developer_id=d, display_name=d, token=f"tok-{d}")
+                # UC-504: register_developer is identity-only; tokens live in mcp_tokens.
+                await register_developer(conn, developer_id=d, display_name=d)
+                await register_mcp_token(conn, developer_id=d, token=f"tok-{d}")
                 await add_project_member(conn, project_id=pid, developer_id=d)
 
     async def test_concurrent_claims_exactly_one_winner(self):
@@ -289,9 +295,7 @@ class TestClaimsRacePG:
 
             # No orphan claim left behind.
             async with pg.acquire() as conn:
-                count = await conn.fetchval(
-                    "SELECT count(*) FROM uc_claims WHERE project_id = $1", pid
-                )
+                count = await conn.fetchval("SELECT count(*) FROM uc_claims WHERE project_id = $1", pid)
                 assert count == 0, "claim was orphaned despite the failed state update"
                 await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
                 await conn.execute("DELETE FROM developers WHERE developer_id = $1", "alice")

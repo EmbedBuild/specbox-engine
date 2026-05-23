@@ -1,8 +1,8 @@
-version: 5.34.0
+version: 5.34.1
 codename: "Native Collaboration"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-05-22
+release_date: 2026-05-23
 min_claude_code: "1.0.0"
 
 stacks:
@@ -396,6 +396,28 @@ features:
   - dashboard-health-real-version
 
 changelog:
+  5.34.1:
+    date: 2026-05-23
+    summary: >
+      Patch on top of v5.34.0 "Native Collaboration": adds N×N guided backend
+      switching across the four backends (FreeForm/Trello/Plane/Native) and
+      hardens the Native Backend against mutations from revoked identities
+      (30s cached gate + destructive-op audit log + redesigned identity model).
+    changes:
+      - "feat(migration): N×N migration across the four backends — server/migration/ package with backend_dispatch (build_backend for all 4) + write_target (generic, idempotent via external_id) + state_mapping (canonical↔native matrix; Plane is the only lossy backend, degradations surfaced as structured warnings) + native_handling (Native exit discards claims/identity with report; Native entry seeds expected_version=1 + developer identity)"
+      - "feat(migration): migrate_backend(source,target,dry_run) MCP tool — additive (origin intact) + idempotent (re-running skips already-migrated items via external_id). Replaces the Trello↔Plane-only migrate_project"
+      - "feat(migration): switch_backend generalized to all 4 backend types with TRANSACTIONAL update of the 3 sources of truth (projects.json registry, doc/app/app_spec.md tracking_backend zone, .claude/settings.local.json specbox.backend_type) + snapshot rollback on failure"
+      - "feat(migration): regenerate_evidence MCP tool — opt-in post-migration tool that rescans .quality/evidence/*/acceptance/results.json (indexed by logical uc_id) and re-runs run_acceptance_check per UC against current code; reports [X/N] UC-XXX: PASS|FAIL|SKIP progress + final summary + persists doc/migrations/evidence_regeneration_{ts}.md"
+      - "feat(skill): /switch-backend guided orchestrator (.claude/skills/switch-backend/, context: direct). End-to-end UX: detect current backend → ask destination → secure credential collection (Native via SPECBOX_NATIVE_DSN env, never via chat) → mandatory dry-run preview → literal confirmation → migrate → transactional switch → 4-section final report (switch+consistency / evidence intact / Native discarded state if applicable / offer regenerate_evidence). MCP-local precondition documented"
+      - "feat(native-security): mutation gate with hardcoded 30s TTL cache on the 9 NativeBackend mutators (create_item, update_item, archive_item, mark_acceptance_criterion, create_acceptance_criteria, update_acceptance_criterion, delete_acceptance_criterion, add_comment, add_attachment). After a revoke from the panel, the next cached miss raises UnauthenticatedError — exposure window ≤ 30s, down from hours. Reads bypass the gate by design so forensics + whoami stay available for revoked tokens"
+      - "feat(native-security): audit_log for destructive operations — delete_acceptance_criterion and archive_item write a row to audit_log on success (developer_id + project_id + operation + target_id + occurred_at). Failed destructive ops leave the table untouched. Non-destructive mutators never write audit"
+      - "feat(native-security): redesigned identity model — new tables github_identities (N:1 → developer, covers freelance with multiple GitHub accounts; github_user_id as stable BIGINT PK) and mcp_tokens (revocable via revoked_at, no TTL, separated from developers.token_hash which is dropped atomically in the same migration). Helpers register_mcp_token (idempotent ON CONFLICT) + revoke_mcp_token NOT exposed as MCP tools — only the future SpecBox Control Panel issues/revokes"
+      - "feat(native-security): NativeBackend.__init__(project_id, dev_token) both arguments mandatory; auth_gateway dispatch forwards dev_token from session config; store_native_credentials + set_auth_token reject empty dev_token at the entry point with MISSING_DEV_TOKEN"
+      - "refactor(native-security): register_native_developer MCP tool REMOVED. CRUD of developers / github_identities / mcp_tokens is now exclusively the responsibility of the (future) SpecBox Control Panel. The MCP keeps only whoami, claim_uc, release_uc, register_native_branch for native coordination"
+      - "refactor(coordination): resolve_developer now queries mcp_tokens JOIN developers WHERE revoked_at IS NULL — a token revoked from the panel makes the next gate miss fail UNAUTHENTICATED. register_developer signature stripped to (developer_id, display_name) — identity only"
+      - "fix(db): 0002_developers.sql idempotency latent bug — CREATE UNIQUE INDEX on developers.token_hash was not guarded against column absence. Re-applying the full ladder after 0005 drops the column failed with 'column does not exist'. Fixed with a DO block + information_schema check so 0002 is truly self-idempotent regardless of 0005 state"
+      - "chore(security): depersonalize Supabase references in public repo — replaced the maintainer's specific project_ref (nywjsvumsvxlpflpbord) and project name (SpecBox-DataBase) with generic placeholders across docs, tracking, test fixtures and CHANGELOG/CLAUDE.md/ENGINE_VERSION.yaml. The runbook is now a generic operator guide; every MCP operator provisions and operates their own Supabase instance"
+
   5.34.0:
     date: 2026-05-22
     codename: "Native Collaboration"

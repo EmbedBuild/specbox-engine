@@ -2,6 +2,158 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [5.34.1] - 2026-05-23 — "Native Collaboration" (patch)
+
+Patch sobre v5.34.0 que extiende y blinda la misma línea Native: ahora un
+proyecto puede **cambiar de backend de tracking de forma guiada entre los 4
+backends (FreeForm/Trello/Plane/Native)** sin perder datos ni avance, y el
+**Native Backend queda blindado contra mutaciones de identidades revocadas**
+con una ventana de exposición ≤ 30s y un audit log forense de operaciones
+destructivas. Cierra US-BACKEND-SWITCH (UC-401..406) y US-NATIVE-SECURITY
+(UC-501..506). 13 PRs (#34–#46).
+
+### Added
+
+- **`server/migration/` paquete nuevo** — `backend_dispatch` (build_backend
+  de los 4) + `writer` (write_target genérico, aditivo, idempotente vía
+  external_id) + `state_mapping` (matriz canónico↔nativo bidireccional;
+  Plane es el único *lossy*, las degradaciones se reportan como warnings
+  estructurados en vez de perderse en silencio) + `native_handling`
+  (salida Native descarta claims/identidad con reporte, entrada Native
+  siembra `expected_version=1` + identidad) + `transactional_switch`
+  (snapshot + rollback sobre los 3 lugares de verdad).
+- **Tool MCP `migrate_backend(source_type, source_id, target_type,
+  target_id?, dry_run=True)`** — migración N×N entre los 4 backends,
+  aditiva e idempotente. Reemplaza el `migrate_project` solo-Trello-Plane.
+- **Tool MCP `switch_backend` generalizada a los 4** con actualización
+  atómica de `projects.json` + zona `tracking_backend` de `app_spec.md` +
+  `specbox.backend_type` en `settings.local.json`, con rollback completo
+  si alguno falla.
+- **Tool MCP `regenerate_evidence(project, ucs?)`** — opt-in
+  post-migración. Reescanea `.quality/evidence/*/acceptance/results.json`
+  (indexada por `uc_id` lógico) y reejecuta acceptance por UC, con progreso
+  `[X/N] UC-XXX: PASS|FAIL|SKIP (n ACs)` y reporte persistido en
+  `doc/migrations/evidence_regeneration_{ts}.md`.
+- **Skill `/switch-backend`** (`.claude/skills/switch-backend/`,
+  `context: direct`) — orquestador guiado: detecta backend actual → pide
+  credenciales del destino de forma segura (Native vía
+  `SPECBOX_NATIVE_DSN` env, jamás por chat) → preview obligatorio →
+  confirmación literal → migra → switch transaccional → reporte final
+  de 4 secciones. Documenta la precondición de MCP local.
+- **Mutation gate con cache TTL 30s** en `authenticate_and_authorize_cached`
+  (constante de módulo `_CACHE_TTL_SECONDS = 30`, hardcoded). Aplicado a
+  los 9 mutadores del NativeBackend (`create_item`, `update_item`,
+  `archive_item`, `mark_acceptance_criterion`, `create_acceptance_criteria`,
+  `update_acceptance_criterion`, `delete_acceptance_criterion`,
+  `add_comment`, `add_attachment`). Cache hit ~1µs, miss ~10-25ms.
+  Lecturas bypassan el gate por diseño (forensics + whoami preservados
+  para tokens revocados).
+- **`audit_log`** (migración `0006`) — registro forense de las 2
+  operaciones destructivas (`delete_acceptance_criterion`, `archive_item`).
+  Campos: `developer_id`, `project_id`, `operation`, `target_id`,
+  `occurred_at`. Sin diff antes/después: la recuperación se hace desde
+  backups de Supabase, no desde el audit.
+- **Modelo de identidad rediseñado** — `developers` + `github_identities`
+  (N:1 al developer, cubre caso freelance con varias cuentas GitHub;
+  `github_user_id BIGINT` como PK estable que sobrevive a renames) +
+  `mcp_tokens` (revocable vía `revoked_at`, sin TTL, emitido solo por el
+  panel). Migraciones `0004_github_identities.sql` + `0005_mcp_tokens.sql`
+  (dropea `developers.token_hash` atómicamente en el mismo archivo).
+- **Helpers internos** `register_mcp_token` (idempotente vía
+  `ON CONFLICT (token_hash)`) y `revoke_mcp_token` en
+  `server/coordination/identity.py`. NO se exponen como tools MCP — los
+  usa el panel y los fixtures de tests.
+
+### Changed
+
+- **`NativeBackend.__init__(project_id, dev_token)`** — ambos argumentos
+  obligatorios. Empty / `None` → `ValueError` desde el constructor.
+- **`auth_gateway.get_session_backend`** rama native ahora lee
+  `config["dev_token"]` y lo reenvía al constructor.
+- **`store_native_credentials` + `set_auth_token` rama native** rechazan
+  `dev_token` vacío con `MISSING_DEV_TOKEN`.
+- **`resolve_developer`** ahora consulta
+  `mcp_tokens t JOIN developers d ON d.developer_id = t.developer_id WHERE
+  t.token_hash = $1 AND t.revoked_at IS NULL`. Un revoke desde el panel
+  hace fallar `UnauthenticatedError` la siguiente cache miss del MCP.
+- **`register_developer`** firma reducida a `(*, developer_id,
+  display_name)` — la emisión de tokens es responsabilidad del panel
+  (helper `register_mcp_token` separado).
+- **Renderer `tracking_backend` de `server/app_docs/sync.py`** y
+  `_extract_backend_from_spec` de `server/app_docs/discovery.py`
+  extendidos a `native` (paridad de los 4 backends).
+- **Suite de conformance Native** (`test_native_backend_conformance.py`):
+  fixture refactorizada para crear `developer + mcp_token + project_member`
+  antes de instanciar `NativeBackend`, alineada con el nuevo modelo de
+  identidad. 24/24 verde.
+
+### Removed
+
+- **`register_native_developer`** — eliminada del MCP (era una tool
+  `@mcp.tool` en `server/tools/coordination.py`). El CRUD de developers /
+  github_identities / mcp_tokens ahora es responsabilidad exclusiva del
+  SpecBox Control Panel. Las 4 tools native restantes (`whoami`,
+  `claim_uc`, `release_uc`, `register_native_branch`) permanecen.
+- **`developers.token_hash`** + índice `idx_developers_token_hash` —
+  eliminados atómicamente en la migración `0005_mcp_tokens.sql`. El
+  almacenamiento de tokens se mueve a la nueva tabla `mcp_tokens`.
+
+### Fixed
+
+- **`0002_developers.sql` ya no rompe la cadena tras un drop de
+  `token_hash`** — el `CREATE UNIQUE INDEX` se envolvió en un `DO $$` block
+  con check de `information_schema.columns`. Antes, re-aplicar la cadena
+  completa tras 0005 fallaba con `column does not exist` (porque
+  `IF NOT EXISTS` solo guarda el índice, no la referencia a la columna).
+- **`register_mcp_token` idempotencia** — el `INSERT` pasa a `ON CONFLICT
+  (token_hash) DO UPDATE ... RETURNING token_id`, así re-registrar el
+  mismo token clear no rompe la `UNIQUE` y devuelve el `token_id`
+  existente.
+- **Lint preexistente saneado en `server/tools/spec_driven.py`** y
+  `server/tools/migration.py` (3 errores `E741`/`F841` que el hook
+  pre-commit habría bloqueado al tocar esos archivos).
+
+### Security
+
+- **Despersonalización del repo público** (`chore(security)`, PR #40) —
+  el `project_ref` específico del mantenedor (`nywjsvumsvxlpflpbord`) y el
+  nombre concreto del proyecto Supabase (`SpecBox-DataBase`) fueron
+  reemplazados por placeholders genéricos en `CHANGELOG.md`, `CLAUDE.md`,
+  `ENGINE_VERSION.yaml`, `doc/runbooks/native-supabase-credential.md`,
+  `doc/tracking/items.json`, `doc/tracking/progress/UC-401.md`, y
+  `tests/test_native_pool_supabase.py`. El runbook ahora es genérico:
+  cada operador del MCP provisiona y opera su propia instancia Supabase.
+- **Frontier 2 inalterado** — el DSN sigue siendo env-only
+  (`SPECBOX_NATIVE_DSN`); ningún cambio de esta release lo expone. El
+  `dev_token` en sesión es Frontier 1 (credencial de usuario), no de DB.
+- **Aislamiento de los proyectos existentes** — los proyectos en
+  FreeForm/Trello/Plane no tocan código Native por construcción (dispatch
+  en `auth_gateway.py` solo construye `NativeBackend` cuando
+  `backend_type == "native"`).
+
+### Tests
+
+- **6 nuevos archivos de test** (Postgres dev real, gated por `PG_OK`):
+  `test_native_security_schema.py`, `test_native_init_signature.py`,
+  `test_resolve_developer.py`, `test_auth_cache_ttl.py`,
+  `test_native_mutation_authz.py`, `test_audit_log_destructive.py`,
+  `test_native_revoke_adversarial.py`, `test_migrate_backend_nxn.py`,
+  `test_switch_backend_transactional.py`, `test_state_mapping.py`,
+  `test_write_target_dispatch.py`, `test_native_handling.py`,
+  `test_evidence_regen.py`.
+- **347 tests verde** tras el merge final (suite Native-Security
+  completa + migración + estado global del MCP).
+- Conformance suite restaurada al 100% (24/24) con el nuevo modelo de
+  identidad.
+
+### Pending operational task (no blocking)
+
+Propagar las 3 migraciones nuevas (`0004_github_identities.sql`,
+`0005_mcp_tokens.sql`, `0006_audit_log.sql`) + el patch idempotente de
+`0002_developers.sql` a `supabase/migrations/` y aplicar contra la instancia
+Supabase real vía `mcp__supabase__apply_migration`. El runbook documenta
+el patrón.
+
 ## [5.34.0] - 2026-05-22 — "Native Collaboration"
 
 Estrena el **Native Backend**: un cuarto backend del `SpecBackend` ABC (junto a

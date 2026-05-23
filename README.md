@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v5.34.0 — "Native Collaboration" (sobre v5.33.0 "FreeForm Path Safety")<br/>
+  v5.34.1 — "Native Collaboration" (sobre v5.33.0 "FreeForm Path Safety")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -30,11 +30,16 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 **v5.34.0 — "Native Collaboration"** estrena el **Native Backend**: un cuarto backend del `SpecBackend` ABC (junto a Trello / Plane / FreeForm), respaldado por una instancia gestionada de Supabase Postgres, pensado para equipos donde varios developers comparten un único board source-of-truth.
 
 - **Backend Postgres/Supabase multi-tenant** — los 26 métodos del ABC sobre un pool asyncpg, con **concurrencia optimista** (`expected_version`) para que dos developers no pisen el mismo trabajo.
-- **Identidad de developer + autorización** — resolución token→developer, Frontier 1 authz (UNAUTHENTICATED / FORBIDDEN). Nuevas tools `whoami`, `register_native_developer`.
-- **Claims de UC + registro de ramas** — un developer reserva un UC y registra su rama feature. Nuevas tools `claim_uc`, `release_uc`, `register_native_branch`.
+- **Identidad de developer + autorización** — resolución token→developer, Frontier 1 authz (UNAUTHENTICATED / FORBIDDEN). Tools `whoami`, `claim_uc`, `release_uc`, `register_native_branch` (la emisión / revoke de tokens vive en el SpecBox Control Panel desde v5.34.1).
+- **Claims de UC + registro de ramas** — un developer reserva un UC y registra su rama feature.
 - **Seguridad de credenciales (Frontier 2)** — el DSN vive solo en `SPECBOX_NATIVE_DSN`, nunca en disco ni en `meta.json`.
 
 Opt-in y aditivo: si no configuras `backend_type='native'`, todo se comporta como antes. 100% backwards-compatible — Trello / Plane / FreeForm intactos. Validado en producción contra Supabase real (50 tests verdes).
+
+**v5.34.1** añade dos piezas grandes sobre la misma línea Native, sin tocar el comportamiento de los otros 3 backends:
+
+- **Cambio guiado de backend N×N (`/switch-backend`)** — un proyecto puede migrar de cualquiera de los 4 backends a cualquier otro (12 pares) sin perder US/UC/AC, estado, comments ni evidencia. Migración aditiva (el origen permanece intacto), preview obligatorio, switch transaccional de los 3 lugares de verdad (registry, `app_spec.md`, `settings.local.json`) con rollback, y oferta opt-in de `regenerate_evidence` para refrescar acceptance tras la migración.
+- **Native blindado contra mutaciones de identidades revocadas** — cada uno de los 9 mutadores del NativeBackend re-valida identidad + membresía contra `mcp_tokens` con cache TTL hardcoded 30s. Ventana de exposición tras revoke ≤ 30s (antes: horas). `delete_acceptance_criterion` y `archive_item` dejan rastro forense en `audit_log`. Modelo de identidad rediseñado limpio (`developers` + `github_identities` N:1 + `mcp_tokens` revocables) listo para el panel web — el CRUD de equipo deja de vivir en el MCP.
 
 ---
 
@@ -341,7 +346,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v5.34.0 — "Native Collaboration" (over v5.33.0 "FreeForm Path Safety")
+> v5.34.1 — "Native Collaboration" (over v5.33.0 "FreeForm Path Safety")
 
 ## What is this?
 
@@ -359,11 +364,16 @@ A system that turns Claude Code into a serious teammate:
 **v5.34.0 — "Native Collaboration"** introduces the **Native Backend**: a fourth `SpecBackend` implementation (alongside Trello / Plane / FreeForm), backed by a managed Supabase Postgres instance, built for teams where multiple developers share a single source-of-truth board.
 
 - **Multi-tenant Postgres/Supabase backend** — all 26 ABC methods over an asyncpg pool, with **optimistic concurrency** (`expected_version`) so two developers don't clobber each other's work.
-- **Developer identity + authorization** — token→developer resolution, Frontier 1 authz (UNAUTHENTICATED / FORBIDDEN). New tools `whoami`, `register_native_developer`.
-- **UC claims + branch registry** — a developer claims a UC and registers its feature branch. New tools `claim_uc`, `release_uc`, `register_native_branch`.
+- **Developer identity + authorization** — token→developer resolution, Frontier 1 authz (UNAUTHENTICATED / FORBIDDEN). Tools `whoami`, `claim_uc`, `release_uc`, `register_native_branch` (token issuance / revoke moves to the SpecBox Control Panel in v5.34.1).
+- **UC claims + branch registry** — a developer claims a UC and registers its feature branch.
 - **Credential security (Frontier 2)** — the DSN lives only in `SPECBOX_NATIVE_DSN`, never on disk or in `meta.json`.
 
 Opt-in and additive: if you don't set `backend_type='native'`, everything behaves as before. 100% backwards-compatible — Trello / Plane / FreeForm untouched. Validated in production against real Supabase (50 green tests).
+
+**v5.34.1** adds two big pieces along the same Native line, without touching the other 3 backends:
+
+- **Guided N×N backend switching (`/switch-backend`)** — a project can migrate from any of the 4 backends to any other (12 pairs) without losing US/UC/AC, state, comments or evidence. Additive migration (origin stays intact), mandatory dry-run preview, transactional switch of the 3 sources of truth (registry, `app_spec.md`, `settings.local.json`) with rollback, and opt-in `regenerate_evidence` to refresh acceptance after a migration.
+- **Native hardened against mutations from revoked identities** — each of the 9 NativeBackend mutators re-validates identity + membership against `mcp_tokens` with a hardcoded 30s TTL cache. Exposure window after a revoke ≤ 30s (previously: hours). `delete_acceptance_criterion` and `archive_item` leave a forensic trail in `audit_log`. Cleanly redesigned identity model (`developers` + `github_identities` N:1 + revocable `mcp_tokens`) ready for the panel — team CRUD leaves the MCP.
 
 ---
 

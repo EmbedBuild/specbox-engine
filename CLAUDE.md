@@ -1,4 +1,4 @@
-# SpecBox Engine v5.34.0
+# SpecBox Engine v5.34.1
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -84,9 +84,10 @@ set_auth_token(api_key="", token="<dev-token>", backend_type="native", project_i
 |------------|---------|-----|
 | NativeBackend | `server/backends/native_backend.py` | 26 métodos del ABC sobre pool asyncpg |
 | Schema multi-tenant | `server/db/migrations/0001_native_schema.sql` | Tablas US/UC/AC + concurrencia optimista (`expected_version`) |
-| Identity | `server/db/migrations/0002_developers.sql` + `server/coordination/identity.py` | Resolución token→developer, Frontier 1 authz (UNAUTHENTICATED / FORBIDDEN) |
-| Claims + branches | `server/db/migrations/0003_claims.sql` + `server/coordination/{claims,branches}.py` | Reserva de UC por developer + registro de rama feature |
-| Tools MCP | `server/tools/coordination.py` | `whoami`, `register_native_developer`, `claim_uc`, `release_uc`, `register_native_branch` |
+| Identity | `0002_developers.sql` + `0004_github_identities.sql` + `0005_mcp_tokens.sql` + `server/coordination/identity.py` | Resolución token→developer vía `mcp_tokens` JOIN `developers` (filtrando `revoked_at IS NULL`). N:1 GitHub identity ↔ developer cubre el caso freelance. Frontier 1 authz (UNAUTHENTICATED / FORBIDDEN). v5.34.1. |
+| Claims + branches | `0003_claims.sql` + `server/coordination/{claims,branches}.py` | Reserva de UC por developer + registro de rama feature |
+| Mutation gate + audit | `server/coordination/identity.py` (`authenticate_and_authorize_cached`, TTL 30s hardcoded) + `server/coordination/audit.py` + `server/db/migrations/0006_audit_log.sql` | Cada uno de los 9 mutadores del NativeBackend re-valida identidad + membresía con cache (hit ~1µs / miss ~10-25ms). Tras un revoke, exposición ≤ 30s. `delete_acceptance_criterion` y `archive_item` escriben fila en `audit_log` tras SQL exitoso. v5.34.1. |
+| Tools MCP nativas | `server/tools/coordination.py` | `whoami`, `claim_uc`, `release_uc`, `register_native_branch`. **CRUD de developers / mcp_tokens / github_identities NO se expone como tool MCP** desde v5.34.1 — vive en el SpecBox Control Panel (panel web externo). |
 
 **Frontier 2 — seguridad de credenciales**: el DSN de la base vive exclusivamente en la
 variable de entorno `SPECBOX_NATIVE_DSN`. Nunca se persiste en disco ni en `meta.json`,
@@ -1269,6 +1270,6 @@ documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
 
 ## Engine Version
 
-Current: v5.34.0 "Native Collaboration"
+Current: v5.34.1 "Native Collaboration"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml

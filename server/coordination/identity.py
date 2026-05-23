@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 import uuid
 from dataclasses import dataclass
 from typing import Any
@@ -386,3 +387,51 @@ async def authenticate_and_authorize(
     dev = await resolve_developer(conn, token)
     await authorize(conn, developer_id=dev.developer_id, project_id=project_id)
     return dev
+
+
+# ── UC-502: cached variant for hot-path mutations ────────────────────
+
+# Module-level cache. Key: (sha256(token), project_id). Value: (Developer, monotonic_expires_at).
+# Cleared with _clear_auth_cache() for tests. TTL is hardcoded — UC-502 AC-02.
+_AUTH_CACHE: dict[tuple[str, str], tuple[Developer, float]] = {}
+_CACHE_TTL_SECONDS = 30  # MUST stay hardcoded — UC-502 AC-02
+
+
+async def authenticate_and_authorize_cached(
+    conn: asyncpg.Connection | asyncpg.Pool,
+    *,
+    token: str,
+    project_id: str,
+) -> Developer:
+    """Cached variant of authenticate_and_authorize for hot-path mutations.
+
+    UC-502 — Window of exposure after revoke is bounded by ``_CACHE_TTL_SECONDS``.
+    Cache hit returns the :class:`Developer` in ~microseconds without touching
+    Postgres. Cache miss falls back to the uncached gate; the result is
+    memoized until ``expires_at``.
+
+    A revoke from the SpecBox Control Panel (``UPDATE mcp_tokens SET
+    revoked_at = now() WHERE token_id = $1``) is observed the next time a key
+    for that token expires from cache. Tests can force invalidation via
+    :func:`_clear_auth_cache`.
+
+    Reads do NOT pass through this gate (decision documented in UC-502 AC-06):
+    forensics and whoami must remain available even for revoked tokens.
+    """
+    key = (hash_token(token), project_id)
+    now = time.monotonic()
+    cached = _AUTH_CACHE.get(key)
+    if cached and cached[1] > now:
+        return cached[0]
+    dev = await authenticate_and_authorize(conn, token=token, project_id=project_id)
+    _AUTH_CACHE[key] = (dev, now + _CACHE_TTL_SECONDS)
+    return dev
+
+
+def _clear_auth_cache() -> None:
+    """Test-only: invalidate the in-memory auth cache.
+
+    Production code MUST NOT call this. Tests use it to simulate cache
+    expiration without sleeping 30 seconds.
+    """
+    _AUTH_CACHE.clear()

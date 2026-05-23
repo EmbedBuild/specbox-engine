@@ -1747,7 +1747,7 @@
     "id": "item-0221e5c9",
     "name": "[UC-504] Eliminar register_native_developer del MCP + developers.token_hash del codigo Python",
     "description": "",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-aa3187ca",
     "labels": [
       "UC"

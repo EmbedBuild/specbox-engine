@@ -601,7 +601,7 @@
   {
     "id": "item-4b62f295",
     "name": "[US-NATIVE-SUPABASE] Migrar el Native Backend de Postgres-VPS a Supabase gestionado",
-    "description": "Como mantenedor de SpecBox, quiero que el Native Backend use una instancia Supabase gestionada (proyecto SpecBox-DataBase, ref nywjsvumsvxlpflpbord, Postgres 17, eu-west-3) en lugar del Postgres self-hosted del VPS, para externalizar backups/parches/monitorizacion y ganar pooler + dashboard, sin reescribir la identidad de developers (UC-201) ni romper los demas backends (Trello/Plane/FreeForm). Decisiones: conexion via Supabase Pooler transaction-mode (6543, statement_cache_size=0); migraciones via Supabase CLI/apply_migration; identidad propia intacta.",
+    "description": "Como mantenedor de SpecBox, quiero que el Native Backend use una instancia Supabase gestionada (Postgres 17+, region a elegir por el operador) en lugar del Postgres self-hosted del VPS, para externalizar backups/parches/monitorizacion y ganar pooler + dashboard, sin reescribir la identidad de developers (UC-201) ni romper los demas backends (Trello/Plane/FreeForm). Decisiones: conexion via Supabase Pooler transaction-mode (6543, statement_cache_size=0); migraciones via Supabase CLI/apply_migration; identidad propia intacta. Cada operador del MCP gestiona su propia instancia Supabase; el repo es publico y no documenta refs concretos.",
     "state": "done",
     "parent_id": null,
     "labels": [
@@ -652,7 +652,7 @@
   },
   {
     "id": "ac-7d8b6e2d",
-    "name": "[AC-25] La conexion exige TLS: el DSN incluye sslmode=require (o equivalente) y un intento sin SSL es rechazado; el handshake contra db.nywjsvumsvxlpflpbord.supabase.co se completa.",
+    "name": "[AC-25] La conexion exige TLS: el DSN incluye sslmode=require (o equivalente) y un intento sin SSL es rechazado; el handshake contra el host Supabase configurado por el operador (db.<PROJECT_REF>.supabase.co o pooler equivalente) se completa.",
     "description": "",
     "state": "done",
     "parent_id": "item-ad3a2c23",

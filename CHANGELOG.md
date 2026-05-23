@@ -36,9 +36,10 @@ existentes.
 
 ### Changed
 
-- **Native Backend migrado de Postgres-on-VPS a Supabase gestionado** (proyecto
-  `SpecBox-DataBase`, Postgres 17, eu-west-3). El cutover quedó validado en
-  producción.
+- **Native Backend migrado de Postgres-on-VPS a Supabase gestionado**
+  (Postgres 17+, región a elección del operador). El cutover de la instancia
+  del mantenedor quedó validado en producción; cada operador del MCP es
+  responsable de provisionar su propia instancia Supabase.
 - **`auth_gateway.py`** — rama `native` añadida en `get_session_backend`; el DSN
   se lee de `SPECBOX_NATIVE_DSN` (nunca se persiste).
 - **Dashboard `/health`** — lee la versión real de `ENGINE_VERSION.yaml` en vez

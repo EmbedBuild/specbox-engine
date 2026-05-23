@@ -1814,7 +1814,7 @@
     "id": "item-8d59dd87",
     "name": "[UC-505] Refactor NativeBackend.__init__ + auth_gateway dispatch",
     "description": "",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-aa3187ca",
     "labels": [
       "UC"

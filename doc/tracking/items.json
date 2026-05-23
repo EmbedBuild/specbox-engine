@@ -1664,7 +1664,7 @@
     "id": "item-b34d2e52",
     "name": "[UC-503] Audit log de operaciones destructivas",
     "description": "",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-aa3187ca",
     "labels": [
       "UC"

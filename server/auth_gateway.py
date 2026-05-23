@@ -62,17 +62,21 @@ async def get_session_backend(ctx: Context) -> "SpecBackend":
 
             return FreeformBackend(root=config["root_path"])
         elif backend_type == "native":
-            # FRONTIER 2: only the project_id is in session — never a DSN.
-            # The DB credential is read from SPECBOX_NATIVE_DSN by the pool.
+            # FRONTIER 2: only the project_id + dev_token are in session — never
+            # a DSN. The DB credential is read from SPECBOX_NATIVE_DSN by the
+            # pool. The dev_token is forwarded to the backend so each mutation
+            # can re-validate identity + membership via the cached gate
+            # (UC-502 builds on this) [UC-505 AC-02].
             from .backends.native_backend import NativeBackend
 
-            return NativeBackend(project_id=config["project_id"])
+            return NativeBackend(
+                project_id=config["project_id"],
+                dev_token=config["dev_token"],
+            )
         else:
             from .backends.trello_backend import TrelloBackend
 
-            return TrelloBackend(
-                api_key=config["api_key"], token=config["token"]
-            )
+            return TrelloBackend(api_key=config["api_key"], token=config["token"])
 
     # Fallback to legacy Trello credentials
     creds = await ctx.get_state(AUTH_STATE_KEY)
@@ -104,8 +108,7 @@ async def get_session_client(ctx: Context):
     creds = await ctx.get_state(AUTH_STATE_KEY)
     if not creds:
         raise RuntimeError(
-            "Trello credentials not configured for this session. "
-            "Call set_auth_token(api_key, token) first."
+            "Trello credentials not configured for this session. Call set_auth_token(api_key, token) first."
         )
     from .trello_client import TrelloClient
 
@@ -122,9 +125,7 @@ async def store_session_credentials(ctx: Context, api_key: str, token: str) -> N
     )
 
 
-async def store_plane_credentials(
-    ctx: Context, api_key: str, base_url: str, workspace_slug: str
-) -> None:
+async def store_plane_credentials(ctx: Context, api_key: str, base_url: str, workspace_slug: str) -> None:
     """Store Plane credentials in the session state."""
     await ctx.set_state(
         BACKEND_STATE_KEY,
@@ -148,9 +149,7 @@ async def store_freeform_credentials(ctx: Context, root_path: str) -> None:
     )
 
 
-async def store_native_credentials(
-    ctx: Context, project_id: str, dev_token: str = ""
-) -> None:
+async def store_native_credentials(ctx: Context, project_id: str, dev_token: str) -> None:
     """Store Native backend selection in the session state.
 
     FRONTIER 2 — database credential security: NO DSN or database credential is
@@ -161,18 +160,35 @@ async def store_native_credentials(
 
     FRONTIER 1 — developer identity: the per-developer ``dev_token`` (a
     *user* credential, distinct from the DB credential) authenticates the
-    caller against the ``developers`` table. It is kept in session state so
-    every native tool call can re-authenticate, but it is NEVER logged. When
-    empty, the session is unauthenticated and native identity tools will reject
-    with ``UNAUTHENTICATED``.
+    caller against the ``developers`` table via :mod:`mcp_tokens`. It is kept
+    in session state so every native mutation can re-validate identity via the
+    cached gate (UC-502), but it is NEVER logged.
+
+    [UC-505 AC-03] Empty ``dev_token`` is rejected at this entry point: a
+    native session without a developer identity has no business reaching the
+    backend constructor (which would reject it again). Fail fast here so
+    callers get a useful error from ``set_auth_token`` instead of an opaque
+    failure later.
+
+    Raises:
+        ValueError: If ``project_id`` or ``dev_token`` is empty / falsy.
     """
-    payload: dict[str, str] = {
-        "backend_type": "native",
-        "project_id": project_id,
-    }
-    if dev_token:
-        payload["dev_token"] = dev_token
-    await ctx.set_state(BACKEND_STATE_KEY, payload)
+    if not project_id:
+        raise ValueError("project_id is required for a native session")
+    if not dev_token:
+        raise ValueError(
+            "dev_token is required for a native session — generate one from "
+            "the SpecBox Control Panel and pass it as the 'token' argument of "
+            "set_auth_token(backend_type='native', ...)"
+        )
+    await ctx.set_state(
+        BACKEND_STATE_KEY,
+        {
+            "backend_type": "native",
+            "project_id": project_id,
+            "dev_token": dev_token,
+        },
+    )
 
 
 async def get_native_session(ctx: Context) -> dict[str, str]:
@@ -200,9 +216,7 @@ async def clear_session_credentials(ctx: Context) -> None:
 # --- Stitch proxy credentials ---
 
 
-async def store_stitch_credentials(
-    ctx: Context, project: str, api_key: str
-) -> None:
+async def store_stitch_credentials(ctx: Context, project: str, api_key: str) -> None:
     """Store Stitch API Key for a project in the session state."""
     state_key = f"{STITCH_STATE_PREFIX}{project}"
     await ctx.set_state(state_key, {"api_key": api_key, "project": project})
@@ -217,8 +231,7 @@ async def get_stitch_client(ctx: Context, project: str) -> "StitchClient":
     config = await ctx.get_state(state_key)
     if not config:
         raise RuntimeError(
-            f"Stitch API Key not configured for project '{project}'. "
-            "Call stitch_set_api_key(project, api_key) first."
+            f"Stitch API Key not configured for project '{project}'. Call stitch_set_api_key(project, api_key) first."
         )
     from .stitch_client import StitchClient
 

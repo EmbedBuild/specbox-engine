@@ -15,7 +15,6 @@ Consolidated tool modules:
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -142,7 +141,7 @@ def _get_uc_id(item: ItemDTO) -> str:
 def _clean_name(name: str, prefix_id: str) -> str:
     """Remove the prefix ID from a name (e.g., 'US-01: Name' -> 'Name')."""
     if prefix_id and name.startswith(prefix_id):
-        cleaned = name[len(prefix_id):]
+        cleaned = name[len(prefix_id) :]
         return cleaned.lstrip(":").lstrip(" ").lstrip("]").lstrip(" ")
     return name
 
@@ -181,9 +180,7 @@ def _get_uc_children(items: list[ItemDTO], us_id: str) -> list[ItemDTO]:
     return children
 
 
-async def _get_ac_counts(
-    backend: SpecBackend, board_id: str, uc_item: ItemDTO
-) -> tuple[int, int]:
+async def _get_ac_counts(backend: SpecBackend, board_id: str, uc_item: ItemDTO) -> tuple[int, int]:
     """Get (total, done) AC counts for a UC item."""
     acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
     total = len(acs)
@@ -234,14 +231,24 @@ async def set_auth_token(
     token = token.strip() if token else ""
 
     if backend_type == "native":
-        # Native authentication (Postgres, multi-tenant). api_key/token are
-        # ignored — the DB credential lives in SPECBOX_NATIVE_DSN (read by the
-        # pool), and only the project_id (tenant root) is stored in session.
+        # Native authentication (Postgres, multi-tenant). api_key is ignored —
+        # the DB credential lives in SPECBOX_NATIVE_DSN (read by the pool).
+        # ``token`` is the per-developer MCP token (emitted by the SpecBox
+        # Control Panel) — mandatory since UC-505 [AC-19/AC-21].
         project_id = project_id.strip() if project_id else ""
         if not project_id:
             return {
                 "error": "project_id is required for Native backend",
                 "code": "MISSING_PROJECT_ID",
+            }
+        if not token:
+            return {
+                "error": (
+                    "token (dev_token) is required for Native backend. "
+                    "Generate one from the SpecBox Control Panel and pass it "
+                    "as the 'token' argument."
+                ),
+                "code": "MISSING_DEV_TOKEN",
             }
 
         try:
@@ -249,7 +256,7 @@ async def set_auth_token(
 
             # Annotated as SpecBackend so the shared `backend` local stays
             # compatible across the freeform/plane/trello branches below.
-            backend: SpecBackend = NativeBackend(project_id=project_id)
+            backend: SpecBackend = NativeBackend(project_id=project_id, dev_token=token)
             user = await backend.validate_auth()
             # Ensure the project row exists (idempotent upsert per UC-101).
             config = await backend.setup_board(project_id)
@@ -258,9 +265,9 @@ async def set_auth_token(
             logger.error("native_auth_error", error=str(e))
             return {"error": f"Native init failed: {str(e)}", "code": "NATIVE_ERROR"}
 
-        # Frontier 1: the per-developer token (the `token` arg, which is
-        # otherwise ignored for native) is stored in session so every native
-        # tool call can re-authenticate. It is NEVER logged — only project_id is.
+        # Frontier 1: the per-developer token is stored in session so every
+        # native mutation can re-validate identity via the cached gate
+        # (UC-502). It is NEVER logged — only project_id is.
         await store_native_credentials(ctx, project_id, dev_token=token)
         logger.info(
             "auth_token_set",
@@ -463,11 +470,9 @@ async def get_board_status(board_id: str, ctx: Context) -> dict[str, Any]:
     backend = await get_session_backend(ctx)
     try:
         items = await backend.list_items(board_id)
-        states = await backend.get_states(board_id)
 
         # Build per-state counts
         list_stats: list[dict[str, Any]] = []
-        state_name_map = {v: k for k, v in WORKFLOW_LIST_NAMES.items()}
         for state_key, display_name in WORKFLOW_LIST_NAMES.items():
             state_items = [i for i in items if i.state == state_key]
             us_count = sum(1 for i in state_items if _is_us(i))
@@ -499,19 +504,17 @@ async def get_board_status(board_id: str, ctx: Context) -> dict[str, Any]:
             us_id = _get_us_id(item)
             uc_children = _get_uc_children(items, us_id)
             uc_done = sum(1 for c in uc_children if c.state == "done")
-            us_summary.append({
-                "us_id": us_id,
-                "name": item.name,
-                "status": item.state,
-                "uc_progress": f"{uc_done}/{len(uc_children)}",
-            })
+            us_summary.append(
+                {
+                    "us_id": us_id,
+                    "name": item.name,
+                    "status": item.state,
+                    "uc_progress": f"{uc_done}/{len(uc_children)}",
+                }
+            )
 
         blocked_count = sum(1 for us in us_summary if us.get("status") == "blocked")
-        summary_text = (
-            f"{total_ucs} UCs ({done_ucs} done) | "
-            f"{round(pct, 1)}% horas completadas | "
-            f"{len(us_summary)} US"
-        )
+        summary_text = f"{total_ucs} UCs ({done_ucs} done) | {round(pct, 1)}% horas completadas | {len(us_summary)} US"
         if blocked_count:
             summary_text += f" | {blocked_count} bloqueados"
 
@@ -574,9 +577,7 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
                 }
 
                 # Find-or-create US item
-                existing_us = await backend.find_item_by_field(
-                    board_id, "us_id", us_spec.us_id
-                )
+                existing_us = await backend.find_item_by_field(board_id, "us_id", us_spec.us_id)
                 module: ModuleDTO | None = None
                 if existing_us:
                     us_item = await backend.update_item(
@@ -607,8 +608,7 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
                     try:
                         # Build UC description
                         ac_lines = "\n".join(
-                            f"- AC-{idx:02d}: {ac}"
-                            for idx, ac in enumerate(uc_spec.acceptance_criteria, 1)
+                            f"- AC-{idx:02d}: {ac}" for idx, ac in enumerate(uc_spec.acceptance_criteria, 1)
                         )
                         uc_desc = (
                             f"# {uc_spec.uc_id}: {uc_spec.name}\n\n"
@@ -635,9 +635,7 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
                         }
 
                         # Find-or-create UC item
-                        existing_uc = await backend.find_item_by_field(
-                            board_id, "uc_id", uc_spec.uc_id
-                        )
+                        existing_uc = await backend.find_item_by_field(board_id, "uc_id", uc_spec.uc_id)
                         if existing_uc:
                             uc_item = await backend.update_item(
                                 board_id,
@@ -663,29 +661,20 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
 
                         # Acceptance criteria: create only missing ones
                         criteria = [
-                            (f"AC-{idx:02d}", ac_text)
-                            for idx, ac_text in enumerate(uc_spec.acceptance_criteria, 1)
+                            (f"AC-{idx:02d}", ac_text) for idx, ac_text in enumerate(uc_spec.acceptance_criteria, 1)
                         ]
                         if criteria:
                             if existing_uc:
-                                existing_acs = await backend.get_acceptance_criteria(
-                                    board_id, uc_item.id
-                                )
+                                existing_acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
                                 existing_ac_ids = {ac.id for ac in existing_acs}
                                 new_criteria = [
-                                    (ac_id, text)
-                                    for ac_id, text in criteria
-                                    if ac_id not in existing_ac_ids
+                                    (ac_id, text) for ac_id, text in criteria if ac_id not in existing_ac_ids
                                 ]
                                 if new_criteria:
-                                    await backend.create_acceptance_criteria(
-                                        board_id, uc_item.id, new_criteria
-                                    )
+                                    await backend.create_acceptance_criteria(board_id, uc_item.id, new_criteria)
                                     created_ac += len(new_criteria)
                             else:
-                                await backend.create_acceptance_criteria(
-                                    board_id, uc_item.id, criteria
-                                )
+                                await backend.create_acceptance_criteria(board_id, uc_item.id, criteria)
                                 created_ac += len(criteria)
 
                         # Only track new UCs for module linking
@@ -700,19 +689,13 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
                 if new_uc_item_ids:
                     if module:
                         # Module was just created for new US
-                        await backend.add_items_to_module(
-                            board_id, module.id, new_uc_item_ids
-                        )
+                        await backend.add_items_to_module(board_id, module.id, new_uc_item_ids)
                     elif existing_us:
                         # US existed — create module (finds existing US card/item)
                         # In Trello this creates a new checklist; in Plane a new module
                         try:
-                            existing_module = await backend.create_module(
-                                board_id, us_spec.us_id
-                            )
-                            await backend.add_items_to_module(
-                                board_id, existing_module.id, new_uc_item_ids
-                            )
+                            existing_module = await backend.create_module(board_id, us_spec.us_id)
+                            await backend.add_items_to_module(board_id, existing_module.id, new_uc_item_ids)
                         except Exception:
                             logger.warning(
                                 "import_module_link_skip",
@@ -738,9 +721,7 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
 # ═══════════════════════════════════════════════════════════════════════
 
 
-async def list_us(
-    board_id: str, ctx: Context, status: str | None = None
-) -> list[dict[str, Any]]:
+async def list_us(board_id: str, ctx: Context, status: str | None = None) -> list[dict[str, Any]]:
     """List all User Stories on the board/project.
 
     Filters items with label US. Optionally filter by workflow
@@ -779,17 +760,19 @@ async def list_us(
                 ac_total += t
                 ac_done += d
 
-            result.append({
-                "us_id": us_id,
-                "name": item.name,
-                "hours": hours,
-                "status": item.state,
-                "screens": screens,
-                "uc_total": len(uc_children),
-                "uc_done": uc_done,
-                "ac_total": ac_total,
-                "ac_done": ac_done,
-            })
+            result.append(
+                {
+                    "us_id": us_id,
+                    "name": item.name,
+                    "hours": hours,
+                    "status": item.state,
+                    "screens": screens,
+                    "uc_total": len(uc_children),
+                    "uc_done": uc_done,
+                    "ac_total": ac_total,
+                    "ac_done": ac_done,
+                }
+            )
 
         return result
     finally:
@@ -818,10 +801,7 @@ async def get_us(board_id: str, us_id: str, ctx: Context) -> dict[str, Any]:
 
         # Get attachments
         attachments = await backend.get_attachments(board_id, us_item.id)
-        attach_list = [
-            {"name": a.name, "url": a.url, "date": a.created_at}
-            for a in attachments
-        ]
+        attach_list = [{"name": a.name, "url": a.url, "date": a.created_at} for a in attachments]
 
         # Get child UCs
         uc_children = _get_uc_children(items, us_id)
@@ -833,15 +813,17 @@ async def get_us(board_id: str, us_id: str, ctx: Context) -> dict[str, Any]:
 
             ac_total, ac_done = await _get_ac_counts(backend, board_id, uc_item)
 
-            use_cases.append({
-                "uc_id": uc_id,
-                "name": uc_item.name,
-                "actor": actor,
-                "hours": uc_hours,
-                "status": uc_item.state,
-                "ac_total": ac_total,
-                "ac_done": ac_done,
-            })
+            use_cases.append(
+                {
+                    "uc_id": uc_id,
+                    "name": uc_item.name,
+                    "actor": actor,
+                    "hours": uc_hours,
+                    "status": uc_item.state,
+                    "ac_total": ac_total,
+                    "ac_done": ac_done,
+                }
+            )
 
         return {
             "us_id": us_id,
@@ -857,9 +839,7 @@ async def get_us(board_id: str, us_id: str, ctx: Context) -> dict[str, Any]:
         await backend.close()
 
 
-async def move_us(
-    board_id: str, us_id: str, target: str, ctx: Context
-) -> dict[str, Any]:
+async def move_us(board_id: str, us_id: str, target: str, ctx: Context) -> dict[str, Any]:
     """Move a User Story and its Use Cases through the workflow.
 
     Movement rules:
@@ -946,9 +926,7 @@ async def move_us(
         await backend.close()
 
 
-async def get_us_progress(
-    board_id: str, us_id: str, ctx: Context
-) -> dict[str, Any]:
+async def get_us_progress(board_id: str, us_id: str, ctx: Context) -> dict[str, Any]:
     """Get detailed progress for a User Story.
 
     Reads all child UCs and their acceptance criteria to calculate
@@ -982,9 +960,7 @@ async def get_us_progress(
             uc_hours = _extract_meta_float(uc_item, "horas")
             is_done = uc_item.state == "done"
 
-            acs_total_uc, acs_passed_uc = await _get_ac_counts(
-                backend, board_id, uc_item
-            )
+            acs_total_uc, acs_passed_uc = await _get_ac_counts(backend, board_id, uc_item)
 
             total_acs += acs_total_uc
             passed_acs += acs_passed_uc
@@ -992,13 +968,15 @@ async def get_us_progress(
             if is_done:
                 hours_done += uc_hours
 
-            ucs_data.append({
-                "uc_id": uc_id,
-                "name": uc_item.name,
-                "status": uc_item.state,
-                "acs_total": acs_total_uc,
-                "acs_passed": acs_passed_uc,
-            })
+            ucs_data.append(
+                {
+                    "uc_id": uc_id,
+                    "name": uc_item.name,
+                    "status": uc_item.state,
+                    "acs_total": acs_total_uc,
+                    "acs_passed": acs_passed_uc,
+                }
+            )
 
         done_ucs = sum(1 for u in ucs_data if u["status"] == "done")
 
@@ -1064,17 +1042,19 @@ async def list_uc(
 
             ac_total, ac_done = await _get_ac_counts(backend, board_id, item)
 
-            result.append({
-                "uc_id": uc_id,
-                "us_id": item_us_id,
-                "name": item.name,
-                "actor": actor,
-                "hours": hours,
-                "status": item.state,
-                "screens": screens,
-                "ac_total": ac_total,
-                "ac_done": ac_done,
-            })
+            result.append(
+                {
+                    "uc_id": uc_id,
+                    "us_id": item_us_id,
+                    "name": item.name,
+                    "actor": actor,
+                    "hours": hours,
+                    "status": item.state,
+                    "screens": screens,
+                    "ac_total": ac_total,
+                    "ac_done": ac_done,
+                }
+            )
 
         return result
     finally:
@@ -1121,10 +1101,7 @@ async def get_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
 
         # Get attachments
         attachments = await backend.get_attachments(board_id, uc_item.id)
-        attach_list = [
-            {"name": a.name, "url": a.url, "date": a.created_at}
-            for a in attachments
-        ]
+        attach_list = [{"name": a.name, "url": a.url, "date": a.created_at} for a in attachments]
 
         # Extract metadata
         hours = _extract_meta_float(uc_item, "horas")
@@ -1132,11 +1109,7 @@ async def get_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
         actor = _extract_meta_str(uc_item, "actor")
         context = _extract_meta_str(uc_item, "context")
 
-        screens = (
-            [s.strip() for s in screens_raw.split(",") if s.strip()]
-            if screens_raw
-            else []
-        )
+        screens = [s.strip() for s in screens_raw.split(",") if s.strip()] if screens_raw else []
 
         result: dict[str, Any] = {
             "uc_id": uc_id,
@@ -1163,9 +1136,7 @@ async def get_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
         await backend.close()
 
 
-async def move_uc(
-    board_id: str, uc_id: str, target: str, ctx: Context
-) -> dict[str, Any]:
+async def move_uc(board_id: str, uc_id: str, target: str, ctx: Context) -> dict[str, Any]:
     """Move a Use Case to a workflow state.
 
     When moving to 'done', automatically updates the parent US module/checklist.
@@ -1204,9 +1175,7 @@ async def move_uc(
                 item_us_id = _get_us_id(parent)
 
         if target == "done" and item_us_id:
-            us_checklist_updated, us_all_done = await _handle_uc_completion(
-                backend, board_id, items, item_us_id, uc_id
-            )
+            us_checklist_updated, us_all_done = await _handle_uc_completion(backend, board_id, items, item_us_id, uc_id)
 
         return {
             "uc_id": uc_id,
@@ -1274,9 +1243,7 @@ async def _get_native_session_config(ctx: Context) -> dict[str, str] | None:
     return None
 
 
-async def _start_uc_native(
-    session: dict[str, str], board_id: str, uc_id: str, ctx: Context
-) -> dict[str, Any]:
+async def _start_uc_native(session: dict[str, str], board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
     """Claim + set in_progress atomically for a native session [AC-18, AC-19].
 
     Authenticates (Frontier 1), resolves the UC's DB id, then claims and flips
@@ -1298,9 +1265,7 @@ async def _start_uc_native(
     # Frontier 1 gate.
     try:
         async with pool.acquire() as conn:
-            dev = await authenticate_and_authorize(
-                conn, token=token, project_id=project_id
-            )
+            dev = await authenticate_and_authorize(conn, token=token, project_id=project_id)
     except UnauthenticatedError as e:
         return {"error": str(e), "code": "UNAUTHENTICATED"}
     except ForbiddenError as e:
@@ -1362,9 +1327,7 @@ async def _native_uc_ids_claimed_by_others(session: dict[str, str]) -> set[str]:
         return set()
 
 
-async def complete_uc(
-    board_id: str, uc_id: str, ctx: Context, evidence: str | None = None
-) -> dict[str, Any]:
+async def complete_uc(board_id: str, uc_id: str, ctx: Context, evidence: str | None = None) -> dict[str, Any]:
     """Mark a Use Case as complete.
 
     Moves to Done, updates the parent US module/checklist,
@@ -1404,9 +1367,7 @@ async def complete_uc(
         us_all_done = False
 
         if item_us_id:
-            us_checklist_updated, us_all_done = await _handle_uc_completion(
-                backend, board_id, items, item_us_id, uc_id
-            )
+            us_checklist_updated, us_all_done = await _handle_uc_completion(backend, board_id, items, item_us_id, uc_id)
 
         # Clear active UC marker — next UC must call start_uc again
         _clear_active_uc_marker()
@@ -1458,9 +1419,7 @@ async def mark_ac(
 
         # Mark the AC
         try:
-            await backend.mark_acceptance_criterion(
-                board_id, uc_item.id, ac_id, passed
-            )
+            await backend.mark_acceptance_criterion(board_id, uc_item.id, ac_id, passed)
         except Exception as e:
             return {
                 "error": f"AC {ac_id} not found in {uc_id}: {str(e)}",
@@ -1492,9 +1451,7 @@ async def mark_ac(
         await backend.close()
 
 
-async def mark_ac_batch(
-    board_id: str, uc_id: str, results: list[dict], ctx: Context
-) -> dict[str, Any]:
+async def mark_ac_batch(board_id: str, uc_id: str, results: list[dict], ctx: Context) -> dict[str, Any]:
     """Mark multiple Acceptance Criteria at once.
 
     Processes all AC results in a single operation and adds a consolidated comment.
@@ -1522,13 +1479,9 @@ async def mark_ac_batch(
             passed = r.get("passed", False)
 
             try:
-                await backend.mark_acceptance_criterion(
-                    board_id, uc_item.id, ac_id, passed
-                )
+                await backend.mark_acceptance_criterion(board_id, uc_item.id, ac_id, passed)
             except Exception:
-                logger.warning(
-                    "mark_ac_batch_skip", uc_id=uc_id, ac_id=ac_id, error="not_found"
-                )
+                logger.warning("mark_ac_batch_skip", uc_id=uc_id, ac_id=ac_id, error="not_found")
 
             if passed:
                 passed_count += 1
@@ -1564,9 +1517,7 @@ async def mark_ac_batch(
         await backend.close()
 
 
-async def get_ac_status(
-    board_id: str, uc_id: str, ctx: Context
-) -> dict[str, Any]:
+async def get_ac_status(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
     """Get the status of all Acceptance Criteria for a Use Case.
 
     Args:
@@ -1590,9 +1541,7 @@ async def get_ac_status(
             "total": len(acs),
             "done": done_count,
             "pending": len(acs) - done_count,
-            "criteria": [
-                {"id": ac.id, "text": ac.text, "done": ac.done} for ac in acs
-            ],
+            "criteria": [{"id": ac.id, "text": ac.text, "done": ac.done} for ac in acs],
         }
     finally:
         await backend.close()
@@ -1650,9 +1599,7 @@ async def attach_evidence(
         title = f"{target_id} - {evidence_type.upper()}"
         pdf_bytes = markdown_to_pdf(markdown_content, title=title)
 
-        attachment = await backend.add_attachment(
-            board_id, item.id, filename, pdf_bytes
-        )
+        attachment = await backend.add_attachment(board_id, item.id, filename, pdf_bytes)
 
         if not summary:
             summary = f"Evidencia {evidence_type.upper()} generada ({len(markdown_content)} chars)"
@@ -1714,12 +1661,14 @@ async def get_evidence(
         for a in attachments:
             if evidence_type and evidence_type not in a.name.lower():
                 continue
-            attach_list.append({
-                "name": a.name,
-                "url": a.url,
-                "date": a.created_at,
-                "size": a.size,
-            })
+            attach_list.append(
+                {
+                    "name": a.name,
+                    "url": a.url,
+                    "date": a.created_at,
+                    "size": a.size,
+                }
+            )
 
         # Get comments as activity
         comments = await backend.get_comments(board_id, item.id)
@@ -1793,19 +1742,19 @@ async def get_sprint_status(board_id: str, ctx: Context) -> dict[str, Any]:
                 acs_passed += ac_d
 
             # Check for blocked
-            if "Bloqueado" in item.labels or "bloqueado" in [
-                l.lower() for l in item.labels
-            ]:
+            if "Bloqueado" in item.labels or "bloqueado" in [label.lower() for label in item.labels]:
                 item_id_val = ""
                 if is_us:
                     item_id_val = _get_us_id(item)
                 elif is_uc:
                     item_id_val = _get_uc_id(item)
-                blocked.append({
-                    "id": item_id_val,
-                    "name": item.name,
-                    "status": item.state,
-                })
+                blocked.append(
+                    {
+                        "id": item_id_val,
+                        "name": item.name,
+                        "status": item.state,
+                    }
+                )
 
         hours_pct = (hours_done / hours_total * 100) if hours_total > 0 else 0
         acs_pct = (acs_passed / total_ac * 100) if total_ac > 0 else 0
@@ -1883,20 +1832,20 @@ async def get_delivery_report(board_id: str, ctx: Context) -> dict[str, Any]:
             if us_item.state == "done":
                 completed_us += 1
 
-            user_stories.append({
-                "us_id": us_id,
-                "name": us_name,
-                "status": us_item.state,
-                "hours": us_hours,
-                "ucs_completed": f"{uc_done}/{uc_total}",
-                "acs_passed": f"{ac_passed}/{ac_total}",
-            })
+            user_stories.append(
+                {
+                    "us_id": us_id,
+                    "name": us_name,
+                    "status": us_item.state,
+                    "hours": us_hours,
+                    "ucs_completed": f"{uc_done}/{uc_total}",
+                    "acs_passed": f"{ac_passed}/{ac_total}",
+                }
+            )
 
         pct = (completed_us / total_us * 100) if total_us > 0 else 0
 
-        summary_text = (
-            f"{board_name}: {completed_us}/{total_us} US completadas ({round(pct, 1)}%)"
-        )
+        summary_text = f"{board_name}: {completed_us}/{total_us} US completadas ({round(pct, 1)}%)"
 
         return {
             "project": board_name,
@@ -1914,7 +1863,9 @@ async def get_delivery_report(board_id: str, ctx: Context) -> dict[str, Any]:
 
 
 async def find_next_uc(
-    board_id: str, ctx: Context, uc_scope: list[str] | None = None,
+    board_id: str,
+    ctx: Context,
+    uc_scope: list[str] | None = None,
 ) -> dict[str, Any] | None:
     """Find the next Use Case to work on.
 
@@ -1940,10 +1891,7 @@ async def find_next_uc(
         # Multi-repo: filter by satellite scope if provided
         if uc_scope:
             scope_set = set(uc_scope)
-            ready_ucs = [
-                i for i in ready_ucs
-                if _extract_meta_str(i, "uc_id") in scope_set
-            ]
+            ready_ucs = [i for i in ready_ucs if _extract_meta_str(i, "uc_id") in scope_set]
 
         # Native: exclude UCs already claimed by another developer [AC-20] so
         # two devs running find_next_uc concurrently get distinct UCs.
@@ -1951,9 +1899,7 @@ async def find_next_uc(
         if native_session is not None:
             claimed = await _native_uc_ids_claimed_by_others(native_session)
             if claimed:
-                ready_ucs = [
-                    i for i in ready_ucs if _get_uc_id(i) not in claimed
-                ]
+                ready_ucs = [i for i in ready_ucs if _get_uc_id(i) not in claimed]
 
         if not ready_ucs:
             return None
@@ -1964,9 +1910,7 @@ async def find_next_uc(
             if _is_uc(item) and item.state == "in_progress":
                 uid = _extract_meta_str(item, "us_id")
                 if not uid and item.parent_id:
-                    parent = next(
-                        (i for i in items if i.id == item.parent_id), None
-                    )
+                    parent = next((i for i in items if i.id == item.parent_id), None)
                     if parent:
                         uid = _get_us_id(parent)
                 if uid:
@@ -1976,9 +1920,7 @@ async def find_next_uc(
         def _get_item_us_id(item: ItemDTO) -> str:
             uid = _extract_meta_str(item, "us_id")
             if not uid and item.parent_id:
-                parent = next(
-                    (i for i in items if i.id == item.parent_id), None
-                )
+                parent = next((i for i in items if i.id == item.parent_id), None)
                 if parent:
                     uid = _get_us_id(parent)
             return uid
@@ -1996,9 +1938,7 @@ async def find_next_uc(
 
             if us_ready_count:
                 top_us = max(us_ready_count, key=lambda k: us_ready_count[k])
-                priority2 = [
-                    c for c in ready_ucs if _get_item_us_id(c) == top_us
-                ]
+                priority2 = [c for c in ready_ucs if _get_item_us_id(c) == top_us]
                 chosen = priority2[0] if priority2 else ready_ucs[0]
             else:
                 chosen = ready_ucs[0]
@@ -2038,10 +1978,7 @@ async def _handle_uc_completion(
     uc_siblings = _get_uc_children(items, us_id)
 
     # Check if all UCs are done (including the one just completed)
-    all_done = all(
-        c.state == "done" or _get_uc_id(c) == completed_uc_id
-        for c in uc_siblings
-    )
+    all_done = all(c.state == "done" or _get_uc_id(c) == completed_uc_id for c in uc_siblings)
 
     checklist_updated = True  # Backend handles module/checklist updates internally
 
@@ -2080,70 +2017,48 @@ def register_spec_driven_tools(mcp_instance) -> None:
         description="Create a new board/project with SpecBox Engine structure: 5 workflow states, "
         "custom fields (Trello), and base labels."
     )(setup_board)
-    mcp_instance.tool(
-        description="Get board/project status: item counts per state, hours progress, US summary."
-    )(get_board_status)
-    mcp_instance.tool(
-        description="Import a full project spec (US + UC + AC) into the board/project from JSON."
-    )(import_spec)
+    mcp_instance.tool(description="Get board/project status: item counts per state, hours progress, US summary.")(
+        get_board_status
+    )
+    mcp_instance.tool(description="Import a full project spec (US + UC + AC) into the board/project from JSON.")(
+        import_spec
+    )
 
     # User Stories (4)
-    mcp_instance.tool(
-        description="List all User Stories. Optional filter by status."
-    )(list_us)
-    mcp_instance.tool(
-        description="Get full detail of a User Story including child Use Cases and attachments."
-    )(get_us)
-    mcp_instance.tool(
-        description="Move a User Story through the workflow. Enforces rules."
-    )(move_us)
-    mcp_instance.tool(
-        description="Get detailed progress for a User Story: UC completion, AC pass rates, hours."
-    )(get_us_progress)
+    mcp_instance.tool(description="List all User Stories. Optional filter by status.")(list_us)
+    mcp_instance.tool(description="Get full detail of a User Story including child Use Cases and attachments.")(get_us)
+    mcp_instance.tool(description="Move a User Story through the workflow. Enforces rules.")(move_us)
+    mcp_instance.tool(description="Get detailed progress for a User Story: UC completion, AC pass rates, hours.")(
+        get_us_progress
+    )
 
     # Use Cases (5)
-    mcp_instance.tool(
-        description="List Use Cases. Optional filter by parent US or status."
-    )(list_uc)
-    mcp_instance.tool(
-        description="Get full UC detail optimized for LLM: acceptance criteria, context, screens."
-    )(get_uc)
-    mcp_instance.tool(
-        description="Move a UC to a workflow state. Auto-updates parent US module/checklist."
-    )(move_uc)
-    mcp_instance.tool(
-        description="Start working on a UC: moves to In Progress, adds timestamp, returns full detail."
-    )(start_uc)
-    mcp_instance.tool(
-        description="Complete a UC: moves to Done, updates parent US, adds evidence."
-    )(complete_uc)
+    mcp_instance.tool(description="List Use Cases. Optional filter by parent US or status.")(list_uc)
+    mcp_instance.tool(description="Get full UC detail optimized for LLM: acceptance criteria, context, screens.")(
+        get_uc
+    )
+    mcp_instance.tool(description="Move a UC to a workflow state. Auto-updates parent US module/checklist.")(move_uc)
+    mcp_instance.tool(description="Start working on a UC: moves to In Progress, adds timestamp, returns full detail.")(
+        start_uc
+    )
+    mcp_instance.tool(description="Complete a UC: moves to Done, updates parent US, adds evidence.")(complete_uc)
 
     # Acceptance Criteria (3)
-    mcp_instance.tool(
-        description="Mark a single AC as passed/failed with optional evidence."
-    )(mark_ac)
-    mcp_instance.tool(
-        description="Mark multiple ACs at once (batch AG-09b validation)."
-    )(mark_ac_batch)
-    mcp_instance.tool(
-        description="Get status of all Acceptance Criteria for a UC."
-    )(get_ac_status)
+    mcp_instance.tool(description="Mark a single AC as passed/failed with optional evidence.")(mark_ac)
+    mcp_instance.tool(description="Mark multiple ACs at once (batch AG-09b validation).")(mark_ac_batch)
+    mcp_instance.tool(description="Get status of all Acceptance Criteria for a UC.")(get_ac_status)
 
     # Evidence (2)
-    mcp_instance.tool(
-        description="Convert markdown to PDF and attach as evidence to a US or UC item."
-    )(attach_evidence)
-    mcp_instance.tool(
-        description="Get evidence attachments and activity for a US or UC."
-    )(get_evidence)
+    mcp_instance.tool(description="Convert markdown to PDF and attach as evidence to a US or UC item.")(attach_evidence)
+    mcp_instance.tool(description="Get evidence attachments and activity for a US or UC.")(get_evidence)
 
     # Dashboard (3)
-    mcp_instance.tool(
-        description="Executive sprint dashboard: counts by status, hours, AC rates, blocked items."
-    )(get_sprint_status)
-    mcp_instance.tool(
-        description="Client-oriented delivery report: per-US progress with completion percentages."
-    )(get_delivery_report)
-    mcp_instance.tool(
-        description="Find the next UC to work on. Priority: active US focus, then largest ready block."
-    )(find_next_uc)
+    mcp_instance.tool(description="Executive sprint dashboard: counts by status, hours, AC rates, blocked items.")(
+        get_sprint_status
+    )
+    mcp_instance.tool(description="Client-oriented delivery report: per-US progress with completion percentages.")(
+        get_delivery_report
+    )
+    mcp_instance.tool(description="Find the next UC to work on. Priority: active US focus, then largest ready block.")(
+        find_next_uc
+    )

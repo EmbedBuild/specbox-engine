@@ -39,6 +39,7 @@ from server.backends.freeform_backend import FreeformBackend
 from server.backends.native_backend import NativeBackend
 from server.backends.plane_backend import PlaneBackend
 from server.backends.trello_backend import TrelloBackend
+
 # DSN + reachability probe live in tests/_native_db.py so Supabase TLS handling
 # is applied consistently across native test modules [AC-38, AC-39].
 from tests._native_db import DSN, reachable
@@ -63,10 +64,14 @@ def _mock_ctx(state_map: dict[str, object]) -> AsyncMock:
 
 
 class TestGetSessionBackendNative:
-    async def test_resolves_native_backend_scoped_to_project(self):
-        """BACKEND_STATE_KEY native config → NativeBackend scoped to project_id."""
+    async def test_resolves_native_backend_scoped_to_project_and_dev_token(self):
+        """Native config → NativeBackend with project_id + dev_token wired [UC-505 AC-20]."""
         state_map = {
-            BACKEND_STATE_KEY: {"backend_type": "native", "project_id": "p1"},
+            BACKEND_STATE_KEY: {
+                "backend_type": "native",
+                "project_id": "p1",
+                "dev_token": "t1",
+            },
         }
         ctx = _mock_ctx(state_map)
 
@@ -74,35 +79,55 @@ class TestGetSessionBackendNative:
 
         assert isinstance(backend, NativeBackend)
         assert backend.project_id == "p1"
+        assert backend._dev_token == "t1"
 
 
 # ── B) store_native_credentials [AC-07 / Frontier 2] (no PG) ─────────
 
 
 class TestStoreNativeCredentials:
-    async def test_stores_only_backend_type_and_project_id(self):
-        """set_state called once with exactly {backend_type, project_id} — no DSN."""
+    async def test_stores_backend_type_project_id_and_dev_token(self):
+        """set_state called once with exactly {backend_type, project_id, dev_token} — no DSN [UC-505 AC-20]."""
         ctx = AsyncMock()
 
-        await store_native_credentials(ctx, "proj-x")
+        await store_native_credentials(ctx, "proj-x", dev_token="t1")
 
         ctx.set_state.assert_called_once_with(
             BACKEND_STATE_KEY,
-            {"backend_type": "native", "project_id": "proj-x"},
+            {"backend_type": "native", "project_id": "proj-x", "dev_token": "t1"},
         )
 
-    async def test_no_credential_key_present(self):
-        """Frontier 2: the stored payload must NOT carry any dsn/credential key."""
+    async def test_no_dsn_or_db_credential_key_present(self):
+        """Frontier 2: the stored payload must NOT carry any DSN/db-credential key.
+
+        The session DOES carry ``dev_token`` (Frontier 1 user credential) — that
+        is intentional. What must never appear is a DSN, password, or any
+        database-level credential. UC-505 keeps Frontier 2 intact.
+        """
         ctx = AsyncMock()
 
-        await store_native_credentials(ctx, "proj-y")
+        await store_native_credentials(ctx, "proj-y", dev_token="t1")
 
         _key, payload = ctx.set_state.call_args.args
-        assert set(payload.keys()) == {"backend_type", "project_id"}
-        forbidden = {"dsn", "password", "credential", "credentials", "token", "api_key", "secret"}
-        assert not (set(payload.keys()) & forbidden), (
-            f"native session payload leaked a credential key: {payload.keys()}"
+        assert set(payload.keys()) == {"backend_type", "project_id", "dev_token"}
+        forbidden_db_creds = {"dsn", "password", "credential", "credentials", "api_key", "secret"}
+        assert not (set(payload.keys()) & forbidden_db_creds), (
+            f"native session payload leaked a DB credential key: {payload.keys()}"
         )
+
+    async def test_rejects_empty_dev_token(self):
+        """UC-505 AC-21: empty dev_token is rejected at the entry point."""
+        ctx = AsyncMock()
+        with pytest.raises(ValueError, match="dev_token is required"):
+            await store_native_credentials(ctx, "proj-z", dev_token="")
+        ctx.set_state.assert_not_called()
+
+    async def test_rejects_empty_project_id(self):
+        """UC-505 AC-21 (defensive): empty project_id is also rejected."""
+        ctx = AsyncMock()
+        with pytest.raises(ValueError, match="project_id is required"):
+            await store_native_credentials(ctx, "", dev_token="t1")
+        ctx.set_state.assert_not_called()
 
 
 # ── C) detect native backend [AC-07] (no PG) ─────────────────────────
@@ -221,10 +246,14 @@ class TestNativeSessionRoundTrip:
         ctx = StatefulCtx()
 
         try:
-            # 1. Build a native session (no DSN passed — Frontier 2).
+            # 1. Build a native session (no DSN passed — Frontier 2). UC-505
+            # makes the dev_token mandatory; this round-trip only exercises
+            # the dispatch + ABC writes (no gate is wired yet — UC-502), so a
+            # dummy token suffices. UC-506 covers the auth-gated scenario
+            # with a real developer + mcp_token + membership.
             auth = await set_auth_token(
                 api_key="",
-                token="",
+                token="dev-roundtrip-token",
                 ctx=ctx,
                 backend_type="native",
                 project_id=project_id,

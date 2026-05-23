@@ -36,6 +36,11 @@ import pytest
 
 from server.backends.freeform_backend import FreeformBackend
 from server.backends.native_backend import NativeBackend, StaleVersionError
+from server.coordination.identity import (
+    add_project_member,
+    register_developer,
+    register_mcp_token,
+)
 from server.db.migrate import apply_migrations
 from server.db.pool import close_pool, init_pool
 
@@ -50,6 +55,43 @@ PG_OK, PG_SKIP_REASON = reachable()
 def _unique_pid(tag: str) -> str:
     """Unique, collision-proof native test project id."""
     return f"test-uc101-conf-{tag}-{uuid.uuid4().hex[:8]}"
+
+
+def _unique_dev() -> str:
+    """Per-call unique developer id (avoids UNIQUE collisions across parallel runs)."""
+    return f"conf-dev-{uuid.uuid4().hex[:8]}"
+
+
+def _unique_token() -> str:
+    """Per-call unique MCP token (avoids token_hash UNIQUE collisions)."""
+    return f"conf-tok-{uuid.uuid4().hex[:16]}"
+
+
+async def _seed_native_identity(pool, project_id: str) -> tuple[str, str]:
+    """Seed developer + active mcp_token + project row + membership.
+
+    Returns ``(developer_id, token)``. Idempotent on the project row; the
+    developer id and token are per-call unique so this is safe to call from
+    parametrized fixtures running in parallel against the same DB.
+
+    The native gate (UC-502) authenticates by token and authorizes by
+    project_members row — both must exist before any mutator runs.
+    """
+    developer_id = _unique_dev()
+    token = _unique_token()
+    async with pool.acquire() as conn:
+        await register_developer(conn, developer_id=developer_id, display_name="Conformance Tester")
+        await register_mcp_token(conn, developer_id=developer_id, token=token)
+        await conn.execute(
+            """
+            INSERT INTO projects (project_id, name, backend_type, board_url, meta)
+            VALUES ($1, $1, 'native', '', '{}'::jsonb)
+            ON CONFLICT (project_id) DO NOTHING
+            """,
+            project_id,
+        )
+        await add_project_member(conn, project_id=project_id, developer_id=developer_id)
+    return developer_id, token
 
 
 # ── Backend factory fixtures ─────────────────────────────────────────────
@@ -71,14 +113,21 @@ async def _make_native(tmp_path) -> AsyncIterator[tuple[NativeBackend, str]]:
     pid = _unique_pid("be")
     pool = await init_pool(dsn=DSN)
     await apply_migrations(pool)
-    be = NativeBackend(project_id=pid)
+    # UC-505 made dev_token required at construction. Seed identity + project
+    # + membership BEFORE instantiating the backend so the UC-502 gate passes
+    # on every mutator the conformance suite exercises.
+    developer_id, token = await _seed_native_identity(pool, pid)
+    be = NativeBackend(project_id=pid, dev_token=token)
     cfg = await be.setup_board("UC-101 conformance (native)")
     try:
         yield be, cfg.board_id
     finally:
-        # Remove only the project we created (CASCADE drops child rows).
+        # Remove only the project + developer we created (CASCADE drops child
+        # rows of both — projects cascades item rows, developers cascades
+        # mcp_tokens + project_members).
         async with pool.acquire() as conn:
             await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
+            await conn.execute("DELETE FROM developers WHERE developer_id = $1", developer_id)
         await close_pool()
 
 
@@ -238,7 +287,8 @@ async def native_pool() -> AsyncIterator[asyncpg.Pool]:
 async def test_optimistic_version_increment(native_pool):
     """version 1->2; stale expected_version raises and leaves row unchanged. [AC-03]"""
     pid = _unique_pid("ver")
-    be = NativeBackend(project_id=pid)
+    developer_id, token = await _seed_native_identity(native_pool, pid)
+    be = NativeBackend(project_id=pid, dev_token=token)
     await be.setup_board("UC-101 version test")
     try:
         us = await be.create_item(board_id=pid, name="US-01: Versioned", labels=["US"])
@@ -265,13 +315,15 @@ async def test_optimistic_version_increment(native_pool):
     finally:
         async with native_pool.acquire() as conn:
             await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
+            await conn.execute("DELETE FROM developers WHERE developer_id = $1", developer_id)
 
 
 @pytest.mark.skipif(not PG_OK, reason=PG_SKIP_REASON)
 async def test_concurrency_50_ops(native_pool):
     """50 concurrent CRUD ops succeed with no connection leak. [AC-02]"""
     pid = _unique_pid("conc")
-    be = NativeBackend(project_id=pid)
+    developer_id, token = await _seed_native_identity(native_pool, pid)
+    be = NativeBackend(project_id=pid, dev_token=token)
     await be.setup_board("UC-101 concurrency test")
 
     async def _conn_count() -> int:
@@ -324,3 +376,4 @@ async def test_concurrency_50_ops(native_pool):
     finally:
         async with native_pool.acquire() as conn:
             await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
+            await conn.execute("DELETE FROM developers WHERE developer_id = $1", developer_id)

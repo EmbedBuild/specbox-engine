@@ -81,9 +81,18 @@ async def _seed_project(pool, *, project_id: str, developer_id: str, token: str,
 
 
 async def _seed_us_uc_acs(backend: NativeBackend, board_id: str) -> tuple[str, str, list[str]]:
-    """Create one US + one UC + 3 ACs. Returns ``(us_id, uc_id, [ac_id, ...])``."""
-    us = await backend.create_item(board_id, name="US-99: UC-502 fixture", labels=["US"])
-    uc = await backend.create_item(board_id, name="UC-901: UC-502 fixture", labels=["UC"], parent_id=us.id)
+    """Create one US + one UC + 3 ACs. Returns ``(us_id, uc_id, [ac_id, ...])``.
+
+    US/UC ids are derived from the spec prefix in the name (parse_item_id
+    regex captures ``\\d+``), and ``user_stories.id`` / ``use_cases.id`` are
+    PKs (not scoped by project_id). We use a per-call numeric suffix so
+    repeated test runs against the same dev DB don't collide.
+    """
+    suffix = uuid.uuid4().int % 1_000_000
+    us = await backend.create_item(board_id, name=f"US-{suffix}: UC-502 fixture", labels=["US"])
+    uc = await backend.create_item(
+        board_id, name=f"UC-{suffix}: UC-502 fixture", labels=["UC"], parent_id=us.id
+    )
     await backend.create_acceptance_criteria(
         board_id,
         uc.id,
@@ -285,8 +294,11 @@ async def test_ac04_non_member_blocks_each_mutator(db_pool, mutator_index):
     try:
         # Build the fixture US/UC/ACs in the target project directly via SQL,
         # bypassing the gate (the gate is what we are testing, after all).
-        us_id = "US-99"
-        uc_id = "UC-901"
+        # IDs must be unique across the whole DB (PK on user_stories.id /
+        # use_cases.id is global, not project-scoped).
+        _suffix = uuid.uuid4().int % 1_000_000
+        us_id = f"US-{_suffix}"
+        uc_id = f"UC-{_suffix}"
         ac_ids = ["AC-01", "AC-02", "AC-03"]
         async with db_pool.acquire() as conn:
             await conn.execute(
@@ -411,7 +423,7 @@ async def test_ac06_reads_succeed_with_revoked_token(db_pool):
         attachments = await backend.get_attachments(pid, uc_id)
         assert isinstance(attachments, list)
 
-        found = await backend.find_item_by_field(pid, "us_id", "US-99")
+        found = await backend.find_item_by_field(pid, "us_id", us_id)
         assert found is not None and found.id == us_id
     finally:
         await _delete_project(db_pool, pid, dev_id)

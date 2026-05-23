@@ -199,15 +199,28 @@ class NativeBackend(SpecBackend):
     project it is asked about while still filtering by tenant.
     """
 
-    def __init__(self, project_id: str) -> None:
-        """Initialize the backend scoped to a project.
+    def __init__(self, project_id: str, dev_token: str) -> None:
+        """Initialize the backend scoped to a project + a developer session.
 
         Args:
             project_id: The tenant root id (``projects.project_id``). NEVER a
                 DSN or credential — the connection comes from
                 :func:`server.db.pool.get_pool`.
+            dev_token: The developer's MCP token (clear form). Used by UC-502
+                to re-validate identity + membership on every mutation via the
+                cached gate. Cannot be empty: an empty token is the same as
+                no token, and the gate would always raise UNAUTHENTICATED — we
+                fail fast at construction instead [UC-505 AC-01].
+
+        Raises:
+            ValueError: If ``project_id`` or ``dev_token`` is empty / falsy.
         """
+        if not project_id:
+            raise ValueError("project_id is required for NativeBackend")
+        if not dev_token:
+            raise ValueError("dev_token is required for NativeBackend")
         self.project_id = project_id
+        self._dev_token = dev_token
 
     # ── Pool access ──────────────────────────────────────────────
 

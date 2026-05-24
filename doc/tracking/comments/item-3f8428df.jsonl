@@ -1,0 +1,4 @@
+{"id": "cmt-6a4ddba7", "text": "Desarrollo iniciado: 2026-05-24T12:25:31.278648+00:00", "created_at": "2026-05-24T12:25:31.278676+00:00", "author": "freeform"}
+{"id": "cmt-746a0ab9", "text": "Validacion AG-09b [2026-05-24 12:29 UTC]:\n  AC-01: PASSED\n  AC-02: PASSED\n  AC-03: PASSED", "created_at": "2026-05-24T12:29:44.440912+00:00", "author": "freeform"}
+{"id": "cmt-3f607a3b", "text": "Todos los criterios de aceptacion validados", "created_at": "2026-05-24T12:29:44.441023+00:00", "author": "freeform"}
+{"id": "cmt-b6c897f1", "text": "DELIVERY generado [2026-05-24 12:30 UTC] — UC-601 SQL rename uc_claims->uc_reservations: 3/3 ACs PASS verificado en Postgres 16-alpine local (fresh + populated + idempotency 3x). Migracion canonical + Supabase mirror byte-equivalent.", "created_at": "2026-05-24T12:30:26.274625+00:00", "author": "freeform"}

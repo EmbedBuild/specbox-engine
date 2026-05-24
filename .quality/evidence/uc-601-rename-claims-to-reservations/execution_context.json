@@ -1,0 +1,15 @@
+{
+  "feature_slug": "uc-601-rename-claims-to-reservations",
+  "branch": "feature/uc-601-rename-claims-to-reservations",
+  "stack": "python",
+  "project_name": "specbox-engine",
+  "project_root_absolute": "/Users/jesusperezsanchez/Desktop/Proyectos/0_jps_iautomat/jpsdeveloper/specbox-engine",
+  "engine_version": "5.34.1",
+  "uc_id": "UC-601",
+  "us_id": "US-CLAIM-RENAME",
+  "backend_type": "freeform",
+  "board_id": "ff-ed0c02f4565a",
+  "plan_path": "doc/tracking/items.json#UC-601",
+  "plan_hash": "n/a-freeform-item",
+  "autopilot_level": "agresivo"
+}

@@ -88,6 +88,83 @@ def _read_engine_version(engine_path: Path) -> str:
         return "unknown"
 
 
+def _collect_canonical_doc_templates(
+    engine_path: Path,
+    engine_version_at_onboard: str | None,
+    project: str,
+    now_iso: str,
+) -> tuple[list[dict[str, str]], list[str]]:
+    """Build the list of canonical doc plantillas to offer for creation.
+
+    v6.0 (UC-D005 AC-10): for each CanonicalDoc with
+    `introduced_in > engine_version_at_onboard`, the caller offers a
+    plantilla pristine that the project may copy. Returns:
+
+        (canonical_docs, warnings)
+
+    where each `canonical_docs` entry is:
+        {
+          "id": "app_market",
+          "path": "doc/app/app_market.md",
+          "content": "<rendered template>",
+          "reason": "introduced_in_6.0.0",
+          "template_path": "templates/app_market.md.template",
+        }
+
+    The caller is responsible for NOT overwriting existing files in the
+    project repo. The invariant "upgrade_project never overwrites existing
+    content" is preserved — this function only OFFERS content to create.
+
+    When `engine_version_at_onboard` is None ("unknown"), no docs are
+    offered: the conservative policy assumes the project was onboarded
+    pre-v6.0 and the user must explicitly bump the field to receive new
+    canonical docs.
+    """
+    from server.app_docs.registry import CANONICAL_DOCS, _semver_tuple
+
+    if engine_version_at_onboard is None or engine_version_at_onboard == "unknown":
+        # Conservative: don't push new docs on a project whose onboard
+        # version we can't determine. The user can bump the field via
+        # /app-init --refresh to opt in later.
+        return ([], [])
+
+    project_v = _semver_tuple(engine_version_at_onboard)
+    out: list[dict[str, str]] = []
+    warnings: list[str] = []
+
+    for doc in CANONICAL_DOCS:
+        if _semver_tuple(doc.introduced_in) <= project_v:
+            continue  # doc already existed at onboard time — skip
+        template_file = engine_path / doc.template_path
+        if not template_file.exists():
+            warnings.append(
+                f"canonical doc {doc.id!r} template missing: {doc.template_path} — "
+                "skipping. Add the template to the engine repo."
+            )
+            continue
+        try:
+            content = template_file.read_text(encoding="utf-8")
+        except OSError as e:
+            warnings.append(f"canonical doc {doc.id!r} template unreadable: {e}")
+            continue
+        # Render minimal placeholders (project_name + date_iso). Other
+        # zones stay as template-pristine until /discovery fills them.
+        rendered = content.replace("{project_name}", project).replace(
+            "{date_iso}", now_iso
+        )
+        out.append(
+            {
+                "id": doc.id,
+                "path": doc.path,
+                "content": rendered,
+                "reason": f"introduced_in_{doc.introduced_in}",
+                "template_path": doc.template_path,
+            }
+        )
+
+    return (out, warnings)
+
+
 def _generate_onboarding_files(
     engine_path: Path,
     project: str,
@@ -776,6 +853,10 @@ def register_onboarding_tools(
                     "registered_at": registry["projects"][project]["registered_at"],
                     "onboarded_by": developer_name,
                     "engine_version": current_engine_version,
+                    # v6.0 (UC-D005 AC-05): capture the onboarding version for
+                    # future upgrade_project calls to know which canonical docs
+                    # are eligible for plantilla creation.
+                    "engine_version_at_onboard": current_engine_version,
                     "mcp_version": MCP_VERSION,
                 }
                 if board_id:
@@ -790,6 +871,21 @@ def register_onboarding_tools(
             except Exception as e:
                 warnings.append(f"State registration failed: {e}")
 
+        # v6.0 (UC-D005 AC-10): on a fresh onboard, every canonical doc with
+        # introduced_in == current_engine_version (or earlier) becomes part
+        # of the project. For onboard the relevant set is "all of them",
+        # since engine_version_at_onboard == current. We still pass through
+        # the helper for consistency with upgrade_project.
+        now_iso = datetime.now(timezone.utc).isoformat()
+        canonical_docs_to_create, canonical_warnings = _collect_canonical_doc_templates(
+            engine_path,
+            engine_version_at_onboard=None,  # at onboard nothing is "new" — caller decides
+            project=project,
+            now_iso=now_iso,
+        )
+        if canonical_warnings:
+            warnings.extend(canonical_warnings)
+
         result = {
             "project": project,
             "stack": detected_stack,
@@ -798,13 +894,18 @@ def register_onboarding_tools(
             "files": files,
             "quality_dirs_to_create": quality_dirs,
             "engine_version": current_engine_version,
+            "engine_version_at_onboard": current_engine_version,
             "mcp_version": MCP_VERSION,
             "registered_in_state": registered,
+            "canonical_docs_to_create": canonical_docs_to_create,  # v6.0
             "warnings": warnings if warnings else None,
             "instructions": (
                 "Copy the files above to your project repo. "
                 "Create the .quality/ directories listed in quality_dirs_to_create. "
-                "The project has been registered in the central state index."
+                "The project has been registered in the central state index. "
+                "(v6.0: canonical_docs_to_create is empty on fresh onboard — "
+                "/app-init creates app_prd.md and app_spec.md plantillas, and "
+                "/discovery creates app_market.md when invoked in bootstrap mode.)"
             ),
         }
         if board_id:
@@ -865,10 +966,32 @@ def register_onboarding_tools(
         current_engine_version = _read_engine_version(engine_path)
         now = datetime.now(timezone.utc).isoformat()
 
+        # v6.0 (UC-D005 AC-05): preserve engine_version_at_onboard if it was
+        # captured at onboard time. Pre-v6.0 projects won't have this field —
+        # mark them as "unknown" (D-11 conservative policy). The user can
+        # manually bump the field via .specbox-meta.json or settings.local.json
+        # if they want to opt in to receiving newer canonical docs.
+        engine_version_at_onboard = meta.get("engine_version_at_onboard")
+        if engine_version_at_onboard is None:
+            engine_version_at_onboard = "unknown"
+            meta["engine_version_at_onboard"] = engine_version_at_onboard
+
         meta["engine_version"] = current_engine_version
         meta["mcp_version"] = MCP_VERSION
         meta["last_upgraded_at"] = now
         _write_meta(project_dir, meta)
+
+        # v6.0 (UC-D005 AC-10/11): offer plantillas for canonical docs
+        # introduced after engine_version_at_onboard. Caller is responsible
+        # for NOT overwriting existing files. The "upgrade_project never
+        # overwrites existing content" invariant is preserved — this only
+        # offers new files to create.
+        canonical_docs_to_create, canonical_warnings = _collect_canonical_doc_templates(
+            engine_path,
+            engine_version_at_onboard=engine_version_at_onboard,
+            project=project,
+            now_iso=now,
+        )
 
         # Update engine_version in registry
         registry["projects"][project]["engine_version"] = current_engine_version
@@ -908,6 +1031,34 @@ def register_onboarding_tools(
             "fix": "The new settings.json in files above uses the correct string matcher format.",
         }
 
+        # v6.0 (UC-D005 AC-10): hint for the caller about new canonical docs
+        # that may need to be created in the project repo. The hint is
+        # advisory — the caller (Claude Code agent invoking upgrade_project)
+        # must verify the file doesn't already exist before writing the
+        # plantilla content. This preserves the "never overwrite" invariant.
+        discovery_alignment = {
+            "action": (
+                "v6.0 introduces canonical doc(s) not present at this project's "
+                "onboard version. Copy each entry from canonical_docs_to_create "
+                "ONLY IF the target path does not already exist in the project repo."
+            ),
+            "reason": (
+                f"engine_version_at_onboard={engine_version_at_onboard!r}; "
+                "any canonical doc introduced after this version is offered."
+            ),
+            "invariant": (
+                "upgrade_project NEVER overwrites existing files. Plantillas "
+                "are 'template-pristine' — the hook and /app-sync respect this "
+                "marker until /discovery or /app-init fill in the first zone."
+            ),
+            "next_steps": (
+                "After copying app_market.md plantilla (if offered), the user "
+                "can run /discovery <feature> to enter bootstrap mode and fill "
+                "in ICPs + JTBDs + NSM."
+            ),
+        }
+        all_warnings = (warnings if warnings else []) + (canonical_warnings or [])
+
         return {
             "project": project,
             "stack": detected_stack,
@@ -916,18 +1067,24 @@ def register_onboarding_tools(
             "files": files,
             "quality_dirs_to_create": quality_dirs,
             "engine_version": current_engine_version,
+            "engine_version_at_onboard": engine_version_at_onboard,
             "mcp_version": MCP_VERSION,
             "upgraded_at": now,
-            "warnings": warnings if warnings else None,
+            "canonical_docs_to_create": canonical_docs_to_create,  # v6.0
+            "warnings": all_warnings if all_warnings else None,
             "e2e_alignment": e2e_alignment,
             "visual_alignment": visual_alignment,
             "settings_migration": settings_migration,
+            "discovery_alignment": discovery_alignment,  # v6.0
             "instructions": (
                 "IMPORTANT: Replace .claude/settings.json FIRST — the old matcher format "
                 "was broken (object instead of string) and caused Claude Code to ignore all "
                 "hooks and permissions. Copy all files above to your project repo. "
                 "Then run get_e2e_gap_report and get_visual_gap_report on the project to detect "
-                "E2E evidence gaps and visual identity gaps respectively."
+                "E2E evidence gaps and visual identity gaps respectively. "
+                "v6.0: review canonical_docs_to_create — for each entry, write the content "
+                "to its path ONLY IF the file doesn't already exist (preserves the invariant). "
+                "engine_version_at_onboard is now tracked in meta.json (UC-D005)."
             ),
         }
 

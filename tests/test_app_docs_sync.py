@@ -174,10 +174,18 @@ class TestSync:
 
     def test_event_zone_map_completeness(self):
         # Sanity: every event has at least one (document, zone) target.
+        # v6.0 (UC-D005): doc IDs now come from the CANONICAL_DOCS registry
+        # instead of being hardcoded to {app_prd, app_spec}.
+        from server.app_docs.registry import CANONICAL_DOCS
+
+        valid_doc_ids = {d.id for d in CANONICAL_DOCS}
         for event, targets in EVENT_ZONE_MAP.items():
             assert targets, f"event {event!r} has no targets"
             for doc, zid in targets:
-                assert doc in {"app_prd", "app_spec"}
+                assert doc in valid_doc_ids, (
+                    f"event {event!r} references unknown doc {doc!r}; "
+                    f"valid: {sorted(valid_doc_ids)}"
+                )
                 assert zid
 
 

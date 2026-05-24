@@ -11,32 +11,46 @@
 
 import { execFileSync } from 'node:child_process';
 import { readStdin, fileExists, fileAge, git } from './lib/utils.mjs';
-import { getProjectConfig, getActiveUC, getActiveUCClaim, getStaleUC } from './lib/config.mjs';
-import { decideNativeClaim } from './lib/native-claim-revalidate.mjs';
+import { getProjectConfig, getActiveUC, getActiveUCReservation, getStaleUC } from './lib/config.mjs';
+import { decideNativeReservation } from './lib/native-reservation-revalidate.mjs';
 
 /**
- * Best-effort revalidation of a native claim against the MCP. Returns
- * { reachable, claim } for decideNativeClaim. Never throws — any failure
- * (no URL, network error, timeout, bad JSON) yields reachable:false so the
- * cache is trusted [AC-21]. Online conflicts are surfaced for AC-22.
+ * Best-effort revalidation of a native reservation against the MCP. Returns
+ * { reachable, reservation } for decideNativeReservation. Never throws — any
+ * failure (no URL, network error, timeout, bad JSON) yields reachable:false
+ * so the cache is trusted [AC-21]. Online conflicts are surfaced for AC-22.
+ *
+ * Endpoint: GET /api/native/reservation-status?uc_id=...
+ * Expected response: { uc_id, reservation: { developer_id } | null }
+ *
+ * Wire-protocol compat (v5.35-v5.36): if the MCP returns the legacy shape
+ * { uc_id, claim: {…} | null } we pass `claim` through too, and the pure
+ * decision module accepts both. UC-612 removes the fallback in v5.37.0.
  */
-function probeNativeClaim(claim) {
+function probeNativeReservation(reservation) {
   const mcpUrl = process.env.SPECBOX_ENGINE_MCP_URL || process.env.DEV_ENGINE_MCP_URL || '';
   if (!mcpUrl) return { reachable: false };
   try {
-    const url = `${mcpUrl.replace(/\/$/, '')}/api/native/claim-status`;
+    const url = `${mcpUrl.replace(/\/$/, '')}/api/native/reservation-status`;
     const out = execFileSync(
       'curl',
       [
         '-fsS', '--max-time', '3',
+        '-L', // follow redirects so a server still serving the legacy URL
+              // with a 301 to /reservation-status works transparently
         '-G', url,
-        '--data-urlencode', `uc_id=${claim.ucId}`,
+        '--data-urlencode', `uc_id=${reservation.ucId}`,
       ],
       { encoding: 'utf8', timeout: 4000, stdio: ['ignore', 'pipe', 'ignore'] },
     );
     const data = JSON.parse(out);
-    // Expected: { uc_id, claim: { developer_id } | null }
-    return { reachable: true, claim: data.claim ?? null };
+    return {
+      reachable: true,
+      reservation: data.reservation ?? null,
+      // Forward the legacy `claim` field too so the pure decision module
+      // can fall back if the server has not yet upgraded.
+      claim: data.claim ?? undefined,
+    };
   } catch {
     return { reachable: false };
   }
@@ -97,25 +111,26 @@ if (currentBranch === 'main' || currentBranch === 'master') {
 // --- Spec-driven project: verify active UC ---
 const activeUC = getActiveUC();
 if (activeUC) {
-  // Native claim revalidation (UC-304): the marker is a cache of the remote
-  // claim. Offline → trust it [AC-21]. Online → revalidate; block if the claim
-  // was released or taken over by another dev [AC-22].
-  const claim = getActiveUCClaim();
-  if (claim) {
-    const decision = decideNativeClaim(claim, probeNativeClaim(claim));
+  // Native reservation revalidation (UC-304, renamed in UC-613): the marker is
+  // a cache of the remote reservation. Offline → trust it [AC-21]. Online →
+  // revalidate; block if the reservation was released or taken over by another
+  // dev [AC-22].
+  const reservation = getActiveUCReservation();
+  if (reservation) {
+    const decision = decideNativeReservation(reservation, probeNativeReservation(reservation));
     if (!decision.allow) {
       const actual = decision.conflict?.actual;
       console.log('');
       console.log('============================================================');
-      console.log('  ⛔ SPEC GUARD: Native UC claim no longer yours');
+      console.log('  ⛔ SPEC GUARD: Native UC reservation no longer yours');
       console.log('============================================================');
       console.log(`  File: ${filePath}`);
-      console.log(`  UC: ${claim.ucId}`);
-      if (decision.reason === 'claim-released') {
-        console.log(`  The claim was released remotely (you were ${claim.developerId}).`);
-        console.log('  Re-run start_uc to re-claim before writing code.');
+      console.log(`  UC: ${reservation.ucId}`);
+      if (decision.reason === 'reservation-released') {
+        console.log(`  The reservation was released remotely (you were ${reservation.developerId}).`);
+        console.log('  Re-run start_uc to re-reserve before writing code.');
       } else {
-        console.log(`  The claim is now held by '${actual}' (you are '${claim.developerId}').`);
+        console.log(`  The reservation is now held by '${actual}' (you are '${reservation.developerId}').`);
         console.log('  Another developer took over this UC. Coordinate or pick another UC.');
       }
       console.log('============================================================');
@@ -123,7 +138,7 @@ if (activeUC) {
       process.exit(1);
     }
   }
-  // Active UC exists and is fresh (and claim still valid / offline) → allow
+  // Active UC exists and is fresh (and reservation still valid / offline) → allow
   process.exit(0);
 }
 

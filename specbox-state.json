@@ -1,6 +1,6 @@
 {
   "project": "specbox-engine",
-  "timestamp": "2026-05-24T12:24:48Z",
+  "timestamp": "2026-05-24T20:01:29Z",
   "session_active": true,
   "current_phase": "implement",
   "current_feature": "",
@@ -11,11 +11,15 @@
   "healing_health": "healthy",
   "self_healing_events": 0,
   "last_operation": "idle",
-  "last_commit": "feat: v5.34.1 Native Collaboration (patch) — N×N backend switch + Native security hardening (#47)",
-  "last_commit_at": "%Y->- (HEAD -> main, tag: v5.34.1, origin/main, origin/HEAD)Ta26b446ff54fb81a997b087e63b537b0c19455c9:%M:HEADZ",
+  "last_commit": "[UC-613] Wire-protocol rename: cache JSON + Node hook + REST URL (#54)",
+  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)T014a2701d5be4ab8543a737b8d5104713dd1b3b3:%M:HEADZ",
   "handoff_present": true,
-  "handoff_age_minutes": 3779,
-  "context_pressure": null,
+  "handoff_age_minutes": 4236,
+  "context_pressure": {
+    "tokens_est": 39009,
+    "pct_of_window": 4,
+    "level": "healthy"
+  },
   "stitch_quota": null,
   "task_isolation": {
     "enabled": false,

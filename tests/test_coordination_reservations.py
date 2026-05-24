@@ -77,10 +77,10 @@ def _reservation_row(uc_id="UC-301", dev="alice", branch="feature/uc-301"):
     }
 
 
-# ── claim_uc [AC-16, AC-19] ──────────────────────────────────────────
+# ── reserve_uc [AC-16, AC-19] ────────────────────────────────────────
 
 
-async def test_claim_uc_success():
+async def test_reserve_uc_success():
     conn = FakeConn(fetchrow=lambda sql, *a: _reservation_row(dev="alice"))
     claim = await reserve_uc(conn, project_id="p", uc_id="UC-301", developer_id="alice")
     assert isinstance(claim, UCReservation)
@@ -88,7 +88,7 @@ async def test_claim_uc_success():
     assert claim.uc_id == "UC-301"
 
 
-async def test_claim_uc_already_claimed_carries_owner_info():
+async def test_reserve_uc_already_reserved_carries_owner_info():
     """AC-19: ALREADY_RESERVED conflict includes owner / reserved_at / branch."""
 
     def fetchrow(sql, *args):
@@ -169,8 +169,8 @@ def test_not_reservation_owner_payload_contains_no_legacy_claim_vocabulary():
             )
 
 
-async def test_claim_uc_idempotent_for_same_owner():
-    """Same dev re-claiming → returns existing claim, not ALREADY_RESERVED."""
+async def test_reserve_uc_idempotent_for_same_owner():
+    """Same dev re-reserving → returns existing reservation, not ALREADY_RESERVED."""
 
     conn = FakeConn(
         fetchrow=lambda sql, *a: _reservation_row(dev="alice"),
@@ -190,17 +190,17 @@ async def test_release_uc_owner_succeeds():
     assert any("DELETE FROM uc_reservations" in sql for sql, _ in conn.executed)
 
 
-async def test_release_uc_non_owner_rejected_and_claim_kept():
+async def test_release_uc_non_owner_rejected_and_reservation_kept():
     conn = FakeConn(fetchrow=lambda sql, *a: _reservation_row(dev="bob"))
     with pytest.raises(NotReservationOwnerError) as exc:
         await release_uc(conn, project_id="p", uc_id="UC-301", developer_id="alice")
     assert exc.value.owner == "bob"
     assert exc.value.requester == "alice"
-    # Claim must NOT be deleted.
+    # Reservation must NOT be deleted.
     assert not any("DELETE FROM uc_reservations" in sql for sql, _ in conn.executed)
 
 
-async def test_release_uc_no_claim_returns_false():
+async def test_release_uc_no_reservation_returns_false():
     conn = FakeConn(fetchrow=lambda sql, *a: None)
     released = await release_uc(conn, project_id="p", uc_id="UC-999", developer_id="alice")
     assert released is False
@@ -289,7 +289,7 @@ except Exception as exc:  # noqa: BLE001
 
 
 @pytest.mark.skipif(not _PG_REACHABLE, reason=_PG_SKIP_REASON)
-class TestClaimsRacePG:
+class TestReservationsRacePG:
     async def _seed(self, pg, pid, devs):
         from server.coordination.identity import (
             add_project_member,
@@ -305,8 +305,8 @@ class TestClaimsRacePG:
                 await register_mcp_token(conn, developer_id=d, token=f"tok-{d}")
                 await add_project_member(conn, project_id=pid, developer_id=d)
 
-    async def test_concurrent_claims_exactly_one_winner(self):
-        """AC-16: two parallel claim_uc on the same UC → one OK, one ALREADY_RESERVED."""
+    async def test_concurrent_reservations_exactly_one_winner(self):
+        """AC-16: two parallel reserve_uc on the same UC → one OK, one ALREADY_RESERVED."""
         from server.db.migrate import apply_migrations
         from server.db.pool import close_pool, init_pool
 
@@ -338,7 +338,7 @@ class TestClaimsRacePG:
             await close_pool()
 
     async def test_start_uc_atomic_no_orphan_on_missing_uc(self):
-        """AC-18: if the UC row is missing, the claim rolls back (no orphan)."""
+        """AC-18: if the UC row is missing, the reservation rolls back (no orphan)."""
         from server.coordination.reservations import start_uc_atomic
         from server.db.migrate import apply_migrations
         from server.db.pool import close_pool, init_pool
@@ -358,11 +358,64 @@ class TestClaimsRacePG:
                     developer_id="alice",
                 )
 
-            # No orphan claim left behind.
+            # No orphan reservation left behind.
             async with pg.acquire() as conn:
                 count = await conn.fetchval("SELECT count(*) FROM uc_reservations WHERE project_id = $1", pid)
-                assert count == 0, "claim was orphaned despite the failed state update"
+                assert count == 0, "reservation was orphaned despite the failed state update"
                 await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
                 await conn.execute("DELETE FROM developers WHERE developer_id = $1", "alice")
         finally:
             await close_pool()
+
+
+# ── UC-604 deprecated alias — minimum AC-02 surface in this file ─────
+#
+# AC-02 of UC-605 mandates that
+# ``test_coordination_reservations.py::test_deprecated_claim_uc_alias_emits_warning``
+# exists and asserts both (a) the DeprecationWarning emission and (b) the
+# dual payload (reserved_at + claimed_at). The exhaustive surface lives in
+# tests/test_deprecated_claim_uc_alias.py (10 tests); this single test is
+# the contract point in the renamed coordination test file so AC-02 is
+# verifiable mechanically without grepping into a sibling module.
+
+
+async def test_deprecated_claim_uc_alias_emits_warning(monkeypatch):
+    """UC-605 AC-02: calling the deprecated ``claim_uc`` MCP tool emits a
+    DeprecationWarning AND returns a payload that carries both vocabularies
+    (``reserved_at`` and ``claimed_at`` with identical values, ``code`` and
+    ``legacy_code``).
+
+    Stubs out ``reserve_uc`` so this test is pure-logic and does not need
+    the FastMCP context, DB pool, or asyncpg session machinery.
+    """
+    import server.tools.coordination as coord
+
+    async def _fake_reserve_uc(uc_id, ctx, branch=""):
+        return {
+            "success": True,
+            "code": "RESERVED",
+            "uc_id": uc_id,
+            "developer_id": "alice",
+            "reserved_at": "2026-05-25T10:00:00+00:00",
+            "branch": branch or "",
+            "summary": f"UC {uc_id} reservado por alice.",
+        }
+
+    monkeypatch.setattr(coord, "reserve_uc", _fake_reserve_uc)
+
+    with pytest.warns(DeprecationWarning) as captured:
+        payload = await coord.claim_uc("UC-301", ctx=object())
+
+    # DeprecationWarning emission + migration hint in the message.
+    assert len(captured) == 1, f"expected 1 DeprecationWarning, got {len(captured)}"
+    msg = str(captured[0].message)
+    assert "claim_uc" in msg
+    assert "reserve_uc" in msg
+    assert "v5.35.0" in msg
+    assert "v5.37.0" in msg
+
+    # Dual payload: BOTH vocabularies present, same timestamp.
+    assert payload["code"] == "RESERVED"
+    assert payload["legacy_code"] == "CLAIMED"
+    assert payload["reserved_at"] == "2026-05-25T10:00:00+00:00"
+    assert payload["claimed_at"] == payload["reserved_at"]

@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-24T16:49:44.597985+00:00
+> Actualizado: 2026-05-24T16:51:52.575081+00:00
 
 ## User Stories
 
@@ -55,4 +55,4 @@
 | UC-610 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
 | UC-611 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
 | UC-612 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |
-| UC-613 | US-CLAIM-RENAME | In Progress | 5 | 5 | 100% |
+| UC-613 | US-CLAIM-RENAME | Review | 5 | 5 | 100% |

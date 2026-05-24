@@ -129,6 +129,16 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/pre-prd-discovery-check.mjs",
+            "timeout": 8
+          }
+        ]
       }
     ],
     "PostToolUse": [

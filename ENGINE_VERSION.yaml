@@ -1,8 +1,8 @@
-version: 5.34.1
-codename: "Native Collaboration"
+version: 5.35.0
+codename: "Reservation Rename"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-05-23
+release_date: 2026-05-25
 min_claude_code: "1.0.0"
 
 stacks:
@@ -396,6 +396,25 @@ features:
   - dashboard-health-real-version
 
 changelog:
+  5.35.0:
+    date: 2026-05-25
+    codename: "Reservation Rename"
+    summary: >
+      Renames the Native Backend coordination concept from "claim" (jargon —
+      claim check pattern, JWT claims) to "reservation" (universally
+      understood: table, room, library) end-to-end across SQL schema, Python
+      module, MCP tools, error payloads, tests and docs. Backwards-compatible
+      via deprecated aliases that stay live until v5.37.0 (UC-612).
+    changes:
+      - "feat(db): SQL migration 0007_rename_claims_to_reservations.sql (canonical at server/db/migrations/0007_*.sql + Supabase mirror at supabase/migrations/20260524000007_*.sql) — renames table uc_claims → uc_reservations, column claimed_at → reserved_at, index idx_uc_claims_developer_id → idx_uc_reservations_developer_id, RLS policy specbox_deny_anon_uc_claims → specbox_deny_anon_uc_reservations. Idempotent (re-apply safe) + hardened against the migration-runner re-apply race where 0003 recreates an empty uc_claims alongside the renamed uc_reservations (UC-601, UC-602)."
+      - "feat(coordination): server/coordination/claims.py renamed to server/coordination/reservations.py with full identifier rename — Claim → UCReservation, AlreadyClaimedError → AlreadyReservedError (code ALREADY_RESERVED), NotClaimOwnerError → NotReservationOwnerError (code NOT_RESERVATION_OWNER), claim_uc → reserve_uc, get_claim → get_reservation, list_active_claims → list_active_reservations, claimed_uc_ids_by_others → reserved_uc_ids_by_others, Claim.claimed_at → UCReservation.reserved_at, to_conflict → to_payload (with backwards-compat alias kept until v5.37.0 / UC-612). UCReservation.to_public() returns exactly {uc_id, developer_id, reserved_at, branch} (UC-602)."
+      - "feat(mcp): MCP tool surface renamed — tools/coordination.py registers reserve_uc / release_uc with descriptions in Spanish (\"Reservar un UC...\", \"Liberar la reserva...\"). Payload contract: success returns code=RESERVED + reserved_at + summary \"reservado\"; conflict returns code=ALREADY_RESERVED + owner/reserved_at/branch; release error returns code=NOT_RESERVATION_OWNER. Two new tests assert zero legacy 'claim' tokens in any key or stringified value of the wrapper payload, including str(exception) (UC-603)."
+      - "feat(deprecation): tools/coordination.py registers claim_uc as a deprecated alias of reserve_uc for the v5.35-v5.36 window. The alias (a) emits a single DeprecationWarning with stacklevel=2 pointing at the caller (message names claim_uc, reserve_uc, v5.35.0, v5.37.0), (b) logs a structured deprecated_tool_called event with tool/since_version/remove_in_version/replacement, (c) returns a DUAL payload carrying both vocabularies side by side — reserved_at + claimed_at (same value), code + legacy_code (RESERVED↔CLAIMED, ALREADY_RESERVED↔ALREADY_CLAIMED). Auth-failure codes pass through untouched. UC-612 will remove this entire block in v5.37.0 (UC-604)."
+      - "test: tests/test_coordination_claims.py renamed to tests/test_coordination_reservations.py via git mv + 7 test function renames (test_claim_uc_* → test_reserve_uc_*, TestClaimsRacePG → TestReservationsRacePG, etc.). New test_deprecated_claim_uc_alias_emits_warning asserts the AC-02 contract inside the renamed file. Dedicated 10-test deprecation suite at tests/test_deprecated_claim_uc_alias.py. 124 / 124 native + coordination + deprecation tests pass against Postgres 16-alpine (UC-605)."
+      - "docs(engine): CLAUDE.md table updated (\"Reservations + branches\" row + tools row mentions reserve_uc primary + claim_uc deprecated alias), explicit v5.35.0 vocabulary note inline; ENGINE_VERSION.yaml bumped 5.34.1 → 5.35.0 with codename \"Reservation Rename\" and this changelog entry; doc/app/app_spec.md zone canonical_decisions documents the rename + deprecation window + v5.37.0 removal target (UC-606)."
+      - "decision: deprecated alias claim_uc stays registered for two minor releases (v5.35.0-v5.36.x). UC-612 removes the alias, the dual payload fields (claimed_at, legacy_code), the legacy code aliases (CLAIMED, ALREADY_CLAIMED), the DeprecationWarning machinery, and the deprecated_tool_called log event — all in one barrier release. Rationale: callers (Control Panel + future external clients) need a measurable window to migrate; the DeprecationWarning + structured log give operators a way to quantify legacy usage before the removal."
+      - "compat: 100% backwards-compatible during v5.35-v5.36. Existing callers invoking claim_uc keep working (they get a DeprecationWarning + dual-vocabulary payload). Existing callers invoking reserve_uc see only the new vocabulary in their payload (no legacy keys, no warning). The cross-language wire-protocol payload key in .quality/active_uc.json is kept as 'claim' temporarily via the documented _NATIVE_RESERVATION_CACHE_KEY = 'claim' compat constant; UC-613 (scheduled before UC-612) renames the wire protocol end-to-end (JSON key + Node hook + REST endpoint /api/native/claim-status → /reservation-status) so v5.37.0 closes the entire rename with zero residual debt."
+
   5.34.1:
     date: 2026-05-23
     summary: >

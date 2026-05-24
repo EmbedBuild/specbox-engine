@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v5.34.1 — "Native Collaboration" (sobre v5.33.0 "FreeForm Path Safety")<br/>
+  v 6.0.0 — "Discovery Foundations" (sobre v5.35.0 "Reservation Rename")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -346,7 +346,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v5.34.1 — "Native Collaboration" (over v5.33.0 "FreeForm Path Safety")
+> v 6.0.0 — "Discovery Foundations" (over v5.35.0 "Reservation Rename")
 
 ## What is this?
 

@@ -2,6 +2,111 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.0.0] - 2026-05-25 — "Discovery Foundations"
+
+**Release stable, no experimental.** Introduce el módulo permanente de **Product Discovery** integrado en el pipeline canónico + la **fundación arquitectural multi-doc** que sostiene la extensión a N documentos canónicos en futuras versiones (v6.x+).
+
+### Added
+
+**Product Discovery (US-D01 + US-D02 parcial + US-D03 parcial)**
+
+- **`/discovery <feature_name>`** — slash command nuevo con flujo conversacional de 3 fases (ICP identification, JTBD extraction, validation gate). Produce `doc/discovery/<feature>/icp_jtbd.md` como espinazo trazable que viaja con la feature hasta los AC del PRD, las UC del plan y los tests E2E.
+- **Modo bootstrap** (UC-D002): cuando `app_market.md` está vacío/ausente, el flujo primero rellena el doc nivel producto (ICPs canónicos, no-ICPs, JTBDs globales racionales y emocionales, NSM, posicionamiento, anti-features) y después desciende al nivel feature.
+- **Pedagogical layer**: micro-justificaciones por concepto, ejemplos del ecosistema (PaddockManager / McProfit / Futbase / SpecBox), anti-patterns explícitos. Progressive onboarding: expanded primeras 5 features, conciso después.
+- **Drift detection** (UC-D004 parcial): durante Phase 3 del flujo `/discovery`, compara los ICPs/JTBDs declarados contra `app_market.md` y obliga resolución 3 vías por elemento nuevo: `feature_creep_rejected` (cancela feature) / `app_market_updated` (actualiza producto) / `documented_exception` (excepción justificada).
+
+**Multi-doc canonical registry (US-D04 — Foundation arquitectural permanente)**
+
+- **`server/app_docs/registry.py`** — NEW: `CanonicalDoc` dataclass + `CANONICAL_DOCS` list (3 entries: `app_prd` 5.29, `app_spec` 5.29, `app_market` 6.0.0). Source-of-truth única para qué docs canónicos existen, en qué versión se introdujeron, qué zonas requieren, qué eventos los mutan.
+- **`templates/canonical_docs.json`** — NEW: descriptor JSON regenerado desde Python (`registry.py`) por `.quality/scripts/regenerate-canonical-docs-json.py`. Consumido por el hook Node.js. CI valida sincronización (test `test_canonical_docs_sync.py`).
+- **`templates/app_market.md.template`** — NEW: plantilla nivel producto con 8 zonas (7 manual con `status="template-pristine"`, 1 auto `exportable_copy`). Creada automáticamente por `upgrade_project` en proyectos cuyo `engine_version_at_onboard < 6.0.0`.
+- **Marcador `status="template-pristine"`**: zonas vacías de plantilla recién creada no producen warnings de drift hasta que el usuario las rellena (vía `/discovery` o `/app-init`). El parser de zonas (`server/app_docs/zones.py`) extrae el atributo; sync y hook lo respetan.
+- **`engine_version_at_onboard`**: nuevo campo en `meta.json` capturado por `onboard_project` y preservado por `upgrade_project`. Proyectos v5.x preexistentes sin el campo → política conservadora `"unknown"` (verifier solo chequea docs con `introduced_in <= 5.29.0`).
+- **`/app-init` y `/app-sync`**: respetan `app_market.md` automáticamente vía el registry. Sin modificar ningún skill.
+
+**MCP tools nuevos (3)**
+
+- **`start_discovery(feature_name, project_path, mode="auto")`** — inicializa/resume artefacto Discovery, idempotente, auto-detecta bootstrap vs standard.
+- **`validate_discovery_completeness(feature_name, project_path)`** — verifica las 5 secciones del `icp_jtbd.md`, devuelve verdict `READY_FOR_PRD` o `DISCOVERY_INCOMPLETE` con missing específicos.
+- **`detect_v60_migration_case(project_path)`** — clasifica el proyecto en uno de 8 casos del PRD §4.8. Análogo a `detect_v529_migration_case`. Priority-ordered: `case_3_active_uc` y `case_4_pending_feedback` chequean primero (deferral si en curso).
+
+**Hooks**
+
+- **`pre-prd-discovery-check.mjs`** — NEW: PreToolUse hook que intercepta `/prd` invocations. 3 modos: `off` (default upgrade), `warn` (default fresh-clone v6.0), `block` (opt-in power users). Bypass automático en spec-driven (`US-XX`, `UC-XXX`, `board:ID`). Telemetría a `.quality/discovery_gate_events.jsonl`.
+- **`app-docs-sync-guard.mjs`** — REFACTOR: itera sobre `templates/canonical_docs.json` con fallback graceful a `app_prd`+`app_spec` hardcoded si descriptor falta (proyectos v5.x). Filtra por `engine_version_at_onboard` para no warnear sobre docs no introducidos aún. Respeta `template-pristine`.
+
+**Refactorizaciones internas (no breaking)**
+
+- `server/app_docs/sync.py`: `verify_app_docs_in_sync`, `record_sync_signature`, `EVENT_ZONE_MAP` ahora iteran sobre `CANONICAL_DOCS`. Constantes `PRD_PATH`/`SPEC_PATH` eliminadas. Backwards compat: `SyncResult.prd_signature`/`spec_signature` preserved + nuevo `signatures: dict[doc_id, str]`.
+- `server/tools/onboarding.py`: `upgrade_project` extendido con `_collect_canonical_doc_templates` helper. Devuelve `canonical_docs_to_create: list[dict]` y `discovery_alignment` hint sin modificar archivos existentes. `onboard_project` captura `engine_version_at_onboard` en `meta.json`.
+
+### Changed
+
+- **`get_engine_version` → `"6.0.0"`** codename `"Discovery Foundations"`.
+- Server description en `pyproject.toml` refleja v6.0.0 con 167 tools (164 v5.34 + 3 nuevos).
+
+### Decisions resolved
+
+11 open decisions del PRD §11 resueltas. Las nuevas (introducidas por US-D04):
+- **D-09**: PR atómica para el refactor multi-doc (mergeada como PR #55 + cadena).
+- **D-10**: Python source-of-truth + JSON regenerado (CI verifica sync).
+- **D-11**: `engine_version_at_onboard` `"unknown"` con política conservadora (no inferir).
+
+Las 8 originales resueltas en commits previos (PRD §11).
+
+### Backwards compatibility
+
+- ✅ Proyectos v5.29-v5.35: `engine_version_at_onboard < 6.0.0` → hook ignora `app_market.md`. Sin cambio de comportamiento perceptible.
+- ✅ Proyectos sin `engine_version_at_onboard` en meta: tratados como `"unknown"` → política conservadora.
+- ✅ Hook fallback: si `canonical_docs.json` falta, vuelve a hardcoded `app_prd+app_spec`.
+- ✅ Plantillas `template-pristine` no producen warnings.
+- ✅ Invariante "upgrade_project nunca pisa contenido existente" preservada — solo CREA archivos nuevos.
+- ✅ API externa preservada: tools v5.29 funcionan con su signatura previa.
+
+### Deferred to v6.0.1 / v6.1
+
+- AC-D003-02, AC-D003-03, AC-D003-05, AC-D003-07: integración full de `/discovery` con skills globales `/prd`, `/plan`, `/implement`. Contrato documentado en `SKILL.md` de discovery; promoción cuando v6.0 sea stable.
+- AC-D004-05: hook `verify_app_market` drift sistemático → v6.0.1.
+- AC-D004-06: `/discovery --review` dashboard → v6.1 (D-08).
+
+### Documentation
+
+- **`doc/decisions/multi_doc_registry.md`** — NEW: documento arquitectural completo sobre por qué multi-doc, qué patrón se eligió, qué se descartó (subclasses, plugins), cómo extender en futuras versiones.
+- **`doc/prd/discovery_module_v6_prd.md`** — PRD v6.0.0 stable con 4 US, 6 UCs, 47 ACs, 11 decisions resueltas.
+- **`doc/plans/discovery_foundations_plan.md`** — plan consolidado para los 6 UCs con sub-fases, mapping AC→Fase, 5 riesgos adicionales identificados.
+
+### Tests
+
+- 111 tests nuevos verdes:
+  - 13 multi-doc registry regression
+  - 3 canonical_docs Python↔JSON sync
+  - 15 product_discovery tools (start, validate, detect_v60_case, 8 cases)
+  - 13 pre-prd-discovery-check hook
+  - Plantillas, drift detection, byte-by-byte preservation v5.35→v6.0 fixture
+- Regresión 0 en suite app_docs existente (73 tests verdes pre y post refactor).
+
+### Beta validation period
+
+Post-release validation (4 semanas) con 5 power users:
+- Jesús (ICP-1) — McProfit + Futbase
+- Valentín Ayesa (ICP-2) — flow propio
+- Nani (ICP-3) — test pedagógico crítico
+- Julio Fariñas (ICP-1) — Tempo
+- Ramón Iborra (ICP-1/2) — landing/marketing
+
+Safety net: si ≥3/5 dicen "no aporta", marcar Discovery feature como "needs UX redesign". **Multi-doc Foundation queda en pie en cualquier caso** — es base arquitectural permanente.
+
+### PRs (cadena de merge)
+
+- PR #55 — UC-D005 + UC-D006: Foundation multi-doc + app_market.md
+- PR #56 — UC-D001 + UC-D002: Product Discovery flow (basada en PR #55)
+- PR #57 — UC-D003 + UC-D004 (parcial): Gate hook + drift detection (basada en PR #56)
+- PR #58 (esta): v6.0.0 version bump + CHANGELOG + CLAUDE.md (basada en PR #57)
+
+Orden recomendado de merge: #55 → #56 → #57 → #58.
+
+---
+
 ## [5.34.1] - 2026-05-23 — "Native Collaboration" (patch)
 
 Patch sobre v5.34.0 que extiende y blinda la misma línea Native: ahora un

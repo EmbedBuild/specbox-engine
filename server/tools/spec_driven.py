@@ -51,17 +51,6 @@ logger = structlog.get_logger(__name__)
 
 ACTIVE_UC_FILENAME = ".quality/active_uc.json"
 
-# Cross-language wire-protocol constant: the JSON key under which the cached
-# native reservation lives in ``.quality/active_uc.json``. The Node-side hook
-# (``.claude/hooks/spec-guard.mjs`` + ``lib/native-claim-revalidate.mjs``) and
-# the MCP REST endpoint ``/api/native/claim-status`` both consume this exact
-# key today. UC-602 renamed the concept to "reservation" in Python; the
-# wire-protocol rename of the hook + endpoint is intentionally deferred to a
-# later UC of this US so existing deployments do not break mid-rollout. Until
-# then, the local cache file keeps the historical "claim" key as a compat
-# bridge — the only place that string lives in this file.
-_NATIVE_RESERVATION_CACHE_KEY = "claim"  # noqa: S105 — compat with Node hook
-
 
 def _write_active_uc_marker(
     uc_id: str,
@@ -74,9 +63,13 @@ def _write_active_uc_marker(
     For native sessions, ``reservation`` carries a reference to the remote
     reservation (``developer_id``, ``reserved_at``) so spec-guard.mjs can
     treat the local file as a cache and revalidate against the MCP when
-    online [AC-21]. The on-disk JSON still uses the legacy
-    ``_NATIVE_RESERVATION_CACHE_KEY`` key for compat with the Node hook;
-    see that constant for the rationale.
+    online [AC-21].
+
+    The on-disk JSON uses the key ``reservation`` (UC-613, v5.35.0). The
+    Node-side hook (``.claude/hooks/spec-guard.mjs`` +
+    ``lib/native-reservation-revalidate.mjs``) reads ``payload.reservation``
+    and falls back to the legacy ``payload.claim`` key for cache files
+    written by older versions; the fallback is removed in v5.37.0 (UC-612).
     """
     marker_path = Path(ACTIVE_UC_FILENAME)
     marker_path.parent.mkdir(parents=True, exist_ok=True)
@@ -88,14 +81,14 @@ def _write_active_uc_marker(
     }
     if reservation:
         # Cache of the remote reservation — spec-guard.mjs revalidates online.
-        # ``reserved_at`` is accepted as the new key; ``claimed_at`` is still
-        # honoured as a fallback so callers mid-migration do not break.
+        # Accept ``reserved_at`` (new) with ``claimed_at`` as a deprecated
+        # input alias from callers that have not yet migrated to UCReservation.
         reserved_at = (
             reservation.get("reserved_at")
             or reservation.get("claimed_at")
             or ""
         )
-        payload[_NATIVE_RESERVATION_CACHE_KEY] = {
+        payload["reservation"] = {
             "uc_id": reservation.get("uc_id", uc_id),
             "developer_id": reservation.get("owner") or reservation.get("developer_id", ""),
             "reserved_at": reserved_at,

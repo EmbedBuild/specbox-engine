@@ -43,6 +43,7 @@ from .tools.stitch import register_stitch_tools
 from .tools.stitch_v2 import register_stitch_v2_tools
 from .tools.audit import register_audit_tools
 from .tools.app_docs import register_app_docs_tools
+from .tools.discovery import register_product_discovery_tools  # v6.0 (UC-D001/D002)
 from .app_docs.autopilot import register_autopilot_tools
 from .app_docs.queue import register_queue_tools
 from .app_docs.canonical import register_canonical_tools
@@ -250,6 +251,13 @@ register_canonical_tools(mcp, ENGINE_PATH)
 # Skills call detect_project_backend(project_path) in Paso 0 to know which
 # backend the project uses without asking the user.
 register_discovery_tools(mcp, ENGINE_PATH)
+
+# Register Product Discovery tools (v6.0 — UC-D001, UC-D002, UC-D005 §4.8).
+# Distinct from backend auto-discovery above. Exposes:
+#   - start_discovery(feature_name, project_path, mode)
+#   - validate_discovery_completeness(feature_name, project_path)
+#   - detect_v60_migration_case(project_path)
+register_product_discovery_tools(mcp, ENGINE_PATH)
 
 # Register Trello/Plane → FreeForm migration tool (v5.29.0 PR-8)
 # Inverse of migrate_project; downloads remote items+comments+attachments

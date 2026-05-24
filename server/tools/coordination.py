@@ -256,12 +256,19 @@ def register_coordination_tools(mcp_instance) -> None:
     )(whoami)
     # H3 — reservations
     mcp_instance.tool(
-        description="Reserve a UC for the authenticated developer. ALREADY_RESERVED (with owner/"
-        "reserved_at/branch) if held by another dev. Native backend only."
+        description=(
+            "Reservar un UC para el developer autenticado (reserve_uc). Devuelve "
+            "code=RESERVED en éxito o ALREADY_RESERVED (con owner/reserved_at/branch) "
+            "si otro dev lo tiene. Si el caller no es el dueño al liberarlo, "
+            "release_uc devuelve NOT_RESERVATION_OWNER. Native backend only."
+        )
     )(reserve_uc)
     mcp_instance.tool(
-        description="Release a UC reservation. Only the reservation owner may release it "
-        "(NOT_RESERVATION_OWNER otherwise). Native backend only."
+        description=(
+            "Liberar la reserva de un UC (release_uc). Solo el dueño puede hacerlo; "
+            "en caso contrario devuelve NOT_RESERVATION_OWNER y la reserva queda intacta. "
+            "Native backend only."
+        )
     )(release_uc)
     mcp_instance.tool(
         description="Register a branch <-> UC mapping. Rejects branch-name collisions and "

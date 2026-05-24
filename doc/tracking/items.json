@@ -2134,7 +2134,7 @@
     "id": "item-0477b858",
     "name": "UC-603: Actualizar tools MCP: reserve_uc, release_uc, payloads de error y meta heredada",
     "description": "# UC-603: Actualizar tools MCP: reserve_uc, release_uc, payloads de error y meta heredada\n\n**User Story:** US-CLAIM-RENAME: Renombrar el concepto \"claim\" a \"reservation\" en Native Backend y Control Panel\n**Actor:** Engine\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [AC-01] La tool MCP `reserve_uc` está registrada (verificable vía `list_tools` del MCP) con descripción que menciona \"Reservar\" y \"NOT_RESERVATION_OWNER\". Llamarla devuelve payload con claves `code in {RESERVED, ALREADY_RESERVED}`, `reserved_at` (no `claimed_at`), y `summary` que contiene la palabra \"reservado\".\n- AC-02: [AC-02] Cuando `reserve_uc(UC-X)` colisiona con una reserva existente de otro dev, el payload devuelto tiene `code=\"ALREADY_RESERVED\"` y campos `{owner, reserved_at, branch}`; el cliente NO recibe la palabra `claim` en ningún campo (verificado por test que hace assert sobre las claves del dict).\n- AC-03: [AC-03] `release_uc(UC-X)` ejecutado por un dev que no es el dueño devuelve `code=\"NOT_RESERVATION_OWNER\"`, no `NOT_CLAIM_OWNER`. El test `test_coordination_claims.py::test_release_by_non_owner_rejected` (renombrado por UC-605) verifica el nuevo código.\n\n## Contexto\n",
-    "state": "backlog",
+    "state": "in_progress",
     "parent_id": "item-d98d9b3d",
     "labels": [
       "UC",
@@ -2151,13 +2151,14 @@
     },
     "created_at": "2026-05-23T12:59:32.275745+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-24T13:02:43.108220+00:00"
   },
   {
     "id": "ac-5db47d1a",
     "name": "[AC-01] [AC-01] La tool MCP `reserve_uc` está registrada (verificable vía `list_tools` del MCP) con descripción que menciona \"Reservar\" y \"NOT_RESERVATION_OWNER\". Llamarla devuelve payload con claves `code in {RESERVED, ALREADY_RESERVED}`, `reserved_at` (no `claimed_at`), y `summary` que contiene la palabra \"reservado\".",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-0477b858",
     "labels": [
       "AC"
@@ -2167,13 +2168,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.279186+00:00"
+    "created_at": "2026-05-23T12:59:32.279186+00:00",
+    "updated_at": "2026-05-24T13:04:10.900010+00:00"
   },
   {
     "id": "ac-9f9d869c",
     "name": "[AC-02] [AC-02] Cuando `reserve_uc(UC-X)` colisiona con una reserva existente de otro dev, el payload devuelto tiene `code=\"ALREADY_RESERVED\"` y campos `{owner, reserved_at, branch}`; el cliente NO recibe la palabra `claim` en ningún campo (verificado por test que hace assert sobre las claves del dict).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-0477b858",
     "labels": [
       "AC"
@@ -2183,13 +2185,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.279196+00:00"
+    "created_at": "2026-05-23T12:59:32.279196+00:00",
+    "updated_at": "2026-05-24T13:04:10.907690+00:00"
   },
   {
     "id": "ac-9c05091d",
     "name": "[AC-03] [AC-03] `release_uc(UC-X)` ejecutado por un dev que no es el dueño devuelve `code=\"NOT_RESERVATION_OWNER\"`, no `NOT_CLAIM_OWNER`. El test `test_coordination_claims.py::test_release_by_non_owner_rejected` (renombrado por UC-605) verifica el nuevo código.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-0477b858",
     "labels": [
       "AC"
@@ -2199,7 +2202,8 @@
       "ac_id": "AC-03",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.279201+00:00"
+    "created_at": "2026-05-23T12:59:32.279201+00:00",
+    "updated_at": "2026-05-24T13:04:10.915852+00:00"
   },
   {
     "id": "item-6f0ea885",

@@ -92,7 +92,7 @@ async def test_claim_uc_already_claimed_carries_owner_info():
     """AC-19: ALREADY_RESERVED conflict includes owner / reserved_at / branch."""
 
     def fetchrow(sql, *args):
-        # The SELECT after the unique violation returns the existing claim.
+        # The SELECT after the unique violation returns the existing reservation.
         return _reservation_row(dev="bob", branch="feature/uc-301-bob")
 
     conn = FakeConn(
@@ -107,6 +107,66 @@ async def test_claim_uc_already_claimed_carries_owner_info():
     assert conflict["owner"] == "bob"
     assert conflict["branch"] == "feature/uc-301-bob"
     assert conflict["reserved_at"] == "2026-05-21T20:00:00+00:00"
+
+
+def test_already_reserved_payload_contains_no_legacy_claim_vocabulary():
+    """UC-603 AC-02: the conflict payload exposes ZERO occurrences of the
+    legacy 'claim' vocabulary — neither in keys nor in string values.
+
+    The MCP tool wrapper in server/tools/coordination.py returns
+    ``{"error": str(e), **e.to_payload()}`` on AlreadyReservedError. The
+    error message is what the client sees first, so 'claim' must not appear
+    there either. This is what makes the UC-603 rename observable to a
+    consumer that does not read source code, only payloads.
+    """
+    err = AlreadyReservedError(
+        uc_id="UC-301",
+        owner="bob",
+        reserved_at="2026-05-21T20:00:00+00:00",
+        branch="feature/uc-301-bob",
+    )
+    payload = {"error": str(err), **err.to_payload()}
+
+    # Keys
+    forbidden = ("claim", "claimed_at", "Claim", "ALREADY_CLAIMED", "NOT_CLAIM_OWNER")
+    for key in payload:
+        for token in forbidden:
+            assert token not in key, f"key {key!r} contains legacy token {token!r}"
+
+    # Values (string-stringified — exception __str__ is the error message)
+    for key, value in payload.items():
+        text = value if isinstance(value, str) else str(value)
+        for token in forbidden:
+            assert token not in text, (
+                f"value at {key!r} = {text!r} contains legacy token {token!r}"
+            )
+
+
+def test_not_reservation_owner_payload_contains_no_legacy_claim_vocabulary():
+    """UC-603 AC-03 sibling: the release_uc error payload also exposes
+    ZERO occurrences of the legacy 'claim' vocabulary.
+
+    Mirrors the assertion above for ``NOT_RESERVATION_OWNER`` so the rename
+    is enforced symmetrically on both H3 tools.
+    """
+    err = NotReservationOwnerError(uc_id="UC-301", owner="bob", requester="alice")
+    # release_uc tool builds: {"error": str(e), "code": "NOT_RESERVATION_OWNER",
+    #                          "uc_id": uc_id, "owner": e.owner}
+    payload = {
+        "error": str(err),
+        "code": "NOT_RESERVATION_OWNER",
+        "uc_id": "UC-301",
+        "owner": err.owner,
+    }
+
+    forbidden = ("claim", "claimed_at", "Claim", "ALREADY_CLAIMED", "NOT_CLAIM_OWNER")
+    for key, value in payload.items():
+        for token in forbidden:
+            assert token not in key, f"key {key!r} contains legacy token {token!r}"
+            text = value if isinstance(value, str) else str(value)
+            assert token not in text, (
+                f"value at {key!r} = {text!r} contains legacy token {token!r}"
+            )
 
 
 async def test_claim_uc_idempotent_for_same_owner():

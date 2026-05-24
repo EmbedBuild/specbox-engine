@@ -1,7 +1,7 @@
-"""MCP tools for the NativeBackend coordination layer — identity + claims (H2/H3).
+"""MCP tools for the NativeBackend coordination layer — identity + reservations (H2/H3).
 
 These tools live outside the spec-driven tool set on purpose: they operate on
-the coordination tables (developers / project_members / uc_claims /
+the coordination tables (developers / project_members / uc_reservations /
 branch_registry), not on the spec hierarchy. They are only meaningful for a
 native session.
 
@@ -17,15 +17,18 @@ Tools (H2 — identity)
   :func:`server.coordination.identity.register_mcp_token` /
   :func:`~server.coordination.identity.revoke_mcp_token`, NOT through MCP.
 
-Tools (H3 — claims)
--------------------
-- ``claim_uc`` — claim a UC for the authenticated developer [AC-16].
-- ``release_uc`` — release a claim (owner only) [AC-17].
+Tools (H3 — reservations)
+-------------------------
+- ``reserve_uc`` — reserve a UC for the authenticated developer [AC-16].
+  Renamed from ``claim_uc`` in v5.35.0 (US-CLAIM-RENAME / UC-603). The
+  ``claim_uc`` MCP tool name is reintroduced as a deprecated alias in
+  UC-604 and removed in v5.37.0 / UC-612.
+- ``release_uc`` — release a reservation (owner only) [AC-17].
 - ``register_native_branch`` — register a branch ↔ UC mapping; rejects
   collisions and suggests ``feature/{uc_id}-...`` naming [AC-23].
 
-Every claim tool authenticates via the session token first (Frontier 1) and
-authorizes against the current project — UNAUTHENTICATED / FORBIDDEN apply.
+Every reservation tool authenticates via the session token first (Frontier 1)
+and authorizes against the current project — UNAUTHENTICATED / FORBIDDEN apply.
 """
 
 from __future__ import annotations
@@ -41,17 +44,17 @@ from ..coordination.branches import (
     register_branch,
     suggest_branch_name,
 )
-from ..coordination.claims import (
-    AlreadyClaimedError,
-    NotClaimOwnerError,
-    claim_uc as _claim_uc,
-    release_uc as _release_uc,
-)
 from ..coordination.identity import (
     ForbiddenError,
     UnauthenticatedError,
     authenticate_and_authorize,
     resolve_developer,
+)
+from ..coordination.reservations import (
+    AlreadyReservedError,
+    NotReservationOwnerError,
+    release_uc as _release_uc,
+    reserve_uc as _reserve_uc,
 )
 from ..db.pool import get_pool
 
@@ -61,7 +64,7 @@ logger = structlog.get_logger(__name__)
 async def _authed_dev(ctx: Context):
     """Resolve session → (project_id, Developer, pool) or raise a coded error.
 
-    Centralizes the Frontier-1 gate for the claim tools: native session +
+    Centralizes the Frontier-1 gate for the reservation tools: native session +
     token resolution + project membership. Returns the project_id, the
     authenticated Developer, and the pool. Raises UnauthenticatedError /
     ForbiddenError (callers translate to coded dicts).
@@ -104,16 +107,16 @@ async def whoami(ctx: Context) -> dict[str, Any]:
     }
 
 
-# ── H3: claim tools ──────────────────────────────────────────────────
+# ── H3: reservation tools ────────────────────────────────────────────
 
 
-async def claim_uc(uc_id: str, ctx: Context, branch: str = "") -> dict[str, Any]:
-    """Claim a UC for the authenticated developer [AC-16].
+async def reserve_uc(uc_id: str, ctx: Context, branch: str = "") -> dict[str, Any]:
+    """Reserve a UC for the authenticated developer [AC-16].
 
     Frontier 1 first (UNAUTHENTICATED / FORBIDDEN). Then a single INSERT under
     the UNIQUE(project_id, uc_id) constraint: if another dev already holds it,
-    returns ALREADY_CLAIMED with owner / claimed_at / branch [AC-19]. Same dev
-    re-claiming is idempotent.
+    returns ALREADY_RESERVED with owner / reserved_at / branch [AC-19]. Same dev
+    re-reserving is idempotent.
     """
     try:
         project_id, dev, pool = await _authed_dev(ctx)
@@ -126,27 +129,28 @@ async def claim_uc(uc_id: str, ctx: Context, branch: str = "") -> dict[str, Any]
 
     try:
         async with pool.acquire() as conn:
-            claim = await _claim_uc(
+            reservation = await _reserve_uc(
                 conn,
                 project_id=project_id,
                 uc_id=uc_id,
                 developer_id=dev.developer_id,
                 branch=branch,
             )
-    except AlreadyClaimedError as e:
-        return {"error": str(e), **e.to_conflict()}
+    except AlreadyReservedError as e:
+        return {"error": str(e), **e.to_payload()}
 
     return {
         "success": True,
-        **claim.to_public(),
-        "summary": f"UC {uc_id} reclamado por {dev.developer_id}.",
+        "code": "RESERVED",
+        **reservation.to_public(),
+        "summary": f"UC {uc_id} reservado por {dev.developer_id}.",
     }
 
 
 async def release_uc(uc_id: str, ctx: Context) -> dict[str, Any]:
-    """Release a UC claim — only the owner may do so [AC-17].
+    """Release a UC reservation — only the owner may do so [AC-17].
 
-    Returns NOT_CLAIM_OWNER (claim untouched) if a different dev holds it.
+    Returns NOT_RESERVATION_OWNER (reservation untouched) if a different dev holds it.
     """
     try:
         project_id, dev, pool = await _authed_dev(ctx)
@@ -165,17 +169,27 @@ async def release_uc(uc_id: str, ctx: Context) -> dict[str, Any]:
                 uc_id=uc_id,
                 developer_id=dev.developer_id,
             )
-    except NotClaimOwnerError as e:
+    except NotReservationOwnerError as e:
         return {
             "error": str(e),
-            "code": "NOT_CLAIM_OWNER",
+            "code": "NOT_RESERVATION_OWNER",
             "uc_id": uc_id,
             "owner": e.owner,
         }
 
     if not released:
-        return {"success": True, "uc_id": uc_id, "released": False, "summary": f"UC {uc_id} no tenía claim."}
-    return {"success": True, "uc_id": uc_id, "released": True, "summary": f"UC {uc_id} liberado."}
+        return {
+            "success": True,
+            "uc_id": uc_id,
+            "released": False,
+            "summary": f"UC {uc_id} no tenía reserva.",
+        }
+    return {
+        "success": True,
+        "uc_id": uc_id,
+        "released": True,
+        "summary": f"UC {uc_id} liberado.",
+    }
 
 
 async def register_native_branch(uc_id: str, branch: str, ctx: Context) -> dict[str, Any]:
@@ -223,26 +237,31 @@ async def register_native_branch(uc_id: str, branch: str, ctx: Context) -> dict[
 
 
 def register_coordination_tools(mcp_instance) -> None:
-    """Register the native coordination tools (H2 identity + H3 claims).
+    """Register the native coordination tools (H2 identity + H3 reservations).
 
     UC-504: the legacy admin bootstrap tool was removed from the MCP surface.
     Developer registration is now an admin/panel concern; tokens are minted
     via the internal :func:`server.coordination.identity.register_mcp_token`
     helper, never through MCP.
+
+    UC-603: ``claim_uc`` was renamed to ``reserve_uc`` and ``ALREADY_CLAIMED``
+    became ``ALREADY_RESERVED``. UC-604 will reintroduce ``claim_uc`` as a
+    deprecated alias for two minor releases; UC-612 removes the alias in
+    v5.37.0.
     """
     # H2 — identity
     mcp_instance.tool(
         description="Resolve the current session's developer token to {developer_id, display_name}. "
         "Returns UNAUTHENTICATED for an absent/invalid token. Native backend only."
     )(whoami)
-    # H3 — claims
+    # H3 — reservations
     mcp_instance.tool(
-        description="Claim a UC for the authenticated developer. ALREADY_CLAIMED (with owner/"
-        "claimed_at/branch) if held by another dev. Native backend only."
-    )(claim_uc)
+        description="Reserve a UC for the authenticated developer. ALREADY_RESERVED (with owner/"
+        "reserved_at/branch) if held by another dev. Native backend only."
+    )(reserve_uc)
     mcp_instance.tool(
-        description="Release a UC claim. Only the claim owner may release it (NOT_CLAIM_OWNER "
-        "otherwise). Native backend only."
+        description="Release a UC reservation. Only the reservation owner may release it "
+        "(NOT_RESERVATION_OWNER otherwise). Native backend only."
     )(release_uc)
     mcp_instance.tool(
         description="Register a branch <-> UC mapping. Rejects branch-name collisions and "

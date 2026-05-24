@@ -14,7 +14,25 @@
 --   policy specbox_deny_anon_uc_claims        -> specbox_deny_anon_uc_reservations
 
 DO $$
+DECLARE
+    legacy_row_count BIGINT;
 BEGIN
+    -- Three relevant states (see canonical file for the full rationale):
+    -- (a) only uc_claims → ALTER. (b) only uc_reservations → no-op.
+    -- (c) BOTH → re-apply: drop empty uc_claims, else hard error.
+    IF to_regclass('public.uc_claims') IS NOT NULL
+       AND to_regclass('public.uc_reservations') IS NOT NULL THEN
+        EXECUTE 'SELECT count(*) FROM public.uc_claims' INTO legacy_row_count;
+        IF legacy_row_count = 0 THEN
+            DROP TABLE public.uc_claims;
+        ELSE
+            RAISE EXCEPTION
+                'Both uc_claims (% rows) and uc_reservations exist. '
+                'Refusing to drop uc_claims because it has data.',
+                legacy_row_count;
+        END IF;
+    END IF;
+
     IF to_regclass('public.uc_claims') IS NOT NULL THEN
         ALTER TABLE public.uc_claims RENAME TO uc_reservations;
     END IF;

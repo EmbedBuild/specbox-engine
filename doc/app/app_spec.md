@@ -70,6 +70,7 @@
 - **PR-only a main** — nunca push directo a main salvo autorización explícita del usuario en la sesión.
 - **README bump en cada versión** — toda versión (major/minor/patch) actualiza README.md (bloques ES + EN), no solo ENGINE_VERSION.yaml/CLAUDE.md/CHANGELOG.
 - **FreeForm requiere MCP local (stdio)** — para escribir `doc/tracking/` en el filesystem local, el MCP SpecBox debe correr como proceso local, no como conector remoto.
+- **`claim`→`reservation` (v5.35.0)**: renombre del concepto de coordinación multi-developer del Native Backend; rationale = legibilidad para no técnicos; alias deprecados v5.35–v5.36; tools MCP `claim_uc` removed in v5.37.0.
 
 <!-- engine-entries-below -->
 {(vacío hasta que la Capa 4 detecte 3 confirmaciones consecutivas idénticas)}

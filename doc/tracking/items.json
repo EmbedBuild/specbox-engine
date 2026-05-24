@@ -2301,7 +2301,7 @@
     "id": "item-10ca691b",
     "name": "UC-605: Renombrar tests: test_coordination_claims.py + test_native_handling.py + assertions",
     "description": "# UC-605: Renombrar tests: test_coordination_claims.py + test_native_handling.py + assertions\n\n**User Story:** US-CLAIM-RENAME: Renombrar el concepto \"claim\" a \"reservation\" en Native Backend y Control Panel\n**Actor:** Engine\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [AC-01] `tests/test_coordination_reservations.py` existe; `tests/test_coordination_claims.py` ya no existe; `.venv/bin/pytest tests/test_coordination_reservations.py -q` termina 100% en verde contra Postgres dev local.\n- AC-02: [AC-02] `tests/test_coordination_reservations.py::test_deprecated_claim_uc_alias_emits_warning` existe y verifica con `pytest.warns(DeprecationWarning)` que llamar a la tool `claim_uc` emite warning y devuelve payload con ambas claves (`reserved_at` y `claimed_at`).\n- AC-03: [AC-03] La suite completa de native (`.venv/bin/pytest tests/test_native_*.py tests/test_coordination_reservations.py -q`) termina en 50 passed + el test nuevo del alias = 51 passed, 0 skipped, contra el Postgres dev local.\n\n## Contexto\n",
-    "state": "in_progress",
+    "state": "review",
     "parent_id": "item-d98d9b3d",
     "labels": [
       "UC",
@@ -2319,7 +2319,7 @@
     "created_at": "2026-05-23T12:59:32.289515+00:00",
     "external_source": "",
     "external_id": "",
-    "updated_at": "2026-05-24T13:16:54.419593+00:00"
+    "updated_at": "2026-05-24T13:21:04.673895+00:00"
   },
   {
     "id": "ac-b4c60066",
@@ -2376,7 +2376,7 @@
     "id": "item-b5cf8d06",
     "name": "UC-606: Documentación del engine: CLAUDE.md, GLOBAL_RULES, READMEs, plans históricos",
     "description": "# UC-606: Documentación del engine: CLAUDE.md, GLOBAL_RULES, READMEs, plans históricos\n\n**User Story:** US-CLAIM-RENAME: Renombrar el concepto \"claim\" a \"reservation\" en Native Backend y Control Panel\n**Actor:** Engine\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [AC-01] `grep -rn 'uc_claims\\|claim_uc\\|claimed_at\\|claims.py' CLAUDE.md rules/ server/coordination/__init__.py doc/app/` no devuelve ninguna línea (excepto la nota al pie histórica en CLAUDE.md y la decisión canónica nueva en app_spec.md que mencionan el término entre comillas como referencia histórica).\n- AC-02: [AC-02] `CLAUDE.md` contiene una sección/nota explícita: \"Desde v5.35.0 el concepto antes llamado 'claim' se llama 'reservation'. Las tools MCP `claim_uc` y el código `ALREADY_CLAIMED` están deprecados desde v5.35.0 y se eliminan en v5.37.0\".\n- AC-03: [AC-03] `ENGINE_VERSION.yaml` declara `version: 5.35.0` y el changelog incluye un bullet específico del rename con referencia a UC-604 (deprecación) y v5.37.0 (eliminación).\n- AC-04: [AC-04] `doc/app/app_spec.md` zona canonical_decisions (hybrid) tiene un append: \"`claim`→`reservation` (v5.35.0): renombre del concepto de coordinación multi-developer del Native Backend; rationale = legibilidad para no técnicos; alias deprecados v5.35–v5.36; tools MCP `claim_uc` removed in v5.37.0.\".\n\n## Contexto\n",
-    "state": "backlog",
+    "state": "in_progress",
     "parent_id": "item-d98d9b3d",
     "labels": [
       "UC",
@@ -2393,13 +2393,14 @@
     },
     "created_at": "2026-05-23T12:59:32.296007+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-24T13:21:05.204103+00:00"
   },
   {
     "id": "ac-5a437f62",
     "name": "[AC-01] [AC-01] `grep -rn 'uc_claims\\|claim_uc\\|claimed_at\\|claims.py' CLAUDE.md rules/ server/coordination/__init__.py doc/app/` no devuelve ninguna línea (excepto la nota al pie histórica en CLAUDE.md y la decisión canónica nueva en app_spec.md que mencionan el término entre comillas como referencia histórica).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-b5cf8d06",
     "labels": [
       "AC"
@@ -2409,13 +2410,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.299150+00:00"
+    "created_at": "2026-05-23T12:59:32.299150+00:00",
+    "updated_at": "2026-05-24T13:24:20.484216+00:00"
   },
   {
     "id": "ac-e1e5fad0",
     "name": "[AC-02] [AC-02] `CLAUDE.md` contiene una sección/nota explícita: \"Desde v5.35.0 el concepto antes llamado 'claim' se llama 'reservation'. Las tools MCP `claim_uc` y el código `ALREADY_CLAIMED` están deprecados desde v5.35.0 y se eliminan en v5.37.0\".",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-b5cf8d06",
     "labels": [
       "AC"
@@ -2425,13 +2427,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.299155+00:00"
+    "created_at": "2026-05-23T12:59:32.299155+00:00",
+    "updated_at": "2026-05-24T13:24:20.495078+00:00"
   },
   {
     "id": "ac-5424fbab",
     "name": "[AC-03] [AC-03] `ENGINE_VERSION.yaml` declara `version: 5.35.0` y el changelog incluye un bullet específico del rename con referencia a UC-604 (deprecación) y v5.37.0 (eliminación).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-b5cf8d06",
     "labels": [
       "AC"
@@ -2441,13 +2444,14 @@
       "ac_id": "AC-03",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.299159+00:00"
+    "created_at": "2026-05-23T12:59:32.299159+00:00",
+    "updated_at": "2026-05-24T13:24:20.502905+00:00"
   },
   {
     "id": "ac-103d2186",
     "name": "[AC-04] [AC-04] `doc/app/app_spec.md` zona canonical_decisions (hybrid) tiene un append: \"`claim`→`reservation` (v5.35.0): renombre del concepto de coordinación multi-developer del Native Backend; rationale = legibilidad para no técnicos; alias deprecados v5.35–v5.36; tools MCP `claim_uc` removed in v5.37.0.\".",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-b5cf8d06",
     "labels": [
       "AC"
@@ -2457,7 +2461,8 @@
       "ac_id": "AC-04",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.299163+00:00"
+    "created_at": "2026-05-23T12:59:32.299163+00:00",
+    "updated_at": "2026-05-24T13:24:20.509810+00:00"
   },
   {
     "id": "item-303254b0",

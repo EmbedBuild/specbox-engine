@@ -1,0 +1,4 @@
+{"id": "cmt-0a627c8b", "text": "Desarrollo iniciado: 2026-05-24T13:21:05.211001+00:00", "created_at": "2026-05-24T13:21:05.211022+00:00", "author": "freeform"}
+{"id": "cmt-ce12ffea", "text": "Validacion AG-09b [2026-05-24 13:24 UTC]:\n  AC-01: PASSED\n  AC-02: PASSED\n  AC-03: PASSED\n  AC-04: PASSED", "created_at": "2026-05-24T13:24:20.515281+00:00", "author": "freeform"}
+{"id": "cmt-765ae129", "text": "Todos los criterios de aceptacion validados", "created_at": "2026-05-24T13:24:20.515366+00:00", "author": "freeform"}
+{"id": "cmt-f5cd3b37", "text": "DELIVERY generado [2026-05-24 13:24 UTC] — UC-606 doc updates: 4/4 ACs PASS. CLAUDE.md bumped v5.35.0 con Nota de vocabulario explicita. ENGINE_VERSION.yaml v5.35.0 'Reservation Rename' con changelog detallado (UC-601..606, UC-612, UC-613). app_spec.md canonical_decisions con decision canonica del rename.", "created_at": "2026-05-24T13:24:46.546873+00:00", "author": "freeform"}

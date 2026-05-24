@@ -1,0 +1,8 @@
+{
+  "feature": "uc-606-engine-docs",
+  "has_ui": false,
+  "has_db": false,
+  "completed_phases": ["db_infra", "stitch_designs", "design_to_code", "feature_code", "appscript", "n8n", "integration", "tests"],
+  "current_phase": "integration",
+  "last_updated": "2026-05-25T00:00:00Z"
+}

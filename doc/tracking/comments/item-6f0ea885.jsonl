@@ -1,0 +1,4 @@
+{"id": "cmt-65a99afd", "text": "Desarrollo iniciado: 2026-05-24T13:08:52.529832+00:00", "created_at": "2026-05-24T13:08:52.529857+00:00", "author": "freeform"}
+{"id": "cmt-e48bb74e", "text": "Validacion AG-09b [2026-05-24 13:12 UTC]:\n  AC-01: PASSED\n  AC-02: PASSED\n  AC-03: PASSED\n  AC-04: PASSED", "created_at": "2026-05-24T13:12:33.525938+00:00", "author": "freeform"}
+{"id": "cmt-77612a43", "text": "Todos los criterios de aceptacion validados", "created_at": "2026-05-24T13:12:33.526026+00:00", "author": "freeform"}
+{"id": "cmt-e73a2313", "text": "DELIVERY generado [2026-05-24 13:12 UTC] — UC-604 claim_uc deprecated alias: 4/4 ACs PASS, 10 nuevos tests verdes (142 total). Tool MCP claim_uc emite DeprecationWarning + log estructurado + payload dual (reserved_at+claimed_at, code+legacy_code). reserve_uc queda limpio (sin warning, sin legacy keys).", "created_at": "2026-05-24T13:12:57.200195+00:00", "author": "freeform"}

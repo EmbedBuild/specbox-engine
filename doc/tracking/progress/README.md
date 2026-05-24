@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-24T13:04:10.917252+00:00
+> Actualizado: 2026-05-24T13:12:33.522377+00:00
 
 ## User Stories
 
@@ -45,8 +45,8 @@
 | UC-506 | US-NATIVE-SECURITY | Done | 4 | 4 | 100% |
 | UC-601 | US-CLAIM-RENAME | Review | 3 | 3 | 100% |
 | UC-602 | US-CLAIM-RENAME | Review | 3 | 3 | 100% |
-| UC-603 | US-CLAIM-RENAME | In Progress | 3 | 3 | 100% |
-| UC-604 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |
+| UC-603 | US-CLAIM-RENAME | Review | 3 | 3 | 100% |
+| UC-604 | US-CLAIM-RENAME | In Progress | 4 | 4 | 100% |
 | UC-605 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
 | UC-606 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |
 | UC-607 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |

@@ -33,6 +33,7 @@ and authorizes against the current project — UNAUTHENTICATED / FORBIDDEN apply
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 import structlog
@@ -147,6 +148,93 @@ async def reserve_uc(uc_id: str, ctx: Context, branch: str = "") -> dict[str, An
     }
 
 
+# ── H3: deprecated alias (UC-604) ────────────────────────────────────
+#
+# claim_uc is the v5.34.x name for what is now reserve_uc. We keep it
+# registered as a separate MCP tool during the v5.35-v5.36 deprecation
+# window so callers that have not yet migrated keep working. The alias
+# does three observable things on top of forwarding to reserve_uc:
+#
+#   1. Emits a single DeprecationWarning (stacklevel=2 so the warning
+#      points at the *caller*, not at this wrapper) — capturable by
+#      `pytest.warns(DeprecationWarning)`.
+#   2. Logs a structured "deprecated_tool_called" record so operators
+#      can quantify legacy usage before the v5.37.0 removal.
+#   3. Enriches the success/conflict payload with legacy aliases:
+#        - `claimed_at` mirrors `reserved_at` (same value)
+#        - `legacy_code` maps the new code to its v5.34.x name
+#          (RESERVED → CLAIMED, ALREADY_RESERVED → ALREADY_CLAIMED).
+#      Auth-failure codes (UNAUTHENTICATED / FORBIDDEN / NOT_NATIVE_SESSION)
+#      are not rename-specific and pass through untouched.
+#
+# UC-612 will remove this entire block in v5.37.0 along with the dual
+# payload fields and the structured log event.
+
+#: New → legacy ``code`` mapping for the v5.35-v5.36 deprecation window.
+#: Anything not in this dict is not specific to the claim→reservation
+#: rename and passes through without a ``legacy_code`` annotation.
+_DEPRECATED_CODE_ALIASES: dict[str, str] = {
+    "RESERVED": "CLAIMED",
+    "ALREADY_RESERVED": "ALREADY_CLAIMED",
+}
+
+#: Description string registered on FastMCP for the deprecated alias.
+#: The literal prefix is asserted by UC-604 AC-01.
+_CLAIM_UC_DEPRECATED_DESCRIPTION = (
+    "[DEPRECATED desde v5.35.0 — usa reserve_uc. Se elimina en v5.37.0] "
+    "Alias deprecado de reserve_uc. Llamarlo emite DeprecationWarning y "
+    "devuelve un payload enriquecido con las claves legacy (claimed_at, "
+    "legacy_code) además de las nuevas (reserved_at, code). Migra a reserve_uc."
+)
+
+
+def _add_legacy_aliases(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return ``payload`` with the v5.34.x legacy keys appended.
+
+    Adds ``claimed_at`` mirroring ``reserved_at`` (when present) and
+    ``legacy_code`` mapping the new ``code`` via
+    :data:`_DEPRECATED_CODE_ALIASES`. The original dict is not mutated.
+    """
+    enriched = dict(payload)
+    if "reserved_at" in enriched and "claimed_at" not in enriched:
+        enriched["claimed_at"] = enriched["reserved_at"]
+    code = enriched.get("code")
+    if isinstance(code, str) and code in _DEPRECATED_CODE_ALIASES:
+        enriched["legacy_code"] = _DEPRECATED_CODE_ALIASES[code]
+    return enriched
+
+
+async def claim_uc(uc_id: str, ctx: Context, branch: str = "") -> dict[str, Any]:
+    """[DEPRECATED v5.35.0] Alias of :func:`reserve_uc`. Removed in v5.37.0.
+
+    Behaves exactly like :func:`reserve_uc` but additionally:
+
+    - emits a :class:`DeprecationWarning` pointing at the caller,
+    - logs a structured ``deprecated_tool_called`` event,
+    - enriches the response payload with ``claimed_at`` (= ``reserved_at``)
+      and ``legacy_code`` (the v5.34.x equivalent of the new ``code``).
+
+    The dual payload lets callers migrate at their own pace during
+    v5.35-v5.36 without breaking. UC-612 removes this alias entirely in
+    v5.37.0.
+    """
+    warnings.warn(
+        "claim_uc is deprecated since v5.35.0; use reserve_uc. "
+        "Removed in v5.37.0.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    logger.info(
+        "deprecated_tool_called",
+        tool="claim_uc",
+        since_version="v5.35.0",
+        remove_in_version="v5.37.0",
+        replacement="reserve_uc",
+    )
+    payload = await reserve_uc(uc_id, ctx, branch)
+    return _add_legacy_aliases(payload)
+
+
 async def release_uc(uc_id: str, ctx: Context) -> dict[str, Any]:
     """Release a UC reservation — only the owner may do so [AC-17].
 
@@ -245,8 +333,12 @@ def register_coordination_tools(mcp_instance) -> None:
     helper, never through MCP.
 
     UC-603: ``claim_uc`` was renamed to ``reserve_uc`` and ``ALREADY_CLAIMED``
-    became ``ALREADY_RESERVED``. UC-604 will reintroduce ``claim_uc`` as a
-    deprecated alias for two minor releases; UC-612 removes the alias in
+    became ``ALREADY_RESERVED``.
+
+    UC-604: ``claim_uc`` is reintroduced as a **deprecated alias** of
+    :func:`reserve_uc` for the v5.35-v5.36 window. It emits a
+    :class:`DeprecationWarning` + structured log entry on every call and
+    returns a payload that carries BOTH vocabularies. UC-612 removes it in
     v5.37.0.
     """
     # H2 — identity
@@ -263,6 +355,8 @@ def register_coordination_tools(mcp_instance) -> None:
             "release_uc devuelve NOT_RESERVATION_OWNER. Native backend only."
         )
     )(reserve_uc)
+    # H3 — deprecated alias (UC-604, removed in v5.37.0 / UC-612)
+    mcp_instance.tool(description=_CLAIM_UC_DEPRECATED_DESCRIPTION)(claim_uc)
     mcp_instance.tool(
         description=(
             "Liberar la reserva de un UC (release_uc). Solo el dueño puede hacerlo; "

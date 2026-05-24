@@ -1,0 +1,8 @@
+{
+  "feature": "uc-605-rename-tests-to-reservations",
+  "has_ui": false,
+  "has_db": false,
+  "completed_phases": ["db_infra", "stitch_designs", "design_to_code", "appscript", "n8n", "integration"],
+  "current_phase": "tests",
+  "last_updated": "2026-05-25T00:00:00Z"
+}

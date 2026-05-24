@@ -56,3 +56,35 @@
 | UC-611 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
 | UC-612 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |
 | UC-613 | US-CLAIM-RENAME | Review | 5 | 5 | 100% |
+
+## v6.0 Discovery Foundations
+
+> Generado: 2026-05-24T22:10:59.073798+00:00
+> PRD: doc/prd/discovery_module_v6_prd.md
+
+### User Stories
+
+| US | Nombre | Estado | UCs Done | UCs Total | % |
+|-----|--------|--------|----------|-----------|---|
+| US-D04 | [US-D04] Multi-document canonical registry foundation | Todo | 0 | 2 | 0% |
+| US-D01 | [US-D01] Discovery conversational flow per feature | Todo | 0 | 2 | 0% |
+| US-D02 | [US-D02] Inheritance and traceability from discovery to implementation | Todo | 0 | 1 | 0% |
+| US-D03 | [US-D03] Strategic drift detection across project lifetime | Todo | 0 | 1 | 0% |
+
+### Use Cases
+
+| UC | US | Estado | ACs Pass | ACs Total | % |
+|-----|-----|--------|----------|-----------|---|
+| UC-D005 | US-D04 | Todo | 0 | 13 | 0% |
+| UC-D006 | US-D04 | Todo | 0 | 5 | 0% |
+| UC-D001 | US-D01 | Todo | 0 | 10 | 0% |
+| UC-D002 | US-D01 | Todo | 0 | 6 | 0% |
+| UC-D003 | US-D02 | Todo | 0 | 7 | 0% |
+| UC-D004 | US-D03 | Todo | 0 | 6 | 0% |
+
+### Orden de implementación
+
+1. **US-D04 (H1)** — Foundation multi-doc PRIMERO. UC-D005 → UC-D006.
+2. **US-D01 (H2)** — Discovery feature. UC-D001 → UC-D002.
+3. **US-D02 (H3)** — Integración pipeline. UC-D003.
+4. **US-D03 (H4)** — Drift detection. UC-D004 (AC-06 deferred a v6.1).

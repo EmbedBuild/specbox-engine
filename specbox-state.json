@@ -1,6 +1,6 @@
 {
   "project": "specbox-engine",
-  "timestamp": "2026-05-24T22:04:38Z",
+  "timestamp": "2026-05-24T22:11:08Z",
   "session_active": true,
   "current_phase": "implement",
   "current_feature": "",
@@ -11,12 +11,12 @@
   "healing_health": "healthy",
   "self_healing_events": 0,
   "last_operation": "idle",
-  "last_commit": "commit",
-  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)Tc9c7e34a8306e1f225879f52b14e028444b46747:%M:HEADZ",
+  "last_commit": "chore: close UC-613 + drop legacy doc/prds/ + add Discovery v6.0 PRD",
+  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)Tbdcda42cf845cc0817f02992385b53de87c02003:%M:HEADZ",
   "handoff_present": true,
-  "handoff_age_minutes": 4359,
+  "handoff_age_minutes": 4365,
   "context_pressure": {
-    "tokens_est": 225,
+    "tokens_est": 241,
     "pct_of_window": 0,
     "level": "healthy"
   },

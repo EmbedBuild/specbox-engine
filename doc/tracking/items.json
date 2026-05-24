@@ -3031,5 +3031,965 @@
     },
     "created_at": "2026-05-24T13:00:58.481661+00:00",
     "updated_at": "2026-05-24T16:49:44.596895+00:00"
+  },
+  {
+    "id": "item-4bd37a3b",
+    "name": "[US-D04] Multi-document canonical registry foundation",
+    "description": "Como mantenedor del SpecBox Engine, quiero que el sistema app_docs (sync, drift detection, hook enforcement, upgrade path) opere sobre un registro extensible de N documentos canónicos en lugar de hardcodear app_prd y app_spec, para poder añadir app_market.md en v6.0 y futuros documentos canónicos en v6.x+ sin duplicar código ni introducir bugs por casuística asimétrica.\n\n**Foundation arquitectural permanente** para Discovery (US-D01..D03). Se implementa PRIMERO. Refactor del módulo server/app_docs/ + descriptor JSON consumible por el hook Node.js. Backwards compatibility total con proyectos v5.x.\n\n**JTBDs satisfechos**: JR-M.1 (un único punto de modificación), JR-M.2 (proyectos v5.x upgrade-safe), JE-M.1 (arquitectura honesta).\n\nSpec completa en doc/prd/discovery_module_v6_prd.md sección 3.",
+    "state": "todo",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-D04",
+      "horas": "16",
+      "milestone": "H1",
+      "prd_path": "doc/prd/discovery_module_v6_prd.md"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "item-db1e8e81",
+    "name": "[US-D01] Discovery conversational flow per feature",
+    "description": "Como developer sin formación formal de PM, quiero ser guiado por un flujo conversacional corto (15-30 min) que me ayude a identificar los ICPs involucrados en una feature y sus JTBDs racionales y emocionales, para definir el camino de validación de la feature antes de invocar /prd.\n\n**ICPs involucrados**: ICP-1 (Developer solo con productos en mercado), ICP-2 (Developer experto cruzando a producto), ICP-3 (Profesional no-dev aprendiendo).\n\n**JTBDs satisfechos**: JR-1.1, JR-2.1, JR-3.1, JR-3.2, JE-1.1, JE-2.1, JE-3.1, JE-3.3.\n\nSlash command nuevo /discovery [feature_name] con 3 fases (ICP identification, JTBD extraction, validation gate) + modo bootstrap (primer uso en proyecto). Genera doc/discovery/<feature>/icp_jtbd.md.\n\nSpec completa en doc/prd/discovery_module_v6_prd.md sección 3.",
+    "state": "todo",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-D01",
+      "horas": "20",
+      "milestone": "H2",
+      "prd_path": "doc/prd/discovery_module_v6_prd.md"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "item-b590e2c4",
+    "name": "[US-D02] Inheritance and traceability from discovery to implementation",
+    "description": "Como SpecBox Engine, quiero que los ICPs y JTBDs definidos en /discovery se hereden automáticamente al PRD, se taggeen a los AC, se preserven en las UC del plan y se validen en los tests E2E de la implementación, para mantener trazabilidad estratégica completa desde el problem framing hasta la evidence de shipping.\n\n**ICPs involucrados**: ICP-1, ICP-2.\n\n**JTBDs satisfechos**: JR-1.2, JR-1.3, JE-1.1, JE-1.3, JE-2.2.\n\nModificaciones a /prd, /plan, /implement. Tagging [JR-X.Y] / [JE-X.Y] en ACs. Qualitative gate para JTBDs emocionales en /implement. Nueva sección Discovery alignment en HTML Evidence Report.\n\nSpec completa en doc/prd/discovery_module_v6_prd.md sección 3.",
+    "state": "todo",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-D02",
+      "horas": "12",
+      "milestone": "H3",
+      "prd_path": "doc/prd/discovery_module_v6_prd.md"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "item-80074a5f",
+    "name": "[US-D03] Strategic drift detection across project lifetime",
+    "description": "Como SpecBox Engine, quiero detectar cuándo una feature nueva en discovery introduce ICPs o JTBDs no presentes en doc/app/app_market.md, para alertar al developer sobre posible feature creep estratégico o necesidad de actualizar la tesis del producto.\n\n**ICPs involucrados**: ICP-1, ICP-2.\n\n**JTBDs satisfechos**: JR-1.2, JR-2.2, JE-1.2.\n\nDrift detection ICP/JTBD entre feature y producto. Comando opcional /discovery --review (deferred a v6.1 — D-08).\n\nSpec completa en doc/prd/discovery_module_v6_prd.md sección 3.",
+    "state": "todo",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-D03",
+      "horas": "6",
+      "milestone": "H4",
+      "prd_path": "doc/prd/discovery_module_v6_prd.md"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "item-11222e61",
+    "name": "[UC-D005] Refactor app_docs a registro multi-doc",
+    "description": "Extraer la lista de docs canónicos del código duplicado actual (PRD_PATH/SPEC_PATH en server/app_docs/sync.py:38-39, mismo patrón en app-docs-sync-guard.mjs:34-35, EVENT_ZONE_MAP en sync.py:166-179) a un registro único server/app_docs/registry.py + descriptor JSON consumible por el hook Node.js. Todo el resto del sistema itera sobre el registro.\n\n**Crítico para Foundation** — bloquea UC-D006 y todo Discovery. Tests de regresión obligatorios contra proyectos fixture v5.29/v5.33/v5.35.",
+    "state": "todo",
+    "parent_id": "item-4bd37a3b",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "high",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-D005",
+      "us_id": "US-D04",
+      "actor": "Engine",
+      "horas": "12",
+      "milestone": "H1",
+      "prd_path": "doc/prd/discovery_module_v6_prd.md"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-0258932b",
+    "name": "[AC-01] [AC-01] Existe módulo server/app_docs/registry.py que expone CANONICAL_DOCS: list[CanonicalDoc]. Cada entrada tiene: id, path, introduced_in (semver), template_path, required_zones: dict[str, ZoneKind], event_zone_map: dict[event, list[zone_id]].",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-efd913ec",
+    "name": "[AC-02] [AC-02] server/app_docs/sync.py (verify_app_docs_in_sync, record_sync_signature, EVENT_ZONE_MAP) itera sobre CANONICAL_DOCS en lugar de tener 2 ramas hardcoded para PRD/SPEC. Las constantes PRD_PATH, SPEC_PATH se eliminan.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-63e971c1",
+    "name": "[AC-03] [AC-03] .claude/hooks/app-docs-sync-guard.mjs lee templates/canonical_docs.json (descriptor generado desde el módulo Python como source-of-truth, D-10 opción b) e itera sobre la lista. Sin hardcoded checkDoc('app_prd', ...) / checkDoc('app_spec', ...).",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-8d3fe65c",
+    "name": "[AC-04] [AC-04] Cada CanonicalDoc lleva campo introduced_in: str (semver). El hook y verify_app_docs_in_sync ignoran un doc cuando: (a) no existe en disco, AND (b) project_meta.engine_version_at_onboard < doc.introduced_in. Esto evita warnings espurios en proyectos upgrade-from-v5.x.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-4e8df1bf",
+    "name": "[AC-05] [AC-05] meta.json del proyecto incluye nuevo campo engine_version_at_onboard (capturado en onboard_project y preservado en upgrade_project). Para proyectos v5.x preexistentes que no tengan este campo en su meta.json, política conservadora: tratar como 'unknown', y el hook solo verifica docs con introduced_in <= 5.29.0. Esto resuelve D-11 como opción (b).",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-994899be",
+    "name": "[AC-06] [AC-06] Tests de regresión: matriz {proyectos fixture en v5.29, v5.33, v5.35} × {operaciones: verify, repair, hook commit, /app-sync} pasa sin cambio de comportamiento observable. Snapshot tests guardan output esperado.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-1935d04c",
+    "name": "[AC-07] [AC-07] La extensión de CANONICAL_DOCS con app_market.md (UC-D006) requiere una sola línea de código + una entrada en el registro + una plantilla. Sin cambios en sync.py, hook, ni /app-sync.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-07",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-021c0846",
+    "name": "[AC-08] [AC-08] Tool MCP read_app_docs_tool recibe parámetro opcional doc_ids: list[str] = None. Si None, devuelve todos los docs canónicos del proyecto (incluyendo nuevos como app_market). Backwards compat: comportamiento previo = pasar doc_ids=['app_prd', 'app_spec'] explícito.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-08",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-5582b5ba",
+    "name": "[AC-09] [AC-09] La PR del refactor incluye un documento doc/decisions/multi_doc_registry.md explicando: por qué se hizo, qué patrón se eligió (registry vs subclasses vs plugins), qué se descartó, cómo extender en futuras versiones.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-09",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-f7403492",
+    "name": "[AC-10] [AC-10] upgrade_project se extiende para iterar sobre CANONICAL_DOCS y, para cada doc canónico con introduced_in > project_meta.engine_version_at_onboard: si el archivo NO existe en el proyecto destino escribe plantilla vacía con marcadores de zona desde template_path; si el archivo SÍ existe no toca nada (preserva contenido del usuario). Reporta en el return cuáles docs canónicos creó vs cuáles ya existían en campo nuevo canonical_docs_created: list[dict].",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-10",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-767dc1a8",
+    "name": "[AC-11] [AC-11] La invariante 'upgrade_project nunca pisa contenido existente' se preserva. Lo que cambia es que ahora puede CREAR archivos nuevos, no MODIFICAR archivos existentes. Esa distinción se documenta explícitamente en el docstring de upgrade_project y en doc/decisions/multi_doc_registry.md.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-11",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-2d804190",
+    "name": "[AC-12] [AC-12] Test fixture específico: 'proyecto v5.35 con app_prd.md modificado manualmente recibe upgrade a v6.0'. Verifica: app_prd.md queda exactamente igual (byte por byte); app_spec.md queda exactamente igual; app_market.md se crea desde plantilla vacía con marcador status='template-pristine'; engine_version_at_onboard se preserva o se marca 'unknown' si no existía.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-12",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-390e9ef7",
+    "name": "[AC-13] [AC-13] Plantillas de docs canónicos llevan marcador status='template-pristine' en zonas manual. El hook app-docs-sync-guard.mjs lo respeta — no warnea sobre docs presentes pero no inicializados. /discovery y /app-init eliminan el marcador automáticamente cuando rellenan la primera zona.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-11222e61",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-13",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "item-c6c3eb52",
+    "name": "[UC-D006] Introducción de app_market.md vía el registro",
+    "description": "Una vez existe el registro multi-doc (UC-D005), añadir app_market.md es trivial. Este UC valida que efectivamente lo es: la diff de la PR debe demostrar el cap (1 archivo nuevo + 1 línea modificada + 0 cambios en lógica).",
+    "state": "todo",
+    "parent_id": "item-4bd37a3b",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "high",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-D006",
+      "us_id": "US-D04",
+      "actor": "Engine",
+      "horas": "2",
+      "milestone": "H1",
+      "prd_path": "doc/prd/discovery_module_v6_prd.md"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-0dc24357",
+    "name": "[AC-01] [AC-01] Plantilla templates/app_market.md.template existe con las 8 zonas definidas en sección 4.1.1 (ICPs primarios, no-ICPs, JTBDs racionales, JTBDs emocionales, NSM, posicionamiento, anti-features, exportable copy). Todas las zonas manuales llevan marcador status='template-pristine'.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-c6c3eb52",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-a5d0653e",
+    "name": "[AC-02] [AC-02] Entry añadida en CANONICAL_DOCS con id='app_market', introduced_in='6.0.0', template_path='templates/app_market.md.template', y los event_zone_map para eventos de Discovery (app_market_icp_added, app_market_jtbd_added, nsm_updated).",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-c6c3eb52",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-09bae422",
+    "name": "[AC-03] [AC-03] Diff de la PR de UC-D006 muestra: 1 archivo nuevo (template), 1 entry nueva en registry.py, 0 cambios en sync.py / hook / skills. Validado por revisión visual del diff antes de merge.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-c6c3eb52",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-babdd01a",
+    "name": "[AC-04] [AC-04] Hook app-docs-sync-guard.mjs corre verde en proyecto v5.35-upgraded-to-v6.0 sin app_market.md rellenado (solo con plantilla pristine). Verificado en test fixture.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-c6c3eb52",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-95674759",
+    "name": "[AC-05] [AC-05] /app-sync --check reporta 'app_market: template-pristine (introduced_in 6.0.0, project_version_at_onboard 5.33.0, awaiting first /discovery)' como info, no como drift.",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-c6c3eb52",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "item-1ef6b80f",
+    "name": "[UC-D001] Ejecutar /discovery [feature_name] en modo estándar",
+    "description": "Cuando el proyecto ya tiene doc/app/app_market.md completado, /discovery [feature_name] lanza un flujo conversacional de 3 fases (ICP identification, JTBD extraction, validation gate), genera doc/discovery/<feature_name>/icp_jtbd.md y termina con un verdict explícito.",
+    "state": "todo",
+    "parent_id": "item-db1e8e81",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "high",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-D001",
+      "us_id": "US-D01",
+      "actor": "Engine",
+      "horas": "12",
+      "milestone": "H2",
+      "prd_path": "doc/prd/discovery_module_v6_prd.md"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-cf7dd56e",
+    "name": "[AC-01] [AC-01] La invocación /discovery user_export en un proyecto con app_market.md completado lanza un flujo interactivo en <=2 segundos desde el comando. [JR-1.1, JR-3.1]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-1ef6b80f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-b9676211",
+    "name": "[AC-02] [AC-02] La Fase 1 (ICP identification) muestra los ICPs canónicos del app_market.md y pregunta cuáles están involucrados en esta feature. El usuario puede seleccionar 1-3 ICPs preexistentes o añadir uno nuevo con warning de drift. [JR-3.1, JE-3.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-1ef6b80f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-58570d7c",
+    "name": "[AC-03] [AC-03] Para cada ICP nuevo (no presente en app_market.md), el flujo aplica el sanity check '¿conoces a 3 personas concretas que encajen?' y registra la respuesta en el artefacto. Si la respuesta es no, marca el ICP como tentativo. [JR-1.1, JE-1.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-1ef6b80f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-4bd65ccf",
+    "name": "[AC-04] [AC-04] La Fase 2 (JTBD extraction) genera, para cada ICP seleccionado, un draft de 2-3 JTBDs racionales y 1-2 JTBDs emocionales en formato canónico 'Cuando [situación], quiero [motivación], para [resultado esperado]'. El usuario edita/refina/elimina/añade libremente. [JR-1.1, JR-1.2, JR-3.1]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-1ef6b80f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-7a18f269",
+    "name": "[AC-05] [AC-05] Cada concepto nuevo introducido en el flujo (ICP, JTBD racional, JTBD emocional) viene acompañado de: (a) una micro-justificación en lenguaje natural de por qué importa, (b) un ejemplo real del ecosistema embed.build (PaddockManager/McProfit/Futbase/SpecBox), (c) un anti-pattern explícito como contraejemplo. [JE-3.2, JR-3.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-1ef6b80f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-47085279",
+    "name": "[AC-06] [AC-06] La Fase 3 (validation gate) muestra resumen consolidado y pregunta '¿hay alguna conversación reciente, datapoint de mercado o evidence externa que respalde estos JTBDs?'. La respuesta (libre, o explícito waiver) se registra en icp_jtbd.md. [JR-1.1, JE-1.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-1ef6b80f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-4c68cd2f",
+    "name": "[AC-07] [AC-07] El artefacto final doc/discovery/<feature_name>/icp_jtbd.md se genera con la estructura canónica definida en la sección 4.1 y contiene discovery_id único trazable. [JR-1.2, JR-2.1]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-1ef6b80f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-07",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-d37d0502",
+    "name": "[AC-08] [AC-08] El flujo completo se completa en <=30 minutos para un user experimentado y <=60 minutos para la primera feature de un user nuevo (en modo bootstrap). [JR-1.1]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-1ef6b80f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-08",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-6aa1f5ab",
+    "name": "[AC-09] [AC-09] El flujo es interrumpible en cualquier fase. Una segunda invocación de /discovery [feature_name] detecta artefacto parcial y ofrece resumir o reiniciar. [JE-1.1, JE-2.1]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-1ef6b80f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-09",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-58c9d08e",
+    "name": "[AC-10] [AC-10] El comando muestra al final un verdict explícito: READY_FOR_PRD o DISCOVERY_INCOMPLETE con lista específica de razones (ej: 'falta JTBD racional para ICP-2'). [JR-3.1, JE-3.3]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-1ef6b80f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-10",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "item-e395cbfa",
+    "name": "[UC-D002] Ejecutar /discovery en modo bootstrap (primer uso en proyecto)",
+    "description": "Cuando doc/app/app_market.md está vacío o ausente, /discovery [feature_name] detecta la situación y entra en modo bootstrap: primero completa el nivel producto (ICPs canónicos, JTBDs globales, NSM, posicionamiento), luego desciende al nivel feature.",
+    "state": "todo",
+    "parent_id": "item-db1e8e81",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "high",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-D002",
+      "us_id": "US-D01",
+      "actor": "Engine",
+      "horas": "8",
+      "milestone": "H2",
+      "prd_path": "doc/prd/discovery_module_v6_prd.md"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-eb9c3a22",
+    "name": "[AC-01] [AC-01] La detección de app_market.md vacío/ausente lanza modo bootstrap automáticamente sin requerir flag explícito. [JR-3.1, JE-3.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-e395cbfa",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-2ec9900d",
+    "name": "[AC-02] [AC-02] El modo bootstrap muestra mensaje pedagógico inicial: 'Antes de definir esta feature, necesitamos definir para quién es el producto entero. Esto solo se hace una vez por proyecto.' [JE-3.2, JE-3.3]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-e395cbfa",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-7d2eb8a2",
+    "name": "[AC-03] [AC-03] La fase producto completa los 5 bloques esenciales de app_market.md: ICPs primarios, no-ICPs, JTBDs racionales globales, JTBDs emocionales globales, NSM. Los bloques opcionales (posicionamiento, anti-features) se ofrecen pero pueden saltarse. [JR-2.2, JR-3.1]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-e395cbfa",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-0be552f3",
+    "name": "[AC-04] [AC-04] El app_market.md generado incluye sección 'Exportable copy' con extractos pre-formateados para landing, LinkedIn post y elevator pitch, derivados automáticamente de ICPs+JTBDs. [JR-2.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-e395cbfa",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-fea27e49",
+    "name": "[AC-05] [AC-05] Tras completar app_market.md, el flujo desciende automáticamente al modo estándar de UC-D001 para la feature solicitada. [JR-1.1]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-e395cbfa",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-cc9b352d",
+    "name": "[AC-06] [AC-06] El tiempo total de bootstrap (producto + primera feature) no supera 75 minutos. [JE-1.1, JE-3.3]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-e395cbfa",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "item-5c18b578",
+    "name": "[UC-D003] Integración bidireccional Discovery <-> PRD <-> Plan <-> Implement",
+    "description": "La herencia funciona como pipeline: /prd lee icp_jtbd.md y pre-rellena secciones, cada AC del PRD se taggea con >=1 JTBD, /plan chequea cobertura JTBD en UCs, /implement valida AC racionales vía Playwright (existente) y añade qualitative gate para JTBDs emocionales.",
+    "state": "todo",
+    "parent_id": "item-b590e2c4",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "high",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-D003",
+      "us_id": "US-D02",
+      "actor": "Engine",
+      "horas": "12",
+      "milestone": "H3",
+      "prd_path": "doc/prd/discovery_module_v6_prd.md"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-b42d7abc",
+    "name": "[AC-01] [AC-01] La invocación de /prd [feature_name] detecta automáticamente doc/discovery/<feature_name>/icp_jtbd.md si existe, lo lee y pre-rellena las secciones 'Audience' y 'Success Criteria' del PRD. [JR-1.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-5c18b578",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-7913c504",
+    "name": "[AC-02] [AC-02] El PRD generado contiene un bloque 'Discovery traceability' con: discovery_id, hash del icp_jtbd.md referenciado, lista de ICPs y JTBDs heredados. [JR-1.2, JE-1.3]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-5c18b578",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-a7a4547b",
+    "name": "[AC-03] [AC-03] Cada Acceptance Criterion del PRD lleva un tag [JR-X.Y] o [JE-X.Y] referenciando los JTBDs que satisface. Si un AC no tiene tag, el sistema emite warning ('AC-XX sin JTBD backing — ¿feature creep?'). [JR-1.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-5c18b578",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-3ae496ff",
+    "name": "[AC-04] [AC-04] La invocación de /plan [feature_name] lee el PRD taggeado, calcula la cobertura JTBD por UC y emite warning si algún JTBD definido en discovery no tiene UC que lo satisfaga. [JR-1.3, JE-1.1]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-5c18b578",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-e393f09f",
+    "name": "[AC-05] [AC-05] Durante /implement, los tests E2E Playwright (mecanismo existente) validan AC racionales como ahora. Para AC taggeados a JTBDs emocionales ([JE-X.Y]), se añade un qualitative gate: prompt al developer con preguntas reflexivas + screenshot review obligatorio antes de marcar AC como passed. [JR-1.3, JE-1.3]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-5c18b578",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-b851b208",
+    "name": "[AC-06] [AC-06] El HTML Evidence Report final (mecanismo existente evidenceStep()) incluye nueva sección 'Discovery alignment' mostrando: cobertura JTBD alcanzada, AC con qualitative gate passed, AC sin JTBD tag (si los hay). [JR-1.3]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-5c18b578",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-0be9e8f4",
+    "name": "[AC-07] [AC-07] La sincronización es bidireccional via apply_app_docs_sync extendido: cambios en icp_jtbd.md post-PRD generan warning de drift; cambios en AC sin update de JTBDs generan warning inverso. [JR-2.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-5c18b578",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-07",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "item-6845d9d5",
+    "name": "[UC-D004] Drift detection ICP/JTBD entre feature y producto",
+    "description": "Cada /discovery por feature compara los ICPs y JTBDs declarados contra app_market.md. Si introduce elementos no presentes a nivel producto, dispara warning estructurado que el user debe responder explícitamente.",
+    "state": "todo",
+    "parent_id": "item-80074a5f",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "high",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-D004",
+      "us_id": "US-D03",
+      "actor": "Engine",
+      "horas": "6",
+      "milestone": "H4",
+      "prd_path": "doc/prd/discovery_module_v6_prd.md"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-1f670ffe",
+    "name": "[AC-01] [AC-01] Al final de la Fase 2 (JTBD extraction) en UC-D001, el sistema compara cada ICP y JTBD declarado contra app_market.md. Elementos nuevos se listan explícitamente. [JR-1.2, JE-1.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-6845d9d5",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-3ca00936",
+    "name": "[AC-02] [AC-02] Para cada elemento nuevo, el sistema pregunta '¿Es esto: (a) feature creep que debería rechazarse, (b) extensión legítima que debería actualizar app_market.md, o (c) excepción puntual aceptable solo para esta feature?'. La respuesta se registra. [JR-1.2, JE-1.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-6845d9d5",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-c717b622",
+    "name": "[AC-03] [AC-03] Si la respuesta es (b), el sistema ofrece actualizar app_market.md ahí mismo. Si la respuesta es (c), registra 'excepción documentada' en icp_jtbd.md con justificación obligatoria. [JR-2.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-6845d9d5",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-618d17ed",
+    "name": "[AC-04] [AC-04] Si la respuesta es (a), la feature se marca como cancelada en /discovery y no genera artefacto que permita pasar a /prd. [JR-1.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-6845d9d5",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-c50ae960",
+    "name": "[AC-05] [AC-05] El hook verify_app_market (extensión de verify_app_docs existente) chequea sync entre app_market.md y los icp_jtbd.md de las últimas N features (default N=5). Si hay drift sistemático sin resolver, warning durante invocación de cualquier slash command. [JR-1.2, JE-1.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-6845d9d5",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "ac-a2f251fe",
+    "name": "[AC-06] [AC-06] Comando opcional /discovery --review muestra dashboard de drift: ICPs nuevos introducidos por feature en últimas 30 días, JTBDs emergentes, excepciones documentadas pendientes de resolver. NOTA: D-08 resuelve este AC como DEFERRED a v6.1 (no implementar en v6.0). [JR-1.2]",
+    "description": "",
+    "state": "pending",
+    "parent_id": "item-6845d9d5",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-24T22:10:59.073798+00:00"
   }
 ]

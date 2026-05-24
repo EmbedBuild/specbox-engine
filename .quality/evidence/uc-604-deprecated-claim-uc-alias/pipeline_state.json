@@ -1,0 +1,8 @@
+{
+  "feature": "uc-604-deprecated-claim-uc-alias",
+  "has_ui": false,
+  "has_db": false,
+  "completed_phases": ["db_infra", "stitch_designs", "design_to_code", "appscript", "n8n", "integration"],
+  "current_phase": "feature_code",
+  "last_updated": "2026-05-25T00:00:00Z"
+}

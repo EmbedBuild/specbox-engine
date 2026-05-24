@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-24T12:47:05.273554+00:00
+> Actualizado: 2026-05-24T13:04:10.917252+00:00
 
 ## User Stories
 
@@ -10,7 +10,7 @@
 | US-NATIVE-SUPABASE | [US-NATIVE-SUPABASE] Migrar el Native Backend de Postgres-VPS a Supabase gestionado | Done | 5 | 5 | 100% |
 | US-BACKEND-SWITCH | [US-BACKEND-SWITCH] Cambio guiado de backend entre los 4 (FreeForm/Trello/Plane/Native) | Review | 6 | 6 | 100% |
 | US-NATIVE-SECURITY | [US-NATIVE-SECURITY] Blindar el Native Backend contra mutaciones de identidades revocadas | Review | 6 | 6 | 100% |
-| US-CLAIM-RENAME | US-CLAIM-RENAME: Renombrar el concepto "claim" a "reservation" en Native Backend y Control Panel | User Stories | 0 | 12 | 0% |
+| US-CLAIM-RENAME | US-CLAIM-RENAME: Renombrar el concepto "claim" a "reservation" en Native Backend y Control Panel | User Stories | 0 | 13 | 0% |
 
 ## Use Cases
 
@@ -45,7 +45,7 @@
 | UC-506 | US-NATIVE-SECURITY | Done | 4 | 4 | 100% |
 | UC-601 | US-CLAIM-RENAME | Review | 3 | 3 | 100% |
 | UC-602 | US-CLAIM-RENAME | Review | 3 | 3 | 100% |
-| UC-603 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
+| UC-603 | US-CLAIM-RENAME | In Progress | 3 | 3 | 100% |
 | UC-604 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |
 | UC-605 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
 | UC-606 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |
@@ -55,3 +55,4 @@
 | UC-610 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
 | UC-611 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
 | UC-612 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |
+| UC-613 | US-CLAIM-RENAME | Backlog | 0 | 5 | 0% |

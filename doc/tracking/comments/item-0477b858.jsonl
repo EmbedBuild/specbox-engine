@@ -1,0 +1,4 @@
+{"id": "cmt-2a1ed2d6", "text": "Desarrollo iniciado: 2026-05-24T13:02:43.112788+00:00", "created_at": "2026-05-24T13:02:43.112806+00:00", "author": "freeform"}
+{"id": "cmt-6cec8a9a", "text": "Validacion AG-09b [2026-05-24 13:04 UTC]:\n  AC-01: PASSED\n  AC-02: PASSED\n  AC-03: PASSED", "created_at": "2026-05-24T13:04:10.923464+00:00", "author": "freeform"}
+{"id": "cmt-18cdb9be", "text": "Todos los criterios de aceptacion validados", "created_at": "2026-05-24T13:04:10.923550+00:00", "author": "freeform"}
+{"id": "cmt-d298f762", "text": "DELIVERY generado [2026-05-24 13:04 UTC] — UC-603 tool MCP descriptions + payload guard tests: 3/3 ACs PASS, 44/44 tests verde (+2 nuevos verifican que payloads de reserve_uc/release_uc no contienen vocabulario claim legacy en ninguna key ni valor).", "created_at": "2026-05-24T13:04:35.718567+00:00", "author": "freeform"}

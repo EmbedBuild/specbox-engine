@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-21T21:29:44.879633+00:00
+> Actualizado: 2026-05-23T12:59:32.346076+00:00
 
 ## User Stories
 
@@ -8,6 +8,9 @@
 |-----|--------|--------|----------|-----------|---|
 | US-NATIVE-BACKEND | [US-NATIVE-BACKEND] SpecBox para equipos sobre Postgres nativo | Done | 10 | 10 | 100% |
 | US-NATIVE-SUPABASE | [US-NATIVE-SUPABASE] Migrar el Native Backend de Postgres-VPS a Supabase gestionado | Done | 5 | 5 | 100% |
+| US-BACKEND-SWITCH | [US-BACKEND-SWITCH] Cambio guiado de backend entre los 4 (FreeForm/Trello/Plane/Native) | Review | 6 | 6 | 100% |
+| US-NATIVE-SECURITY | [US-NATIVE-SECURITY] Blindar el Native Backend contra mutaciones de identidades revocadas | Review | 6 | 6 | 100% |
+| US-CLAIM-RENAME | US-CLAIM-RENAME: Renombrar el concepto "claim" a "reservation" en Native Backend y Control Panel | User Stories | 0 | 12 | 0% |
 
 ## Use Cases
 
@@ -28,3 +31,27 @@
 | UC-403 | US-NATIVE-SUPABASE | Done | 3 | 3 | 100% |
 | UC-404 | US-NATIVE-SUPABASE | Done | 3 | 3 | 100% |
 | UC-405 | US-NATIVE-SUPABASE | Done | 3 | 3 | 100% |
+| UC-401 | US-BACKEND-SWITCH | Done | 0 | 3 | 0% |
+| UC-402 | US-BACKEND-SWITCH | Done | 0 | 3 | 0% |
+| UC-403 | US-BACKEND-SWITCH | Done | 0 | 3 | 0% |
+| UC-404 | US-BACKEND-SWITCH | Done | 0 | 4 | 0% |
+| UC-405 | US-BACKEND-SWITCH | Done | 0 | 3 | 0% |
+| UC-406 | US-BACKEND-SWITCH | Done | 3 | 3 | 100% |
+| UC-501 | US-NATIVE-SECURITY | Done | 5 | 5 | 100% |
+| UC-502 | US-NATIVE-SECURITY | Done | 6 | 6 | 100% |
+| UC-503 | US-NATIVE-SECURITY | Done | 4 | 4 | 100% |
+| UC-504 | US-NATIVE-SECURITY | Done | 3 | 3 | 100% |
+| UC-505 | US-NATIVE-SECURITY | Done | 3 | 3 | 100% |
+| UC-506 | US-NATIVE-SECURITY | Done | 4 | 4 | 100% |
+| UC-601 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
+| UC-602 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
+| UC-603 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
+| UC-604 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |
+| UC-605 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
+| UC-606 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |
+| UC-607 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
+| UC-608 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
+| UC-609 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |
+| UC-610 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
+| UC-611 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
+| UC-612 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |

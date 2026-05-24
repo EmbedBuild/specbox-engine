@@ -1,0 +1,8 @@
+{
+  "feature": "uc-601-rename-claims-to-reservations",
+  "has_ui": false,
+  "has_db": true,
+  "completed_phases": ["stitch_designs", "design_to_code", "feature_code", "appscript", "n8n", "integration"],
+  "current_phase": "db_infra",
+  "last_updated": "2026-05-24T00:00:00Z"
+}

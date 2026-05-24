@@ -1984,7 +1984,7 @@
     "id": "item-3f8428df",
     "name": "UC-601: Migración SQL: renombrar uc_claims → uc_reservations en specbox-engine",
     "description": "# UC-601: Migración SQL: renombrar uc_claims → uc_reservations en specbox-engine\n\n**User Story:** US-CLAIM-RENAME: Renombrar el concepto \"claim\" a \"reservation\" en Native Backend y Control Panel\n**Actor:** Engine\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [AC-01] La migración `0007_rename_claims_to_reservations.sql` existe, es idempotente (re-aplicarla dos veces no falla), y al aplicarse renombra `uc_claims` → `uc_reservations`, `claimed_at` → `reserved_at`, y el índice de developer_id; las filas pre-existentes se conservan (verificado insertando una fila antes, aplicando la migración, y haciendo SELECT que la recupere con los nuevos nombres).\n- AC-02: [AC-02] Tras aplicar la migración, `psql \\d uc_reservations` muestra la tabla con la PK `(project_id, uc_id)`, FKs ON DELETE CASCADE hacia `projects(project_id)` y `developers(developer_id)`, y la columna `reserved_at TIMESTAMPTZ NOT NULL DEFAULT now()`. La tabla `uc_claims` ya no existe (`SELECT to_regclass('uc_claims')` devuelve NULL).\n- AC-03: [AC-03] La migración puede aplicarse a un Postgres dev local levantado desde cero (sin filas previas) y a un Postgres con datos pre-migración sin warnings ni errores.\n\n## Contexto\n",
-    "state": "backlog",
+    "state": "in_progress",
     "parent_id": "item-d98d9b3d",
     "labels": [
       "UC",
@@ -2001,13 +2001,14 @@
     },
     "created_at": "2026-05-23T12:59:32.260290+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-24T12:25:31.268080+00:00"
   },
   {
     "id": "ac-c1397d1b",
     "name": "[AC-01] [AC-01] La migración `0007_rename_claims_to_reservations.sql` existe, es idempotente (re-aplicarla dos veces no falla), y al aplicarse renombra `uc_claims` → `uc_reservations`, `claimed_at` → `reserved_at`, y el índice de developer_id; las filas pre-existentes se conservan (verificado insertando una fila antes, aplicando la migración, y haciendo SELECT que la recupere con los nuevos nombres).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-3f8428df",
     "labels": [
       "AC"
@@ -2017,13 +2018,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.263922+00:00"
+    "created_at": "2026-05-23T12:59:32.263922+00:00",
+    "updated_at": "2026-05-24T12:29:44.412616+00:00"
   },
   {
     "id": "ac-0ea131d9",
     "name": "[AC-02] [AC-02] Tras aplicar la migración, `psql \\d uc_reservations` muestra la tabla con la PK `(project_id, uc_id)`, FKs ON DELETE CASCADE hacia `projects(project_id)` y `developers(developer_id)`, y la columna `reserved_at TIMESTAMPTZ NOT NULL DEFAULT now()`. La tabla `uc_claims` ya no existe (`SELECT to_regclass('uc_claims')` devuelve NULL).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-3f8428df",
     "labels": [
       "AC"
@@ -2033,13 +2035,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.263935+00:00"
+    "created_at": "2026-05-23T12:59:32.263935+00:00",
+    "updated_at": "2026-05-24T12:29:44.424425+00:00"
   },
   {
     "id": "ac-249c20ec",
     "name": "[AC-03] [AC-03] La migración puede aplicarse a un Postgres dev local levantado desde cero (sin filas previas) y a un Postgres con datos pre-migración sin warnings ni errores.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-3f8428df",
     "labels": [
       "AC"
@@ -2049,7 +2052,8 @@
       "ac_id": "AC-03",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.263939+00:00"
+    "created_at": "2026-05-23T12:59:32.263939+00:00",
+    "updated_at": "2026-05-24T12:29:44.433003+00:00"
   },
   {
     "id": "item-20514909",

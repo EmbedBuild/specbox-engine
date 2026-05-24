@@ -1,6 +1,6 @@
 {
   "project": "specbox-engine",
-  "timestamp": "2026-05-24T20:01:29Z",
+  "timestamp": "2026-05-24T22:04:38Z",
   "session_active": true,
   "current_phase": "implement",
   "current_feature": "",
@@ -11,13 +11,13 @@
   "healing_health": "healthy",
   "self_healing_events": 0,
   "last_operation": "idle",
-  "last_commit": "[UC-613] Wire-protocol rename: cache JSON + Node hook + REST URL (#54)",
-  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)T014a2701d5be4ab8543a737b8d5104713dd1b3b3:%M:HEADZ",
+  "last_commit": "commit",
+  "last_commit_at": "%Y->- (HEAD -> main, origin/main, origin/HEAD)Tc9c7e34a8306e1f225879f52b14e028444b46747:%M:HEADZ",
   "handoff_present": true,
-  "handoff_age_minutes": 4236,
+  "handoff_age_minutes": 4359,
   "context_pressure": {
-    "tokens_est": 39009,
-    "pct_of_window": 4,
+    "tokens_est": 225,
+    "pct_of_window": 0,
     "level": "healthy"
   },
   "stitch_quota": null,

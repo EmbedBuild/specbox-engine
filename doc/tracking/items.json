@@ -2926,7 +2926,7 @@
     "id": "item-05f5d00f",
     "name": "[UC-613] Eliminar deuda de wire-protocol cross-language: renombrar cache JSON + hook Node + endpoint REST de claim → reservation",
     "description": "Cerrar la única deuda técnica que dejó UC-602: la asimetría nombre↔valor `_NATIVE_RESERVATION_CACHE_KEY = \"claim\"` en `server/tools/spec_driven.py` (línea 63) y el wire-protocol cross-language Node↔Python↔REST que la justifica.\n\n**Contexto de la deuda**\n\nUC-602 renombró el módulo Python `coordination/claims.py` → `reservations.py` y todos sus identificadores. PERO el cache local `.quality/active_uc.json` mantiene la key `\"claim\"` porque dos consumidores en otro lenguaje aún no fueron renombrados:\n\n1. **Hook Node** `.claude/hooks/spec-guard.mjs` + `lib/native-claim-revalidate.mjs` — lee `payload.claim` del JSON local. Si el JSON cambia a `payload.reservation` sin actualizar el hook, spec-guard ve `payload.reservation == undefined` y trata el archivo como \"sin reserva nativa cacheada\" — permitiendo escrituras que deberían bloquearse. El hook es el guardia que impide escribir código sin UC activo, así que romperlo es un incidente de seguridad.\n\n2. **Endpoint REST MCP** `/api/native/claim-status` — el hook lo invoca para revalidar la reserva contra el MCP del VPS. Devuelve `{ uc_id, claim: {…} | null }`. Si renombramos cliente sin servidor (o viceversa), la revalidación se rompe.\n\nEl símbolo Python se llama `_NATIVE_RESERVATION_CACHE_KEY` (vocabulario nuevo) pero su valor es `\"claim\"` (vocabulario viejo). Esa grieta envejece mal: cualquier dev futuro pierde 5 minutos averiguando por qué nombre y valor no coinciden. Este UC la cierra.\n\n**Alcance**\n\n- Renombrar el archivo `lib/native-claim-revalidate.mjs` → `lib/native-reservation-revalidate.mjs` y todos sus identificadores (`decideNativeClaim` → `decideNativeReservation`, `probeNativeClaim` → `probeNativeReservation`, `getActiveUCClaim` → `getActiveUCReservation` en `lib/config.mjs`, etc.).\n- Renombrar la key del JSON local: `payload.claim` → `payload.reservation`. Eliminar `_NATIVE_RESERVATION_CACHE_KEY = \"claim\"` de `spec_driven.py` y usar la key literal `\"reservation\"` directamente. Eliminar el fallback `reservation.get(\"claimed_at\")` que UC-602 dejó por compat.\n- Renombrar el endpoint REST `/api/native/claim-status` → `/api/native/reservation-status` y la shape de respuesta `{ uc_id, claim: … }` → `{ uc_id, reservation: … }`.\n- Compat transitoria durante el periodo de deprecación (alineado con UC-604 / UC-612):\n  - El hook Node lee primero `payload.reservation` y cae a `payload.claim` como fallback (logging warning). Eliminado en UC-612.\n  - El endpoint REST sigue sirviendo `/api/native/claim-status` con 301 redirect a `/api/native/reservation-status`. Eliminado en UC-612.\n- Coordinar orden de deployment: el MCP del VPS debe servir el endpoint nuevo ANTES de que se distribuya el hook nuevo a las máquinas de devs. La compat bidireccional garantiza que cualquier permutación cliente-servidor durante el rollout funcione.\n\n**Fuera de scope**\n\n- Cambiar la semántica del cache (sigue siendo una snapshot revalidable de la reserva remota).\n- Migrar archivos `.quality/active_uc.json` existentes en disco — son efímeros (los regenera `start_uc` o `_write_active_uc_marker`), no requieren migración.\n\n**Orden**\n\nUC-613 corre DESPUÉS de UC-604 (alias deprecados de tools) y ANTES de UC-612 (eliminación de alias deprecados en v5.37.0). UC-612 retira tanto el alias `claim_uc` como el endpoint legacy `/api/native/claim-status` y la lectura fallback de `payload.claim` — todo en el mismo barrido.",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-d98d9b3d",
     "labels": [
       "UC"
@@ -2940,10 +2940,12 @@
       "horas": "3",
       "milestone": "H4",
       "scheduled_before": "UC-612",
-      "closes_debt_from": "UC-602"
+      "closes_debt_from": "UC-602",
+      "shipped_pr": "#54",
+      "shipped_commit": "014a270"
     },
     "created_at": "2026-05-24T13:00:58.481661+00:00",
-    "updated_at": "2026-05-24T16:51:52.572706+00:00"
+    "updated_at": "2026-05-25T00:00:00.000000+00:00"
   },
   {
     "id": "ac-821d158f",

@@ -1,0 +1,4 @@
+{"id": "cmt-5186519c", "text": "Desarrollo iniciado: 2026-05-24T19:39:06.721848+00:00", "created_at": "2026-05-24T19:39:06.721848+00:00", "author": "freeform"}
+{"id": "cmt-a4cd5bcb", "text": "Validacion AG-09b [2026-05-24T19:39 UTC]:\n  AC-01: PASSED\n  AC-02: PASSED\n  AC-03: PASSED", "created_at": "2026-05-24T19:39:06.721848+00:00", "author": "freeform"}
+{"id": "cmt-335d022e", "text": "Todos los criterios de aceptacion validados", "created_at": "2026-05-24T19:39:06.721848+00:00", "author": "freeform"}
+{"id": "cmt-49063bb9", "text": "DELIVERY [2026-05-24T19:39 UTC] — UC-608 API + shared types rename: 3/3 ACs PASS. PR EmbedBuild/specbox-control-panel#11 merged squash. Tests 19/19 verde en apps/api (vitest), tsc -b clean, eslint 0 warnings. Sin alias FROM uc_claims en código (grep -c). Web compila roto a propósito hasta UC-609.", "created_at": "2026-05-24T19:39:06.721848+00:00", "author": "freeform"}

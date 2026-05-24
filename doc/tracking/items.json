@@ -2539,7 +2539,7 @@
     "id": "item-17edb5a4",
     "name": "UC-608: Control Panel — API: renombrar endpoint /claims/active → /reservations/active y schemas",
     "description": "# UC-608: Control Panel — API: renombrar endpoint /claims/active → /reservations/active y schemas\n\n**User Story:** US-CLAIM-RENAME: Renombrar el concepto \"claim\" a \"reservation\" en Native Backend y Control Panel\n**Actor:** ControlPanel\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [AC-01] `GET /api/v1/reservations/active` responde 200 con array de objetos `{project_id, uc_id, developer_id, branch, reserved_at, claimed_at}` (ambas fechas idénticas durante la ventana de compatibilidad). `GET /api/v1/claims/active` ya no existe (404) o redirige 301 a `/reservations/active`.\n- AC-02: [AC-02] En `packages/shared/src/`, el tipo `ReservationRow` está exportado con todos los campos en su forma nueva; el alias `ClaimRow` está marcado `@deprecated` y reexporta el mismo tipo (verificable con `tsc --noEmit` y assertion `expectType<ReservationRow>({} as ClaimRow)`).\n- AC-03: [AC-03] La consulta SQL en el plugin pg de la API selecciona desde `uc_reservations` (verificado con un test de integración o un grep `'FROM uc_claims'` que devuelve 0 hits en `apps/api/src/`).\n\n## Contexto\n",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-d98d9b3d",
     "labels": [
       "UC",
@@ -2610,7 +2610,7 @@
     "id": "item-abbc56c5",
     "name": "UC-609: Control Panel — UI: ruta /claims → /reservations, ClaimsPage, sidebar, breadcrumbs, copy",
     "description": "# UC-609: Control Panel — UI: ruta /claims → /reservations, ClaimsPage, sidebar, breadcrumbs, copy\n\n**User Story:** US-CLAIM-RENAME: Renombrar el concepto \"claim\" a \"reservation\" en Native Backend y Control Panel\n**Actor:** ControlPanel\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [AC-01] Navegar a `https://specbox-controlpanel.embed.build/reservations` (o `pnpm dev` local) renderiza la lista de reservas activas con título `\"Reservas activas\"`; navegar a `/claims` redirige a `/reservations` automáticamente (301 / Navigate replace).\n- AC-02: [AC-02] El sidebar muestra el item `\"Reservas\"` con el icono renombrado; ningún texto visible en la UI muestra la palabra \"claim\" o \"Claim\" o \"claims\" (verificado con búsqueda manual y con un script `grep -rni 'claim' apps/web/src/` que devuelve 0 hits fuera de comentarios JSDoc que mencionan el rename histórico).\n- AC-03: [AC-03] `pnpm --filter @specbox-panel/web test` termina en verde (los tests unitarios y de snapshot se actualizan a los nuevos nombres) y `tsc -b` no reporta errores de tipos.\n- AC-04: [AC-04] El componente `<ActivityFeed>` renderiza las dos copias nuevas: \"reservó\" y \"liberó la reserva de\" — verificado con un test de snapshot.\n\n## Contexto\n",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-d98d9b3d",
     "labels": [
       "UC",
@@ -2697,7 +2697,7 @@
     "id": "item-26820f78",
     "name": "UC-610: Control Panel — Mock data, tipos compartidos y tests E2E Playwright",
     "description": "# UC-610: Control Panel — Mock data, tipos compartidos y tests E2E Playwright\n\n**User Story:** US-CLAIM-RENAME: Renombrar el concepto \"claim\" a \"reservation\" en Native Backend y Control Panel\n**Actor:** ControlPanel\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [AC-01] `apps/web/src/lib/mockData.ts` exporta `mockReservations`, `reservationAgeHours`, y `mockProjects[i].active_reservations`; `grep -n 'claim\\|Claim' apps/web/src/lib/mockData.ts` devuelve 0 hits.\n- AC-02: [AC-02] El test E2E `apps/web/e2e/reservations-active.spec.ts` existe y pasa contra `pnpm dev` local (verificado con `pnpm --filter @specbox-panel/web test:e2e`).\n- AC-03: [AC-03] Los tres UCs del tracking del panel (UC-005, UC-114, UC-125) tienen la nota \"Renombrado v5.35.0\" añadida al final de la descripción, pero el resto del contenido histórico se preserva intacto.\n\n## Contexto\n",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-d98d9b3d",
     "labels": [
       "UC",
@@ -2768,7 +2768,7 @@
     "id": "item-1ca1ad69",
     "name": "UC-611: Control Panel — Docs (CLAUDE.md, README, app_spec.md, app_prd.md)",
     "description": "# UC-611: Control Panel — Docs (CLAUDE.md, README, app_spec.md, app_prd.md)\n\n**User Story:** US-CLAIM-RENAME: Renombrar el concepto \"claim\" a \"reservation\" en Native Backend y Control Panel\n**Actor:** ControlPanel\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [AC-01] `grep -rn 'claim\\|Claim' README.md CLAUDE.md doc/app/app_spec.md` (en el repo del Control Panel) devuelve 0 hits, excepto la nota explícita del rename histórico que menciona el término entre comillas.\n- AC-02: [AC-02] `doc/app/app_spec.md` del Control Panel tiene en `canonical_decisions` el append del rename con fecha exacta y referencia a v5.35.0 del engine.\n- AC-03: [AC-03] El item de tracking del Control Panel para esta US del engine se crea como `US-CLAIM-RENAME-PANEL-MIRROR` (espejo no autoritativo) con un solo UC `UC-PANEL-MIRROR-RENAME` que apunta a los UCs reales 608-611 de este tracking, para que el dashboard del panel los muestre cuando alguien filtra por 'todo lo del panel'.\n\n## Contexto\n",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-d98d9b3d",
     "labels": [
       "UC",
@@ -2926,7 +2926,7 @@
     "id": "item-05f5d00f",
     "name": "[UC-613] Eliminar deuda de wire-protocol cross-language: renombrar cache JSON + hook Node + endpoint REST de claim → reservation",
     "description": "Cerrar la única deuda técnica que dejó UC-602: la asimetría nombre↔valor `_NATIVE_RESERVATION_CACHE_KEY = \"claim\"` en `server/tools/spec_driven.py` (línea 63) y el wire-protocol cross-language Node↔Python↔REST que la justifica.\n\n**Contexto de la deuda**\n\nUC-602 renombró el módulo Python `coordination/claims.py` → `reservations.py` y todos sus identificadores. PERO el cache local `.quality/active_uc.json` mantiene la key `\"claim\"` porque dos consumidores en otro lenguaje aún no fueron renombrados:\n\n1. **Hook Node** `.claude/hooks/spec-guard.mjs` + `lib/native-claim-revalidate.mjs` — lee `payload.claim` del JSON local. Si el JSON cambia a `payload.reservation` sin actualizar el hook, spec-guard ve `payload.reservation == undefined` y trata el archivo como \"sin reserva nativa cacheada\" — permitiendo escrituras que deberían bloquearse. El hook es el guardia que impide escribir código sin UC activo, así que romperlo es un incidente de seguridad.\n\n2. **Endpoint REST MCP** `/api/native/claim-status` — el hook lo invoca para revalidar la reserva contra el MCP del VPS. Devuelve `{ uc_id, claim: {…} | null }`. Si renombramos cliente sin servidor (o viceversa), la revalidación se rompe.\n\nEl símbolo Python se llama `_NATIVE_RESERVATION_CACHE_KEY` (vocabulario nuevo) pero su valor es `\"claim\"` (vocabulario viejo). Esa grieta envejece mal: cualquier dev futuro pierde 5 minutos averiguando por qué nombre y valor no coinciden. Este UC la cierra.\n\n**Alcance**\n\n- Renombrar el archivo `lib/native-claim-revalidate.mjs` → `lib/native-reservation-revalidate.mjs` y todos sus identificadores (`decideNativeClaim` → `decideNativeReservation`, `probeNativeClaim` → `probeNativeReservation`, `getActiveUCClaim` → `getActiveUCReservation` en `lib/config.mjs`, etc.).\n- Renombrar la key del JSON local: `payload.claim` → `payload.reservation`. Eliminar `_NATIVE_RESERVATION_CACHE_KEY = \"claim\"` de `spec_driven.py` y usar la key literal `\"reservation\"` directamente. Eliminar el fallback `reservation.get(\"claimed_at\")` que UC-602 dejó por compat.\n- Renombrar el endpoint REST `/api/native/claim-status` → `/api/native/reservation-status` y la shape de respuesta `{ uc_id, claim: … }` → `{ uc_id, reservation: … }`.\n- Compat transitoria durante el periodo de deprecación (alineado con UC-604 / UC-612):\n  - El hook Node lee primero `payload.reservation` y cae a `payload.claim` como fallback (logging warning). Eliminado en UC-612.\n  - El endpoint REST sigue sirviendo `/api/native/claim-status` con 301 redirect a `/api/native/reservation-status`. Eliminado en UC-612.\n- Coordinar orden de deployment: el MCP del VPS debe servir el endpoint nuevo ANTES de que se distribuya el hook nuevo a las máquinas de devs. La compat bidireccional garantiza que cualquier permutación cliente-servidor durante el rollout funcione.\n\n**Fuera de scope**\n\n- Cambiar la semántica del cache (sigue siendo una snapshot revalidable de la reserva remota).\n- Migrar archivos `.quality/active_uc.json` existentes en disco — son efímeros (los regenera `start_uc` o `_write_active_uc_marker`), no requieren migración.\n\n**Orden**\n\nUC-613 corre DESPUÉS de UC-604 (alias deprecados de tools) y ANTES de UC-612 (eliminación de alias deprecados en v5.37.0). UC-612 retira tanto el alias `claim_uc` como el endpoint legacy `/api/native/claim-status` y la lectura fallback de `payload.claim` — todo en el mismo barrido.",
-    "state": "in_progress",
+    "state": "review",
     "parent_id": "item-d98d9b3d",
     "labels": [
       "UC"
@@ -2943,7 +2943,7 @@
       "closes_debt_from": "UC-602"
     },
     "created_at": "2026-05-24T13:00:58.481661+00:00",
-    "updated_at": "2026-05-24T13:26:10.041490+00:00"
+    "updated_at": "2026-05-24T16:51:52.572706+00:00"
   },
   {
     "id": "ac-821d158f",

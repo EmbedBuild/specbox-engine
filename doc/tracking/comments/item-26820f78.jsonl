@@ -1,0 +1,4 @@
+{"id": "cmt-f87720d1", "text": "Desarrollo iniciado: 2026-05-24T20:01:40.148222+00:00", "created_at": "2026-05-24T20:01:40.148222+00:00", "author": "freeform"}
+{"id": "cmt-0a67e88b", "text": "Validacion AG-09b [2026-05-24T20:01 UTC]:\n  AC-01: PASSED\n  AC-02: PASSED\n  AC-03: PASSED", "created_at": "2026-05-24T20:01:40.148222+00:00", "author": "freeform"}
+{"id": "cmt-90251611", "text": "Todos los criterios de aceptacion validados", "created_at": "2026-05-24T20:01:40.148222+00:00", "author": "freeform"}
+{"id": "cmt-66f36ddc", "text": "DELIVERY [2026-05-24T20:01 UTC] — UC-610 mock + E2E + tracking notes: 3/3 ACs PASS. PR #14 merged squash. Tests web 11/11 vitest + 3/3 Playwright contra dev server local (chromium), tsc clean, eslint 0 warnings, api 19/19 regresión verde. Mock data grep claim/Claim = 0 hits.", "created_at": "2026-05-24T20:01:40.148222+00:00", "author": "freeform"}

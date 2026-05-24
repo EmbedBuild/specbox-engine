@@ -1,0 +1,98 @@
+# Mercado del producto — {project_name}
+
+**Última actualización:** {date_iso}
+**Versión del documento:** 1
+**Mantenido por:** /discovery (modo bootstrap) y eventos de pipeline
+
+---
+
+> Documento canónico nivel producto. Cambia raramente. Define para quién es la app entera y qué jobs aborda. Cada feature individual hereda de este documento via `/discovery <feature_name>`.
+
+<!-- @specbox:zone start kind="manual" id="icps_primary" status="template-pristine" -->
+## 1. ICPs primarios
+
+{1-3 ICPs canónicos. Para cada uno: rol, 3 atributos diferenciadores, watering hole.}
+
+**ICP-1: {nombre}**
+- **Perfil**: {rol, contexto, nivel técnico}
+- **Atributos diferenciadores**: {3 atributos que lo distinguen}
+- **Watering hole**: {dónde encontrarlos}
+<!-- @specbox:zone end -->
+
+<!-- @specbox:zone start kind="manual" id="anti_icps" status="template-pristine" -->
+## 2. No-ICPs (anti-mercado)
+
+{Quién explícitamente NO es target. Protege contra feature creep. Identificar no-ICPs es tan importante como identificar ICPs.}
+
+- **{tipo}**: {por qué NO es target}
+<!-- @specbox:zone end -->
+
+<!-- @specbox:zone start kind="manual" id="jtbds_rational" status="template-pristine" -->
+## 3. JTBDs racionales principales
+
+{3-5 jobs funcionales globales. Formato canónico: "Cuando [situación], quiero [motivación], para [resultado].".}
+
+**Para {ICP-X}:**
+- **JR-X.1**: Cuando {situación}, quiero {motivación}, para {resultado}.
+- **JR-X.2**: ...
+<!-- @specbox:zone end -->
+
+<!-- @specbox:zone start kind="manual" id="jtbds_emotional" status="template-pristine" -->
+## 4. JTBDs emocionales principales
+
+{2-3 sensaciones que el producto entrega o evita. Estos NO se validan con tests E2E automatizados; se validan con qualitative gate en /implement.}
+
+**Para {ICP-X}:**
+- **JE-X.1**: {sensación a entregar o evitar}
+- **JE-X.2**: ...
+<!-- @specbox:zone end -->
+
+<!-- @specbox:zone start kind="manual" id="north_star_metric" status="template-pristine" -->
+## 5. North Star Metric
+
+**NSM**: {1 métrica primaria con criterio de medición claro}
+
+**Input metrics** (leading indicators):
+- {métrica indicador 1}
+- {métrica indicador 2}
+- {métrica indicador 3}
+<!-- @specbox:zone end -->
+
+<!-- @specbox:zone start kind="manual" id="positioning" status="template-pristine" -->
+## 6. Posicionamiento competitivo (opcional)
+
+{Frente a qué alternativas, en qué dimensión ganamos. Puede saltarse en bootstrap.}
+
+**Mensaje canónico**: *"{frase única que sintetiza la propuesta}"*
+
+Frente a {alternativa-1, alternativa-2, ...}:
+- {Dimensión donde ganamos, por qué}
+<!-- @specbox:zone end -->
+
+<!-- @specbox:zone start kind="manual" id="anti_features" status="template-pristine" -->
+## 7. Principios anti-feature (opcional)
+
+{Cosas que el producto NUNCA hace, aunque pudiera. Protege contra feature creep filosófico.}
+
+- **NO {acción}**: {razón filosófica/técnica}
+<!-- @specbox:zone end -->
+
+<!-- @specbox:zone start kind="auto" id="exportable_copy" auto_sync_on="app_market_icp_added,app_market_jtbd_added,nsm_updated" -->
+## 8. Exportable copy (auto-derivado)
+
+> Esta zona la mantiene el engine. Se regenera automáticamente cuando ICPs/JTBDs/NSM cambian.
+
+### Landing headline
+_(Se generará automáticamente desde ICPs+JTBDs cuando /discovery bootstrap mode complete las zonas manuales.)_
+
+### LinkedIn post template
+_(Se generará automáticamente.)_
+
+### Elevator pitch (30 segundos)
+_(Se generará automáticamente.)_
+<!-- @specbox:zone end -->
+
+---
+
+**Signature**: _(computada por record_app_docs_signature)_
+**Last updated**: _(actualizado por sync events)_

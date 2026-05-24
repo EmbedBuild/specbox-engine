@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "generated_by": ".quality/scripts/regenerate-canonical-docs-json.py",
+  "source": "server/app_docs/registry.py",
+  "docs": [
+    {
+      "id": "app_prd",
+      "path": "doc/app/app_prd.md",
+      "introduced_in": "5.29.0",
+      "template_path": "templates/app_prd.md.template",
+      "required_zones": {
+        "vision": "manual",
+        "audience": "manual",
+        "scope": "manual",
+        "success_metrics": "hybrid",
+        "roadmap": "auto",
+        "stakeholders": "manual"
+      },
+      "event_zone_map": {
+        "complete_uc": [
+          "roadmap"
+        ],
+        "move_uc": [
+          "roadmap"
+        ],
+        "add_uc": [
+          "roadmap"
+        ],
+        "delete_uc": [
+          "roadmap"
+        ],
+        "mark_ac_batch": [
+          "roadmap",
+          "success_metrics"
+        ]
+      }
+    },
+    {
+      "id": "app_spec",
+      "path": "doc/app/app_spec.md",
+      "introduced_in": "5.29.0",
+      "template_path": "templates/app_spec.md.template",
+      "required_zones": {
+        "stack": "auto",
+        "tracking_backend": "auto",
+        "autopilot": "auto",
+        "canonical_decisions": "hybrid"
+      },
+      "event_zone_map": {
+        "set_auth_token": [
+          "tracking_backend"
+        ],
+        "lockfile_change": [
+          "stack"
+        ],
+        "framework_detected": [
+          "stack"
+        ],
+        "release_version_bump": [
+          "stack"
+        ],
+        "autopilot_config_change": [
+          "autopilot"
+        ],
+        "canonical_decision_created": [
+          "canonical_decisions"
+        ],
+        "canonical_decision_revoked": [
+          "canonical_decisions"
+        ]
+      }
+    },
+    {
+      "id": "app_market",
+      "path": "doc/app/app_market.md",
+      "introduced_in": "6.0.0",
+      "template_path": "templates/app_market.md.template",
+      "required_zones": {
+        "icps_primary": "manual",
+        "anti_icps": "manual",
+        "jtbds_rational": "manual",
+        "jtbds_emotional": "manual",
+        "north_star_metric": "manual",
+        "positioning": "manual",
+        "anti_features": "manual",
+        "exportable_copy": "auto"
+      },
+      "event_zone_map": {
+        "app_market_icp_added": [
+          "exportable_copy"
+        ],
+        "app_market_jtbd_added": [
+          "exportable_copy"
+        ],
+        "nsm_updated": [
+          "exportable_copy"
+        ]
+      }
+    }
+  ]
+}

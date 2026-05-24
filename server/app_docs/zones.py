@@ -50,6 +50,7 @@ class Zone:
     start_line: int = 0  # 1-based, line of the `start` marker
     end_line: int = 0    # 1-based, line of the `end` marker
     body: str = ""       # text strictly between the markers (excludes markers themselves)
+    status: str | None = None  # optional; "template-pristine" marks zonas vacías de plantilla recién creada
 
 
 @dataclass
@@ -164,6 +165,7 @@ def parse_document(path: Path | str, *, content: str | None = None) -> ParsedDoc
                 id=zone_id,
                 auto_sync_on=auto_sync_on,
                 merge=attrs.get("merge"),
+                status=attrs.get("status"),  # v6.0: "template-pristine" para plantillas vacías
                 start_line=idx,
             )
             open_zone_body_lines = []

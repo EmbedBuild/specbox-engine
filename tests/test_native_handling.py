@@ -27,7 +27,7 @@ import asyncpg
 import pytest
 
 from server.backends.native_backend import NativeBackend
-from server.coordination import claims as claims_mod
+from server.coordination import reservations as claims_mod  # alias kept for UC-605 to refactor
 from server.db.migrate import apply_migrations
 from server.db.pool import close_pool, init_pool
 from server.migration.native_handling import (
@@ -79,7 +79,7 @@ async def test_collect_discarded_native_state_reports_claim(native_pool):
         us = await be.create_item(pid, name="US-01: Exit", labels=["US"])
         uc = await be.create_item(pid, name="UC-101: Migrate out", labels=["UC"], parent_id=us.id)
         async with native_pool.acquire() as conn:
-            await claims_mod.claim_uc(
+            await claims_mod.reserve_uc(
                 conn,
                 project_id=pid,
                 uc_id=uc.id,
@@ -89,11 +89,11 @@ async def test_collect_discarded_native_state_reports_claim(native_pool):
 
         discarded = await collect_discarded_native_state(native_pool, pid)
 
-        assert discarded["counts"]["claims"] >= 1
+        assert discarded["counts"]["reservations"] >= 1
         assert discarded["counts"]["developers"] >= 1
-        claim_uc_ids = {c["uc_id"] for c in discarded["claims"]}
+        claim_uc_ids = {c["uc_id"] for c in discarded["reservations"]}
         assert uc.id in claim_uc_ids, "the active claim must appear with its uc_id"
-        the_claim = next(c for c in discarded["claims"] if c["uc_id"] == uc.id)
+        the_claim = next(c for c in discarded["reservations"] if c["uc_id"] == uc.id)
         assert the_claim["developer_id"] == "dev-exit"
 
         # build_native_exit_report wraps it under the section + note.
@@ -140,8 +140,8 @@ async def test_collect_discarded_empty_when_no_coordination(native_pool):
     await be.setup_board("UC-403 empty test")
     try:
         discarded = await collect_discarded_native_state(native_pool, pid)
-        assert discarded["counts"] == {"claims": 0, "developers": 0, "branches": 0}
-        assert discarded["claims"] == []
+        assert discarded["counts"] == {"reservations": 0, "developers": 0, "branches": 0}
+        assert discarded["reservations"] == []
         assert discarded["developers"] == []
         assert discarded["branches"] == []
     finally:
@@ -254,7 +254,7 @@ async def test_serialized_report_never_leaks_dsn(native_pool):
         us = await be.create_item(pid, name="US-01: Secret", labels=["US"])
         uc = await be.create_item(pid, name="UC-101: Secret UC", labels=["UC"], parent_id=us.id)
         async with native_pool.acquire() as conn:
-            await claims_mod.claim_uc(
+            await claims_mod.reserve_uc(
                 conn,
                 project_id=pid,
                 uc_id=uc.id,

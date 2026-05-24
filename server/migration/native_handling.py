@@ -4,7 +4,7 @@ The Native backend (Postgres/Supabase) is the only multi-developer backend.
 When migrating **into** Native (AC-08) we must seed a developer identity so the
 imported board has an identified owner. When migrating **out of** Native (AC-07)
 we must surface the multi-developer coordination state that is *intentionally
-not* carried over to single-user backends (Trello/Plane/FreeForm) — claims,
+not* carried over to single-user backends (Trello/Plane/FreeForm) — reservations,
 developer roster and branch registrations — so the migration report is honest
 about what was discarded.
 
@@ -25,13 +25,13 @@ from typing import Any
 import asyncpg
 import structlog
 
-from ..coordination import claims as claims_mod
 from ..coordination import identity as identity_mod
+from ..coordination import reservations as reservations_mod
 
 logger = structlog.get_logger(__name__)
 
 #: Note prepended to the discarded-state section of a Native→other report.
-DISCARD_NOTE = "Claims, developer identity and branch registrations are NOT migrated to single-user backends."
+DISCARD_NOTE = "Reservations, developer identity and branch registrations are NOT migrated to single-user backends."
 
 
 # ── AC-07: Native → other (collect what is discarded) ────────────────────
@@ -41,10 +41,10 @@ async def collect_discarded_native_state(pool: asyncpg.Pool, project_id: str) ->
     """Collect the multi-developer coordination state that won't be migrated.
 
     Reads the three Native-only coordination tables for ``project_id``:
-    ``uc_claims`` (active claims), ``developers`` joined via ``project_members``
-    (the roster) and ``branch_registry`` (registered feature branches). None of
-    these have an equivalent on Trello/Plane/FreeForm, so they are reported but
-    not carried over.
+    ``uc_reservations`` (active reservations), ``developers`` joined via
+    ``project_members`` (the roster) and ``branch_registry`` (registered
+    feature branches). None of these have an equivalent on
+    Trello/Plane/FreeForm, so they are reported but not carried over.
 
     Frontier 2 [AC-09]: the returned dict never contains a token (the developer
     roster exposes only ``developer_id`` / ``display_name``, never
@@ -55,11 +55,11 @@ async def collect_discarded_native_state(pool: asyncpg.Pool, project_id: str) ->
         project_id: The Native project whose coordination state to read.
 
     Returns:
-        Dict with ``claims`` (list), ``developers`` (list), ``branches`` (list)
-        and ``counts`` (dict with the three lengths).
+        Dict with ``reservations`` (list), ``developers`` (list), ``branches``
+        (list) and ``counts`` (dict with the three lengths).
     """
     async with pool.acquire() as conn:
-        active_claims = await claims_mod.list_active_claims(conn, project_id)
+        active_reservations = await reservations_mod.list_active_reservations(conn, project_id)
 
         member_rows = await conn.fetch(
             """
@@ -82,14 +82,14 @@ async def collect_discarded_native_state(pool: asyncpg.Pool, project_id: str) ->
             project_id,
         )
 
-    claims_out = [
+    reservations_out = [
         {
-            "uc_id": claim.uc_id,
-            "developer_id": claim.developer_id,
-            "branch": claim.branch,
-            "claimed_at": claim.claimed_at,
+            "uc_id": reservation.uc_id,
+            "developer_id": reservation.developer_id,
+            "branch": reservation.branch,
+            "reserved_at": reservation.reserved_at,
         }
-        for claim in active_claims
+        for reservation in active_reservations
     ]
     developers_out = [
         {
@@ -111,17 +111,17 @@ async def collect_discarded_native_state(pool: asyncpg.Pool, project_id: str) ->
     logger.info(
         "discarded_native_state_collected",
         project_id=project_id,
-        claims=len(claims_out),
+        reservations=len(reservations_out),
         developers=len(developers_out),
         branches=len(branches_out),
     )
 
     return {
-        "claims": claims_out,
+        "reservations": reservations_out,
         "developers": developers_out,
         "branches": branches_out,
         "counts": {
-            "claims": len(claims_out),
+            "reservations": len(reservations_out),
             "developers": len(developers_out),
             "branches": len(branches_out),
         },

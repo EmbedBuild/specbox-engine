@@ -1,13 +1,18 @@
-"""Unit + PG-gated tests for the NativeBackend claims layer — H3.
+"""Unit + PG-gated tests for the NativeBackend reservations layer — H3.
 
-Covers UC-301..304 acceptance criteria:
+Covers UC-301..304 acceptance criteria. The concept was renamed from "claim"
+to "reservation" in v5.35.0 (US-CLAIM-RENAME); the file name is preserved
+for now (UC-605 will rename to test_coordination_reservations.py) but the
+identifiers below use the new vocabulary:
 
-- AC-16: uc_claims UNIQUE → exactly one of two concurrent claims wins, the
-  other gets ALREADY_CLAIMED (verified for real in the PG-gated race test).
-- AC-17: release_uc only by the owner; NOT_CLAIM_OWNER otherwise (claim kept).
-- AC-18: start_uc_atomic claims + sets in_progress in one tx — no orphan claim
-  if the state UPDATE fails.
-- AC-19: the ALREADY_CLAIMED conflict carries owner / claimed_at / branch.
+- AC-16: uc_reservations UNIQUE → exactly one of two concurrent reservations
+  wins, the other gets ALREADY_RESERVED (verified for real in the PG-gated
+  race test).
+- AC-17: release_uc only by the owner; NOT_RESERVATION_OWNER otherwise
+  (reservation kept).
+- AC-18: start_uc_atomic reserves + sets in_progress in one tx — no orphan
+  reservation if the state UPDATE fails.
+- AC-19: the ALREADY_RESERVED conflict carries owner / reserved_at / branch.
 - AC-23: branch_registry rejects a colliding branch and suggests
   feature/{uc_id}-... naming.
 
@@ -30,12 +35,12 @@ from server.coordination.branches import (
     register_branch,
     suggest_branch_name,
 )
-from server.coordination.claims import (
-    AlreadyClaimedError,
-    Claim,
-    NotClaimOwnerError,
-    claim_uc,
+from server.coordination.reservations import (
+    AlreadyReservedError,
+    NotReservationOwnerError,
+    UCReservation,
     release_uc,
+    reserve_uc,
 )
 
 
@@ -53,7 +58,7 @@ class FakeConn:
         return "DELETE 1"
 
     async def fetchrow(self, sql, *args):
-        if "INSERT INTO uc_claims" in sql and self._insert_raises:
+        if "INSERT INTO uc_reservations" in sql and self._insert_raises:
             raise self._insert_raises
         return self._fetchrow(sql, *args) if self._fetchrow else None
 
@@ -62,13 +67,13 @@ class FakeConn:
         yield
 
 
-def _claim_row(uc_id="UC-301", dev="alice", branch="feature/uc-301"):
+def _reservation_row(uc_id="UC-301", dev="alice", branch="feature/uc-301"):
     return {
         "project_id": "p",
         "uc_id": uc_id,
         "developer_id": dev,
         "branch": branch,
-        "claimed_at": "2026-05-21T20:00:00+00:00",
+        "reserved_at": "2026-05-21T20:00:00+00:00",
     }
 
 
@@ -76,42 +81,42 @@ def _claim_row(uc_id="UC-301", dev="alice", branch="feature/uc-301"):
 
 
 async def test_claim_uc_success():
-    conn = FakeConn(fetchrow=lambda sql, *a: _claim_row(dev="alice"))
-    claim = await claim_uc(conn, project_id="p", uc_id="UC-301", developer_id="alice")
-    assert isinstance(claim, Claim)
+    conn = FakeConn(fetchrow=lambda sql, *a: _reservation_row(dev="alice"))
+    claim = await reserve_uc(conn, project_id="p", uc_id="UC-301", developer_id="alice")
+    assert isinstance(claim, UCReservation)
     assert claim.developer_id == "alice"
     assert claim.uc_id == "UC-301"
 
 
 async def test_claim_uc_already_claimed_carries_owner_info():
-    """AC-19: ALREADY_CLAIMED conflict includes owner / claimed_at / branch."""
+    """AC-19: ALREADY_RESERVED conflict includes owner / reserved_at / branch."""
 
     def fetchrow(sql, *args):
         # The SELECT after the unique violation returns the existing claim.
-        return _claim_row(dev="bob", branch="feature/uc-301-bob")
+        return _reservation_row(dev="bob", branch="feature/uc-301-bob")
 
     conn = FakeConn(
         fetchrow=fetchrow,
         insert_raises=asyncpg.UniqueViolationError("dup"),
     )
-    with pytest.raises(AlreadyClaimedError) as exc:
-        await claim_uc(conn, project_id="p", uc_id="UC-301", developer_id="alice")
+    with pytest.raises(AlreadyReservedError) as exc:
+        await reserve_uc(conn, project_id="p", uc_id="UC-301", developer_id="alice")
 
-    conflict = exc.value.to_conflict()
-    assert conflict["code"] == "ALREADY_CLAIMED"
+    conflict = exc.value.to_payload()
+    assert conflict["code"] == "ALREADY_RESERVED"
     assert conflict["owner"] == "bob"
     assert conflict["branch"] == "feature/uc-301-bob"
-    assert conflict["claimed_at"] == "2026-05-21T20:00:00+00:00"
+    assert conflict["reserved_at"] == "2026-05-21T20:00:00+00:00"
 
 
 async def test_claim_uc_idempotent_for_same_owner():
-    """Same dev re-claiming → returns existing claim, not ALREADY_CLAIMED."""
+    """Same dev re-claiming → returns existing claim, not ALREADY_RESERVED."""
 
     conn = FakeConn(
-        fetchrow=lambda sql, *a: _claim_row(dev="alice"),
+        fetchrow=lambda sql, *a: _reservation_row(dev="alice"),
         insert_raises=asyncpg.UniqueViolationError("dup"),
     )
-    claim = await claim_uc(conn, project_id="p", uc_id="UC-301", developer_id="alice")
+    claim = await reserve_uc(conn, project_id="p", uc_id="UC-301", developer_id="alice")
     assert claim.developer_id == "alice"
 
 
@@ -119,20 +124,20 @@ async def test_claim_uc_idempotent_for_same_owner():
 
 
 async def test_release_uc_owner_succeeds():
-    conn = FakeConn(fetchrow=lambda sql, *a: _claim_row(dev="alice"))
+    conn = FakeConn(fetchrow=lambda sql, *a: _reservation_row(dev="alice"))
     released = await release_uc(conn, project_id="p", uc_id="UC-301", developer_id="alice")
     assert released is True
-    assert any("DELETE FROM uc_claims" in sql for sql, _ in conn.executed)
+    assert any("DELETE FROM uc_reservations" in sql for sql, _ in conn.executed)
 
 
 async def test_release_uc_non_owner_rejected_and_claim_kept():
-    conn = FakeConn(fetchrow=lambda sql, *a: _claim_row(dev="bob"))
-    with pytest.raises(NotClaimOwnerError) as exc:
+    conn = FakeConn(fetchrow=lambda sql, *a: _reservation_row(dev="bob"))
+    with pytest.raises(NotReservationOwnerError) as exc:
         await release_uc(conn, project_id="p", uc_id="UC-301", developer_id="alice")
     assert exc.value.owner == "bob"
     assert exc.value.requester == "alice"
     # Claim must NOT be deleted.
-    assert not any("DELETE FROM uc_claims" in sql for sql, _ in conn.executed)
+    assert not any("DELETE FROM uc_reservations" in sql for sql, _ in conn.executed)
 
 
 async def test_release_uc_no_claim_returns_false():
@@ -241,7 +246,7 @@ class TestClaimsRacePG:
                 await add_project_member(conn, project_id=pid, developer_id=d)
 
     async def test_concurrent_claims_exactly_one_winner(self):
-        """AC-16: two parallel claim_uc on the same UC → one OK, one ALREADY_CLAIMED."""
+        """AC-16: two parallel claim_uc on the same UC → one OK, one ALREADY_RESERVED."""
         from server.db.migrate import apply_migrations
         from server.db.pool import close_pool, init_pool
 
@@ -254,9 +259,9 @@ class TestClaimsRacePG:
             async def attempt(dev):
                 async with pg.acquire() as conn:
                     try:
-                        c = await claim_uc(conn, project_id=pid, uc_id="UC-301", developer_id=dev)
+                        c = await reserve_uc(conn, project_id=pid, uc_id="UC-301", developer_id=dev)
                         return ("ok", c.developer_id)
-                    except AlreadyClaimedError as e:
+                    except AlreadyReservedError as e:
                         return ("rejected", e.owner)
 
             results = await asyncio.gather(attempt("alice"), attempt("bob"))
@@ -274,7 +279,7 @@ class TestClaimsRacePG:
 
     async def test_start_uc_atomic_no_orphan_on_missing_uc(self):
         """AC-18: if the UC row is missing, the claim rolls back (no orphan)."""
-        from server.coordination.claims import start_uc_atomic
+        from server.coordination.reservations import start_uc_atomic
         from server.db.migrate import apply_migrations
         from server.db.pool import close_pool, init_pool
 
@@ -295,7 +300,7 @@ class TestClaimsRacePG:
 
             # No orphan claim left behind.
             async with pg.acquire() as conn:
-                count = await conn.fetchval("SELECT count(*) FROM uc_claims WHERE project_id = $1", pid)
+                count = await conn.fetchval("SELECT count(*) FROM uc_reservations WHERE project_id = $1", pid)
                 assert count == 0, "claim was orphaned despite the failed state update"
                 await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
                 await conn.execute("DELETE FROM developers WHERE developer_id = $1", "alice")

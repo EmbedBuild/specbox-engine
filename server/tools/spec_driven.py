@@ -51,18 +51,32 @@ logger = structlog.get_logger(__name__)
 
 ACTIVE_UC_FILENAME = ".quality/active_uc.json"
 
+# Cross-language wire-protocol constant: the JSON key under which the cached
+# native reservation lives in ``.quality/active_uc.json``. The Node-side hook
+# (``.claude/hooks/spec-guard.mjs`` + ``lib/native-claim-revalidate.mjs``) and
+# the MCP REST endpoint ``/api/native/claim-status`` both consume this exact
+# key today. UC-602 renamed the concept to "reservation" in Python; the
+# wire-protocol rename of the hook + endpoint is intentionally deferred to a
+# later UC of this US so existing deployments do not break mid-rollout. Until
+# then, the local cache file keeps the historical "claim" key as a compat
+# bridge — the only place that string lives in this file.
+_NATIVE_RESERVATION_CACHE_KEY = "claim"  # noqa: S105 — compat with Node hook
+
 
 def _write_active_uc_marker(
     uc_id: str,
     board_id: str,
     feature: str = "",
-    claim: dict[str, Any] | None = None,
+    reservation: dict[str, Any] | None = None,
 ) -> None:
     """Write the active UC marker so spec-guard.mjs allows code writes.
 
-    For native sessions, ``claim`` carries a reference to the remote claim
-    (``developer_id``, ``claimed_at``) so spec-guard.mjs can treat the local
-    file as a cache and revalidate against the MCP when online [AC-21].
+    For native sessions, ``reservation`` carries a reference to the remote
+    reservation (``developer_id``, ``reserved_at``) so spec-guard.mjs can
+    treat the local file as a cache and revalidate against the MCP when
+    online [AC-21]. The on-disk JSON still uses the legacy
+    ``_NATIVE_RESERVATION_CACHE_KEY`` key for compat with the Node hook;
+    see that constant for the rationale.
     """
     marker_path = Path(ACTIVE_UC_FILENAME)
     marker_path.parent.mkdir(parents=True, exist_ok=True)
@@ -72,12 +86,19 @@ def _write_active_uc_marker(
         "feature": feature,
         "started_at": datetime.now(timezone.utc).isoformat(),
     }
-    if claim:
-        # Cache of the remote claim — spec-guard.mjs revalidates this online.
-        payload["claim"] = {
-            "uc_id": claim.get("uc_id", uc_id),
-            "developer_id": claim.get("owner") or claim.get("developer_id", ""),
-            "claimed_at": claim.get("claimed_at", ""),
+    if reservation:
+        # Cache of the remote reservation — spec-guard.mjs revalidates online.
+        # ``reserved_at`` is accepted as the new key; ``claimed_at`` is still
+        # honoured as a fallback so callers mid-migration do not break.
+        reserved_at = (
+            reservation.get("reserved_at")
+            or reservation.get("claimed_at")
+            or ""
+        )
+        payload[_NATIVE_RESERVATION_CACHE_KEY] = {
+            "uc_id": reservation.get("uc_id", uc_id),
+            "developer_id": reservation.get("owner") or reservation.get("developer_id", ""),
+            "reserved_at": reserved_at,
             "backend": "native",
         }
     marker_path.write_text(json.dumps(payload, indent=2) + "\n")
@@ -1201,14 +1222,14 @@ async def start_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
     Returns:
         Full UC detail (same as get_uc) for immediate use.
     """
-    # Native sessions go through the claim-aware path: claim + in_progress in
-    # one transaction (no orphan claim) [AC-18], conflict carries owner /
-    # claimed_at / branch [AC-19].
+    # Native sessions go through the reservation-aware path: reserve + in_progress
+    # in one transaction (no orphan reservation) [AC-18], conflict carries owner /
+    # reserved_at / branch [AC-19].
     native_session = await _get_native_session_config(ctx)
     if native_session is not None:
-        claim_result = await _start_uc_native(native_session, board_id, uc_id, ctx)
-        if claim_result.get("error"):
-            return claim_result
+        reservation_result = await _start_uc_native(native_session, board_id, uc_id, ctx)
+        if reservation_result.get("error"):
+            return reservation_result
         # Fall through to return the full UC detail.
         return await get_uc(board_id, uc_id, ctx)
 
@@ -1244,18 +1265,19 @@ async def _get_native_session_config(ctx: Context) -> dict[str, str] | None:
 
 
 async def _start_uc_native(session: dict[str, str], board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
-    """Claim + set in_progress atomically for a native session [AC-18, AC-19].
+    """Reserve + set in_progress atomically for a native session [AC-18, AC-19].
 
-    Authenticates (Frontier 1), resolves the UC's DB id, then claims and flips
+    Authenticates (Frontier 1), resolves the UC's DB id, then reserves and flips
     state in one transaction. Writes the active_uc marker with a cache of the
-    remote claim [AC-21]. Returns ``{}``-ish success metadata or a coded error.
+    remote reservation [AC-21]. Returns ``{}``-ish success metadata or a coded
+    error.
     """
-    from ..coordination.claims import AlreadyClaimedError, start_uc_atomic
     from ..coordination.identity import (
         ForbiddenError,
         UnauthenticatedError,
         authenticate_and_authorize,
     )
+    from ..coordination.reservations import AlreadyReservedError, start_uc_atomic
     from ..db.pool import get_pool
 
     project_id = session["project_id"]
@@ -1281,31 +1303,36 @@ async def _start_uc_native(session: dict[str, str], board_id: str, uc_id: str, c
         return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
 
     try:
-        claim = await start_uc_atomic(
+        reservation = await start_uc_atomic(
             pool,
             project_id=project_id,
             uc_db_id=uc_item.id,
             uc_id=uc_id,
             developer_id=dev.developer_id,
         )
-    except AlreadyClaimedError as e:
-        # Conflict carries owner / claimed_at / branch [AC-19].
-        return {"error": str(e), **e.to_conflict()}
+    except AlreadyReservedError as e:
+        # Conflict carries owner / reserved_at / branch [AC-19].
+        return {"error": str(e), **e.to_payload()}
 
-    _write_active_uc_marker(uc_id, board_id, _extract_meta_str(uc_item, "feature", uc_id), claim=claim.to_public())
-    return {"success": True, "claimed_by": dev.developer_id}
+    _write_active_uc_marker(
+        uc_id,
+        board_id,
+        _extract_meta_str(uc_item, "feature", uc_id),
+        reservation=reservation.to_public(),
+    )
+    return {"success": True, "reserved_by": dev.developer_id}
 
 
-async def _native_uc_ids_claimed_by_others(session: dict[str, str]) -> set[str]:
-    """uc_ids claimed by a developer other than the session's dev [AC-20].
+async def _native_uc_ids_reserved_by_others(session: dict[str, str]) -> set[str]:
+    """uc_ids reserved by a developer other than the session's dev [AC-20].
 
     Best-effort: if the session is unauthenticated we still exclude *all* active
-    claims (an unauthenticated reader should not be steered onto someone else's
-    work). Never raises — on any error returns an empty set so find_next_uc
-    degrades to its non-claim behaviour.
+    reservations (an unauthenticated reader should not be steered onto someone
+    else's work). Never raises — on any error returns an empty set so
+    find_next_uc degrades to its non-reservation behaviour.
     """
-    from ..coordination.claims import claimed_uc_ids_by_others, list_active_claims
     from ..coordination.identity import UnauthenticatedError, resolve_developer
+    from ..coordination.reservations import list_active_reservations, reserved_uc_ids_by_others
     from ..db.pool import get_pool
 
     project_id = session["project_id"]
@@ -1319,11 +1346,11 @@ async def _native_uc_ids_claimed_by_others(session: dict[str, str]) -> set[str]:
             except UnauthenticatedError:
                 developer_id = None
             if developer_id is not None:
-                return await claimed_uc_ids_by_others(conn, project_id, developer_id)
-            # Unauthenticated → exclude every active claim.
-            return {c.uc_id for c in await list_active_claims(conn, project_id)}
+                return await reserved_uc_ids_by_others(conn, project_id, developer_id)
+            # Unauthenticated → exclude every active reservation.
+            return {r.uc_id for r in await list_active_reservations(conn, project_id)}
     except Exception as e:  # noqa: BLE001 — degrade gracefully, never block discovery
-        logger.warning("native_claim_filter_failed", error=str(e))
+        logger.warning("native_reservation_filter_failed", error=str(e))
         return set()
 
 
@@ -1893,13 +1920,13 @@ async def find_next_uc(
             scope_set = set(uc_scope)
             ready_ucs = [i for i in ready_ucs if _extract_meta_str(i, "uc_id") in scope_set]
 
-        # Native: exclude UCs already claimed by another developer [AC-20] so
+        # Native: exclude UCs already reserved by another developer [AC-20] so
         # two devs running find_next_uc concurrently get distinct UCs.
         native_session = await _get_native_session_config(ctx)
         if native_session is not None:
-            claimed = await _native_uc_ids_claimed_by_others(native_session)
-            if claimed:
-                ready_ucs = [i for i in ready_ucs if _get_uc_id(i) not in claimed]
+            reserved = await _native_uc_ids_reserved_by_others(native_session)
+            if reserved:
+                ready_ucs = [i for i in ready_ucs if _get_uc_id(i) not in reserved]
 
         if not ready_ucs:
             return None

@@ -15,7 +15,7 @@ Drift signals implemented in v5.29.0:
   S2. Brand kit reference dangling — `app_spec.md` zone "brand_visual"
        points at a path that does not exist on disk.
   S3. Roadmap completed without backend evidence — `app_spec.md` zone
-       "roadmap" claims a US is done but the tracking backend has no
+       "roadmap" reports a US as done but the tracking backend has no
        UC marked done for that US.
   S4. Canonical decision used but undocumented — a decision_key appears
        in `.quality/canonical_decisions.json` but is missing from
@@ -198,7 +198,7 @@ def _detect_canonical_drift(project_path: Path) -> list[DriftSignal]:
 
 
 def _detect_roadmap_drift(project_path: Path) -> list[DriftSignal]:
-    """S3 — roadmap claims completed but no UC done in tracking.
+    """S3 — roadmap reports completed but no UC done in tracking.
 
     Implementation is intentionally narrow in v5.29.0: only checks
     the FreeForm backend (filesystem-readable). Trello/Plane variants

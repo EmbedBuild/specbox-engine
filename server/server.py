@@ -152,9 +152,11 @@ register_resources(mcp, ENGINE_PATH)
 # Register spec-driven tools (21 tools)
 register_spec_driven_tools(mcp)
 
-# Register native coordination tools — H2 identity + H3 claims (4 tools:
-# whoami, claim_uc, release_uc, register_native_branch). UC-504 removed the
-# legacy admin developer-registration tool from the MCP surface.
+# Register native coordination tools — H2 identity + H3 reservations (4 tools:
+# whoami, reserve_uc, release_uc, register_native_branch). UC-504 removed the
+# legacy admin developer-registration tool from the MCP surface. UC-603
+# renamed the H3 tool from claim_uc to reserve_uc; UC-604 reintroduces
+# claim_uc as a deprecated alias for v5.35-v5.36.
 register_coordination_tools(mcp)
 
 # Register Tier 1 mutation tools (v5.23.0 Full Mutations — 8 tools:

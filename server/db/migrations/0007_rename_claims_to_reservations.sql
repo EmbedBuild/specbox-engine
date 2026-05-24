@@ -40,8 +40,36 @@
 -- server/db/migrate.py — this local runner is for dev / tests only.
 
 DO $$
+DECLARE
+    legacy_row_count BIGINT;
 BEGIN
     -- ── table rename ─────────────────────────────────────────────────
+    -- Three relevant states:
+    --   (a) only uc_claims exists → first-time rename, ALTER TABLE.
+    --   (b) only uc_reservations exists → already renamed, no-op.
+    --   (c) BOTH exist → re-apply scenario: the migration runner replays
+    --       every *.sql in order, so 0003_claims.sql ran again and its
+    --       CREATE TABLE IF NOT EXISTS uc_claims (...) recreated a fresh,
+    --       empty uc_claims alongside the already-renamed uc_reservations.
+    --       The freshly-recreated uc_claims has no rows (the real data is
+    --       in uc_reservations); drop it so the rename below is a no-op.
+    --       If for some reason uc_claims is NOT empty (out-of-band insert
+    --       between 0003 and 0007 on a re-apply), surface a hard error
+    --       rather than silently destroy rows.
+    IF to_regclass('public.uc_claims') IS NOT NULL
+       AND to_regclass('public.uc_reservations') IS NOT NULL THEN
+        EXECUTE 'SELECT count(*) FROM public.uc_claims' INTO legacy_row_count;
+        IF legacy_row_count = 0 THEN
+            DROP TABLE public.uc_claims;
+        ELSE
+            RAISE EXCEPTION
+                'Both uc_claims (% rows) and uc_reservations exist. '
+                'Refusing to drop uc_claims because it has data. '
+                'Manual reconciliation required.',
+                legacy_row_count;
+        END IF;
+    END IF;
+
     IF to_regclass('public.uc_claims') IS NOT NULL THEN
         ALTER TABLE public.uc_claims RENAME TO uc_reservations;
     END IF;

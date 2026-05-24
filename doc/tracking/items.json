@@ -1984,7 +1984,7 @@
     "id": "item-3f8428df",
     "name": "UC-601: Migración SQL: renombrar uc_claims → uc_reservations en specbox-engine",
     "description": "# UC-601: Migración SQL: renombrar uc_claims → uc_reservations en specbox-engine\n\n**User Story:** US-CLAIM-RENAME: Renombrar el concepto \"claim\" a \"reservation\" en Native Backend y Control Panel\n**Actor:** Engine\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [AC-01] La migración `0007_rename_claims_to_reservations.sql` existe, es idempotente (re-aplicarla dos veces no falla), y al aplicarse renombra `uc_claims` → `uc_reservations`, `claimed_at` → `reserved_at`, y el índice de developer_id; las filas pre-existentes se conservan (verificado insertando una fila antes, aplicando la migración, y haciendo SELECT que la recupere con los nuevos nombres).\n- AC-02: [AC-02] Tras aplicar la migración, `psql \\d uc_reservations` muestra la tabla con la PK `(project_id, uc_id)`, FKs ON DELETE CASCADE hacia `projects(project_id)` y `developers(developer_id)`, y la columna `reserved_at TIMESTAMPTZ NOT NULL DEFAULT now()`. La tabla `uc_claims` ya no existe (`SELECT to_regclass('uc_claims')` devuelve NULL).\n- AC-03: [AC-03] La migración puede aplicarse a un Postgres dev local levantado desde cero (sin filas previas) y a un Postgres con datos pre-migración sin warnings ni errores.\n\n## Contexto\n",
-    "state": "in_progress",
+    "state": "review",
     "parent_id": "item-d98d9b3d",
     "labels": [
       "UC",
@@ -2002,7 +2002,7 @@
     "created_at": "2026-05-23T12:59:32.260290+00:00",
     "external_source": "",
     "external_id": "",
-    "updated_at": "2026-05-24T12:25:31.268080+00:00"
+    "updated_at": "2026-05-24T12:31:58.188785+00:00"
   },
   {
     "id": "ac-c1397d1b",
@@ -2059,7 +2059,7 @@
     "id": "item-20514909",
     "name": "UC-602: Renombrar módulo Python coordination/claims.py → reservations.py y todas las APIs internas",
     "description": "# UC-602: Renombrar módulo Python coordination/claims.py → reservations.py y todas las APIs internas\n\n**User Story:** US-CLAIM-RENAME: Renombrar el concepto \"claim\" a \"reservation\" en Native Backend y Control Panel\n**Actor:** Engine\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [AC-01] `server/coordination/reservations.py` existe con `UCReservation`, `AlreadyReservedError`, `NotReservationOwnerError`, `reserve_uc`, `get_reservation`, `list_active_reservations`, `reserved_uc_ids_by_others`, `release_uc`, `start_uc_atomic`; `server/coordination/claims.py` ya no existe; `server/coordination/__init__.py` exporta los nuevos nombres y el docstring del paquete se actualiza (`claims` → `reservations`).\n- AC-02: [AC-02] El dataclass de la reserva expone `reserved_at` (no `claimed_at`); `to_public()` devuelve `{\"uc_id\", \"developer_id\", \"reserved_at\", \"branch\"}`. El payload de `AlreadyReservedError.to_payload()` incluye `{\"code\": \"ALREADY_RESERVED\", \"owner\", \"reserved_at\", \"branch\"}`.\n- AC-03: [AC-03] `grep -rn 'claim\\|Claim\\|claimed_at' server/ --include=\"*.py\"` no devuelve ninguna línea fuera de `server/tools/coordination.py` (donde viven los alias deprecados del UC-604) — todas las apariciones legítimas son comentarios históricos en docstrings que aclaran la renombrada (\"antes llamado claim\").\n\n## Contexto\n",
-    "state": "backlog",
+    "state": "in_progress",
     "parent_id": "item-d98d9b3d",
     "labels": [
       "UC",
@@ -2076,13 +2076,14 @@
     },
     "created_at": "2026-05-23T12:59:32.268666+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-24T12:32:46.333828+00:00"
   },
   {
     "id": "ac-41a693c8",
     "name": "[AC-01] [AC-01] `server/coordination/reservations.py` existe con `UCReservation`, `AlreadyReservedError`, `NotReservationOwnerError`, `reserve_uc`, `get_reservation`, `list_active_reservations`, `reserved_uc_ids_by_others`, `release_uc`, `start_uc_atomic`; `server/coordination/claims.py` ya no existe; `server/coordination/__init__.py` exporta los nuevos nombres y el docstring del paquete se actualiza (`claims` → `reservations`).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-20514909",
     "labels": [
       "AC"
@@ -2092,13 +2093,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.272304+00:00"
+    "created_at": "2026-05-23T12:59:32.272304+00:00",
+    "updated_at": "2026-05-24T12:44:19.555462+00:00"
   },
   {
     "id": "ac-227a2133",
     "name": "[AC-02] [AC-02] El dataclass de la reserva expone `reserved_at` (no `claimed_at`); `to_public()` devuelve `{\"uc_id\", \"developer_id\", \"reserved_at\", \"branch\"}`. El payload de `AlreadyReservedError.to_payload()` incluye `{\"code\": \"ALREADY_RESERVED\", \"owner\", \"reserved_at\", \"branch\"}`.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-20514909",
     "labels": [
       "AC"
@@ -2108,13 +2110,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.272316+00:00"
+    "created_at": "2026-05-23T12:59:32.272316+00:00",
+    "updated_at": "2026-05-24T12:44:19.564413+00:00"
   },
   {
     "id": "ac-a07dd2ee",
     "name": "[AC-03] [AC-03] `grep -rn 'claim\\|Claim\\|claimed_at' server/ --include=\"*.py\"` no devuelve ninguna línea fuera de `server/tools/coordination.py` (donde viven los alias deprecados del UC-604) — todas las apariciones legítimas son comentarios históricos en docstrings que aclaran la renombrada (\"antes llamado claim\").",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-20514909",
     "labels": [
       "AC"
@@ -2124,7 +2127,8 @@
       "ac_id": "AC-03",
       "tipo": "AC"
     },
-    "created_at": "2026-05-23T12:59:32.272321+00:00"
+    "created_at": "2026-05-23T12:59:32.272321+00:00",
+    "updated_at": "2026-05-24T12:44:19.570903+00:00"
   },
   {
     "id": "item-0477b858",

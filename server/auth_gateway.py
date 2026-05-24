@@ -195,7 +195,7 @@ async def get_native_session(ctx: Context) -> dict[str, str]:
     """Return the native session config ``{project_id, dev_token?}``.
 
     Raises if the session is not a native backend. Used by the coordination
-    tools (whoami, claims) to read the project + developer token without
+    tools (whoami, reservations) to read the project + developer token without
     re-deriving the backend.
     """
     config = await ctx.get_state(BACKEND_STATE_KEY)

@@ -1,8 +1,8 @@
-# SpecBox Engine v5.35.0
+# SpecBox Engine v6.0.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (164 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010.
+> Monorepo unificado: engine + MCP server (167 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010 + Product Discovery.
 
 ## Que es este repositorio
 
@@ -1279,6 +1279,58 @@ documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
 
 ## Engine Version
 
-Current: v5.35.0 "Reservation Rename"
+Current: v6.0.0 "Discovery Foundations"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
+
+## Discovery Module (v6.0.0)
+
+v6.0 introduce un módulo de **Product Discovery** permanente integrado en el pipeline canónico + la **fundación arquitectural multi-doc** que sostiene la extensión a N documentos canónicos.
+
+### Pipeline modificado
+
+```
+/discovery → /prd → /plan → /implement → (auto-merge si gate verde)
+```
+
+`/discovery <feature_name>` produce `doc/discovery/<feature>/icp_jtbd.md` (ICPs + JTBDs racionales y emocionales). Estos JTBDs viajan con la feature hasta los AC del PRD, las UC del plan y los tests E2E.
+
+### Tercer doc canónico
+
+`doc/app/app_market.md` se añade al set existente (`app_prd.md`, `app_spec.md`). Contiene ICPs primarios + no-ICPs + JTBDs globales + NSM + posicionamiento. Creado en modo bootstrap (primer `/discovery` del proyecto) o vía `upgrade_project` como plantilla `template-pristine`.
+
+### Multi-doc Foundation (US-D04)
+
+Sistema `app_docs` refactorizado a registro extensible (`server/app_docs/registry.py`). Añadir un doc canónico nuevo en v6.x+ es trivial: 1 plantilla + 1 entry. Sin tocar `sync.py`, hooks ni skills.
+
+Ver `doc/decisions/multi_doc_registry.md` para rationale completo.
+
+### Tools MCP nuevas (3)
+
+| Tool | Uso |
+|------|-----|
+| `start_discovery` | Inicia/resume sesión Discovery (idempotente, auto-detecta bootstrap vs standard) |
+| `validate_discovery_completeness` | Verifica que `icp_jtbd.md` está READY_FOR_PRD |
+| `detect_v60_migration_case` | Clasifica proyecto en 8 casos de migración v5.x → v6.0 |
+
+### Configuración
+
+```json
+{
+  "specbox": {
+    "discovery": {
+      "gate_mode": "off | warn | block",
+      "engine_version_at_onboard": "6.0.0"
+    }
+  }
+}
+```
+
+Defaults:
+- Proyecto upgrade desde v5.x: `gate_mode=off` (sin cambio perceptible).
+- Proyecto fresh post-v6.0: `gate_mode=warn` (pedagógico).
+- Power users: `gate_mode=block` opt-in.
+
+### Backwards compatibility
+
+Proyectos v5.x reciben `app_market.md` plantilla pristine vía `upgrade_project` SIN modificar archivos existentes (`app_prd.md`, `app_spec.md` byte-by-byte intactos). El hook `app-docs-sync-guard` respeta `template-pristine` y `engine_version_at_onboard` — no warnea sobre docs no introducidos aún.

@@ -2,6 +2,53 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.1.1] - 2026-05-25 — "Cutover Followup"
+
+Patch release que cierra 11 residuos identificados tras v6.1.0 (Cloud Cutover). La pieza más grave era la tool MCP `get_sala_de_maquinas` que seguía registrada y expuesta — un cliente que la llamase recibía datos vivos en vez del esperado tool-not-found. Sumado a docstrings, menciones en skills, canónicos `doc/app/` desactualizados, entradas huérfanas en VSCode extension y `ENGINE_VERSION.yaml` features array. Cero código nuevo, sólo deletes + cleanup de strings.
+
+Trazabilidad: US-CUTOVER-FOLLOWUP → UC-625..UC-633 → 26 ACs en backend FreeForm `ff-ed0c02f4565a`. PRD en `doc/prd/US-CUTOVER-FOLLOWUP_prd.md`, plan en `doc/plans/US-CUTOVER-FOLLOWUP_plan.md`.
+
+### Removed
+
+- **Tool MCP `get_sala_de_maquinas`** — el gran agujero del cutover. 177 LoC eliminadas de `server/tools/state.py`. Los helpers privados (`_read_registry`, `_filter_by_days`, `_read_jsonl`, `_read_meta`, `_compute_e2e_trend`) se preservan porque las tools `report_*` los siguen usando (UC-625).
+- **Línea en `server/server.py:135`** "View the Sala de Máquinas global dashboard..." del FastMCP `instructions` string (UC-625).
+- **Fila Dashboard React + fila Dashboard Vite** de la tabla Stack en `doc/app/app_spec.md`. Apuntaban a `server/dashboard/package.json` que ya no existe (UC-629).
+- **Entry `sala-de-maquinas-embedded`** del array `features:` en `ENGINE_VERSION.yaml` (UC-630). Array `commits:` histórico preservado.
+- **VSCode extension command `specbox.openDashboard` + setting `specbox.dashboardUrl`** + 3 líneas de `src/extension.ts`. Las 5 capacidades restantes (install / healthCheck / onboard / showStatus / configureMcp) + sidebar trees (status / skills) intactas (UC-632).
+
+### Changed
+
+- **Docstrings Python** reescritos para apuntar a "consumidores externos (specbox_cloud, scripts ad-hoc)" en vez de a Sala de Máquinas específicamente (UC-626):
+  - `server/tools/benchmark.py::generate_benchmark_snapshot`
+  - `server/audit/persistence.py` module docstring
+  - `server/app_docs/drift_detector.py` module docstring + `app_docs_drift_for_heartbeat` tool docstring
+- **Docstrings Node hooks** mismo cleanup (UC-627):
+  - `.claude/hooks/app-docs-sync-guard.mjs`
+  - `.claude/hooks/context-budget-guard.mjs`
+- **Skills body** (frontmatter intacto) reescriben menciones a "consumidores externos (specbox_cloud)" (UC-628):
+  - `.claude/skills/plan/SKILL.md:584`
+  - `.claude/skills/audit/SKILL.md:61`
+  - `.claude/skills/discovery/SKILL.md:414`
+- **Canónicos `doc/app/`** (UC-629):
+  - `app_spec.md` versión doc 1 → 2; tabla Stack actualizada (Engine package 5.33.0 → 6.1.x; Contenedor multi-stage → single-stage Python); zona brand_visual menciona specbox_cloud en vez de "salvo Sala de Máquinas"
+  - `app_prd.md` versión doc 1 → 2; zona vision menciona specbox_cloud y elimina "164 tools + Sala de Máquinas"; zona scope v1 actualizada
+- **VSCode extension** bumped 5.21.0 → 5.21.1 (UC-632).
+- **`.claude/settings.local.json`** (gitignored, local-only): entrada `mcp__specbox-engine__get_sala_de_maquinas` eliminada del array de allowedTools (UC-631).
+
+### Documentation
+
+- **`doc/decisions/cloud_cutover.md`** recibe sección final "v6.1.1 followup" documentando que la deuda residual quedó cerrada en esta release (UC-633).
+- **`doc/prd/US-CUTOVER-FOLLOWUP_prd.md`** (370 LoC) — PRD técnico con 9 UCs, 26 ACs, Definition Quality Gate aprobado.
+- **`doc/plans/US-CUTOVER-FOLLOWUP_plan.md`** (244 LoC) — plan de implementación por fases.
+
+### Tests
+
+Suite verde sin cambios numéricos: **1192 passed, 71 skipped, 0 failed** (idéntico a baseline v6.1.0). Node `node:test` lib tests 15/15 verde.
+
+### Migration
+
+Cero acción requerida para proyectos onboarded. La tool `get_sala_de_maquinas` eliminada no era invocada por specbox_cloud (que lee Supabase directo). Las menciones residuales en proyectos cliente (si las hay en su `.claude/settings.local.json`) se ignoran silenciosamente: tool deregistrada = no aparece en discovery.
+
 ## [6.1.0] - 2026-05-25 — "Cloud Cutover"
 
 Minor release que **elimina la "Sala de Máquinas"** — dashboard global multi-proyecto que vivía dentro del MCP server (frontend React + REST API + heartbeats + GitHub sync + skill `/remote`). La función de panel multi-proyecto la absorbe **specbox_cloud** (panel web externo), que lee directamente la instancia Supabase del Native Backend y llama al MCP para escrituras de coordinación (`reserve_uc` / `release_uc`). Reduce ~3.800 LoC de código vivo + ~237k LoC de `node_modules`, deja el Dockerfile single-stage Python (sin Node), apaga el VPS `mcp-specbox-engine.jpsdeveloper.com` y su dominio.

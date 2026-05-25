@@ -298,6 +298,15 @@ register_app_sync_tools(mcp, ENGINE_PATH)
 register_drift_tools(mcp, ENGINE_PATH)
 
 
+# Liveness probe used by the Docker HEALTHCHECK and external uptime monitors.
+# Kept minimal after the v6.1.0 Cloud Cutover: no telemetry, no project state.
+@mcp.custom_route("/health", methods=["GET"])
+async def _health(_request):
+    from starlette.responses import JSONResponse
+
+    return JSONResponse({"status": "ok", "version": _ENGINE_VERSION})
+
+
 def main():
     transport = os.getenv("MCP_TRANSPORT", "stdio")
     port = int(os.getenv("MCP_PORT", "8000"))

@@ -4,7 +4,9 @@ Hooks from SpecBox Engine send telemetry via HTTP (report_session,
 report_checkpoint, report_healing, report_acceptance_tests,
 report_acceptance_validation, report_merge_status, report_feedback,
 report_feedback_resolution, report_e2e_results). Query tools expose the
-aggregated state as the "Sala de Máquinas" dashboard.
+per-project aggregated state. Cross-project aggregation (formerly the
+"Sala de Máquinas" dashboard) moved out of the engine in v6.1.0 and now
+lives in specbox_cloud, which reads Supabase directly.
 
 State layout on disk:
     /data/state/
@@ -849,7 +851,8 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
         return {"status": "ok", "project": project, "meta": meta}
 
     # ===================================================================
-    # QUERY TOOLS — Sala de Máquinas
+    # QUERY TOOLS — Per-project activity (cross-project aggregation
+    # now lives in specbox_cloud, which reads Supabase directly)
     # ===================================================================
 
     @mcp.tool
@@ -964,184 +967,6 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
             "last_activity": meta.get("last_activity", "never"),
             "stack": meta.get("stack", "unknown"),
         }
-
-    @mcp.tool
-    def get_sala_de_maquinas(days: int = 7) -> dict:
-        """Global dashboard of ALL registered projects — the Sala de Máquinas.
-
-        Args:
-            days: Number of days to look back (default 7).
-
-        Returns per-project summary (last activity, sessions, active feature,
-        healing health, stack) plus global aggregates (total sessions, total
-        tokens, most active project, overall health).
-        Uses a 5-minute cache for performance. The cache is invalidated
-        automatically on every write operation."""
-        # Check cache
-        cache_file = state_path / "dashboard_cache.json"
-        if cache_file.exists():
-            try:
-                cache = json.loads(cache_file.read_text(encoding="utf-8"))
-                cache_age = time.time() - cache.get("generated_at_epoch", 0)
-                if cache_age < 300 and cache.get("period_days") == days:
-                    return cache["data"]
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        registry = _read_registry(state_path)
-        projects_data: list[dict] = []
-        total_sessions = 0
-        total_tokens = 0
-        most_active_project = ""
-        most_active_sessions = 0
-
-        total_merged = 0
-        total_blocked = 0
-        total_accepted = 0
-        total_validations = 0
-        total_feedback_open = 0
-        total_feedback_tickets = 0
-        total_e2e_tests = 0
-        total_e2e_passing = 0
-        total_e2e_failing = 0
-        total_e2e_runs = 0
-
-        for proj_name, proj_info in registry.get("projects", {}).items():
-            project_dir = state_path / "projects" / proj_name
-            sessions = _filter_by_days(_read_jsonl(project_dir / "sessions.jsonl"), days)
-            healing = _filter_by_days(_read_jsonl(project_dir / "healing.jsonl"), days)
-            validations = _filter_by_days(_read_jsonl(project_dir / "acceptance_validations.jsonl"), days)
-            merges = _filter_by_days(_read_jsonl(project_dir / "merge_events.jsonl"), days)
-            feedback = _filter_by_days(_read_jsonl(project_dir / "feedback.jsonl"), days)
-            meta = _read_meta(project_dir)
-
-            session_count = len(sessions)
-            tokens = sum(s.get("context_tokens_est", 0) for s in sessions)
-            healing_resolved = sum(1 for h in healing if h.get("result") == "resolved")
-            healing_rate = round(healing_resolved / len(healing) * 100, 1) if healing else 100.0
-
-            if healing_rate >= 80:
-                health = "healthy"
-            elif healing_rate >= 50:
-                health = "degraded"
-            else:
-                health = "critical"
-
-            total_sessions += session_count
-            total_tokens += tokens
-            if session_count > most_active_sessions:
-                most_active_sessions = session_count
-                most_active_project = proj_name
-
-            # Acceptance & merge metrics per project
-            proj_accepted = sum(1 for v in validations if v.get("verdict") == "ACCEPTED")
-            proj_merged = sum(1 for m in merges if m.get("merge_status") == "merged")
-            proj_blocked = sum(1 for m in merges if m.get("merge_status") == "blocked")
-            last_verdict = meta.get("last_verdict", "")
-
-            # Feedback metrics per project
-            fb_tickets = [f for f in feedback if f.get("event_subtype") != "resolution"]
-            fb_open = sum(1 for f in fb_tickets if f.get("status") == "open")
-            fb_blocking_ids = [
-                f.get("feedback_id", "") for f in fb_tickets
-                if f.get("status") == "open" and f.get("severity") in ("critical", "major")
-            ]
-
-            total_accepted += proj_accepted
-            total_validations += len(validations)
-            total_merged += proj_merged
-            total_blocked += proj_blocked
-            total_feedback_tickets += len(fb_tickets)
-            total_feedback_open += fb_open
-
-            # E2E metrics per project
-            e2e_records = _filter_by_days(
-                _read_jsonl(project_dir / "e2e_results.jsonl"), days
-            )
-            latest_e2e = e2e_records[-1] if e2e_records else None
-            proj_e2e_total = latest_e2e["total"] if latest_e2e else 0
-            proj_e2e_passing = latest_e2e["passing"] if latest_e2e else 0
-            proj_e2e_failing = latest_e2e["failing"] if latest_e2e else 0
-
-            total_e2e_tests += proj_e2e_total
-            total_e2e_passing += proj_e2e_passing
-            total_e2e_failing += proj_e2e_failing
-            total_e2e_runs += len(e2e_records)
-
-            projects_data.append({
-                "project": proj_name,
-                "stack": proj_info.get("stack", "unknown"),
-                "last_activity": meta.get("last_activity", "never"),
-                "sessions": session_count,
-                "active_feature": meta.get("active_feature", ""),
-                "healing_health": health,
-                "healing_events": len(healing),
-                "acceptance_validations": len(validations),
-                "last_verdict": last_verdict,
-                "merges": proj_merged,
-                "blocked": proj_blocked,
-                "feedback_open": fb_open,
-                "feedback_blocking": fb_blocking_ids,
-                "e2e_total": proj_e2e_total,
-                "e2e_passing": proj_e2e_passing,
-                "e2e_failing": proj_e2e_failing,
-                "e2e_pass_rate": latest_e2e["pass_rate"] if latest_e2e else None,
-                "e2e_runs": len(e2e_records),
-            })
-
-        # Sort by last activity descending
-        projects_data.sort(key=lambda p: p.get("last_activity", ""), reverse=True)
-
-        global_health = "healthy"
-        unhealthy = sum(1 for p in projects_data if p["healing_health"] != "healthy")
-        if unhealthy > len(projects_data) / 2:
-            global_health = "critical"
-        elif unhealthy > 0:
-            global_health = "degraded"
-
-        result = {
-            "period_days": days,
-            "projects": projects_data,
-            "aggregates": {
-                "total_projects": len(projects_data),
-                "total_sessions": total_sessions,
-                "total_tokens": total_tokens,
-                "most_active_project": most_active_project,
-                "global_health": global_health,
-                "total_validations": total_validations,
-                "total_accepted": total_accepted,
-                "acceptance_rate": round(total_accepted / total_validations * 100, 1) if total_validations else 0.0,
-                "total_merged": total_merged,
-                "total_blocked": total_blocked,
-                "total_feedback_tickets": total_feedback_tickets,
-                "total_feedback_open": total_feedback_open,
-                "total_e2e_runs": total_e2e_runs,
-                "total_e2e_tests": total_e2e_tests,
-                "total_e2e_passing": total_e2e_passing,
-                "total_e2e_failing": total_e2e_failing,
-                "e2e_global_pass_rate": (
-                    round(total_e2e_passing / total_e2e_tests * 100, 1)
-                    if total_e2e_tests > 0 else None
-                ),
-            },
-        }
-
-        # Write cache
-        try:
-            cache_data = {
-                "generated_at_epoch": time.time(),
-                "generated_at": datetime.now(timezone.utc).isoformat(),
-                "period_days": days,
-                "data": result,
-            }
-            cache_file.write_text(
-                json.dumps(cache_data, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-        except OSError:
-            pass
-
-        return result
 
     @mcp.tool
     def get_project_timeline(project: str, limit: int = 50) -> dict:

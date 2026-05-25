@@ -63,7 +63,6 @@ features:
   - gherkin-spanish-language
   - acceptance-pdf-evidence
   - trello-acceptance-evidence
-  - sala-de-maquinas-embedded
   - spec-driven-onboarding
   - project-archiving
   - unified-mcp-endpoint

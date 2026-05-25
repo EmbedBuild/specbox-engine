@@ -1,4 +1,4 @@
-# SpecBox Engine v6.0.0
+# SpecBox Engine v6.0.1
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1279,9 +1279,64 @@ documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
 
 ## Engine Version
 
-Current: v6.0.0 "Discovery Foundations"
+Current: v6.0.1 "MCP Path Contract"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
+
+## MCP Path Contract (v6.0.1)
+
+v6.0.1 es un hotfix arquitectural que migra **17 tools cat A** en `server/tools/` a un patrón de **content-passing universal**: ninguna tool registrada con `@mcp.tool` resuelve `Path(project_path).resolve()` para acceder al filesystem del cliente. El cliente lee los archivos localmente con `Read`, pasa el contenido como string, y escribe lo que la tool devuelva.
+
+### Motivación
+
+En MCP remoto (`SPECBOX_ENGINE_MCP_URL=...`), `Path(project_path).resolve()` resolvía contra el filesystem del VPS, no del cliente. Las 17 tools cat A devolvían datos falsos sin error visible.
+
+### Tools migradas
+
+| Módulo | Tools |
+|--------|-------|
+| `discovery.py` | `start_discovery`, `validate_discovery_completeness`, `detect_v60_migration_case` |
+| `app_docs.py` | `read_app_docs_tool`, `get_inheritable_values_tool` |
+| `onboarding.py` | `detect_project_stack`, `get_onboarding_status`, `get_visual_gap_report` |
+| `acceptance.py` | `run_acceptance_check`, `get_acceptance_report`, `get_e2e_gap_report` |
+| `audit.py` | `check_audit_tools_status`, `submit_quality_audit` (nueva), `run_quality_audit` (deprecada) |
+| `hints.py` | `get_skill_hint`, `record_skill_hint` |
+| `skill_registry.py` | `list_skills_v2`, `discover_skills`, `validate_skill_manifest` |
+| `telemetry.py` | `get_context_budget` |
+| `benchmark.py` | `generate_benchmark_snapshot` (devuelve content + suggested_relpath) |
+| `evidence_regen.py` | `regenerate_evidence` (devuelve plan + report_content) |
+
+### Helper cliente
+
+`.claude/hooks/lib/mcp-client-io.mjs` expone tres helpers para skills/hooks Node.js:
+
+- `resolveProjectRoot()` — absolute path al git toplevel del CWD.
+- `readContentBundle(paths)` — `{relpath: string | null}` map.
+- `writeContentBundle(bundle)` — escribe todo no-null, devuelve `{written, skipped}`.
+
+Path-traversal guard + rechazo de paths absolutos built-in. 15 casos en `mcp-client-io.test.mjs` con `node:test` (zero-deps).
+
+### Skills actualizadas
+
+`/discovery`, `/prd`, `/plan`, `/visual-setup`, `/app-sync`, `/audit`, `/acceptance-check` actualizadas para reflejar el nuevo contrato.
+
+### Helpers Path-based preservados
+
+`read_app_docs(project_path)`, `get_inheritable_values(project_path)`, `run_acceptance_check_impl`, `get_acceptance_report_impl`, `_detect_v60_case(project_path)`, `_app_market_is_pristine_or_missing(project_path)` siguen disponibles para callers in-process (otros módulos Python del propio MCP, no consumibles desde la API `@mcp.tool`).
+
+### Excepción: audit analyzers
+
+Los 8 analizadores SQuaRE de `server/audit/analyzers/` necesitan escanear el código real (lint, complexity, dup, security). Serializar un repo entero como bundle es inviable. Solución: los analizadores se moverán a `.quality/scripts/audit/` (porting completo en v6.0.2) y el cliente envía el `QualityReport` construido localmente vía `submit_quality_audit(project, report)`. En v6.0.1 el directorio está provisionado con un README; `run_quality_audit` queda como shim deprecado que retorna error si se invoca sin `report`.
+
+### Defensas v5.29 de FreeForm
+
+El hook `freeform-path-guard.mjs` y `FreeformPathError` siguen vivos en v6.0.1 como defensa en profundidad. Eliminación formal planeada para v6.1.
+
+### Referencias
+
+- Plan técnico: `doc/plans/v6.0.1_mcp_path_contract_plan.md`
+- Decisión arquitectural: `doc/decisions/mcp_path_contract.md`
+- Tracking: `doc/tracking/items.json` US-MCP-PATH-CONTRACT (UC-614..UC-624)
 
 ## Discovery Module (v6.0.0)
 

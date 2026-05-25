@@ -135,7 +135,7 @@ Modo emergencia para casos donde los `app_*.md` se han corrompido o perdido. Pas
 
 1. **Confirmación literal obligatoria**: el skill pregunta "Esto reemplazará completamente `doc/app/app_prd.md` y `doc/app/app_spec.md`. ¿Continuar? (escribe `RECONSTRUIR` para confirmar)".
 2. Backup obligatorio de los archivos existentes (si hay) en `.quality/edits_backup/{date}_pre_rebuild/`.
-3. Llama a `read_app_docs_tool` para extraer los valores manuales que se puedan recuperar (visión, audiencia, scope) — si no se pueden, queda en plantilla.
+3. Llama a `read_app_docs_tool(app_prd_content=<contenido>, app_spec_content=<contenido>)` (v6.0.1 content-passing — el cliente lee los archivos con `Read` y pasa el contenido como string) para extraer los valores manuales que se puedan recuperar (visión, audiencia, scope) — si no se pueden, queda en plantilla.
 4. Genera `app_prd.md` y `app_spec.md` desde plantilla.
 5. Aplica todos los eventos de sincronización (igual que `--repair`).
 6. Sella signature.

@@ -22,13 +22,22 @@ Genera un PRD (Product Requirements Document) y crea Work Items en Trello o Plan
 
 ---
 
-## Paso 0.0 — Leer documentos canónicos (v5.29.0)
+## Paso 0.0 — Leer documentos canónicos (v5.29.0 + v6.0.1 content-passing)
 
-**ANTES de cualquier otro paso**, llama a la tool MCP:
+**ANTES de cualquier otro paso**:
+
+1. Usa `Read` localmente sobre `doc/app/app_prd.md` y `doc/app/app_spec.md`. Si alguno no existe, trata el contenido como `null`.
+
+2. Llama a la tool MCP con el contenido (no con paths):
 
 ```
-get_inheritable_values_tool(project_path=".")
+get_inheritable_values_tool(
+  app_prd_content=<contenido o null>,
+  app_spec_content=<contenido o null>,
+)
 ```
+
+> **Cambio v6.0.1**: las tools `read_app_docs_tool` y `get_inheritable_values_tool` ya no aceptan `project_path`. El cliente lee los archivos locales y pasa el contenido. Esto evita el bug arquitectural por el cual el MCP remoto resolvía `Path(project_path).resolve()` contra el filesystem del servidor en vez del cliente.
 
 El resultado es un dict con flags y valores que indican qué decisiones de proyecto ya están definidas en `doc/app/app_prd.md` y `doc/app/app_spec.md`. Úsalo para **no repreguntar** lo que ya está respondido:
 

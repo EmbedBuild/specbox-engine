@@ -1,0 +1,1 @@
+{"type":"discovery_gate","feature_name":"test_feature_sin_discovery","gate_mode":"warn","verdict":"DISCOVERY_INCOMPLETE","missing":["artifact_not_found"],"action":"warned","detected_at":"2026-05-24T23:53:49.635Z"}

@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "6.0.0"
-description = "SpecBox Engine v6.0.0 — Discovery Foundations: unified MCP server with 167 tools for spec-driven development with Product Discovery"
+version = "6.0.1"
+description = "SpecBox Engine v6.0.1 — MCP Path Contract: content-passing API removes filesystem-host coupling for remote MCP setups"
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.0.0",

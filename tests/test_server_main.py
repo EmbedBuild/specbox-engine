@@ -32,9 +32,12 @@ class TestServerMain:
             assert call_kwargs[1]["transport"] == "sse"
 
     def test_main_invalid_transport_defaults(self):
+        """Unknown MCP_TRANSPORT values fall back to stdio (the safest default
+        for local sessions). Historically this was streamable-http; v5.23+
+        switched the fallback to stdio to match `MCP_TRANSPORT` unset behaviour."""
         with patch.dict(os.environ, {"MCP_TRANSPORT": "invalid"}, clear=False), \
              patch("server.server.mcp") as mock_mcp:
             from server.server import main
             main()
             call_kwargs = mock_mcp.run.call_args
-            assert call_kwargs[1]["transport"] == "streamable-http"
+            assert call_kwargs[1]["transport"] == "stdio"

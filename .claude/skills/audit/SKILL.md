@@ -12,7 +12,9 @@ context: direct
 
 > v5.21+ — Módulo Quality Audit v1
 > Agente responsable: AG-10 Quality Auditor
-> Backend: `run_quality_audit` + `attach_audit_evidence` (MCP tools)
+> Backend (v6.0.1): el cliente ejecuta los analizadores localmente y envía el `QualityReport` al MCP con `submit_quality_audit` + `attach_audit_evidence`.
+>
+> **Cambio v6.0.1 (MCP Path Contract)**: el viejo `run_quality_audit` orquestaba los 8 analizadores ISO/IEC 25010 en el host del MCP, lo que rompía en MCP remoto (los analizadores escaneaban el filesystem del VPS, no el del cliente). v6.0.1 mueve la orquestación al cliente: el skill ejecuta los scripts de `.quality/scripts/audit/` (ver README en ese directorio), construye el `QualityReport` dict en memoria y lo envía vía `submit_quality_audit(project, report)`. El nuevo `check_audit_tools_status(stack)` recibe el stack del cliente como parámetro en vez de escanear el filesystem. `run_quality_audit` queda como shim deprecado que retorna un error explicativo si lo llamas sin `report`.
 
 ## Uso
 
@@ -25,7 +27,7 @@ context: direct
 
 ## Qué hace
 
-1. Llama a `check_audit_tools_status(project_path)` para ver qué herramientas
+1. **Detecta stack localmente** (lee `pubspec.yaml` / `package.json` / `go.mod` / `pyproject.toml`) y llama a `check_audit_tools_status(stack=<detected>)` para ver qué herramientas
    externas están instaladas (semgrep, gitleaks, pip-audit, lizard, jscpd,
    checkov, npm). Si falta alguna, muestra al usuario la lista + comandos de
    instalación y pregunta:
@@ -40,8 +42,9 @@ context: direct
 2. Carga el skill `embed-build-brand` para aplicar paleta negro + cyan `#29F3E3`
    al PDF final. Si el skill no está disponible, degrada a defaults y lo
    reporta en `meta.warnings` (la auditoría continúa).
-3. Invoca `run_quality_audit(project, scope="full")` → el MCP tool ejecuta
-   los 8 analizadores SQuaRE en orden:
+3. **Ejecuta los analizadores localmente** desde `.quality/scripts/audit/` (en v6.0.1 este directorio contiene un README descriptivo; el porting de los 8 scripts está planeado para v6.0.2). Cada analizador produce un fragmento JSON del `QualityReport`. El skill consolida los fragmentos en un único dict y lo envía con `submit_quality_audit(project, report=<dict>)`. El backend valida el dict y devuelve el report canónico que pasa a AG-10. **No uses `run_quality_audit` salvo como fallback** — está deprecado y devuelve error si lo invocas sin `report`.
+
+   El report cubre los 8 analizadores SQuaRE en orden:
    1. Functional Suitability
    2. Performance Efficiency
    3. Compatibility
@@ -93,7 +96,7 @@ Las herramientas externas son opcionales — si falta alguna, se reporta en
 ```
 /audit mcprofit
   │
-  ├─ 1. check_audit_tools_status(project_path)
+  ├─ 1. detectar stack localmente + check_audit_tools_status(stack)
   │     ↓
   │   Si faltan tools → mostrar lista + preguntar (install / continue / cancel)
   │     ├─ install → .quality/scripts/install-audit-tools.sh --yes
@@ -101,9 +104,9 @@ Las herramientas externas son opcionales — si falta alguna, se reporta en
   │     └─ cancel → abortar
   │
   ├─ 2. load_skill("embed-build-brand")   (opcional; si falta → warning)
-  ├─ 3. run_quality_audit("mcprofit", scope="full")
+  ├─ 3. ejecutar .quality/scripts/audit/ localmente + submit_quality_audit("mcprofit", report=<dict>)
   │     ↓
-  │   QualityReport bruto con 8 CharacteristicResult + audit_tools_status
+  │   QualityReport canónico (validado) con 8 CharacteristicResult + audit_tools_status
   │     ↓
   ├─ 4. AG-10 Quality Auditor sintetiza:
   │     - justification por bloque (cita raw_metrics)

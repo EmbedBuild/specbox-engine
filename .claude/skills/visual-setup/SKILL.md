@@ -34,13 +34,21 @@ Configura la identidad visual completa de un proyecto ANTES de empezar a desarro
 
 ---
 
-## Paso 0.0 — Leer documentos canónicos (v5.29.0)
+## Paso 0.0 — Leer documentos canónicos (v5.29.0 + v6.0.1 content-passing)
 
-**ANTES de cualquier otro paso**, llama a la tool MCP:
+**ANTES de cualquier otro paso**:
+
+1. Usa `Read` localmente sobre `doc/app/app_prd.md` y `doc/app/app_spec.md`.
+2. Llama a la tool MCP con el contenido:
 
 ```
-get_inheritable_values_tool(project_path=".")
+get_inheritable_values_tool(
+  app_prd_content=<contenido o null>,
+  app_spec_content=<contenido o null>,
+)
 ```
+
+> **v6.0.1**: `get_inheritable_values_tool` y `read_app_docs_tool` dejaron de aceptar `project_path` — el cliente lee localmente y pasa el contenido.
 
 Si `app_spec.md` ya define identidad visual (`brand_visual` zone con valores reales — no plantilla):
 

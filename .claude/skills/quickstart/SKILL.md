@@ -5,6 +5,12 @@ description: >
   pipeline with a demo project. Use when the user says "quickstart", "tutorial",
   "getting started", "learn engine", or needs onboarding to the engine.
 context: direct
+triggers:
+  - quickstart
+  - tutorial
+  - getting started
+  - learn engine
+  - onboarding
 ---
 
 # /quickstart — Tutorial Guiado Interactivo

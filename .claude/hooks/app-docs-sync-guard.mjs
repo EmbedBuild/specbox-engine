@@ -33,7 +33,7 @@
  *
  * Telemetry: every detection writes a JSONL entry to
  * `.quality/app_docs_drift.jsonl` so the drift detector (PR-15) can
- * surface it via heartbeat to Sala de Máquinas.
+ * surface it to external consumers (specbox_cloud, ad-hoc scripts).
  */
 
 import { existsSync, readFileSync } from 'fs';

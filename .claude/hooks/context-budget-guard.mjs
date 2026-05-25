@@ -17,8 +17,8 @@
  *   specbox.implement.task_isolation.task_budget_mode  (default "warn")
  *
  * Side-effects:
- *   Updates .quality/task_isolation.json counters so the heartbeat
- *   sender can surface the metric to Sala de Máquinas.
+ *   Updates .quality/task_isolation.json counters for local inspection
+ *   and external consumers (specbox_cloud, ad-hoc scripts).
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';

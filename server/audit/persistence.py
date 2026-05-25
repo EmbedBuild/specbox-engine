@@ -1,5 +1,6 @@
 """Persist audit artifacts under STATE_PATH/projects/<p>/evidence/audits/ and
-update project meta so Sala de Máquinas can surface the latest audit.
+update project meta so external consumers (specbox_cloud, ad-hoc scripts)
+can surface the latest audit without scanning the filesystem.
 """
 
 from __future__ import annotations

@@ -28,7 +28,7 @@ def register_benchmark_tools(mcp: FastMCP, engine_path: Path, state_path: Path) 
 
     @mcp.tool()
     def generate_benchmark_snapshot() -> dict:
-        """Generate a public benchmark snapshot from Sala de Máquinas state data.
+        """Generate a public benchmark snapshot from host-side state data.
 
         **v6.0.1 — content-passing API**
 

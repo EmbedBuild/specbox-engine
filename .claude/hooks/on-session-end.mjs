@@ -4,7 +4,7 @@
  * NON-BLOCKING: Records session metrics and reports to MCP + Engram.
  */
 
-import { git, mkdir, now, getProjectName, findFiles, commandExists, getHooksDir } from './lib/utils.mjs';
+import { git, mkdir, now, findFiles, commandExists } from './lib/utils.mjs';
 import { appendLine, fileExists } from './lib/utils.mjs';
 import { spawn } from 'child_process';
 import { readFileSync, statSync } from 'fs';
@@ -159,28 +159,5 @@ if (commandExists('engram')) {
   console.log('');
 }
 
-// Report to MCP (fire-and-forget)
-const projectName = getProjectName();
-const hooksDir = getHooksDir();
-
-const mcpArgs = JSON.stringify({
-  project: projectName,
-  timestamp,
-  files_modified: filesModified,
-  context_tokens_est: contextTokens,
-  healing_events: healingEvents,
-  active_feature: activeFeature,
-});
-
-const mcpChild = spawn('node', [join(hooksDir, 'mcp-report.mjs'), 'report_session', mcpArgs], {
-  detached: true,
-  stdio: 'ignore',
-});
-mcpChild.unref();
-
-// Send heartbeat (fire-and-forget, background)
-const hbChild = spawn('node', [join(hooksDir, 'heartbeat-sender.mjs'), projectName, 'idle'], {
-  detached: true,
-  stdio: 'ignore',
-});
-hbChild.unref();
+// v6.1.0 Cloud Cutover: remote heartbeat + mcp-report dispatch removed.
+// Local telemetry (.quality/logs/, Engram) still recorded above.

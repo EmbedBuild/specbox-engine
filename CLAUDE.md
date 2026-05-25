@@ -1321,9 +1321,16 @@ Path-traversal guard + rechazo de paths absolutos built-in. 15 casos en `mcp-cli
 
 Los 8 analizadores SQuaRE de `server/audit/analyzers/` necesitan escanear el código real (lint, complexity, dup, security). Serializar un repo entero como bundle es inviable. Solución: los analizadores se moverán a `.quality/scripts/audit/` (porting completo en v6.0.2) y el cliente envía el `QualityReport` construido localmente vía `submit_quality_audit(project, report)`. En v6.0.1 el directorio está provisionado con un README; `run_quality_audit` queda como shim deprecado que retorna error si se invoca sin `report`.
 
-### Defensas v5.29 de FreeForm
+### Defensas v5.29 de FreeForm (decisión permanente — revisada en v6.2)
 
-El hook `freeform-path-guard.mjs` y `FreeformPathError` siguen vivos en v6.0.1 como defensa en profundidad. Eliminación formal planeada para v6.1.
+El hook `freeform-path-guard.mjs` y `FreeformPathError` permanecen como defensa en profundidad **permanente**, no como deuda transitoria. Una nota anterior decía "eliminación formal planeada para v6.1"; tras revisión en v6.2 esa intención queda revocada porque:
+
+1. El hook tiene **uso real verificable** en producción (entries en `.quality/logs/freeform-path-rewrites.jsonl`).
+2. `FreeformPathError` tiene tests vivos en `tests/test_freeform_path_guard.py` — cubre el server-side guard de path absoluto.
+3. `onboard_project` todavía expone `freeform_root_absolute: str = ""` como argumento opcional; sin las defensas, un cliente que omite el argumento y pasa por el default implícito `doc/tracking` rompería en MCP remoto exactamente como el bug original de v5.29.
+4. `/app-init` SKILL.md explícitamente referencia el hook como red de seguridad para clientes que no pasan por la skill (claude.ai mobile, integraciones externas).
+
+La arquitectura de 3 capas (skill explícita / hook auto-rewrite / server-side validation) es deliberada y se mantiene.
 
 ### Referencias
 

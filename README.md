@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.0.2 — "Smoke Test Followups" (sobre v6.0.1 "MCP Path Contract", v6.0.0 "Discovery Foundations")<br/>
+  v 6.1.1 — "Cutover Followup" (sobre v6.1.0 "Cloud Cutover", v6.0.2 "Smoke Test Followups", v6.0.1 "MCP Path Contract")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -367,7 +367,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.0.2 — "Smoke Test Followups" (over v6.0.1 "MCP Path Contract", v6.0.0 "Discovery Foundations")
+> v 6.1.1 — "Cutover Followup" (over v6.1.0 "Cloud Cutover", v6.0.2 "Smoke Test Followups", v6.0.1 "MCP Path Contract")
 
 ## What is this?
 

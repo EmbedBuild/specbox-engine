@@ -2,7 +2,7 @@
   "name": "specbox-engine",
   "displayName": "SpecBox Engine — Agentic Dev for Claude Code",
   "description": "Install and manage SpecBox Engine: skills, hooks, MCP servers, and Engram memory for Claude Code agentic development.",
-  "version": "5.21.0",
+  "version": "5.21.1",
   "publisher": "jpsdeveloper",
   "license": "MIT",
   "engines": {
@@ -57,10 +57,6 @@
       {
         "command": "specbox.showStatus",
         "title": "SpecBox: Show Status"
-      },
-      {
-        "command": "specbox.openDashboard",
-        "title": "SpecBox: Open Sala de Maquinas"
       },
       {
         "command": "specbox.configureMcp",
@@ -153,11 +149,6 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically configure MCP servers (SpecBox + Engram) on install."
-        },
-        "specbox.dashboardUrl": {
-          "type": "string",
-          "default": "http://localhost:8080",
-          "description": "URL for the Sala de Maquinas dashboard."
         }
       }
     }

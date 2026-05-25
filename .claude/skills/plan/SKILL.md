@@ -580,8 +580,9 @@ Tomar acción según el resultado:
 | `experimental.percent ≥ 80` y `< 100` | AVISAR al usuario: "Cuota PRO al X% — quedan N generaciones. ¿Continuar?" |
 | `experimental.percent ≥ 100` | BLOQUEAR Paso 6: "Cuota PRO agotada hasta {reset_at}. Opciones: (a) activar `flash_safety_net` en settings.local.json para usar Flash como degradación; (b) esperar al reset; (c) generar pantallas manualmente." |
 
-El cache `.quality/stitch_quota.json` que escribe esta tool es el que el
-heartbeat lee para reportar `stitch_quota` a Sala de Máquinas.
+El cache `.quality/stitch_quota.json` que escribe esta tool lo puede leer
+cualquier consumidor externo (specbox_cloud, scripts ad-hoc) para mostrar
+el estado de cuota por proyecto.
 
 ---
 

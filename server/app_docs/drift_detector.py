@@ -22,8 +22,9 @@ Drift signals implemented in v5.29.0:
        `app_spec.md` zone "canonical_decisions".
 
 Each detected drift entry is appended to `.quality/app_docs_drift.jsonl`
-(same file the hook from PR-13 writes) and surfaced via the existing
-heartbeat mechanism so it appears in Sala de Máquinas.
+(same file the hook from PR-13 writes) and exposed via the compact
+`app_docs_drift_for_heartbeat` MCP tool for external consumers
+(specbox_cloud, ad-hoc scripts).
 """
 
 from __future__ import annotations
@@ -316,9 +317,9 @@ def register_drift_tools(mcp: FastMCP, engine_path: Path) -> None:
 
     @mcp.tool
     def app_docs_drift_for_heartbeat(project_path: str = ".") -> dict[str, Any]:
-        """Compact drift summary suited for the heartbeat pipeline.
+        """Compact drift summary suited for telemetry / external dashboards.
 
-        Used by Sala de Máquinas to display per-project sync health
-        across all onboarded projects.
+        Used by external consumers (specbox_cloud, ad-hoc scripts) to
+        display per-project sync health across all onboarded projects.
         """
         return heartbeat_payload(project_path)

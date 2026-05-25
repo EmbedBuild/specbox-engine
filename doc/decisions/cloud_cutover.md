@@ -153,3 +153,55 @@ After revert:
   filesystem assumptions on the server side is what made it safe to
   let specbox_cloud read Supabase directly without going through the
   MCP for every read.
+
+---
+
+## v6.1.1 followup — Residual cleanup (2026-05-25)
+
+The original v6.1.0 PR left 11 residuals in `main` that didn't surface
+until a follow-up audit:
+
+1. **`get_sala_de_maquinas` MCP tool** was still registered in
+   `server/tools/state.py` — the most severe residual: API surface
+   exposing a dead capability. Any client calling it would receive
+   live filesystem data instead of the expected tool-not-found.
+2. Docstrings in `server/tools/benchmark.py`, `server/audit/persistence.py`,
+   `server/app_docs/drift_detector.py` still referenced "Sala de Máquinas"
+   as the downstream consumer.
+3. Two Node hooks (`app-docs-sync-guard.mjs`, `context-budget-guard.mjs`)
+   carried the same stale references in their docstrings.
+4. Three skill bodies (`plan/`, `audit/`, `discovery/`) mentioned
+   "métricas en Sala de Máquinas" or equivalent.
+5. Both canonical docs (`doc/app/app_spec.md`, `doc/app/app_prd.md`)
+   declared the React 19 Dashboard as part of the engine stack —
+   the row pointed to `server/dashboard/package.json` which no longer
+   existed.
+6. `ENGINE_VERSION.yaml` `features:` array (which describes current
+   capabilities, not historical) still listed `sala-de-maquinas-embedded`.
+7. `.claude/settings.local.json` (local-only, gitignored) had a stale
+   `allowedTools` entry for the deregistered tool.
+8. VSCode extension exposed `specbox.openDashboard` command + `dashboardUrl`
+   setting pointing at the dead VPS.
+
+v6.1.1 "Cutover Followup" closes all 11 in a single squashable PR
+following the SpecBox methodology end-to-end:
+
+- **PRD**: `doc/prd/US-CUTOVER-FOLLOWUP_prd.md`
+- **Tracking**: US-CUTOVER-FOLLOWUP → UC-625..UC-633 → 26 ACs
+  in FreeForm backend `ff-ed0c02f4565a`
+- **Plan**: `doc/plans/US-CUTOVER-FOLLOWUP_plan.md`
+- **Implementation**: 9 commits (one per UC), one branch
+  (`feature/v6.1.1-cutover-followup`), squash merge to `main`,
+  tag `v6.1.1`
+
+Cero código nuevo. Sólo deletes + cleanup textual. Suite verde sin
+cambios numéricos (1192 passed). The VSCode extension keeps all 5
+non-Sala capabilities (install / healthCheck / onboard / showStatus /
+configureMcp) plus sidebar trees intact — only the dashboard command +
+setting are removed, with a 5.21.0 → 5.21.1 bump.
+
+The validated lesson: a `grep -rn "<removed-capability-name>"` over
+the whole repo (including canónicos, hooks, skills, settings,
+extension) should be part of the cutover checklist before tagging.
+v6.1.0 missed this step; v6.1.1 institutionalizes the residual sweep
+as the closing gate of any future "remove capability X" minor release.

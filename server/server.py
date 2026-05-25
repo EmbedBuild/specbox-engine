@@ -132,7 +132,6 @@ mcp = FastMCP(
     - Report developer feedback from manual testing and track resolutions
     - Report merge pipeline status (sequential merge tracking, feedback blocking)
     - Report E2E test results (Playwright) and track pass rates across projects
-    - View the Sala de Máquinas global dashboard across all projects
     - Manage Trello boards for spec-driven development (US/UC/AC hierarchy)
     - Manage Plane projects for spec-driven development (US/UC/AC hierarchy)
     - Import project specifications, track progress, attach evidence

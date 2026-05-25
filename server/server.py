@@ -58,7 +58,6 @@ from .app_docs.migration_v529 import register_v529_migration_tools
 from .app_docs.sync import register_sync_tools as register_app_sync_tools
 from .app_docs.drift_detector import register_drift_tools
 from .resources.engine_resources import register_resources
-from .dashboard_api import register_dashboard_routes
 
 # Configure structlog
 structlog.configure(
@@ -95,8 +94,7 @@ def _load_engine_version() -> str:
 
     Single source of truth. Previously this was hardcoded as ``v5.29.0`` in
     the FastMCP ``instructions`` string and drifted across releases, so
-    clients saw a stale version even after deploys. Mirrors the pattern in
-    :mod:`server.dashboard_api` (`_health_version`).
+    clients saw a stale version even after deploys.
     """
     version_file = ENGINE_PATH / "ENGINE_VERSION.yaml"
     if version_file.exists():
@@ -304,12 +302,8 @@ register_app_sync_tools(mcp, ENGINE_PATH)
 
 # Register multi-source drift detector (v5.29.0 PR-15)
 # detect_app_docs_drift inspects lockfiles / brand-kit refs / canonical
-# decisions / roadmap-vs-tracking; emits signals to app_docs_drift.jsonl
-# and exposes a compact heartbeat payload for Sala de Máquinas.
+# decisions / roadmap-vs-tracking; emits signals to app_docs_drift.jsonl.
 register_drift_tools(mcp, ENGINE_PATH)
-
-# Dashboard REST API + static files (La Sala de Máquinas)
-register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)
 
 
 def main():

@@ -1,8 +1,8 @@
-# SpecBox Engine v6.0.1
+# SpecBox Engine v6.0.2
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (167 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010 + Product Discovery.
+> Monorepo unificado: engine + MCP server (176 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010 + Product Discovery.
 
 ## Que es este repositorio
 
@@ -15,7 +15,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (159 tools) + Sala de Máquinas dashboard (React 19)
+- **Server** — MCP server unificado (176 tools) + Sala de Máquinas dashboard (React 19)
 - **Quality Audit** — ISO/IEC 25010 (SQuaRE) on-demand via `/audit` + AG-10 auditor externo
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
@@ -249,7 +249,7 @@ specbox-engine/
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
 ├── server/                ← MCP server unificado (v5.23)
-│   ├── server.py          ← FastMCP (159 tools)
+│   ├── server.py          ← FastMCP (176 tools)
 │   ├── dashboard_api.py   ← REST API /api/*
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
@@ -267,7 +267,7 @@ specbox-engine/
 │   │   ├── persistence.py      ← Evidence under evidence/audits/ + project_meta
 │   │   ├── analyzers/          ← 8 SQuaRE analyzers (one per characteristic)
 │   │   └── reporters/          ← JSON + ReportLab PDF (NumberedCanvas + embed.build brand)
-│   ├── tools/             ← 24 tool modules (159 tools)
+│   ├── tools/             ← 24 tool modules (176 tools)
 │   │   ├── engine.py      ← 3 tools (version, status, stacks)
 │   │   ├── plans.py       ← 3 tools
 │   │   ├── quality.py     ← 4 tools
@@ -1279,9 +1279,45 @@ documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
 
 ## Engine Version
 
-Current: v6.0.1 "MCP Path Contract"
+Current: v6.0.2 "Smoke Test Followups"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
+
+## Smoke Test Followups (v6.0.2)
+
+Patch release que cierra los 3 issues abiertos descubiertos en el smoke test de v6.0.1 (#60, #61, #62) y elimina el último hardcodeo de versión runtime que sobrevivía desde antes de v6.0.
+
+### Cambios
+
+| Issue | Módulo | Resumen |
+|-------|--------|---------|
+| #60 | `server/tools/audit.py` | `run_quality_audit` deprecation shim ahora `raise RuntimeError` → MCP envelope con `isError=true`. Clientes que solo inspeccionan el envelope detectan la deprecación. |
+| #61 | `server/tools/audit.py` | `submit_quality_audit` autogenera `audit_id` server-side (formato `audit_YYYYMMDDTHHMMSSZ`) si el cliente no lo pasa. Clientes que necesiten idempotencia pueden seguir pasando su propio `audit_id`. |
+| #62 | `server/tools/discovery.py` | `validate_discovery_completeness` parser acepta las 4 resoluciones canónicas (`feature_creep_rejected`, `app_market_updated`, `documented_exception`, `no_drift`). Alias legacy `no drift detected` normalizado a `no_drift`. Nuevo campo `drift.kind` habilita futuros gates estrictos sin requerir otro release. |
+
+### Bug latente eliminado de paso
+
+`submit_quality_audit.fn(...)` se llamaba desde el closure local de `register_audit_tools()`, lo cual siempre lanzaba `AttributeError`. No estallaba porque el único test que lo cubría estaba `pytest.skip`-eado por una dependencia de `QualityReport.empty()` que nunca existió. Refactor a llamada directa + fixture reescrito → 3 tests previos unskippeados y verdes.
+
+### Cleanup adicional (sin issue)
+
+`server/server.py` leía `"v5.29.0"` hardcoded en `FastMCP(instructions=...)` desde v5.29 — drifteaba en cada release y los clientes MCP veían una versión incorrecta. Ahora se lee de `ENGINE_VERSION.yaml` al cargar el módulo vía nuevo helper `_load_engine_version()` (mismo patrón que `dashboard_api._health_version`).
+
+### Dependencias
+
+`fastmcp >=3.0.0 → >=3.3.1,<4.0.0` (latest stable 2026-05-15, security hardening). Pin con upper bound para evitar saltos major silenciosos.
+
+### Tests
+
+`1243 passed / 71 skipped / 0 failed` (vs `1232/73/0` post-bump fastmcp). +11 nuevos / -2 skipped.
+
+### Compatibilidad
+
+100% backwards-compatible. Clientes calling `submit_quality_audit` sin `audit_id` ahora succeed (antes erraban). Clientes solo inspeccionando MCP `isError` en `run_quality_audit` deprecation ahora ven el valor correcto (antes veían `false`). No hay schema changes.
+
+### Referencias
+
+- PRs: [#63](https://github.com/EmbedBuild/specbox-engine/pull/63) (fastmcp bump), [#64](https://github.com/EmbedBuild/specbox-engine/pull/64) (3 issues + cleanup)
 
 ## MCP Path Contract (v6.0.1)
 

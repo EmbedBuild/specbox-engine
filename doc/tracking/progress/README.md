@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-25T12:22:38.633471+00:00
+> Actualizado: 2026-05-25T13:57:57.666274+00:00
 
 ## User Stories
 
@@ -16,7 +16,9 @@
 | US-D02 | [US-D02] Inheritance and traceability from discovery to implementation | todo | 0 | 1 | 0% |
 | US-D03 | [US-D03] Strategic drift detection across project lifetime | todo | 0 | 1 | 0% |
 | US-MCP-PATH-CONTRACT | [US-MCP-PATH-CONTRACT] Eliminar deuda técnica de paths filesystem MCP-remoto en todas las tools cat A | Backlog | 0 | 10 | 0% |
-| US-CUTOVER-FOLLOWUP | US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0 | User Stories | 0 | 9 | 0% |
+| US-CUTOVER-FOLLOWUP | US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0 | User Stories | 0 | 1 | 0% |
+| US-MCP-OBSERVABILITY | US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0) | User Stories | 0 | 0 | 0% |
+| US-MCP-OBSERVABILITY | US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0) | User Stories | 0 | 8 | 0% |
 
 ## Use Cases
 
@@ -78,12 +80,12 @@
 | UC-621 | US-MCP-PATH-CONTRACT | Backlog | 0 | 4 | 0% |
 | UC-622 | US-MCP-PATH-CONTRACT | Backlog | 0 | 7 | 0% |
 | UC-623 | US-MCP-PATH-CONTRACT | Backlog | 0 | 8 | 0% |
-| UC-625 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 4 | 0% |
-| UC-626 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 3 | 0% |
-| UC-627 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 2 | 0% |
-| UC-628 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 3 | 0% |
-| UC-629 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 3 | 0% |
-| UC-630 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 1 | 0% |
-| UC-631 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 1 | 0% |
-| UC-632 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 4 | 0% |
 | UC-633 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 5 | 0% |
+| UC-625 | US-MCP-OBSERVABILITY | Backlog | 0 | 4 | 0% |
+| UC-626 | US-MCP-OBSERVABILITY | Backlog | 0 | 4 | 0% |
+| UC-627 | US-MCP-OBSERVABILITY | Backlog | 0 | 4 | 0% |
+| UC-628 | US-MCP-OBSERVABILITY | Backlog | 0 | 4 | 0% |
+| UC-629 | US-MCP-OBSERVABILITY | Backlog | 0 | 5 | 0% |
+| UC-630 | US-MCP-OBSERVABILITY | Backlog | 0 | 4 | 0% |
+| UC-631 | US-MCP-OBSERVABILITY | Backlog | 0 | 4 | 0% |
+| UC-632 | US-MCP-OBSERVABILITY | Backlog | 0 | 7 | 0% |

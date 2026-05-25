@@ -5176,29 +5176,6 @@
     "external_id": ""
   },
   {
-    "id": "item-71110d24",
-    "name": "UC-625: Eliminar tool MCP get_sala_de_maquinas + helpers asociados",
-    "description": "# UC-625: Eliminar tool MCP get_sala_de_maquinas + helpers asociados\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.5\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: grep -rn 'def get_sala_de_maquinas' server/ retorna 0 matches\n- AC-02: Una llamada MCP a get_sala_de_maquinas recibe error de tool no registrada (no respuesta exitosa)\n- AC-03: Los helpers privados en server/tools/state.py sólo usados por la tool eliminada también se eliminan (auditados por grep antes de borrar). Helpers compartidos con report_* se preservan\n- AC-04: pytest -q retorna ≥1190 passed, 0 failed tras la eliminación\n\n## Contexto\nserver/tools/state.py:969 define get_sala_de_maquinas; server/server.py:135 la anuncia en instructions. Auditar helpers privados antes de borrar — preservar los compartidos con report_*.",
-    "state": "backlog",
-    "parent_id": "item-5634a7e1",
-    "labels": [
-      "UC",
-      "Actor:Maintainer"
-    ],
-    "priority": "none",
-    "meta": {
-      "tipo": "UC",
-      "uc_id": "UC-625",
-      "us_id": "US-CUTOVER-FOLLOWUP",
-      "horas": 0.5,
-      "pantallas": "",
-      "actor": "Maintainer"
-    },
-    "created_at": "2026-05-25T12:22:38.477010+00:00",
-    "external_source": "",
-    "external_id": ""
-  },
-  {
     "id": "ac-cfc23226",
     "name": "[AC-01] grep -rn 'def get_sala_de_maquinas' server/ retorna 0 matches",
     "description": "",
@@ -5263,29 +5240,6 @@
     "created_at": "2026-05-25T12:22:38.488107+00:00"
   },
   {
-    "id": "item-872bf9dd",
-    "name": "UC-626: Limpiar docstrings Python (benchmark + audit + drift_detector)",
-    "description": "# UC-626: Limpiar docstrings Python (benchmark + audit + drift_detector)\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.2\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: grep -rn 'Sala de Máquinas' server/tools/benchmark.py server/audit/ server/app_docs/ retorna 0 matches\n- AC-02: Las funcionalidades de generate_benchmark_snapshot, attach_audit_evidence y detect_app_docs_drift siguen funcionando idénticamente (tests pasan)\n- AC-03: Donde la docstring describía un consumidor externo, se reescribe para referirse a 'consumidores externos (specbox_cloud, scripts ad-hoc)' en vez de a Sala de Máquinas específicamente\n\n## Contexto\n3 archivos: server/tools/benchmark.py:31, server/audit/persistence.py:2, server/app_docs/drift_detector.py:26+321. Reescribir docstrings que mencionan consumidor externo de 'Sala de Máquinas' a 'consumidores externos (specbox_cloud, scripts ad-hoc)'.",
-    "state": "backlog",
-    "parent_id": "item-5634a7e1",
-    "labels": [
-      "UC",
-      "Actor:Maintainer"
-    ],
-    "priority": "none",
-    "meta": {
-      "tipo": "UC",
-      "uc_id": "UC-626",
-      "us_id": "US-CUTOVER-FOLLOWUP",
-      "horas": 0.2,
-      "pantallas": "",
-      "actor": "Maintainer"
-    },
-    "created_at": "2026-05-25T12:22:38.498501+00:00",
-    "external_source": "",
-    "external_id": ""
-  },
-  {
     "id": "ac-b879dc54",
     "name": "[AC-01] grep -rn 'Sala de Máquinas' server/tools/benchmark.py server/audit/ server/app_docs/ retorna 0 matches",
     "description": "",
@@ -5334,29 +5288,6 @@
     "created_at": "2026-05-25T12:22:38.507458+00:00"
   },
   {
-    "id": "item-f6e1a68e",
-    "name": "UC-627: Limpiar docstrings Node hooks",
-    "description": "# UC-627: Limpiar docstrings Node hooks\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.1\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: grep -n 'Sala de Máquinas' .claude/hooks/*.mjs retorna 0 matches\n- AC-02: Los hooks siguen siendo ejecutables con node --check (sintaxis JS válida) y conservan toda su lógica funcional (sólo se modifican comentarios)\n\n## Contexto\n.claude/hooks/app-docs-sync-guard.mjs:36 y .claude/hooks/context-budget-guard.mjs:21. Sólo se modifican comentarios; lógica intacta.",
-    "state": "backlog",
-    "parent_id": "item-5634a7e1",
-    "labels": [
-      "UC",
-      "Actor:Maintainer"
-    ],
-    "priority": "none",
-    "meta": {
-      "tipo": "UC",
-      "uc_id": "UC-627",
-      "us_id": "US-CUTOVER-FOLLOWUP",
-      "horas": 0.1,
-      "pantallas": "",
-      "actor": "Maintainer"
-    },
-    "created_at": "2026-05-25T12:22:38.517287+00:00",
-    "external_source": "",
-    "external_id": ""
-  },
-  {
     "id": "ac-8bf0c27f",
     "name": "[AC-01] grep -n 'Sala de Máquinas' .claude/hooks/*.mjs retorna 0 matches",
     "description": "",
@@ -5387,29 +5318,6 @@
       "tipo": "AC"
     },
     "created_at": "2026-05-25T12:22:38.524695+00:00"
-  },
-  {
-    "id": "item-6691ba18",
-    "name": "UC-628: Limpiar menciones en skills (plan/audit/discovery)",
-    "description": "# UC-628: Limpiar menciones en skills (plan/audit/discovery)\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.2\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: grep -n 'Sala de Máquinas' .claude/skills/{plan,audit,discovery}/SKILL.md retorna 0 matches\n- AC-02: Donde el skill mencionaba telemetría 'a Sala de Máquinas', se reescribe a 'consumidores externos (specbox_cloud)' o se elimina si la mención era puramente descriptiva\n- AC-03: Los frontmatters triggers, name, description de los 3 skills permanecen intactos\n\n## Contexto\n.claude/skills/plan/SKILL.md:584, audit/SKILL.md:61, discovery/SKILL.md:414. Frontmatter (name/description/triggers) NO se toca.",
-    "state": "backlog",
-    "parent_id": "item-5634a7e1",
-    "labels": [
-      "UC",
-      "Actor:Maintainer"
-    ],
-    "priority": "none",
-    "meta": {
-      "tipo": "UC",
-      "uc_id": "UC-628",
-      "us_id": "US-CUTOVER-FOLLOWUP",
-      "horas": 0.2,
-      "pantallas": "",
-      "actor": "Maintainer"
-    },
-    "created_at": "2026-05-25T12:22:38.535697+00:00",
-    "external_source": "",
-    "external_id": ""
   },
   {
     "id": "ac-47222e90",
@@ -5460,29 +5368,6 @@
     "created_at": "2026-05-25T12:22:38.544635+00:00"
   },
   {
-    "id": "item-140c3a44",
-    "name": "UC-629: Limpiar canónicos doc/app/app_spec.md + app_prd.md",
-    "description": "# UC-629: Limpiar canónicos doc/app/app_spec.md + app_prd.md\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.3\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: La fila 'Dashboard (Sala de Máquinas) | React | ^19.0.0' se elimina de la tabla de Stack en app_spec.md. Lo mismo con la fila 'Dashboard build | Vite'\n- AC-02: La línea de Stitch project_id en app_spec.md (zona brand_visual) elimina la mención 'salvo Sala de Máquinas' o se reescribe sin ella\n- AC-03: En app_prd.md zona vision (línea 12) y zona scope (línea 31), las menciones a '164 tools + Sala de Máquinas' se reescriben de forma consistente con el estado post-cutover. Las versiones del documento se bumpean (Versión del documento: 1 → 2)\n\n## Contexto\ndoc/app/app_spec.md:17,40 declara React 19 + menciona Sala. doc/app/app_prd.md:12,31 menciones en zonas vision + scope. Las zonas son manuales (kind='manual'), pueden editarse directo. Bumpear Versión del documento.",
-    "state": "backlog",
-    "parent_id": "item-5634a7e1",
-    "labels": [
-      "UC",
-      "Actor:Maintainer"
-    ],
-    "priority": "none",
-    "meta": {
-      "tipo": "UC",
-      "uc_id": "UC-629",
-      "us_id": "US-CUTOVER-FOLLOWUP",
-      "horas": 0.3,
-      "pantallas": "",
-      "actor": "Maintainer"
-    },
-    "created_at": "2026-05-25T12:22:38.555579+00:00",
-    "external_source": "",
-    "external_id": ""
-  },
-  {
     "id": "ac-d592bd6b",
     "name": "[AC-01] La fila 'Dashboard (Sala de Máquinas) | React | ^19.0.0' se elimina de la tabla de Stack en app_spec.md. Lo mismo con la fila 'Dashboard build | Vite'",
     "description": "",
@@ -5531,29 +5416,6 @@
     "created_at": "2026-05-25T12:22:38.563569+00:00"
   },
   {
-    "id": "item-72e60b55",
-    "name": "UC-630: Limpiar ENGINE_VERSION.yaml features array",
-    "description": "# UC-630: Limpiar ENGINE_VERSION.yaml features array\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.05\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: El string 'sala-de-maquinas-embedded' ya no aparece en el array features: (verificable: grep 'sala-de-maquinas-embedded' ENGINE_VERSION.yaml → 0 matches en el array de features, las menciones en commits históricos se preservan)\n\n## Contexto\nSólo el array features: queda como estado actual. El array commits: histórico no se toca.",
-    "state": "backlog",
-    "parent_id": "item-5634a7e1",
-    "labels": [
-      "UC",
-      "Actor:Maintainer"
-    ],
-    "priority": "none",
-    "meta": {
-      "tipo": "UC",
-      "uc_id": "UC-630",
-      "us_id": "US-CUTOVER-FOLLOWUP",
-      "horas": 0.05,
-      "pantallas": "",
-      "actor": "Maintainer"
-    },
-    "created_at": "2026-05-25T12:22:38.574162+00:00",
-    "external_source": "",
-    "external_id": ""
-  },
-  {
     "id": "ac-158104fe",
     "name": "[AC-01] El string 'sala-de-maquinas-embedded' ya no aparece en el array features: (verificable: grep 'sala-de-maquinas-embedded' ENGINE_VERSION.yaml → 0 matches en el array de features, las menciones en commits históricos se preservan)",
     "description": "",
@@ -5570,29 +5432,6 @@
     "created_at": "2026-05-25T12:22:38.582080+00:00"
   },
   {
-    "id": "item-812355db",
-    "name": "UC-631: Limpiar .claude/settings.local.json allowedTools",
-    "description": "# UC-631: Limpiar .claude/settings.local.json allowedTools\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.05\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: La entrada mcp__specbox-engine__get_sala_de_maquinas ya no está en ningún array allowedTools / allow de .claude/settings.local.json. El JSON sigue siendo válido (parseable)\n\n## Contexto\nSettings local con allowedTool a tool eliminada en UC-625.",
-    "state": "backlog",
-    "parent_id": "item-5634a7e1",
-    "labels": [
-      "UC",
-      "Actor:Maintainer"
-    ],
-    "priority": "none",
-    "meta": {
-      "tipo": "UC",
-      "uc_id": "UC-631",
-      "us_id": "US-CUTOVER-FOLLOWUP",
-      "horas": 0.05,
-      "pantallas": "",
-      "actor": "Maintainer"
-    },
-    "created_at": "2026-05-25T12:22:38.590504+00:00",
-    "external_source": "",
-    "external_id": ""
-  },
-  {
     "id": "ac-a9f72ceb",
     "name": "[AC-01] La entrada mcp__specbox-engine__get_sala_de_maquinas ya no está en ningún array allowedTools / allow de .claude/settings.local.json. El JSON sigue siendo válido (parseable)",
     "description": "",
@@ -5607,29 +5446,6 @@
       "tipo": "AC"
     },
     "created_at": "2026-05-25T12:22:38.598552+00:00"
-  },
-  {
-    "id": "item-5f58e566",
-    "name": "UC-632: VSCode extension — quitar comando + setting + bump 5.21.0→5.21.1",
-    "description": "# UC-632: VSCode extension — quitar comando + setting + bump 5.21.0→5.21.1\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.4\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: El comando specbox.openDashboard ya no figura en vscode-extension/package.json sección contributes.commands\n- AC-02: El setting specbox.dashboardUrl ya no figura en la sección contributes.configuration. JSON sigue válido\n- AC-03: Las líneas 56-57 (registerCommand 'specbox.openDashboard', ...) y cualquier import asociado ya no están en src/extension.ts. El rebuild npm run compile (o equivalente) pasa sin errores TypeScript\n- AC-04: La versión de la extensión se bumpea de 5.21.0 a 5.21.1 en vscode-extension/package.json\n\n## Contexto\nvscode-extension/package.json contributes.commands líneas 61-64 + contributes.configuration líneas 157-161 + src/extension.ts líneas 56-57 (registerCommand). Rebuild npm run compile. Sólo eliminar lo Sala-related; preservar install/health/onboard/mcp/status.",
-    "state": "backlog",
-    "parent_id": "item-5634a7e1",
-    "labels": [
-      "UC",
-      "Actor:Maintainer"
-    ],
-    "priority": "none",
-    "meta": {
-      "tipo": "UC",
-      "uc_id": "UC-632",
-      "us_id": "US-CUTOVER-FOLLOWUP",
-      "horas": 0.4,
-      "pantallas": "",
-      "actor": "Maintainer"
-    },
-    "created_at": "2026-05-25T12:22:38.607093+00:00",
-    "external_source": "",
-    "external_id": ""
   },
   {
     "id": "ac-cfdc7660",
@@ -5797,5 +5613,1045 @@
       "tipo": "AC"
     },
     "created_at": "2026-05-25T12:22:38.631789+00:00"
+  },
+  {
+    "id": "item-fb79f388",
+    "name": "US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0)",
+    "description": "# US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0)\n\n**Horas estimadas:** 24.0\n**Pantallas:** \n\nComo mantenedor de SpecBox Engine MCP server, quiero instrumentar cada `tools/call` con OpenTelemetry (spans + metricas + logs correlacionados) exportado via OTLP, para tener visibilidad de que tools se llaman, con que latencia y que errores producen — sin acoplar el codigo a un backend concreto (Sentry, Datadog, Tempo, Honeycomb son intercambiables cambiando env vars) y sin pagar overhead en sesiones locales (opt-in por env var).\n\n**Inspiracion**: el companero de DentalData libero v0.8.0 de su MCP con middleware OTel -> Sentry que emite 1 span por `tools/call` y alimenta los dashboards \"MCP\" y \"AI Agents\" de Sentry. Replicamos la idea pero con OTLP generico para no acoplar a Sentry.\n\n**Scope v1**: instrumentacion pura — cero cambios en el comportamiento de las tools. Cubre los 3 verbos: spans (perf + errores), 3 metricas (calls_total counter, errors_total counter, duration_ms histogram), logs estructurados correlacionados por trace_id.\n\n**Activacion**: opt-in con `SPECBOX_OBSERVABILITY_ENABLED=true`. Si la env var no esta, OTel ni siquiera se importa — proyectos locales (stdio) cero overhead y cero dependencias en runtime.\n\n**Decisiones cerradas con el user 2026-05-25**:\n- Backend: OTel puro + OTLP generico (NO Sentry SDK directo). Portable.\n- Scope v1: completo (spans + metricas + logs correlacionados).\n- Activacion: opt-in por env var. Local/stdio cero overhead.\n\n**Pieza tecnica clave**: FastMCP 3.3+ (ya pineado en pyproject `>=3.3.1,<4.0.0`) trae middleware nativo (`mcp.add_middleware`) con hook `on_call_tool`. Sin parchear FastMCP ni envolver cada tool.\n\n**Politica de redaccion CRITICA**: tools v6.0.1 content-passing reciben docs canonicos del cliente como `*_content`. El middleware NO emite contenido — solo `len()`, hash opcional, y nombres de keys del payload. Allowlist centralizada en `attributes.py`, NO denylist.\n\n**Win secundario**: el counter `mcp.tool.calls_total{tool=run_quality_audit}` cierra el follow-up de v6.0.2 issue #60 — sabremos cuantos consumers externos siguen llamando al shim deprecado antes de eliminarlo en v6.3.\n\n**Riesgos identificados**:\n1. Cardinality por `project` slug -> usar hash 8-char del sha256 si backend factura cardinality (Datadog si, Tempo no).\n2. Bug historico OTel SDK con asyncio en FastMCP -> pinear `opentelemetry-sdk>=1.27` (tiene el fix).\n3. Overhead stdio local -> opt-in lo cierra.\n4. Fuga de contenido en spans -> politica de allowlist + test que falla si aparece `*_content` en atributos.\n\n**Release target**: v6.2.0 (minor, no patch — anade dependencias opcionales y superficie nueva aunque sea opt-in).\n\n**Referencias**:\n- Inspiracion: DentalData MCP v0.8.0 \"MCP observability\"\n- FastMCP middleware docs\n- OTel spec: https://opentelemetry.io/docs/specs/otel/",
+    "state": "user_stories",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-MCP-OBSERVABILITY",
+      "horas": 24.0,
+      "pantallas": ""
+    },
+    "created_at": "2026-05-25T13:52:18.728539+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-4847d9f5",
+    "name": "[AC-04] [AC-04] El middleware NO emite span cuando `SPECBOX_OBSERVABILITY_ENABLED != 'true'` — en realidad ni se registra (cableado en server.py condicional, ver UC-630); un test verifica que en ese estado el `on_call_tool` no es invocado para la tool.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-872bf9dd",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.770370+00:00"
+  },
+  {
+    "id": "ac-09085564",
+    "name": "[AC-03] [AC-03] Una invocacion con error incrementa `calls_total{status=error}` Y `errors_total{tool=<name>, error_type=<exception class>}` en 1; un test con tool que levanta `ValueError('x')` verifica los 2 counters incrementados con labels correctos.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f6e1a68e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.788308+00:00"
+  },
+  {
+    "id": "ac-c26c277b",
+    "name": "[AC-04] [AC-04] Las metricas NO incluyen labels de alta cardinality (`project`, `developer_id`, `path`, `content`); un test list-checks que los `attributes` de cada data point son subset de `{tool, status, backend, transport, error_type}`.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f6e1a68e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.788314+00:00"
+  },
+  {
+    "id": "ac-c469a25f",
+    "name": "[AC-04] [AC-04] Un test end-to-end: dentro de un span activo, un `logger.info('msg', foo='bar')` produce output JSON que contiene `trace_id`, `span_id`, `foo='bar'`, `event='msg'` simultaneamente (verifica que la correlacion esta intacta).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-6691ba18",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.805436+00:00"
+  },
+  {
+    "id": "ac-6d6416aa",
+    "name": "[AC-04] [AC-04] `redact_path('/Users/foo/bar')` con cwd `/Users/foo` devuelve `bar`; con cwd no relacionado devuelve `<redacted>`; test cubre ambos casos.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-140c3a44",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.823866+00:00"
+  },
+  {
+    "id": "ac-88495a78",
+    "name": "[AC-05] [AC-05] Un fuzz test: para cada tool registrada en el MCP, simula args sinteticos con claves `*_content` enormes y verifica que ninguna invocacion del middleware produce span con el contenido raw — el contenido NO aparece en ningun atributo, log line ni etiqueta de metrica.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-140c3a44",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.823875+00:00"
+  },
+  {
+    "id": "ac-3d41fe55",
+    "name": "[AC-02] [AC-02] Con `SPECBOX_OBSERVABILITY_ENABLED` ausente o `=false`, tras `import server.server`, `opentelemetry` NO esta en `sys.modules` y `mcp._middlewares` no contiene `MCPObservabilityMiddleware`; test verifica ambas condiciones.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-72e60b55",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.840592+00:00"
+  },
+  {
+    "id": "ac-c4cd297b",
+    "name": "[AC-03] [AC-03] Si `init_observability()` levanta excepcion (ej. OTLP endpoint invalido), el server termina de cargarse sin crashear y emite log `mcp_observability_init_failed` con el error; test con monkeypatch fuerza la excepcion y verifica que `import server.server` no levanta.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-72e60b55",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.840596+00:00"
+  },
+  {
+    "id": "ac-77e4e17b",
+    "name": "[AC-04] [AC-04] Con observabilidad activa, log inicial `mcp_observability_enabled` incluye campo `exporter` con el valor de `OTEL_EXPORTER_OTLP_ENDPOINT` (o `'console'` si no esta seteado); test captura log output.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-72e60b55",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.840600+00:00"
+  },
+  {
+    "id": "ac-76c29770",
+    "name": "[AC-02] [AC-02] El test suite usa `InMemorySpanExporter` e `InMemoryMetricReader` — NO requiere collector OTLP corriendo; un test ejecutado en CI sin red verifica que pasa igual.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-812355db",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.856568+00:00"
+  },
+  {
+    "id": "ac-245a380b",
+    "name": "[AC-03] [AC-03] Test `test_no_content_leak` (fuzz): registra una tool mock que recibe `app_prd_content='SECRET_LEAK_CANARY_xyz123'` como arg, ejecuta el middleware, busca el string canary en TODOS los spans, logs y data points de metricas exportados; assert que el canary NO aparece en ninguno.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-812355db",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.856572+00:00"
+  },
+  {
+    "id": "ac-ad7df060",
+    "name": "[AC-04] [AC-04] La suite anade al global pytest `1243 -> 1255+` tests sin breaks de los pre-existentes (regression check: `pytest tests/ -q` mantiene `failed=0`).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-812355db",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.856577+00:00"
+  },
+  {
+    "id": "ac-f3e09cc6",
+    "name": "[AC-05] [AC-05] `pyproject.toml` tiene optional extra `[observability]` con `opentelemetry-sdk>=1.27`, `opentelemetry-exporter-otlp>=1.27`, `opentelemetry-instrumentation-logging>=0.48b0`; un test ejecuta `pip install -e '.[observability]'` en venv limpia y verifica resolucion de deps.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5f58e566",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.872604+00:00"
+  },
+  {
+    "id": "ac-d81c9bf9",
+    "name": "[AC-06] [AC-06] `Dockerfile` instala con extra observability (`pip install '.[observability]'`); build del Dockerfile no falla.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5f58e566",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.872608+00:00"
+  },
+  {
+    "id": "ac-e37bd1bb",
+    "name": "[AC-07] [AC-07] `ENGINE_VERSION.yaml` bumpeado a `version: 6.2.0` y `name: \"MCP Observability\"`; el server log inicial reporta `engine_version=v6.2.0`.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5f58e566",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-07",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:52:18.872611+00:00"
+  },
+  {
+    "id": "item-696f1953",
+    "name": "US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0)",
+    "description": "# US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0)\n\n**Horas estimadas:** 24.0\n**Pantallas:** \n\nComo mantenedor de SpecBox Engine MCP server, quiero instrumentar cada `tools/call` con OpenTelemetry (spans + metricas + logs correlacionados) exportado via OTLP, para tener visibilidad de que tools se llaman, con que latencia y que errores producen, sin acoplar el codigo a un backend concreto (Sentry, Datadog, Tempo, Honeycomb son intercambiables cambiando env vars) y sin pagar overhead en sesiones locales (opt-in por env var).\n\n**Inspiracion**: el companero de DentalData libero v0.8.0 de su MCP con middleware OTel -> Sentry que emite 1 span por `tools/call` y alimenta los dashboards 'MCP' y 'AI Agents' de Sentry. Replicamos la idea pero con OTLP generico para no acoplar a Sentry.\n\n**Scope v1**: instrumentacion pura, cero cambios en el comportamiento de las tools. Cubre: spans (perf + errores), 3 metricas (calls_total counter, errors_total counter, duration_ms histogram), logs estructurados correlacionados por trace_id.\n\n**Activacion**: opt-in con `SPECBOX_OBSERVABILITY_ENABLED=true`. Si la env var no esta, OTel ni siquiera se importa, proyectos locales (stdio) cero overhead y cero dependencias en runtime.\n\n**Decisiones cerradas con el user 2026-05-25**:\n- Backend: OTel puro + OTLP generico (NO Sentry SDK directo). Portable.\n- Scope v1: completo (spans + metricas + logs correlacionados).\n- Activacion: opt-in por env var. Local/stdio cero overhead.\n\n**Pieza tecnica clave**: FastMCP 3.3+ (ya pineado en pyproject `>=3.3.1,<4.0.0`) trae middleware nativo (`mcp.add_middleware`) con hook `on_call_tool`. Sin parchear FastMCP ni envolver cada tool.\n\n**Politica de redaccion CRITICA**: tools v6.0.1 content-passing reciben docs canonicos del cliente como `*_content`. El middleware NO emite contenido, solo `len()`, hash opcional, y nombres de keys del payload. Allowlist centralizada en `attributes.py`, NO denylist.\n\n**Win secundario**: el counter `mcp.tool.calls_total{tool=run_quality_audit}` cierra el follow-up de v6.0.2 issue #60, sabremos cuantos consumers externos siguen llamando al shim deprecado antes de eliminarlo en v6.3.\n\n**Riesgos identificados**:\n1. Cardinality por `project` slug -> usar hash 8-char del sha256 si backend factura cardinality (Datadog si, Tempo no).\n2. Bug historico OTel SDK con asyncio en FastMCP -> pinear `opentelemetry-sdk>=1.27` (tiene el fix).\n3. Overhead stdio local -> opt-in lo cierra.\n4. Fuga de contenido en spans -> politica de allowlist + test que falla si aparece `*_content` en atributos.\n\n**Release target**: v6.2.0 (minor, no patch, anade dependencias opcionales y superficie nueva aunque sea opt-in).\n\n**Referencias**:\n- Inspiracion: DentalData MCP v0.8.0 'MCP observability'\n- FastMCP middleware docs\n- OTel spec: https://opentelemetry.io/docs/specs/otel/",
+    "state": "user_stories",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-MCP-OBSERVABILITY",
+      "horas": 24.0,
+      "pantallas": ""
+    },
+    "created_at": "2026-05-25T13:57:57.516662+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "item-fbade3bd",
+    "name": "UC-625: Crear modulo server/observability con setup OTel (tracer, meter, logger) inicializable desde env",
+    "description": "# UC-625: Crear modulo server/observability con setup OTel (tracer, meter, logger) inicializable desde env\n\n**User Story:** US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0)\n**Actor:** Engine\n**Horas estimadas:** 3.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Existe `server/observability/__init__.py` que exporta `init_observability` y `MCPObservabilityMiddleware`; un test verifica que se pueden importar sin error.\n- AC-02: `init_observability()` retorna `None` y NO importa `opentelemetry.*` cuando `SPECBOX_OBSERVABILITY_ENABLED != 'true'`; un test con monkeypatch del env var lo verifica usando `importlib.util.find_spec` o capturando `sys.modules`.\n- AC-03: Con `SPECBOX_OBSERVABILITY_ENABLED=true` y `OTEL_EXPORTER_OTLP_ENDPOINT=http://mock:4318` seteados, `init_observability()` configura un `TracerProvider`, `MeterProvider` y `LoggerProvider` globales con resource attributes `service.name=specbox-engine` y `service.version=<engine_version del YAML>`.\n- AC-04: Pinea `opentelemetry-sdk>=1.27` y `opentelemetry-exporter-otlp>=1.27` en pyproject como optional extra `[observability]`; el test verifica que sin el extra el modulo levanta `ImportError` legible (mensaje incluye instruccion de instalacion).\n\n## Contexto\nPieza base. Sin esto el middleware no puede emitir nada. Tiene que ser totalmente lazy: si `SPECBOX_OBSERVABILITY_ENABLED != 'true'`, `init_observability()` retorna inmediatamente sin importar opentelemetry. Esto permite que proyectos locales NO arrastren la dependencia ni paguen el coste de import.\n\nArchivos nuevos:\n- `server/observability/__init__.py`: export publico (`init_observability`, `MCPObservabilityMiddleware`)\n- `server/observability/setup.py`: `init_tracer()`, `init_meter()`, `init_logs()` configuran SDK desde env (OTLP endpoint, resource attributes, sampling)\n\nResource attributes obligatorios: `service.name=specbox-engine`, `service.version=<ENGINE_VERSION>` (leido del YAML, igual que `_load_engine_version` en server.py), `deployment.environment=<env var SPECBOX_ENV o 'unknown'>`.\n\nSampling: TraceIdRatioBased(1.0) por defecto en v1 (capturar todo, ya optimizamos en v2 si el volumen molesta).",
+    "state": "backlog",
+    "parent_id": "item-696f1953",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-625",
+      "us_id": "US-MCP-OBSERVABILITY",
+      "horas": 3.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-25T13:57:57.531858+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-2b6d02f9",
+    "name": "[AC-01] Existe `server/observability/__init__.py` que exporta `init_observability` y `MCPObservabilityMiddleware`; un test verifica que se pueden importar sin error.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fbade3bd",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.541947+00:00"
+  },
+  {
+    "id": "ac-0a48bd70",
+    "name": "[AC-02] `init_observability()` retorna `None` y NO importa `opentelemetry.*` cuando `SPECBOX_OBSERVABILITY_ENABLED != 'true'`; un test con monkeypatch del env var lo verifica usando `importlib.util.find_spec` o capturando `sys.modules`.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fbade3bd",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.541963+00:00"
+  },
+  {
+    "id": "ac-08f333d5",
+    "name": "[AC-03] Con `SPECBOX_OBSERVABILITY_ENABLED=true` y `OTEL_EXPORTER_OTLP_ENDPOINT=http://mock:4318` seteados, `init_observability()` configura un `TracerProvider`, `MeterProvider` y `LoggerProvider` globales con resource attributes `service.name=specbox-engine` y `service.version=<engine_version del YAML>`.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fbade3bd",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.541968+00:00"
+  },
+  {
+    "id": "ac-415fe639",
+    "name": "[AC-04] Pinea `opentelemetry-sdk>=1.27` y `opentelemetry-exporter-otlp>=1.27` en pyproject como optional extra `[observability]`; el test verifica que sin el extra el modulo levanta `ImportError` legible (mensaje incluye instruccion de instalacion).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fbade3bd",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.541973+00:00"
+  },
+  {
+    "id": "item-927c03c6",
+    "name": "UC-626: Implementar MCPObservabilityMiddleware con hook on_call_tool (spans + duracion + error capture)",
+    "description": "# UC-626: Implementar MCPObservabilityMiddleware con hook on_call_tool (spans + duracion + error capture)\n\n**User Story:** US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0)\n**Actor:** Engine\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: `MCPObservabilityMiddleware` hereda de `fastmcp.server.middleware.Middleware` y override `on_call_tool(context, call_next)`; un test con mock middleware context verifica que `await call_next(context)` es invocado exactamente una vez.\n- AC-02: Tras una invocacion exitosa el span generado tiene `name=mcp.tool.<tool_name>`, atributos `mcp.tool.name`, `mcp.tool.duration_ms` (float > 0), `mcp.tool.status='ok'`, `engine.version`, `mcp.transport`; el test usa `InMemorySpanExporter` de `opentelemetry-sdk` y assert sobre el span exportado.\n- AC-03: Si la tool levanta excepcion, el span queda con `StatusCode.ERROR`, atributos `mcp.error.type` y `mcp.error.message` (truncado a 500 chars), llamada a `record_exception(e)` registrada en el span; el test inyecta una tool que `raise RuntimeError('boom')` y assert sobre el span + verifica que la excepcion re-propaga al caller.\n- AC-04: El middleware NO emite span cuando `SPECBOX_OBSERVABILITY_ENABLED != 'true'`, en realidad ni se registra (cableado en server.py condicional, ver UC-630); un test verifica que en ese estado el `on_call_tool` no es invocado para la tool.\n\n## Contexto\nEl core del feature. FastMCP 3.3+ expone `fastmcp.server.middleware.Middleware` con hook async `on_call_tool(context, call_next)`. El middleware envuelve cada `tools/call`, abre un span, ejecuta la tool con `await call_next(context)`, registra duracion, marca status, captura excepciones.\n\nArchivo nuevo: `server/observability/middleware.py`.\n\nAtributos del span (todos prefijo `mcp.tool.`):\n- `mcp.tool.name`: string, requerido\n- `mcp.tool.duration_ms`: float, calculado con `time.perf_counter`\n- `mcp.tool.status`: `ok | error | deprecated` (deprecated si la tool devuelve dict con `_deprecated=true` o levanta `DeprecationWarning`)\n- `engine.version`: del env o `_load_engine_version()`\n- `mcp.transport`: `stdio | http` (auto-detect via `os.getenv('FASTMCP_TRANSPORT')` o argv)\n\nEn caso de excepcion: `span.record_exception(e)`, `span.set_status(Status(StatusCode.ERROR))`, `mcp.error.type=type(e).__name__`, `mcp.error.message=str(e)[:500]` (truncado), re-raise.\n\nEl span name debe ser `mcp.tool.<tool_name>` (convencion OTel para facil filtrado en Tempo/Jaeger).",
+    "state": "backlog",
+    "parent_id": "item-696f1953",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-626",
+      "us_id": "US-MCP-OBSERVABILITY",
+      "horas": 4.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-25T13:57:57.553120+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-9f526461",
+    "name": "[AC-01] `MCPObservabilityMiddleware` hereda de `fastmcp.server.middleware.Middleware` y override `on_call_tool(context, call_next)`; un test con mock middleware context verifica que `await call_next(context)` es invocado exactamente una vez.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-927c03c6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.561764+00:00"
+  },
+  {
+    "id": "ac-ad4057b2",
+    "name": "[AC-02] Tras una invocacion exitosa el span generado tiene `name=mcp.tool.<tool_name>`, atributos `mcp.tool.name`, `mcp.tool.duration_ms` (float > 0), `mcp.tool.status='ok'`, `engine.version`, `mcp.transport`; el test usa `InMemorySpanExporter` de `opentelemetry-sdk` y assert sobre el span exportado.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-927c03c6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.561773+00:00"
+  },
+  {
+    "id": "ac-13cf3ce9",
+    "name": "[AC-03] Si la tool levanta excepcion, el span queda con `StatusCode.ERROR`, atributos `mcp.error.type` y `mcp.error.message` (truncado a 500 chars), llamada a `record_exception(e)` registrada en el span; el test inyecta una tool que `raise RuntimeError('boom')` y assert sobre el span + verifica que la excepcion re-propaga al caller.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-927c03c6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.561778+00:00"
+  },
+  {
+    "id": "ac-afc87492",
+    "name": "[AC-04] El middleware NO emite span cuando `SPECBOX_OBSERVABILITY_ENABLED != 'true'`, en realidad ni se registra (cableado en server.py condicional, ver UC-630); un test verifica que en ese estado el `on_call_tool` no es invocado para la tool.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-927c03c6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.561781+00:00"
+  },
+  {
+    "id": "item-3fc37c86",
+    "name": "UC-627: Anadir 3 metricas OTel (calls_total counter, errors_total counter, duration_ms histogram) al middleware",
+    "description": "# UC-627: Anadir 3 metricas OTel (calls_total counter, errors_total counter, duration_ms histogram) al middleware\n\n**User Story:** US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0)\n**Actor:** Engine\n**Horas estimadas:** 3.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: El middleware crea 3 instrumentos OTel en el meter `specbox.mcp`: counter `mcp.tool.calls_total`, counter `mcp.tool.errors_total`, histogram `mcp.tool.duration_ms`; un test con `InMemoryMetricReader` y `MeterProvider` verifica que los 3 existen tras inicializar el middleware.\n- AC-02: Una invocacion exitosa incrementa `calls_total` en 1 con labels `tool=<name>, status=ok, backend=<detected>, transport=<detected>`, y graba un sample en `duration_ms` con labels `tool=<name>, status=ok`; el test invoca tool mock y assert sobre los data points exportados.\n- AC-03: Una invocacion con error incrementa `calls_total{status=error}` Y `errors_total{tool=<name>, error_type=<exception class>}` en 1; un test con tool que levanta `ValueError('x')` verifica los 2 counters incrementados con labels correctos.\n- AC-04: Las metricas NO incluyen labels de alta cardinality (`project`, `developer_id`, `path`, `content`); un test list-checks que los `attributes` de cada data point son subset de `{tool, status, backend, transport, error_type}`.\n\n## Contexto\nSpans solo no bastan, para dashboards necesitamos metricas agregables. 3 instrumentos en el meter `specbox.mcp`:\n\n- `mcp.tool.calls_total` (Counter): labels `tool`, `status` (ok|error|deprecated), `backend` (freeform|trello|plane|native|unknown), `transport` (stdio|http)\n- `mcp.tool.errors_total` (Counter): labels `tool`, `error_type` (clase de la excepcion)\n- `mcp.tool.duration_ms` (Histogram): labels `tool`, `status`. Buckets sugeridos: [5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000] ms\n\nLas metricas se incrementan dentro del mismo middleware, tras (o en paralelo a) la creacion del span. El detect de `backend` viene del registry del auth_gateway (`get_session_backend_type()` o equivalente), si no hay sesion activa (ej. tools de engine.py como `get_engine_version`), el label `backend=unknown`.\n\nNo anadir labels de alta cardinality (`project`, `developer_id`) a las metricas, esos van solo en spans.",
+    "state": "backlog",
+    "parent_id": "item-696f1953",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-627",
+      "us_id": "US-MCP-OBSERVABILITY",
+      "horas": 3.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-25T13:57:57.570953+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-cc9f48ae",
+    "name": "[AC-01] El middleware crea 3 instrumentos OTel en el meter `specbox.mcp`: counter `mcp.tool.calls_total`, counter `mcp.tool.errors_total`, histogram `mcp.tool.duration_ms`; un test con `InMemoryMetricReader` y `MeterProvider` verifica que los 3 existen tras inicializar el middleware.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-3fc37c86",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.578787+00:00"
+  },
+  {
+    "id": "ac-70b2948c",
+    "name": "[AC-02] Una invocacion exitosa incrementa `calls_total` en 1 con labels `tool=<name>, status=ok, backend=<detected>, transport=<detected>`, y graba un sample en `duration_ms` con labels `tool=<name>, status=ok`; el test invoca tool mock y assert sobre los data points exportados.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-3fc37c86",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.578795+00:00"
+  },
+  {
+    "id": "ac-a41e07dd",
+    "name": "[AC-03] Una invocacion con error incrementa `calls_total{status=error}` Y `errors_total{tool=<name>, error_type=<exception class>}` en 1; un test con tool que levanta `ValueError('x')` verifica los 2 counters incrementados con labels correctos.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-3fc37c86",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.578799+00:00"
+  },
+  {
+    "id": "ac-d22f4fc1",
+    "name": "[AC-04] Las metricas NO incluyen labels de alta cardinality (`project`, `developer_id`, `path`, `content`); un test list-checks que los `attributes` de cada data point son subset de `{tool, status, backend, transport, error_type}`.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-3fc37c86",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.578803+00:00"
+  },
+  {
+    "id": "item-5bbead62",
+    "name": "UC-628: Correlacionar logs structlog con spans OTel (trace_id + span_id en cada log line)",
+    "description": "# UC-628: Correlacionar logs structlog con spans OTel (trace_id + span_id en cada log line)\n\n**User Story:** US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0)\n**Actor:** Engine\n**Horas estimadas:** 2.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: `server/observability/logging.py` exporta `add_otel_context_processor(logger, method_name, event_dict)` que retorna `event_dict` enriquecido con keys `trace_id` (32 hex chars) y `span_id` (16 hex chars) cuando hay span activo; un test dentro de `tracer.start_as_current_span` verifica que las keys se anaden.\n- AC-02: El processor es no-op (retorna `event_dict` inalterado) cuando no hay span activo o cuando OTel no esta inicializado; 2 tests cubren ambos casos.\n- AC-03: `server/server.py` anade el processor al stack de structlog SOLO dentro del bloque condicional `if SPECBOX_OBSERVABILITY_ENABLED == 'true'`; el test importa server con env OFF y verifica que `add_otel_context_processor` no esta en la lista de processors configurados.\n- AC-04: Un test end-to-end: dentro de un span activo, un `logger.info('msg', foo='bar')` produce output JSON que contiene `trace_id`, `span_id`, `foo='bar'`, `event='msg'` simultaneamente (verifica que la correlacion esta intacta).\n\n## Contexto\n`server/server.py` linea 64 ya configura structlog con processors estandar. Anadir un nuevo processor `add_otel_context` que, si hay span activo, inyecta `trace_id` (32 hex chars) y `span_id` (16 hex chars) en el event_dict del log. Esto permite ir desde un span lento en Tempo/Jaeger al log estructurado del MCP filtrando por trace_id.\n\nEl processor debe ser no-op si:\n- OTel no esta inicializado (`SPECBOX_OBSERVABILITY_ENABLED != 'true'`)\n- No hay span activo (`get_current_span()` retorna `INVALID_SPAN`)\n\nArchivo: nuevo helper en `server/observability/logging.py` exportando `add_otel_context_processor`. server.py lo importa condicionalmente y lo anade al stack de structlog SOLO si OTel esta activo.",
+    "state": "backlog",
+    "parent_id": "item-696f1953",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-628",
+      "us_id": "US-MCP-OBSERVABILITY",
+      "horas": 2.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-25T13:57:57.587158+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-9fd260d0",
+    "name": "[AC-01] `server/observability/logging.py` exporta `add_otel_context_processor(logger, method_name, event_dict)` que retorna `event_dict` enriquecido con keys `trace_id` (32 hex chars) y `span_id` (16 hex chars) cuando hay span activo; un test dentro de `tracer.start_as_current_span` verifica que las keys se anaden.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5bbead62",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.594664+00:00"
+  },
+  {
+    "id": "ac-ac9682f5",
+    "name": "[AC-02] El processor es no-op (retorna `event_dict` inalterado) cuando no hay span activo o cuando OTel no esta inicializado; 2 tests cubren ambos casos.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5bbead62",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.594669+00:00"
+  },
+  {
+    "id": "ac-c2e83f6f",
+    "name": "[AC-03] `server/server.py` anade el processor al stack de structlog SOLO dentro del bloque condicional `if SPECBOX_OBSERVABILITY_ENABLED == 'true'`; el test importa server con env OFF y verifica que `add_otel_context_processor` no esta en la lista de processors configurados.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5bbead62",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.594673+00:00"
+  },
+  {
+    "id": "ac-426a31cc",
+    "name": "[AC-04] Un test end-to-end: dentro de un span activo, un `logger.info('msg', foo='bar')` produce output JSON que contiene `trace_id`, `span_id`, `foo='bar'`, `event='msg'` simultaneamente (verifica que la correlacion esta intacta).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5bbead62",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.594676+00:00"
+  },
+  {
+    "id": "item-fd5862b9",
+    "name": "UC-629: Implementar politica de redaccion de atributos (allowlist + escrubeo de *_content y rutas absolutas)",
+    "description": "# UC-629: Implementar politica de redaccion de atributos (allowlist + escrubeo de *_content y rutas absolutas)\n\n**User Story:** US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0)\n**Actor:** Engine\n**Horas estimadas:** 3.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: `safe_tool_attributes(tool='x', args={'project':'foo','app_prd_content':'<huge>'}, result=None)` devuelve dict que contiene `project='foo'` pero NO contiene `app_prd_content`, si contiene `app_prd_content_length=<int>`; test cubre el caso.\n- AC-02: Con `SPECBOX_OBSERVABILITY_HASH_CONTENT=true`, ademas se incluye `app_prd_content_sha256_prefix` de 8 hex chars; test cubre toggle on/off.\n- AC-03: Claves sensibles `developer_token`, `api_key`, `secret`, `password`, `body`, `payload` son omitidas del output incluso si estan en el allowlist parcial; test parametrico cubre las 6 claves prohibidas.\n- AC-04: `redact_path('/Users/foo/bar')` con cwd `/Users/foo` devuelve `bar`; con cwd no relacionado devuelve `<redacted>`; test cubre ambos casos.\n- AC-05: Un fuzz test: para cada tool registrada en el MCP, simula args sinteticos con claves `*_content` enormes y verifica que ninguna invocacion del middleware produce span con el contenido raw, el contenido NO aparece en ningun atributo, log line ni etiqueta de metrica.\n\n## Contexto\nCRITICO para evitar fuga de datos del cliente. Tools v6.0.1 content-passing reciben `app_prd_content`, `app_market_content`, `app_spec_content`, etc, contenido confidencial. El middleware NO debe emitir contenido en spans/logs/metricas.\n\nArchivo nuevo: `server/observability/attributes.py`.\n\nFunciones publicas:\n- `safe_tool_attributes(tool_name: str, args: dict, result: dict | None) -> dict`: devuelve solo claves del ALLOWLIST. Para claves terminadas en `_content`, emite solo `<key>_length` (int) y opcionalmente `<key>_sha256_prefix` (8 chars) si la flag `SPECBOX_OBSERVABILITY_HASH_CONTENT=true` (default false).\n- `redact_path(p: str) -> str`: convierte rutas absolutas a relativas al cwd o reemplaza por `<redacted>` si no es relativa.\n\nALLOWLIST de claves de args que pueden viajar (todas hashed si son strings largas): `project`, `feature`, `uc_id`, `us_id`, `ac_id`, `backend_type`, `stack`, `mode`, `gate_mode`, `transport`, `version`. Cualquier otra clave se omite (no se trunca: directamente no aparece).\n\nNUNCA emitir: `*_content`, `*_token`, `*_api_key`, `*_secret`, `password`, `developer_token`, `payload`, `body`, valores de configuracion custom.",
+    "state": "backlog",
+    "parent_id": "item-696f1953",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-629",
+      "us_id": "US-MCP-OBSERVABILITY",
+      "horas": 3.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-25T13:57:57.603113+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-1c34f0f9",
+    "name": "[AC-01] `safe_tool_attributes(tool='x', args={'project':'foo','app_prd_content':'<huge>'}, result=None)` devuelve dict que contiene `project='foo'` pero NO contiene `app_prd_content`, si contiene `app_prd_content_length=<int>`; test cubre el caso.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fd5862b9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.611501+00:00"
+  },
+  {
+    "id": "ac-1a248af1",
+    "name": "[AC-02] Con `SPECBOX_OBSERVABILITY_HASH_CONTENT=true`, ademas se incluye `app_prd_content_sha256_prefix` de 8 hex chars; test cubre toggle on/off.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fd5862b9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.611513+00:00"
+  },
+  {
+    "id": "ac-11d63d4d",
+    "name": "[AC-03] Claves sensibles `developer_token`, `api_key`, `secret`, `password`, `body`, `payload` son omitidas del output incluso si estan en el allowlist parcial; test parametrico cubre las 6 claves prohibidas.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fd5862b9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.611517+00:00"
+  },
+  {
+    "id": "ac-71e75f9d",
+    "name": "[AC-04] `redact_path('/Users/foo/bar')` con cwd `/Users/foo` devuelve `bar`; con cwd no relacionado devuelve `<redacted>`; test cubre ambos casos.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fd5862b9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.611521+00:00"
+  },
+  {
+    "id": "ac-d5232dbe",
+    "name": "[AC-05] Un fuzz test: para cada tool registrada en el MCP, simula args sinteticos con claves `*_content` enormes y verifica que ninguna invocacion del middleware produce span con el contenido raw, el contenido NO aparece en ningun atributo, log line ni etiqueta de metrica.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fd5862b9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.611524+00:00"
+  },
+  {
+    "id": "item-17ef3d6c",
+    "name": "UC-630: Cablear init_observability + add_middleware condicional en server.py (opt-in por env var)",
+    "description": "# UC-630: Cablear init_observability + add_middleware condicional en server.py (opt-in por env var)\n\n**User Story:** US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0)\n**Actor:** Engine\n**Horas estimadas:** 1.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Con `SPECBOX_OBSERVABILITY_ENABLED=true`, tras `import server.server`, `mcp._middlewares` (o equivalente API publica de FastMCP) contiene 1 instancia de `MCPObservabilityMiddleware`; test integration verifica.\n- AC-02: Con `SPECBOX_OBSERVABILITY_ENABLED` ausente o `=false`, tras `import server.server`, `opentelemetry` NO esta en `sys.modules` y `mcp._middlewares` no contiene `MCPObservabilityMiddleware`; test verifica ambas condiciones.\n- AC-03: Si `init_observability()` levanta excepcion (ej. OTLP endpoint invalido), el server termina de cargarse sin crashear y emite log `mcp_observability_init_failed` con el error; test con monkeypatch fuerza la excepcion y verifica que `import server.server` no levanta.\n- AC-04: Con observabilidad activa, log inicial `mcp_observability_enabled` incluye campo `exporter` con el valor de `OTEL_EXPORTER_OTLP_ENDPOINT` (o `'console'` si no esta seteado); test captura log output.\n\n## Contexto\nCambio minimo y quirurgico en `server/server.py`. Despues del bloque `mcp = FastMCP(...)` (linea ~111 actual), anadir:\n\n```python\nif os.getenv('SPECBOX_OBSERVABILITY_ENABLED') == 'true':\n    from .observability import init_observability, MCPObservabilityMiddleware\n    init_observability()\n    mcp.add_middleware(MCPObservabilityMiddleware())\n    logger.info('mcp_observability_enabled', exporter=os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', 'console'))\n```\n\nEl import de `.observability` es lazy (dentro del if) para que cuando la env var este off, el modulo ni siquiera se cargue y sus dependencias (opentelemetry) no se importen en cadena.\n\nSi la inicializacion falla (ej. OTLP endpoint malformado), log warning pero NO crashear el server, observabilidad rota no debe tirar el MCP. Wrap todo el bloque en try/except logging del error.",
+    "state": "backlog",
+    "parent_id": "item-696f1953",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-630",
+      "us_id": "US-MCP-OBSERVABILITY",
+      "horas": 1.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-25T13:57:57.619862+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-906ba934",
+    "name": "[AC-01] Con `SPECBOX_OBSERVABILITY_ENABLED=true`, tras `import server.server`, `mcp._middlewares` (o equivalente API publica de FastMCP) contiene 1 instancia de `MCPObservabilityMiddleware`; test integration verifica.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-17ef3d6c",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.627207+00:00"
+  },
+  {
+    "id": "ac-c5967070",
+    "name": "[AC-02] Con `SPECBOX_OBSERVABILITY_ENABLED` ausente o `=false`, tras `import server.server`, `opentelemetry` NO esta en `sys.modules` y `mcp._middlewares` no contiene `MCPObservabilityMiddleware`; test verifica ambas condiciones.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-17ef3d6c",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.627216+00:00"
+  },
+  {
+    "id": "ac-91141450",
+    "name": "[AC-03] Si `init_observability()` levanta excepcion (ej. OTLP endpoint invalido), el server termina de cargarse sin crashear y emite log `mcp_observability_init_failed` con el error; test con monkeypatch fuerza la excepcion y verifica que `import server.server` no levanta.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-17ef3d6c",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.627220+00:00"
+  },
+  {
+    "id": "ac-24aa776e",
+    "name": "[AC-04] Con observabilidad activa, log inicial `mcp_observability_enabled` incluye campo `exporter` con el valor de `OTEL_EXPORTER_OTLP_ENDPOINT` (o `'console'` si no esta seteado); test captura log output.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-17ef3d6c",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.627223+00:00"
+  },
+  {
+    "id": "item-41a47cc6",
+    "name": "UC-631: Suite de tests de observabilidad (unit + integration + redaccion + opt-in)",
+    "description": "# UC-631: Suite de tests de observabilidad (unit + integration + redaccion + opt-in)\n\n**User Story:** US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0)\n**Actor:** Engine\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: `tests/test_observability.py` existe y contiene al menos 12 tests organizados en los 6 grupos descritos; `pytest tests/test_observability.py -v` retorna `passed >= 12, failed=0`.\n- AC-02: El test suite usa `InMemorySpanExporter` e `InMemoryMetricReader`, NO requiere collector OTLP corriendo; un test ejecutado en CI sin red verifica que pasa igual.\n- AC-03: Test `test_no_content_leak` (fuzz): registra una tool mock que recibe `app_prd_content='SECRET_LEAK_CANARY_xyz123'` como arg, ejecuta el middleware, busca el string canary en TODOS los spans, logs y data points de metricas exportados; assert que el canary NO aparece en ninguno.\n- AC-04: La suite anade al global pytest `1243 -> 1255+` tests sin breaks de los pre-existentes (regression check: `pytest tests/ -q` mantiene `failed=0`).\n\n## Contexto\nArchivo nuevo: `tests/test_observability.py`. Cubre los 5 UCs anteriores end-to-end con `InMemorySpanExporter` y `InMemoryMetricReader` de `opentelemetry-sdk`.\n\nGrupos de tests:\n1. Opt-in (`test_observability_disabled_no_imports`, `test_observability_enabled_imports`)\n2. Middleware span emission (`test_span_per_tool_call`, `test_span_attributes`, `test_span_error_status`)\n3. Metricas (`test_calls_counter`, `test_errors_counter`, `test_duration_histogram`)\n4. Log correlation (`test_trace_id_in_logs`, `test_no_span_no_trace_id`)\n5. Redaccion (`test_content_keys_redacted`, `test_secret_keys_omitted`, `test_path_redaction`)\n6. Fault tolerance (`test_init_failure_does_not_crash_server`)\n\nLos tests deben funcionar SIN un OTLP endpoint real, todo en memoria. Usar fixtures `pytest` para configurar `TracerProvider(InMemorySpanExporter)` antes de cada test y resetear entre tests.",
+    "state": "backlog",
+    "parent_id": "item-696f1953",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-631",
+      "us_id": "US-MCP-OBSERVABILITY",
+      "horas": 4.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-25T13:57:57.635358+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-0e351cf6",
+    "name": "[AC-01] `tests/test_observability.py` existe y contiene al menos 12 tests organizados en los 6 grupos descritos; `pytest tests/test_observability.py -v` retorna `passed >= 12, failed=0`.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-41a47cc6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.648015+00:00"
+  },
+  {
+    "id": "ac-622f1652",
+    "name": "[AC-02] El test suite usa `InMemorySpanExporter` e `InMemoryMetricReader`, NO requiere collector OTLP corriendo; un test ejecutado en CI sin red verifica que pasa igual.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-41a47cc6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.648023+00:00"
+  },
+  {
+    "id": "ac-95faf482",
+    "name": "[AC-03] Test `test_no_content_leak` (fuzz): registra una tool mock que recibe `app_prd_content='SECRET_LEAK_CANARY_xyz123'` como arg, ejecuta el middleware, busca el string canary en TODOS los spans, logs y data points de metricas exportados; assert que el canary NO aparece en ninguno.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-41a47cc6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.648027+00:00"
+  },
+  {
+    "id": "ac-4488ae5b",
+    "name": "[AC-04] La suite anade al global pytest `1243 -> 1255+` tests sin breaks de los pre-existentes (regression check: `pytest tests/ -q` mantiene `failed=0`).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-41a47cc6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.648030+00:00"
+  },
+  {
+    "id": "item-9b7161fc",
+    "name": "UC-632: Documentacion + release v6.2.0 (CHANGELOG, CLAUDE.md, ADR, plan tecnico, pyproject extra, Dockerfile)",
+    "description": "# UC-632: Documentacion + release v6.2.0 (CHANGELOG, CLAUDE.md, ADR, plan tecnico, pyproject extra, Dockerfile)\n\n**User Story:** US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0)\n**Actor:** Engine\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Existe `doc/decisions/mcp_observability.md` con secciones: Contexto, Decision, Alternativas consideradas (incluye Sentry SDK directo + razon de rechazo), Consecuencias, Politica de redaccion; el archivo es >= 800 palabras.\n- AC-02: Existe `doc/plans/v6.2.0_mcp_observability_plan.md` con la estructura: TL;DR, 5 cambios principales, fases de implementacion, riesgos, metricas de exito, rollback plan; sigue el formato de los plans previos (`v6.0.1_mcp_path_contract_plan.md` como referencia).\n- AC-03: `CHANGELOG.md` tiene entry v6.2.0 con bullets de los 8 UCs cubiertos (UC-625 a UC-632); el entry sigue el formato de v6.1.1 / v6.0.2.\n- AC-04: `CLAUDE.md` tiene nueva seccion de nivel 2 '## MCP Observability (v6.2.0)' tras la seccion '## Smoke Test Followups (v6.0.2)' y antes de '## MCP Path Contract (v6.0.1)'; la seccion documenta env vars, los 3 instrumentos de metricas, atributos de spans, politica de redaccion y un ejemplo de query.\n- AC-05: `pyproject.toml` tiene optional extra `[observability]` con `opentelemetry-sdk>=1.27`, `opentelemetry-exporter-otlp>=1.27`, `opentelemetry-instrumentation-logging>=0.48b0`; un test ejecuta `pip install -e '.[observability]'` en venv limpia y verifica resolucion de deps.\n- AC-06: `Dockerfile` instala con extra observability (`pip install '.[observability]'`); build del Dockerfile no falla.\n- AC-07: `ENGINE_VERSION.yaml` bumpeado a `version: 6.2.0` y `name: 'MCP Observability'`; el server log inicial reporta `engine_version=v6.2.0`.\n\n## Contexto\nHace falta documentar el feature para que sea descubrible y mantenible. 7 entregables:\n\n1. `doc/decisions/mcp_observability.md` (ADR): Por que OTel puro (no Sentry SDK directo), que se emite y que no (politica de redaccion), por que opt-in. Incluye el alternative-considered (Sentry directo) y por que se rechazo.\n2. `doc/plans/v6.2.0_mcp_observability_plan.md` (plan tecnico): Estructura de los 8 UCs, fases, riesgos, metricas de exito, rollback plan.\n3. `CHANGELOG.md`: Entry v6.2.0 'MCP Observability'.\n4. `CLAUDE.md`: Nueva seccion 'MCP Observability (v6.2.0)' tras la seccion Smoke Test Followups: explica env vars (`SPECBOX_OBSERVABILITY_ENABLED`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `SPECBOX_OBSERVABILITY_HASH_CONTENT`), los 3 instrumentos de metricas, el contrato de atributos de spans, la politica de redaccion y un ejemplo de query Tempo/Jaeger.\n5. `pyproject.toml`: Optional extra:\n```toml\n[project.optional-dependencies]\nobservability = [\n  'opentelemetry-sdk>=1.27',\n  'opentelemetry-exporter-otlp>=1.27',\n  'opentelemetry-instrumentation-logging>=0.48b0',\n]\n```\n6. `Dockerfile`: Cambiar `pip install .` a `pip install '.[observability]'` para que el VPS lo arrastre. Local stdio puede seguir sin el extra.\n7. `ENGINE_VERSION.yaml`: Bump a 6.2.0 con `name: 'MCP Observability'`.",
+    "state": "backlog",
+    "parent_id": "item-696f1953",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-632",
+      "us_id": "US-MCP-OBSERVABILITY",
+      "horas": 4.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-25T13:57:57.656561+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-3e9cceed",
+    "name": "[AC-01] Existe `doc/decisions/mcp_observability.md` con secciones: Contexto, Decision, Alternativas consideradas (incluye Sentry SDK directo + razon de rechazo), Consecuencias, Politica de redaccion; el archivo es >= 800 palabras.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9b7161fc",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.664545+00:00"
+  },
+  {
+    "id": "ac-27ff2b80",
+    "name": "[AC-02] Existe `doc/plans/v6.2.0_mcp_observability_plan.md` con la estructura: TL;DR, 5 cambios principales, fases de implementacion, riesgos, metricas de exito, rollback plan; sigue el formato de los plans previos (`v6.0.1_mcp_path_contract_plan.md` como referencia).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9b7161fc",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.664557+00:00"
+  },
+  {
+    "id": "ac-aa71f1dc",
+    "name": "[AC-03] `CHANGELOG.md` tiene entry v6.2.0 con bullets de los 8 UCs cubiertos (UC-625 a UC-632); el entry sigue el formato de v6.1.1 / v6.0.2.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9b7161fc",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.664561+00:00"
+  },
+  {
+    "id": "ac-482d0dc1",
+    "name": "[AC-04] `CLAUDE.md` tiene nueva seccion de nivel 2 '## MCP Observability (v6.2.0)' tras la seccion '## Smoke Test Followups (v6.0.2)' y antes de '## MCP Path Contract (v6.0.1)'; la seccion documenta env vars, los 3 instrumentos de metricas, atributos de spans, politica de redaccion y un ejemplo de query.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9b7161fc",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.664564+00:00"
+  },
+  {
+    "id": "ac-3eed32c3",
+    "name": "[AC-05] `pyproject.toml` tiene optional extra `[observability]` con `opentelemetry-sdk>=1.27`, `opentelemetry-exporter-otlp>=1.27`, `opentelemetry-instrumentation-logging>=0.48b0`; un test ejecuta `pip install -e '.[observability]'` en venv limpia y verifica resolucion de deps.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9b7161fc",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.664567+00:00"
+  },
+  {
+    "id": "ac-4810982a",
+    "name": "[AC-06] `Dockerfile` instala con extra observability (`pip install '.[observability]'`); build del Dockerfile no falla.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9b7161fc",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.664570+00:00"
+  },
+  {
+    "id": "ac-8ecafcda",
+    "name": "[AC-07] `ENGINE_VERSION.yaml` bumpeado a `version: 6.2.0` y `name: 'MCP Observability'`; el server log inicial reporta `engine_version=v6.2.0`.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9b7161fc",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-07",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T13:57:57.664572+00:00"
   }
 ]

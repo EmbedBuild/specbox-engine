@@ -42,3 +42,20 @@ class TestServerSetup:
         tools = await mcp.list_tools()
         for tool in tools:
             assert tool.description, f"Tool {tool.name} has no description"
+
+    def test_engine_version_read_from_yaml_not_hardcoded(self):
+        """v6.0.2 cleanup: the version in ``instructions`` must match
+        ENGINE_VERSION.yaml, not a string that drifts across releases.
+
+        Regression for the hardcoded ``v5.29.0`` literal that survived
+        through v6.0.1 in server/server.py."""
+        from pathlib import Path
+        import yaml
+
+        from server.server import _ENGINE_VERSION
+
+        yaml_path = Path(__file__).resolve().parent.parent / "ENGINE_VERSION.yaml"
+        canonical = (yaml.safe_load(yaml_path.read_text()) or {}).get("version")
+        assert canonical, "ENGINE_VERSION.yaml missing 'version' key"
+        assert _ENGINE_VERSION == canonical
+        assert f"v{canonical}" in mcp.instructions

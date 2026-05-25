@@ -1,8 +1,13 @@
 """
-SpecBox Engine MCP Server v5.29.0
+SpecBox Engine MCP Server.
 
-Unified MCP endpoint: 158 tools (engine + spec-driven + mutations + milestones + board-ops + acceptance + migration + telemetry + stitch + quality-audit + app-docs sync layer).
+Unified MCP endpoint exposing the full tool surface (engine + spec-driven +
+mutations + milestones + board-ops + acceptance + migration + telemetry +
+stitch + quality-audit + app-docs sync layer + product discovery).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
+
+The engine version is read at module load time from ``ENGINE_VERSION.yaml``
+at the repo root — never hardcoded here. See ``_load_engine_version`` below.
 
 Architecture:
   - Engine (repo root): Read-only. Skills, plans, architecture, templates.
@@ -85,10 +90,32 @@ except OSError:
 
     print(f"[specbox] STATE_PATH not writable: {STATE_PATH}", file=sys.stderr)
 
+def _load_engine_version() -> str:
+    """Read the engine version from ENGINE_VERSION.yaml at module load.
+
+    Single source of truth. Previously this was hardcoded as ``v5.29.0`` in
+    the FastMCP ``instructions`` string and drifted across releases, so
+    clients saw a stale version even after deploys. Mirrors the pattern in
+    :mod:`server.dashboard_api` (`_health_version`).
+    """
+    version_file = ENGINE_PATH / "ENGINE_VERSION.yaml"
+    if version_file.exists():
+        try:
+            import yaml
+
+            with open(version_file) as f:
+                return (yaml.safe_load(f) or {}).get("version", "unknown")
+        except Exception:
+            pass
+    return "unknown"
+
+
+_ENGINE_VERSION = _load_engine_version()
+
 mcp = FastMCP(
     "specbox-engine",
-    instructions="""
-    MCP server for the SpecBox Engine v5.29.0 — an agentic programming system for Claude Code.
+    instructions=f"""
+    MCP server for the SpecBox Engine v{_ENGINE_VERSION} — an agentic programming system for Claude Code.
 
     Use these tools to:
     - Query implementation plans and their status

@@ -414,3 +414,100 @@ class TestDetectV60MigrationCaseContentAPI:
             has_app_dir=True,
         )
         assert "case_id" in result
+
+
+# ─── Drift resolution coverage (issue #62, v6.0.2) ─────────────────
+
+
+def _doc_with_drift(resolution_line: str) -> str:
+    """Helper: render an otherwise-complete icp_jtbd.md with the given
+    'Resolución: ...' line in the Drift section."""
+    return f"""# Discovery: feat
+
+## ICPs involucrados
+
+### ICP-1: Real ICP content, substantial.
+
+## JTBDs racionales
+
+- **JR-1** [ICP-1]: rational content.
+
+## JTBDs emocionales
+
+- **JE-1** [ICP-1]: emotional content.
+
+## Validation evidence
+
+- Evidence: real evidence here.
+
+## Drift from app_market
+
+- {resolution_line}
+"""
+
+
+class TestDriftResolutionParsing:
+    """The drift parser must accept all 4 canonical resolutions and expose
+    `drift.kind` so future strict-gate modes can distinguish them.
+
+    Regression for issue #62 (v6.0.1 smoke test): `no_drift` was not
+    recognised, causing `drift.resolved=false` on heredada features that
+    introduced no ICPs/JTBDs.
+    """
+
+    def test_no_drift_snake_case_resolves(self, discovery_tools):
+        """The shape that the /discovery skill writes on heredada features."""
+        result = discovery_tools["validate_discovery_completeness"](
+            feature_name="feat",
+            icp_jtbd_content=_doc_with_drift("Resolución: no_drift"),
+        )
+        assert result["verdict"] == "READY_FOR_PRD"
+        assert result["drift"]["resolved"] is True
+        assert result["drift"]["kind"] == "no_drift"
+
+    def test_no_drift_legacy_phrase_resolves(self, discovery_tools):
+        """Legacy 'no drift detected' (with spaces) normalises to 'no_drift'."""
+        result = discovery_tools["validate_discovery_completeness"](
+            feature_name="feat",
+            icp_jtbd_content=_doc_with_drift("Resolución: no drift detected"),
+        )
+        assert result["verdict"] == "READY_FOR_PRD"
+        assert result["drift"]["resolved"] is True
+        assert result["drift"]["kind"] == "no_drift"
+
+    def test_documented_exception_resolves_with_kind(self, discovery_tools):
+        result = discovery_tools["validate_discovery_completeness"](
+            feature_name="feat",
+            icp_jtbd_content=_doc_with_drift(
+                "Resolución: documented_exception — justified because X"
+            ),
+        )
+        assert result["drift"]["resolved"] is True
+        assert result["drift"]["kind"] == "documented_exception"
+
+    def test_app_market_updated_resolves_with_kind(self, discovery_tools):
+        result = discovery_tools["validate_discovery_completeness"](
+            feature_name="feat",
+            icp_jtbd_content=_doc_with_drift("Resolución: app_market_updated"),
+        )
+        assert result["drift"]["resolved"] is True
+        assert result["drift"]["kind"] == "app_market_updated"
+
+    def test_feature_creep_rejected_resolves_with_kind(self, discovery_tools):
+        result = discovery_tools["validate_discovery_completeness"](
+            feature_name="feat",
+            icp_jtbd_content=_doc_with_drift("Resolución: feature_creep_rejected"),
+        )
+        assert result["drift"]["resolved"] is True
+        assert result["drift"]["kind"] == "feature_creep_rejected"
+
+    def test_pending_resolution_stays_unresolved(self, discovery_tools):
+        """An unresolved pending drift still pushes 'drift_resolution' to missing."""
+        result = discovery_tools["validate_discovery_completeness"](
+            feature_name="feat",
+            icp_jtbd_content=_doc_with_drift("Resolución: pendiente"),
+        )
+        assert result["drift"]["resolved"] is False
+        assert "kind" not in result["drift"]
+        assert "drift_resolution" in result["missing"]
+        assert result["verdict"] == "DISCOVERY_INCOMPLETE"

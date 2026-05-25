@@ -202,6 +202,9 @@ Acciones:
 - **(a) feature_creep_rejected**: si la feature solo tiene drift rejected → marcar feature como **cancelada**, NO generar artefacto válido para `/prd`. Mostrar mensaje al usuario.
 - **(b) app_market_updated**: ofrecer editar `doc/app/app_market.md` ahí mismo. Eliminar `status="template-pristine"` de la zona modificada.
 - **(c) documented_exception**: pedir justificación obligatoria y registrar en sección "Drift from app_market" del `icp_jtbd.md` con `Resolución: documented_exception` + texto de justificación.
+- **(d) no_drift**: cuando la feature NO introduce ICPs/JTBDs nuevos (hereda todo de `app_market.md`). Registrar en la sección "Drift from app_market" del `icp_jtbd.md` con `Resolución: no_drift`. `validate_discovery_completeness` lo trata como `drift.resolved=true` con `drift.kind="no_drift"`.
+
+Las 4 resoluciones canónicas son: `feature_creep_rejected`, `app_market_updated`, `documented_exception`, `no_drift`. Cualquiera satisface el gate. El alias legacy `no drift detected` (con espacios) sigue aceptado por compatibilidad pero se normaliza a `no_drift` en la respuesta.
 
 ---
 

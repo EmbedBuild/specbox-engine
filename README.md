@@ -84,7 +84,7 @@ Opt-in y aditivo: si no configuras `backend_type='native'`, todo se comporta com
 - **`context-budget-guard.mjs`** PreToolUse(Task) — estima tokens, warn @ 16k (default), strict como settings flip.
 - **`file-ownership-guard.mjs`** PreToolUse(Write/Edit) — valida la ruta contra el ownership del agente activo. Suspicious paths (`..`, `/abs`) siempre BLOCKED.
 - **`phase_outputs.jsonl`** — cada Task escribe su delta estructurado al cierre. Spec-Code Sync deja de depender de `git diff` vivo desde el orquestador.
-- **Heartbeat enriquecido** con `task_isolation: {enabled, tasks_run_total, tasks_failed_*}` para Sala de Máquinas.
+- **Telemetría local** en `.quality/task_isolation.json` con `{enabled, tasks_run_total, tasks_failed_*}` (consumible por scripts ad-hoc o specbox_cloud).
 
 100% backwards-compatible. Modos `warn` por defecto durante la migración.
 
@@ -439,7 +439,7 @@ Opt-in and additive: if you don't set `backend_type='native'`, everything behave
 - **`context-budget-guard.mjs`** PreToolUse(Task) — estimates tokens, warns @ 16k (default), strict as a settings flip.
 - **`file-ownership-guard.mjs`** PreToolUse(Write/Edit) — validates the path against the active agent's ownership. Suspicious paths (`..`, `/abs`) always BLOCKED.
 - **`phase_outputs.jsonl`** — every Task writes a structured delta at close. Spec-Code Sync no longer depends on live `git diff` from the orchestrator.
-- **Enriched heartbeat** with `task_isolation: {enabled, tasks_run_total, tasks_failed_*}` for Sala de Máquinas.
+- **Local telemetry** in `.quality/task_isolation.json` with `{enabled, tasks_run_total, tasks_failed_*}` (consumable by ad-hoc scripts or specbox_cloud).
 
 100% backwards-compatible. `warn` modes default during the migration.
 

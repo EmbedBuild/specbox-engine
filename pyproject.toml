@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "6.0.2"
-description = "SpecBox Engine v6.0.2 — Smoke Test Followups: closes #60 #61 #62 + removes hardcoded runtime version + bumps fastmcp 3.3.1"
+version = "6.1.0"
+description = "SpecBox Engine v6.1.0 — Cloud Cutover: removes Sala de Máquinas (dashboard + heartbeat + /remote + GitHub sync). specbox_cloud absorbs the cross-project observability surface, reading Supabase directly + calling the MCP for writes."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.3.1,<4.0.0",

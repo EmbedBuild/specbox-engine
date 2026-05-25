@@ -1,4 +1,4 @@
-# SpecBox Engine v6.0.2
+# SpecBox Engine v6.1.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1236,7 +1236,7 @@ documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
 
 ## Engine Version
 
-Current: v6.0.2 "Smoke Test Followups"
+Current: v6.1.0 "Cloud Cutover"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

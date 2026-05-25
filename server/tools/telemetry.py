@@ -386,68 +386,66 @@ def register_telemetry_tools(mcp: FastMCP, engine_path: Path):
         return dashboard
 
     @mcp.tool
-    async def get_context_budget(path: str = ".", detail: bool = False) -> str:
-        """Estimate token cost of files/directories for context budget planning.
+    async def get_context_budget(
+        file_inventory: dict[str, int] | None = None,
+        context_window_tokens: int = 1_000_000,
+    ) -> str:
+        """Estimate token cost of a file inventory for context budget planning.
+
+        **v6.0.1 — content-passing API**
+
+        The client (skill or hook) walks the filesystem and supplies
+        ``file_inventory`` as ``{relative_path: byte_count}``. The token
+        estimate uses the conventional chars/4 heuristic (1 byte ≈ 1 char
+        for ASCII-dominant code).
 
         Args:
-            path: File or directory path relative to the project root.
-            detail: If True, show breakdown by subdirectory.
+            file_inventory: ``{relative_path: byte_count}`` mapping. ``None``
+                or empty returns a zero estimate.
+            context_window_tokens: Size of the target context window in
+                tokens. Defaults to 1M (Opus 4.7 1M-context tier).
 
-        Returns estimated tokens, context window percentage, and budget health status.
-        Use before loading files into a Task to verify context budget compliance.
-        Thresholds: Green < 15% (safe), Yellow 15-30% (consider splitting), Red > 30% (must split).
+        Returns JSON with estimated tokens, context window percentage,
+        health flag (green / yellow / red) and a recommendation.
+        Thresholds: Green < 15%, Yellow 15-30%, Red > 30%.
         """
-        ep = _find_engine_path()
-        if not ep:
-            return json.dumps({"error": "Engine path not found"})
+        inventory = file_inventory or {}
+        total_bytes = 0
+        per_file: list[dict] = []
+        for rel_path, byte_count in inventory.items():
+            if not isinstance(byte_count, int):
+                continue
+            total_bytes += max(0, byte_count)
+            per_file.append({
+                "path": rel_path,
+                "bytes": byte_count,
+                "estimated_tokens": max(0, byte_count) // 4,
+            })
 
-        script = os.path.join(ep, ".quality", "scripts", "context-budget.sh")
-        if not os.path.isfile(script):
-            return json.dumps({"error": "context-budget.sh not found", "expected": script})
+        estimated_tokens = total_bytes // 4
+        context_pct = (
+            round(estimated_tokens / context_window_tokens * 100, 2)
+            if context_window_tokens > 0 else 0
+        )
 
-        cmd = [script, path]
-        if detail:
-            cmd.append("--detail")
+        if context_pct < 15:
+            health = "green"
+            recommendation = "Safe for single task"
+        elif context_pct < 30:
+            health = "yellow"
+            recommendation = "Consider splitting into subtasks"
+        else:
+            health = "red"
+            recommendation = "Must split into subtasks"
 
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd=ep)
-            output = result.stdout.strip()
-
-            # Parse key metrics from output
-            response: dict = {"raw_output": output, "path": path}
-
-            for line in output.split("\n"):
-                line = line.strip()
-                if "Estimated tokens:" in line:
-                    try:
-                        response["estimated_tokens"] = int(line.split(":")[-1].strip())
-                    except ValueError:
-                        pass
-                elif "Total estimated tokens:" in line:
-                    try:
-                        response["estimated_tokens"] = int(line.split(":")[-1].strip())
-                    except ValueError:
-                        pass
-                elif "Context window %:" in line:
-                    try:
-                        response["context_window_pct"] = float(line.split(":")[-1].strip().rstrip("%"))
-                    except ValueError:
-                        pass
-
-            # Determine health
-            pct = response.get("context_window_pct", 0)
-            if pct < 15:
-                response["health"] = "green"
-                response["recommendation"] = "Safe for single task"
-            elif pct < 30:
-                response["health"] = "yellow"
-                response["recommendation"] = "Consider splitting into subtasks"
-            else:
-                response["health"] = "red"
-                response["recommendation"] = "Must split into subtasks"
-
-            return json.dumps(response, indent=2)
-        except subprocess.TimeoutExpired:
-            return json.dumps({"error": "Script timed out after 30s"})
-        except Exception as e:
-            return json.dumps({"error": str(e)})
+        response = {
+            "total_files": len(per_file),
+            "total_bytes": total_bytes,
+            "estimated_tokens": estimated_tokens,
+            "context_window_tokens": context_window_tokens,
+            "context_window_pct": context_pct,
+            "health": health,
+            "recommendation": recommendation,
+            "files": per_file,
+        }
+        return json.dumps(response, indent=2)

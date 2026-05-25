@@ -31,85 +31,106 @@ def _detect_stack_adapter(project_path: Path) -> dict[str, Any]:
 def register_audit_tools(mcp: FastMCP, engine_path: Path, state_path: Path) -> None:
 
     @mcp.tool
-    def check_audit_tools_status(project_path: str = "") -> dict:
-        """Check which external audit tools are installed on this machine.
+    def check_audit_tools_status(stack: str | None = None) -> dict:
+        """Check which external audit tools are installed on the MCP host.
+
+        **v6.0.1 — content-passing API**
 
         Args:
-            project_path: Optional project root; used to detect stack and
-                          skip stack-irrelevant tools (e.g. npm for non-JS).
+            stack: Optional stack identifier (``"flutter"``, ``"react"``,
+                ``"python"``, ``"go"``, ``"google-apps-script"``). When
+                supplied, the tool skips stack-irrelevant entries (e.g.
+                ``npm audit`` for non-JS projects). The caller detects the
+                stack locally and passes it here.
 
         Returns installed/missing lists plus ready-to-run install commands.
-        The `/audit` skill calls this BEFORE running an audit and offers
-        the user to install missing tools via `.quality/scripts/install-audit-tools.sh`.
-
+        Inspection runs on the MCP host (where the analyzers live in v6.0.1+
+        until moved to the client per the audit migration plan).
         Nothing is installed automatically — this tool is read-only.
         """
-        stack: str | None = None
-        if project_path:
-            try:
-                info = _detect_stack(Path(project_path))
-                stack = info.get("stack") or None
-            except Exception:
-                stack = None
         return check_audit_tools(stack=stack)
+
+    @mcp.tool
+    def submit_quality_audit(
+        project: str,
+        report: dict,
+    ) -> dict:
+        """Validate and accept a QualityReport built by the client.
+
+        **v6.0.1 — content-passing API**
+
+        Before v6.0.1, ``run_quality_audit`` orchestrated the 8 SQuaRE
+        analyzers on the MCP host, which broke in remote MCP setups
+        because the host has no access to the client codebase. v6.0.1
+        moves the analyzers to ``.quality/scripts/audit/`` (executed on
+        the client by the ``/audit`` skill); the skill builds the
+        ``QualityReport`` locally and submits it here.
+
+        This tool:
+          - validates the report structure,
+          - tags ``audit_tools_status`` based on the host's available tools,
+          - returns the canonical dict ready to pass to
+            :py:func:`attach_audit_evidence`.
+
+        Args:
+            project: Project name.
+            report: Dict-serialised ``QualityReport`` (see
+                ``server/audit/schema.py``).
+        """
+        try:
+            parsed = QualityReport.from_dict(report)
+        except (KeyError, ValueError, TypeError) as exc:
+            return {"error": f"Invalid report payload: {exc}"}
+
+        # The host can still attest which audit tools are installed locally,
+        # which is informational for the skill that may have run them.
+        tool_status = check_audit_tools(stack=None)
+        data = parsed.to_dict()
+        data["audit_tools_status"] = tool_status
+        data["project"] = project
+        if not tool_status["all_present"]:
+            data["meta"].setdefault("warnings", []).append(
+                f"{tool_status['missing_count']} audit tool(s) missing on "
+                "the MCP host — informational only since v6.0.1; the client "
+                "is expected to run analyzers locally via "
+                ".quality/scripts/audit/."
+            )
+        return data
 
     @mcp.tool
     def run_quality_audit(
         project: str,
+        report: dict | None = None,
         scope: str = "full",
         project_path: str = "",
     ) -> dict:
-        """Run an ISO/IEC 25010 (SQuaRE) quality audit on a project.
+        """Deprecated v5.x audit orchestrator — use ``submit_quality_audit`` instead.
 
-        Args:
-            project: Project name (used for evidence directory naming).
-            scope: 'full' (default) or one of the 8 SQuaRE characteristic ids
-                   (e.g. 'security', 'maintainability') to run just that block.
-            project_path: Absolute path to the project root. Defaults to
-                          STATE_PATH/projects/<project> if empty.
+        **v6.0.1 — content-passing API**
 
-        Returns the full QualityReport as a dict. The report is NOT persisted
-        by this tool — call attach_audit_evidence with the returned report
-        (optionally enriched by AG-10 with justifications/recommendations).
-
-        Analyses 8 ISO/IEC 25010 characteristics: functional_suitability,
-        performance_efficiency, compatibility, usability, reliability,
-        security, maintainability (60/40 mix — classic + SpecBox), portability.
-        External tools (semgrep, gitleaks, pip-audit, npm audit, checkov, lizard,
-        jscpd) degrade gracefully when missing — reported in tools_used without
-        aborting the audit.
+        Pre-v6.0.1 callers passed ``project_path`` and the MCP host ran the
+        8 SQuaRE analyzers, which is broken in remote MCP setups. v6.0.1
+        keeps this tool registered for one release as a thin compatibility
+        shim that delegates to ``submit_quality_audit`` when ``report`` is
+        provided. When called with the legacy ``project_path`` form, it
+        returns an error pointing to the new contract.
         """
-        pp = Path(project_path) if project_path else (state_path / "projects" / project)
-        if not pp.exists():
-            return {"error": f"project_path does not exist: {pp}"}
+        if report is not None:
+            return submit_quality_audit.fn(project, report)  # type: ignore[attr-defined]
 
-        def _stack_fetcher(path: Path) -> dict[str, Any]:
-            return _detect_stack_adapter(path)
-
-        def _signal_fetcher(path: Path, name: str) -> dict[str, Any]:
-            return fetch_specbox_signals(path, name, state_path=state_path)
-
-        # Lazy tool check — informs the caller but never blocks the audit.
-        stack_info = _detect_stack_adapter(pp)
-        tool_status = check_audit_tools(stack=stack_info.get("stack"))
-
-        report = run_audit(
-            project_path=pp,
-            project_name=project,
-            detect_stack=_stack_fetcher,
-            fetch_specbox_signals=_signal_fetcher,
-            engine_path=engine_path,
-            scope=scope,
-        )
-        data = report.to_dict()
-        data["audit_tools_status"] = tool_status
-        if not tool_status["all_present"]:
-            data["meta"].setdefault("warnings", []).append(
-                f"{tool_status['missing_count']} audit tool(s) missing — "
-                "some findings may be incomplete. Run "
-                ".quality/scripts/install-audit-tools.sh to install them."
-            )
-        return data
+        return {
+            "error": (
+                "run_quality_audit no longer orchestrates analyzers in v6.0.1. "
+                "Run .quality/scripts/audit/ on the client to build a "
+                "QualityReport, then call submit_quality_audit(project, report)."
+            ),
+            "migration": {
+                "deprecated_in": "v6.0.1",
+                "replacement": "submit_quality_audit",
+                "scope_requested": scope,
+                "project_path_requested": project_path,
+            },
+        }
 
     @mcp.tool
     def attach_audit_evidence(

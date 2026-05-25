@@ -240,41 +240,133 @@ def regenerate_evidence_impl(
 
 
 def register_evidence_regen_tools(mcp, engine_path: Path, state_path: Path):
-    """Register the ``regenerate_evidence`` MCP tool (UC-405)."""
+    """Register the ``regenerate_evidence`` MCP tool (UC-405, v6.0.1 content-passing)."""
 
     @mcp.tool
     def regenerate_evidence(
-        project_path: str,
+        prd_content: str,
+        uc_evidence_inputs: dict[str, dict] | None = None,
         ucs: list[str] | None = None,
-        branch: str = "",
+        branch: str = "unknown",
     ) -> dict:
-        """Re-run acceptance for UCs that already had evidence, refreshing results.json.
+        """Plan evidence regeneration for UCs that already had acceptance evidence.
 
-        Opt-in tool intended to run after a backend switch, when acceptance
-        evidence may have gone stale relative to the current code. Scans
-        ``.quality/evidence/*/acceptance/results.json`` to find the logical UCs
-        with prior evidence and re-runs acceptance for each, regenerating
-        ``results.json`` + HTML report with a fresh timestamp. Reports progress
-        per UC and persists a Markdown summary under ``doc/migrations/``.
+        **v6.0.1 — content-passing API**
 
-        Args:
-            project_path: Absolute path to the project root.
-            ucs: Optional list of UC ids to restrict to. If omitted, every UC with
-                prior evidence is regenerated.
-            branch: Git branch to check (passed to the acceptance runner).
+        The MCP no longer touches the client filesystem. The caller supplies:
+
+        * ``prd_content`` — concatenated PRD markdown (joined ``doc/prd/*.md``).
+        * ``uc_evidence_inputs`` — mapping ``{uc_id: {"n_acs": int,
+          "evidence_relpath": str, "results_json_content": str | None,
+          "code_index": dict[str, str] | None}}`` listing each UC that has
+          prior evidence on the client. The client typically builds this
+          by walking ``.quality/evidence/*/acceptance/results.json``.
+        * ``ucs`` — optional restriction (case-insensitive) on the UC set.
+        * ``branch`` — informational.
+
+        The tool re-runs the in-memory acceptance check for each UC and
+        returns a per-UC plan: the new ``results.json`` content, refreshed
+        feature files, and the markdown summary the client should write
+        under ``doc/migrations/regenerate-evidence-<ts>.md``.
 
         Returns:
-            JSON with ``total``, ``progress_lines``, ``summary``
-            (regenerated/failed/pending), and the ``report_path``.
+            ``{"total": N, "branch": str, "ts_token": str, "progress_lines":
+            [...], "summary": {"regenerated": [...], "failed": [...],
+            "pending": [...]}, "uc_results": [...], "report_path":
+            "doc/migrations/regenerate-evidence-<ts>.md", "report_content":
+            "..."}``. The client writes ``report_content`` to ``report_path``.
         """
-        from .acceptance import run_acceptance_check_impl
+        from datetime import datetime, timezone
 
-        def _runner(pp: str, uc_id: str, br: str) -> dict:
-            return run_acceptance_check_impl(pp, uc_id, br)
+        from .acceptance import run_acceptance_check_from_content
 
-        return regenerate_evidence_impl(
-            project_path,
-            ucs=ucs,
-            acceptance_runner=_runner,
-            branch=branch,
+        inputs = uc_evidence_inputs or {}
+        target_set = (
+            {str(u).upper().strip() for u in ucs} if ucs is not None else None
         )
+
+        normalized: list[tuple[str, dict]] = []
+        for uc_id, meta in inputs.items():
+            uc_upper = str(uc_id).upper().strip()
+            if target_set is not None and uc_upper not in target_set:
+                continue
+            normalized.append((uc_upper, meta if isinstance(meta, dict) else {}))
+        normalized.sort(key=lambda kv: kv[0])
+
+        total = len(normalized)
+        progress_lines: list[str] = []
+        regenerated: list[str] = []
+        failed: list[str] = []
+        pending: list[str] = []
+        uc_results: list[dict] = []
+
+        for idx, (uc_id, meta) in enumerate(normalized, start=1):
+            n_acs = int(meta.get("n_acs", 0))
+            try:
+                run = run_acceptance_check_from_content(
+                    prd_content=prd_content,
+                    item_id=uc_id,
+                    branch=branch,
+                    code_index=meta.get("code_index"),
+                )
+            except Exception:
+                run = {"error": "runner raised exception"}
+
+            if not isinstance(run, dict) or run.get("error"):
+                status = "SKIP"
+                pending.append(uc_id)
+            else:
+                verdict = run.get("verdict", "")
+                status = _verdict_to_status(verdict)
+                if status == "PASS":
+                    regenerated.append(uc_id)
+                elif status == "FAIL":
+                    failed.append(uc_id)
+                else:
+                    pending.append(uc_id)
+
+            uc_results.append({
+                "uc_id": uc_id,
+                "status": status,
+                "n_acs": n_acs,
+                "report": run if isinstance(run, dict) else None,
+            })
+            progress_lines.append(
+                f"[{idx}/{total}] {uc_id}: {status} ({n_acs} ACs con evidencia)"
+            )
+
+        ts_token = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        report_path = f"doc/migrations/regenerate-evidence-{ts_token}.md"
+
+        summary = {
+            "regenerated": regenerated,
+            "failed": failed,
+            "pending": pending,
+        }
+
+        md_lines = [
+            f"# Regenerate evidence — {ts_token}",
+            "",
+            f"**Branch**: {branch}",
+            f"**Total UCs procesados**: {total}",
+            "",
+            "## Resumen",
+            f"- Regenerados (PASS): {len(regenerated)}",
+            f"- Fallidos (FAIL): {len(failed)}",
+            f"- Pendientes (SKIP): {len(pending)}",
+            "",
+            "## Detalle",
+        ]
+        md_lines.extend(progress_lines)
+        report_content = "\n".join(md_lines)
+
+        return {
+            "total": total,
+            "branch": branch,
+            "ts_token": ts_token,
+            "progress_lines": progress_lines,
+            "summary": summary,
+            "uc_results": uc_results,
+            "report_path": report_path,
+            "report_content": report_content,
+        }

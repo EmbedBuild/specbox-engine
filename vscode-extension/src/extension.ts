@@ -53,11 +53,6 @@ export async function activate(context: vscode.ExtensionContext) {
 			health.showReport(result);
 		}),
 
-		vscode.commands.registerCommand('specbox.openDashboard', () => {
-			const url = vscode.workspace.getConfiguration('specbox').get<string>('dashboardUrl') || 'http://localhost:8080';
-			vscode.env.openExternal(vscode.Uri.parse(url));
-		}),
-
 		vscode.commands.registerCommand('specbox.configureMcp', async () => {
 			await mcpConfig.configureAll();
 		}),

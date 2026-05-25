@@ -1,8 +1,14 @@
 """Tools for standalone acceptance checking — BDD exportable module (US-04).
 
-Provides two MCP tools:
-  - run_acceptance_check: Run acceptance validation for a UC/US against a project
-  - get_acceptance_report: Retrieve the last acceptance report for a UC
+v6.0.1 — MCP Path Contract
+==========================
+
+The 3 @mcp.tool wrappers (run_acceptance_check, get_acceptance_report,
+get_e2e_gap_report) are migrated to content-passing: the client provides
+PRD content and an optional code index, and receives report content as
+strings to write locally. The module-level ``*_impl`` helpers are kept
+intact for in-process callers (e.g. ``evidence_regen.regenerate_evidence``)
+and for tests.
 """
 
 import json
@@ -919,59 +925,524 @@ def get_e2e_gap_report_impl(
     }
 
 
+# =====================================================================
+# Content-passing helpers (v6.0.1)
+# =====================================================================
+
+
+def _verdict_from_index(
+    ac_id: str,
+    description: str,
+    code_index: dict[str, str] | None,
+) -> tuple[str, str, list[str]]:
+    """Determine an AC's verdict from a client-supplied code index.
+
+    ``code_index`` maps relative file paths to UTF-8 content. The tool
+    grep-searches AC identifier mentions + keyword matches in test files,
+    then derives (verdict, reason, evidence_strings).
+    """
+    evidence: list[str] = []
+    if not code_index:
+        return "REJECTED", "No code index supplied", evidence
+
+    upper_ac = ac_id.upper()
+    keywords = _extract_keywords(description)
+
+    for rel_path, content in code_index.items():
+        if not isinstance(content, str):
+            continue
+        lower_path = rel_path.lower()
+        for idx, line in enumerate(content.splitlines(), 1):
+            if upper_ac in line.upper():
+                evidence.append(f"{rel_path}:{idx}")
+        if "test" in lower_path or "acceptance" in lower_path or "e2e" in lower_path:
+            lower_content = content.lower()
+            if any(kw in lower_content for kw in keywords):
+                tag = f"{rel_path} (keyword match)"
+                if tag not in evidence:
+                    evidence.append(tag)
+
+    verdict, reason = _determine_verdict(evidence)
+    return verdict, reason, evidence
+
+
+def run_acceptance_check_from_content(
+    *,
+    prd_content: str,
+    item_id: str = "",
+    branch: str = "unknown",
+    code_index: dict[str, str] | None = None,
+) -> dict:
+    """Content-passing version of run_acceptance_check.
+
+    Args:
+        prd_content: Concatenated PRD content from one or more files.
+        item_id: UC-XXX, US-XX, or empty (checks every UC found).
+        branch: Branch name (informational; the client knows it).
+        code_index: Optional ``{relative_path: file_content}`` mapping.
+            When omitted, the tool relies solely on AC mentions in the PRD
+            and cannot search the codebase, so every AC will be classified
+            REJECTED. The client typically populates this from the files
+            changed in the current branch.
+
+    Returns:
+        {
+          "verdict": "ACCEPTED" | "CONDITIONAL" | "REJECTED",
+          "timestamp": ISO8601 string,
+          "branch": str,
+          "uc_results": [...],
+          "feature_files": { "<relpath>": "<feature_content>" },
+          "reports": { "<relpath>": "<report_content>" },
+          "total_criteria": int,
+        }
+    """
+    if not prd_content or not prd_content.strip():
+        return {
+            "error": "prd_content is empty",
+            "hint": "Provide concatenated PRD markdown via prd_content.",
+        }
+
+    timestamp = datetime.now(timezone.utc).isoformat()
+    item_upper = item_id.upper().strip() if item_id else ""
+
+    if item_upper.startswith("US-"):
+        ucs = _find_ucs_for_us(prd_content, item_upper)
+        if not ucs:
+            return {
+                "error": f"No UCs found for {item_upper} in PRD",
+                "hint": "Ensure the PRD has UC-XXX references under the US section",
+            }
+        uc_ids_to_check = ucs
+    elif item_upper.startswith("UC-"):
+        uc_ids_to_check = [item_upper]
+    elif item_upper in ("", ) or item_upper.startswith("PR-") or item_upper.startswith("--PR"):
+        all_ucs = re.findall(r"(UC-\d+)", prd_content, re.IGNORECASE)
+        uc_ids_to_check = list(dict.fromkeys(uc.upper() for uc in all_ucs))
+        if not uc_ids_to_check:
+            return {
+                "error": "No UC identifiers found in PRD content",
+                "hint": "PRD should contain UC-XXX sections with AC-XX criteria",
+            }
+    elif re.match(r"\d+$", item_upper):
+        return {
+            "error": f"Ambiguous item_id '{item_id}'. Use UC-{item_id} or US-{item_id}",
+        }
+    else:
+        uc_ids_to_check = [item_upper]
+
+    all_results: list[dict] = []
+    feature_files: dict[str, str] = {}
+    report_files: dict[str, str] = {}
+
+    for uc_id in uc_ids_to_check:
+        criteria = _extract_ac_from_prd(prd_content, uc_id)
+        if not criteria:
+            all_results.append(
+                {
+                    "uc_id": uc_id,
+                    "error": f"No acceptance criteria found for {uc_id}",
+                    "verdict": "REJECTED",
+                    "criteria": [],
+                }
+            )
+            continue
+
+        uc_criteria_results: list[dict] = []
+        for ac in criteria:
+            ac_id = ac["ac_id"]
+            desc = ac["description"]
+
+            feature_content = _generate_gherkin(ac, uc_id)
+            feature_rel = f".quality/acceptance-check/{uc_id}/{ac_id}.feature"
+            feature_files[feature_rel] = feature_content
+
+            verdict, reason, evidence = _verdict_from_index(
+                ac_id, desc, code_index,
+            )
+            uc_criteria_results.append(
+                {
+                    "ac_id": ac_id,
+                    "description": desc,
+                    "verdict": verdict,
+                    "reason": reason,
+                    "evidence": evidence[:10],
+                }
+            )
+
+        verdicts = [c["verdict"] for c in uc_criteria_results]
+        if all(v == "ACCEPTED" for v in verdicts):
+            uc_verdict = "ACCEPTED"
+        elif any(v == "REJECTED" for v in verdicts):
+            uc_verdict = "REJECTED"
+        else:
+            uc_verdict = "CONDITIONAL"
+
+        report = {
+            "uc_id": uc_id,
+            "timestamp": timestamp,
+            "branch": branch,
+            "verdict": uc_verdict,
+            "criteria": uc_criteria_results,
+            "features_generated": [
+                k for k in feature_files if k.startswith(f".quality/acceptance-check/{uc_id}/")
+            ],
+        }
+        report_json_rel = f".quality/acceptance-check/{uc_id}/report.json"
+        report_files[report_json_rel] = json.dumps(report, indent=2, ensure_ascii=False)
+
+        md_lines = [
+            f"## Acceptance Check: {uc_id}\n",
+            f"**Branch**: {branch}",
+            f"**Date**: {timestamp}",
+            f"**Verdict**: **{uc_verdict}**\n",
+            "### Criteria Results\n",
+            "| AC | Description | Verdict | Evidence |",
+            "|----|-------------|---------|----------|",
+        ]
+        for c in uc_criteria_results:
+            ev_str = ", ".join(f"`{e}`" for e in c["evidence"][:3]) if c["evidence"] else "No evidence"
+            md_lines.append(f"| {c['ac_id']} | {c['description'][:60]} | {c['verdict']} | {ev_str} |")
+
+        md_lines.append("\n### Details\n")
+        for c in uc_criteria_results:
+            md_lines.append(f"#### {c['ac_id']}: {c['description']}")
+            md_lines.append(f"**Verdict**: {c['verdict']}")
+            md_lines.append(f"**Reason**: {c['reason']}")
+            if c["evidence"]:
+                md_lines.append("**Evidence**:")
+                for e in c["evidence"][:5]:
+                    md_lines.append(f"- `{e}`")
+            md_lines.append("")
+
+        md_lines.append("---")
+        md_lines.append("*Generated by SpecBox Engine `/acceptance-check` (v6.0.1 content-passing)*")
+        report_md_rel = f".quality/acceptance-check/{uc_id}/report.md"
+        report_files[report_md_rel] = "\n".join(md_lines)
+
+        all_results.append(report)
+
+    all_verdicts = [r.get("verdict", "REJECTED") for r in all_results]
+    if all(v == "ACCEPTED" for v in all_verdicts):
+        overall_verdict = "ACCEPTED"
+    elif any(v == "REJECTED" for v in all_verdicts):
+        overall_verdict = "REJECTED"
+    else:
+        overall_verdict = "CONDITIONAL"
+
+    return {
+        "verdict": overall_verdict,
+        "timestamp": timestamp,
+        "branch": branch,
+        "uc_results": all_results,
+        "feature_files": feature_files,
+        "reports": report_files,
+        "total_criteria": sum(len(r.get("criteria", [])) for r in all_results),
+    }
+
+
+def get_acceptance_report_from_content(
+    *,
+    uc_id: str,
+    report_json_content: str | None = None,
+    report_md_content: str | None = None,
+) -> dict:
+    """Content-passing version of get_acceptance_report.
+
+    The caller reads ``.quality/acceptance-check/<uc>/report.{json,md}`` if
+    present and passes the strings. Returns the parsed report enriched with
+    the markdown content, or an error when neither is provided.
+    """
+    uc_upper = uc_id.upper().strip()
+    if not report_json_content:
+        return {
+            "error": f"No acceptance report supplied for {uc_upper}",
+            "hint": (
+                "Read .quality/acceptance-check/<uc>/report.json on the client "
+                "and pass its content as report_json_content."
+            ),
+        }
+    try:
+        report = json.loads(report_json_content)
+    except json.JSONDecodeError as exc:
+        return {"error": f"Failed to parse report JSON: {exc}"}
+    if isinstance(report, dict):
+        if report_md_content:
+            report["markdown_content"] = report_md_content
+            report["markdown_report"] = f".quality/acceptance-check/{uc_upper}/report.md"
+    return report
+
+
+def get_e2e_gap_report_from_content(
+    *,
+    project_name: str,
+    stack: str,
+    prd_content: str,
+    evidence_index: dict[str, str] | None = None,
+    feature_files: list[str] | None = None,
+    acceptance_check_ucs: list[str] | None = None,
+    code_index: dict[str, str] | None = None,
+) -> dict:
+    """Content-passing version of get_e2e_gap_report.
+
+    Args:
+        project_name: Display name for the project.
+        stack: Detected stack ("flutter" | "react" | "go" | "python" | "unknown").
+        prd_content: Concatenated PRD content.
+        evidence_index: Mapping from relative path (under .quality/evidence/)
+            to its UTF-8 content. The tool greps each evidence file for
+            UC-XXX and ``"uc_id"`` markers to count coverage.
+        feature_files: Sorted list of relative ``.feature`` file paths under
+            ``test*/acceptance/`` or ``e2e/`` that exist on the client.
+        acceptance_check_ucs: UC ids that have a ``report.json`` under
+            ``.quality/acceptance-check/`` (i.e. the client found one).
+        code_index: Optional code snippets for per-AC evidence detection.
+    """
+    if not prd_content or not prd_content.strip():
+        return {
+            "project": project_name,
+            "stack": stack,
+            "error": "prd_content is empty — cannot detect E2E gaps",
+        }
+
+    timestamp = datetime.now(timezone.utc).isoformat()
+
+    all_ucs = list(
+        dict.fromkeys(uc.upper() for uc in re.findall(r"(UC-\d+)", prd_content, re.IGNORECASE))
+    )
+    if not all_ucs:
+        return {
+            "project": project_name,
+            "stack": stack,
+            "error": "No UC identifiers found in PRD content",
+        }
+
+    evidence_idx = evidence_index or {}
+    feature_files_set = set(feature_files or [])
+    check_ucs = {uc.upper() for uc in (acceptance_check_ucs or [])}
+
+    uc_results: list[dict] = []
+    covered = 0
+    partial = 0
+    missing_count = 0
+
+    for uc_id in all_ucs:
+        criteria = _extract_ac_from_prd(prd_content, uc_id)
+        uc_entry: dict = {
+            "uc_id": uc_id,
+            "ac_count": len(criteria),
+            "criteria": [],
+        }
+
+        has_html_report = any(
+            rel.endswith("e2e-evidence-report.html") and uc_id in content
+            for rel, content in evidence_idx.items()
+        )
+        has_results_json = False
+        for rel, content in evidence_idx.items():
+            if not rel.endswith("results.json"):
+                continue
+            try:
+                data = json.loads(content)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(data, dict) and str(data.get("uc_id", "")).upper() == uc_id:
+                has_results_json = True
+                break
+
+        has_feature_file = any(
+            uc_id in fname for fname in feature_files_set
+        )
+        has_acceptance_check = uc_id in check_ucs
+
+        ac_with_evidence = 0
+        for ac in criteria:
+            _, _, ac_evidence = _verdict_from_index(ac["ac_id"], ac["description"], code_index)
+            has_test_evidence = any(
+                "test" in e.lower() or "acceptance" in e.lower() or "e2e" in e.lower()
+                for e in ac_evidence
+            )
+            if has_test_evidence:
+                ac_with_evidence += 1
+            uc_entry["criteria"].append(
+                {
+                    "ac_id": ac["ac_id"],
+                    "description": ac["description"][:80],
+                    "has_evidence": has_test_evidence,
+                }
+            )
+
+        if has_html_report and has_results_json:
+            status = "covered"
+            covered += 1
+        elif has_feature_file or has_acceptance_check or ac_with_evidence > 0:
+            status = "partial"
+            partial += 1
+        else:
+            status = "missing"
+            missing_count += 1
+
+        uc_entry["status"] = status
+        uc_entry["has_html_report"] = has_html_report
+        uc_entry["has_results_json"] = has_results_json
+        uc_entry["has_feature_file"] = has_feature_file
+        uc_entry["has_acceptance_check"] = has_acceptance_check
+        uc_entry["ac_with_evidence"] = ac_with_evidence
+        uc_results.append(uc_entry)
+
+    plan_items: list[dict] = []
+    framework_map = {
+        "flutter": ("Playwright (web) or Patrol v4 (mobile)", "e2e/acceptance/", "patrol-evidence-generator.js"),
+        "react": ("Playwright", "tests/acceptance/", "Playwright native HTML reporter"),
+        "go": ("testing + testify + httptest", "tests/acceptance/", "api-evidence-generator.js"),
+        "python": ("pytest-bdd + httpx", "tests/acceptance/", "api-evidence-generator.js"),
+    }
+    framework, test_dir, generator = framework_map.get(
+        stack, ("Unknown", "tests/acceptance/", "Manual")
+    )
+
+    for uc in uc_results:
+        if uc["status"] in ("missing", "partial"):
+            missing_acs = [c for c in uc["criteria"] if not c["has_evidence"]]
+            if missing_acs:
+                plan_items.append(
+                    {
+                        "uc_id": uc["uc_id"],
+                        "status": uc["status"],
+                        "missing_acs": [
+                            {"ac_id": c["ac_id"], "description": c["description"]}
+                            for c in missing_acs
+                        ],
+                        "action": "Generate .feature + step definitions + run E2E tests",
+                        "framework": framework,
+                        "test_dir": test_dir,
+                        "evidence_generator": generator,
+                    }
+                )
+
+    total = len(all_ucs)
+    coverage_pct = round((covered / total) * 100) if total > 0 else 0
+
+    summary = (
+        f"E2E Coverage: {coverage_pct}% ({covered}/{total} UCs with full evidence). "
+        f"{partial} parcial, {missing_count} sin evidencia."
+    )
+    if plan_items:
+        summary += f" Plan propuesto: {len(plan_items)} UCs necesitan tests E2E."
+
+    return {
+        "project": project_name,
+        "stack": stack,
+        "timestamp": timestamp,
+        "coverage": {
+            "total_ucs": total,
+            "covered": covered,
+            "partial": partial,
+            "missing": missing_count,
+            "coverage_pct": coverage_pct,
+        },
+        "uc_results": uc_results,
+        "e2e_plan": plan_items if plan_items else None,
+        "summary": summary,
+    }
+
+
 def register_acceptance_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
-    """Register the 3 acceptance MCP tools as thin wrappers over module impls."""
+    """Register the 3 acceptance MCP tools (v6.0.1 content-passing API)."""
 
     @mcp.tool
     def run_acceptance_check(
-        project_path: str,
+        prd_content: str,
         item_id: str = "",
-        branch: str = "",
+        branch: str = "unknown",
+        code_index: dict[str, str] | None = None,
     ) -> dict:
-        """Run standalone acceptance check for a UC or US against a project.
+        """Run standalone acceptance check for a UC or US.
 
-        Locates the PRD, extracts acceptance criteria, generates Gherkin .feature
-        files, validates each AC against the codebase, and produces a verdict.
+        **v6.0.1 — content-passing API**
 
         Args:
-            project_path: Absolute path to the project root.
-            item_id: UC-XXX, US-XX, or empty. If empty, checks all UCs found in PRDs.
-            branch: Git branch to check (used for PR-focused diff). Empty = current branch.
+            prd_content: Concatenated markdown of every PRD file the caller
+                wants to consider (e.g. ``doc/prd/*.md`` joined with newlines).
+            item_id: UC-XXX, US-XX, or empty. If empty, every UC found in
+                ``prd_content`` is checked.
+            branch: Informational — the client knows its branch.
+            code_index: Optional mapping ``{relative_path: file_content}`` used
+                to grep AC mentions + keyword matches in test files. The
+                caller typically populates this from the diff between the
+                current branch and ``main``. When omitted, every AC is
+                classified ``REJECTED`` because no evidence is reachable.
 
         Returns:
-            JSON with verdict (ACCEPTED/CONDITIONAL/REJECTED), per-AC results,
-            generated .feature file paths, and a PR-comment-ready Markdown report.
+            Includes ``verdict`` (overall), ``feature_files`` and ``reports``
+            dicts with relative paths → string content. The client is
+            responsible for writing those files locally.
         """
-        return run_acceptance_check_impl(project_path, item_id, branch)
+        return run_acceptance_check_from_content(
+            prd_content=prd_content,
+            item_id=item_id,
+            branch=branch,
+            code_index=code_index,
+        )
 
     @mcp.tool
     def get_acceptance_report(
-        project_path: str,
         uc_id: str,
+        report_json_content: str | None = None,
+        report_md_content: str | None = None,
     ) -> dict:
         """Get the last acceptance check report for a UC.
 
-        Args:
-            project_path: Absolute path to the project root.
-            uc_id: Use case identifier (e.g., UC-001).
+        **v6.0.1 — content-passing API**
 
-        Returns:
-            The last report JSON, or error if no report exists.
+        Args:
+            uc_id: Use case identifier (e.g. ``UC-001``).
+            report_json_content: Raw content of
+                ``.quality/acceptance-check/<uc>/report.json`` (read on the
+                client). ``None`` when the file does not exist.
+            report_md_content: Raw content of
+                ``.quality/acceptance-check/<uc>/report.md`` (read on the
+                client). Optional.
         """
-        return get_acceptance_report_impl(project_path, uc_id)
+        return get_acceptance_report_from_content(
+            uc_id=uc_id,
+            report_json_content=report_json_content,
+            report_md_content=report_md_content,
+        )
 
     @mcp.tool
     def get_e2e_gap_report(
-        project_path: str,
-        project: str = "",
+        prd_content: str,
+        project_name: str = "",
+        stack: str = "unknown",
+        evidence_index: dict[str, str] | None = None,
+        feature_files: list[str] | None = None,
+        acceptance_check_ucs: list[str] | None = None,
+        code_index: dict[str, str] | None = None,
     ) -> dict:
-        """Detect E2E testing gaps for a project: which UCs lack acceptance evidence.
+        """Detect E2E testing gaps for a project.
+
+        **v6.0.1 — content-passing API**
 
         Args:
-            project_path: Absolute path to the project root.
-            project: Project name (for state lookup). Optional.
-
-        Returns:
-            JSON with coverage summary, per-UC gap analysis, and a proposed plan.
+            prd_content: Concatenated PRD markdown.
+            project_name: Display name for the report.
+            stack: One of ``"flutter"``, ``"react"``, ``"go"``, ``"python"``
+                or ``"unknown"``. The caller detects this locally.
+            evidence_index: Mapping ``{relative_path: file_content}`` for
+                files under ``.quality/evidence/``. The tool searches HTML
+                evidence reports + ``results.json`` files for UC mentions.
+            feature_files: Sorted list of relative ``.feature`` file paths
+                under ``test*/acceptance/`` or ``e2e/``.
+            acceptance_check_ucs: UC ids that have a ``report.json`` under
+                ``.quality/acceptance-check/`` (client lists the dir).
+            code_index: Optional code-snippet map for per-AC evidence.
         """
-        return get_e2e_gap_report_impl(project_path, project)
+        return get_e2e_gap_report_from_content(
+            project_name=project_name,
+            stack=stack,
+            prd_content=prd_content,
+            evidence_index=evidence_index,
+            feature_files=feature_files,
+            acceptance_check_ucs=acceptance_check_ucs,
+            code_index=code_index,
+        )

@@ -1,7 +1,7 @@
 # App Spec — specbox-engine
 
-**Última actualización:** 2026-05-21T00:00:00Z
-**Versión del documento:** 1
+**Última actualización:** 2026-05-25T00:00:00Z
+**Versión del documento:** 2
 **Mantenido por:** /app-init (idempotente) y eventos del pipeline
 
 ---
@@ -13,11 +13,9 @@
 |------|------------|---------|--------------|
 | Engine / MCP server | Python (FastMCP) | >=3.12 | `pyproject.toml` |
 | Gestor de dependencias | uv | — | `uv.lock` |
-| Engine package | specbox-engine | 5.33.0 | `pyproject.toml` / `ENGINE_VERSION.yaml` |
-| Dashboard (Sala de Máquinas) | React | ^19.0.0 | `server/dashboard/package.json` |
-| Dashboard build | Vite | ^6.0.0 | `server/dashboard/package.json` |
+| Engine package | specbox-engine | 6.1.x | `pyproject.toml` / `ENGINE_VERSION.yaml` |
 | Hooks / scripts | Node.js (ESM `.mjs`) | — | `.claude/hooks/*.mjs` |
-| Contenedor | Docker multi-stage (Node + Python) | — | `Dockerfile` / `docker-compose.yml` |
+| Contenedor | Docker single-stage Python | — | `Dockerfile` / `docker-compose.yml` |
 <!-- @specbox:zone end -->
 
 <!-- @specbox:zone start kind="auto" id="tracking_backend" auto_sync_on="set_auth_token" -->
@@ -37,7 +35,7 @@
 - **Brand kit:** SpecBox Engine (SpecBox Engine by JPS) — ver `ENGINE_VERSION.yaml`
 - **VEG arquetipo:** Startup
 - **Modo VEG:** uniforme
-- **Stitch project_id:** (no configurado — el engine es un sistema sin UI de producto propia salvo Sala de Máquinas)
+- **Stitch project_id:** (no configurado — el engine es un sistema sin UI de producto propia; la visión multi-proyecto vive en specbox_cloud, panel web externo)
 <!-- @specbox:zone end -->
 
 <!-- @specbox:zone start kind="manual" id="conventions" -->

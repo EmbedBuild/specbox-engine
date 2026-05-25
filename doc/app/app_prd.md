@@ -1,7 +1,7 @@
 # App PRD — specbox-engine
 
-**Última actualización:** 2026-05-21T00:00:00Z
-**Versión del documento:** 1
+**Última actualización:** 2026-05-25T00:00:00Z
+**Versión del documento:** 2
 **Mantenido por:** /app-init (idempotente) y eventos del pipeline
 
 ---
@@ -9,7 +9,7 @@
 <!-- @specbox:zone start kind="manual" id="vision" -->
 ## 1. Visión
 
-SpecBox Engine es un sistema de programación agentica para Claude Code: un monorepo unificado (engine + MCP server con 164 tools + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010) que aporta trazabilidad spec-driven (US → UC → AC), enforcement automático vía hooks, y un pipeline completo de desarrollo (`/prd` → `/plan` → `/implement` → `/feedback`). SpecBox aporta la velocidad; el LLM aporta el rigor.
+SpecBox Engine es un sistema de programación agentica para Claude Code: un monorepo unificado (engine + MCP server + Gherkin BDD + Quality Audit ISO/IEC 25010 + Product Discovery) que aporta trazabilidad spec-driven (US → UC → AC), enforcement automático vía hooks, y un pipeline completo de desarrollo (`/prd` → `/plan` → `/implement` → `/feedback`). La visión cross-proyecto (dashboard multi-tenant) vive en **specbox_cloud**, panel web externo que lee directamente la instancia Supabase del Native Backend. SpecBox aporta la velocidad; el LLM aporta el rigor.
 <!-- @specbox:zone end -->
 
 <!-- @specbox:zone start kind="manual" id="audience" -->
@@ -28,7 +28,7 @@ SpecBox Engine es un sistema de programación agentica para Claude Code: un mono
 
 ### v1 (in scope)
 - Pipeline spec-driven completo (`/prd`, `/visual-setup`, `/plan`, `/implement`, `/feedback`)
-- MCP server unificado (164 tools) + Sala de Máquinas (dashboard React 19)
+- MCP server unificado (FastMCP, JSON-RPC + minimal `/health`)
 - 3 backends de tracking intercambiables (FreeForm, Trello, Plane) vía abstracción `SpecBackend`
 - Enforcement vía hooks (quality-first, spec-guard, branch-guard, pipeline-integrity, etc.)
 - Acceptance Engine (AG-08/AG-09/AG-10) + Quality Audit ISO/IEC 25010 on-demand

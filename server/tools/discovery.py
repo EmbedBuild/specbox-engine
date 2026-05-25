@@ -258,16 +258,20 @@ def _validate_icp_jtbd(content: str) -> dict[str, Any]:
     drift_info: dict[str, Any] = {"section_present": bool(drift_match)}
     if drift_match:
         drift_body = drift_match.group(1)
-        has_resolution = bool(
-            re.search(
-                r"Resolución.*?(feature_creep_rejected|app_market_updated|"
-                r"documented_exception|no drift detected)",
-                drift_body,
-                re.IGNORECASE,
-            )
+        resolution_match = re.search(
+            r"Resolución.*?(feature_creep_rejected|app_market_updated|"
+            r"documented_exception|no_drift|no drift detected)",
+            drift_body,
+            re.IGNORECASE,
         )
-        drift_info["resolved"] = has_resolution
-        if not has_resolution and "pendiente" in drift_body.lower():
+        drift_info["resolved"] = bool(resolution_match)
+        if resolution_match:
+            raw_kind = resolution_match.group(1).lower().replace(" ", "_")
+            # "no drift detected" → "no_drift_detected" normalises to "no_drift"
+            drift_info["kind"] = (
+                "no_drift" if raw_kind.startswith("no_drift") else raw_kind
+            )
+        elif "pendiente" in drift_body.lower():
             missing.append("drift_resolution")
 
     verdict = "READY_FOR_PRD" if not missing else "DISCOVERY_INCOMPLETE"

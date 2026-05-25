@@ -3991,5 +3991,1168 @@
       "tipo": "AC"
     },
     "created_at": "2026-05-24T22:10:59.073798+00:00"
+  },
+  {
+    "id": "item-a1ae4cb6",
+    "name": "[US-MCP-PATH-CONTRACT] Eliminar deuda técnica de paths filesystem MCP-remoto en todas las tools cat A",
+    "description": "Como operador del SpecBox Engine que ejecuta el MCP en VPS remoto (default en claude.ai web/iOS), quiero que TODAS las tools que tocan filesystem del proyecto cliente operen sobre contenido pasado por parámetro — no sobre paths resueltos contra el filesystem del MCP server — para que las tools nunca devuelvan datos mentirosos cuando MCP y cliente no comparten disco. Reemplaza el patrón v5.29 (absolute-path enforcement, parche local FreeForm-only) por el patrón content-passing universal. Cubre las 17 tools cat A vulnerables identificadas en la auditoría 2026-05-25.",
+    "state": "backlog",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "meta": {
+      "us_id": "US-MCP-PATH-CONTRACT",
+      "tipo": "US",
+      "horas": "32",
+      "milestone": "v6.0.1",
+      "release_target": "v6.0.1 hotfix"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "item-ed3bb1ee",
+    "name": "[UC-614] Refactor 3 tools v6.0 Discovery a content-passing API",
+    "description": "Las 3 tools nuevas de v6.0 (start_discovery, validate_discovery_completeness, detect_v60_migration_case) son las que el usuario detectó rotas hoy desde el proyecto specbox-control-panel. API change: aceptan contenido por parámetro en lugar de project_path. Es el caso más urgente porque es feature recién shippeada y todavía sin uso productivo — ventana ideal para romper API.",
+    "state": "backlog",
+    "parent_id": "item-a1ae4cb6",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-614",
+      "tipo": "UC",
+      "us_id": "US-MCP-PATH-CONTRACT",
+      "actor": "Engine",
+      "horas": "4",
+      "milestone": "v6.0.1"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-0ed9865f",
+    "name": "[AC-01] start_discovery(feature_name: str, app_market_content: str|None = None, existing_artifact_content: str|None = None, mode: str = \"auto\") devuelve {discovery_id, status, mode_used, app_market_present, skeleton_content, next_step}. NO escribe filesystem. Si existing_artifact_content viene None, devuelve status=created + skeleton_content. Si viene con texto, devuelve status=resumable + parsea el contenido para detectar discovery_id previo.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-ed3bb1ee",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-57e6239e",
+    "name": "[AC-02] validate_discovery_completeness(feature_name: str, icp_jtbd_content: str) devuelve {verdict, missing[], drift{section_present, resolved}, sections_found[]}. NO lee filesystem. El parser sigue siendo _validate_icp_jtbd() existente pero ahora opera sobre el string del parámetro.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-ed3bb1ee",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-d40c16e6",
+    "name": "[AC-03] detect_v60_migration_case(app_prd_content: str|None, app_spec_content: str|None, app_market_content: str|None, settings_local_json_content: str|None) devuelve {case, label, action_required, backup_required, notes[]}. NO lee filesystem. Si los 4 parámetros vienen None, devuelve case=\"empty_or_fresh_clone\".",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-ed3bb1ee",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-06022b1d",
+    "name": "[AC-04] El parámetro project_path se elimina completamente de las firmas — NO se mantiene como opcional ni como deprecation warning. Justificación: v6.0 lleva <24h en main, expone API rota a MCP remoto que es el caso default, no hay callers externos.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-ed3bb1ee",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-ae9337f1",
+    "name": "[AC-05] Tests: tests/test_discovery_content_api.py cubre las 3 tools con casos: (a) contenido completo bootstrap mode, (b) contenido completo standard mode, (c) contenido vacío/None, (d) contenido malformado, (e) idempotencia (segunda llamada con artifact existing).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-ed3bb1ee",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-373372bf",
+    "name": "[AC-06] tests/test_discovery.py existente se adapta a la nueva API; 0 regresión de tests previos no relacionados con paths.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-ed3bb1ee",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "item-f10d0cba",
+    "name": "[UC-615] Refactor skill /discovery para hacer I/O de filesystem en cliente",
+    "description": "El skill .claude/skills/discovery/SKILL.md cambia de orquestador-remoto a orquestador-cliente. El skill ahora: (1) lee app_market.md + artifact previo con Read en cliente, (2) llama tools v6.0 con contenido, (3) escribe artifact resultante con Write en cliente. El MCP no toca filesystem.",
+    "state": "backlog",
+    "parent_id": "item-a1ae4cb6",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-615",
+      "tipo": "UC",
+      "us_id": "US-MCP-PATH-CONTRACT",
+      "actor": "Engine",
+      "horas": "3",
+      "milestone": "v6.0.1"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-8018ba7d",
+    "name": "[AC-01] SKILL.md Paso 0 añade boot-detection que lee doc/app/app_market.md y doc/discovery/<feature>/icp_jtbd.md (si existe) con Read tool antes de cualquier llamada MCP.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f10d0cba",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-c9e0a716",
+    "name": "[AC-02] SKILL.md Paso 0.5 llama start_discovery pasando app_market_content + existing_artifact_content. Recibe skeleton_content. Si status=created, escribe skeleton con Write a doc/discovery/<feature>/icp_jtbd.md.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f10d0cba",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-de99da09",
+    "name": "[AC-03] SKILL.md Paso 6 (validation gate) llama validate_discovery_completeness pasando el contenido actual del artifact (re-leído con Read). Itera hasta verdict=READY_FOR_PRD.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f10d0cba",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-14930a95",
+    "name": "[AC-04] SKILL.md mantiene el frontmatter context: direct (necesario para Read/Write/Edit en cliente). allowed-tools incluye Read, Write, Edit, Glob, Grep, Bash(git:*), Bash(pwd), mcp__SpecBox-MCP__start_discovery, mcp__SpecBox-MCP__validate_discovery_completeness, mcp__SpecBox-MCP__detect_v60_migration_case.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f10d0cba",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-2b9c881e",
+    "name": "[AC-05] Smoke test manual: ejecutar /discovery test_inheritance_helper en un proyecto con MCP remoto (SPECBOX_ENGINE_MCP_URL set) — debe completar las 3 fases y emitir verdict READY_FOR_PRD sin tocar filesystem del VPS.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f10d0cba",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "item-2771ad40",
+    "name": "[UC-616] Refactor app_docs.py (read_app_docs_tool + get_inheritable_values_tool)",
+    "description": "Las 2 tools del módulo app_docs.py se refactorizan a content-passing. Helpers internos read_app_docs() y get_inheritable_values() en server/app_docs/canonical.py pueden seguir operando sobre Path para usos internos del MCP (e.g. validators del state registry) pero las @mcp.tool wrappers cambian.",
+    "state": "backlog",
+    "parent_id": "item-a1ae4cb6",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-616",
+      "tipo": "UC",
+      "us_id": "US-MCP-PATH-CONTRACT",
+      "actor": "Engine",
+      "horas": "3",
+      "milestone": "v6.0.1"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-80cfbd59",
+    "name": "[AC-01] read_app_docs_tool(app_prd_content: str|None, app_spec_content: str|None, app_market_content: str|None) devuelve dict con zones parsed por documento. NO lee filesystem.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2771ad40",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-00fa796b",
+    "name": "[AC-02] get_inheritable_values_tool(app_spec_content: str) devuelve dict con valores inheritable (stack, brand, naming, decisiones canonical). NO lee filesystem.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2771ad40",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-733f3b78",
+    "name": "[AC-03] Helpers internos (no @mcp.tool) read_app_docs(project_path) y get_inheritable_values(project_path) permanecen sin cambios para callers internos del MCP que viven en el mismo proceso (CWD coherent).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2771ad40",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-60578ebd",
+    "name": "[AC-04] Tests: tests/test_app_docs_content_api.py cubre las 2 tools con docs completos, vacíos, malformados.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2771ad40",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-98edf5c0",
+    "name": "[AC-05] Skills que las usaban (/prd, /plan, /visual-setup, /app-sync) consumen ahora la nueva API — se actualizan en UC-622.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2771ad40",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "item-19876676",
+    "name": "[UC-617] Refactor onboarding.py tools cat A (detect_project_stack, get_onboarding_status, get_visual_gap_report)",
+    "description": "Tres tools críticas en onboarding.py que escanean filesystem del proyecto cliente. detect_project_stack lee package.json/go.mod/pubspec.yaml; get_onboarding_status lee .claude/, doc/; get_visual_gap_report escanea doc/design/.",
+    "state": "backlog",
+    "parent_id": "item-a1ae4cb6",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-617",
+      "tipo": "UC",
+      "us_id": "US-MCP-PATH-CONTRACT",
+      "actor": "Engine",
+      "horas": "5",
+      "milestone": "v6.0.1"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-034bb32a",
+    "name": "[AC-01] detect_project_stack(stack_signals: dict[str, str|None]) recibe un dict con contenidos de archivos signal (package_json_content, go_mod_content, pubspec_yaml_content, requirements_txt_content, pyproject_toml_content, app_yaml_content). Devuelve {stack, confidence, signals_used}. NO lee filesystem.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-19876676",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-14995e2b",
+    "name": "[AC-02] get_onboarding_status(project_files: dict[str, str|None]) recibe contenidos de archivos clave (.claude/settings.json, .claude/settings.local.json, doc/app/app_prd.md, doc/app/app_spec.md, .quality/baseline.json). Devuelve status report.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-19876676",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-2eb990f9",
+    "name": "[AC-03] get_visual_gap_report(design_inventory: dict[str, list[str]]) recibe un dict {feature_name: [list of HTML files present]} construido en cliente. Devuelve gap report.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-19876676",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-97f50f96",
+    "name": "[AC-04] Skill /onboard (si existe) o el flujo de onboard_project consumen las nuevas APIs.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-19876676",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-9495ae70",
+    "name": "[AC-05] Tests: tests/test_onboarding_content_api.py cubre las 3 tools.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-19876676",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-26be0a0c",
+    "name": "[AC-06] detect_local_root_path() permanece sin cambios — sigue siendo declaración de contrato.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-19876676",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "item-f8d83f76",
+    "name": "[UC-618] Refactor audit.py tools cat A (check_audit_tools_status, run_quality_audit)",
+    "description": "check_audit_tools_status detecta stack para sugerir tools (depende de paths). run_quality_audit orquesta 8 analyzers que cada uno lee filesystem. El refactor es más sustancial porque los analyzers SQuaRE necesitan analizar código real — la decisión arquitectural es: estos analyzers solo se ejecutan en cliente (skill /audit en context: direct), el MCP recibe el reporte ya generado.",
+    "state": "backlog",
+    "parent_id": "item-a1ae4cb6",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-618",
+      "tipo": "UC",
+      "us_id": "US-MCP-PATH-CONTRACT",
+      "actor": "Engine",
+      "horas": "5",
+      "milestone": "v6.0.1"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-837a06f4",
+    "name": "[AC-01] check_audit_tools_status(stack: str|None) recibe el stack ya detectado por el skill (via UC-617). Devuelve {required_tools, installed, missing, install_commands}. NO lee filesystem.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f8d83f76",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-21e94342",
+    "name": "[AC-02] run_quality_audit deja de orquestar analyzers — se renombra a submit_quality_audit(project: str, report: QualityReport) que recibe el report ya construido en cliente y lo persiste en el state registry. Los 8 analyzers se mueven a un módulo Python ejecutable en cliente (.quality/scripts/audit/) que el skill /audit invoca via Bash.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f8d83f76",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-73e29218",
+    "name": "[AC-03] Compatibilidad: el skill /audit actualizado (UC-622) genera el QualityReport en cliente y lo envía al MCP. Resultado equivalente al pre-refactor pero arquitectura limpia.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f8d83f76",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-2948ced0",
+    "name": "[AC-04] attach_audit_evidence y get_last_audit sin cambios (operan sobre state, no filesystem cliente).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f8d83f76",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-76ff1ae6",
+    "name": "[AC-05] Tests: tests/test_audit_content_api.py + test_audit_analyzers_local.py.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f8d83f76",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-4896ea2d",
+    "name": "[AC-06] Decisión documentada: los analyzers SQuaRE viven en cliente porque escanear un repo entero por la red sería inviable. Es la única tool donde content-passing puro no aplica — en su lugar usamos report-passing (cliente computa, MCP persiste).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f8d83f76",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "item-f2788789",
+    "name": "[UC-619] Refactor acceptance.py tools cat A (run_acceptance_check, get_acceptance_report, get_e2e_gap_report)",
+    "description": "Tres tools de acceptance que leen PRDs + evidencia. run_acceptance_check valida AC contra código (necesita código en cliente). get_acceptance_report lee .quality/evidence/. get_e2e_gap_report escanea PRDs.",
+    "state": "backlog",
+    "parent_id": "item-a1ae4cb6",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-619",
+      "tipo": "UC",
+      "us_id": "US-MCP-PATH-CONTRACT",
+      "actor": "Engine",
+      "horas": "5",
+      "milestone": "v6.0.1"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-bafe4f0a",
+    "name": "[AC-01] run_acceptance_check(prd_content: str, item_id: str, branch: str, code_diff: str|None) recibe contenido del PRD + opcionalmente el diff de código. NO lee filesystem cliente. Devuelve verdict por AC.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f2788789",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-cde77a31",
+    "name": "[AC-02] get_acceptance_report(prd_content: str, evidence_files: dict[str, str]) recibe contenido del PRD + dict con paths-relativos→contenido de results.json y HTML reports. Devuelve report consolidado.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f2788789",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-41fcff34",
+    "name": "[AC-03] get_e2e_gap_report(prd_contents: list[str]) recibe lista de contenidos de PRDs del proyecto. Devuelve gap report.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f2788789",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-993bc5e7",
+    "name": "[AC-04] Skill /acceptance-check (.claude/skills/acceptance-check/) actualizado para leer PRDs + evidence con Read en cliente y pasar contenido al MCP.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f2788789",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-2d22f59e",
+    "name": "[AC-05] Tests: tests/test_acceptance_content_api.py.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f2788789",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "item-fb1dac30",
+    "name": "[UC-620] Refactor remaining tools cat A (evidence_regen, skill_registry, hints, telemetry.get_context_budget, benchmark)",
+    "description": "Bucket final de las tools cat A restantes: regenerate_evidence, list_skills_v2, discover_skills, get_skill_hint, record_skill_hint, get_context_budget, generate_benchmark_snapshot. Todas comparten patrón similar de filesystem scan.",
+    "state": "backlog",
+    "parent_id": "item-a1ae4cb6",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-620",
+      "tipo": "UC",
+      "us_id": "US-MCP-PATH-CONTRACT",
+      "actor": "Engine",
+      "horas": "4",
+      "milestone": "v6.0.1"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-db1de75a",
+    "name": "[AC-01] regenerate_evidence(prd_content: str, uc_evidence_inputs: dict[str, str]) recibe PRD + inputs de evidencia. NO lee filesystem. Devuelve regenerated_files_content dict que el skill escribe en cliente.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fb1dac30",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-e32a84a5",
+    "name": "[AC-02] list_skills_v2(skill_manifests: list[dict]) recibe la lista de manifests ya parseados en cliente (el cliente hace el Glob + Read de .claude/skills/*/manifest.yaml).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fb1dac30",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-1a25e94f",
+    "name": "[AC-03] discover_skills(skill_manifests: list[dict], stack: str, keywords: list[str]) similar — cliente provee inputs.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fb1dac30",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-8993172f",
+    "name": "[AC-04] get_skill_hint / record_skill_hint: el counter pasa a vivir en el state registry del MCP por project_slug en lugar de en .quality/hint_counters.json del cliente. Cambia el modelo de persistencia pero el API contract con el skill se mantiene equivalente.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fb1dac30",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-97371a40",
+    "name": "[AC-05] get_context_budget(file_inventory: dict[str, int]) recibe dict {path: file_size_bytes} construido en cliente. NO escanea filesystem.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fb1dac30",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-c8648e54",
+    "name": "[AC-06] generate_benchmark_snapshot: el output_path se elimina; la tool devuelve el snapshot content como string y el cliente decide dónde escribirlo.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fb1dac30",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-e81b3a23",
+    "name": "[AC-07] Tests: tests/test_misc_cat_a_content_api.py cubre las 7 tools.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fb1dac30",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-07",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "item-4e25b996",
+    "name": "[UC-621] Migration helpers: client-side path resolution utilities en .claude/hooks/lib/",
+    "description": "Crear helpers reusables en cliente para resolver paths absolutos y leer archivos en bulk antes de llamar tools MCP. Sustituye al hook freeform-path-guard.mjs en pieza universal.",
+    "state": "backlog",
+    "parent_id": "item-a1ae4cb6",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-621",
+      "tipo": "UC",
+      "us_id": "US-MCP-PATH-CONTRACT",
+      "actor": "Engine",
+      "horas": "2",
+      "milestone": "v6.0.1"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-ee155963",
+    "name": "[AC-01] Nuevo helper .claude/hooks/lib/mcp-client-io.mjs exporta funciones: resolveProjectRoot() (via git rev-parse), readContentBundle(paths: string[]) (lee paths relativos al root y devuelve {path: content|null}), writeContentBundle(bundle: dict) (escribe bundle de vuelta).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-4e25b996",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-2d13a032",
+    "name": "[AC-02] Skills /discovery, /prd, /plan, /visual-setup, /app-sync, /onboard, /audit, /acceptance-check importan este helper en lugar de hacer Read/Write ad-hoc.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-4e25b996",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-4cdfee49",
+    "name": "[AC-03] El hook freeform-path-guard.mjs se marca como deprecated (no se elimina hasta v6.1 para no romper proyectos pre-v6.0.1). Doc en CLAUDE.md indica nueva ruta.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-4e25b996",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-04a90ff3",
+    "name": "[AC-04] Tests: tests/test_mcp_client_io.mjs (Node-side) verifica el helper.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-4e25b996",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "item-846dbee8",
+    "name": "[UC-622] Migrar skills consumidores (/prd, /plan, /visual-setup, /app-sync, /audit, /acceptance-check)",
+    "description": "Cada skill que usa las tools refactorizadas en UC-616..UC-620 se actualiza para construir el bundle de contenido en cliente y pasarlo al MCP. Reuso del helper UC-621.",
+    "state": "backlog",
+    "parent_id": "item-a1ae4cb6",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-622",
+      "tipo": "UC",
+      "us_id": "US-MCP-PATH-CONTRACT",
+      "actor": "Engine",
+      "horas": "4",
+      "milestone": "v6.0.1"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-b8931d6b",
+    "name": "[AC-01] /prd SKILL.md Paso 0 lee bundle (app_prd, app_spec, app_market, discovery_artifact) con el helper y pasa contenido a las tools.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-846dbee8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-03027d3d",
+    "name": "[AC-02] /plan SKILL.md actualizado equivalente.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-846dbee8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-3f425f9c",
+    "name": "[AC-03] /visual-setup SKILL.md actualizado equivalente.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-846dbee8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-208fe5f3",
+    "name": "[AC-04] /app-sync SKILL.md actualizado equivalente (las 4 subcommands --check/--repair/--review/--rebuild-from-tracking).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-846dbee8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-61109c44",
+    "name": "[AC-05] /audit SKILL.md mueve la ejecución de los 8 analyzers a cliente, genera QualityReport localmente, llama submit_quality_audit.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-846dbee8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-9afdd36e",
+    "name": "[AC-06] /acceptance-check SKILL.md actualizado.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-846dbee8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-6923a4a0",
+    "name": "[AC-07] Smoke test manual de cada skill con MCP remoto activo — las 6 skills deben funcionar end-to-end sin tocar filesystem del VPS.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-846dbee8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-07",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "item-2f852bd6",
+    "name": "[UC-623] Documentación + CHANGELOG + version bump v6.0.1",
+    "description": "Actualizar docs canonical del engine para reflejar el nuevo contrato MCP path-free. Cerrar la US con un release v6.0.1 hotfix.",
+    "state": "backlog",
+    "parent_id": "item-a1ae4cb6",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-623",
+      "tipo": "UC",
+      "us_id": "US-MCP-PATH-CONTRACT",
+      "actor": "Engine",
+      "horas": "2",
+      "milestone": "v6.0.1"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-a3e2b030",
+    "name": "[AC-01] CLAUDE.md: sección nueva \"## MCP Path Contract (v6.0.1)\" documenta el patrón content-passing como contract de las @mcp.tool, explica por qué sustituye el patrón v5.29 absolute-path, lista las 17 tools migradas.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2f852bd6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-cea4b105",
+    "name": "[AC-02] doc/decisions/mcp_path_contract.md: nueva decisión arquitectural documenta (a) el bug, (b) las 3 opciones consideradas (absolute-path universal, content-passing universal, híbrido), (c) por qué content-passing universal gana, (d) trade-offs (cliente hace más I/O, MCP más simple y testeable).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2f852bd6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-cf51a4b1",
+    "name": "[AC-03] CHANGELOG.md: entry v6.0.1 \"MCP Path Contract — elimina deuda técnica filesystem-vs-remote en 17 tools cat A\".",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2f852bd6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-75628854",
+    "name": "[AC-04] ENGINE_VERSION.yaml bump a 6.0.1.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2f852bd6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-5124dfd8",
+    "name": "[AC-05] pyproject.toml bump.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2f852bd6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-3681731b",
+    "name": "[AC-06] Tag git v6.0.1 creado al cierre.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2f852bd6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-3249f7bd",
+    "name": "[AC-07] PR final agrupa todos los UCs (614–623) en un solo PR de hotfix con squash merge.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2f852bd6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-07",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:06:09.508829+00:00"
+  },
+  {
+    "id": "ac-2edf22b9",
+    "name": "[AC-08] Script de cleanup en .quality/scripts/cleanup-mcp-phantom-fs.sh borra basura acumulada en filesystem del VPS pre-v6.0.1 (doc/discovery/* huérfanos, doc/app/app_market.md fantasma creados por API rota). Ejecutable manualmente post-deploy via SSH al VPS. Documentado en CHANGELOG y plan.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-2f852bd6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-08",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T00:10:40.406845+00:00"
   }
 ]

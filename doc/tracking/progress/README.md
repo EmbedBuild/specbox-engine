@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-24T16:51:52.575081+00:00
+> Actualizado: 2026-05-25T12:22:38.633471+00:00
 
 ## User Stories
 
@@ -10,7 +10,13 @@
 | US-NATIVE-SUPABASE | [US-NATIVE-SUPABASE] Migrar el Native Backend de Postgres-VPS a Supabase gestionado | Done | 5 | 5 | 100% |
 | US-BACKEND-SWITCH | [US-BACKEND-SWITCH] Cambio guiado de backend entre los 4 (FreeForm/Trello/Plane/Native) | Review | 6 | 6 | 100% |
 | US-NATIVE-SECURITY | [US-NATIVE-SECURITY] Blindar el Native Backend contra mutaciones de identidades revocadas | Review | 6 | 6 | 100% |
-| US-CLAIM-RENAME | US-CLAIM-RENAME: Renombrar el concepto "claim" a "reservation" en Native Backend y Control Panel | User Stories | 0 | 13 | 0% |
+| US-CLAIM-RENAME | US-CLAIM-RENAME: Renombrar el concepto "claim" a "reservation" en Native Backend y Control Panel | User Stories | 1 | 13 | 7% |
+| US-D04 | [US-D04] Multi-document canonical registry foundation | todo | 0 | 2 | 0% |
+| US-D01 | [US-D01] Discovery conversational flow per feature | todo | 0 | 2 | 0% |
+| US-D02 | [US-D02] Inheritance and traceability from discovery to implementation | todo | 0 | 1 | 0% |
+| US-D03 | [US-D03] Strategic drift detection across project lifetime | todo | 0 | 1 | 0% |
+| US-MCP-PATH-CONTRACT | [US-MCP-PATH-CONTRACT] Eliminar deuda técnica de paths filesystem MCP-remoto en todas las tools cat A | Backlog | 0 | 10 | 0% |
+| US-CUTOVER-FOLLOWUP | US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0 | User Stories | 0 | 9 | 0% |
 
 ## Use Cases
 
@@ -49,42 +55,35 @@
 | UC-604 | US-CLAIM-RENAME | Review | 4 | 4 | 100% |
 | UC-605 | US-CLAIM-RENAME | Review | 3 | 3 | 100% |
 | UC-606 | US-CLAIM-RENAME | Review | 4 | 4 | 100% |
-| UC-607 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
-| UC-608 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
-| UC-609 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |
-| UC-610 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
-| UC-611 | US-CLAIM-RENAME | Backlog | 0 | 3 | 0% |
+| UC-607 | US-CLAIM-RENAME | Review | 0 | 3 | 0% |
+| UC-608 | US-CLAIM-RENAME | Review | 0 | 3 | 0% |
+| UC-609 | US-CLAIM-RENAME | Review | 0 | 4 | 0% |
+| UC-610 | US-CLAIM-RENAME | Review | 0 | 3 | 0% |
+| UC-611 | US-CLAIM-RENAME | Review | 0 | 3 | 0% |
 | UC-612 | US-CLAIM-RENAME | Backlog | 0 | 4 | 0% |
-| UC-613 | US-CLAIM-RENAME | Review | 5 | 5 | 100% |
-
-## v6.0 Discovery Foundations
-
-> Generado: 2026-05-24T22:10:59.073798+00:00
-> PRD: doc/prd/discovery_module_v6_prd.md
-
-### User Stories
-
-| US | Nombre | Estado | UCs Done | UCs Total | % |
-|-----|--------|--------|----------|-----------|---|
-| US-D04 | [US-D04] Multi-document canonical registry foundation | Todo | 0 | 2 | 0% |
-| US-D01 | [US-D01] Discovery conversational flow per feature | Todo | 0 | 2 | 0% |
-| US-D02 | [US-D02] Inheritance and traceability from discovery to implementation | Todo | 0 | 1 | 0% |
-| US-D03 | [US-D03] Strategic drift detection across project lifetime | Todo | 0 | 1 | 0% |
-
-### Use Cases
-
-| UC | US | Estado | ACs Pass | ACs Total | % |
-|-----|-----|--------|----------|-----------|---|
-| UC-D005 | US-D04 | Todo | 0 | 13 | 0% |
-| UC-D006 | US-D04 | Todo | 0 | 5 | 0% |
-| UC-D001 | US-D01 | Todo | 0 | 10 | 0% |
-| UC-D002 | US-D01 | Todo | 0 | 6 | 0% |
-| UC-D003 | US-D02 | Todo | 0 | 7 | 0% |
-| UC-D004 | US-D03 | Todo | 0 | 6 | 0% |
-
-### Orden de implementación
-
-1. **US-D04 (H1)** — Foundation multi-doc PRIMERO. UC-D005 → UC-D006.
-2. **US-D01 (H2)** — Discovery feature. UC-D001 → UC-D002.
-3. **US-D02 (H3)** — Integración pipeline. UC-D003.
-4. **US-D03 (H4)** — Drift detection. UC-D004 (AC-06 deferred a v6.1).
+| UC-613 | US-CLAIM-RENAME | Done | 5 | 5 | 100% |
+| UC-D005 | US-D04 | todo | 0 | 13 | 0% |
+| UC-D006 | US-D04 | todo | 0 | 5 | 0% |
+| UC-D001 | US-D01 | todo | 0 | 10 | 0% |
+| UC-D002 | US-D01 | todo | 0 | 6 | 0% |
+| UC-D003 | US-D02 | todo | 0 | 7 | 0% |
+| UC-D004 | US-D03 | todo | 0 | 6 | 0% |
+| UC-614 | US-MCP-PATH-CONTRACT | Backlog | 0 | 6 | 0% |
+| UC-615 | US-MCP-PATH-CONTRACT | Backlog | 0 | 5 | 0% |
+| UC-616 | US-MCP-PATH-CONTRACT | Backlog | 0 | 5 | 0% |
+| UC-617 | US-MCP-PATH-CONTRACT | Backlog | 0 | 6 | 0% |
+| UC-618 | US-MCP-PATH-CONTRACT | Backlog | 0 | 6 | 0% |
+| UC-619 | US-MCP-PATH-CONTRACT | Backlog | 0 | 5 | 0% |
+| UC-620 | US-MCP-PATH-CONTRACT | Backlog | 0 | 7 | 0% |
+| UC-621 | US-MCP-PATH-CONTRACT | Backlog | 0 | 4 | 0% |
+| UC-622 | US-MCP-PATH-CONTRACT | Backlog | 0 | 7 | 0% |
+| UC-623 | US-MCP-PATH-CONTRACT | Backlog | 0 | 8 | 0% |
+| UC-625 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 4 | 0% |
+| UC-626 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 3 | 0% |
+| UC-627 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 2 | 0% |
+| UC-628 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 3 | 0% |
+| UC-629 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 3 | 0% |
+| UC-630 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 1 | 0% |
+| UC-631 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 1 | 0% |
+| UC-632 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 4 | 0% |
+| UC-633 | US-CUTOVER-FOLLOWUP | Backlog | 0 | 5 | 0% |

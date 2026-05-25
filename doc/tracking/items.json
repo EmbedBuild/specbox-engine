@@ -5154,5 +5154,648 @@
       "tipo": "AC"
     },
     "created_at": "2026-05-25T00:10:40.406845+00:00"
+  },
+  {
+    "id": "item-5634a7e1",
+    "name": "US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0",
+    "description": "# US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n\n**Horas estimadas:** 2.5\n**Pantallas:** \n\nv6.1.0 'Cloud Cutover' eliminó la Sala de Máquinas pero quedaron 11 residuos en main: tool MCP get_sala_de_maquinas todavía registrada (la pieza más grave — superficie API expuesta), docstrings en 5 módulos Python, 2 hooks Node, 3 skills, 2 canónicos doc/app/, ENGINE_VERSION.yaml features array, .claude/settings.local.json y VSCode extension (comando + setting). Patch release v6.1.1 'Cutover Followup' cierra toda la deuda en una PR squashable. Cero código nuevo, sólo deletes + cleanup de strings. PRD completo en doc/prd/US-CUTOVER-FOLLOWUP_prd.md.",
+    "state": "user_stories",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-CUTOVER-FOLLOWUP",
+      "horas": 2.5,
+      "pantallas": ""
+    },
+    "created_at": "2026-05-25T12:22:38.459356+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "item-71110d24",
+    "name": "UC-625: Eliminar tool MCP get_sala_de_maquinas + helpers asociados",
+    "description": "# UC-625: Eliminar tool MCP get_sala_de_maquinas + helpers asociados\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.5\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: grep -rn 'def get_sala_de_maquinas' server/ retorna 0 matches\n- AC-02: Una llamada MCP a get_sala_de_maquinas recibe error de tool no registrada (no respuesta exitosa)\n- AC-03: Los helpers privados en server/tools/state.py sólo usados por la tool eliminada también se eliminan (auditados por grep antes de borrar). Helpers compartidos con report_* se preservan\n- AC-04: pytest -q retorna ≥1190 passed, 0 failed tras la eliminación\n\n## Contexto\nserver/tools/state.py:969 define get_sala_de_maquinas; server/server.py:135 la anuncia en instructions. Auditar helpers privados antes de borrar — preservar los compartidos con report_*.",
+    "state": "backlog",
+    "parent_id": "item-5634a7e1",
+    "labels": [
+      "UC",
+      "Actor:Maintainer"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-625",
+      "us_id": "US-CUTOVER-FOLLOWUP",
+      "horas": 0.5,
+      "pantallas": "",
+      "actor": "Maintainer"
+    },
+    "created_at": "2026-05-25T12:22:38.477010+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-cfc23226",
+    "name": "[AC-01] grep -rn 'def get_sala_de_maquinas' server/ retorna 0 matches",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-71110d24",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.488077+00:00"
+  },
+  {
+    "id": "ac-4d722b91",
+    "name": "[AC-02] Una llamada MCP a get_sala_de_maquinas recibe error de tool no registrada (no respuesta exitosa)",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-71110d24",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.488094+00:00"
+  },
+  {
+    "id": "ac-a02c53c5",
+    "name": "[AC-03] Los helpers privados en server/tools/state.py sólo usados por la tool eliminada también se eliminan (auditados por grep antes de borrar). Helpers compartidos con report_* se preservan",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-71110d24",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.488101+00:00"
+  },
+  {
+    "id": "ac-db5a956d",
+    "name": "[AC-04] pytest -q retorna ≥1190 passed, 0 failed tras la eliminación",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-71110d24",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.488107+00:00"
+  },
+  {
+    "id": "item-872bf9dd",
+    "name": "UC-626: Limpiar docstrings Python (benchmark + audit + drift_detector)",
+    "description": "# UC-626: Limpiar docstrings Python (benchmark + audit + drift_detector)\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.2\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: grep -rn 'Sala de Máquinas' server/tools/benchmark.py server/audit/ server/app_docs/ retorna 0 matches\n- AC-02: Las funcionalidades de generate_benchmark_snapshot, attach_audit_evidence y detect_app_docs_drift siguen funcionando idénticamente (tests pasan)\n- AC-03: Donde la docstring describía un consumidor externo, se reescribe para referirse a 'consumidores externos (specbox_cloud, scripts ad-hoc)' en vez de a Sala de Máquinas específicamente\n\n## Contexto\n3 archivos: server/tools/benchmark.py:31, server/audit/persistence.py:2, server/app_docs/drift_detector.py:26+321. Reescribir docstrings que mencionan consumidor externo de 'Sala de Máquinas' a 'consumidores externos (specbox_cloud, scripts ad-hoc)'.",
+    "state": "backlog",
+    "parent_id": "item-5634a7e1",
+    "labels": [
+      "UC",
+      "Actor:Maintainer"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-626",
+      "us_id": "US-CUTOVER-FOLLOWUP",
+      "horas": 0.2,
+      "pantallas": "",
+      "actor": "Maintainer"
+    },
+    "created_at": "2026-05-25T12:22:38.498501+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-b879dc54",
+    "name": "[AC-01] grep -rn 'Sala de Máquinas' server/tools/benchmark.py server/audit/ server/app_docs/ retorna 0 matches",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-872bf9dd",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.507443+00:00"
+  },
+  {
+    "id": "ac-793ea899",
+    "name": "[AC-02] Las funcionalidades de generate_benchmark_snapshot, attach_audit_evidence y detect_app_docs_drift siguen funcionando idénticamente (tests pasan)",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-872bf9dd",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.507453+00:00"
+  },
+  {
+    "id": "ac-f4bdf789",
+    "name": "[AC-03] Donde la docstring describía un consumidor externo, se reescribe para referirse a 'consumidores externos (specbox_cloud, scripts ad-hoc)' en vez de a Sala de Máquinas específicamente",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-872bf9dd",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.507458+00:00"
+  },
+  {
+    "id": "item-f6e1a68e",
+    "name": "UC-627: Limpiar docstrings Node hooks",
+    "description": "# UC-627: Limpiar docstrings Node hooks\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.1\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: grep -n 'Sala de Máquinas' .claude/hooks/*.mjs retorna 0 matches\n- AC-02: Los hooks siguen siendo ejecutables con node --check (sintaxis JS válida) y conservan toda su lógica funcional (sólo se modifican comentarios)\n\n## Contexto\n.claude/hooks/app-docs-sync-guard.mjs:36 y .claude/hooks/context-budget-guard.mjs:21. Sólo se modifican comentarios; lógica intacta.",
+    "state": "backlog",
+    "parent_id": "item-5634a7e1",
+    "labels": [
+      "UC",
+      "Actor:Maintainer"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-627",
+      "us_id": "US-CUTOVER-FOLLOWUP",
+      "horas": 0.1,
+      "pantallas": "",
+      "actor": "Maintainer"
+    },
+    "created_at": "2026-05-25T12:22:38.517287+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-8bf0c27f",
+    "name": "[AC-01] grep -n 'Sala de Máquinas' .claude/hooks/*.mjs retorna 0 matches",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f6e1a68e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.524688+00:00"
+  },
+  {
+    "id": "ac-dfa9010e",
+    "name": "[AC-02] Los hooks siguen siendo ejecutables con node --check (sintaxis JS válida) y conservan toda su lógica funcional (sólo se modifican comentarios)",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f6e1a68e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.524695+00:00"
+  },
+  {
+    "id": "item-6691ba18",
+    "name": "UC-628: Limpiar menciones en skills (plan/audit/discovery)",
+    "description": "# UC-628: Limpiar menciones en skills (plan/audit/discovery)\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.2\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: grep -n 'Sala de Máquinas' .claude/skills/{plan,audit,discovery}/SKILL.md retorna 0 matches\n- AC-02: Donde el skill mencionaba telemetría 'a Sala de Máquinas', se reescribe a 'consumidores externos (specbox_cloud)' o se elimina si la mención era puramente descriptiva\n- AC-03: Los frontmatters triggers, name, description de los 3 skills permanecen intactos\n\n## Contexto\n.claude/skills/plan/SKILL.md:584, audit/SKILL.md:61, discovery/SKILL.md:414. Frontmatter (name/description/triggers) NO se toca.",
+    "state": "backlog",
+    "parent_id": "item-5634a7e1",
+    "labels": [
+      "UC",
+      "Actor:Maintainer"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-628",
+      "us_id": "US-CUTOVER-FOLLOWUP",
+      "horas": 0.2,
+      "pantallas": "",
+      "actor": "Maintainer"
+    },
+    "created_at": "2026-05-25T12:22:38.535697+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-47222e90",
+    "name": "[AC-01] grep -n 'Sala de Máquinas' .claude/skills/{plan,audit,discovery}/SKILL.md retorna 0 matches",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-6691ba18",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.544619+00:00"
+  },
+  {
+    "id": "ac-33cb6113",
+    "name": "[AC-02] Donde el skill mencionaba telemetría 'a Sala de Máquinas', se reescribe a 'consumidores externos (specbox_cloud)' o se elimina si la mención era puramente descriptiva",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-6691ba18",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.544631+00:00"
+  },
+  {
+    "id": "ac-4ae7ed91",
+    "name": "[AC-03] Los frontmatters triggers, name, description de los 3 skills permanecen intactos",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-6691ba18",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.544635+00:00"
+  },
+  {
+    "id": "item-140c3a44",
+    "name": "UC-629: Limpiar canónicos doc/app/app_spec.md + app_prd.md",
+    "description": "# UC-629: Limpiar canónicos doc/app/app_spec.md + app_prd.md\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.3\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: La fila 'Dashboard (Sala de Máquinas) | React | ^19.0.0' se elimina de la tabla de Stack en app_spec.md. Lo mismo con la fila 'Dashboard build | Vite'\n- AC-02: La línea de Stitch project_id en app_spec.md (zona brand_visual) elimina la mención 'salvo Sala de Máquinas' o se reescribe sin ella\n- AC-03: En app_prd.md zona vision (línea 12) y zona scope (línea 31), las menciones a '164 tools + Sala de Máquinas' se reescriben de forma consistente con el estado post-cutover. Las versiones del documento se bumpean (Versión del documento: 1 → 2)\n\n## Contexto\ndoc/app/app_spec.md:17,40 declara React 19 + menciona Sala. doc/app/app_prd.md:12,31 menciones en zonas vision + scope. Las zonas son manuales (kind='manual'), pueden editarse directo. Bumpear Versión del documento.",
+    "state": "backlog",
+    "parent_id": "item-5634a7e1",
+    "labels": [
+      "UC",
+      "Actor:Maintainer"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-629",
+      "us_id": "US-CUTOVER-FOLLOWUP",
+      "horas": 0.3,
+      "pantallas": "",
+      "actor": "Maintainer"
+    },
+    "created_at": "2026-05-25T12:22:38.555579+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-d592bd6b",
+    "name": "[AC-01] La fila 'Dashboard (Sala de Máquinas) | React | ^19.0.0' se elimina de la tabla de Stack en app_spec.md. Lo mismo con la fila 'Dashboard build | Vite'",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-140c3a44",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.563556+00:00"
+  },
+  {
+    "id": "ac-0c7657a2",
+    "name": "[AC-02] La línea de Stitch project_id en app_spec.md (zona brand_visual) elimina la mención 'salvo Sala de Máquinas' o se reescribe sin ella",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-140c3a44",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.563564+00:00"
+  },
+  {
+    "id": "ac-263a947f",
+    "name": "[AC-03] En app_prd.md zona vision (línea 12) y zona scope (línea 31), las menciones a '164 tools + Sala de Máquinas' se reescriben de forma consistente con el estado post-cutover. Las versiones del documento se bumpean (Versión del documento: 1 → 2)",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-140c3a44",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.563569+00:00"
+  },
+  {
+    "id": "item-72e60b55",
+    "name": "UC-630: Limpiar ENGINE_VERSION.yaml features array",
+    "description": "# UC-630: Limpiar ENGINE_VERSION.yaml features array\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.05\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: El string 'sala-de-maquinas-embedded' ya no aparece en el array features: (verificable: grep 'sala-de-maquinas-embedded' ENGINE_VERSION.yaml → 0 matches en el array de features, las menciones en commits históricos se preservan)\n\n## Contexto\nSólo el array features: queda como estado actual. El array commits: histórico no se toca.",
+    "state": "backlog",
+    "parent_id": "item-5634a7e1",
+    "labels": [
+      "UC",
+      "Actor:Maintainer"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-630",
+      "us_id": "US-CUTOVER-FOLLOWUP",
+      "horas": 0.05,
+      "pantallas": "",
+      "actor": "Maintainer"
+    },
+    "created_at": "2026-05-25T12:22:38.574162+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-158104fe",
+    "name": "[AC-01] El string 'sala-de-maquinas-embedded' ya no aparece en el array features: (verificable: grep 'sala-de-maquinas-embedded' ENGINE_VERSION.yaml → 0 matches en el array de features, las menciones en commits históricos se preservan)",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-72e60b55",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.582080+00:00"
+  },
+  {
+    "id": "item-812355db",
+    "name": "UC-631: Limpiar .claude/settings.local.json allowedTools",
+    "description": "# UC-631: Limpiar .claude/settings.local.json allowedTools\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.05\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: La entrada mcp__specbox-engine__get_sala_de_maquinas ya no está en ningún array allowedTools / allow de .claude/settings.local.json. El JSON sigue siendo válido (parseable)\n\n## Contexto\nSettings local con allowedTool a tool eliminada en UC-625.",
+    "state": "backlog",
+    "parent_id": "item-5634a7e1",
+    "labels": [
+      "UC",
+      "Actor:Maintainer"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-631",
+      "us_id": "US-CUTOVER-FOLLOWUP",
+      "horas": 0.05,
+      "pantallas": "",
+      "actor": "Maintainer"
+    },
+    "created_at": "2026-05-25T12:22:38.590504+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-a9f72ceb",
+    "name": "[AC-01] La entrada mcp__specbox-engine__get_sala_de_maquinas ya no está en ningún array allowedTools / allow de .claude/settings.local.json. El JSON sigue siendo válido (parseable)",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-812355db",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.598552+00:00"
+  },
+  {
+    "id": "item-5f58e566",
+    "name": "UC-632: VSCode extension — quitar comando + setting + bump 5.21.0→5.21.1",
+    "description": "# UC-632: VSCode extension — quitar comando + setting + bump 5.21.0→5.21.1\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.4\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: El comando specbox.openDashboard ya no figura en vscode-extension/package.json sección contributes.commands\n- AC-02: El setting specbox.dashboardUrl ya no figura en la sección contributes.configuration. JSON sigue válido\n- AC-03: Las líneas 56-57 (registerCommand 'specbox.openDashboard', ...) y cualquier import asociado ya no están en src/extension.ts. El rebuild npm run compile (o equivalente) pasa sin errores TypeScript\n- AC-04: La versión de la extensión se bumpea de 5.21.0 a 5.21.1 en vscode-extension/package.json\n\n## Contexto\nvscode-extension/package.json contributes.commands líneas 61-64 + contributes.configuration líneas 157-161 + src/extension.ts líneas 56-57 (registerCommand). Rebuild npm run compile. Sólo eliminar lo Sala-related; preservar install/health/onboard/mcp/status.",
+    "state": "backlog",
+    "parent_id": "item-5634a7e1",
+    "labels": [
+      "UC",
+      "Actor:Maintainer"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-632",
+      "us_id": "US-CUTOVER-FOLLOWUP",
+      "horas": 0.4,
+      "pantallas": "",
+      "actor": "Maintainer"
+    },
+    "created_at": "2026-05-25T12:22:38.607093+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-cfdc7660",
+    "name": "[AC-01] El comando specbox.openDashboard ya no figura en vscode-extension/package.json sección contributes.commands",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5f58e566",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.615643+00:00"
+  },
+  {
+    "id": "ac-d642827a",
+    "name": "[AC-02] El setting specbox.dashboardUrl ya no figura en la sección contributes.configuration. JSON sigue válido",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5f58e566",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.615651+00:00"
+  },
+  {
+    "id": "ac-35fc2f92",
+    "name": "[AC-03] Las líneas 56-57 (registerCommand 'specbox.openDashboard', ...) y cualquier import asociado ya no están en src/extension.ts. El rebuild npm run compile (o equivalente) pasa sin errores TypeScript",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5f58e566",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.615655+00:00"
+  },
+  {
+    "id": "ac-ae07d516",
+    "name": "[AC-04] La versión de la extensión se bumpea de 5.21.0 a 5.21.1 en vscode-extension/package.json",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-5f58e566",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.615658+00:00"
+  },
+  {
+    "id": "item-aa99d000",
+    "name": "UC-633: Release v6.1.1 — version bump + CHANGELOG + ADR update",
+    "description": "# UC-633: Release v6.1.1 — version bump + CHANGELOG + ADR update\n\n**User Story:** US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0\n**Actor:** Maintainer\n**Horas estimadas:** 0.7\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: ENGINE_VERSION.yaml version: 6.1.0 → 6.1.1, codename: 'Cloud Cutover' → 'Cutover Followup'\n- AC-02: pyproject.toml version = '6.1.0' → '6.1.1' y la description se actualiza\n- AC-03: CLAUDE.md header (# SpecBox Engine v6.1.0) y footer 'Engine Version' bumpean a v6.1.1 'Cutover Followup'\n- AC-04: CHANGELOG.md añade entry [6.1.1] - 2026-05-25 — 'Cutover Followup' con secciones Removed / Changed / Tests al inicio del archivo. Entradas históricas intactas\n- AC-05: doc/decisions/cloud_cutover.md recibe una sección final 'v6.1.1 followup' documentando que la deuda residual quedó cerrada en esta release\n\n## Contexto\nENGINE_VERSION.yaml + pyproject.toml + CLAUDE.md header/footer + CHANGELOG.md entry + doc/decisions/cloud_cutover.md sección followup. version-consistency-check.mjs valida.",
+    "state": "backlog",
+    "parent_id": "item-5634a7e1",
+    "labels": [
+      "UC",
+      "Actor:Maintainer"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-633",
+      "us_id": "US-CUTOVER-FOLLOWUP",
+      "horas": 0.7,
+      "pantallas": "",
+      "actor": "Maintainer"
+    },
+    "created_at": "2026-05-25T12:22:38.624166+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-76ba1a5d",
+    "name": "[AC-01] ENGINE_VERSION.yaml version: 6.1.0 → 6.1.1, codename: 'Cloud Cutover' → 'Cutover Followup'",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-aa99d000",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.631773+00:00"
+  },
+  {
+    "id": "ac-eedf451e",
+    "name": "[AC-02] pyproject.toml version = '6.1.0' → '6.1.1' y la description se actualiza",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-aa99d000",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.631779+00:00"
+  },
+  {
+    "id": "ac-2fd552d1",
+    "name": "[AC-03] CLAUDE.md header (# SpecBox Engine v6.1.0) y footer 'Engine Version' bumpean a v6.1.1 'Cutover Followup'",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-aa99d000",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.631783+00:00"
+  },
+  {
+    "id": "ac-fbf266e6",
+    "name": "[AC-04] CHANGELOG.md añade entry [6.1.1] - 2026-05-25 — 'Cutover Followup' con secciones Removed / Changed / Tests al inicio del archivo. Entradas históricas intactas",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-aa99d000",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.631785+00:00"
+  },
+  {
+    "id": "ac-ca7619d4",
+    "name": "[AC-05] doc/decisions/cloud_cutover.md recibe una sección final 'v6.1.1 followup' documentando que la deuda residual quedó cerrada en esta release",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-aa99d000",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-25T12:22:38.631789+00:00"
   }
 ]

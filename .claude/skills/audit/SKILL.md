@@ -58,7 +58,7 @@ context: direct
 5. Invoca `attach_audit_evidence(project, report=<enriched>)` → persiste:
    - `STATE_PATH/projects/<project>/evidence/audits/audit_<ts>.json`
    - `STATE_PATH/projects/<project>/evidence/audits/audit_<ts>.pdf`
-   - Actualiza `project_meta.last_audit` (visible en Sala de Máquinas).
+   - Actualiza `project_meta.last_audit` (consumible por specbox_cloud y scripts externos).
 6. Muestra un resumen con score global, semáforo por bloque y rutas de
    evidencia.
 

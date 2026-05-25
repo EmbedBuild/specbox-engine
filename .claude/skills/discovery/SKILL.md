@@ -411,4 +411,4 @@ Eventos emitidos al MCP (`report_session`):
 | `discovery_skipped` | Usuario ejecuta `/prd --skip-discovery` | `{feature_name, reason}` |
 | `qualitative_gate_passed` | En `/implement`, AC JE marcada passed | `{feature_name, ac_id, jtbd_id}` |
 
-Métricas agregadas en Sala de Máquinas: NSM (% features Done con discovery + AC taggeados), tiempo medio en /discovery, % features descartadas en discovery, distribución de drift resolutions.
+Métricas agregadas consumibles por specbox_cloud u otros dashboards externos: NSM (% features Done con discovery + AC taggeados), tiempo medio en /discovery, % features descartadas en discovery, distribución de drift resolutions.

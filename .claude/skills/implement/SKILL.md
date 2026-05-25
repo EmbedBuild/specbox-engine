@@ -27,7 +27,7 @@ antes de cada `Task(AG-XX)`, borrado tras retorno) — leido por
 Telemetria adicional:
 - `.quality/task_isolation.json` — counters (tasks_run_total,
   tasks_failed_budget, tasks_failed_ownership). Bumped por los hooks
-  y por el bloque post-Task del Paso 5.0. Leido por `heartbeat-sender.mjs`.
+  y por el bloque post-Task del Paso 5.0. Telemetria local.
 
 ## Checkpoint System
 
@@ -1148,10 +1148,9 @@ try:
 except FileNotFoundError:
     pass
 
-# Bumpear el contador de telemetria (lo lee heartbeat-sender.mjs)
+# Bumpear el contador de telemetria local
 # context-budget-guard.mjs ya bumpeo tasks_run_total al spawnearlo;
-# aqui actualizamos last_feature_slug para que Sala de Maquinas
-# muestre el feature en curso.
+# aqui actualizamos last_feature_slug.
 isolation_cache = Path(".quality/task_isolation.json")
 data = json.loads(isolation_cache.read_text()) if isolation_cache.exists() else {}
 data["enabled"] = True

@@ -42,8 +42,6 @@ from .tools.evidence_regen import register_evidence_regen_tools
 from .tools.benchmark import register_benchmark_tools
 from .tools.hints import register_hint_tools
 from .tools.skill_registry import register_skill_registry_tools
-from .tools.live_state import register_live_state_tools
-from .tools.heartbeat_stats import register_heartbeat_stats_tools
 from .tools.stitch import register_stitch_tools
 from .tools.stitch_v2 import register_stitch_v2_tools
 from .tools.audit import register_audit_tools
@@ -58,7 +56,6 @@ from .app_docs.migration_v529 import register_v529_migration_tools
 from .app_docs.sync import register_sync_tools as register_app_sync_tools
 from .app_docs.drift_detector import register_drift_tools
 from .resources.engine_resources import register_resources
-from .dashboard_api import register_dashboard_routes
 
 # Configure structlog
 structlog.configure(
@@ -95,8 +92,7 @@ def _load_engine_version() -> str:
 
     Single source of truth. Previously this was hardcoded as ``v5.29.0`` in
     the FastMCP ``instructions`` string and drifted across releases, so
-    clients saw a stale version even after deploys. Mirrors the pattern in
-    :mod:`server.dashboard_api` (`_health_version`).
+    clients saw a stale version even after deploys.
     """
     version_file = ENGINE_PATH / "ENGINE_VERSION.yaml"
     if version_file.exists():
@@ -229,12 +225,6 @@ register_hint_tools(mcp)
 # Register skill registry tools (3 tools: list_skills_v2, discover_skills, validate_skill_manifest)
 register_skill_registry_tools(mcp, ENGINE_PATH)
 
-# Register live state tools (4 tools: get_project_live_state, get_all_projects_overview, get_active_sessions, refresh_project_state)
-register_live_state_tools(mcp, STATE_PATH)
-
-# Register heartbeat stats tools (1 tool: get_heartbeat_stats)
-register_heartbeat_stats_tools(mcp, STATE_PATH)
-
 # Register Stitch proxy tools (13 tools: stitch_set_api_key, stitch_create_project,
 # stitch_list_projects, stitch_get_project, stitch_list_screens, stitch_get_screen,
 # stitch_fetch_screen_code, stitch_fetch_screen_image, stitch_generate_screen,
@@ -304,12 +294,17 @@ register_app_sync_tools(mcp, ENGINE_PATH)
 
 # Register multi-source drift detector (v5.29.0 PR-15)
 # detect_app_docs_drift inspects lockfiles / brand-kit refs / canonical
-# decisions / roadmap-vs-tracking; emits signals to app_docs_drift.jsonl
-# and exposes a compact heartbeat payload for Sala de Máquinas.
+# decisions / roadmap-vs-tracking; emits signals to app_docs_drift.jsonl.
 register_drift_tools(mcp, ENGINE_PATH)
 
-# Dashboard REST API + static files (La Sala de Máquinas)
-register_dashboard_routes(mcp, ENGINE_PATH, STATE_PATH)
+
+# Liveness probe used by the Docker HEALTHCHECK and external uptime monitors.
+# Kept minimal after the v6.1.0 Cloud Cutover: no telemetry, no project state.
+@mcp.custom_route("/health", methods=["GET"])
+async def _health(_request):
+    from starlette.responses import JSONResponse
+
+    return JSONResponse({"status": "ok", "version": _ENGINE_VERSION})
 
 
 def main():

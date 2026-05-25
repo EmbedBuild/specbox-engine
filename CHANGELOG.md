@@ -2,6 +2,56 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.1.0] - 2026-05-25 — "Cloud Cutover"
+
+Minor release que **elimina la "Sala de Máquinas"** — dashboard global multi-proyecto que vivía dentro del MCP server (frontend React + REST API + heartbeats + GitHub sync + skill `/remote`). La función de panel multi-proyecto la absorbe **specbox_cloud** (panel web externo), que lee directamente la instancia Supabase del Native Backend y llama al MCP para escrituras de coordinación (`reserve_uc` / `release_uc`). Reduce ~3.800 LoC de código vivo + ~237k LoC de `node_modules`, deja el Dockerfile single-stage Python (sin Node), apaga el VPS `mcp-specbox-engine.jpsdeveloper.com` y su dominio.
+
+### Removed
+
+- **Frontend dashboard** — `server/dashboard/` completo (React 19 + Vite + Tailwind + Recharts, ~1.800 LoC TSX/TS).
+- **Backend HTTP** — `server/dashboard_api.py` (877 LoC, 16 endpoints REST: `/api/sala`, `/api/projects`, `/api/heartbeat`, `/api/sync/github`, etc.) y `server/github_sync.py` (225 LoC).
+- **MCP tools** — `get_project_live_state`, `get_all_projects_overview`, `get_active_sessions`, `refresh_project_state`, `get_heartbeat_stats`.
+- **Hooks** — `heartbeat-sender.mjs` (231 LoC), `mcp-report.mjs` (29 LoC), `e2e-report.mjs` (59 LoC), `lib/http.mjs` (144 LoC, cliente MCP HTTP).
+- **Hooks legacy** — `legacy-bash/{heartbeat-sender,mcp-report,e2e-report,on-session-end,implement-checkpoint}.sh`.
+- **Skill** — `/remote` (wrapper conversacional para OpenClaw / WhatsApp / Discord).
+- **Tests** — `test_dashboard_api`, `test_github_sync`, `test_heartbeat`, `test_heartbeat_stats`, `test_live_state`, `test_remote_summaries`.
+- **Artefacto en repo** — `specbox-state.json` en la raíz (era live state pero se commiteaba a `main`).
+- **Env var** — `SPECBOX_SYNC_TOKEN` deja de tener sentido en cualquier lado.
+- **Dockerfile Stage 1** — `dashboard-builder` (Node 20-slim) ya no existe; build single-stage Python.
+
+### Changed
+
+- **`server/server.py`** ahora expone una única `@mcp.custom_route("/health")` mínima (status + version) para que el `HEALTHCHECK` del Dockerfile siga funcionando. Sin telemetría, sin live state.
+- **`on-session-end.mjs`** y **`implement-checkpoint.mjs`** dejan de hacer `spawn` a los hooks de heartbeat / mcp-report. La telemetría local (`.quality/logs/`, Engram save) sigue intacta.
+- **`/handoff` skill** ya no menciona heartbeat en su mensaje final ni en su sección de idempotencia.
+- **`/implement` skill** ajusta los dos docstrings que mencionaban `heartbeat-sender.mjs` y "Sala de Máquinas".
+- **`CLAUDE.md`** reescrito: header sin "176 tools" ni "Sala de Máquinas dashboard"; tabla de skills sin `/remote`; tabla de hooks sin `heartbeat-sender` / `mcp-report` / `e2e-report`; secciones "Remote Telemetry (v3.3)" y "Remote State Management (v5.6.0)" reemplazadas por una sección "Cross-project state (v6.1.0 Cloud Cutover)" que documenta el cambio y apunta a specbox_cloud.
+- **`README.md`** drops 2 menciones de "Sala de Máquinas" (ES + EN) en la sección v5.32.0.
+- **`install.sh`** drops `/remote` del echo final de skills instaladas.
+- **`pyproject.toml`** versión 6.0.2 → 6.1.0 + nueva descripción.
+- **`ENGINE_VERSION.yaml`** versión 6.0.2 → 6.1.0 + codename "Cloud Cutover".
+
+### Preserved
+
+- **NativeBackend on Supabase** (`server/backends/native_backend.py` 1.260 LoC + `server/db/` + `server/coordination/`) intacto. specbox_cloud lee la misma instancia.
+- **Tools de coordinación** (`whoami`, `reserve_uc`, `release_uc`, `register_native_branch`) intactas — son la API que specbox_cloud llama para escrituras.
+- **Audit log + audit submit** (`submit_quality_audit`, `attach_audit_evidence`) intactos.
+- **Engram local save** en `on-session-end.mjs` se mantiene.
+
+### Migration
+
+Proyectos onboarded en v5.x con los 3 hooks `.mjs` viejos en su `.claude/hooks/` **siguen funcionando**: los `spawn` desde `on-session-end.mjs` y `implement-checkpoint.mjs` ahora fallan silenciosamente con `ENOENT` (los archivos ya no existen en el engine) y el resto del hook continúa. Para limpiar a fondo: re-ejecutar `./install.sh` desde v6.1.0 o borrar manualmente los `.mjs`.
+
+Si alguien tiene `SPECBOX_SYNC_TOKEN` o `SPECBOX_ENGINE_MCP_URL=https://mcp-specbox-engine.jpsdeveloper.com/mcp` exportados, puede borrar el primero (ya no se lee en ningún sitio) y debe cambiar el segundo a `stdio` local o al endpoint MCP que provea specbox_cloud — la URL del VPS deja de responder cuando se apague el servicio.
+
+### Documentation
+
+- **`doc/decisions/cloud_cutover.md`** — decisión arquitectural completa con contexto, rationale, consecuencias, riesgo (no duplicar escrituras de reservations en specbox_cloud) y rollback plan.
+
+### Tests
+
+Suite: `1243 passed → 1192 passed` (-51 tests, todos del dominio eliminado). 71 skipped, 0 failed. Node `node:test` lib tests: 15/15 verde.
+
 ## [6.0.2] - 2026-05-25 — "Smoke Test Followups"
 
 Patch release que cierra los 3 issues abiertos descubiertos durante el smoke test de v6.0.1 (#60, #61, #62) y elimina el último hardcodeo de versión runtime que sobrevivía en `server/server.py` desde v5.29. Bumpea también `fastmcp 3.1.0 → 3.3.1` con pin upper-bounded para evitar saltos major silenciosos. Cero cambios de comportamiento para tools no-deprecadas.

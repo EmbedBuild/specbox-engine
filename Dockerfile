@@ -1,12 +1,3 @@
-# Stage 1: Build dashboard frontend
-FROM node:20-slim AS dashboard-builder
-WORKDIR /app/dashboard
-COPY server/dashboard/package*.json ./
-RUN npm ci
-COPY server/dashboard/ ./
-RUN npm run build
-
-# Stage 2: Python MCP server + engine content + dashboard static files
 FROM python:3.12-slim AS app
 
 WORKDIR /app
@@ -24,7 +15,7 @@ RUN pip install --no-cache-dir .
 # fresh recopy of all engine content + server code below. Needed because some
 # CI/PaaS builders (e.g. EasyPanel) reuse a stale :latest image and skip the
 # COPY cache-key re-evaluation, leaving an old engine version baked in.
-ARG CACHEBUST=2026-05-22-v5.33.0
+ARG CACHEBUST=2026-05-25-v6.1.0
 
 # Copy engine content
 COPY ENGINE_VERSION.yaml CLAUDE.md install.sh ./
@@ -42,9 +33,6 @@ COPY .quality/ .quality/
 
 # Copy server code
 COPY server/ server/
-
-# Copy dashboard build from frontend stage
-COPY --from=dashboard-builder /app/dashboard/dist server/dashboard/dist
 
 ENV PYTHONUNBUFFERED=1
 ENV ENGINE_PATH=/app

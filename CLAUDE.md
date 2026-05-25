@@ -1,8 +1,8 @@
-# SpecBox Engine v6.0.2
+# SpecBox Engine v6.1.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
-> Monorepo unificado: engine + MCP server (176 tools) + Sala de Máquinas + Gherkin BDD + Quality Audit ISO/IEC 25010 + Product Discovery.
+> Monorepo unificado: engine + MCP server + Gherkin BDD + Quality Audit ISO/IEC 25010 + Product Discovery. Tracking multi-developer corre sobre Supabase y se consume desde **specbox_cloud** (panel web externo).
 
 ## Que es este repositorio
 
@@ -15,7 +15,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Design** — integracion con Google Stitch MCP para diseño UI + VEG (Visual Experience Generation)
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
-- **Server** — MCP server unificado (176 tools) + Sala de Máquinas dashboard (React 19)
+- **Server** — MCP server unificado (FastMCP, JSON-RPC + minimal `/health`)
 - **Quality Audit** — ISO/IEC 25010 (SQuaRE) on-demand via `/audit` + AG-10 auditor externo
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
@@ -192,10 +192,7 @@ specbox-engine/
 │   │   ├── on-session-end.mjs
 │   │   ├── implement-checkpoint.mjs
 │   │   ├── implement-healing.mjs
-│   │   ├── post-implement-validate.mjs
-│   │   ├── heartbeat-sender.mjs
-│   │   ├── mcp-report.mjs
-│   │   └── e2e-report.mjs
+│   │   └── post-implement-validate.mjs
 │   └── settings.json      ← Hooks config
 │   ├── prd.md
 │   ├── plan.md
@@ -248,9 +245,8 @@ specbox-engine/
 ├── .quality/              ← Telemetria y evidencia (v3.1)
 ├── rules/                 ← Reglas globales
 │   └── GLOBAL_RULES.md
-├── server/                ← MCP server unificado (v5.23)
-│   ├── server.py          ← FastMCP (176 tools)
-│   ├── dashboard_api.py   ← REST API /api/*
+├── server/                ← MCP server unificado
+│   ├── server.py          ← FastMCP (JSON-RPC + minimal /health)
 │   ├── spec_backend.py    ← SpecBackend ABC + DTOs (backend-agnostic)
 │   ├── backends/          ← Backend implementations
 │   │   ├── trello_backend.py   ← TrelloBackend (wraps TrelloClient)
@@ -267,43 +263,40 @@ specbox-engine/
 │   │   ├── persistence.py      ← Evidence under evidence/audits/ + project_meta
 │   │   ├── analyzers/          ← 8 SQuaRE analyzers (one per characteristic)
 │   │   └── reporters/          ← JSON + ReportLab PDF (NumberedCanvas + embed.build brand)
-│   ├── tools/             ← 24 tool modules (176 tools)
-│   │   ├── engine.py      ← 3 tools (version, status, stacks)
-│   │   ├── plans.py       ← 3 tools
-│   │   ├── quality.py     ← 4 tools
-│   │   ├── skills.py      ← 2 tools
-│   │   ├── features.py    ← 6 tools
-│   │   ├── telemetry.py   ← 6 tools
-│   │   ├── hooks.py       ← 3 tools
-│   │   ├── onboarding.py  ← 11 tools (detect_local_root_path, detect, status, list, onboard, upgrade, upgrade_all, matrix, wizard, visual_gap, archive)
-│   │   ├── state.py       ← 17 tools
-│   │   ├── spec_driven.py ← 21 tools (backend-agnostic via SpecBackend)
-│   │   ├── spec_mutations.py ← 8 tools (v5.23.0 Tier 1: update_uc/us/ac, add_ac/uc, delete_ac + batch variants)
-│   │   ├── milestone_management.py ← 8 tools (v5.23.0 Tier 2: milestones H1-H4, satellite, rebalance, cross-repo deps)
-│   │   ├── board_operations.py ← 5 tools (v5.23.0 Tier 3: validate_ac_quality, set_ac_metadata, link_uc_parent, delete_uc, get_board_diff)
-│   │   ├── acceptance_automation.py ← 3 tools (v5.23.0 Tier 4: bulk_update_hours, estimate_from_ac, milestone_acceptance_check)
-│   │   ├── _mutation_helpers.py ← Internal helpers for Tier 1-4 (constants, validators, finders, merge_meta, classify_ac)
-│   │   ├── migration.py   ← 5 tools (Trello ↔ Plane migration)
-│   │   ├── stitch.py      ← 13 tools (Stitch MCP proxy)
-│   │   ├── heartbeat_stats.py ← 1 tool (get_heartbeat_stats)
-│   │   ├── acceptance.py  ← 3 tools (run_acceptance_check, get_acceptance_report, get_e2e_gap_report)
-│   │   ├── benchmark.py   ← 1 tool (generate_benchmark_snapshot)
-│   │   ├── hints.py       ← 3 tools (get_skill_hint, record, list)
-│   │   ├── live_state.py  ← 4 tools (project state, overview, sessions, refresh)
-│   │   ├── skill_registry.py ← 3 tools (discover, validate, manifest)
-│   │   ├── sync.py        ← 2 tools (GitHub sync)
-│   │   └── audit.py       ← 4 tools (run_quality_audit, attach_audit_evidence, get_last_audit, check_audit_tools_status)
-│   ├── stitch_client.py   ← Async MCP JSON-RPC client for Google Stitch
-│   ├── trello_client.py   ← Async httpx con retry
-│   ├── board_helpers.py   ← Card parsing, custom fields (Trello)
-│   ├── models.py          ← Pydantic: US, UC, AC, WorkflowState
-│   ├── pdf_generator.py   ← Markdown → PDF (fpdf2)
+│   ├── tools/             ← tool modules
+│   │   ├── engine.py      ← version, status, stacks
+│   │   ├── plans.py
+│   │   ├── quality.py
+│   │   ├── skills.py
+│   │   ├── features.py
+│   │   ├── telemetry.py
+│   │   ├── hooks.py
+│   │   ├── onboarding.py
+│   │   ├── state.py
+│   │   ├── spec_driven.py ← backend-agnostic via SpecBackend
+│   │   ├── spec_mutations.py
+│   │   ├── milestone_management.py
+│   │   ├── board_operations.py
+│   │   ├── acceptance_automation.py
+│   │   ├── _mutation_helpers.py
+│   │   ├── migration.py   ← Trello ↔ Plane migration
+│   │   ├── stitch.py      ← Stitch MCP proxy
+│   │   ├── acceptance.py
+│   │   ├── benchmark.py
+│   │   ├── hints.py
+│   │   ├── skill_registry.py
+│   │   ├── sync.py        ← Spec-Code Sync (get/write implementation status)
+│   │   ├── coordination.py ← Native: whoami, reserve_uc, release_uc, register_native_branch
+│   │   └── audit.py       ← submit_quality_audit + helpers
+│   ├── stitch_client.py
+│   ├── trello_client.py
+│   ├── board_helpers.py
+│   ├── models.py
+│   ├── pdf_generator.py
 │   ├── auth_gateway.py    ← Per-session credentials (multi-backend)
-│   ├── resources/         ← 8 MCP Resources
-│   └── dashboard/         ← React 19 + Vite (Sala de Máquinas)
-│       └── src/
+│   └── resources/         ← MCP Resources
 ├── tests/                 ← Tests unificados
-├── Dockerfile             ← Multi-stage (Node + Python)
+├── Dockerfile             ← Single-stage Python (v6.1.0)
 ├── docker-compose.yml
 ├── pyproject.toml         ← name = "specbox-engine"
 └── docs/                  ← Documentacion del sistema
@@ -353,14 +346,13 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /check-designs | "check designs", "design compliance", "verify designs" | fork:Explore | Read-only | Retroactive Stitch compliance scan |
 | /acceptance-check | "check acceptance", "validate AC", "acceptance gate" | direct | Full | v5.0 — Standalone BDD acceptance without /implement |
 | /quickstart | "quickstart", "tutorial", "getting started" | direct | Full | v5.0 — Interactive onboarding tutorial (< 5 min) |
-| /remote | "estado de", "resumen de todos", "sesiones activas" | direct | Full | v5.5 — Remote project management for OpenClaw (WhatsApp/Discord) |
 | /release | "release", "bump version", "sube version", "prepara release" | direct | Full | v5.8 — Audit residuals + update version/changelog/docs + push |
 | /compliance | "check compliance", "audit specbox", "specbox audit", "is specbox up to date" | direct | Bash+Read | v5.18 — Compliance audit + version alignment + auto-fix |
 | /audit | "audit project", "quality audit", "ISO 25010", "SQuaRE audit" | direct | Full | v5.22 — Quality Audit ISO/IEC 25010 on-demand (AG-10, 8 analyzers, PDF+JSON) |
 | /stripe-connect | "stripe connect", "marketplace billing", "integrar pagos marketplace" | direct | Full | v5.25 — Marketplace Connect (Express + Direct charges + subscriptions embedded) + Supabase + React/Flutter |
 | /stripe-standard | "stripe standard", "stripe sin connect", "subscriptions saas", "billing saas", "monta pagos saas" | direct | Full | v5.27 — Stripe Standard (no Connect) + 4 modalidades (single/tiered/metered/one_shot) + Supabase + React/Flutter |
 | /stripe-switch-account | "switch stripe account", "rotar cuenta stripe", "cambiar cuenta stripe" | direct | Full | v5.27 — Stripe credentials rotation (alias store + switch_stripe_account tool, both Standard and Connect modes, dry-run + automatic rollback) |
-| /handoff | "handoff", "save state", "guarda contexto", "voy a hacer compactación" | direct | Read+Bash+Write | v5.30 — Persiste estado fino a `.quality/handoff.md` + Engram structured + heartbeat. **Llamar ANTES de proponer compactación**. |
+| /handoff | "handoff", "save state", "guarda contexto", "voy a hacer compactación" | direct | Read+Bash+Write | v5.30 — Persiste estado fino a `.quality/handoff.md` + Engram structured. **Llamar ANTES de proponer compactación**. |
 | /switch-backend | "switch backend", "cambiar backend", "migrar de FreeForm a Trello/Plane/Native", "mover el tracking a" | direct | Full | v5.35 — Cambio guiado de backend N×N entre los 4 (FreeForm/Trello/Plane/Native). Preview obligatorio + confirmación literal + switch transaccional (3 lugares con rollback) + regenerate_evidence opt-in. Migración aditiva, no destruye origen. |
 
 ## Hooks (v5.34.0)
@@ -382,9 +374,6 @@ Automatic enforcement — no need to remember running these manually:
 | implement-checkpoint | Manual (called by /implement) | Saves phase progress for resume |
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
 | post-implement-validate | Manual (called by /implement) | Checks baseline regression after implementation |
-| heartbeat-sender | Manual (called by on-session-end, implement-checkpoint) | Sends consolidated project state snapshot to VPS; queues locally if offline |
-| mcp-report | Helper (called by other hooks) | Generic MCP reporter: fire-and-forget HTTP POST to /api/report/* |
-| e2e-report | Manual (called by /implement) | Reports Playwright E2E test results to MCP telemetry |
 | **healing-budget-guard** | PreToolUse (Write/Edit) | **BLOCKING**: counts healing.jsonl entries per feature. Blocks at 8 attempts (HARD limit). Prevents infinite healing loops. |
 | **pipeline-phase-guard** | PreToolUse (Write/Edit) | **BLOCKING**: reads pipeline_state.json to verify phase dependencies are met. Prevents out-of-order execution (e.g., feature code before DB). |
 | **stripe-safety-guard** | PreToolUse (Write/Edit on billing paths) | **BLOCKING**: scans `src/billing/`, `lib/billing/`, `supabase/functions/stripe-*`. Blocks 5 anti-patterns: sk_live_* hardcoded, webhook sin firma, webhook sin idempotencia (`stripe_processed_events`), `redirectToCheckout`/`ui_mode:hosted`, Payment Links. Escape hatches: `// stripe-safety-guard:ignore` / `:disable-file`. v5.25 — scaffoldeado por `/stripe-connect`. |
@@ -442,56 +431,29 @@ that complements client-side hooks. See `templates/github-actions/branch-protect
 **If /implement skill is unavailable**, the pipeline MUST be executed manually step by step.
 See `rules/GLOBAL_RULES.md` section "Pipeline Integrity" for the full contract.
 
-## Remote Telemetry (v3.3)
+## Cross-project state (v6.1.0 Cloud Cutover)
 
-Hooks can report to a remote MCP server for centralized state tracking.
-Set `SPECBOX_ENGINE_MCP_URL=https://mcp-specbox-engine.jpsdeveloper.com/mcp` in your shell profile.
-Reporting is fire-and-forget — if the MCP is unreachable, hooks work normally.
+El dashboard "Sala de Máquinas" (frontend React + REST `/api/*` + hooks de
+heartbeat + skill `/remote` + GitHub sync) **fue eliminado en v6.1.0**. La
+visión multi-proyecto vive ahora en **specbox_cloud** (panel web externo),
+que se alimenta leyendo directamente la instancia Supabase del Native
+Backend y llamando al MCP cuando necesita escribir reservations.
 
-## Remote State Management (v5.6.0)
+Consecuencias prácticas:
 
-Gestionar el estado de todos los proyectos desde iPhone via Claude.ai iOS + MCP remoto, y desde WhatsApp/Discord via OpenClaw Gateway.
+- Ya no existen los hooks `heartbeat-sender.mjs`, `mcp-report.mjs`,
+  `e2e-report.mjs`, ni el archivo `specbox-state.json` en la raíz del repo.
+- Ya no se exponen tools `get_project_live_state`, `get_all_projects_overview`,
+  `get_active_sessions`, `refresh_project_state`, `get_heartbeat_stats`.
+- El env var `SPECBOX_SYNC_TOKEN` deja de tener sentido y debe quitarse del
+  shell profile si lo tenías.
+- El MCP server local sigue exponiendo un endpoint `/health` mínimo para el
+  HEALTHCHECK del Dockerfile, sin telemetría.
 
-### Heartbeat Protocol
-- Hooks locales envian `project_state.json` al VPS tras cada operacion significativa
-- `heartbeat-sender.mjs` auto-detecta: git branch, coverage, checkpoint, feedback
-- Si el VPS no responde, los heartbeats se guardan en `.quality/pending_heartbeats.jsonl`
-- Escribe `specbox-state.json` en la raiz del repo para GitHub sync
-
-### GitHub Sync
-- Cron (n8n) cada 15 min lee `specbox-state.json` de cada repo via GitHub API
-- Solo actualiza si el ultimo heartbeat tiene > 30 min de antiguedad
-- `POST /api/sync/github` para trigger manual
-
-### MCP Tools para iPhone
-| Tool | Uso |
-|------|-----|
-| `get_project_live_state` | "¿Como va McProfit?" |
-| `get_all_projects_overview` | "Dame resumen de todos" |
-| `get_active_sessions` | "¿Que tiene sesion activa?" |
-| `refresh_project_state` | "Actualiza estado de X" |
-| `get_heartbeat_stats` | "¿Llegan los heartbeats?" |
-
-### Heartbeat Observability (v5.6.0)
-- Cada heartbeat recibido se registra en `heartbeats.jsonl` por proyecto
-- `get_heartbeat_stats` retorna: total 24h, por proyecto, stale detection
-- `GET /api/heartbeats/stats` — mismo dato via REST con Bearer auth
-- Proyectos con `session_active=true` y sin heartbeat > 30 min marcados como stale
-
-### Conversational Summaries (v5.6.0)
-- Todos los tools de live_state incluyen campo `summary` humanizado en espanol
-- `get_all_projects_overview` incluye `summary_table` con tabla Markdown
-- Timestamps siempre como "hace X minutos/horas" — nunca ISO crudos en summaries
-- Tools de escritura (`move_uc`, `mark_ac`, reports) incluyen `summary` + `generated_at`
-
-### Skill /remote (v5.6.0)
-- Wrapper conversacional para OpenClaw Gateway (WhatsApp/Discord)
-- Respuestas en texto plano (max 2000 chars) sin Markdown complejo
-- Triggers: "estado de [proyecto]", "resumen de todos", "sesiones activas"
-
-### Env vars requeridas
-- `SPECBOX_SYNC_TOKEN` — auth para endpoints de heartbeat y sync (VPS + local)
-- `GITHUB_TOKEN` — para GitHub API (solo VPS)
+Proyectos onboarded en v5.x con los hooks viejos no se rompen: los `spawn`
+de heartbeat-sender fallan silenciosamente con `ENOENT`. Para limpiar a
+fondo, re-ejecutar `./install.sh` desde v6.1.0 o borrar manualmente los
+3 archivos `.mjs` mencionados arriba.
 
 ## Context Engineering (v5.24.0)
 
@@ -535,8 +497,6 @@ Componentes:
 - Validador: `.quality/scripts/validate-handoff.mjs`
 - Spec: `doc/specs/handoff-spec.md`
 - Pre-read budget guard: `.claude/hooks/pre-read-budget-guard.mjs` (warning no bloqueante para Read >5% de la ventana)
-
-Heartbeat enriquecido (v5.30.0) reporta `handoff_present`, `handoff_age_minutes` y `context_pressure` ({tokens_est, pct_of_window, level}). La Sala de Máquinas los expone en `/api/heartbeat`.
 
 ## Quality Scripts
 
@@ -808,13 +768,11 @@ NO es default — solo está disponible como red de seguridad opt-in
 
 5. **Quota tracking + safety net opt-in** —
    `get_stitch_quota_status` agrega `stitch_usage.jsonl` por mes y modelo,
-   surfacea warning a ≥80% y mensaje de exhausted a 100%, persiste un
-   cache compacto en `.quality/stitch_quota.json` que el heartbeat
-   enriquecido (`stitch_quota` field, después del bloque v5.30 de
-   Session Continuity) sube a Sala de Máquinas. El hook
-   `stitch-quota-guard.mjs` (PreToolUse para tools `mcp__SpecBox-MCP__stitch_*`)
-   warnea ≥80% y bloquea (exit 2) cuando PRO está exhausted Y
-   `flash_safety_net=false`.
+   surfacea warning a ≥80% y mensaje de exhausted a 100%, y persiste un
+   cache compacto en `.quality/stitch_quota.json` para el hook
+   `stitch-quota-guard.mjs`. El hook (PreToolUse para tools
+   `mcp__SpecBox-MCP__stitch_*`) warnea ≥80% y bloquea (exit 2) cuando
+   PRO está exhausted Y `flash_safety_net=false`.
 
 ### Settings (`templates/settings.json.template` → `stitch`)
 
@@ -848,9 +806,7 @@ NO es default — solo está disponible como red de seguridad opt-in
   Antes de v5.31.1 `/plan` usaba `mcp__stitch__generate_screen_from_text`
   directo; desde v5.31.1 valida prompts antes de generar y usa
   `stitch_generate_screen_v2` con fallback chain.
-- Solo se modifica `/visual-setup` (añade Paso 3.7 + 3.8) y
-  `heartbeat-sender.mjs` (añade campo `stitch_quota` después del bloque
-  v5.30 de Session Continuity).
+- Solo se modifica `/visual-setup` (añade Paso 3.7 + 3.8).
 
 ### Plan completo
 
@@ -1085,7 +1041,8 @@ STATE_PATH/projects/<project>/evidence/audits/
 ```
 
 El `project_meta.last_audit` se actualiza tras `attach_audit_evidence` para
-que la Sala de Máquinas muestre el último audit sin escanear el filesystem.
+que cualquier consumidor (incluido specbox_cloud) muestre el último audit
+sin escanear el filesystem.
 
 ### Fuera de alcance v1 (reservado para v2)
 
@@ -1162,7 +1119,7 @@ Tabla canónica de los 19 `decision_keys` documentada en `doc/plans/v5.29.0_cogn
 | Skill `/app-sync` | `.claude/skills/app-sync/` | Resolución manual de drift |
 | Drift detector multi-fuente | `server/app_docs/drift_detector.py` | S1 stack lockfiles, S2 brand-kit dangling refs, S3 roadmap-vs-tracking, S4 canonical undocumented |
 
-Telemetría unificada en `.quality/app_docs_drift.jsonl`. Heartbeat payload compacto disponible vía `app_docs_drift_for_heartbeat` para Sala de Máquinas.
+Telemetría unificada en `.quality/app_docs_drift.jsonl`. La tool MCP `app_docs_drift_for_heartbeat` devuelve un payload compacto utilizable por consumidores externos (specbox_cloud, scripts ad-hoc).
 
 Para promover el hook a bloqueante (v5.29.1+):
 ```json
@@ -1235,8 +1192,8 @@ la arquitectura — y los cablea de forma observable.
 `Task(AG-XX)`, borrado tras retorno) — leido por
 `file-ownership-guard.mjs` para validar Write/Edit del agente activo.
 
-`.quality/task_isolation.json` — telemetría (counters bumped por hooks +
-SKILL post-Task block; consumido por heartbeat-sender).
+`.quality/task_isolation.json` — telemetría local (counters bumped por hooks +
+SKILL post-Task block).
 
 ### Tools / módulos (Python)
 
@@ -1269,8 +1226,8 @@ SKILL post-Task block; consumido por heartbeat-sender).
 ### Compatibilidad
 
 100% backwards-compatible. Cualquier proyecto sin `execution_context.json`
-ni `phase_outputs.jsonl` ve los guards como no-ops, el heartbeat con
-`task_isolation: null`, y Spec-Code Sync cae al fallback de `git diff`.
+ni `phase_outputs.jsonl` ve los guards como no-ops, y Spec-Code Sync cae al
+fallback de `git diff`.
 
 ### Plan completo
 
@@ -1279,7 +1236,7 @@ documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
 
 ## Engine Version
 
-Current: v6.0.2 "Smoke Test Followups"
+Current: v6.1.0 "Cloud Cutover"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 
@@ -1301,7 +1258,7 @@ Patch release que cierra los 3 issues abiertos descubiertos en el smoke test de 
 
 ### Cleanup adicional (sin issue)
 
-`server/server.py` leía `"v5.29.0"` hardcoded en `FastMCP(instructions=...)` desde v5.29 — drifteaba en cada release y los clientes MCP veían una versión incorrecta. Ahora se lee de `ENGINE_VERSION.yaml` al cargar el módulo vía nuevo helper `_load_engine_version()` (mismo patrón que `dashboard_api._health_version`).
+`server/server.py` leía `"v5.29.0"` hardcoded en `FastMCP(instructions=...)` desde v5.29 — drifteaba en cada release y los clientes MCP veían una versión incorrecta. Ahora se lee de `ENGINE_VERSION.yaml` al cargar el módulo vía nuevo helper `_load_engine_version()`.
 
 ### Dependencias
 

@@ -458,7 +458,7 @@ else
     fi
 
     echo -e "${GREEN}Installation complete.${NC}"
-    echo -e "Skills:   /prd, /visual-setup, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore, /feedback, /check-designs, /acceptance-check, /quickstart, /remote, /release, /compliance, /audit"
+    echo -e "Skills:   /prd, /visual-setup, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore, /feedback, /check-designs, /acceptance-check, /quickstart, /release, /compliance, /audit"
     echo -e "Quality:  quality-first-guard.mjs (read before write), read-tracker.mjs (session tracking)"
     echo -e "Hooks:    $HOOK_NAMES"
     if [ "$VSCODE_EXT_STATUS" = "installed" ]; then

@@ -5,10 +5,8 @@
  * Called from within the /implement Skill, not as an automatic hook.
  */
 
-import { git, getProjectName, mkdir, now, getHooksDir } from './lib/utils.mjs';
+import { git, mkdir, now } from './lib/utils.mjs';
 import { writeFileSync } from 'fs';
-import { spawn } from 'child_process';
-import { join } from 'path';
 
 const feature = process.argv[2] || '';
 const phase = process.argv[3] || '';
@@ -42,28 +40,5 @@ writeFileSync(
 
 console.log(`[CHECKPOINT] Phase ${phase} (${phaseName}) saved for ${feature}`);
 
-// Report to MCP (fire-and-forget)
-const projectName = getProjectName();
-const hooksDir = getHooksDir();
-
-const mcpArgs = JSON.stringify({
-  project: projectName,
-  feature,
-  phase: Number(phase),
-  phase_name: phaseName,
-  branch,
-  timestamp,
-});
-
-const child1 = spawn('node', [join(hooksDir, 'mcp-report.mjs'), 'report_checkpoint', mcpArgs], {
-  detached: true,
-  stdio: 'ignore',
-});
-child1.unref();
-
-// Send heartbeat with current phase info (fire-and-forget, background)
-const child2 = spawn('node', [join(hooksDir, 'heartbeat-sender.mjs'), projectName, 'implement'], {
-  detached: true,
-  stdio: 'ignore',
-});
-child2.unref();
+// v6.1.0 Cloud Cutover: remote heartbeat + mcp-report dispatch removed.
+// Local checkpoint state still persisted to .quality/checkpoints/ above.

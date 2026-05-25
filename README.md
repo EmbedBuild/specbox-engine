@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.0.0 — "Discovery Foundations" (sobre v5.35.0 "Reservation Rename")<br/>
+  v 6.0.2 — "Smoke Test Followups" (sobre v6.0.1 "MCP Path Contract", v6.0.0 "Discovery Foundations")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,27 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v6.0
+
+**v6.0.2 — "Smoke Test Followups"** cierra los 3 issues abiertos descubiertos en el smoke test de v6.0.1 (#60, #61, #62) y elimina el último hardcodeo de versión runtime que arrastraba el server desde v5.29:
+
+- **`submit_quality_audit` autogenera `audit_id`** si el cliente no lo pasa (cliente puede seguir pasando el suyo si necesita idempotencia).
+- **`run_quality_audit` deprecation hace `raise`** → MCP envelope con `isError=true`. Clientes que solo inspeccionan el envelope detectan la deprecación correctamente.
+- **`validate_discovery_completeness`** acepta las 4 resoluciones canónicas de drift (`feature_creep_rejected`, `app_market_updated`, `documented_exception`, `no_drift`) y expone nuevo campo `drift.kind` para futuros gates estrictos.
+- **`server/server.py`** ya no hardcodea la versión — la lee de `ENGINE_VERSION.yaml` al cargar el módulo. Bug latente `submit_quality_audit.fn(...)` eliminado de paso. `fastmcp 3.1.0 → 3.3.1` con pin `>=3.3.1,<4.0.0`.
+
+100% backwards-compatible. Suite `1243 passed / 71 skipped / 0 failed`.
+
+---
+
+**v6.0.1 — "MCP Path Contract"** hotfix arquitectural que migra 17 tools cat A en `server/tools/` a un patrón de **content-passing universal**: ninguna tool registrada con `@mcp.tool` resuelve `Path(project_path).resolve()` para acceder al filesystem del cliente. El cliente lee los archivos localmente con `Read`, pasa el contenido como string, y escribe lo que la tool devuelva. Resuelve el bug crítico de MCP remoto donde las tools devolvían datos del filesystem del VPS, no del cliente. Skills actualizadas (`/discovery`, `/prd`, `/plan`, `/visual-setup`, `/app-sync`, `/audit`, `/acceptance-check`) + nuevo helper cliente `.claude/hooks/lib/mcp-client-io.mjs`.
+
+---
+
+**v6.0.0 — "Discovery Foundations"** introduce un módulo de **Product Discovery** permanente integrado en el pipeline canónico (`/discovery → /prd → /plan → /implement`) + el tercer documento canónico `doc/app/app_market.md` (ICPs primarios + no-ICPs + JTBDs globales + NSM + posicionamiento) + la **fundación arquitectural multi-doc** (`server/app_docs/registry.py`) que sostiene la extensión a N documentos canónicos en v6.x+. Proyectos v5.x reciben `app_market.md` como plantilla `template-pristine` vía `upgrade_project` sin modificar archivos existentes.
 
 ---
 
@@ -346,7 +367,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.0.0 — "Discovery Foundations" (over v5.35.0 "Reservation Rename")
+> v 6.0.2 — "Smoke Test Followups" (over v6.0.1 "MCP Path Contract", v6.0.0 "Discovery Foundations")
 
 ## What is this?
 
@@ -358,6 +379,27 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v6.0
+
+**v6.0.2 — "Smoke Test Followups"** closes the 3 open issues surfaced by the v6.0.1 smoke test (#60, #61, #62) and removes the last runtime version literal that survived in the server since v5.29:
+
+- **`submit_quality_audit` autogenerates `audit_id`** if the client does not pass one (clients that need idempotency can still pass their own).
+- **`run_quality_audit` deprecation now `raise`s** → MCP envelope correctly sets `isError=true`. Clients that only inspect the envelope now detect the deprecation.
+- **`validate_discovery_completeness`** accepts all 4 canonical drift resolutions (`feature_creep_rejected`, `app_market_updated`, `documented_exception`, `no_drift`) and exposes new `drift.kind` field for future strict-gate modes.
+- **`server/server.py`** no longer hardcodes the version — reads it from `ENGINE_VERSION.yaml` at module load. Latent `submit_quality_audit.fn(...)` bug eliminated as a side effect. `fastmcp 3.1.0 → 3.3.1` pinned `>=3.3.1,<4.0.0`.
+
+100% backwards-compatible. Suite `1243 passed / 71 skipped / 0 failed`.
+
+---
+
+**v6.0.1 — "MCP Path Contract"** architectural hotfix that migrates 17 cat-A tools in `server/tools/` to a **universal content-passing pattern**: no `@mcp.tool`-registered function resolves `Path(project_path).resolve()` against the host filesystem. The client reads files locally with `Read`, passes content as string, and writes whatever the tool returns. Fixes the critical remote-MCP bug where tools were returning data from the VPS filesystem, not the client's. Skills updated (`/discovery`, `/prd`, `/plan`, `/visual-setup`, `/app-sync`, `/audit`, `/acceptance-check`) + new client helper `.claude/hooks/lib/mcp-client-io.mjs`.
+
+---
+
+**v6.0.0 — "Discovery Foundations"** introduces a permanent **Product Discovery** module integrated into the canonical pipeline (`/discovery → /prd → /plan → /implement`) + the third canonical document `doc/app/app_market.md` (primary ICPs + non-ICPs + global JTBDs + NSM + positioning) + the **multi-doc architectural foundation** (`server/app_docs/registry.py`) that supports extending to N canonical docs in v6.x+. v5.x projects get `app_market.md` as a `template-pristine` template via `upgrade_project` without touching existing files.
+
+---
 
 ## What's new in v5.34
 

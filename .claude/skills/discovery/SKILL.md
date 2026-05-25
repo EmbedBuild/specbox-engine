@@ -32,19 +32,37 @@ El comando requiere `feature_name` slug-friendly (letras, números, `_`, `-`). S
 
 ---
 
-## Paso 0 — Boot detection
+## Paso 0 — Boot detection (v6.0.1 content-passing)
 
-1. **Leer settings** (`.claude/settings.local.json`):
+> **Cambio v6.0.1**: las tools MCP de discovery ya no leen ni escriben el filesystem del cliente. La skill es responsable de leer los archivos locales y pasar el contenido como parámetro, y de escribir cualquier artefacto que la tool devuelva.
+
+1. **Leer settings** (`.claude/settings.local.json`) con la tool `Read`:
    - `specbox.discovery.gate_mode` ∈ `{off, warn, block}` (default `off` en upgrade, `warn` en fresh-clone v6.0).
    - `specbox.discovery.pedagogical_mode` ∈ `{auto, on, off}` (default `auto` — verbose en primeras 5 features).
    - `specbox.engine_version_at_onboard` (v6.0+ presente).
 
-2. **Llamar `start_discovery(feature_name, project_path=".", mode="auto")`**:
-   - Devuelve `discovery_id`, `mode_used` (standard | bootstrap), `artifact_path`, `next_step`.
-   - Idempotente: si artefacto existe, devuelve `status="resumable"`. Ofrecer al usuario: resumir (continuar editando) o reiniciar (borrar el archivo y volver a crear).
+2. **Preparar el content bundle** (lectura cliente):
+   - `pwd` → confirmar que estás en la raíz del repo.
+   - Leer `doc/app/app_market.md` con `Read` si existe; si la `Read` falla con archivo no encontrado, tratar el contenido como `null`.
+   - Leer `doc/discovery/<feature_name>/icp_jtbd.md` con `Read` si existe; si no existe, tratar como `null`.
+
+3. **Llamar `start_discovery`** con la API v6.0.1:
+
+   ```
+   start_discovery(
+     feature_name="<slug>",
+     app_market_content=<contenido o null>,
+     existing_artifact_content=<contenido o null>,
+     mode="auto",
+   )
+   ```
+
+   - Devuelve `discovery_id`, `mode_used` (standard | bootstrap), `artifact_path`, `next_step` y — cuando `status="created"` — un campo `skeleton_content` con el contenido inicial del artefacto.
+   - **Si `status="created"`**: usar `Write` para escribir `skeleton_content` en `artifact_path` (la skill, no la tool, hace la escritura).
+   - **Si `status="resumable"`**: significa que ya pasaste contenido existente. La tool reporta `current_verdict` y `missing`. Ofrecer al usuario: resumir (continuar editando el archivo local) o reiniciar (borrar el archivo y volver a llamar `start_discovery` con `existing_artifact_content=null`).
    - Si `mode_used="bootstrap"`, antes de bajar al feature, el skill primero rellena `doc/app/app_market.md` (ver Paso 5).
 
-3. **Determinar verbosity pedagógico**:
+4. **Determinar verbosity pedagógico**:
    - Contar features previas: `ls doc/discovery/ | wc -l`. Si <5 → modo expanded (con justificaciones, ejemplos, anti-patterns).
    - Si flag `--explain` presente, modo expanded forzado.
    - Si >5 features ya, modo conciso (sin micro-justificaciones inline).
@@ -243,16 +261,28 @@ Tras rellenar cada zona, **elimina el atributo `status="template-pristine"`** de
 
 Auto-derivar zona auto `exportable_copy` con LLM: landing headline, LinkedIn post template, elevator pitch — derivados de los ICPs+JTBDs definidos.
 
-Tras completar `app_market.md`, llamar `record_app_docs_signature(project_path=".")` para sellar la baseline, y bajar al flujo de la feature (vuelve al Paso 1 en modo standard).
+Tras completar `app_market.md` con `Write`/`Edit`, llamar `record_app_docs_signature` para sellar la baseline, y bajar al flujo de la feature (vuelve al Paso 1 en modo standard).
+
+> **Nota v6.0.1**: `record_app_docs_signature` sigue siendo state-tool (cat B) — no cambia firma. La firma se calcula a partir del contenido que el cliente ya escribió en disco vía la API de telemetría/state estándar.
 
 ---
 
-## Paso 6 — Output generation
+## Paso 6 — Output generation (v6.0.1 content-passing)
 
-1. **Reescribir `doc/discovery/<feature_name>/icp_jtbd.md`** con todo el contenido capturado (no solo el skeleton inicial). Las secciones que el skeleton dejó como `_(Pendiente...)_` se reemplazan con contenido real.
+1. **Reescribir `doc/discovery/<feature_name>/icp_jtbd.md`** con `Write` o `Edit` aplicando todo el contenido capturado (no solo el skeleton inicial). Las secciones que el skeleton dejó como `_(Pendiente...)_` se reemplazan con contenido real.
 
-2. **Llamar `validate_discovery_completeness(feature_name, project_path=".")`**:
-   - Devuelve `{verdict, missing, drift}`.
+2. **Releer el artefacto** con `Read` para tener el contenido final en memoria.
+
+3. **Llamar `validate_discovery_completeness`** con la API v6.0.1:
+
+   ```
+   validate_discovery_completeness(
+     feature_name="<slug>",
+     icp_jtbd_content=<contenido recién leído>,
+   )
+   ```
+
+   - Devuelve `{verdict, missing, drift, artifact_path}`.
    - Si `verdict="READY_FOR_PRD"`: mostrar al usuario:
      ```
      ✅ Discovery completo para <feature_name>
@@ -270,7 +300,7 @@ Tras completar `app_market.md`, llamar `record_app_docs_signature(project_path="
         Run /discovery <feature_name> de nuevo para resumir.
      ```
 
-3. **Telemetría**: emitir evento `discovery_completed` al MCP via `report_session` con `{feature_name, verdict, duration_minutes, drift_detected_count, mode_used}`.
+4. **Telemetría**: emitir evento `discovery_completed` al MCP via `report_session` con `{feature_name, verdict, duration_minutes, drift_detected_count, mode_used}`.
 
 ---
 

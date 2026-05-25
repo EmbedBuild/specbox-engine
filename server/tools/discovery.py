@@ -1,19 +1,27 @@
 """Discovery tools for v6.0 — Product Discovery integration.
 
-Registers MCP tools that support the `/discovery` slash command flow:
+Registers MCP tools that support the `/discovery` slash command flow.
 
-* `start_discovery(feature_name, project_path, mode="auto")` — initialize
-  or resume a discovery session for a feature. Returns the artifact
-  path + mode resolution (auto detects bootstrap vs standard).
+**v6.0.1 — MCP Path Contract**
 
-* `validate_discovery_completeness(feature_name, project_path)` —
-  check whether `doc/discovery/<feature>/icp_jtbd.md` is complete enough
-  to proceed to `/prd`. Returns READY_FOR_PRD or DISCOVERY_INCOMPLETE
-  with specific missing items.
+The three @mcp.tool functions are content-passing: they never touch the
+filesystem of the MCP host. The client (skill) reads `doc/app/app_market.md`
+and `doc/discovery/<feature>/icp_jtbd.md` locally, passes the content as
+strings, and writes back any artifact returned by the tool.
 
-* `detect_v60_migration_case(project_path)` — classify a project into
-  one of the 8 v6.0 migration cases (PRD §4.8). Analogous to the v5.29
-  `detect_v529_migration_case` precedent.
+This makes the tools host-agnostic — they behave identically whether the
+MCP server runs locally (stdio) or remotely (HTTP/SSE on a VPS or in
+claude.ai web).
+
+Tools registered:
+
+* `start_discovery(feature_name, app_market_content, existing_artifact_content, mode="auto")`
+* `validate_discovery_completeness(feature_name, icp_jtbd_content)`
+* `detect_v60_migration_case(app_prd_content, app_spec_content, app_market_content, settings_local_json_content, active_uc_present, pending_feedback_files, has_discovery_dir, has_app_dir)`
+
+The Path-based private helpers below remain for backwards compatibility with
+internal callers and unit tests; they are no longer reachable from the MCP
+boundary.
 
 US-D01 UC-D001 + UC-D002, plus part of US-D03 UC-D004 (the
 v60_migration_case detector).
@@ -62,6 +70,9 @@ def _icp_jtbd_path(project_path: Path, feature_name: str) -> Path:
 def _app_market_is_pristine_or_missing(project_path: Path) -> bool:
     """True if app_market.md doesn't exist OR all manual zones are
     template-pristine. Used by start_discovery to detect bootstrap mode.
+
+    Path-based variant kept for internal callers and tests. The MCP boundary
+    uses :func:`_app_market_content_is_pristine_or_missing`.
     """
     market_path = project_path / APP_MARKET_PATH
     if not market_path.exists():
@@ -71,7 +82,31 @@ def _app_market_is_pristine_or_missing(project_path: Path) -> bool:
     except Exception:
         return True
     if not parsed.is_well_formed:
-        # Malformed doc — treat as needing initialization
+        return True
+    manual_zones = [z for z in parsed.zones if z.kind.value == "manual"]
+    if not manual_zones:
+        return False
+    return all(z.status == "template-pristine" for z in manual_zones)
+
+
+def _app_market_content_is_pristine_or_missing(
+    app_market_content: str | None,
+) -> bool:
+    """Content-passing variant of :func:`_app_market_is_pristine_or_missing`.
+
+    Returns True when:
+      * content is None or empty (treated as missing), OR
+      * content is malformed, OR
+      * the document has no manual zones, OR
+      * every manual zone is template-pristine.
+    """
+    if app_market_content is None or not app_market_content.strip():
+        return True
+    try:
+        parsed = parse_document("app_market.md", content=app_market_content)
+    except Exception:
+        return True
+    if not parsed.is_well_formed:
         return True
     manual_zones = [z for z in parsed.zones if z.kind.value == "manual"]
     if not manual_zones:
@@ -168,12 +203,9 @@ def _section_has_real_content(content: str, section_re: str) -> tuple[bool, str]
     body = m.group(1).strip()
     if not body:
         return (False, "empty_body")
-    # If the body consists exclusively of pending placeholders, not real content.
     stripped = body.strip()
     is_pending = any(re.search(p, stripped) for p in PENDING_MARKERS)
     if is_pending and len(stripped) < 200:
-        # Heuristic: short bodies that match a pending pattern are placeholders.
-        # Longer bodies likely have real content even if they mention "pendiente".
         return (False, "still_placeholder")
     return (True, stripped[:120])
 
@@ -190,7 +222,6 @@ def _validate_icp_jtbd(content: str) -> dict[str, Any]:
     """
     missing: list[str] = []
 
-    # 1. ICPs involucrados
     ok, _ = _section_has_real_content(
         content,
         r"## ICPs involucrados\s*\n(.+?)(?=\n## |\Z)",
@@ -198,7 +229,6 @@ def _validate_icp_jtbd(content: str) -> dict[str, Any]:
     if not ok:
         missing.append("icps_involucrados")
 
-    # 2. JTBDs racionales (al menos uno)
     ok, _ = _section_has_real_content(
         content,
         r"## JTBDs racionales\s*\n(.+?)(?=\n## |\Z)",
@@ -206,7 +236,6 @@ def _validate_icp_jtbd(content: str) -> dict[str, Any]:
     if not ok:
         missing.append("jtbds_racionales")
 
-    # 3. JTBDs emocionales (al menos uno)
     ok, _ = _section_has_real_content(
         content,
         r"## JTBDs emocionales\s*\n(.+?)(?=\n## |\Z)",
@@ -214,7 +243,6 @@ def _validate_icp_jtbd(content: str) -> dict[str, Any]:
     if not ok:
         missing.append("jtbds_emocionales")
 
-    # 4. Validation evidence
     ok, _ = _section_has_real_content(
         content,
         r"## Validation evidence\s*\n(.+?)(?=\n## |\Z)",
@@ -222,7 +250,6 @@ def _validate_icp_jtbd(content: str) -> dict[str, Any]:
     if not ok:
         missing.append("validation_evidence")
 
-    # 5. Drift from app_market — resolución registrada
     drift_match = re.search(
         r"## Drift from app_market\s*\n(.+?)(?=\n## |\Z)",
         content,
@@ -231,7 +258,6 @@ def _validate_icp_jtbd(content: str) -> dict[str, Any]:
     drift_info: dict[str, Any] = {"section_present": bool(drift_match)}
     if drift_match:
         drift_body = drift_match.group(1)
-        # Check for resolution keyword
         has_resolution = bool(
             re.search(
                 r"Resolución.*?(feature_creep_rejected|app_market_updated|"
@@ -244,7 +270,6 @@ def _validate_icp_jtbd(content: str) -> dict[str, Any]:
         if not has_resolution and "pendiente" in drift_body.lower():
             missing.append("drift_resolution")
 
-    # Verdict
     verdict = "READY_FOR_PRD" if not missing else "DISCOVERY_INCOMPLETE"
 
     return {
@@ -255,39 +280,40 @@ def _validate_icp_jtbd(content: str) -> dict[str, Any]:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Migration case detector (v6.0)
+# Migration case detection — content-passing core
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _detect_v60_case(project_path: Path) -> dict[str, Any]:
-    """Classify a project into one of the 8 v6.0 migration cases.
+def _detect_v60_case_from_content(
+    *,
+    app_prd_content: str | None,
+    app_spec_content: str | None,
+    app_market_content: str | None,
+    settings_local_json_content: str | None,
+    active_uc_present: bool,
+    pending_critical_feedback: list[str],
+    has_discovery_dir: bool,
+    has_app_dir: bool,
+) -> dict[str, Any]:
+    """Classify a project into one of the 8 v6.0 migration cases using
+    content + filesystem signals supplied by the client.
 
-    PRD §4.8:
-      1. Pre-v5.29 (sin doc/app/)
-      2. v5.29-v5.35 con app_prd+app_spec, sin app_market.md
-      3. Active UC en curso
-      4. Pending feedback bloqueante
-      5. Multirepo orchestrator
-      6. Multirepo satellite
-      7. Fresh-clone post-v6.0
-      8. Proyecto con doc/discovery/ manual pre-existente
+    The client is responsible for reading the local repository and packaging
+    the signals into the parameters above.
     """
     notes: list[str] = []
 
-    # Settings
-    settings_path = project_path / ".claude" / "settings.local.json"
     settings: dict[str, Any] = {}
-    if settings_path.exists():
+    if settings_local_json_content:
         try:
-            settings = json.loads(settings_path.read_text(encoding="utf-8"))
+            settings = json.loads(settings_local_json_content)
         except json.JSONDecodeError:
             settings = {}
     specbox_block = settings.get("specbox") or {}
     multirepo_block = settings.get("multirepo") or {}
 
-    # Active UC check (case 3 takes priority — never disrupt in-progress work)
-    active_uc_path = project_path / ".quality" / "active_uc.json"
-    if active_uc_path.exists():
+    # Case 3: active UC takes priority — never disrupt in-progress work
+    if active_uc_present:
         return {
             "case_id": "case_3_active_uc",
             "case_description": "Active UC in progress — defer v6.0 migration",
@@ -299,27 +325,18 @@ def _detect_v60_case(project_path: Path) -> dict[str, Any]:
             "notes": ["Case 3 always takes priority over backend-related cases"],
         }
 
-    # Pending feedback check (case 4)
-    feedback_dir = project_path / ".quality" / "evidence" / "feedback"
-    if feedback_dir.exists():
-        for fb in feedback_dir.glob("*.json"):
-            try:
-                data = json.loads(fb.read_text(encoding="utf-8"))
-                if data.get("severity") in {"critical", "major"} and not data.get(
-                    "resolved_at"
-                ):
-                    return {
-                        "case_id": "case_4_pending_feedback",
-                        "case_description": "Pending critical/major feedback blocks migration",
-                        "steps": [
-                            "Resolve feedback via /feedback or commit feedback resolution",
-                            "Re-run detect_v60_migration_case after resolution",
-                        ],
-                        "backup_required": False,
-                        "notes": [f"Blocking feedback: {fb.name}"],
-                    }
-            except Exception:
-                continue
+    # Case 4: pending critical/major feedback
+    if pending_critical_feedback:
+        return {
+            "case_id": "case_4_pending_feedback",
+            "case_description": "Pending critical/major feedback blocks migration",
+            "steps": [
+                "Resolve feedback via /feedback or commit feedback resolution",
+                "Re-run detect_v60_migration_case after resolution",
+            ],
+            "backup_required": False,
+            "notes": [f"Blocking feedback: {name}" for name in pending_critical_feedback],
+        }
 
     # Multirepo cases (5, 6)
     if multirepo_block.get("enabled"):
@@ -348,9 +365,8 @@ def _detect_v60_case(project_path: Path) -> dict[str, Any]:
                 "notes": [],
             }
 
-    # Pre-v5.29 case (1) — no doc/app/ at all
-    app_dir = project_path / "doc" / "app"
-    if not app_dir.exists():
+    # Case 1: pre-v5.29 (no doc/app/)
+    if not has_app_dir:
         return {
             "case_id": "case_1_pre_v529",
             "case_description": "Pre-v5.29 project — no doc/app/",
@@ -363,10 +379,10 @@ def _detect_v60_case(project_path: Path) -> dict[str, Any]:
             "notes": ["v5.29 migration is a prerequisite for v6.0"],
         }
 
-    # Case 8: manual doc/discovery/ pre-existing
-    discovery_dir = project_path / DISCOVERY_DIR
-    has_app_market = (project_path / APP_MARKET_PATH).exists()
-    if discovery_dir.exists() and not has_app_market:
+    has_app_market = bool(app_market_content)
+
+    # Case 8: pre-existing doc/discovery/ without app_market
+    if has_discovery_dir and not has_app_market:
         return {
             "case_id": "case_8_manual_discovery",
             "case_description": "Pre-existing doc/discovery/ without app_market.md",
@@ -379,7 +395,6 @@ def _detect_v60_case(project_path: Path) -> dict[str, Any]:
             "notes": ["Manual content detected — backup before applying canonical structure"],
         }
 
-    # Case 7: fresh-clone post-v6.0
     engine_version_at_onboard = specbox_block.get("engine_version_at_onboard")
     if engine_version_at_onboard and engine_version_at_onboard.startswith("6."):
         if has_app_market:
@@ -394,7 +409,7 @@ def _detect_v60_case(project_path: Path) -> dict[str, Any]:
                 "notes": [],
             }
 
-    # Case 2 (default): v5.29-v5.35 with app_prd+app_spec, no app_market
+    # Case 2 default: v5.29-v5.35 with canonical docs but no app_market
     if not has_app_market:
         return {
             "case_id": "case_2_v529_v535",
@@ -413,8 +428,6 @@ def _detect_v60_case(project_path: Path) -> dict[str, Any]:
             ],
         }
 
-    # Fallback: project already has app_market.md but engine_version_at_onboard
-    # missing/<v6 — uncommon but possible after manual edits.
     return {
         "case_id": "case_7_fresh_v6",
         "case_description": "Project has app_market.md present — assuming v6.0+ state",
@@ -427,49 +440,188 @@ def _detect_v60_case(project_path: Path) -> dict[str, Any]:
     }
 
 
+def _detect_v60_case(project_path: Path) -> dict[str, Any]:
+    """Path-based variant kept for internal callers and tests.
+
+    Reads filesystem signals from ``project_path`` and delegates to
+    :func:`_detect_v60_case_from_content`.
+    """
+    settings_path = project_path / ".claude" / "settings.local.json"
+    settings_text: str | None = None
+    if settings_path.exists():
+        try:
+            settings_text = settings_path.read_text(encoding="utf-8")
+        except OSError:
+            settings_text = None
+
+    active_uc_path = project_path / ".quality" / "active_uc.json"
+    active_uc_present = active_uc_path.exists()
+
+    feedback_dir = project_path / ".quality" / "evidence" / "feedback"
+    pending_critical: list[str] = []
+    if feedback_dir.exists():
+        for fb in feedback_dir.glob("*.json"):
+            try:
+                data = json.loads(fb.read_text(encoding="utf-8"))
+                if data.get("severity") in {"critical", "major"} and not data.get(
+                    "resolved_at"
+                ):
+                    pending_critical.append(fb.name)
+            except Exception:
+                continue
+
+    app_dir = project_path / "doc" / "app"
+    has_app_dir = app_dir.exists()
+
+    discovery_dir = project_path / DISCOVERY_DIR
+    has_discovery_dir = discovery_dir.exists()
+
+    market_path = project_path / APP_MARKET_PATH
+    app_market_content: str | None = None
+    if market_path.exists():
+        try:
+            app_market_content = market_path.read_text(encoding="utf-8")
+        except OSError:
+            app_market_content = None
+
+    prd_path = project_path / "doc" / "app" / "app_prd.md"
+    app_prd_content: str | None = None
+    if prd_path.exists():
+        try:
+            app_prd_content = prd_path.read_text(encoding="utf-8")
+        except OSError:
+            app_prd_content = None
+
+    spec_path = project_path / "doc" / "app" / "app_spec.md"
+    app_spec_content: str | None = None
+    if spec_path.exists():
+        try:
+            app_spec_content = spec_path.read_text(encoding="utf-8")
+        except OSError:
+            app_spec_content = None
+
+    return _detect_v60_case_from_content(
+        app_prd_content=app_prd_content,
+        app_spec_content=app_spec_content,
+        app_market_content=app_market_content,
+        settings_local_json_content=settings_text,
+        active_uc_present=active_uc_present,
+        pending_critical_feedback=pending_critical,
+        has_discovery_dir=has_discovery_dir,
+        has_app_dir=has_app_dir,
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────
-# MCP tool registration
+# Signature helper (content-passing)
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _compute_app_market_signature(app_market_content: str | None) -> str | None:
+    """Compute a short signature for inheritance tracking."""
+    if not app_market_content or not app_market_content.strip():
+        return None
+    try:
+        from server.app_docs.zones import compute_signature
+
+        parsed = parse_document("app_market.md", content=app_market_content)
+        if parsed.is_well_formed:
+            return compute_signature(parsed)[:16]
+    except Exception:
+        return None
+    return None
+
+
+def _parse_existing_artifact(content: str | None) -> dict[str, Any]:
+    """Extract discovery_id and mode_used from an existing icp_jtbd.md.
+
+    Returns dict with keys: discovery_id (str), mode_used (str).
+    Falls back to "unknown" when fields can't be parsed.
+    """
+    if not content:
+        return {"discovery_id": "unknown", "mode_used": "unknown"}
+    disc_id_match = re.search(r"\*\*Discovery ID\*\*:\s*(disc-\w+)", content)
+    mode_match = re.search(r"\*\*Mode\*\*:\s*(standard|bootstrap)", content)
+    return {
+        "discovery_id": disc_id_match.group(1) if disc_id_match else "unknown",
+        "mode_used": mode_match.group(1) if mode_match else "unknown",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# MCP tool registration (content-passing API, v6.0.1)
 # ─────────────────────────────────────────────────────────────────────
 
 
 def register_product_discovery_tools(mcp: FastMCP, engine_path: Path) -> None:
-    """Register the v6.0 Product Discovery tools.
+    """Register the v6.0 Product Discovery tools (content-passing v6.0.1).
 
-    Distinct from `server/app_docs/discovery.py:register_discovery_tools`
-    which exposes the backend auto-detector (v5.29). This function registers
-    the v6.0 product-discovery flow (start_discovery,
-    validate_discovery_completeness, detect_v60_migration_case).
+    The ``engine_path`` parameter is kept for API compatibility with
+    pre-v6.0.1 callers but is unused — the tools no longer touch any
+    filesystem.
     """
     @mcp.tool
     def start_discovery(
         feature_name: str,
-        project_path: str = ".",
+        app_market_content: str | None = None,
+        existing_artifact_content: str | None = None,
         mode: str = "auto",
     ) -> dict[str, Any]:
         """Initialize or resume a /discovery session for a feature.
 
-        v6.0 (UC-D001 + UC-D002). Creates doc/discovery/<feature_name>/icp_jtbd.md
-        with a UUID + initial skeleton. Idempotent — a second call with the
-        same feature_name detects the existing artifact and returns
-        status="resumable".
+        **v6.0.1 — content-passing API**
+
+        The MCP tool no longer reads or writes the client filesystem. The
+        caller is expected to:
+
+        1. Read ``doc/app/app_market.md`` locally and pass the content via
+           ``app_market_content`` (or ``None`` if the file does not exist).
+        2. Read ``doc/discovery/<feature_name>/icp_jtbd.md`` locally if it
+           exists and pass the content via ``existing_artifact_content``
+           (``None`` for fresh sessions).
+        3. Write the returned ``skeleton_content`` to
+           ``doc/discovery/<feature_name>/icp_jtbd.md`` when ``status``
+           is ``"created"``.
 
         Args:
-            feature_name: Slug-friendly feature identifier (e.g. "user_export").
-            project_path: Absolute or relative path to the project repo.
-            mode: "auto" (default — detects bootstrap vs standard based on
-                whether app_market.md exists and is non-pristine),
-                "standard" (force standard mode), "bootstrap" (force
-                bootstrap regardless of app_market.md state).
+            feature_name: Slug-friendly feature identifier
+                (e.g. ``"user_export"``). Only ``[a-zA-Z0-9_-]+`` is allowed.
+            app_market_content: Current content of ``doc/app/app_market.md``,
+                or ``None`` if the file does not exist on the client.
+            existing_artifact_content: Current content of the feature's
+                ``icp_jtbd.md`` if one already exists; ``None`` for a
+                fresh session.
+            mode: ``"auto"`` (default — detects bootstrap vs standard based
+                on whether ``app_market_content`` is non-pristine), ``"standard"``
+                (force standard mode), ``"bootstrap"`` (force bootstrap
+                regardless of ``app_market_content`` state).
 
         Returns:
-            {
-              "discovery_id": "disc-...",
-              "status": "created" | "resumable",
-              "artifact_path": "doc/discovery/<feature>/icp_jtbd.md",
-              "mode_used": "standard" | "bootstrap",
-              "app_market_present": bool,
-              "next_step": str,
-            }
+            On creation::
+
+                {
+                  "discovery_id": "disc-...",
+                  "status": "created",
+                  "artifact_path": "doc/discovery/<feature>/icp_jtbd.md",
+                  "mode_used": "standard" | "bootstrap",
+                  "app_market_present": bool,
+                  "app_market_signature": str | None,
+                  "skeleton_content": "...",  # ← client writes this locally
+                  "next_step": str,
+                }
+
+            On resume (``existing_artifact_content`` was provided)::
+
+                {
+                  "discovery_id": "disc-... or 'unknown'",
+                  "status": "resumable",
+                  "artifact_path": "doc/discovery/<feature>/icp_jtbd.md",
+                  "mode_used": "standard" | "bootstrap" | "unknown",
+                  "app_market_present": bool,
+                  "current_verdict": "READY_FOR_PRD" | "DISCOVERY_INCOMPLETE",
+                  "missing": [...],
+                  "next_step": str,
+                }
         """
         if not feature_name or not feature_name.strip():
             return {
@@ -477,7 +629,6 @@ def register_product_discovery_tools(mcp: FastMCP, engine_path: Path) -> None:
                 "code": "INVALID_FEATURE_NAME",
             }
         feature_name = feature_name.strip()
-        # Sanity check — feature names should be slug-friendly
         if not re.match(r"^[a-zA-Z0-9_-]+$", feature_name):
             return {
                 "error": (
@@ -487,35 +638,18 @@ def register_product_discovery_tools(mcp: FastMCP, engine_path: Path) -> None:
                 "code": "INVALID_FEATURE_NAME",
             }
 
-        root = Path(project_path).resolve()
-        feature_dir = _feature_dir(root, feature_name)
-        artifact = _icp_jtbd_path(root, feature_name)
+        relative_artifact = f"{DISCOVERY_DIR}/{feature_name}/icp_jtbd.md"
+        app_market_present = bool(app_market_content and app_market_content.strip())
 
-        # Idempotency: if the artifact exists, return resumable status
-        if artifact.exists():
-            try:
-                content = artifact.read_text(encoding="utf-8")
-                disc_id_match = re.search(r"\*\*Discovery ID\*\*:\s*(disc-\w+)", content)
-                disc_id = disc_id_match.group(1) if disc_id_match else "unknown"
-                # Detect the mode previously used
-                mode_match = re.search(r"\*\*Mode\*\*:\s*(standard|bootstrap)", content)
-                prev_mode = mode_match.group(1) if mode_match else "unknown"
-            except OSError:
-                disc_id = "unknown"
-                prev_mode = "unknown"
-
-            validation = _validate_icp_jtbd(content) if artifact.exists() else {
-                "verdict": "DISCOVERY_INCOMPLETE",
-                "missing": [],
-            }
+        if existing_artifact_content is not None and existing_artifact_content.strip():
+            parsed_prev = _parse_existing_artifact(existing_artifact_content)
+            validation = _validate_icp_jtbd(existing_artifact_content)
             return {
-                "discovery_id": disc_id,
+                "discovery_id": parsed_prev["discovery_id"],
                 "status": "resumable",
-                "artifact_path": str(artifact.relative_to(root))
-                if artifact.is_relative_to(root)
-                else str(artifact),
-                "mode_used": prev_mode,
-                "app_market_present": (root / APP_MARKET_PATH).exists(),
+                "artifact_path": relative_artifact,
+                "mode_used": parsed_prev["mode_used"],
+                "app_market_present": app_market_present,
                 "current_verdict": validation["verdict"],
                 "missing": validation.get("missing", []),
                 "next_step": (
@@ -525,7 +659,6 @@ def register_product_discovery_tools(mcp: FastMCP, engine_path: Path) -> None:
                 ),
             }
 
-        # Resolve mode
         if mode not in {"auto", "standard", "bootstrap"}:
             return {
                 "error": f"mode must be auto|standard|bootstrap, got {mode!r}",
@@ -534,28 +667,16 @@ def register_product_discovery_tools(mcp: FastMCP, engine_path: Path) -> None:
         if mode == "auto":
             mode_used = (
                 "bootstrap"
-                if _app_market_is_pristine_or_missing(root)
+                if _app_market_content_is_pristine_or_missing(app_market_content)
                 else "standard"
             )
         else:
             mode_used = mode
 
-        # Create directory structure
-        feature_dir.mkdir(parents=True, exist_ok=True)
-
-        # Compute app_market signature if present and non-pristine
         app_market_sig: str | None = None
         if mode_used == "standard":
-            try:
-                from server.app_docs.zones import compute_signature
+            app_market_sig = _compute_app_market_signature(app_market_content)
 
-                parsed = parse_document(root / APP_MARKET_PATH)
-                if parsed.is_well_formed:
-                    app_market_sig = compute_signature(parsed)[:16]
-            except Exception:
-                app_market_sig = None
-
-        # Write initial artifact
         discovery_id = _new_discovery_id()
         skeleton = _render_initial_icp_jtbd(
             feature_name=feature_name,
@@ -563,26 +684,28 @@ def register_product_discovery_tools(mcp: FastMCP, engine_path: Path) -> None:
             mode=mode_used,
             app_market_signature=app_market_sig,
         )
-        artifact.write_text(skeleton, encoding="utf-8")
 
         return {
             "discovery_id": discovery_id,
             "status": "created",
-            "artifact_path": str(artifact.relative_to(root))
-            if artifact.is_relative_to(root)
-            else str(artifact),
+            "artifact_path": relative_artifact,
             "mode_used": mode_used,
-            "app_market_present": (root / APP_MARKET_PATH).exists(),
+            "app_market_present": app_market_present,
             "app_market_signature": app_market_sig,
+            "skeleton_content": skeleton,
             "next_step": (
-                "Invoke the /discovery skill to walk through the 3 phases "
-                "(ICP identification, JTBD extraction, validation gate). "
-                "The skill will fill in this artifact interactively."
+                "Write the returned `skeleton_content` to "
+                f"`{relative_artifact}` and invoke the /discovery skill to walk "
+                "through the 3 phases (ICP identification, JTBD extraction, "
+                "validation gate). The skill will fill in this artifact "
+                "interactively."
                 if mode_used == "standard"
                 else (
-                    "Bootstrap mode active: the skill will first fill in "
-                    "doc/app/app_market.md (project-level), then descend "
-                    "to the feature-level icp_jtbd.md."
+                    "Bootstrap mode active: write the returned "
+                    f"`skeleton_content` to `{relative_artifact}`, then the "
+                    "skill will first fill in `doc/app/app_market.md` "
+                    "(project-level), then descend to the feature-level "
+                    "icp_jtbd.md."
                 )
             ),
         }
@@ -590,64 +713,78 @@ def register_product_discovery_tools(mcp: FastMCP, engine_path: Path) -> None:
     @mcp.tool
     def validate_discovery_completeness(
         feature_name: str,
-        project_path: str = ".",
+        icp_jtbd_content: str | None = None,
     ) -> dict[str, Any]:
         """Check whether icp_jtbd.md is complete enough to proceed to /prd.
 
-        v6.0 (UC-D001 AC-10). Reads doc/discovery/<feature_name>/icp_jtbd.md
-        and verifies all required sections are filled in. Returns READY_FOR_PRD
-        or DISCOVERY_INCOMPLETE with a specific list of missing items.
+        **v6.0.1 — content-passing API**
 
-        Called by:
-          - The /discovery skill at the end of phase 3.
-          - The /pre-prd-discovery-check hook before /prd invocation.
-          - Directly as /discovery --status.
+        The caller is expected to read
+        ``doc/discovery/<feature_name>/icp_jtbd.md`` locally and pass its
+        content via ``icp_jtbd_content``. When the file does not exist on
+        the client, pass ``None``.
+
+        Args:
+            feature_name: Slug-friendly feature identifier. Only used to
+                construct the diagnostic ``artifact_path`` in the response.
+            icp_jtbd_content: Current content of
+                ``doc/discovery/<feature_name>/icp_jtbd.md``, or ``None``
+                when the file does not exist locally.
 
         Returns:
             {
               "verdict": "READY_FOR_PRD" | "DISCOVERY_INCOMPLETE",
               "missing": ["icps_involucrados", "jtbds_emocionales", ...],
               "drift": { "section_present": bool, "resolved": bool },
-              "artifact_path": str,
+              "artifact_path": "doc/discovery/<feature>/icp_jtbd.md",
             }
         """
-        root = Path(project_path).resolve()
-        artifact = _icp_jtbd_path(root, feature_name)
+        relative_artifact = f"{DISCOVERY_DIR}/{feature_name}/icp_jtbd.md"
 
-        if not artifact.exists():
+        if icp_jtbd_content is None or not icp_jtbd_content.strip():
             return {
                 "verdict": "DISCOVERY_INCOMPLETE",
                 "missing": ["artifact_not_found"],
                 "drift": {"section_present": False, "resolved": False},
-                "artifact_path": str(artifact.relative_to(root))
-                if artifact.is_relative_to(root)
-                else str(artifact),
+                "artifact_path": relative_artifact,
                 "error": (
-                    f"doc/discovery/{feature_name}/icp_jtbd.md does not exist. "
-                    f"Run start_discovery({feature_name!r}) first."
+                    f"doc/discovery/{feature_name}/icp_jtbd.md was not provided. "
+                    f"Run start_discovery({feature_name!r}) first and write the "
+                    "returned skeleton_content to the artifact path."
                 ),
             }
 
-        content = artifact.read_text(encoding="utf-8")
-        result = _validate_icp_jtbd(content)
-        result["artifact_path"] = (
-            str(artifact.relative_to(root))
-            if artifact.is_relative_to(root)
-            else str(artifact)
-        )
+        result = _validate_icp_jtbd(icp_jtbd_content)
+        result["artifact_path"] = relative_artifact
         return result
 
     @mcp.tool
-    def detect_v60_migration_case(project_path: str = ".") -> dict[str, Any]:
+    def detect_v60_migration_case(
+        app_prd_content: str | None = None,
+        app_spec_content: str | None = None,
+        app_market_content: str | None = None,
+        settings_local_json_content: str | None = None,
+        active_uc_present: bool = False,
+        pending_critical_feedback: list[str] | None = None,
+        has_discovery_dir: bool = False,
+        has_app_dir: bool = False,
+    ) -> dict[str, Any]:
         """Classify a project into one of 8 v6.0 migration cases.
 
-        v6.0 (UC-D005 §4.8). Analogous to detect_v529_migration_case but
-        for the v5.x → v6.0 transition. Returns a plan with steps the
-        caller (CLI tool or skill) can execute or surface to the user.
+        **v6.0.1 — content-passing API**
 
-        Cases priority-ordered: case 3 (active UC) and case 4 (pending
-        feedback) check first since they can co-exist with any backend
-        state and demand deferral.
+        The caller is expected to read the relevant client filesystem
+        signals and pass them as parameters. The recommended bundle:
+
+        * ``doc/app/app_prd.md`` → ``app_prd_content``
+        * ``doc/app/app_spec.md`` → ``app_spec_content``
+        * ``doc/app/app_market.md`` → ``app_market_content``
+        * ``.claude/settings.local.json`` → ``settings_local_json_content``
+        * Existence of ``.quality/active_uc.json`` → ``active_uc_present``
+        * List of unresolved critical/major feedback files in
+          ``.quality/evidence/feedback/`` → ``pending_critical_feedback``
+        * Existence of ``doc/discovery/`` → ``has_discovery_dir``
+        * Existence of ``doc/app/`` → ``has_app_dir``
 
         Returns:
             {
@@ -658,5 +795,13 @@ def register_product_discovery_tools(mcp: FastMCP, engine_path: Path) -> None:
               "notes": [...],
             }
         """
-        root = Path(project_path).resolve()
-        return _detect_v60_case(root)
+        return _detect_v60_case_from_content(
+            app_prd_content=app_prd_content,
+            app_spec_content=app_spec_content,
+            app_market_content=app_market_content,
+            settings_local_json_content=settings_local_json_content,
+            active_uc_present=active_uc_present,
+            pending_critical_feedback=pending_critical_feedback or [],
+            has_discovery_dir=has_discovery_dir,
+            has_app_dir=has_app_dir,
+        )

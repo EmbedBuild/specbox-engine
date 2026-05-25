@@ -27,19 +27,19 @@ def register_benchmark_tools(mcp: FastMCP, engine_path: Path, state_path: Path) 
         return "unknown"
 
     @mcp.tool()
-    def generate_benchmark_snapshot(output_path: str = "") -> dict:
+    def generate_benchmark_snapshot() -> dict:
         """Generate a public benchmark snapshot from Sala de Máquinas state data.
 
-        Aggregates metrics across all projects: total UCs, coverage average,
-        healing resolution rate, acceptance rate, time per UC, and delta count.
-        Project names are anonymized. Outputs Markdown to docs/benchmarks/.
+        **v6.0.1 — content-passing API**
 
-        Args:
-            output_path: Optional custom output path. Defaults to
-                         docs/benchmarks/snapshot_{date}.md under engine_path.
+        Aggregates metrics across all projects (host-side state, not client
+        filesystem). Project names are anonymized. The tool returns the
+        Markdown content; the client is responsible for writing it (typically
+        under ``docs/benchmarks/snapshot_<YYYY-MM-DD>.md``).
 
         Returns:
-            Dict with metrics summary and the path where the file was written.
+            ``{"status": "ok" | "no_data", "markdown_content": str,
+            "suggested_filename": "snapshot_<date>.md", ...metrics}``.
         """
         from ..benchmark_generator import generate_benchmark, render_benchmark_markdown
 
@@ -54,22 +54,13 @@ def register_benchmark_tools(mcp: FastMCP, engine_path: Path, state_path: Path) 
             }
 
         markdown = render_benchmark_markdown(metrics)
-
-        # Determine output path (AC-62)
-        if output_path:
-            out = Path(output_path)
-        else:
-            date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-            benchmarks_dir = engine_path / "docs" / "benchmarks"
-            benchmarks_dir.mkdir(parents=True, exist_ok=True)
-            out = benchmarks_dir / f"snapshot_{date_str}.md"
-
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(markdown, encoding="utf-8")
+        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         return {
             "status": "ok",
-            "file": str(out),
+            "markdown_content": markdown,
+            "suggested_filename": f"snapshot_{date_str}.md",
+            "suggested_relpath": f"docs/benchmarks/snapshot_{date_str}.md",
             "total_projects": metrics["total_projects"],
             "total_ucs": metrics["total_ucs"],
             "coverage_avg": metrics["coverage_avg"],

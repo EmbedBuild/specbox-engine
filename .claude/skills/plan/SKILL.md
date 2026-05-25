@@ -27,13 +27,21 @@ Genera un plan de implementacion detallado con analisis de componentes UI.
 
 ---
 
-## Paso 0.0 — Leer documentos canónicos (v5.29.0)
+## Paso 0.0 — Leer documentos canónicos (v5.29.0 + v6.0.1 content-passing)
 
-**ANTES de cualquier otro paso**, llama a la tool MCP:
+**ANTES de cualquier otro paso**:
+
+1. Usa `Read` localmente sobre `doc/app/app_prd.md` y `doc/app/app_spec.md` (si existen).
+2. Llama a la tool MCP con el contenido:
 
 ```
-get_inheritable_values_tool(project_path=".")
+get_inheritable_values_tool(
+  app_prd_content=<contenido o null>,
+  app_spec_content=<contenido o null>,
+)
 ```
+
+> **Cambio v6.0.1**: las tools del módulo `app_docs` ya no aceptan `project_path`. El cliente lee los archivos locales y pasa el contenido como string. Lo mismo aplica a `read_app_docs_tool`.
 
 Devuelve un dict que indica qué decisiones de proyecto ya están definidas y son heredables, evitando repreguntar:
 

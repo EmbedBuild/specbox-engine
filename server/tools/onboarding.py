@@ -501,85 +501,164 @@ def register_onboarding_tools(
         }
 
     @mcp.tool
-    def detect_project_stack(project_path: str) -> dict:
-        """Detect the technology stack and infrastructure of a project without modifying anything.
-        Args:
-            project_path: Absolute path to the project root directory.
-        Returns stack name, infra services found, marker files detected, and architecture pattern.
-        Use when you need to understand a project's tech stack before onboarding or planning."""
-        pp = Path(project_path)
-        if not pp.exists():
-            return {"error": f"Path does not exist: {project_path}"}
-        if not pp.is_dir():
-            return {"error": f"Path is not a directory: {project_path}"}
+    def detect_project_stack(
+        project_name: str = "",
+        marker_files_present: list[str] | None = None,
+        dep_files: dict[str, str] | None = None,
+        feature_dirs_present: list[str] | None = None,
+    ) -> dict:
+        """Detect the technology stack and infrastructure of a project.
 
-        stack_info = _detect_stack(pp)
-        infra = _detect_infra(pp)
+        **v6.0.1 — content-passing API**
+
+        Does no filesystem I/O. The caller (skill or hook) is expected to
+        scan the local repo and pass:
+
+        * ``marker_files_present`` — sorted list of marker files that exist
+          at the repo root (subset of ``["pubspec.yaml", "package.json",
+          "go.mod", "pyproject.toml", "requirements.txt", ".clasp.json"]``).
+        * ``dep_files`` — mapping of dependency-file name (e.g. ``"package.json"``,
+          ``"pubspec.yaml"``) to the file's UTF-8 content. Used to detect
+          infra services. Pass ``{}`` if none exist.
+        * ``feature_dirs_present`` — sorted list of architectural marker
+          directories that exist (subset of ``["lib/features", "lib/screens",
+          "src/app", "src/pages", "src/components", "src", "app", "cmd",
+          "internal"]``). Used to determine architecture pattern.
+        * ``project_name`` — optional; if omitted, returned ``project_name``
+          is empty.
+
+        Returns stack name, infra services found, marker files detected, and
+        architecture pattern.
+        """
+        markers = list(marker_files_present or [])
+        deps = dict(dep_files or {})
+        feature_dirs = set(feature_dirs_present or [])
+
+        files_found: list[str] = []
+        detected_stack = ""
+        for marker, stack in _STACK_MARKERS.items():
+            if marker in markers:
+                files_found.append(marker)
+                if not detected_stack:
+                    detected_stack = stack
+
+        pattern = "unknown"
+        if detected_stack == "flutter":
+            if "lib/features" in feature_dirs:
+                pattern = "feature-first"
+            elif "lib/screens" in feature_dirs:
+                pattern = "screen-based"
+            else:
+                pattern = "default-flutter"
+        elif detected_stack == "react":
+            if "src/app" in feature_dirs:
+                pattern = "next-app-router"
+            elif "src/pages" in feature_dirs:
+                pattern = "pages-router"
+            elif "src/components" in feature_dirs:
+                pattern = "component-based"
+            else:
+                pattern = "default-react"
+        elif detected_stack == "python":
+            if "src" in feature_dirs:
+                pattern = "src-layout"
+            elif "app" in feature_dirs:
+                pattern = "app-layout"
+            else:
+                pattern = "flat-layout"
+        elif detected_stack == "go":
+            if "cmd" in feature_dirs and "internal" in feature_dirs:
+                pattern = "clean-architecture"
+            elif "cmd" in feature_dirs:
+                pattern = "cmd-structure"
+            elif "internal" in feature_dirs:
+                pattern = "internal-structure"
+            else:
+                pattern = "flat-layout"
+        elif detected_stack == "google-apps-script":
+            pattern = "clasp-project"
+
+        infra: set[str] = set()
+        for _name, content in deps.items():
+            if not isinstance(content, str):
+                continue
+            haystack = content.lower()
+            for keyword, service in _INFRA_KEYWORDS.items():
+                if keyword in haystack:
+                    infra.add(service)
 
         return {
-            "project_path": project_path,
-            "project_name": pp.name,
-            "stack": stack_info["stack"],
-            "infra": infra,
-            "files_found": stack_info["files_found"],
-            "architecture_pattern": stack_info["architecture_pattern"],
+            "project_name": project_name,
+            "stack": detected_stack or "unknown",
+            "infra": sorted(infra),
+            "files_found": files_found,
+            "architecture_pattern": pattern,
         }
 
     @mcp.tool
-    def get_onboarding_status(project_path: str) -> dict:
+    def get_onboarding_status(
+        project_name: str,
+        artifact_presence: dict[str, bool] | None = None,
+    ) -> dict:
         """Check whether a project is already onboarded into the SpecBox Engine.
-        Args:
-            project_path: Absolute path to the project root directory.
-        Returns which onboarding artifacts exist and which are missing.
-        Use before running onboard_project to see what's already configured."""
-        pp = Path(project_path)
-        if not pp.exists():
-            return {"error": f"Path does not exist: {project_path}"}
 
-        checks = {
-            "CLAUDE.md": (pp / "CLAUDE.md").exists(),
-            ".claude/settings.json": (pp / ".claude" / "settings.json").exists(),
-            "team-config.json": (pp / "team-config.json").exists(),
-            ".quality/": (pp / ".quality").is_dir(),
-            ".quality/baselines/": (pp / ".quality" / "baselines").is_dir(),
-            ".quality/evidence/": (pp / ".quality" / "evidence").is_dir(),
-            ".quality/logs/": (pp / ".quality" / "logs").is_dir(),
-            ".quality/scripts/": (pp / ".quality" / "scripts").is_dir(),
-        }
+        **v6.0.1 — content-passing API**
 
-        present = [k for k, v in checks.items() if v]
-        missing = [k for k, v in checks.items() if not v]
+        Does no client filesystem I/O. The caller is expected to scan the
+        local repo and pass:
 
-        # Check both registries: engine (legacy) and state (new)
+        * ``project_name`` — the repo directory name (used to look up
+          registry membership).
+        * ``artifact_presence`` — mapping of each artifact to a bool. Keys
+          checked: ``"CLAUDE.md"``, ``".claude/settings.json"``,
+          ``"team-config.json"``, ``".quality/"``, ``".quality/baselines/"``,
+          ``".quality/evidence/"``, ``".quality/logs/"``, ``".quality/scripts/"``.
+          Missing keys default to ``False``.
+
+        Returns which onboarding artifacts exist and which are missing,
+        plus whether the project is registered in the engine's internal
+        state registry (which is on the MCP host, not the client).
+        """
+        checks_keys = (
+            "CLAUDE.md",
+            ".claude/settings.json",
+            "team-config.json",
+            ".quality/",
+            ".quality/baselines/",
+            ".quality/evidence/",
+            ".quality/logs/",
+            ".quality/scripts/",
+        )
+        presence = dict(artifact_presence or {})
+        present = [k for k in checks_keys if presence.get(k, False)]
+        missing = [k for k in checks_keys if not presence.get(k, False)]
+
+        # Registry lookups run on the MCP host — those paths are server-side.
         registered = False
-
-        # Legacy engine registry
         engine_registry_file = engine_path / ".quality" / "registry.json"
         if engine_registry_file.exists():
             try:
                 registry = json.loads(engine_registry_file.read_text(encoding="utf-8"))
                 registered = any(
-                    p.get("path") == project_path or p.get("name") == pp.name
+                    p.get("name") == project_name
                     for p in registry.get("projects", [])
                 )
             except (json.JSONDecodeError, OSError):
                 pass
 
-        # State registry (new)
         if not registered and state_path:
             state_registry_file = state_path / "registry.json"
             if state_registry_file.exists():
                 try:
                     registry = json.loads(state_registry_file.read_text(encoding="utf-8"))
-                    registered = pp.name in registry.get("projects", {})
+                    registered = project_name in registry.get("projects", {})
                 except (json.JSONDecodeError, OSError):
                     pass
 
         fully_onboarded = len(missing) == 0 and registered
 
         return {
-            "project_path": project_path,
-            "project_name": pp.name,
+            "project_name": project_name,
             "fully_onboarded": fully_onboarded,
             "registered_in_engine": registered,
             "present": present,
@@ -1267,81 +1346,79 @@ def register_onboarding_tools(
         }
 
     @mcp.tool
-    def get_visual_gap_report(project_path: str) -> dict:
+    def get_visual_gap_report(
+        settings_local_json_content: str | None = None,
+        artifact_presence: dict[str, bool] | None = None,
+        has_design_htmls: bool = False,
+        has_veg_base_files: bool = False,
+    ) -> dict:
         """Scan a project for missing visual identity artifacts and report gaps.
 
-        Args:
-            project_path: Absolute path to the project repository root.
+        **v6.0.1 — content-passing API**
 
-        Checks for:
-        - Brand Kit (doc/brand/brand_kit/SKILL.md, variables.css, tailwind.config.js, light.md, dark.md)
-        - Stitch config (stitch.projectId, stitch.designSystemAssetId in settings.local.json)
-        - VEG base (doc/veg/base/*.md)
-        - Prompt template (doc/design/stitch-prompt-template.md)
-        - Multi-form-factor config (stitch.multiFormFactor in settings.local.json)
+        Does no filesystem I/O. The caller (skill or hook) is expected to:
 
-        Returns a structured report with coverage percentage, missing artifacts,
-        and recommended actions. Projects not using Stitch at all get a clean skip.
+        * Read ``.claude/settings.local.json`` and pass its raw content via
+          ``settings_local_json_content`` (or ``None`` if missing).
+        * Build ``artifact_presence`` from ``Path.is_file()`` checks for:
+          ``"doc/brand/brand_kit/SKILL.md"``,
+          ``"doc/brand/brand_kit/variables.css"``,
+          ``"doc/brand/brand_kit/tailwind.config.js"``,
+          ``"doc/brand/brand_kit/light.md"``,
+          ``"doc/brand/brand_kit/dark.md"``,
+          ``"doc/design/stitch-prompt-template.md"``.
+        * Pass ``has_design_htmls=True`` if ``doc/design/**/*.html`` matches
+          anything, ``has_veg_base_files=True`` if ``doc/veg/base/**/*.md``
+          matches anything.
 
-        Use after upgrade_project to detect which projects need /visual-setup,
-        or before /plan to verify visual identity is configured."""
-        import json as json_mod
-        from pathlib import Path as P
-
-        repo = P(project_path)
-        if not repo.is_dir():
-            return {"error": f"Directory not found: {project_path}"}
-
-        # --- Detect if project uses Stitch at all ---
-        settings_path = repo / ".claude" / "settings.local.json"
+        Returns a structured report with coverage percentage, missing
+        artifacts, and recommended actions. Projects not using Stitch at all
+        get a clean ``status="not_applicable"``.
+        """
         settings: dict = {}
-        if settings_path.exists():
+        if settings_local_json_content and settings_local_json_content.strip():
             try:
-                settings = json_mod.loads(settings_path.read_text())
-            except Exception:
-                pass
+                settings = json.loads(settings_local_json_content)
+            except json.JSONDecodeError:
+                settings = {}
 
-        stitch_cfg = settings.get("stitch", {})
+        stitch_cfg = settings.get("stitch") or {}
         has_any_stitch = bool(stitch_cfg.get("projectId"))
+        uses_stitch = has_any_stitch or bool(has_design_htmls)
 
-        # Check for any design HTML files (even without settings)
-        design_dir = repo / "doc" / "design"
-        has_design_htmls = False
-        if design_dir.is_dir():
-            has_design_htmls = any(design_dir.rglob("*.html"))
+        presence = dict(artifact_presence or {})
 
-        uses_stitch = has_any_stitch or has_design_htmls
+        def _is(path_key: str) -> bool:
+            return bool(presence.get(path_key, False))
 
-        # --- Check each artifact ---
-        brand_kit_dir = repo / "doc" / "brand" / "brand_kit"
         artifacts = {
             "brand_kit_skill": {
                 "path": "doc/brand/brand_kit/SKILL.md",
-                "exists": (brand_kit_dir / "SKILL.md").is_file(),
+                "exists": _is("doc/brand/brand_kit/SKILL.md"),
                 "category": "brand_kit",
                 "description": "Brand summary for sub-agents (~600 tokens)",
             },
             "brand_kit_variables": {
                 "path": "doc/brand/brand_kit/variables.css",
-                "exists": (brand_kit_dir / "variables.css").is_file(),
+                "exists": _is("doc/brand/brand_kit/variables.css"),
                 "category": "brand_kit",
                 "description": "CSS custom properties (light + dark tokens)",
             },
             "brand_kit_tailwind": {
                 "path": "doc/brand/brand_kit/tailwind.config.js",
-                "exists": (brand_kit_dir / "tailwind.config.js").is_file(),
+                "exists": _is("doc/brand/brand_kit/tailwind.config.js"),
                 "category": "brand_kit",
                 "description": "Tailwind config using CSS variables",
             },
             "brand_kit_light": {
                 "path": "doc/brand/brand_kit/light.md",
-                "exists": (brand_kit_dir / "light.md").is_file(),
+                "exists": _is("doc/brand/brand_kit/light.md"),
                 "category": "brand_kit",
                 "description": "Light theme specifications",
             },
             "brand_kit_dark": {
                 "path": "doc/brand/brand_kit/dark.md",
-                "exists": (brand_kit_dir / "dark.md").is_file(),
+                "exists": _is("doc/brand/brand_kit/dark.md"),
                 "category": "brand_kit",
                 "description": "Dark theme specifications",
             },
@@ -1359,15 +1436,13 @@ def register_onboarding_tools(
             },
             "veg_base": {
                 "path": "doc/veg/base/*.md",
-                "exists": any((repo / "doc" / "veg" / "base").rglob("*.md"))
-                if (repo / "doc" / "veg" / "base").is_dir()
-                else False,
+                "exists": bool(has_veg_base_files),
                 "category": "veg",
                 "description": "VEG base with visual directives for all features",
             },
             "prompt_template": {
                 "path": "doc/design/stitch-prompt-template.md",
-                "exists": (repo / "doc" / "design" / "stitch-prompt-template.md").is_file(),
+                "exists": _is("doc/design/stitch-prompt-template.md"),
                 "category": "prompt",
                 "description": "Reusable prompt structure for Stitch generation",
             },
@@ -1443,7 +1518,6 @@ def register_onboarding_tools(
         summary_lines.append(f"Action: {action}")
 
         return {
-            "project_path": project_path,
             "uses_stitch": uses_stitch,
             "status": status,
             "coverage": {

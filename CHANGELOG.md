@@ -2,6 +2,72 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.0.1] - 2026-05-25 — "MCP Path Contract"
+
+**Hotfix arquitectural.** v6.0.0 introdujo `/discovery` y el registro multi-doc canónico, pero la prueba con MCP remoto (`SPECBOX_ENGINE_MCP_URL=...`) reveló un bug arquitectural latente: **17 tools cat A en `server/tools/`** resolvían `Path(project_path).resolve()` contra el filesystem del proceso MCP server, no del cliente. En MCP remoto las tools leían/escribían el VPS en vez del repo del usuario, devolviendo datos falsos sin error visible.
+
+v6.0.1 migra las 17 tools a un patrón **content-passing universal**: el cliente lee los archivos localmente, pasa el contenido como string, y escribe cualquier artefacto que la tool devuelva. Las tools quedan filesystem-agnósticas — funcionan idéntico en stdio (local), HTTP/SSE remoto (VPS, claude.ai web) y futuros entornos multi-tenant.
+
+### Added
+
+- **Content-passing API en 17 tools cat A** (`server/tools/`):
+  - `discovery.py`: `start_discovery(feature_name, app_market_content, existing_artifact_content, mode)`, `validate_discovery_completeness(feature_name, icp_jtbd_content)`, `detect_v60_migration_case(app_prd_content, app_spec_content, app_market_content, settings_local_json_content, active_uc_present, pending_critical_feedback, has_discovery_dir, has_app_dir)`.
+  - `app_docs.py`: `read_app_docs_tool(app_prd_content, app_spec_content)`, `get_inheritable_values_tool(app_prd_content, app_spec_content)`.
+  - `onboarding.py`: `detect_project_stack(project_name, marker_files_present, dep_files, feature_dirs_present)`, `get_onboarding_status(project_name, artifact_presence)`, `get_visual_gap_report(settings_local_json_content, artifact_presence, has_design_htmls, has_veg_base_files)`.
+  - `acceptance.py`: `run_acceptance_check(prd_content, item_id, branch, code_index)`, `get_acceptance_report(uc_id, report_json_content, report_md_content)`, `get_e2e_gap_report(prd_content, project_name, stack, evidence_index, feature_files, acceptance_check_ucs, code_index)`.
+  - `audit.py`: `check_audit_tools_status(stack)`, **nueva** `submit_quality_audit(project, report)`; `run_quality_audit` queda como shim deprecado.
+  - `hints.py`: `get_skill_hint(skill_name, current_counter, completed_uc_count)`, `record_skill_hint(skill_name, counters)` (devuelve `updated_counters` para que el cliente escriba).
+  - `skill_registry.py`: `list_skills_v2(project_local_manifests)`, `discover_skills(stack, keywords, project_local_manifests)`, `validate_skill_manifest(manifest_yaml_content)`.
+  - `telemetry.py`: `get_context_budget(file_inventory, context_window_tokens)` — calcula tokens sobre byte counts proveídos por el cliente; no invoca scripts shell.
+  - `benchmark.py`: `generate_benchmark_snapshot()` devuelve `markdown_content` + `suggested_relpath`; el cliente escribe el archivo.
+  - `evidence_regen.py`: `regenerate_evidence(prd_content, uc_evidence_inputs, ucs, branch)` devuelve un plan + `report_content` para `doc/migrations/regenerate-evidence-<ts>.md`.
+
+- **`.claude/hooks/lib/mcp-client-io.mjs`** (UC-621): helper Node.js cliente con `resolveProjectRoot()`, `readContentBundle(paths)`, `writeContentBundle(bundle)`. Implementa path-traversal guard + rechazo de paths absolutos. Tests: 15 casos en `mcp-client-io.test.mjs` corriendo con `node:test`.
+
+- **`.quality/scripts/audit/README.md`** (UC-618): documenta el plan de mover los 8 analizadores SQuaRE al cliente (porting completo programado para v6.0.2).
+
+- **6 archivos de tests nuevos** (~120 casos): `test_discovery_content_api.py`, `test_app_docs_content_api.py`, `test_onboarding_content_api.py`, `test_acceptance_content_api.py`, `test_misc_cat_a_content_api.py`, `test_audit_content_api.py`.
+
+### Changed
+
+- **7 skills actualizadas** (UC-622) para reflejar el nuevo contrato: `/discovery`, `/prd`, `/plan`, `/visual-setup`, `/app-sync`, `/audit`, `/acceptance-check`. El patrón es leer ficheros locales con `Read`, pasar el contenido al MCP, escribir las respuestas con `Write`.
+
+- **`tests/test_acceptance_check.py`** re-targeted a `run_acceptance_check_impl` / `get_acceptance_report_impl` (los helpers Path-based in-process siguen vivos para callers internos como `evidence_regen.py`).
+
+- **Defensas v5.29 de FreeForm**: el hook `freeform-path-guard.mjs` y `FreeformPathError` siguen vivos. Eliminación formal planeada para v6.1.
+
+### Fixed (32 fallos pre-existentes en main, UC-624)
+
+- `tests/test_spec_mutations.py` y `tests/test_milestone_management.py`: `InMemoryBackend` mock recibió `archive_item` stub que faltaba tras la adición del método abstracto al `SpecBackend` ABC en v5.34. 26 errors → 26 PASS.
+- `tests/test_server.py`: 4 aserciones stale eliminadas (esperaban 21 tools / nombre `dev-engine-trello`); reemplazadas por checks dinámicos (≥100 tools, foundational set presente, nombre `specbox-engine`).
+- `tests/test_server_main.py`: aserción `test_main_invalid_transport_defaults` ajustada (el default real es `stdio`, no `streamable-http`).
+- `tests/test_quickstart.py::test_skill_frontmatter_has_required_fields`: `triggers:` añadido al frontmatter de `quickstart/SKILL.md`.
+
+### Breaking changes (intencional, sin compatibilidad pre-v6.0.1)
+
+Las 17 tools cat A cambiaron firma sin deprecation warnings. v6.0 llevaba <24h en main; la superficie de uso externo es mínima. Los únicos consumidores reales del engine — los skills — se migran en este mismo release.
+
+### Compatibility
+
+100% backwards-compatible para callers **in-process** (otros módulos Python del propio MCP):
+- Los helpers Path-based `read_app_docs(project_path)` / `get_inheritable_values(project_path)` siguen vivos en `server/tools/app_docs.py`.
+- `run_acceptance_check_impl` / `get_acceptance_report_impl` siguen siendo la API in-process en `server/tools/acceptance.py`.
+- Los Path-based `_detect_v60_case(project_path)` / `_app_market_is_pristine_or_missing(project_path)` siguen disponibles en `server/tools/discovery.py`.
+
+### Test results
+
+`pytest tests/ -q` → **1232 passed, 73 skipped, 0 failed, 0 errors**. Pre-v6.0.1: 1103 passed, 6 failed, 26 errors.
+
+### Decisión arquitectural
+
+`doc/decisions/mcp_path_contract.md` documenta las alternativas consideradas y por qué se eligió content-passing universal sobre absolute-path-only o convivencia híbrida.
+
+### Plan técnico
+
+`doc/plans/v6.0.1_mcp_path_contract_plan.md` — fases, dependencias entre UCs, métricas de éxito, rollback plan.
+
+---
+
 ## [6.0.0] - 2026-05-25 — "Discovery Foundations"
 
 **Release stable, no experimental.** Introduce el módulo permanente de **Product Discovery** integrado en el pipeline canónico + la **fundación arquitectural multi-doc** que sostiene la extensión a N documentos canónicos en futuras versiones (v6.x+).

@@ -168,6 +168,14 @@ class InMemoryBackend(SpecBackend):
                 return
         raise ValueError(f"AC {ac_id} not found")
 
+    async def archive_item(self, board_id, item_id, *, reason):
+        # Minimal stub — flag the item as archived; tests that exercise
+        # archival behaviour explicitly should override.
+        item = self.items.get(item_id)
+        if item is not None:
+            item.meta = {**(item.meta or {}), "archived": True, "archive_reason": reason}
+        return {"archive_location": "memory", "archived_at": "1970-01-01T00:00:00Z"}
+
     # Comments / attachments / modules / labels / states — minimal stubs
     async def add_comment(self, board_id, item_id, text):
         self.comments.append((item_id, text))

@@ -119,6 +119,12 @@ class InMemoryBackend(SpecBackend):
                 return
         raise ValueError()
 
+    async def archive_item(self, board_id, item_id, *, reason):
+        item = self.items.get(item_id)
+        if item is not None:
+            item.meta = {**(item.meta or {}), "archived": True, "archive_reason": reason}
+        return {"archive_location": "memory", "archived_at": "1970-01-01T00:00:00Z"}
+
     async def add_comment(self, board_id, item_id, text):
         self.comments.append((item_id, text))
         return CommentDTO(id=self._new_id("c"), text=text)

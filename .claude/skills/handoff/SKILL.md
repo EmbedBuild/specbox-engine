@@ -146,14 +146,7 @@ engram save "$TOPIC" "$PAYLOAD" 2>/dev/null || true
 
 Fire-and-forget: si Engram falla, el handoff local sigue siendo útil.
 
-### Paso 6 — Heartbeat con `last_operation=handoff`
-
-```bash
-node .claude/hooks/heartbeat-sender.mjs "$PROJECT" "handoff" &
-disown
-```
-
-### Paso 7 — Reportar al usuario
+### Paso 6 — Reportar al usuario
 
 Mensaje final al usuario:
 
@@ -162,7 +155,6 @@ Mensaje final al usuario:
 
 Archivo:    .quality/handoff.md
 Engram:     session:<project>:<branch>
-Heartbeat:  enviado (handoff)
 Stale en:   24h
 
 Podés:
@@ -180,7 +172,6 @@ La próxima sesión arrancará leyendo este archivo automáticamente.
 `/handoff` es seguro de ejecutar N veces. Cada llamada:
 - Sobrescribe `.quality/handoff.md`.
 - Crea una nueva observación Engram (no actualiza la anterior, no es problema).
-- Envía un heartbeat.
 
 Si el usuario lo llama dos veces seguidas sin cambios, el segundo handoff es
 prácticamente idéntico al primero salvo `generated_at` y `session_id`.

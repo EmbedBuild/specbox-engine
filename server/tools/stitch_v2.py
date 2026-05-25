@@ -494,9 +494,8 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 defaults if Stitch communicates a different ceiling.
             write_cache: When True (default) and ``project_root`` is
                 provided, persist a compact summary at
-                ``{project_root}/.quality/stitch_quota.json`` so
-                heartbeat-sender.mjs can pick it up without invoking
-                this tool every time.
+                ``{project_root}/.quality/stitch_quota.json`` for local
+                inspection (and for the quota guard hook).
             project_root: Required only when ``write_cache=True``.
 
         Returns:

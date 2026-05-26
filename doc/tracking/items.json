@@ -7831,5 +7831,889 @@
     },
     "created_at": "2026-05-26T17:26:04.059781+00:00",
     "updated_at": "2026-05-26T17:56:20.235281+00:00"
+  },
+  {
+    "id": "item-a09052d6",
+    "name": "US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth",
+    "description": "# US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth\n\n**Horas estimadas:** 0\n**Pantallas:** \n\nIntegra GitHub OAuth en la extensión SpecBox v6.3.0 vía Supabase Auth de cloud.specbox.build con loopback server efímero. Native Backend pasa a ser el default recomendado en el onboarding; FreeForm preserva first-class como escape visible (decisión canónica v5.29 condicionada a 3 garantías auditables). Flujo: notification al primer activate → Sign in with GitHub abre browser → cloud.specbox.build/auth/github intercambia code GitHub por mcp_token y registra developer/github_identity/mcp_token en Supabase → callback al loopback 127.0.0.1:random → token guardado en VSCode SecretStorage (Keychain/DPAPI/libsecret) → MCP server local autenticado via env var inyectada al spawn. Revoke desde cloud visible en ≤30s vía authenticate_and_authorize_cached TTL ya existente (v5.34.1). Tools nativas (whoami/reserve_uc/release_uc/register_native_branch) responden UNAUTHENTICATED graceful sin auth; FreeForm/Trello/Plane operan offline. 5 decisiones congeladas off-band (Engram architecture/vscode-github-oauth #5746): default Native+OAuth recomendado / MCP sin auth graceful / SecretStorage zero plaintext / notification one-shot al activate dismissable / Supabase Auth como IdP único (no vscode.authentication native, no GitHub OAuth App propia).",
+    "state": "user_stories",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-VSCODE-GITHUB-OAUTH",
+      "horas": 0,
+      "pantallas": ""
+    },
+    "created_at": "2026-05-26T22:18:25.006501+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "item-8dd067a6",
+    "name": "UC-644: Loopback OAuth server efímero en la extensión",
+    "description": "# UC-644: Loopback OAuth server efímero en la extensión\n\n**User Story:** US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth\n**Actor:** Engine (VSCode extension)\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [JR-2] El comando SpecBox: Sign in with GitHub levanta servidor HTTP en 127.0.0.1 con puerto random (puerto 0), escucha solo loopback (NUNCA 0.0.0.0), abre el browser via vscode.env.openExternal apuntando a cloud.specbox.build/auth/github con redirect_uri=http://127.0.0.1:<port>/callback y state=<random-32-byte-hex> en menos de 1s desde el click del CTA.\n- AC-02: [JR-2] El servidor loopback acepta exactamente UNA request a /callback con query params mcp_token y state; valida que state matchea el enviado (HTTP 400 si no matchea), guarda mcp_token en SecretStorage y cierra el server en el mismo tick. Cualquier segunda request al puerto recibe HTTP 410 Gone.\n- AC-03: [JE-1] Si callback no llega en 5min desde openExternal, el server se cierra automáticamente y la extensión muestra notification vscode.l10n.t('Sign in cancelled — no callback received. Try again from the SpecBox sidebar.') con variante ES en bundle.l10n.es.json. Test verificable con timer mock.\n- AC-04: [JR-2] Tras callback exitoso, la página HTML servida en el browser muestra título vscode.l10n.t('Signed in to SpecBox') + cuerpo vscode.l10n.t('You can close this tab and return to VSCode.') + style inline mínimo (sin assets externos para evitar leaks de telemetría) + auto-close del tab via window.close() con fallback de texto si el browser lo bloquea.\n- AC-05: [JE-3] El servidor loopback rechaza con HTTP 400 cualquier request que no venga del Origin: cloud.specbox.build o que use methods distintos de GET (defense in depth contra DNS rebinding). Test cubierto con request manual desde origen falso.\n\n## Contexto\nFoundational. La extensión levanta un HTTP server local efímero (127.0.0.1 puerto random asignado por SO via puerto 0) para recibir el callback OAuth, abre el browser hacia cloud.specbox.build/auth/github con CSRF state, espera callback single-use con timeout 5min, cierra el server tras callback. Defense in depth: rechaza requests no-loopback, methods distintos de GET, origins no-cloud.",
+    "state": "backlog",
+    "parent_id": "item-a09052d6",
+    "labels": [
+      "UC",
+      "Actor:Engine (VSCode extension)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-644",
+      "us_id": "US-VSCODE-GITHUB-OAUTH",
+      "horas": 0,
+      "pantallas": "",
+      "actor": "Engine (VSCode extension)"
+    },
+    "created_at": "2026-05-26T22:18:25.039418+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-1eb24183",
+    "name": "[AC-01] [JR-2] El comando SpecBox: Sign in with GitHub levanta servidor HTTP en 127.0.0.1 con puerto random (puerto 0), escucha solo loopback (NUNCA 0.0.0.0), abre el browser via vscode.env.openExternal apuntando a cloud.specbox.build/auth/github con redirect_uri=http://127.0.0.1:<port>/callback y state=<random-32-byte-hex> en menos de 1s desde el click del CTA.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-8dd067a6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.059075+00:00"
+  },
+  {
+    "id": "ac-3b5bb17e",
+    "name": "[AC-02] [JR-2] El servidor loopback acepta exactamente UNA request a /callback con query params mcp_token y state; valida que state matchea el enviado (HTTP 400 si no matchea), guarda mcp_token en SecretStorage y cierra el server en el mismo tick. Cualquier segunda request al puerto recibe HTTP 410 Gone.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-8dd067a6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.059089+00:00"
+  },
+  {
+    "id": "ac-1f3fed51",
+    "name": "[AC-03] [JE-1] Si callback no llega en 5min desde openExternal, el server se cierra automáticamente y la extensión muestra notification vscode.l10n.t('Sign in cancelled — no callback received. Try again from the SpecBox sidebar.') con variante ES en bundle.l10n.es.json. Test verificable con timer mock.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-8dd067a6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.059095+00:00"
+  },
+  {
+    "id": "ac-8531b2e6",
+    "name": "[AC-04] [JR-2] Tras callback exitoso, la página HTML servida en el browser muestra título vscode.l10n.t('Signed in to SpecBox') + cuerpo vscode.l10n.t('You can close this tab and return to VSCode.') + style inline mínimo (sin assets externos para evitar leaks de telemetría) + auto-close del tab via window.close() con fallback de texto si el browser lo bloquea.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-8dd067a6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.059100+00:00"
+  },
+  {
+    "id": "ac-ca9b1c83",
+    "name": "[AC-05] [JE-3] El servidor loopback rechaza con HTTP 400 cualquier request que no venga del Origin: cloud.specbox.build o que use methods distintos de GET (defense in depth contra DNS rebinding). Test cubierto con request manual desde origen falso.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-8dd067a6",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.059103+00:00"
+  },
+  {
+    "id": "item-8a883fcf",
+    "name": "Consumir endpoint self-service cloud.specbox.build/vscode/issue-token (cross-repo dependency)",
+    "description": "# UC-645: Endpoint cloud.specbox.build/auth/github — intercambio GitHub code → mcp_token\n\n**User Story:** US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth\n**Actor:** Engine (servicio cloud externo, repositorio specbox_cloud separado)\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [JR-2] GET /auth/github?redirect_uri=<URI>&state=<TOKEN> valida que redirect_uri matchea regex ^http://127\\.0\\.0\\.1:\\d+/callback$ (loopback puerto random) y rechaza con HTTP 400 + página HTML de error si no matchea (defense contra open redirect). Test: curl con redirect_uri=https://evil.com/cb retorna 400.\n- AC-02: [JR-2] El endpoint redirige a https://github.com/login/oauth/authorize con client_id=$SPECBOX_GH_OAUTH_APP_ID, scope=read:user user:email, state=<TOKEN-propagado>. El client_secret se lee de env var SPECBOX_GH_OAUTH_APP_SECRET (Supabase secret), NUNCA hardcoded ni en logs.\n- AC-03: [JR-6] Tras recibir el code de GitHub, el endpoint llama Supabase.auth.signInWithIdToken({provider: 'github', token: <github_id_token>}) y hace upsert idempotente transaccional (BEGIN/COMMIT) en developers(github_id, email, display_name, last_login_at), github_identities(developer_id, github_handle, github_id, granted_scopes), mcp_tokens(developer_id, token_hash, created_at, last_used_at=NULL, revoked_at=NULL). Si cualquiera falla, ROLLBACK + HTTP 500 + página de error sin filtrar detalle interno.\n- AC-04: [JE-3] El mcp_token retornado es random hex 32 bytes (64 chars) generado por crypto.randomBytes(32).toString('hex'). Se guarda en BD como sha256(token) (token_hash), NUNCA en plaintext. El plaintext solo viaja en el redirect 302 a redirect_uri?mcp_token=<plaintext> y se elimina del log de acceso del proxy (Cloudflare/Vercel) via allowlist explícita.\n- AC-05: [JR-4] Si un mismo developer_id ya tiene mcp_tokens activos no-revoked, el endpoint NO los invalida — añade uno nuevo. Multi-device support implícito. Solo el revoke explícito desde panel cloud cierra tokens. Test: flow OAuth ejecutado 2x consecutivos desde el mismo GitHub account; SELECT count(*) FROM mcp_tokens WHERE developer_id=X AND revoked_at IS NULL retorna 2.\n- AC-06: [JR-4] Telemetría: cada sign-in exitoso escribe entry en tabla auth_log con developer_id, event='sign_in', source='vscode_ext', ext_version, github_handle, ip_hash(sha256), timestamp. Sin PII directa (email no se loguea aquí, solo en developers). Sirve a NSM de growth (app_market.md §5).\n\n## Contexto\nEndpoint Supabase Edge Function (Deno/TypeScript) en /auth/github. Recibe redirect_uri + state del loopback, redirige a GitHub OAuth, intercambia el code por GitHub access token, llama Supabase.auth.signInWithIdToken({provider: 'github'}), upsert idempotente en developers/github_identities/mcp_tokens (transaccional), redirige al loopback con mcp_token + state. mcp_token = 64-hex random; en BD se guarda sha256(token), nunca plaintext. Telemetría en auth_log para NSM growth.",
+    "state": "backlog",
+    "parent_id": "item-a09052d6",
+    "labels": [
+      "UC",
+      "Actor:Engine (servicio cloud externo, repositorio specbox_cloud separado)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-645",
+      "us_id": "US-VSCODE-GITHUB-OAUTH",
+      "horas": 0,
+      "pantallas": "",
+      "actor": "Engine (VSCode extension, consumer)",
+      "context": "Cambio mayor de modelo descubierto al inspeccionar specbox_cloud: ya hay GitHub OAuth en producción usando Supabase Auth nativo (no un endpoint custom /auth/github). El JWT viene con user_metadata.user_name=github_login. apps/api/plugins/auth.ts decora request.user desde el JWT con cache 30s — mismo TTL que el discovery documentaba. POST /api/mcp-tokens existe pero requiere requireSuperAdmin. La pieza nueva es: (1) endpoint self-service POST /api/mcp-tokens/issue-for-self (sin requireSuperAdmin) en repo specbox_cloud, (2) página apps/web 'Generate VSCode token'. Ambas crear en US paralela US-AUTH-VSCODE-SELF-SERVICE-TOKEN del repo cloud. Este UC del engine cubre el lado consumidor: validación shape respuesta, manejo errores, fallback copy-paste manual."
+    },
+    "created_at": "2026-05-26T22:18:25.078934+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-26T22:29:11.171939+00:00"
+  },
+  {
+    "id": "ac-97113bfa",
+    "name": "[AC-01] [JR-2] La URL que la extensión abre via vscode.env.openExternal es exactamente https://cloud.specbox.build/vscode/issue-token?return_to=<URI-encoded-loopback>&state=<csrf-token> (NO /auth/github ni endpoints OAuth directos — el OAuth real vive dentro del web flow de specbox_cloud). Test: spy sobre openExternal en VSCode test runner, assert el URL exacto con regex ^https://cloud\\.specbox\\.build/vscode/issue-token\\?return_to=http%3A%2F%2F127\\.0\\.0\\.1%3A\\d+%2Fcallback&state=[a-f0-9]{64}$.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-8a883fcf",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.091019+00:00",
+    "updated_at": "2026-05-26T22:29:29.739784+00:00"
+  },
+  {
+    "id": "ac-3593e27d",
+    "name": "[AC-02] [JR-2] El callback al loopback que la página cloud.specbox.build/vscode/issue-token envía tiene la forma GET /callback?mcp_token=<64-hex>&state=<csrf>. La extensión valida state matchea el enviado en AC-01 y que mcp_token matchea regex ^[a-f0-9]{64}$ (formato fijado por lib/tokens.ts del cloud — sha256_hex). Si no matchea, rechaza con HTTP 400 desde el loopback sin guardar nada.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-8a883fcf",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.091025+00:00",
+    "updated_at": "2026-05-26T22:29:29.762585+00:00"
+  },
+  {
+    "id": "ac-9a93ce84",
+    "name": "[AC-03] [JE-3] La extensión NO toca directamente POST /api/mcp-tokens/issue-for-self ni gestiona JWT — esa interacción vive completamente dentro del browser flow de specbox_cloud. El acoplamiento de specbox-engine con specbox_cloud queda restringido a 2 puntos: URL del web flow (AC-01) y shape del callback (AC-02). Test: grep en vscode-extension/src/ no encuentra referencias a 'Authorization: Bearer' ni a 'supabase.auth.' ni a '/api/mcp-tokens' directas — el contrato es solo URL params del browser flow.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-8a883fcf",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.091029+00:00",
+    "updated_at": "2026-05-26T22:29:29.777717+00:00"
+  },
+  {
+    "id": "ac-bc56f249",
+    "name": "[AC-04] [JE-1] Si el browser flow del cloud falla y retorna ?error=<code>&error_description=<msg> al loopback (en vez de mcp_token), la extensión muestra notification vscode.l10n.t('Sign in failed: {0}', error_description) con CTA 'Try again' (re-dispara UC-644 con state nuevo) y CTA 'Continue in local mode (FreeForm)' (cae a UC-647 path FreeForm). Cero stack traces visibles al usuario.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-8a883fcf",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.091032+00:00",
+    "updated_at": "2026-05-26T22:29:29.790259+00:00"
+  },
+  {
+    "id": "ac-f8b8982d",
+    "name": "[AC-05] [JR-4] El mcp_token recibido se valida llamando whoami() al MCP server local con el token inyectado vía env. Si whoami() retorna OK (válido + developer activo en Supabase), la extensión persiste en SecretStorage (UC-646). Si whoami() retorna UNAUTHENTICATED u otro error, la extensión muestra notification con CTA 'Sign in again' sin guardar nada — el flow se considera roto del lado del cloud y se reporta como bug si es repetible. Test E2E cubierto en UC-650.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-8a883fcf",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.091035+00:00",
+    "updated_at": "2026-05-26T22:29:29.801803+00:00"
+  },
+  {
+    "id": "ac-3da22d11",
+    "name": "[AC-06] [JR-4] Documentación: vscode-extension/README.md sección 'How sign-in works under the hood' referencia explícitamente la US paralela del cloud (EmbedBuild/specbox_cloud US-AUTH-VSCODE-SELF-SERVICE-TOKEN) y link a las dos páginas del cloud que la extensión consume (/vscode/issue-token). Mantiene a los futuros maintainers conscientes del acoplamiento cross-repo. Test: grep -c 'vscode/issue-token' vscode-extension/README.md ≥ 1.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-8a883fcf",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.091037+00:00",
+    "updated_at": "2026-05-26T22:29:29.812248+00:00"
+  },
+  {
+    "id": "item-fe0eb7f5",
+    "name": "UC-646: VSCode SecretStorage + handshake con MCP server local",
+    "description": "# UC-646: VSCode SecretStorage + handshake con MCP server local\n\n**User Story:** US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth\n**Actor:** Engine (VSCode extension + MCP server local)\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [JR-1] Tras callback OAuth exitoso, el mcp_token queda persistido en context.secrets.store('specbox.mcpToken', token). Verificable en macOS con security find-generic-password -s 'vscodeapplicationextension'; en Linux con secret-tool search application vscode; en Windows con la API de Credential Manager. Test E2E desde VSCode test runner que llama await context.secrets.get('specbox.mcpToken') y compara con el token devuelto por mock OAuth.\n- AC-02: [JE-1] NINGÚN archivo en el workspace (.vscode/settings.json, .claude/settings.local.json, .claude/mcp.json, ni cualquier otro) contiene el mcp_token en plaintext después del sign-in. Verificable con grep -r '<token>' .vscode/ .claude/ retornando 0 matches. La config MCP que la extensión escribe usa placeholder ${SPECBOX_NATIVE_MCP_TOKEN} resuelto via proceso wrapper que lee de SecretStorage al spawn.\n- AC-03: [JR-1] El MCP server local, al arrancar, lee SPECBOX_NATIVE_MCP_TOKEN de env, llama set_auth_token(api_key='', token=<env>, backend_type='native') automáticamente, y registra en .quality/logs/mcp-handshake.jsonl el evento {event: 'auto_authenticated', developer_handle: '...', timestamp: '...'} (sin token plaintext). Verificable con MCP test session que inicia con env set y llama whoami() retornando el developer correcto.\n- AC-04: [JE-3] Si el mcp_token es revocado en Supabase, la próxima llamada a cualquier tool nativa retorna UNAUTHENTICATED en ≤30s (cubierto por authenticate_and_authorize_cached TTL 30s ya existente en v5.34.1). Test: revocar mcp_tokens.revoked_at = now() en Supabase mientras sesión MCP está activa; siguiente whoami() post-30s retorna {error: 'UNAUTHENTICATED'}. La extensión detecta y muestra notification.\n- AC-05: [JE-1] El comando SpecBox: Sign out borra context.secrets.delete('specbox.mcpToken'), remueve la env var de la config MCP, mata el proceso MCP actual y lo respawn sin token. Tras sign-out, el sidebar muestra 'Not signed in (FreeForm mode)' y las tools nativas retornan UNAUTHENTICATED graceful. Verificable con e2e: sign-in → assert state='signed_in' → sign-out → assert state='signed_out' sin reiniciar VSCode.\n\n## Contexto\nTras callback exitoso, la extensión persiste el mcp_token con context.secrets.store('specbox.mcpToken', token) (Keychain/DPAPI/libsecret). Para que el MCP server local lo use, la extensión configura claude.mcpServers.specbox-engine.env con SPECBOX_NATIVE_MCP_TOKEN inyectada via un wrapper que lee de SecretStorage al spawn (no plaintext en settings.json). MCP arranca, llama set_auth_token automáticamente y registra en .quality/logs/mcp-handshake.jsonl sin token plaintext.",
+    "state": "backlog",
+    "parent_id": "item-a09052d6",
+    "labels": [
+      "UC",
+      "Actor:Engine (VSCode extension + MCP server local)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-646",
+      "us_id": "US-VSCODE-GITHUB-OAUTH",
+      "horas": 0,
+      "pantallas": "",
+      "actor": "Engine (VSCode extension + MCP server local)"
+    },
+    "created_at": "2026-05-26T22:18:25.104137+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-93828f48",
+    "name": "[AC-01] [JR-1] Tras callback OAuth exitoso, el mcp_token queda persistido en context.secrets.store('specbox.mcpToken', token). Verificable en macOS con security find-generic-password -s 'vscodeapplicationextension'; en Linux con secret-tool search application vscode; en Windows con la API de Credential Manager. Test E2E desde VSCode test runner que llama await context.secrets.get('specbox.mcpToken') y compara con el token devuelto por mock OAuth.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fe0eb7f5",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.114699+00:00"
+  },
+  {
+    "id": "ac-a8d1279e",
+    "name": "[AC-02] [JE-1] NINGÚN archivo en el workspace (.vscode/settings.json, .claude/settings.local.json, .claude/mcp.json, ni cualquier otro) contiene el mcp_token en plaintext después del sign-in. Verificable con grep -r '<token>' .vscode/ .claude/ retornando 0 matches. La config MCP que la extensión escribe usa placeholder ${SPECBOX_NATIVE_MCP_TOKEN} resuelto via proceso wrapper que lee de SecretStorage al spawn.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fe0eb7f5",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.114705+00:00"
+  },
+  {
+    "id": "ac-9bffed23",
+    "name": "[AC-03] [JR-1] El MCP server local, al arrancar, lee SPECBOX_NATIVE_MCP_TOKEN de env, llama set_auth_token(api_key='', token=<env>, backend_type='native') automáticamente, y registra en .quality/logs/mcp-handshake.jsonl el evento {event: 'auto_authenticated', developer_handle: '...', timestamp: '...'} (sin token plaintext). Verificable con MCP test session que inicia con env set y llama whoami() retornando el developer correcto.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fe0eb7f5",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.114709+00:00"
+  },
+  {
+    "id": "ac-655e4653",
+    "name": "[AC-04] [JE-3] Si el mcp_token es revocado en Supabase, la próxima llamada a cualquier tool nativa retorna UNAUTHENTICATED en ≤30s (cubierto por authenticate_and_authorize_cached TTL 30s ya existente en v5.34.1). Test: revocar mcp_tokens.revoked_at = now() en Supabase mientras sesión MCP está activa; siguiente whoami() post-30s retorna {error: 'UNAUTHENTICATED'}. La extensión detecta y muestra notification.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fe0eb7f5",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.114712+00:00"
+  },
+  {
+    "id": "ac-97bdf214",
+    "name": "[AC-05] [JE-1] El comando SpecBox: Sign out borra context.secrets.delete('specbox.mcpToken'), remueve la env var de la config MCP, mata el proceso MCP actual y lo respawn sin token. Tras sign-out, el sidebar muestra 'Not signed in (FreeForm mode)' y las tools nativas retornan UNAUTHENTICATED graceful. Verificable con e2e: sign-in → assert state='signed_in' → sign-out → assert state='signed_out' sin reiniciar VSCode.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-fe0eb7f5",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.114714+00:00"
+  },
+  {
+    "id": "item-06f1632d",
+    "name": "UC-647: Onboarding notification al primer activate (one-shot, dismissable, persistente)",
+    "description": "# UC-647: Onboarding notification al primer activate (one-shot, dismissable, persistente)\n\n**User Story:** US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth\n**Actor:** Engine (VSCode extension)\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [JR-1] Al primer activate() por workspace, si context.workspaceState.get('specbox.onboardingDecision') === undefined, la extensión llama vscode.window.showInformationMessage con EXACTAMENTE 2 botones: el primero vscode.l10n.t('Sign in with GitHub'), el segundo vscode.l10n.t('Continue in local mode (FreeForm)'). NO existe un tercer botón 'Dismiss'/'Later' — la X del corner cierra sin elegir y eso NO persiste decisión.\n- AC-02: [JE-2] Si el usuario hace click en 'Continue in local mode (FreeForm)', la extensión escribe context.workspaceState.update('specbox.onboardingDecision', {mode: 'freeform', timestamp: ISO, ext_version: '...'}). En el siguiente activate del mismo workspace, el notification NO se muestra. Verificable: reload workspace x3, el notification aparece solo en el primer activate.\n- AC-03: [JR-3] Al elegir 'Continue in local mode (FreeForm)', la extensión ejecuta equivalente a set_auth_token(backend_type='freeform', token='', root_path=<absolute>) resolviendo root_path via el helper existente .claude/hooks/lib/freeform-path.mjs (defensa v5.29). El sidebar muestra 'Local mode (FreeForm)' sin status bar de identidad.\n- AC-04: [JE-2] Aún en modo FreeForm, el comando SpecBox: Sign in with GitHub permanece disponible en el Command Palette (no oculto). Pero NO aparecen notifications proactivas como 'consider signing in' en ningún momento. Test: simular 10 días de uso en modo FreeForm con activates diarios → 0 notifications de auth aparecen.\n- AC-05: [JE-2] Si el usuario cierra la X del notification sin elegir (decisión ambígua), la extensión registra el evento en telemetría local .quality/logs/onboarding.jsonl como {event: 'dismissed_without_decision', workspace_hash: sha256, ext_version} pero NO cambia workspaceState. En el próximo activate vuelve a aparecer. Justificación: la ambigüedad del cierre lateral no se trata como opt-out — fuerza decisión explícita.\n\n## Contexto\nAl activate de la ext (workspaceContains: ENGINE_VERSION.yaml o .claude/settings.json), si workspaceState no tiene specbox.onboardingDecision, mostrar showInformationMessage con 2 botones EXACTOS: 'Sign in with GitHub' (primary) y 'Continue in local mode (FreeForm)' (secondary, equally visible — NO 'Dismiss'). Cualquier elección persiste; el cierre lateral NO persiste y vuelve a aparecer.",
+    "state": "backlog",
+    "parent_id": "item-a09052d6",
+    "labels": [
+      "UC",
+      "Actor:Engine (VSCode extension)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-647",
+      "us_id": "US-VSCODE-GITHUB-OAUTH",
+      "horas": 0,
+      "pantallas": "",
+      "actor": "Engine (VSCode extension)"
+    },
+    "created_at": "2026-05-26T22:18:25.125801+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-678866c9",
+    "name": "[AC-01] [JR-1] Al primer activate() por workspace, si context.workspaceState.get('specbox.onboardingDecision') === undefined, la extensión llama vscode.window.showInformationMessage con EXACTAMENTE 2 botones: el primero vscode.l10n.t('Sign in with GitHub'), el segundo vscode.l10n.t('Continue in local mode (FreeForm)'). NO existe un tercer botón 'Dismiss'/'Later' — la X del corner cierra sin elegir y eso NO persiste decisión.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-06f1632d",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.136004+00:00"
+  },
+  {
+    "id": "ac-10e63989",
+    "name": "[AC-02] [JE-2] Si el usuario hace click en 'Continue in local mode (FreeForm)', la extensión escribe context.workspaceState.update('specbox.onboardingDecision', {mode: 'freeform', timestamp: ISO, ext_version: '...'}). En el siguiente activate del mismo workspace, el notification NO se muestra. Verificable: reload workspace x3, el notification aparece solo en el primer activate.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-06f1632d",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.136010+00:00"
+  },
+  {
+    "id": "ac-e7f3d504",
+    "name": "[AC-03] [JR-3] Al elegir 'Continue in local mode (FreeForm)', la extensión ejecuta equivalente a set_auth_token(backend_type='freeform', token='', root_path=<absolute>) resolviendo root_path via el helper existente .claude/hooks/lib/freeform-path.mjs (defensa v5.29). El sidebar muestra 'Local mode (FreeForm)' sin status bar de identidad.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-06f1632d",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.136013+00:00"
+  },
+  {
+    "id": "ac-5da55645",
+    "name": "[AC-04] [JE-2] Aún en modo FreeForm, el comando SpecBox: Sign in with GitHub permanece disponible en el Command Palette (no oculto). Pero NO aparecen notifications proactivas como 'consider signing in' en ningún momento. Test: simular 10 días de uso en modo FreeForm con activates diarios → 0 notifications de auth aparecen.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-06f1632d",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.136016+00:00"
+  },
+  {
+    "id": "ac-eb13e11d",
+    "name": "[AC-05] [JE-2] Si el usuario cierra la X del notification sin elegir (decisión ambígua), la extensión registra el evento en telemetría local .quality/logs/onboarding.jsonl como {event: 'dismissed_without_decision', workspace_hash: sha256, ext_version} pero NO cambia workspaceState. En el próximo activate vuelve a aparecer. Justificación: la ambigüedad del cierre lateral no se trata como opt-out — fuerza decisión explícita.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-06f1632d",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.136019+00:00"
+  },
+  {
+    "id": "item-62ffdf9f",
+    "name": "UC-648: UNAUTHENTICATED graceful en las 4 tools nativas",
+    "description": "# UC-648: UNAUTHENTICATED graceful en las 4 tools nativas\n\n**User Story:** US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth\n**Actor:** Engine (MCP server, server/coordination/)\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [JR-5] Las 4 tools (whoami, reserve_uc, release_uc, register_native_branch) cuando se invocan sin SPECBOX_NATIVE_MCP_TOKEN set retornan payload JSON {status: 'unauthenticated', code: 'UNAUTHENTICATED', message: 'Sign in with GitHub via the VSCode extension or run /onboard.', docs_url: 'https://github.com/EmbedBuild/specbox-engine#native-backend'} con MCP isError=true. Test: crear MCP session sin auth token + invocar cada tool + assertar exact shape del payload + assertar que NO hay stack trace en el message.\n- AC-02: [JR-5] Si el token es válido pero mcp_tokens.revoked_at IS NOT NULL en Supabase, las mismas 4 tools retornan code='UNAUTHENTICATED' con message='Your session was revoked. Sign in again.' después de ≤30s (cubierto por TTL del cache). Test: revocar token en BD, esperar 31s, invocar tool, assertar message exacto.\n- AC-03: [JR-5] Las tools NO-nativas (onboard_project, add_uc, mark_ac, list_us, complete_uc, etc. — todas las que operan sobre FreeForm/Trello/Plane) NO requieren SPECBOX_NATIVE_MCP_TOKEN. Test: invocar 20 tools no-nativas en sesión sin auth, assert todas retornan isError=false.\n- AC-04: [JR-5] El comportamiento UNAUTHENTICATED graceful está cubierto por test tests/test_native_unauthenticated.py con al menos 8 casos: (a) cada una de las 4 tools sin token, (b) cada una de las 4 tools con token revocado post-30s. Suite verde en CI.\n- AC-05: [JE-1] El message en el payload UNAUTHENTICATED está localizado server-side (i18n del server, no de la ext) usando un mecanismo similar al vscode.l10n.t de la ext: el cliente MCP envía Accept-Language header en el handshake, el server responde con message en EN o ES según corresponda. Test: 2 sesiones MCP con Accept-Language: en y Accept-Language: es, mismo error, distinto message.\n\n## Contexto\nAuditar y unificar whoami / reserve_uc / release_uc / register_native_branch para que cuando no hay token o el token es inválido retornen payload uniforme {status: 'unauthenticated', code: 'UNAUTHENTICATED', message: '...', docs_url: '...'} sin levantar exception. Tools no-nativas (FreeForm/Trello/Plane) NO se ven afectadas — no usan authenticate_and_authorize_cached.",
+    "state": "backlog",
+    "parent_id": "item-a09052d6",
+    "labels": [
+      "UC",
+      "Actor:Engine (MCP server, server/coordination/)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-648",
+      "us_id": "US-VSCODE-GITHUB-OAUTH",
+      "horas": 0,
+      "pantallas": "",
+      "actor": "Engine (MCP server, server/coordination/)"
+    },
+    "created_at": "2026-05-26T22:18:25.147161+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-d1aa995a",
+    "name": "[AC-01] [JR-5] Las 4 tools (whoami, reserve_uc, release_uc, register_native_branch) cuando se invocan sin SPECBOX_NATIVE_MCP_TOKEN set retornan payload JSON {status: 'unauthenticated', code: 'UNAUTHENTICATED', message: 'Sign in with GitHub via the VSCode extension or run /onboard.', docs_url: 'https://github.com/EmbedBuild/specbox-engine#native-backend'} con MCP isError=true. Test: crear MCP session sin auth token + invocar cada tool + assertar exact shape del payload + assertar que NO hay stack trace en el message.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-62ffdf9f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.157468+00:00"
+  },
+  {
+    "id": "ac-af79e597",
+    "name": "[AC-02] [JR-5] Si el token es válido pero mcp_tokens.revoked_at IS NOT NULL en Supabase, las mismas 4 tools retornan code='UNAUTHENTICATED' con message='Your session was revoked. Sign in again.' después de ≤30s (cubierto por TTL del cache). Test: revocar token en BD, esperar 31s, invocar tool, assertar message exacto.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-62ffdf9f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.157472+00:00"
+  },
+  {
+    "id": "ac-8b4a4b23",
+    "name": "[AC-03] [JR-5] Las tools NO-nativas (onboard_project, add_uc, mark_ac, list_us, complete_uc, etc. — todas las que operan sobre FreeForm/Trello/Plane) NO requieren SPECBOX_NATIVE_MCP_TOKEN. Test: invocar 20 tools no-nativas en sesión sin auth, assert todas retornan isError=false.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-62ffdf9f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.157475+00:00"
+  },
+  {
+    "id": "ac-501a4016",
+    "name": "[AC-04] [JR-5] El comportamiento UNAUTHENTICATED graceful está cubierto por test tests/test_native_unauthenticated.py con al menos 8 casos: (a) cada una de las 4 tools sin token, (b) cada una de las 4 tools con token revocado post-30s. Suite verde en CI.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-62ffdf9f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.157478+00:00"
+  },
+  {
+    "id": "ac-1cc864e0",
+    "name": "[AC-05] [JE-1] El message en el payload UNAUTHENTICATED está localizado server-side (i18n del server, no de la ext) usando un mecanismo similar al vscode.l10n.t de la ext: el cliente MCP envía Accept-Language header en el handshake, el server responde con message en EN o ES según corresponda. Test: 2 sesiones MCP con Accept-Language: en y Accept-Language: es, mismo error, distinto message.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-62ffdf9f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.157481+00:00"
+  },
+  {
+    "id": "item-7dd4904f",
+    "name": "UC-649: UI en sidebar de la extensión — 'Signed in as @user' + comando 'Sign out'",
+    "description": "# UC-649: UI en sidebar de la extensión — 'Signed in as @user' + comando 'Sign out'\n\n**User Story:** US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth\n**Actor:** Engine (VSCode extension)\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [JR-6] La vista specbox.status añade primer elemento (top of tree) que muestra estado de identidad. Si hay mcp_token en SecretStorage Y whoami() retorna OK, label='Signed in as @<handle>'. Si no, label='Not signed in (FreeForm mode)'. Test: VSCode test runner activa la ext con/sin token mockeado y assert TreeItem.label correcto.\n- AC-02: [JR-6] Click en el TreeItem signed-in despliega quick pick con 2 acciones: vscode.l10n.t('Sign out') (ejecuta SpecBox: Sign out) y vscode.l10n.t('Open profile on cloud.specbox.build') (abre browser a cloud.specbox.build/me). Click en TreeItem not-signed-in despliega quick pick con 1 acción: vscode.l10n.t('Sign in with GitHub').\n- AC-03: [JE-3] La vista hace polling discreto cada 60s para detectar revoke: re-invoca whoami() desde el MCP local, y si pasa de OK a UNAUTHENTICATED, actualiza TreeItem y muestra vscode.l10n.t('Your session was revoked. Sign in again?') como notification con CTA. Test: mock whoami returning OK→UNAUTHENTICATED, assert que en ≤90s (60s polling + margen) la UI se actualiza.\n- AC-04: [JR-6] El status bar de VSCode (área inferior) muestra $(github-inverted) @<handle> cuando signed-in, sin nada cuando no. Click en el status bar = vscode.commands.executeCommand('specbox.showStatus') (ya existe). Test: render del status bar con/sin token, assert texto e icono.\n- AC-05: [JE-1] Tanto el sidebar como el status bar respetan locale: con code --locale=es, el label es 'Conectado como @<handle>' / 'Sin conexión (modo local FreeForm)'. Cubierto por package.nls.es.json extended (claves nuevas) + bundle.l10n.es.json extended. Smoke test workflow de UC-640 (matrix locale en/es) extendido para verificar también los nuevos labels.\n\n## Contexto\nVista specbox.status del sidebar (existente desde US-VSCODE-MARKETPLACE) añade en su cabecera (top of tree) el bloque de identidad: 'Signed in as @<github_handle>' con icono $(github-inverted) si hay token activo; 'Not signed in (FreeForm mode)' con icono $(person) si no. Click abre quick pick contextual. Status bar inferior muestra @handle si signed-in. Polling discreto 60s para detectar revoke.",
+    "state": "backlog",
+    "parent_id": "item-a09052d6",
+    "labels": [
+      "UC",
+      "Actor:Engine (VSCode extension)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-649",
+      "us_id": "US-VSCODE-GITHUB-OAUTH",
+      "horas": 0,
+      "pantallas": "",
+      "actor": "Engine (VSCode extension)"
+    },
+    "created_at": "2026-05-26T22:18:25.169096+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-7867c0fe",
+    "name": "[AC-01] [JR-6] La vista specbox.status añade primer elemento (top of tree) que muestra estado de identidad. Si hay mcp_token en SecretStorage Y whoami() retorna OK, label='Signed in as @<handle>'. Si no, label='Not signed in (FreeForm mode)'. Test: VSCode test runner activa la ext con/sin token mockeado y assert TreeItem.label correcto.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-7dd4904f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.179944+00:00"
+  },
+  {
+    "id": "ac-6ad1da68",
+    "name": "[AC-02] [JR-6] Click en el TreeItem signed-in despliega quick pick con 2 acciones: vscode.l10n.t('Sign out') (ejecuta SpecBox: Sign out) y vscode.l10n.t('Open profile on cloud.specbox.build') (abre browser a cloud.specbox.build/me). Click en TreeItem not-signed-in despliega quick pick con 1 acción: vscode.l10n.t('Sign in with GitHub').",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-7dd4904f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.179950+00:00"
+  },
+  {
+    "id": "ac-d88dbfea",
+    "name": "[AC-03] [JE-3] La vista hace polling discreto cada 60s para detectar revoke: re-invoca whoami() desde el MCP local, y si pasa de OK a UNAUTHENTICATED, actualiza TreeItem y muestra vscode.l10n.t('Your session was revoked. Sign in again?') como notification con CTA. Test: mock whoami returning OK→UNAUTHENTICATED, assert que en ≤90s (60s polling + margen) la UI se actualiza.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-7dd4904f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.179953+00:00"
+  },
+  {
+    "id": "ac-1026f068",
+    "name": "[AC-04] [JR-6] El status bar de VSCode (área inferior) muestra $(github-inverted) @<handle> cuando signed-in, sin nada cuando no. Click en el status bar = vscode.commands.executeCommand('specbox.showStatus') (ya existe). Test: render del status bar con/sin token, assert texto e icono.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-7dd4904f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.179956+00:00"
+  },
+  {
+    "id": "ac-2dce5dff",
+    "name": "[AC-05] [JE-1] Tanto el sidebar como el status bar respetan locale: con code --locale=es, el label es 'Conectado como @<handle>' / 'Sin conexión (modo local FreeForm)'. Cubierto por package.nls.es.json extended (claves nuevas) + bundle.l10n.es.json extended. Smoke test workflow de UC-640 (matrix locale en/es) extendido para verificar también los nuevos labels.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-7dd4904f",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.179959+00:00"
+  },
+  {
+    "id": "item-70842cb8",
+    "name": "UC-650: Tests de integración E2E del flow loopback OAuth (Supabase test mode)",
+    "description": "# UC-650: Tests de integración E2E del flow loopback OAuth (Supabase test mode)\n\n**User Story:** US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth\n**Actor:** Engine (CI + test infrastructure)\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [JR-4] Test tests/e2e/oauth-flow.spec.ts con Playwright: (a) lanza VSCode + ext, (b) ejecuta comando 'Sign in with GitHub', (c) intercepta openExternal y dispara Playwright contra cloud.specbox.build-test/auth/github, (d) Playwright completa el GitHub mock OAuth, (e) callback llega al loopback, (f) verifica context.secrets.get('specbox.mcpToken') retorna valor non-null. Test corre en <60s.\n- AC-02: [JR-4] Test tests/e2e/oauth-flow.spec.ts::reject_csrf verifica que un callback con state distinto al enviado falla con HTTP 400 desde el loopback y NO actualiza SecretStorage. Defense in depth contra CSRF.\n- AC-03: [JR-4] Test tests/e2e/oauth-flow.spec.ts::timeout_5min simula que el callback nunca llega (mock GitHub que no redirect), verifica que el server loopback se cierra en 5min + 30s margen, y la extension muestra notification de cancelación.\n- AC-04: [JE-3] Test tests/e2e/oauth-flow.spec.ts::revoke_visible_in_30s integration: completa OAuth → invoca whoami() exitoso → revoca mcp_tokens.revoked_at = now() en Supabase test DB → espera 35s → invoca whoami() nuevamente → assert que retorna UNAUTHENTICATED.\n- AC-05: [JR-5] Test tests/e2e/oauth-flow.spec.ts::freeform_unaffected verifica que en una sesión sin sign-in, todas las tools FreeForm/Trello/Plane funcionan normalmente (onboard_project, add_uc, mark_ac, list_us). Suite verde en CI.\n- AC-06: [JR-4] Workflow CI .github/workflows/oauth-e2e.yml corre en cada PR con touch en vscode-extension/src/{onboard,mcp,sidebar}.ts o server/coordination/identity.py. Job en ubuntu-latest, xvfb, Playwright pinned, Supabase test mode credentials desde GitHub Secrets (SPECBOX_TEST_SUPABASE_URL, SPECBOX_TEST_SUPABASE_ANON_KEY). Falla con issue auto-created si rompe (siguiendo patrón de UC-640).\n\n## Contexto\nSuite Playwright + @vscode/test-electron + Supabase test mode (proyecto specbox-cloud-test con su propia GitHub OAuth App de test) que cubre el flow completo: click 'Sign in' → mock GitHub OAuth → callback al loopback → SecretStorage → handshake MCP. Workflow CI nuevo oauth-e2e.yml en cada PR con touch en paths relevantes.",
+    "state": "backlog",
+    "parent_id": "item-a09052d6",
+    "labels": [
+      "UC",
+      "Actor:Engine (CI + test infrastructure)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-650",
+      "us_id": "US-VSCODE-GITHUB-OAUTH",
+      "horas": 0,
+      "pantallas": "",
+      "actor": "Engine (CI + test infrastructure)"
+    },
+    "created_at": "2026-05-26T22:18:25.191355+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-96e4270b",
+    "name": "[AC-01] [JR-4] Test tests/e2e/oauth-flow.spec.ts con Playwright: (a) lanza VSCode + ext, (b) ejecuta comando 'Sign in with GitHub', (c) intercepta openExternal y dispara Playwright contra cloud.specbox.build-test/auth/github, (d) Playwright completa el GitHub mock OAuth, (e) callback llega al loopback, (f) verifica context.secrets.get('specbox.mcpToken') retorna valor non-null. Test corre en <60s.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-70842cb8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.201869+00:00"
+  },
+  {
+    "id": "ac-12015a27",
+    "name": "[AC-02] [JR-4] Test tests/e2e/oauth-flow.spec.ts::reject_csrf verifica que un callback con state distinto al enviado falla con HTTP 400 desde el loopback y NO actualiza SecretStorage. Defense in depth contra CSRF.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-70842cb8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.201873+00:00"
+  },
+  {
+    "id": "ac-ba6fccb7",
+    "name": "[AC-03] [JR-4] Test tests/e2e/oauth-flow.spec.ts::timeout_5min simula que el callback nunca llega (mock GitHub que no redirect), verifica que el server loopback se cierra en 5min + 30s margen, y la extension muestra notification de cancelación.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-70842cb8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.201876+00:00"
+  },
+  {
+    "id": "ac-2bd1694c",
+    "name": "[AC-04] [JE-3] Test tests/e2e/oauth-flow.spec.ts::revoke_visible_in_30s integration: completa OAuth → invoca whoami() exitoso → revoca mcp_tokens.revoked_at = now() en Supabase test DB → espera 35s → invoca whoami() nuevamente → assert que retorna UNAUTHENTICATED.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-70842cb8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.201879+00:00"
+  },
+  {
+    "id": "ac-dfc7784e",
+    "name": "[AC-05] [JR-5] Test tests/e2e/oauth-flow.spec.ts::freeform_unaffected verifica que en una sesión sin sign-in, todas las tools FreeForm/Trello/Plane funcionan normalmente (onboard_project, add_uc, mark_ac, list_us). Suite verde en CI.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-70842cb8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.201882+00:00"
+  },
+  {
+    "id": "ac-acd09865",
+    "name": "[AC-06] [JR-4] Workflow CI .github/workflows/oauth-e2e.yml corre en cada PR con touch en vscode-extension/src/{onboard,mcp,sidebar}.ts o server/coordination/identity.py. Job en ubuntu-latest, xvfb, Playwright pinned, Supabase test mode credentials desde GitHub Secrets (SPECBOX_TEST_SUPABASE_URL, SPECBOX_TEST_SUPABASE_ANON_KEY). Falla con issue auto-created si rompe (siguiendo patrón de UC-640).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-70842cb8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.201884+00:00"
+  },
+  {
+    "id": "item-797858bc",
+    "name": "UC-651: Docs + README + CHANGELOG + ADR — onboarding default = Native+OAuth",
+    "description": "# UC-651: Docs + README + CHANGELOG + ADR — onboarding default = Native+OAuth\n\n**User Story:** US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth\n**Actor:** Engine\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [JE-1] vscode-extension/README.md Quick Start reescrito: paso 1 sigue siendo 'Install from Marketplace', paso 2 ahora es 'Click Sign in with GitHub on first activate (or Continue in local mode (FreeForm) if preferred)', paso 3 es 'Start building' (igual). Sin mención a 'provisionar token manualmente'. README.es.md simétrico.\n- AC-02: [JR-3] El README incluye sección explícita 'Local mode (no auth)' con 3 líneas explicando que FreeForm sigue first-class, link al runbook doc/runbooks/freeform-only-mode.md (nuevo), aclaración de que features no-Native funcionan idénticamente sin signing in. Visible en TOC del README, NO en footer.\n- AC-03: [JR-6] vscode-extension/CHANGELOG.md entry [6.3.0] - 2026-XX-XX con sección Added (GitHub OAuth onboarding, Native default, sidebar identity), Changed (templates/settings.json.template default backend_type=native), Security (SecretStorage para mcp_token, ≤30s revoke visibility).\n- AC-04: [JE-2] doc/decisions/native_default_oauth.md (ADR nuevo) replica tradeoff del discovery: rompe parcialmente la decisión canónica v5.29 'FreeForm first-class, cero auth requerida' pero compensa con las 3 garantías auditables. El ADR linkea al discovery icp_jtbd.md y al Engram architecture/vscode-github-oauth. Test: existe el archivo y grep -c 'documented_exception' doc/decisions/native_default_oauth.md ≥ 1.\n- AC-05: [JE-2] CLAUDE.md añade sección 'Native Default OAuth (v6.3.0)' con la nueva default + el escape FreeForm + link al ADR. La sección 6.1.1 Cloud Cutover (que removió Sala de Máquinas) sigue intacta — esta US es complementaria, no contradice. Test manual: leer CLAUDE.md tras el merge y verificar coherencia narrativa (no hay 'FreeForm first-class' + 'Native default' contradictoriamente).\n\n## Contexto\nActualizar docs user-facing y ADR para reflejar el cambio de default a Native+OAuth con FreeForm preservado. Toca: vscode-extension README/README.es/CHANGELOG, README raíz, docs/getting-started.md, doc/decisions/native_default_oauth.md (ADR nuevo), templates/settings.json.template (default backend_type=native + comment hacia FreeForm), CLAUDE.md.",
+    "state": "backlog",
+    "parent_id": "item-a09052d6",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-651",
+      "us_id": "US-VSCODE-GITHUB-OAUTH",
+      "horas": 0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-26T22:18:25.213059+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-29908f38",
+    "name": "[AC-01] [JE-1] vscode-extension/README.md Quick Start reescrito: paso 1 sigue siendo 'Install from Marketplace', paso 2 ahora es 'Click Sign in with GitHub on first activate (or Continue in local mode (FreeForm) if preferred)', paso 3 es 'Start building' (igual). Sin mención a 'provisionar token manualmente'. README.es.md simétrico.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-797858bc",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.223634+00:00"
+  },
+  {
+    "id": "ac-bc18dacb",
+    "name": "[AC-02] [JR-3] El README incluye sección explícita 'Local mode (no auth)' con 3 líneas explicando que FreeForm sigue first-class, link al runbook doc/runbooks/freeform-only-mode.md (nuevo), aclaración de que features no-Native funcionan idénticamente sin signing in. Visible en TOC del README, NO en footer.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-797858bc",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.223639+00:00"
+  },
+  {
+    "id": "ac-721e8a6c",
+    "name": "[AC-03] [JR-6] vscode-extension/CHANGELOG.md entry [6.3.0] - 2026-XX-XX con sección Added (GitHub OAuth onboarding, Native default, sidebar identity), Changed (templates/settings.json.template default backend_type=native), Security (SecretStorage para mcp_token, ≤30s revoke visibility).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-797858bc",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.223643+00:00"
+  },
+  {
+    "id": "ac-24d1fc76",
+    "name": "[AC-04] [JE-2] doc/decisions/native_default_oauth.md (ADR nuevo) replica tradeoff del discovery: rompe parcialmente la decisión canónica v5.29 'FreeForm first-class, cero auth requerida' pero compensa con las 3 garantías auditables. El ADR linkea al discovery icp_jtbd.md y al Engram architecture/vscode-github-oauth. Test: existe el archivo y grep -c 'documented_exception' doc/decisions/native_default_oauth.md ≥ 1.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-797858bc",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.223647+00:00"
+  },
+  {
+    "id": "ac-3d9c25be",
+    "name": "[AC-05] [JE-2] CLAUDE.md añade sección 'Native Default OAuth (v6.3.0)' con la nueva default + el escape FreeForm + link al ADR. La sección 6.1.1 Cloud Cutover (que removió Sala de Máquinas) sigue intacta — esta US es complementaria, no contradice. Test manual: leer CLAUDE.md tras el merge y verificar coherencia narrativa (no hay 'FreeForm first-class' + 'Native default' contradictoriamente).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-797858bc",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T22:18:25.223650+00:00"
   }
 ]

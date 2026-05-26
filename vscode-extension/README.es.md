@@ -72,7 +72,24 @@ Busca **"SpecBox Engine"** en el Marketplace de VSCode, o ejecuta:
 code --install-extension EmbedBuild.specbox-engine
 ```
 
-### 2. Ejecuta el asistente de inicialización
+### 2. Elige tu modo en la primera activación
+
+En la primera activación dentro de un workspace, la extensión muestra una
+notificación con dos opciones (una sola vez):
+
+- **Iniciar sesión con GitHub** — abre el navegador, completa el flujo
+  OAuth de GitHub a través de [cloud.specbox.build](https://cloud.specbox.build)
+  y guarda el token MCP resultante en el llavero del sistema operativo
+  mediante VSCode SecretStorage. Activa el backend Native (tracking
+  compartido, reservas multi-developer).
+- **Continuar en modo local (FreeForm)** — sin auth, sin nube. Todo el
+  tracking vive en disco bajo `doc/tracking/`. Mira la sección
+  [Modo local (sin auth)](#modo-local-sin-auth) más abajo.
+
+Puedes cambiar de modo en cualquier momento: `Ctrl+Shift+P` → **SpecBox:
+Iniciar sesión con GitHub** o **SpecBox: Cerrar sesión**.
+
+### 3. Ejecuta el asistente de inicialización
 
 `Ctrl+Shift+P` → **SpecBox: Inicializar Proyecto**
 
@@ -85,13 +102,60 @@ Paso 3  →  Instala 15 skills + 20+ hooks + settings
 Paso 4  →  Configura servidores MCP (SpecBox + Engram)
 ```
 
-### 3. Empieza a construir
+### 4. Empieza a construir
 
 ```
 /prd "Autenticación de usuario con OAuth2"  → Requisitos
 /plan PROYECTO-42                            → Plan técnico + diseños UI
 /implement auth_plan                         → Implementación autopilot
 ```
+
+---
+
+## Modo local (sin auth)
+
+FreeForm sigue siendo **first-class**. Si eliges "Continuar en modo local"
+obtienes el engine completo — skills, hooks, acceptance BDD, tools MCP
+que no requieren estado compartido — sin abrir nunca un navegador ni
+guardar ningún token.
+
+Lo que funciona sin iniciar sesión:
+- El pipeline completo: `/prd`, `/plan`, `/implement`, `/audit`, etc.
+- Backends Trello y Plane (con sus propias API keys).
+- Todas las tools no-Native (110+ tools).
+
+Lo que requiere iniciar sesión:
+- El sistema de reservas de UC del backend Native (locking multi-developer).
+- Las cuatro tools nativas: `whoami`, `reserve_uc`, `release_uc`,
+  `register_native_branch`.
+
+Consulta [doc/runbooks/freeform-only-mode.md](https://github.com/EmbedBuild/specbox-engine/blob/main/doc/runbooks/freeform-only-mode.md)
+para una guía detallada.
+
+---
+
+## Cómo funciona el inicio de sesión por dentro
+
+1. Pulsas **Iniciar sesión con GitHub**. La extensión arranca un servidor
+   HTTP one-shot en `127.0.0.1` (puerto aleatorio asignado por el sistema),
+   genera un state CSRF de 64 hex y abre
+   `https://cloud.specbox.build/vscode/issue-token` en tu navegador por
+   defecto, pasando la URL del loopback y el state como query params.
+2. La nube gestiona el baile OAuth de GitHub (las credenciales en plano
+   no tocan nunca la extensión ni el engine — solo la nube).
+3. La nube redirige al loopback con `?mcp_token=<64-hex>&state=<csrf>`.
+4. La extensión valida el state, comprueba el regex del token, lo persiste
+   en **VSCode SecretStorage** (Keychain en macOS, Credential Manager en
+   Windows, libsecret en Linux) y le pide a Claude Code que reinicie el
+   servidor MCP para que el token entre en scope.
+5. Si el token se **revoca** en la nube, el engine devuelve
+   `UNAUTHENTICATED` en la siguiente llamada a una tool nativa (≤30s
+   gracias al cache TTL del servidor). El sidebar hace polling cada 60s y
+   se actualiza solo — visibilidad total del revoke ≤90s.
+
+La parte de la nube se implementa en [`EmbedBuild/specbox_cloud`](https://github.com/EmbedBuild/specbox_cloud)
+(US-09). Consulta [doc/decisions/native_default_oauth.md](https://github.com/EmbedBuild/specbox-engine/blob/main/doc/decisions/native_default_oauth.md)
+para el rationale arquitectural y los trade-offs de seguridad residuales.
 
 ---
 

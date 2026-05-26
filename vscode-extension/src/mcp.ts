@@ -5,6 +5,12 @@ import * as os from 'os';
 import { CLAUDE_DIR } from './constants';
 import { readJson, writeJson, ensureDir, commandExists, exec } from './util';
 
+// UC-646: the MCP server config references this env var; the wrapper launcher
+// (vscode-extension/bin/mcp-launcher.mjs) resolves the value from SecretStorage
+// at spawn time so the plaintext token never lands in settings.json.
+export const SPECBOX_NATIVE_MCP_TOKEN_ENV = 'SPECBOX_NATIVE_MCP_TOKEN';
+const LAUNCHER_BIN_RELATIVE = '../bin/mcp-launcher.mjs';
+
 interface McpServerConfig {
 	command: string;
 	args?: string[];
@@ -185,5 +191,105 @@ export class McpConfigurator {
 			'OK', 'Failed'
 		);
 		return ok === 'OK';
+	}
+}
+
+// ---------------------------------------------------------------------------
+// UC-646 — MCP handshake helpers (SecretStorage-backed launcher)
+// ---------------------------------------------------------------------------
+
+interface ClaudeMcpServer {
+	command: string;
+	args?: string[];
+	env?: Record<string, string>;
+	[key: string]: unknown;
+}
+
+interface ClaudeMcpSettings {
+	mcpServers?: Record<string, ClaudeMcpServer>;
+	[key: string]: unknown;
+}
+
+function readClaudeSettings(): { settingsPath: string; settings: ClaudeMcpSettings } {
+	const settingsPath = path.join(CLAUDE_DIR, 'settings.local.json');
+	const settings = readJson<ClaudeMcpSettings>(settingsPath) ?? {};
+	if (!settings.mcpServers) { settings.mcpServers = {}; }
+	return { settingsPath, settings };
+}
+
+function resolveLauncherPath(): string | null {
+	const ext = vscode.extensions.getExtension('EmbedBuild.specbox-engine');
+	const base = ext?.extensionPath;
+	if (!base) { return null; }
+	return path.join(base, 'bin', 'mcp-launcher.mjs');
+}
+
+/**
+ * Update the SpecBox-MCP server entry so it launches through the wrapper that
+ * reads the token from VSCode SecretStorage. Does NOT write the token to disk
+ * — only a placeholder env var name that the launcher resolves at spawn time.
+ */
+export function updateMcpServerConfigWithToken(): void {
+	const { settingsPath, settings } = readClaudeSettings();
+	const launcher = resolveLauncherPath();
+	if (!launcher) { return; }
+
+	const existing = settings.mcpServers!['SpecBox-MCP'] ?? { command: '', args: [] };
+	// Preserve the underlying command/args so the launcher can forward them.
+	const inner = {
+		command: existing.command,
+		args: existing.args ?? [],
+	};
+	settings.mcpServers!['SpecBox-MCP'] = {
+		command: 'node',
+		args: [launcher, JSON.stringify(inner)],
+		env: { [SPECBOX_NATIVE_MCP_TOKEN_ENV]: '${secretStorage:specbox.mcpToken}' },
+	};
+	writeJson(settingsPath, settings);
+}
+
+/**
+ * Strip the wrapper launcher from the SpecBox-MCP entry and restore the
+ * underlying server command. Idempotent: safe to call when not configured.
+ */
+export function clearMcpServerConfig(): void {
+	const { settingsPath, settings } = readClaudeSettings();
+	const entry = settings.mcpServers!['SpecBox-MCP'];
+	if (!entry) { return; }
+	const launcher = resolveLauncherPath();
+	if (!launcher) { return; }
+	// If the entry currently points at the launcher, restore the inner command.
+	if (entry.command === 'node' && Array.isArray(entry.args) && entry.args[0] === launcher) {
+		try {
+			const inner = JSON.parse(String(entry.args[1] ?? '{}')) as { command: string; args?: string[] };
+			settings.mcpServers!['SpecBox-MCP'] = { command: inner.command, args: inner.args ?? [] };
+		} catch {
+			delete settings.mcpServers!['SpecBox-MCP'];
+		}
+	} else if (entry.env && SPECBOX_NATIVE_MCP_TOKEN_ENV in (entry.env ?? {})) {
+		const newEnv = { ...entry.env };
+		delete newEnv[SPECBOX_NATIVE_MCP_TOKEN_ENV];
+		settings.mcpServers!['SpecBox-MCP'] = { ...entry, env: newEnv };
+	}
+	writeJson(settingsPath, settings);
+}
+
+/**
+ * Restart the MCP server so the new handshake takes effect. The Claude Code
+ * extension exposes a restart command; we try it and fall back to a notification
+ * asking the user to reload the window if the command is unavailable.
+ */
+export async function respawnMcpServer(): Promise<void> {
+	try {
+		await vscode.commands.executeCommand('claude.mcpRestart', 'SpecBox-MCP');
+	} catch {
+		const reload = vscode.l10n.t('Reload Window');
+		const action = await vscode.window.showInformationMessage(
+			vscode.l10n.t('MCP server config updated. Reload the window to apply.'),
+			reload
+		);
+		if (action === reload) {
+			await vscode.commands.executeCommand('workbench.action.reloadWindow');
+		}
 	}
 }

@@ -1240,6 +1240,53 @@ Current: v6.1.1 "Cutover Followup"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 
+## Native Default OAuth (v6.3.0)
+
+US-VSCODE-GITHUB-OAUTH añade onboarding first-class para el Native backend
+desde la extensión VSCode (publicada en v6.2.0). El flow es:
+
+1. Extensión arranca un servidor HTTP one-shot en `127.0.0.1` (puerto
+   random). Abre el browser contra `https://cloud.specbox.build/vscode/issue-token`
+   con `?return_to=<loopback>&state=<csrf>`.
+2. La nube (US-09 de `EmbedBuild/specbox_cloud`) hace el OAuth de GitHub,
+   provisiona un `mcp_token` en Supabase, y redirige al loopback con
+   `?mcp_token=<64-hex>&state=<csrf>`.
+3. La extensión valida (origin allow-list + state + regex), guarda el
+   token en VSCode SecretStorage (Keychain/Credential Manager/libsecret),
+   actualiza el config del MCP server local, y dispara `claude.mcpRestart`.
+
+**FreeForm sigue first-class** — el onboarding muestra dos opciones de
+igual peso ("Sign in with GitHub" / "Continue in local mode (FreeForm)"). La
+decisión persiste en `workspaceState`. Cerrar la X no es una decisión.
+
+**Server-side UNAUTHENTICATED graceful** (UC-648): las 4 tools nativas
+(`whoami`, `reserve_uc`, `release_uc`, `register_native_branch`) retornan
+payload uniforme `{status, code, message, docs_url, locale}` con
+`Accept-Language` respetado (EN default, ES fallback). Revoke visible en
+≤30s (cache TTL del server) + 60s (sidebar polling) = ≤90s total.
+
+Componentes nuevos:
+
+| Archivo | Rol |
+|---|---|
+| `vscode-extension/src/oauth.ts` | Loopback HTTP server + cloud URL builder |
+| `vscode-extension/src/secret-storage.ts` | SecretStorage wrapper |
+| `vscode-extension/src/auth.ts` | signIn / signOut / onboarding gate |
+| `vscode-extension/bin/mcp-launcher.mjs` | Spawn shim que inyecta el token desde env del proceso padre |
+| `server/coordination/i18n_messages.py` | Dict EN/ES + `Accept-Language` parser |
+| `tests/test_native_unauthenticated.py` | 26 casos verde para AC-01..AC-05 de UC-648 |
+| `vscode-extension/tests/oauth.test.mjs` | 10 unit tests del loopback (zero-deps `node:test`) |
+| `vscode-extension/tests/oauth-integration.test.mjs` | 3 integration tests del round-trip mock-cloud ↔ loopback |
+| `.github/workflows/oauth-e2e.yml` | CI gate que corre compile + lint i18n + suite OAuth en PRs |
+| `doc/decisions/native_default_oauth.md` | ADR del cambio + rollback plan |
+| `doc/runbooks/freeform-only-mode.md` | Runbook para usuarios que prefieren FreeForm |
+| `doc/runbooks/github-oauth-troubleshooting.md` | Errores comunes y recovery |
+
+Cross-repo: la mitad del cloud es `EmbedBuild/specbox_cloud` US-09. El
+contrato (URL + shape del callback) está congelado en el PRD de la US, así
+que el engine puede testearse contra el mock cloud server local antes de
+que la US-09 esté en producción.
+
 ## Smoke Test Followups (v6.0.2)
 
 Patch release que cierra los 3 issues abiertos descubiertos en el smoke test de v6.0.1 (#60, #61, #62) y elimina el último hardcodeo de versión runtime que sobrevivía desde antes de v6.0.

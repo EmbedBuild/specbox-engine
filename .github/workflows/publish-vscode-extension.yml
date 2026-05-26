@@ -38,8 +38,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: vscode-extension/package-lock.json
+          # Note: NO cache because vscode-extension/package-lock.json is gitignored.
+          # The build is fast enough (~5s npm install) that the cache overhead is
+          # not worth the maintenance cost of committing the lockfile.
 
       - name: Install @vscode/vsce globally
         run: npm install -g @vscode/vsce
@@ -72,7 +73,8 @@ jobs:
 
       - name: Install extension dependencies
         working-directory: vscode-extension
-        run: npm ci
+        # npm install (NOT npm ci) because package-lock.json is gitignored.
+        run: npm install --no-audit --no-fund
 
       - name: Compile TypeScript (vscode:prepublish)
         working-directory: vscode-extension

@@ -31,10 +31,12 @@ jobs:
         working-directory: vscode-extension
         run: npm install
 
-      - name: Compile + lint i18n strings
-        run: |
-          cd vscode-extension && npm run compile
-          node scripts/lint-extension-strings.mjs
+      - name: Compile vscode-extension
+        working-directory: vscode-extension
+        run: npm run compile
+
+      - name: Lint i18n strings
+        run: node scripts/lint-extension-strings.mjs
 
       - name: Run OAuth unit + integration tests
         working-directory: vscode-extension

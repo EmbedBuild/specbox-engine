@@ -6653,5 +6653,1131 @@
       "tipo": "AC"
     },
     "created_at": "2026-05-25T13:57:57.664572+00:00"
+  },
+  {
+    "id": "item-662987b1",
+    "name": "US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine",
+    "description": "# US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n\n**Horas estimadas:** 42.0\n**Pantallas:** \n\nPublicar la extensión jpsdeveloper.specbox-engine en el VSCode Marketplace + establecer CI lockstep que mantenga extension.version == engine.version en cada tag + i18n EN/ES (listing NLS + runtime l10n) + telemetría Marketplace API pública (cron diario → .quality/marketplace-stats.jsonl → tool MCP get_marketplace_stats). Hoy la extensión está drifteada 6 versiones (5.21.1 vs engine 6.1.1) y no es descubrible vía Marketplace. Target release: v6.2.0 'VSCode Marketplace' (minor). Decisiones de scope: Solo VSCode Marketplace (no Open VSX en V1). Lockstep estricto. Vía A pura (NO thin-extension refactor). i18n EN canon + ES localizado. Telemetría solo via Marketplace REST API público (cero PII, cero telemetría activa). Publisher Marketplace = jpsdeveloper. Repo GitHub = EmbedBuild/specbox-engine.",
+    "state": "user_stories",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-VSCODE-MARKETPLACE",
+      "horas": 42.0,
+      "pantallas": ""
+    },
+    "created_at": "2026-05-26T17:26:03.865664+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "item-ed1ee288",
+    "name": "UC-634: Script sync-extension-version.sh con modos --check/--write",
+    "description": "# UC-634: Script sync-extension-version.sh con modos --check/--write\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Script lee version: de ENGINE_VERSION.yaml usando el mismo pattern que install.sh:11 (grep version | head -1 | awk print 2).\n- AC-02: Modo --check (default sin args): exit 0 si package.json.version == engine version; exit 1 con mensaje claro si difieren. No escribe nada.\n- AC-03: Modo --write: actualiza vscode-extension/package.json con la versión del engine usando jq o un parser Python json (NO sed/regex sobre JSON). Preserva indentación 2-space y orden de keys.\n- AC-04: Modo --write también actualiza vscode-extension/package-lock.json si existe (top-level version field).\n- AC-05: Tests en scripts/tests/test-sync-extension-version.sh: caso ya sincronizadas, caso drift detectado en --check, caso drift corregido en --write.\n\n## Contexto\nFoundational. Lee ENGINE_VERSION.yaml y mantiene vscode-extension/package.json en lockstep.",
+    "state": "done",
+    "parent_id": "item-662987b1",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-634",
+      "us_id": "US-VSCODE-MARKETPLACE",
+      "horas": 4.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-26T17:26:03.883376+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-26T17:33:52.609957+00:00"
+  },
+  {
+    "id": "ac-365592c5",
+    "name": "[AC-01] Script lee version: de ENGINE_VERSION.yaml usando el mismo pattern que install.sh:11 (grep version | head -1 | awk print 2).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-ed1ee288",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.895510+00:00",
+    "updated_at": "2026-05-26T17:33:45.964912+00:00"
+  },
+  {
+    "id": "ac-32be2ffb",
+    "name": "[AC-02] Modo --check (default sin args): exit 0 si package.json.version == engine version; exit 1 con mensaje claro si difieren. No escribe nada.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-ed1ee288",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.895530+00:00",
+    "updated_at": "2026-05-26T17:33:45.981164+00:00"
+  },
+  {
+    "id": "ac-0a852340",
+    "name": "[AC-03] Modo --write: actualiza vscode-extension/package.json con la versión del engine usando jq o un parser Python json (NO sed/regex sobre JSON). Preserva indentación 2-space y orden de keys.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-ed1ee288",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.895537+00:00",
+    "updated_at": "2026-05-26T17:33:45.994424+00:00"
+  },
+  {
+    "id": "ac-3fc41c42",
+    "name": "[AC-04] Modo --write también actualiza vscode-extension/package-lock.json si existe (top-level version field).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-ed1ee288",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.895542+00:00",
+    "updated_at": "2026-05-26T17:33:46.006706+00:00"
+  },
+  {
+    "id": "ac-fa33b691",
+    "name": "[AC-05] Tests en scripts/tests/test-sync-extension-version.sh: caso ya sincronizadas, caso drift detectado en --check, caso drift corregido en --write.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-ed1ee288",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.895547+00:00",
+    "updated_at": "2026-05-26T17:33:46.017892+00:00"
+  },
+  {
+    "id": "item-9011c357",
+    "name": "UC-635: Hook de release: bloquear tag si extensión drifteada",
+    "description": "# UC-635: Hook de release: bloquear tag si extensión drifteada\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 3.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: /release SKILL.md actualizado: nuevo paso Pre-flight verify VSCode extension version sync antes del paso de tagging.\n- AC-02: El paso corre bash scripts/sync-extension-version.sh --check. Si exit 0, sigue.\n- AC-03: Si exit != 0, el skill prompta al usuario: opción 1 auto-fix + commit (corre --write, hace commit chore(vscode-ext) sync version to vX.Y.Z), opción 2 abort release. Sin opción 3 (no se permite tagear con drift).\n- AC-04: Si se elige opción 1, el commit de sync entra ANTES del commit de release notes y del tag. Verificado por git log --oneline -3 post-release.\n- AC-05: Test manual documentado en el SKILL.md de /release: cómo simular drift y verificar que el gate dispara.\n\n## Contexto\nIntegra sync-extension-version.sh --check en /release skill como gate pre-tag. Sin opción ignore.",
+    "state": "backlog",
+    "parent_id": "item-662987b1",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-635",
+      "us_id": "US-VSCODE-MARKETPLACE",
+      "horas": 3.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-26T17:26:03.906691+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-69fbfd77",
+    "name": "[AC-01] /release SKILL.md actualizado: nuevo paso Pre-flight verify VSCode extension version sync antes del paso de tagging.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9011c357",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.915992+00:00"
+  },
+  {
+    "id": "ac-108785fd",
+    "name": "[AC-02] El paso corre bash scripts/sync-extension-version.sh --check. Si exit 0, sigue.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9011c357",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.916000+00:00"
+  },
+  {
+    "id": "ac-75b93661",
+    "name": "[AC-03] Si exit != 0, el skill prompta al usuario: opción 1 auto-fix + commit (corre --write, hace commit chore(vscode-ext) sync version to vX.Y.Z), opción 2 abort release. Sin opción 3 (no se permite tagear con drift).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9011c357",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.916004+00:00"
+  },
+  {
+    "id": "ac-e5e1dc98",
+    "name": "[AC-04] Si se elige opción 1, el commit de sync entra ANTES del commit de release notes y del tag. Verificado por git log --oneline -3 post-release.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9011c357",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.916008+00:00"
+  },
+  {
+    "id": "ac-235c0c17",
+    "name": "[AC-05] Test manual documentado en el SKILL.md de /release: cómo simular drift y verificar que el gate dispara.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-9011c357",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.916012+00:00"
+  },
+  {
+    "id": "item-fcf5f5a8",
+    "name": "UC-636: Metadata Marketplace en package.json",
+    "description": "# UC-636: Metadata Marketplace en package.json\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 3.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: package.json declara: displayName, description, version, publisher jpsdeveloper, license MIT, engines.vscode, icon (path a PNG >=128x128), categories (mínimo AI y Other), keywords (mínimo claude, claude-code, agentic, MCP, spec-driven, BDD).\n- AC-02: package.json declara repository.url=https://github.com/EmbedBuild/specbox-engine, bugs.url=https://github.com/EmbedBuild/specbox-engine/issues, homepage=https://github.com/EmbedBuild/specbox-engine#readme. Publisher Marketplace sigue siendo jpsdeveloper.\n- AC-03: package.json declara galleryBanner.color y galleryBanner.theme (dark o light) consistente con el branding.\n- AC-04: vscode prepublish script existe y compila TypeScript sin errores (tsc -p ./).\n- AC-05: vsce ls --tree corre sin warnings ni errores sobre missing fields o .vscodeignore mal configurado.\n\n## Contexto\nAudit y refresh del package.json para cumplir best practices del Marketplace.",
+    "state": "done",
+    "parent_id": "item-662987b1",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-636",
+      "us_id": "US-VSCODE-MARKETPLACE",
+      "horas": 3.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-26T17:26:03.925745+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-26T17:35:30.293993+00:00"
+  },
+  {
+    "id": "ac-9bc50353",
+    "name": "[AC-01] package.json declara: displayName, description, version, publisher jpsdeveloper, license MIT, engines.vscode, icon (path a PNG >=128x128), categories (mínimo AI y Other), keywords (mínimo claude, claude-code, agentic, MCP, spec-driven, BDD).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-fcf5f5a8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.934612+00:00",
+    "updated_at": "2026-05-26T17:35:24.389626+00:00"
+  },
+  {
+    "id": "ac-d096f127",
+    "name": "[AC-02] package.json declara repository.url=https://github.com/EmbedBuild/specbox-engine, bugs.url=https://github.com/EmbedBuild/specbox-engine/issues, homepage=https://github.com/EmbedBuild/specbox-engine#readme. Publisher Marketplace sigue siendo jpsdeveloper.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-fcf5f5a8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.934621+00:00",
+    "updated_at": "2026-05-26T17:35:24.407222+00:00"
+  },
+  {
+    "id": "ac-babbe76f",
+    "name": "[AC-03] package.json declara galleryBanner.color y galleryBanner.theme (dark o light) consistente con el branding.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-fcf5f5a8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.934625+00:00",
+    "updated_at": "2026-05-26T17:35:24.420234+00:00"
+  },
+  {
+    "id": "ac-a3bc8e89",
+    "name": "[AC-04] vscode prepublish script existe y compila TypeScript sin errores (tsc -p ./).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-fcf5f5a8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.934628+00:00",
+    "updated_at": "2026-05-26T17:35:24.431487+00:00"
+  },
+  {
+    "id": "ac-a2bc4c59",
+    "name": "[AC-05] vsce ls --tree corre sin warnings ni errores sobre missing fields o .vscodeignore mal configurado.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-fcf5f5a8",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.934632+00:00",
+    "updated_at": "2026-05-26T17:35:24.442024+00:00"
+  },
+  {
+    "id": "item-f8aea17a",
+    "name": "UC-637: README y CHANGELOG de la extensión para Marketplace",
+    "description": "# UC-637: README y CHANGELOG de la extensión para Marketplace\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: vscode-extension/README.md reescrito: sección Features con los 5 comandos (SpecBox Install, Health Check, Onboard Project, Show Status, Configure MCP), Requirements (Claude Code CLI o VSCode extension de Claude), Quick Start (3 pasos), Troubleshooting, link al repo del engine.\n- AC-02: README incluye al menos 1 screenshot del Command Palette filtrado por SpecBox. Imagen vive en vscode-extension/media/screenshots/.\n- AC-03: README incluye badges: VSCode Marketplace version, VSCode Marketplace installs, License, engine version compatibility.\n- AC-04: vscode-extension/CHANGELOG.md creado con formato Keep a Changelog. Entry 6.2.0 describe First Marketplace release; lockstep versioning with SpecBox Engine; EN+ES localization; Marketplace stats telemetry.\n- AC-05: README.es.md creado con traducción completa al español neutro España (NO argentinismos), tuteo estándar. Link cruzado en header de ambos READMEs.\n\n## Contexto\nReescribir README.md (EN canon) + README.es.md + CHANGELOG.md.",
+    "state": "backlog",
+    "parent_id": "item-662987b1",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-637",
+      "us_id": "US-VSCODE-MARKETPLACE",
+      "horas": 4.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-26T17:26:03.943814+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-0b426d97",
+    "name": "[AC-01] vscode-extension/README.md reescrito: sección Features con los 5 comandos (SpecBox Install, Health Check, Onboard Project, Show Status, Configure MCP), Requirements (Claude Code CLI o VSCode extension de Claude), Quick Start (3 pasos), Troubleshooting, link al repo del engine.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f8aea17a",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.951993+00:00"
+  },
+  {
+    "id": "ac-37ee0330",
+    "name": "[AC-02] README incluye al menos 1 screenshot del Command Palette filtrado por SpecBox. Imagen vive en vscode-extension/media/screenshots/.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f8aea17a",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.952000+00:00"
+  },
+  {
+    "id": "ac-c26d9c8e",
+    "name": "[AC-03] README incluye badges: VSCode Marketplace version, VSCode Marketplace installs, License, engine version compatibility.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f8aea17a",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.952004+00:00"
+  },
+  {
+    "id": "ac-4a0fb5b0",
+    "name": "[AC-04] vscode-extension/CHANGELOG.md creado con formato Keep a Changelog. Entry 6.2.0 describe First Marketplace release; lockstep versioning with SpecBox Engine; EN+ES localization; Marketplace stats telemetry.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f8aea17a",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.952007+00:00"
+  },
+  {
+    "id": "ac-8964fadf",
+    "name": "[AC-05] README.es.md creado con traducción completa al español neutro España (NO argentinismos), tuteo estándar. Link cruzado en header de ambos READMEs.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f8aea17a",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.952010+00:00"
+  },
+  {
+    "id": "item-97762fc9",
+    "name": "UC-638: Workflow CI: publish al Marketplace en tag",
+    "description": "# UC-638: Workflow CI: publish al Marketplace en tag\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 6.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Workflow file en .github/workflows/publish-vscode-extension.yml. Trigger: on push tags v*.*.* + workflow_dispatch.\n- AC-02: Job corre en ubuntu-latest, Node.js 20 LTS, instala @vscode/vsce globalmente, hace cd vscode-extension && npm ci && npm run vscode prepublish.\n- AC-03: Step Sync version corre bash scripts/sync-extension-version.sh --check y falla el workflow si hay drift (defense-in-depth).\n- AC-04: Step Publish corre vsce publish --pat secrets.VSCE_PAT. Output capturado en logs del workflow.\n- AC-05: Step Attach VSIX to release corre vsce package -o specbox-engine-VERSION.vsix + sube el .vsix al GitHub Release vVERSION usando softprops/action-gh-release@v2.\n- AC-06: Workflow respeta el principio no skipping hooks: si vsce publish falla, el job entero falla y notifica.\n\n## Contexto\nPrimer workflow CI del proyecto. Crea .github/workflows/. Dispara en tag v*.*.*",
+    "state": "backlog",
+    "parent_id": "item-662987b1",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-638",
+      "us_id": "US-VSCODE-MARKETPLACE",
+      "horas": 6.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-26T17:26:03.960977+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-7a3750be",
+    "name": "[AC-01] Workflow file en .github/workflows/publish-vscode-extension.yml. Trigger: on push tags v*.*.* + workflow_dispatch.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-97762fc9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.969415+00:00"
+  },
+  {
+    "id": "ac-88274b61",
+    "name": "[AC-02] Job corre en ubuntu-latest, Node.js 20 LTS, instala @vscode/vsce globalmente, hace cd vscode-extension && npm ci && npm run vscode prepublish.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-97762fc9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.969420+00:00"
+  },
+  {
+    "id": "ac-1fb67203",
+    "name": "[AC-03] Step Sync version corre bash scripts/sync-extension-version.sh --check y falla el workflow si hay drift (defense-in-depth).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-97762fc9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.969423+00:00"
+  },
+  {
+    "id": "ac-e7c90675",
+    "name": "[AC-04] Step Publish corre vsce publish --pat secrets.VSCE_PAT. Output capturado en logs del workflow.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-97762fc9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.969430+00:00"
+  },
+  {
+    "id": "ac-f140e375",
+    "name": "[AC-05] Step Attach VSIX to release corre vsce package -o specbox-engine-VERSION.vsix + sube el .vsix al GitHub Release vVERSION usando softprops/action-gh-release@v2.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-97762fc9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.969433+00:00"
+  },
+  {
+    "id": "ac-1096ea8e",
+    "name": "[AC-06] Workflow respeta el principio no skipping hooks: si vsce publish falla, el job entero falla y notifica.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-97762fc9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.969436+00:00"
+  },
+  {
+    "id": "item-0cef5193",
+    "name": "UC-639: Setup inicial del publisher y secrets",
+    "description": "# UC-639: Setup inicial del publisher y secrets\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Humano\n**Horas estimadas:** 2.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: doc/runbooks/vscode-marketplace-publisher-setup.md creado. Documenta: crear cuenta Azure DevOps, crear org, crear PAT scope Marketplace Manage, registrar publisher jpsdeveloper con vsce create-publisher, añadir VSCE_PAT a GitHub Secrets del repo EmbedBuild/specbox-engine.\n- AC-02: El runbook incluye sección Rotación del PAT (PATs Azure DevOps caducan máx 1 año): cómo regenerar sin perder ownership del publisher, cómo actualizar el secret en GitHub.\n- AC-03: El runbook incluye comando de verificación: vsce ls-publishers debe mostrar jpsdeveloper y vsce show jpsdeveloper.specbox-engine debe responder OK tras el primer publish.\n- AC-04: El runbook documenta el unpublish de emergencia (vsce unpublish jpsdeveloper.specbox-engine) y advertencias del Marketplace (puede tardar horas en propagarse).\n- AC-05: Una vez ejecutado el setup, en GitHub Repo Settings Secrets and variables Actions existe VSCE_PAT (verificable por listado, no por valor).\n\n## Contexto\nOne-time setup. Documentar publisher jpsdeveloper en VSCode Marketplace + PAT en GitHub Secrets. Bloqueante para UC-638.",
+    "state": "backlog",
+    "parent_id": "item-662987b1",
+    "labels": [
+      "UC",
+      "Actor:Humano"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-639",
+      "us_id": "US-VSCODE-MARKETPLACE",
+      "horas": 2.0,
+      "pantallas": "",
+      "actor": "Humano"
+    },
+    "created_at": "2026-05-26T17:26:03.978426+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-b74284ce",
+    "name": "[AC-01] doc/runbooks/vscode-marketplace-publisher-setup.md creado. Documenta: crear cuenta Azure DevOps, crear org, crear PAT scope Marketplace Manage, registrar publisher jpsdeveloper con vsce create-publisher, añadir VSCE_PAT a GitHub Secrets del repo EmbedBuild/specbox-engine.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-0cef5193",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.986764+00:00"
+  },
+  {
+    "id": "ac-f2a8c296",
+    "name": "[AC-02] El runbook incluye sección Rotación del PAT (PATs Azure DevOps caducan máx 1 año): cómo regenerar sin perder ownership del publisher, cómo actualizar el secret en GitHub.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-0cef5193",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.986769+00:00"
+  },
+  {
+    "id": "ac-9f733fad",
+    "name": "[AC-03] El runbook incluye comando de verificación: vsce ls-publishers debe mostrar jpsdeveloper y vsce show jpsdeveloper.specbox-engine debe responder OK tras el primer publish.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-0cef5193",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.986773+00:00"
+  },
+  {
+    "id": "ac-02e06d02",
+    "name": "[AC-04] El runbook documenta el unpublish de emergencia (vsce unpublish jpsdeveloper.specbox-engine) y advertencias del Marketplace (puede tardar horas en propagarse).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-0cef5193",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.986776+00:00"
+  },
+  {
+    "id": "ac-6d06c015",
+    "name": "[AC-05] Una vez ejecutado el setup, en GitHub Repo Settings Secrets and variables Actions existe VSCE_PAT (verificable por listado, no por valor).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-0cef5193",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:03.986784+00:00"
+  },
+  {
+    "id": "item-50b0891d",
+    "name": "UC-640: Smoke test post-publish con matrix locale [en, es]",
+    "description": "# UC-640: Smoke test post-publish con matrix locale [en, es]\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Workflow en .github/workflows/smoke-test-marketplace.yml. Trigger: workflow_run después de publish-vscode-extension.yml exitoso, O manual via workflow_dispatch.\n- AC-02: Job en ubuntu-latest, instala VSCode CLI (code via apt o snap), corre code --install-extension jpsdeveloper.specbox-engine --force.\n- AC-03: Job verifica code --list-extensions | grep jpsdeveloper.specbox-engine retorna exit 0 y la versión instalada matchea el tag actual.\n- AC-04: Job crea un workspace dummy con ENGINE_VERSION.yaml (trigger de activación de la extensión), abre VSCode headless, verifica via code --status o un test script que la extensión está activa.\n- AC-05: Job corre el smoke en matrix locale en y es: instala con code --locale=en y luego code --locale=es, verifica para cada uno que el comando SpecBox Install Engine (EN) / SpecBox Instalar Engine (ES) aparece en el listado de comandos registrados. Falla el job si alguna variante no resuelve la traducción correcta.\n- AC-06: Si el smoke test falla, el workflow abre automáticamente un issue en el repo con label marketplace-smoke-fail y el output del workflow. NO hace rollback automático.\n\n## Contexto\nWorkflow disparado tras publish exitoso. Instala desde Marketplace en VSCode headless, verifica activación y i18n.",
+    "state": "backlog",
+    "parent_id": "item-662987b1",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-640",
+      "us_id": "US-VSCODE-MARKETPLACE",
+      "horas": 4.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-26T17:26:03.995902+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-19e44211",
+    "name": "[AC-01] Workflow en .github/workflows/smoke-test-marketplace.yml. Trigger: workflow_run después de publish-vscode-extension.yml exitoso, O manual via workflow_dispatch.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-50b0891d",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.004204+00:00"
+  },
+  {
+    "id": "ac-8946cc76",
+    "name": "[AC-02] Job en ubuntu-latest, instala VSCode CLI (code via apt o snap), corre code --install-extension jpsdeveloper.specbox-engine --force.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-50b0891d",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.004209+00:00"
+  },
+  {
+    "id": "ac-70d4e25a",
+    "name": "[AC-03] Job verifica code --list-extensions | grep jpsdeveloper.specbox-engine retorna exit 0 y la versión instalada matchea el tag actual.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-50b0891d",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.004212+00:00"
+  },
+  {
+    "id": "ac-4872278c",
+    "name": "[AC-04] Job crea un workspace dummy con ENGINE_VERSION.yaml (trigger de activación de la extensión), abre VSCode headless, verifica via code --status o un test script que la extensión está activa.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-50b0891d",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.004215+00:00"
+  },
+  {
+    "id": "ac-473a1754",
+    "name": "[AC-05] Job corre el smoke en matrix locale en y es: instala con code --locale=en y luego code --locale=es, verifica para cada uno que el comando SpecBox Install Engine (EN) / SpecBox Instalar Engine (ES) aparece en el listado de comandos registrados. Falla el job si alguna variante no resuelve la traducción correcta.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-50b0891d",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.004217+00:00"
+  },
+  {
+    "id": "ac-a27aa66c",
+    "name": "[AC-06] Si el smoke test falla, el workflow abre automáticamente un issue en el repo con label marketplace-smoke-fail y el output del workflow. NO hace rollback automático.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-50b0891d",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.004220+00:00"
+  },
+  {
+    "id": "item-daccc90c",
+    "name": "UC-641: i18n del listing del Marketplace (EN + ES) via NLS",
+    "description": "# UC-641: i18n del listing del Marketplace (EN + ES) via NLS\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: vscode-extension/package.nls.json (EN) creado con keys: extension.displayName, extension.description, command.install.title, command.healthCheck.title, command.onboard.title, command.showStatus.title, command.configureMcp.title, view.status.title. Cada key con su valor en inglés.\n- AC-02: vscode-extension/package.nls.es.json creado con las mismas keys traducidas al español neutro España (tuteo estándar, NO argentinismos). Ejemplos: command.install.title SpecBox Instalar Engine, command.healthCheck.title SpecBox Comprobar Salud.\n- AC-03: vscode-extension/package.json actualizado: displayName y description apuntan a %extension.displayName% y %extension.description%. Cada command.title y view.name referencia su key NLS correspondiente.\n- AC-04: Smoke test local: code --locale=es + abrir VSCode con la extensión instalada todos los items del Command Palette empiezan por SpecBox en español. code --locale=en en inglés.\n- AC-05: El Marketplace listing (panel web) muestra la descripción en español cuando el navegador del usuario tiene Accept-Language es-* (verificable post-publish abriendo la URL del listing con cookie de idioma ES).\n\n## Contexto\npackage.nls.json (EN fallback) + package.nls.es.json (ES). VSCode auto-resuelve según vscode.env.language.",
+    "state": "backlog",
+    "parent_id": "item-662987b1",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-641",
+      "us_id": "US-VSCODE-MARKETPLACE",
+      "horas": 4.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-26T17:26:04.013949+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-3c637e5a",
+    "name": "[AC-01] vscode-extension/package.nls.json (EN) creado con keys: extension.displayName, extension.description, command.install.title, command.healthCheck.title, command.onboard.title, command.showStatus.title, command.configureMcp.title, view.status.title. Cada key con su valor en inglés.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-daccc90c",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.023321+00:00"
+  },
+  {
+    "id": "ac-2f81c3bc",
+    "name": "[AC-02] vscode-extension/package.nls.es.json creado con las mismas keys traducidas al español neutro España (tuteo estándar, NO argentinismos). Ejemplos: command.install.title SpecBox Instalar Engine, command.healthCheck.title SpecBox Comprobar Salud.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-daccc90c",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.023328+00:00"
+  },
+  {
+    "id": "ac-7fa32f2f",
+    "name": "[AC-03] vscode-extension/package.json actualizado: displayName y description apuntan a %extension.displayName% y %extension.description%. Cada command.title y view.name referencia su key NLS correspondiente.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-daccc90c",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.023331+00:00"
+  },
+  {
+    "id": "ac-c7f28bb6",
+    "name": "[AC-04] Smoke test local: code --locale=es + abrir VSCode con la extensión instalada todos los items del Command Palette empiezan por SpecBox en español. code --locale=en en inglés.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-daccc90c",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.023334+00:00"
+  },
+  {
+    "id": "ac-f9529fa6",
+    "name": "[AC-05] El Marketplace listing (panel web) muestra la descripción en español cuando el navegador del usuario tiene Accept-Language es-* (verificable post-publish abriendo la URL del listing con cookie de idioma ES).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-daccc90c",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.023337+00:00"
+  },
+  {
+    "id": "item-43f63ede",
+    "name": "UC-642: i18n de strings runtime de la extensión (vscode-l10n)",
+    "description": "# UC-642: i18n de strings runtime de la extensión (vscode-l10n)\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 6.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: vscode-extension/package.json declara l10n ./l10n apuntando al directorio que contiene los bundles. Mecanismo oficial vscode-l10n (VSCode >=1.86). engines.vscode bump a ^1.86.0.\n- AC-02: vscode-extension/l10n/bundle.l10n.json contiene todos los strings user-facing en EN, extraídos de src/extension.ts y comandos. Cada key es el string EN literal (convención vscode-l10n).\n- AC-03: vscode-extension/l10n/bundle.l10n.es.json traduce todas las keys al español. Strings con placeholders 0, 1 preservan el orden de argumentos.\n- AC-04: src/extension.ts y archivos hermanos NO contienen literales de strings user-facing: todos pasan por vscode.l10n.t. Verificado por scripts/lint-extension-strings.mjs que falla si encuentra vscode.window.showInformationMessage literal sin l10n.t.\n- AC-05: Smoke test: instalar la extensión en VSCode con locale es ejecutar SpecBox Comprobar Salud la notificación sale en español. Misma operación con locale en sale en inglés.\n\n## Contexto\nRefactor src/*.ts para que strings user-facing pasen por vscode.l10n.t(...). Bundles + linter CI.",
+    "state": "backlog",
+    "parent_id": "item-662987b1",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-642",
+      "us_id": "US-VSCODE-MARKETPLACE",
+      "horas": 6.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-26T17:26:04.032816+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-91fad0ba",
+    "name": "[AC-01] vscode-extension/package.json declara l10n ./l10n apuntando al directorio que contiene los bundles. Mecanismo oficial vscode-l10n (VSCode >=1.86). engines.vscode bump a ^1.86.0.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-43f63ede",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.041479+00:00"
+  },
+  {
+    "id": "ac-f34f2cfa",
+    "name": "[AC-02] vscode-extension/l10n/bundle.l10n.json contiene todos los strings user-facing en EN, extraídos de src/extension.ts y comandos. Cada key es el string EN literal (convención vscode-l10n).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-43f63ede",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.041485+00:00"
+  },
+  {
+    "id": "ac-d1bd0568",
+    "name": "[AC-03] vscode-extension/l10n/bundle.l10n.es.json traduce todas las keys al español. Strings con placeholders 0, 1 preservan el orden de argumentos.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-43f63ede",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.041489+00:00"
+  },
+  {
+    "id": "ac-241e66be",
+    "name": "[AC-04] src/extension.ts y archivos hermanos NO contienen literales de strings user-facing: todos pasan por vscode.l10n.t. Verificado por scripts/lint-extension-strings.mjs que falla si encuentra vscode.window.showInformationMessage literal sin l10n.t.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-43f63ede",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.041492+00:00"
+  },
+  {
+    "id": "ac-5dab5a8c",
+    "name": "[AC-05] Smoke test: instalar la extensión en VSCode con locale es ejecutar SpecBox Comprobar Salud la notificación sale en español. Misma operación con locale en sale en inglés.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-43f63ede",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.041495+00:00"
+  },
+  {
+    "id": "item-f484371a",
+    "name": "UC-643: Telemetría de instalaciones via Marketplace API",
+    "description": "# UC-643: Telemetría de instalaciones via Marketplace API\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 6.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: .github/workflows/marketplace-stats.yml creado. Triggers: schedule cron 0 6 * * * (diario 06 00 UTC) + workflow_dispatch (manual). Job en ubuntu-latest con Node.js 20.\n- AC-02: Script scripts/fetch-marketplace-stats.mjs invocado por el workflow: POST a https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery con body filterType=7 value jpsdeveloper.specbox-engine flags=914. Parsea response, extrae statistics installs updateCount avgRating ratingCount trendingDaily trendingMonthly. Appendea a .quality/marketplace-stats.jsonl una línea JSON con shape date version installs downloads avg_rating rating_count trending_daily trending_monthly delta_installs_24h. delta_installs_24h se computa contra la última entry del jsonl.\n- AC-03: Workflow commitea el jsonl actualizado a main con mensaje chore(stats) marketplace stats YYYY-MM-DD. Falla suave si el endpoint retorna 404 (extensión aún no publicada log warning exit 0).\n- AC-04: server/tools/marketplace.py creado: registra tool MCP get_marketplace_stats window_days 30 jsonl_content optional que lee .quality/marketplace-stats.jsonl filtra por ventana retorna total_installs total_downloads avg_rating install_growth_pct daily_series current_trending_rank. Sigue MCP Path Contract v6.0.1 (content-passing).\n- AC-05: Test tests/test_marketplace_tool.py con jsonl fixture 30 entries simuladas tool retorna métricas correctas install_growth_pct positivo daily_series tiene 30 entries. Edge case jsonl vacío tool retorna status no_data_yet reason extension_not_published_or_no_stats.\n- AC-06: Documentación doc/runbooks/marketplace-stats.md con cómo el endpoint funciona qué flags 914 significa IncludeStatistics IncludeVersions IncludeCategoryAndTags IncludeFiles límites de rate limiting observados cron 1xdía muy lejos cómo consultar manualmente gh workflow run marketplace-stats.yml.\n- AC-07: Privacy el workflow y la tool NO capturan ningún dato del usuario final solo agregados públicos del Marketplace listing documentado en doc/runbooks/marketplace-stats.md sección Privacy data sources.\n\n## Contexto\nCron diario contra el endpoint público extensionquery del Marketplace. Persiste a .quality/marketplace-stats.jsonl. Tool MCP get_marketplace_stats. Zero PII.",
+    "state": "backlog",
+    "parent_id": "item-662987b1",
+    "labels": [
+      "UC",
+      "Actor:Engine"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-643",
+      "us_id": "US-VSCODE-MARKETPLACE",
+      "horas": 6.0,
+      "pantallas": "",
+      "actor": "Engine"
+    },
+    "created_at": "2026-05-26T17:26:04.051179+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "ac-e315ef0e",
+    "name": "[AC-01] .github/workflows/marketplace-stats.yml creado. Triggers: schedule cron 0 6 * * * (diario 06 00 UTC) + workflow_dispatch (manual). Job en ubuntu-latest con Node.js 20.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f484371a",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.059759+00:00"
+  },
+  {
+    "id": "ac-d6457075",
+    "name": "[AC-02] Script scripts/fetch-marketplace-stats.mjs invocado por el workflow: POST a https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery con body filterType=7 value jpsdeveloper.specbox-engine flags=914. Parsea response, extrae statistics installs updateCount avgRating ratingCount trendingDaily trendingMonthly. Appendea a .quality/marketplace-stats.jsonl una línea JSON con shape date version installs downloads avg_rating rating_count trending_daily trending_monthly delta_installs_24h. delta_installs_24h se computa contra la última entry del jsonl.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f484371a",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.059764+00:00"
+  },
+  {
+    "id": "ac-89b4f780",
+    "name": "[AC-03] Workflow commitea el jsonl actualizado a main con mensaje chore(stats) marketplace stats YYYY-MM-DD. Falla suave si el endpoint retorna 404 (extensión aún no publicada log warning exit 0).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f484371a",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.059768+00:00"
+  },
+  {
+    "id": "ac-7e8f3cd6",
+    "name": "[AC-04] server/tools/marketplace.py creado: registra tool MCP get_marketplace_stats window_days 30 jsonl_content optional que lee .quality/marketplace-stats.jsonl filtra por ventana retorna total_installs total_downloads avg_rating install_growth_pct daily_series current_trending_rank. Sigue MCP Path Contract v6.0.1 (content-passing).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f484371a",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.059771+00:00"
+  },
+  {
+    "id": "ac-695d2459",
+    "name": "[AC-05] Test tests/test_marketplace_tool.py con jsonl fixture 30 entries simuladas tool retorna métricas correctas install_growth_pct positivo daily_series tiene 30 entries. Edge case jsonl vacío tool retorna status no_data_yet reason extension_not_published_or_no_stats.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f484371a",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.059774+00:00"
+  },
+  {
+    "id": "ac-763a8331",
+    "name": "[AC-06] Documentación doc/runbooks/marketplace-stats.md con cómo el endpoint funciona qué flags 914 significa IncludeStatistics IncludeVersions IncludeCategoryAndTags IncludeFiles límites de rate limiting observados cron 1xdía muy lejos cómo consultar manualmente gh workflow run marketplace-stats.yml.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f484371a",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.059777+00:00"
+  },
+  {
+    "id": "ac-7f61d803",
+    "name": "[AC-07] Privacy el workflow y la tool NO capturan ningún dato del usuario final solo agregados públicos del Marketplace listing documentado en doc/runbooks/marketplace-stats.md sección Privacy data sources.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-f484371a",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-07",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-26T17:26:04.059781+00:00"
   }
 ]

@@ -1,0 +1,4 @@
+{"id": "cmt-9a81c59c", "text": "Desarrollo iniciado: 2026-05-26T17:32:08.344900+00:00", "created_at": "2026-05-26T17:32:08.344926+00:00", "author": "freeform"}
+{"id": "cmt-c93f9d15", "text": "Validacion AG-09b [2026-05-26 17:33 UTC]:\n  AC-01: PASSED\n  AC-02: PASSED\n  AC-03: PASSED\n  AC-04: PASSED\n  AC-05: PASSED", "created_at": "2026-05-26T17:33:46.027784+00:00", "author": "freeform"}
+{"id": "cmt-388afac6", "text": "Todos los criterios de aceptacion validados", "created_at": "2026-05-26T17:33:46.027864+00:00", "author": "freeform"}
+{"id": "cmt-db43830f", "text": "UC-634 SHIPPED. scripts/sync-extension-version.sh con modos --check/--write. Tests 14/14 verdes. Smoke test en vivo detectó drift v5.21.1 vs v6.1.1 y lo corrigió. NOTA: la versión del package.json quedó bumpeada a 6.1.1 para validar el script. UC-636 hará bump definitivo a 6.2.0 cuando llegue el momento del release.", "created_at": "2026-05-26T17:33:52.624939+00:00", "author": "freeform"}

@@ -8292,7 +8292,7 @@
     "id": "item-62ffdf9f",
     "name": "UC-648: UNAUTHENTICATED graceful en las 4 tools nativas",
     "description": "# UC-648: UNAUTHENTICATED graceful en las 4 tools nativas\n\n**User Story:** US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth\n**Actor:** Engine (MCP server, server/coordination/)\n**Horas estimadas:** 0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [JR-5] Las 4 tools (whoami, reserve_uc, release_uc, register_native_branch) cuando se invocan sin SPECBOX_NATIVE_MCP_TOKEN set retornan payload JSON {status: 'unauthenticated', code: 'UNAUTHENTICATED', message: 'Sign in with GitHub via the VSCode extension or run /onboard.', docs_url: 'https://github.com/EmbedBuild/specbox-engine#native-backend'} con MCP isError=true. Test: crear MCP session sin auth token + invocar cada tool + assertar exact shape del payload + assertar que NO hay stack trace en el message.\n- AC-02: [JR-5] Si el token es válido pero mcp_tokens.revoked_at IS NOT NULL en Supabase, las mismas 4 tools retornan code='UNAUTHENTICATED' con message='Your session was revoked. Sign in again.' después de ≤30s (cubierto por TTL del cache). Test: revocar token en BD, esperar 31s, invocar tool, assertar message exacto.\n- AC-03: [JR-5] Las tools NO-nativas (onboard_project, add_uc, mark_ac, list_us, complete_uc, etc. — todas las que operan sobre FreeForm/Trello/Plane) NO requieren SPECBOX_NATIVE_MCP_TOKEN. Test: invocar 20 tools no-nativas en sesión sin auth, assert todas retornan isError=false.\n- AC-04: [JR-5] El comportamiento UNAUTHENTICATED graceful está cubierto por test tests/test_native_unauthenticated.py con al menos 8 casos: (a) cada una de las 4 tools sin token, (b) cada una de las 4 tools con token revocado post-30s. Suite verde en CI.\n- AC-05: [JE-1] El message en el payload UNAUTHENTICATED está localizado server-side (i18n del server, no de la ext) usando un mecanismo similar al vscode.l10n.t de la ext: el cliente MCP envía Accept-Language header en el handshake, el server responde con message en EN o ES según corresponda. Test: 2 sesiones MCP con Accept-Language: en y Accept-Language: es, mismo error, distinto message.\n\n## Contexto\nAuditar y unificar whoami / reserve_uc / release_uc / register_native_branch para que cuando no hay token o el token es inválido retornen payload uniforme {status: 'unauthenticated', code: 'UNAUTHENTICATED', message: '...', docs_url: '...'} sin levantar exception. Tools no-nativas (FreeForm/Trello/Plane) NO se ven afectadas — no usan authenticate_and_authorize_cached.",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-a09052d6",
     "labels": [
       "UC",
@@ -8309,13 +8309,14 @@
     },
     "created_at": "2026-05-26T22:18:25.147161+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-26T22:55:45.041646+00:00"
   },
   {
     "id": "ac-d1aa995a",
     "name": "[AC-01] [JR-5] Las 4 tools (whoami, reserve_uc, release_uc, register_native_branch) cuando se invocan sin SPECBOX_NATIVE_MCP_TOKEN set retornan payload JSON {status: 'unauthenticated', code: 'UNAUTHENTICATED', message: 'Sign in with GitHub via the VSCode extension or run /onboard.', docs_url: 'https://github.com/EmbedBuild/specbox-engine#native-backend'} con MCP isError=true. Test: crear MCP session sin auth token + invocar cada tool + assertar exact shape del payload + assertar que NO hay stack trace en el message.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-62ffdf9f",
     "labels": [
       "AC"
@@ -8325,13 +8326,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T22:18:25.157468+00:00"
+    "created_at": "2026-05-26T22:18:25.157468+00:00",
+    "updated_at": "2026-05-26T22:55:38.113544+00:00"
   },
   {
     "id": "ac-af79e597",
     "name": "[AC-02] [JR-5] Si el token es válido pero mcp_tokens.revoked_at IS NOT NULL en Supabase, las mismas 4 tools retornan code='UNAUTHENTICATED' con message='Your session was revoked. Sign in again.' después de ≤30s (cubierto por TTL del cache). Test: revocar token en BD, esperar 31s, invocar tool, assertar message exacto.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-62ffdf9f",
     "labels": [
       "AC"
@@ -8341,13 +8343,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T22:18:25.157472+00:00"
+    "created_at": "2026-05-26T22:18:25.157472+00:00",
+    "updated_at": "2026-05-26T22:55:38.138078+00:00"
   },
   {
     "id": "ac-8b4a4b23",
     "name": "[AC-03] [JR-5] Las tools NO-nativas (onboard_project, add_uc, mark_ac, list_us, complete_uc, etc. — todas las que operan sobre FreeForm/Trello/Plane) NO requieren SPECBOX_NATIVE_MCP_TOKEN. Test: invocar 20 tools no-nativas en sesión sin auth, assert todas retornan isError=false.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-62ffdf9f",
     "labels": [
       "AC"
@@ -8357,13 +8360,14 @@
       "ac_id": "AC-03",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T22:18:25.157475+00:00"
+    "created_at": "2026-05-26T22:18:25.157475+00:00",
+    "updated_at": "2026-05-26T22:55:38.154032+00:00"
   },
   {
     "id": "ac-501a4016",
     "name": "[AC-04] [JR-5] El comportamiento UNAUTHENTICATED graceful está cubierto por test tests/test_native_unauthenticated.py con al menos 8 casos: (a) cada una de las 4 tools sin token, (b) cada una de las 4 tools con token revocado post-30s. Suite verde en CI.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-62ffdf9f",
     "labels": [
       "AC"
@@ -8373,13 +8377,14 @@
       "ac_id": "AC-04",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T22:18:25.157478+00:00"
+    "created_at": "2026-05-26T22:18:25.157478+00:00",
+    "updated_at": "2026-05-26T22:55:38.166961+00:00"
   },
   {
     "id": "ac-1cc864e0",
     "name": "[AC-05] [JE-1] El message en el payload UNAUTHENTICATED está localizado server-side (i18n del server, no de la ext) usando un mecanismo similar al vscode.l10n.t de la ext: el cliente MCP envía Accept-Language header en el handshake, el server responde con message en EN o ES según corresponda. Test: 2 sesiones MCP con Accept-Language: en y Accept-Language: es, mismo error, distinto message.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-62ffdf9f",
     "labels": [
       "AC"
@@ -8389,7 +8394,8 @@
       "ac_id": "AC-05",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T22:18:25.157481+00:00"
+    "created_at": "2026-05-26T22:18:25.157481+00:00",
+    "updated_at": "2026-05-26T22:55:38.178295+00:00"
   },
   {
     "id": "item-7dd4904f",

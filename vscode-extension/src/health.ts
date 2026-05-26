@@ -55,31 +55,40 @@ export class HealthChecker {
 	}
 
 	showReport(r: HealthResult): void {
+		const notInstalled = vscode.l10n.t('Not installed');
+		const notFound = vscode.l10n.t('Not found');
+		const missing = vscode.l10n.t('Missing');
+		const optional = vscode.l10n.t('Not installed (optional)');
+		const installed = vscode.l10n.t('installed');
+		const configured = vscode.l10n.t('Configured');
+		const notConfigured = vscode.l10n.t('Not configured');
+		const ok = vscode.l10n.t('OK');
+
 		const lines: string[] = [
-			'# SpecBox Engine — Health Check',
+			`# ${vscode.l10n.t('SpecBox Engine — Health Check')}`,
 			'',
-			`| Component | Status |`,
+			`| ${vscode.l10n.t('Component')} | ${vscode.l10n.t('Status')} |`,
 			`|-----------|--------|`,
-			`| Engine | ${r.engineInstalled ? `v${r.engineVersion}` : 'Not installed'} |`,
-			`| Engine Path | ${r.enginePath ?? 'Not found'} |`,
-			`| Node.js | ${r.node.ok ? r.node.version : `Missing (need ${REQUIRED_NODE_VERSION}+)`} |`,
-			`| Python | ${r.python.ok ? r.python.version : `Missing (need ${REQUIRED_PYTHON_VERSION}+)`} |`,
-			`| Claude Code | ${r.claudeCode.ok ? r.claudeCode.version : 'Missing'} |`,
-			`| Engram | ${r.engram.ok ? r.engram.version : 'Not installed'} |`,
-			`| GGA | ${r.gga.ok ? r.gga.version : 'Not installed (optional)'} |`,
+			`| ${vscode.l10n.t('Engine')} | ${r.engineInstalled ? `v${r.engineVersion}` : notInstalled} |`,
+			`| ${vscode.l10n.t('Engine Path')} | ${r.enginePath ?? notFound} |`,
+			`| Node.js | ${r.node.ok ? r.node.version : vscode.l10n.t('Missing (need {0}+)', REQUIRED_NODE_VERSION)} |`,
+			`| Python | ${r.python.ok ? r.python.version : vscode.l10n.t('Missing (need {0}+)', REQUIRED_PYTHON_VERSION)} |`,
+			`| Claude Code | ${r.claudeCode.ok ? r.claudeCode.version : missing} |`,
+			`| Engram | ${r.engram.ok ? r.engram.version : notInstalled} |`,
+			`| GGA | ${r.gga.ok ? r.gga.version : optional} |`,
 			`| Skills | ${r.skills.installed.length}/${r.skills.installed.length + r.skills.missing.length} |`,
-			`| Hooks | ${r.hooks.ok ? `${r.hooks.count} installed` : 'Missing'} |`,
-			`| Settings | ${r.settings.ok ? 'OK' : 'Missing'} |`,
-			`| MCP SpecBox | ${r.mcpSpecbox.configured ? 'Configured' : 'Not configured'} |`,
-			`| MCP Engram | ${r.mcpEngram.configured ? 'Configured' : 'Not configured'} |`,
+			`| Hooks | ${r.hooks.ok ? `${r.hooks.count} ${installed}` : missing} |`,
+			`| ${vscode.l10n.t('Settings')} | ${r.settings.ok ? ok : missing} |`,
+			`| MCP SpecBox | ${r.mcpSpecbox.configured ? configured : notConfigured} |`,
+			`| MCP Engram | ${r.mcpEngram.configured ? configured : notConfigured} |`,
 		];
 
 		if (r.skills.missing.length > 0) {
-			lines.push('', `**Missing skills:** ${r.skills.missing.join(', ')}`);
+			lines.push('', `**${vscode.l10n.t('Missing skills:')}** ${r.skills.missing.join(', ')}`);
 		}
 
 		const panel = vscode.window.createWebviewPanel(
-			'specbox.health', 'SpecBox Health Check', vscode.ViewColumn.One
+			'specbox.health', vscode.l10n.t('SpecBox Health Check'), vscode.ViewColumn.One
 		);
 		panel.webview.html = this.markdownToHtml(lines.join('\n'));
 	}

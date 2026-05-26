@@ -1,0 +1,23 @@
+{
+  "SpecBox Engine detected but not installed. Run the setup wizard?": "SpecBox Engine detected but not installed. Run the setup wizard?",
+  "Run Wizard": "Run Wizard",
+  "Install Now": "Install Now",
+  "Later": "Later",
+  "SpecBox Engine — Health Check": "SpecBox Engine — Health Check",
+  "SpecBox Health Check": "SpecBox Health Check",
+  "Component": "Component",
+  "Status": "Status",
+  "Engine": "Engine",
+  "Engine Path": "Engine Path",
+  "Settings": "Settings",
+  "Not installed": "Not installed",
+  "Not installed (optional)": "Not installed (optional)",
+  "Not found": "Not found",
+  "Missing": "Missing",
+  "Missing (need {0}+)": "Missing (need {0}+)",
+  "Missing skills:": "Missing skills:",
+  "installed": "installed",
+  "Configured": "Configured",
+  "Not configured": "Not configured",
+  "OK": "OK"
+}

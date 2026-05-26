@@ -15,7 +15,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const EXTENSION_ID = 'jpsdeveloper.specbox-engine';
+const EXTENSION_ID = 'EmbedBuild.specbox-engine';
 
 const isCheck = process.argv.includes('--check');
 const usePrebuilt = process.argv.includes('--vsix');

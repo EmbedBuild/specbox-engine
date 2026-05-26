@@ -1,0 +1,22 @@
+{
+  "extension.displayName": "SpecBox Engine — Agentic Dev for Claude Code",
+  "extension.description": "Install and manage SpecBox Engine: skills, hooks, MCP servers, and Engram memory for Claude Code agentic development.",
+  "command.install.title": "SpecBox: Install Engine",
+  "command.healthCheck.title": "SpecBox: Health Check",
+  "command.onboard.title": "SpecBox: Onboard Project",
+  "command.showStatus.title": "SpecBox: Show Status",
+  "command.configureMcp.title": "SpecBox: Configure MCP Servers",
+  "viewContainer.specbox.title": "SpecBox Engine",
+  "view.status.name": "Status",
+  "view.skills.name": "Skills",
+  "walkthrough.title": "Get Started with SpecBox Engine",
+  "walkthrough.description": "Set up agentic development for Claude Code in 3 steps.",
+  "walkthrough.step.prerequisites.title": "Check Prerequisites",
+  "walkthrough.step.install.title": "Install Engine",
+  "walkthrough.step.mcp.title": "Configure MCP Servers",
+  "walkthrough.step.firstProject.title": "Onboard Your First Project",
+  "configuration.title": "SpecBox Engine",
+  "configuration.enginePath.description": "Path to the SpecBox Engine repository. Auto-detected if empty.",
+  "configuration.autoHealthCheck.description": "Run health check on startup when a SpecBox project is detected.",
+  "configuration.mcpAutoStart.description": "Automatically configure MCP servers (SpecBox + Engram) on install."
+}

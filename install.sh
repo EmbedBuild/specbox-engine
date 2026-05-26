@@ -452,7 +452,7 @@ else
     # Check if VSCode extension was installed
     VSCODE_EXT_STATUS=""
     if command -v code &>/dev/null; then
-        if code --list-extensions 2>/dev/null | grep -qi "jpsdeveloper.specbox-engine"; then
+        if code --list-extensions 2>/dev/null | grep -qi "EmbedBuild.specbox-engine"; then
             VSCODE_EXT_STATUS="installed"
         fi
     fi

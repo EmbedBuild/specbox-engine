@@ -98,7 +98,7 @@ export class OnboardWizard {
 		}, async (progress) => {
 			progress.report({ message: 'git clone in progress...' });
 			const result = await exec(
-				`git clone https://github.com/jpsdeveloper/specbox-engine.git "${targetDir}"`,
+				`git clone https://github.com/EmbedBuild/specbox-engine.git "${targetDir}"`,
 				home
 			);
 			return result !== null;

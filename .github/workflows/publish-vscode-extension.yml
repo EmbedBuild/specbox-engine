@@ -1,0 +1,129 @@
+name: Publish VSCode Extension
+
+# Triggers:
+#   - Push of a semver tag (v1.2.3 = stable, v1.2.3-rc1 = pre-release)
+#   - Manual dispatch (for emergency republish without re-tagging)
+#
+# Requires the following GitHub Secrets (setup in UC-639):
+#   VSCE_PAT — Personal Access Token of the 'EmbedBuild' Marketplace publisher.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (e.g. v6.2.0 or v6.2.0-rc1). Must already exist.'
+        required: true
+        type: string
+
+permissions:
+  contents: write  # required to upload the .vsix to the GitHub Release
+
+jobs:
+  publish:
+    name: Build, publish, attach
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 1
+
+      - name: Set up Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: vscode-extension/package-lock.json
+
+      - name: Install @vscode/vsce globally
+        run: npm install -g @vscode/vsce
+
+      - name: Resolve tag and determine pre-release flag
+        id: meta
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          # Strip leading 'v' to get the semver string
+          VERSION="${TAG#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          # Detect pre-release: vX.Y.Z-rc* → --pre-release flag for vsce
+          if [[ "$VERSION" == *-rc* ]]; then
+            echo "pre_release=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Publishing $TAG as PRE-RELEASE (vsce --pre-release flag)"
+          else
+            echo "pre_release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Publishing $TAG as STABLE release"
+          fi
+
+      - name: Verify version sync (defense-in-depth)
+        run: |
+          # UC-635 release skill already enforces this pre-tag, but we verify again
+          # in case the tag was pushed manually outside the /release skill flow.
+          bash scripts/sync-extension-version.sh --check
+
+      - name: Lint extension strings (i18n gate)
+        run: node scripts/lint-extension-strings.mjs
+
+      - name: Install extension dependencies
+        working-directory: vscode-extension
+        run: npm ci
+
+      - name: Compile TypeScript (vscode:prepublish)
+        working-directory: vscode-extension
+        run: npm run vscode:prepublish
+
+      - name: Package VSIX
+        id: package
+        working-directory: vscode-extension
+        run: |
+          VSIX_NAME="specbox-engine-${{ steps.meta.outputs.version }}.vsix"
+          if [ "${{ steps.meta.outputs.pre_release }}" = "true" ]; then
+            vsce package --pre-release --out "$VSIX_NAME"
+          else
+            vsce package --out "$VSIX_NAME"
+          fi
+          echo "vsix=$VSIX_NAME" >> "$GITHUB_OUTPUT"
+          ls -la "$VSIX_NAME"
+
+      - name: Publish to VSCode Marketplace
+        working-directory: vscode-extension
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::error::VSCE_PAT secret is not set. See doc/runbooks/vscode-marketplace-publisher-setup.md"
+            exit 1
+          fi
+          if [ "${{ steps.meta.outputs.pre_release }}" = "true" ]; then
+            vsce publish --pre-release --packagePath "${{ steps.package.outputs.vsix }}"
+          else
+            vsce publish --packagePath "${{ steps.package.outputs.vsix }}"
+          fi
+
+      - name: Attach VSIX to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          prerelease: ${{ steps.meta.outputs.pre_release == 'true' }}
+          fail_on_unmatched_files: true
+          files: vscode-extension/${{ steps.package.outputs.vsix }}
+
+      - name: Summary
+        run: |
+          {
+            echo "## VSCode Marketplace publish"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Tag | \`${{ steps.meta.outputs.tag }}\` |"
+            echo "| Version | \`${{ steps.meta.outputs.version }}\` |"
+            echo "| Pre-release | \`${{ steps.meta.outputs.pre_release }}\` |"
+            echo "| VSIX | \`${{ steps.package.outputs.vsix }}\` |"
+            echo "| Marketplace | https://marketplace.visualstudio.com/items?itemName=EmbedBuild.specbox-engine |"
+          } >> "$GITHUB_STEP_SUMMARY"

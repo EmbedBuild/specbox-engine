@@ -41,6 +41,7 @@ from .tools.acceptance import register_acceptance_tools
 from .tools.evidence_regen import register_evidence_regen_tools
 from .tools.benchmark import register_benchmark_tools
 from .tools.hints import register_hint_tools
+from .tools.marketplace import register_marketplace_tools  # v6.2.0 UC-643
 from .tools.skill_registry import register_skill_registry_tools
 from .tools.stitch import register_stitch_tools
 from .tools.stitch_v2 import register_stitch_v2_tools
@@ -220,6 +221,9 @@ register_benchmark_tools(mcp, ENGINE_PATH, STATE_PATH)
 
 # Register hint tools (3 tools: get_skill_hint, record_skill_hint, list_skill_hints)
 register_hint_tools(mcp)
+
+# Register marketplace stats tool (1 tool: get_marketplace_stats) — v6.2.0 UC-643
+register_marketplace_tools(mcp, ENGINE_PATH)
 
 # Register skill registry tools (3 tools: list_skills_v2, discover_skills, validate_skill_manifest)
 register_skill_registry_tools(mcp, ENGINE_PATH)

@@ -19,13 +19,13 @@ La forma mas rapida de instalar SpecBox Engine en cualquier sistema operativo (W
 Busca **"SpecBox Engine"** en el marketplace de VSCode, o desde la terminal:
 
 ```bash
-code --install-extension jpsdeveloper.specbox-engine
+code --install-extension EmbedBuild.specbox-engine
 ```
 
 #### 2. Clonar el repositorio
 
 ```bash
-git clone https://github.com/jpsdeveloper/specbox-engine.git ~/specbox-engine
+git clone https://github.com/EmbedBuild/specbox-engine.git ~/specbox-engine
 ```
 
 #### 3. Ejecutar el wizard de onboarding
@@ -58,7 +58,7 @@ Tambien puedes abrir el panel lateral de SpecBox en la barra de actividad para v
 Para entornos sin interfaz grafica o automatizacion en CI:
 
 ```bash
-git clone https://github.com/jpsdeveloper/specbox-engine.git ~/specbox-engine
+git clone https://github.com/EmbedBuild/specbox-engine.git ~/specbox-engine
 cd ~/specbox-engine
 ./install.sh
 ```

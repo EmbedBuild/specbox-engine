@@ -44,7 +44,7 @@ El Marketplace de VSCode usa Azure DevOps como sistema de identidad para los pub
 5. **COPIA EL TOKEN YA**. Microsoft solo te lo muestra una vez. Si lo pierdes, tienes que regenerar.
 6. Pégalo temporalmente en algún sitio seguro (1Password, gestor de credenciales, archivo `.env` que NO se commitea).
 
-> **Importante**: el PAT da permiso para **publicar y borrar** cualquier extensión del publisher `jpsdeveloper`. Trátalo como una credencial sensible.
+> **Importante**: el PAT da permiso para **publicar y borrar** cualquier extensión del publisher `EmbedBuild`. Trátalo como una credencial sensible.
 
 ---
 
@@ -55,24 +55,24 @@ El Marketplace de VSCode usa Azure DevOps como sistema de identidad para los pub
 npm install -g @vscode/vsce
 vsce --version    # debe mostrar 3.x
 
-# Registra el publisher en local (vincula tu PAT con el nombre 'jpsdeveloper')
-vsce login jpsdeveloper
+# Registra el publisher en local (vincula tu PAT con el nombre 'EmbedBuild')
+vsce login EmbedBuild
 # Pegará el PAT cuando lo pida.
 ```
 
-> **Por qué `jpsdeveloper`**: es el `publisher` declarado en `vscode-extension/package.json:6`. El publisher Marketplace es independiente del owner GitHub (`EmbedBuild`). Si quisieras cambiarlo, también habría que editar `package.json`, todas las URLs del Marketplace en los READMEs y los badges shields.io.
+> **Por qué `EmbedBuild`**: es el `publisher` declarado en `vscode-extension/package.json:6`, alineado con el owner del repo en GitHub (`https://github.com/EmbedBuild/specbox-engine`). Decisión consciente: mantener el mismo nombre en el Marketplace y en GitHub para que el branding sea coherente. Si quisieras cambiarlo, habría que editar `package.json`, los workflows CI, todas las URLs/badges del Marketplace en los READMEs, los runbooks, el script de stats y el extension ID en `install-ext.mjs`.
 
-### Si el publisher `jpsdeveloper` no existe todavía
+### Si el publisher `EmbedBuild` no existe todavía
 
-vsce te dará un error tipo `publisher 'jpsdeveloper' not found`. En ese caso:
+vsce te dará un error tipo `publisher 'EmbedBuild' not found`. En ese caso:
 
 1. Ve a https://marketplace.visualstudio.com/manage
 2. Inicia sesión con la misma cuenta Microsoft del paso 1.
-3. Click **+ New Publisher**.
-4. **Publisher ID**: `jpsdeveloper` (exactamente este, no añadas sufijos).
-5. **Display Name**: `JPS Developer` (lo que se ve en el listing).
+3. Click **+ New Publisher** (o **Create publisher**).
+4. **Publisher ID**: `EmbedBuild` (exactamente este, **CamelCase**, sin sufijos).
+5. **Display Name**: `Embed.build` (lo que se ve en el listing del Marketplace).
 6. Acepta los términos del Marketplace.
-7. Vuelve a ejecutar `vsce login jpsdeveloper` con tu PAT.
+7. Vuelve a ejecutar `vsce login EmbedBuild` con tu PAT.
 
 ---
 
@@ -109,13 +109,13 @@ Antes del primer publish, verifica que vsce reconoce el publisher:
 
 ```bash
 vsce ls-publishers
-# Debe listar 'jpsdeveloper'
+# Debe listar 'EmbedBuild'
 ```
 
 Después del primer publish exitoso (cuando se corte el tag `v6.2.0-rc1` o `v6.2.0`):
 
 ```bash
-vsce show jpsdeveloper.specbox-engine
+vsce show EmbedBuild.specbox-engine
 # Debe mostrar metadata del listing: versions, statistics, etc.
 ```
 
@@ -130,8 +130,8 @@ Los PATs de Azure DevOps caducan en máx. 1 año. Cuando se acerque la fecha (Az
 1. Genera un PAT nuevo siguiendo **Paso 2** (mismo scope `Marketplace > Manage`).
 2. Actualiza el login local:
    ```bash
-   vsce logout jpsdeveloper
-   vsce login jpsdeveloper
+   vsce logout EmbedBuild
+   vsce login EmbedBuild
    # Pega el PAT nuevo.
    ```
 3. Actualiza el secret en GitHub:
@@ -144,7 +144,7 @@ Los PATs de Azure DevOps caducan en máx. 1 año. Cuando se acerque la fecha (Az
    gh workflow run publish-vscode-extension.yml -R EmbedBuild/specbox-engine \
      -f tag=v6.2.0  # o el tag más reciente
    ```
-5. El publisher `jpsdeveloper` sigue siendo dueño de la extensión — la rotación del PAT no afecta a la propiedad, solo a las credenciales que usa el workflow para publicar.
+5. El publisher `EmbedBuild` sigue siendo dueño de la extensión — la rotación del PAT no afecta a la propiedad, solo a las credenciales que usa el workflow para publicar.
 
 ### Recordatorio sugerido
 
@@ -159,7 +159,7 @@ Si necesitas retirar una versión por un bug crítico, fuga de secret, o decisi�
 ### Retirar solo una versión
 
 ```bash
-vsce unpublish jpsdeveloper.specbox-engine@6.2.0
+vsce unpublish EmbedBuild.specbox-engine@6.2.0
 # Confirma cuando lo pida.
 ```
 
@@ -168,11 +168,11 @@ Quita esa versión específica del Marketplace. **Instalaciones existentes no se
 ### Retirar la extensión entera
 
 ```bash
-vsce unpublish jpsdeveloper.specbox-engine
+vsce unpublish EmbedBuild.specbox-engine
 # Confirma DOS veces (la segunda con el nombre completo de la extensión).
 ```
 
-**No hagas esto a menos que sea grave.** Quita la extensión del Marketplace, libera el namespace `jpsdeveloper.specbox-engine` (¡otro publisher podría tomarlo!). Tarda **horas** en propagar globalmente — algunos mirrors regionales del Marketplace pueden seguir sirviéndola durante un día.
+**No hagas esto a menos que sea grave.** Quita la extensión del Marketplace, libera el namespace `EmbedBuild.specbox-engine` (¡otro publisher podría tomarlo!). Tarda **horas** en propagar globalmente — algunos mirrors regionales del Marketplace pueden seguir sirviéndola durante un día.
 
 ### Advertencias del Marketplace
 
@@ -188,9 +188,9 @@ vsce unpublish jpsdeveloper.specbox-engine
 | Síntoma | Causa probable | Acción |
 |---------|----------------|--------|
 | `vsce publish` falla con `401 Unauthorized` | PAT inválido, caducado o scope insuficiente | Genera un PAT nuevo con scope `Marketplace > Manage`. |
-| `vsce publish` falla con `403 Forbidden` | El PAT no tiene permisos sobre `jpsdeveloper`. ¿Estás en la organización correcta? | Verifica que el PAT se generó con `Organization: All accessible organizations`. |
+| `vsce publish` falla con `403 Forbidden` | El PAT no tiene permisos sobre `EmbedBuild`. ¿Estás en la organización correcta? | Verifica que el PAT se generó con `Organization: All accessible organizations`. |
 | Workflow CI falla en step "Publish to VSCode Marketplace" con "VSCE_PAT is not set" | El secret no existe en el repo | Ejecuta `gh secret set VSCE_PAT --repo EmbedBuild/specbox-engine`. |
-| `vsce login jpsdeveloper` cuelga | Bug ocasional de vsce con TTY no interactivo | Asegúrate de estar en una shell interactiva. Alternativa: `echo "$PAT" \| vsce login jpsdeveloper`. |
+| `vsce login EmbedBuild` cuelga sin mensaje | **Causa frecuente: el publisher no existe todavía en el Marketplace**. vsce no muestra error claro y se queda esperando. Otra causa: TTY no interactivo. | (1) Verifica antes de hacer login que `https://marketplace.visualstudio.com/manage/publishers/EmbedBuild` NO devuelve 404. Si lo hace, créalo en `https://marketplace.visualstudio.com/manage`. (2) Como atajo no-interactivo: `vsce verify-pat EmbedBuild` (te pide el PAT pero no se cuelga). |
 | El listing aparece publicado pero `vsce show` da 404 | Propagación todavía no completa | Espera 15-30 min y reintenta. |
 
 ---

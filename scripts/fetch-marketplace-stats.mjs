@@ -22,7 +22,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const REPO_ROOT = join(__dirname, '..');
 const JSONL_PATH = join(REPO_ROOT, '.quality', 'marketplace-stats.jsonl');
 
-const EXTENSION_ID = 'jpsdeveloper.specbox-engine';
+const EXTENSION_ID = 'EmbedBuild.specbox-engine';
 const ENDPOINT = 'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery';
 const FLAGS = 914;
 

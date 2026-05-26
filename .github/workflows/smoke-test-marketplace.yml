@@ -54,8 +54,8 @@ jobs:
 
       - name: Install extension from Marketplace
         run: |
-          xvfb-run -a code --install-extension jpsdeveloper.specbox-engine --force 2>&1 | tee install.log
-          if ! code --list-extensions --show-versions | grep -q '^jpsdeveloper.specbox-engine@'; then
+          xvfb-run -a code --install-extension EmbedBuild.specbox-engine --force 2>&1 | tee install.log
+          if ! code --list-extensions --show-versions | grep -q '^EmbedBuild.specbox-engine@'; then
             echo "::error::Extension not present in --list-extensions after install"
             cat install.log
             exit 1
@@ -63,7 +63,7 @@ jobs:
 
       - name: Verify installed version matches engine
         run: |
-          INSTALLED=$(code --list-extensions --show-versions | grep '^jpsdeveloper.specbox-engine@' | cut -d@ -f2)
+          INSTALLED=$(code --list-extensions --show-versions | grep '^EmbedBuild.specbox-engine@' | cut -d@ -f2)
           EXPECTED="${{ steps.version.outputs.expected }}"
           echo "installed=$INSTALLED expected=$EXPECTED"
           if [ "$INSTALLED" != "$EXPECTED" ]; then
@@ -91,7 +91,7 @@ jobs:
           fi
 
           # Find the installed extension package.json in the user's extension dir
-          EXT_DIR=$(find "$HOME/.vscode/extensions" -maxdepth 1 -name 'jpsdeveloper.specbox-engine-*' -type d | head -1)
+          EXT_DIR=$(find "$HOME/.vscode/extensions" -maxdepth 1 -name 'EmbedBuild.specbox-engine-*' -type d | head -1)
           if [ -z "$EXT_DIR" ]; then
             echo "::error::Could not locate installed extension dir under ~/.vscode/extensions"
             ls -la "$HOME/.vscode/extensions" || true
@@ -156,6 +156,6 @@ jobs:
                 `- Did the locale matrix find the expected titles in the bundles?`,
                 ``,
                 `**No automatic rollback was performed.** If the extension is broken in the Marketplace,`,
-                `run \`vsce unpublish jpsdeveloper.specbox-engine@<version>\` manually and cut a fix-forward release.`,
+                `run \`vsce unpublish EmbedBuild.specbox-engine@<version>\` manually and cut a fix-forward release.`,
               ].join('\n'),
             });

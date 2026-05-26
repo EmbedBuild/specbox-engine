@@ -1,6 +1,6 @@
 # Marketplace Stats Snapshot — Runbook
 
-> Telemetría pública de adopción para la extensión `jpsdeveloper.specbox-engine`
+> Telemetría pública de adopción para la extensión `EmbedBuild.specbox-engine`
 > en el VSCode Marketplace.
 > Introducido en v6.2.0 por UC-643 (US-VSCODE-MARKETPLACE).
 
@@ -35,7 +35,7 @@ Endpoint REST no documentado oficialmente por Microsoft, pero ampliamente usado 
 ```json
 {
   "filters": [{
-    "criteria": [{"filterType": 7, "value": "jpsdeveloper.specbox-engine"}],
+    "criteria": [{"filterType": 7, "value": "EmbedBuild.specbox-engine"}],
     "pageSize": 1,
     "pageNumber": 1
   }],
@@ -65,7 +65,7 @@ Estos cinco flags suman exactamente 914. No incluye `IncludeFiles` (1) ni `Inclu
 {
   "results": [{
     "extensions": [{
-      "publisher": {"publisherName": "jpsdeveloper"},
+      "publisher": {"publisherName": "EmbedBuild"},
       "extensionName": "specbox-engine",
       "versions": [{"version": "6.2.0", "lastUpdated": "..."}],
       "statistics": [

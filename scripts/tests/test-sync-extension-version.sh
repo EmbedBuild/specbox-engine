@@ -35,7 +35,7 @@ EOF
   "name": "specbox-engine",
   "displayName": "SpecBox Engine",
   "version": "$ext_ver",
-  "publisher": "jpsdeveloper"
+  "publisher": "EmbedBuild"
 }
 EOF
 

@@ -12,7 +12,7 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ### Added
 - **First Marketplace release.** The extension is now published at
-  [marketplace.visualstudio.com](https://marketplace.visualstudio.com/items?itemName=jpsdeveloper.specbox-engine)
+  [marketplace.visualstudio.com](https://marketplace.visualstudio.com/items?itemName=EmbedBuild.specbox-engine)
   and installable in one click.
 - **Lockstep versioning with SpecBox Engine.** Every tag on the engine repo
   publishes the corresponding extension version. The `scripts/sync-extension-version.sh`
@@ -35,7 +35,7 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 - `engines.vscode` bumped from `^1.85.0` to `^1.86.0` to enable `vscode.l10n` runtime localization.
 - `@types/vscode` bumped from `^1.85.0` to `^1.86.0`.
 - `repository.url`, `bugs.url`, `homepage` now point to the correct GitHub repo
-  (`EmbedBuild/specbox-engine`). The Marketplace publisher remains `jpsdeveloper`.
+  (`EmbedBuild/specbox-engine`). The Marketplace publisher is `EmbedBuild`.
 - `package.json` metadata extended with `galleryBanner`, `pricing: Free`, `qna: false`,
   and explicit `bugs` / `homepage` URLs.
 - Runtime user-facing strings in `extension.ts` and `health.ts` now route through

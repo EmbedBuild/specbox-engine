@@ -6657,7 +6657,7 @@
   {
     "id": "item-662987b1",
     "name": "US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine",
-    "description": "# US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n\n**Horas estimadas:** 42.0\n**Pantallas:** \n\nPublicar la extensión jpsdeveloper.specbox-engine en el VSCode Marketplace + establecer CI lockstep que mantenga extension.version == engine.version en cada tag + i18n EN/ES (listing NLS + runtime l10n) + telemetría Marketplace API pública (cron diario → .quality/marketplace-stats.jsonl → tool MCP get_marketplace_stats). Hoy la extensión está drifteada 6 versiones (5.21.1 vs engine 6.1.1) y no es descubrible vía Marketplace. Target release: v6.2.0 'VSCode Marketplace' (minor). Decisiones de scope: Solo VSCode Marketplace (no Open VSX en V1). Lockstep estricto. Vía A pura (NO thin-extension refactor). i18n EN canon + ES localizado. Telemetría solo via Marketplace REST API público (cero PII, cero telemetría activa). Publisher Marketplace = jpsdeveloper. Repo GitHub = EmbedBuild/specbox-engine.",
+    "description": "# US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n\n**Horas estimadas:** 42.0\n**Pantallas:** \n\nPublicar la extensión EmbedBuild.specbox-engine en el VSCode Marketplace + establecer CI lockstep que mantenga extension.version == engine.version en cada tag + i18n EN/ES (listing NLS + runtime l10n) + telemetría Marketplace API pública (cron diario → .quality/marketplace-stats.jsonl → tool MCP get_marketplace_stats). Hoy la extensión está drifteada 6 versiones (5.21.1 vs engine 6.1.1) y no es descubrible vía Marketplace. Target release: v6.2.0 'VSCode Marketplace' (minor). Decisiones de scope: Solo VSCode Marketplace (no Open VSX en V1). Lockstep estricto. Vía A pura (NO thin-extension refactor). i18n EN canon + ES localizado. Telemetría solo via Marketplace REST API público (cero PII, cero telemetría activa). Publisher Marketplace = EmbedBuild. Repo GitHub = EmbedBuild/specbox-engine.",
     "state": "user_stories",
     "parent_id": null,
     "labels": [
@@ -6895,7 +6895,7 @@
   {
     "id": "item-fcf5f5a8",
     "name": "UC-636: Metadata Marketplace en package.json",
-    "description": "# UC-636: Metadata Marketplace en package.json\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 3.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: package.json declara: displayName, description, version, publisher jpsdeveloper, license MIT, engines.vscode, icon (path a PNG >=128x128), categories (mínimo AI y Other), keywords (mínimo claude, claude-code, agentic, MCP, spec-driven, BDD).\n- AC-02: package.json declara repository.url=https://github.com/EmbedBuild/specbox-engine, bugs.url=https://github.com/EmbedBuild/specbox-engine/issues, homepage=https://github.com/EmbedBuild/specbox-engine#readme. Publisher Marketplace sigue siendo jpsdeveloper.\n- AC-03: package.json declara galleryBanner.color y galleryBanner.theme (dark o light) consistente con el branding.\n- AC-04: vscode prepublish script existe y compila TypeScript sin errores (tsc -p ./).\n- AC-05: vsce ls --tree corre sin warnings ni errores sobre missing fields o .vscodeignore mal configurado.\n\n## Contexto\nAudit y refresh del package.json para cumplir best practices del Marketplace.",
+    "description": "# UC-636: Metadata Marketplace en package.json\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 3.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: package.json declara: displayName, description, version, publisher EmbedBuild, license MIT, engines.vscode, icon (path a PNG >=128x128), categories (mínimo AI y Other), keywords (mínimo claude, claude-code, agentic, MCP, spec-driven, BDD).\n- AC-02: package.json declara repository.url=https://github.com/EmbedBuild/specbox-engine, bugs.url=https://github.com/EmbedBuild/specbox-engine/issues, homepage=https://github.com/EmbedBuild/specbox-engine#readme. Publisher Marketplace es EmbedBuild.\n- AC-03: package.json declara galleryBanner.color y galleryBanner.theme (dark o light) consistente con el branding.\n- AC-04: vscode prepublish script existe y compila TypeScript sin errores (tsc -p ./).\n- AC-05: vsce ls --tree corre sin warnings ni errores sobre missing fields o .vscodeignore mal configurado.\n\n## Contexto\nAudit y refresh del package.json para cumplir best practices del Marketplace.",
     "state": "done",
     "parent_id": "item-662987b1",
     "labels": [
@@ -6918,7 +6918,7 @@
   },
   {
     "id": "ac-9bc50353",
-    "name": "[AC-01] package.json declara: displayName, description, version, publisher jpsdeveloper, license MIT, engines.vscode, icon (path a PNG >=128x128), categories (mínimo AI y Other), keywords (mínimo claude, claude-code, agentic, MCP, spec-driven, BDD).",
+    "name": "[AC-01] package.json declara: displayName, description, version, publisher EmbedBuild, license MIT, engines.vscode, icon (path a PNG >=128x128), categories (mínimo AI y Other), keywords (mínimo claude, claude-code, agentic, MCP, spec-driven, BDD).",
     "description": "",
     "state": "done",
     "parent_id": "item-fcf5f5a8",
@@ -6935,7 +6935,7 @@
   },
   {
     "id": "ac-d096f127",
-    "name": "[AC-02] package.json declara repository.url=https://github.com/EmbedBuild/specbox-engine, bugs.url=https://github.com/EmbedBuild/specbox-engine/issues, homepage=https://github.com/EmbedBuild/specbox-engine#readme. Publisher Marketplace sigue siendo jpsdeveloper.",
+    "name": "[AC-02] package.json declara repository.url=https://github.com/EmbedBuild/specbox-engine, bugs.url=https://github.com/EmbedBuild/specbox-engine/issues, homepage=https://github.com/EmbedBuild/specbox-engine#readme. Publisher Marketplace es EmbedBuild.",
     "description": "",
     "state": "done",
     "parent_id": "item-fcf5f5a8",
@@ -7239,7 +7239,7 @@
   {
     "id": "item-0cef5193",
     "name": "UC-639: Setup inicial del publisher y secrets",
-    "description": "# UC-639: Setup inicial del publisher y secrets\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Humano\n**Horas estimadas:** 2.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: doc/runbooks/vscode-marketplace-publisher-setup.md creado. Documenta: crear cuenta Azure DevOps, crear org, crear PAT scope Marketplace Manage, registrar publisher jpsdeveloper con vsce create-publisher, añadir VSCE_PAT a GitHub Secrets del repo EmbedBuild/specbox-engine.\n- AC-02: El runbook incluye sección Rotación del PAT (PATs Azure DevOps caducan máx 1 año): cómo regenerar sin perder ownership del publisher, cómo actualizar el secret en GitHub.\n- AC-03: El runbook incluye comando de verificación: vsce ls-publishers debe mostrar jpsdeveloper y vsce show jpsdeveloper.specbox-engine debe responder OK tras el primer publish.\n- AC-04: El runbook documenta el unpublish de emergencia (vsce unpublish jpsdeveloper.specbox-engine) y advertencias del Marketplace (puede tardar horas en propagarse).\n- AC-05: Una vez ejecutado el setup, en GitHub Repo Settings Secrets and variables Actions existe VSCE_PAT (verificable por listado, no por valor).\n\n## Contexto\nOne-time setup. Documentar publisher jpsdeveloper en VSCode Marketplace + PAT en GitHub Secrets. Bloqueante para UC-638.",
+    "description": "# UC-639: Setup inicial del publisher y secrets\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Humano\n**Horas estimadas:** 2.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: doc/runbooks/vscode-marketplace-publisher-setup.md creado. Documenta: crear cuenta Azure DevOps, crear org, crear PAT scope Marketplace Manage, registrar publisher EmbedBuild con vsce create-publisher, añadir VSCE_PAT a GitHub Secrets del repo EmbedBuild/specbox-engine.\n- AC-02: El runbook incluye sección Rotación del PAT (PATs Azure DevOps caducan máx 1 año): cómo regenerar sin perder ownership del publisher, cómo actualizar el secret en GitHub.\n- AC-03: El runbook incluye comando de verificación: vsce ls-publishers debe mostrar EmbedBuild y vsce show EmbedBuild.specbox-engine debe responder OK tras el primer publish.\n- AC-04: El runbook documenta el unpublish de emergencia (vsce unpublish EmbedBuild.specbox-engine) y advertencias del Marketplace (puede tardar horas en propagarse).\n- AC-05: Una vez ejecutado el setup, en GitHub Repo Settings Secrets and variables Actions existe VSCE_PAT (verificable por listado, no por valor).\n\n## Contexto\nOne-time setup. Documentar publisher EmbedBuild en VSCode Marketplace + PAT en GitHub Secrets. Bloqueante para UC-638.",
     "state": "done",
     "parent_id": "item-662987b1",
     "labels": [
@@ -7262,7 +7262,7 @@
   },
   {
     "id": "ac-b74284ce",
-    "name": "[AC-01] doc/runbooks/vscode-marketplace-publisher-setup.md creado. Documenta: crear cuenta Azure DevOps, crear org, crear PAT scope Marketplace Manage, registrar publisher jpsdeveloper con vsce create-publisher, añadir VSCE_PAT a GitHub Secrets del repo EmbedBuild/specbox-engine.",
+    "name": "[AC-01] doc/runbooks/vscode-marketplace-publisher-setup.md creado. Documenta: crear cuenta Azure DevOps, crear org, crear PAT scope Marketplace Manage, registrar publisher EmbedBuild con vsce create-publisher, añadir VSCE_PAT a GitHub Secrets del repo EmbedBuild/specbox-engine.",
     "description": "",
     "state": "done",
     "parent_id": "item-0cef5193",
@@ -7296,7 +7296,7 @@
   },
   {
     "id": "ac-9f733fad",
-    "name": "[AC-03] El runbook incluye comando de verificación: vsce ls-publishers debe mostrar jpsdeveloper y vsce show jpsdeveloper.specbox-engine debe responder OK tras el primer publish.",
+    "name": "[AC-03] El runbook incluye comando de verificación: vsce ls-publishers debe mostrar EmbedBuild y vsce show EmbedBuild.specbox-engine debe responder OK tras el primer publish.",
     "description": "",
     "state": "done",
     "parent_id": "item-0cef5193",
@@ -7313,7 +7313,7 @@
   },
   {
     "id": "ac-02e06d02",
-    "name": "[AC-04] El runbook documenta el unpublish de emergencia (vsce unpublish jpsdeveloper.specbox-engine) y advertencias del Marketplace (puede tardar horas en propagarse).",
+    "name": "[AC-04] El runbook documenta el unpublish de emergencia (vsce unpublish EmbedBuild.specbox-engine) y advertencias del Marketplace (puede tardar horas en propagarse).",
     "description": "",
     "state": "done",
     "parent_id": "item-0cef5193",
@@ -7348,7 +7348,7 @@
   {
     "id": "item-50b0891d",
     "name": "UC-640: Smoke test post-publish con matrix locale [en, es]",
-    "description": "# UC-640: Smoke test post-publish con matrix locale [en, es]\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Workflow en .github/workflows/smoke-test-marketplace.yml. Trigger: workflow_run después de publish-vscode-extension.yml exitoso, O manual via workflow_dispatch.\n- AC-02: Job en ubuntu-latest, instala VSCode CLI (code via apt o snap), corre code --install-extension jpsdeveloper.specbox-engine --force.\n- AC-03: Job verifica code --list-extensions | grep jpsdeveloper.specbox-engine retorna exit 0 y la versión instalada matchea el tag actual.\n- AC-04: Job crea un workspace dummy con ENGINE_VERSION.yaml (trigger de activación de la extensión), abre VSCode headless, verifica via code --status o un test script que la extensión está activa.\n- AC-05: Job corre el smoke en matrix locale en y es: instala con code --locale=en y luego code --locale=es, verifica para cada uno que el comando SpecBox Install Engine (EN) / SpecBox Instalar Engine (ES) aparece en el listado de comandos registrados. Falla el job si alguna variante no resuelve la traducción correcta.\n- AC-06: Si el smoke test falla, el workflow abre automáticamente un issue en el repo con label marketplace-smoke-fail y el output del workflow. NO hace rollback automático.\n\n## Contexto\nWorkflow disparado tras publish exitoso. Instala desde Marketplace en VSCode headless, verifica activación y i18n.",
+    "description": "# UC-640: Smoke test post-publish con matrix locale [en, es]\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Workflow en .github/workflows/smoke-test-marketplace.yml. Trigger: workflow_run después de publish-vscode-extension.yml exitoso, O manual via workflow_dispatch.\n- AC-02: Job en ubuntu-latest, instala VSCode CLI (code via apt o snap), corre code --install-extension EmbedBuild.specbox-engine --force.\n- AC-03: Job verifica code --list-extensions | grep EmbedBuild.specbox-engine retorna exit 0 y la versión instalada matchea el tag actual.\n- AC-04: Job crea un workspace dummy con ENGINE_VERSION.yaml (trigger de activación de la extensión), abre VSCode headless, verifica via code --status o un test script que la extensión está activa.\n- AC-05: Job corre el smoke en matrix locale en y es: instala con code --locale=en y luego code --locale=es, verifica para cada uno que el comando SpecBox Install Engine (EN) / SpecBox Instalar Engine (ES) aparece en el listado de comandos registrados. Falla el job si alguna variante no resuelve la traducción correcta.\n- AC-06: Si el smoke test falla, el workflow abre automáticamente un issue en el repo con label marketplace-smoke-fail y el output del workflow. NO hace rollback automático.\n\n## Contexto\nWorkflow disparado tras publish exitoso. Instala desde Marketplace en VSCode headless, verifica activación y i18n.",
     "state": "done",
     "parent_id": "item-662987b1",
     "labels": [
@@ -7388,7 +7388,7 @@
   },
   {
     "id": "ac-8946cc76",
-    "name": "[AC-02] Job en ubuntu-latest, instala VSCode CLI (code via apt o snap), corre code --install-extension jpsdeveloper.specbox-engine --force.",
+    "name": "[AC-02] Job en ubuntu-latest, instala VSCode CLI (code via apt o snap), corre code --install-extension EmbedBuild.specbox-engine --force.",
     "description": "",
     "state": "done",
     "parent_id": "item-50b0891d",
@@ -7405,7 +7405,7 @@
   },
   {
     "id": "ac-70d4e25a",
-    "name": "[AC-03] Job verifica code --list-extensions | grep jpsdeveloper.specbox-engine retorna exit 0 y la versión instalada matchea el tag actual.",
+    "name": "[AC-03] Job verifica code --list-extensions | grep EmbedBuild.specbox-engine retorna exit 0 y la versión instalada matchea el tag actual.",
     "description": "",
     "state": "done",
     "parent_id": "item-50b0891d",
@@ -7692,7 +7692,7 @@
   {
     "id": "item-f484371a",
     "name": "UC-643: Telemetría de instalaciones via Marketplace API",
-    "description": "# UC-643: Telemetría de instalaciones via Marketplace API\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 6.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: .github/workflows/marketplace-stats.yml creado. Triggers: schedule cron 0 6 * * * (diario 06 00 UTC) + workflow_dispatch (manual). Job en ubuntu-latest con Node.js 20.\n- AC-02: Script scripts/fetch-marketplace-stats.mjs invocado por el workflow: POST a https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery con body filterType=7 value jpsdeveloper.specbox-engine flags=914. Parsea response, extrae statistics installs updateCount avgRating ratingCount trendingDaily trendingMonthly. Appendea a .quality/marketplace-stats.jsonl una línea JSON con shape date version installs downloads avg_rating rating_count trending_daily trending_monthly delta_installs_24h. delta_installs_24h se computa contra la última entry del jsonl.\n- AC-03: Workflow commitea el jsonl actualizado a main con mensaje chore(stats) marketplace stats YYYY-MM-DD. Falla suave si el endpoint retorna 404 (extensión aún no publicada log warning exit 0).\n- AC-04: server/tools/marketplace.py creado: registra tool MCP get_marketplace_stats window_days 30 jsonl_content optional que lee .quality/marketplace-stats.jsonl filtra por ventana retorna total_installs total_downloads avg_rating install_growth_pct daily_series current_trending_rank. Sigue MCP Path Contract v6.0.1 (content-passing).\n- AC-05: Test tests/test_marketplace_tool.py con jsonl fixture 30 entries simuladas tool retorna métricas correctas install_growth_pct positivo daily_series tiene 30 entries. Edge case jsonl vacío tool retorna status no_data_yet reason extension_not_published_or_no_stats.\n- AC-06: Documentación doc/runbooks/marketplace-stats.md con cómo el endpoint funciona qué flags 914 significa IncludeStatistics IncludeVersions IncludeCategoryAndTags IncludeFiles límites de rate limiting observados cron 1xdía muy lejos cómo consultar manualmente gh workflow run marketplace-stats.yml.\n- AC-07: Privacy el workflow y la tool NO capturan ningún dato del usuario final solo agregados públicos del Marketplace listing documentado en doc/runbooks/marketplace-stats.md sección Privacy data sources.\n\n## Contexto\nCron diario contra el endpoint público extensionquery del Marketplace. Persiste a .quality/marketplace-stats.jsonl. Tool MCP get_marketplace_stats. Zero PII.",
+    "description": "# UC-643: Telemetría de instalaciones via Marketplace API\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 6.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: .github/workflows/marketplace-stats.yml creado. Triggers: schedule cron 0 6 * * * (diario 06 00 UTC) + workflow_dispatch (manual). Job en ubuntu-latest con Node.js 20.\n- AC-02: Script scripts/fetch-marketplace-stats.mjs invocado por el workflow: POST a https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery con body filterType=7 value EmbedBuild.specbox-engine flags=914. Parsea response, extrae statistics installs updateCount avgRating ratingCount trendingDaily trendingMonthly. Appendea a .quality/marketplace-stats.jsonl una línea JSON con shape date version installs downloads avg_rating rating_count trending_daily trending_monthly delta_installs_24h. delta_installs_24h se computa contra la última entry del jsonl.\n- AC-03: Workflow commitea el jsonl actualizado a main con mensaje chore(stats) marketplace stats YYYY-MM-DD. Falla suave si el endpoint retorna 404 (extensión aún no publicada log warning exit 0).\n- AC-04: server/tools/marketplace.py creado: registra tool MCP get_marketplace_stats window_days 30 jsonl_content optional que lee .quality/marketplace-stats.jsonl filtra por ventana retorna total_installs total_downloads avg_rating install_growth_pct daily_series current_trending_rank. Sigue MCP Path Contract v6.0.1 (content-passing).\n- AC-05: Test tests/test_marketplace_tool.py con jsonl fixture 30 entries simuladas tool retorna métricas correctas install_growth_pct positivo daily_series tiene 30 entries. Edge case jsonl vacío tool retorna status no_data_yet reason extension_not_published_or_no_stats.\n- AC-06: Documentación doc/runbooks/marketplace-stats.md con cómo el endpoint funciona qué flags 914 significa IncludeStatistics IncludeVersions IncludeCategoryAndTags IncludeFiles límites de rate limiting observados cron 1xdía muy lejos cómo consultar manualmente gh workflow run marketplace-stats.yml.\n- AC-07: Privacy el workflow y la tool NO capturan ningún dato del usuario final solo agregados públicos del Marketplace listing documentado en doc/runbooks/marketplace-stats.md sección Privacy data sources.\n\n## Contexto\nCron diario contra el endpoint público extensionquery del Marketplace. Persiste a .quality/marketplace-stats.jsonl. Tool MCP get_marketplace_stats. Zero PII.",
     "state": "done",
     "parent_id": "item-662987b1",
     "labels": [
@@ -7732,7 +7732,7 @@
   },
   {
     "id": "ac-d6457075",
-    "name": "[AC-02] Script scripts/fetch-marketplace-stats.mjs invocado por el workflow: POST a https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery con body filterType=7 value jpsdeveloper.specbox-engine flags=914. Parsea response, extrae statistics installs updateCount avgRating ratingCount trendingDaily trendingMonthly. Appendea a .quality/marketplace-stats.jsonl una línea JSON con shape date version installs downloads avg_rating rating_count trending_daily trending_monthly delta_installs_24h. delta_installs_24h se computa contra la última entry del jsonl.",
+    "name": "[AC-02] Script scripts/fetch-marketplace-stats.mjs invocado por el workflow: POST a https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery con body filterType=7 value EmbedBuild.specbox-engine flags=914. Parsea response, extrae statistics installs updateCount avgRating ratingCount trendingDaily trendingMonthly. Appendea a .quality/marketplace-stats.jsonl una línea JSON con shape date version installs downloads avg_rating rating_count trending_daily trending_monthly delta_installs_24h. delta_installs_24h se computa contra la última entry del jsonl.",
     "description": "",
     "state": "done",
     "parent_id": "item-f484371a",

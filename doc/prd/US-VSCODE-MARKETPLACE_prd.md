@@ -8,12 +8,12 @@
 
 ## Resumen Ejecutivo
 
-La extensión `jpsdeveloper.specbox-engine` existe en el repo (`vscode-extension/`) y declara `publisher: "jpsdeveloper"`, pero **no está publicada en el VSCode Marketplace**. Hoy se instala vía VSIX local generado por `install-ext.mjs` durante `./install.sh`, lo cual requiere que el usuario primero clone el repo. Esto rompe el flujo natural "Marketplace → un click → instalada" que un usuario VSCode espera.
+La extensión `EmbedBuild.specbox-engine` existe en el repo (`vscode-extension/`) y declara `publisher: "EmbedBuild"`, pero **no está publicada en el VSCode Marketplace**. Hoy se instala vía VSIX local generado por `install-ext.mjs` durante `./install.sh`, lo cual requiere que el usuario primero clone el repo. Esto rompe el flujo natural "Marketplace → un click → instalada" que un usuario VSCode espera.
 
 Adicionalmente, la extensión está **drifteada**: `vscode-extension/package.json` declara `version: "5.21.1"` mientras el engine va por `v6.1.1` (más de un mes y 6 versiones de retraso). El motivo es que no hay un mecanismo que sincronice ambas versiones en cada release del engine.
 
 Esta US cierra los dos problemas a la vez:
-1. **Publicar** la extensión al VSCode Marketplace bajo `jpsdeveloper.specbox-engine`.
+1. **Publicar** la extensión al VSCode Marketplace bajo `EmbedBuild.specbox-engine`.
 2. **Establecer CI que la mantenga en lockstep con el engine**: cada tag `v*.*.*` del engine bumpea automáticamente `vscode-extension/package.json` y publica al Marketplace vía `vsce publish`.
 
 Decisiones de scope ya cerradas con el usuario:
@@ -31,7 +31,7 @@ Decisiones de scope ya cerradas con el usuario:
 - **Sync de versionado**: script `scripts/sync-extension-version.sh` que lee `ENGINE_VERSION.yaml` y escribe la misma versión en `vscode-extension/package.json`. Idempotente.
 - **CI publish workflow**: `.github/workflows/publish-vscode-extension.yml` que dispara en cada tag `v*.*.*`, builda el VSIX, lo publica al Marketplace con `vsce publish`, y adjunta el `.vsix` al GitHub Release.
 - **Pre-flight de release**: el skill `/release` (o el script de release) verifica que la versión de la extensión matchea la del engine antes de cortar el tag.
-- **Setup de publisher**: documentación del flujo `vsce login jpsdeveloper`, configuración del PAT en GitHub Secrets (`VSCE_PAT`), README de la extensión actualizado para Marketplace.
+- **Setup de publisher**: documentación del flujo `vsce login EmbedBuild`, configuración del PAT en GitHub Secrets (`VSCE_PAT`), README de la extensión actualizado para Marketplace.
 - **Metadata profesional de Marketplace**: `vscode-extension/package.json` con `icon`, `categories`, `keywords`, `repository`, `bugs`, `homepage`, `galleryBanner` revisados; README con badges, screenshots, troubleshooting; `CHANGELOG.md` de la extensión sincronizado con el del engine.
 - **Smoke test post-publish**: script que instala la extensión recién publicada en un VSCode limpio (Docker o GitHub Actions runner) y verifica que `specbox.healthCheck` retorna OK.
 - **i18n EN + ES (V1)**: localización del listing del Marketplace (`displayName`, `description`, `categories`-friendly text) + `README.md` (EN canon) + `README.es.md` + estructura `vscode-nls` para los strings user-facing de la extensión (notificaciones, prompts, output channel). Archivos `package.nls.json` (default EN) + `package.nls.es.json`.
@@ -90,7 +90,7 @@ server/tools/                                   sin tool get_marketplace_stats
 ✓ scripts/sync-extension-version.sh              CREADO; lee yaml, escribe package.json
 ✓ .github/workflows/publish-vscode-extension.yml CREADO; trigger on tag v*.*.*
 ✓ .github/workflows/marketplace-stats.yml        CREADO; cron daily 06:00 UTC + workflow_dispatch
-✓ GitHub Secrets:VSCE_PAT                        configurado (PAT del publisher jpsdeveloper)
+✓ GitHub Secrets:VSCE_PAT                        configurado (PAT del publisher EmbedBuild)
 ✓ /release skill                                 invoca sync-extension-version antes del tag
 ✓ vscode-extension/CHANGELOG.md                  CREADO; entries paralelas al CHANGELOG del engine (EN únicamente)
 ✓ vscode-extension/README.md                     EN canon; reescrito para audiencia Marketplace
@@ -101,7 +101,7 @@ server/tools/                                   sin tool get_marketplace_stats
 ✓ vscode-extension/src/l10n/bundle.l10n.json     EN runtime strings (vscode-l10n)
 ✓ vscode-extension/src/l10n/bundle.l10n.es.json  ES runtime strings
 ✓ vscode-extension/src/extension.ts              strings via vscode.l10n.t(...) en vez de literales
-✓ Marketplace listing                            público en https://marketplace.visualstudio.com/items?itemName=jpsdeveloper.specbox-engine, visible en EN y ES
+✓ Marketplace listing                            público en https://marketplace.visualstudio.com/items?itemName=EmbedBuild.specbox-engine, visible en EN y ES
 ✓ .quality/marketplace-stats.jsonl               append-only, una entry por día con installs/downloads/rating/trending
 ✓ server/tools/marketplace.py                    CREADO; expone get_marketplace_stats(window_days) MCP tool
 ✓ GitHub Release v6.2.0                          adjunta .vsix; release notes apuntan al Marketplace
@@ -168,8 +168,8 @@ server/tools/                                   sin tool get_marketplace_stats
 **Descripción**: Auditar y actualizar `vscode-extension/package.json` para cumplir best practices del Marketplace (icon ≥128x128, categories válidas, keywords relevantes, repository/bugs/homepage URLs, galleryBanner, license, badges).
 
 **Acceptance Criteria**:
-- AC-01: `package.json` declara: `displayName`, `description`, `version`, `publisher: "jpsdeveloper"`, `license: "MIT"`, `engines.vscode`, `icon` (path a PNG ≥128x128), `categories` (mínimo `["AI", "Other"]`, considerar `"Programming Languages"` y `"Snippets"` si aplica), `keywords` (mínimo `claude`, `claude-code`, `agentic`, `MCP`, `spec-driven`, `BDD`).
-- AC-02: `package.json` declara `repository.url=https://github.com/EmbedBuild/specbox-engine`, `bugs.url=https://github.com/EmbedBuild/specbox-engine/issues`, `homepage=https://github.com/EmbedBuild/specbox-engine#readme`. El valor actual (`jpsdeveloper/specbox-engine`) es incorrecto y debe corregirse en este UC. **NOTA**: el `publisher` del Marketplace SIGUE siendo `jpsdeveloper` (cuenta personal del mantenedor), independiente del owner de GitHub `EmbedBuild`.
+- AC-01: `package.json` declara: `displayName`, `description`, `version`, `publisher: "EmbedBuild"`, `license: "MIT"`, `engines.vscode`, `icon` (path a PNG ≥128x128), `categories` (mínimo `["AI", "Other"]`, considerar `"Programming Languages"` y `"Snippets"` si aplica), `keywords` (mínimo `claude`, `claude-code`, `agentic`, `MCP`, `spec-driven`, `BDD`).
+- AC-02: `package.json` declara `repository.url=https://github.com/EmbedBuild/specbox-engine`, `bugs.url=https://github.com/EmbedBuild/specbox-engine/issues`, `homepage=https://github.com/EmbedBuild/specbox-engine#readme`. **El `publisher` del Marketplace es `EmbedBuild`**, alineado con el owner del repo en GitHub para que el branding sea coherente entre ambas plataformas.
 - AC-03: `package.json` declara `galleryBanner.color` y `galleryBanner.theme` ("dark" o "light") consistente con el branding.
 - AC-04: `vscode:prepublish` script existe y compila TypeScript sin errores (`tsc -p ./`).
 - AC-05: `vsce ls --tree` corre sin warnings ni errores sobre missing fields o `.vscodeignore` mal configurado.
@@ -214,13 +214,13 @@ server/tools/                                   sin tool get_marketplace_stats
 **Actor**: Humano (one-time setup)
 **Horas estimadas**: 2
 
-**Descripción**: Documentar y ejecutar el setup one-time del publisher `jpsdeveloper` en el VSCode Marketplace y la configuración del PAT en GitHub Secrets. Generar un runbook reproducible para rotación futura del PAT.
+**Descripción**: Documentar y ejecutar el setup one-time del publisher `EmbedBuild` en el VSCode Marketplace y la configuración del PAT en GitHub Secrets. Generar un runbook reproducible para rotación futura del PAT.
 
 **Acceptance Criteria**:
-- AC-01: `doc/runbooks/vscode-marketplace-publisher-setup.md` creado. Documenta: crear cuenta Azure DevOps, crear org, crear PAT scope "Marketplace > Manage", registrar publisher `jpsdeveloper` con `vsce create-publisher`, añadir `VSCE_PAT` a GitHub Secrets del repo.
+- AC-01: `doc/runbooks/vscode-marketplace-publisher-setup.md` creado. Documenta: crear cuenta Azure DevOps, crear org, crear PAT scope "Marketplace > Manage", registrar publisher `EmbedBuild` con `vsce create-publisher`, añadir `VSCE_PAT` a GitHub Secrets del repo.
 - AC-02: El runbook incluye sección "Rotación del PAT" (los PATs de Azure DevOps caducan máx 1 año): cómo regenerar sin perder ownership del publisher, cómo actualizar el secret en GitHub.
-- AC-03: El runbook incluye comando de verificación: `vsce ls-publishers` debe mostrar `jpsdeveloper` y `vsce show jpsdeveloper.specbox-engine` debe responder OK tras el primer publish.
-- AC-04: El runbook documenta el "unpublish" de emergencia (`vsce unpublish jpsdeveloper.specbox-engine`) y advertencias del Marketplace (puede tardar horas en propagarse).
+- AC-03: El runbook incluye comando de verificación: `vsce ls-publishers` debe mostrar `EmbedBuild` y `vsce show EmbedBuild.specbox-engine` debe responder OK tras el primer publish.
+- AC-04: El runbook documenta el "unpublish" de emergencia (`vsce unpublish EmbedBuild.specbox-engine`) y advertencias del Marketplace (puede tardar horas en propagarse).
 - AC-05: Una vez ejecutado el setup, en `GitHub Repo Settings → Secrets and variables → Actions` existe `VSCE_PAT` (verificable por listado, no por valor).
 
 ---
@@ -266,7 +266,7 @@ server/tools/                                   sin tool get_marketplace_stats
 
 **Acceptance Criteria**:
 - AC-01: `.github/workflows/marketplace-stats.yml` creado. Triggers: `schedule: cron "0 6 * * *"` (diario 06:00 UTC) + `workflow_dispatch` (manual). Job en `ubuntu-latest` con Node.js 20.
-- AC-02: Script `scripts/fetch-marketplace-stats.mjs` invocado por el workflow: POST a `https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery` con body `{"filters":[{"criteria":[{"filterType":7,"value":"jpsdeveloper.specbox-engine"}]}],"flags":914}`. Parsea response, extrae `statistics[]` (installs, updateCount, avgRating, ratingCount, trendingDaily, trendingMonthly). Appendea a `.quality/marketplace-stats.jsonl` una línea JSON con shape `{date, version, installs, downloads, avg_rating, rating_count, trending_daily, trending_monthly, delta_installs_24h}`. El `delta_installs_24h` se computa contra la última entry del jsonl.
+- AC-02: Script `scripts/fetch-marketplace-stats.mjs` invocado por el workflow: POST a `https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery` con body `{"filters":[{"criteria":[{"filterType":7,"value":"EmbedBuild.specbox-engine"}]}],"flags":914}`. Parsea response, extrae `statistics[]` (installs, updateCount, avgRating, ratingCount, trendingDaily, trendingMonthly). Appendea a `.quality/marketplace-stats.jsonl` una línea JSON con shape `{date, version, installs, downloads, avg_rating, rating_count, trending_daily, trending_monthly, delta_installs_24h}`. El `delta_installs_24h` se computa contra la última entry del jsonl.
 - AC-03: Workflow commitea el jsonl actualizado a `main` con mensaje `chore(stats): marketplace stats YYYY-MM-DD` usando `peter-evans/create-pull-request@v6` (PR auto-merged si la rama es `main` y el commit toca solo `.quality/marketplace-stats.jsonl`) O commit directo si el workflow corre con write permission. Falla suave si el endpoint retorna 404 (la extensión aún no está publicada — log warning, exit 0).
 - AC-04: `server/tools/marketplace.py` creado: registra tool MCP `get_marketplace_stats(window_days: int = 30, project_path: str = "")` que lee `.quality/marketplace-stats.jsonl`, filtra por ventana de tiempo, retorna `{total_installs, total_downloads, avg_rating, install_growth_pct, daily_series[{date, installs, delta}], current_trending_rank}`. Sigue el MCP Path Contract v6.0.1 (content-passing si `project_path` no se resuelve localmente, fallback a path-based para in-process callers).
 - AC-05: Test `tests/test_marketplace_tool.py` con jsonl fixture: 30 entries simuladas → la tool retorna métricas correctas, el `install_growth_pct` es positivo, el `daily_series` tiene exactamente 30 entries. Test de edge case: jsonl vacío → tool retorna `{"status": "no_data_yet", "reason": "extension_not_published_or_no_stats"}`.
@@ -284,8 +284,8 @@ server/tools/                                   sin tool get_marketplace_stats
 
 **Acceptance Criteria**:
 - AC-01: Workflow en `.github/workflows/smoke-test-marketplace.yml`. Trigger: `workflow_run` después de `publish-vscode-extension.yml` exitoso, O manual via `workflow_dispatch`.
-- AC-02: Job en `ubuntu-latest`, instala VSCode CLI (`code` via apt o snap), corre `code --install-extension jpsdeveloper.specbox-engine --force`.
-- AC-03: Job verifica `code --list-extensions | grep jpsdeveloper.specbox-engine` retorna exit 0 y la versión instalada matchea el tag actual.
+- AC-02: Job en `ubuntu-latest`, instala VSCode CLI (`code` via apt o snap), corre `code --install-extension EmbedBuild.specbox-engine --force`.
+- AC-03: Job verifica `code --list-extensions | grep EmbedBuild.specbox-engine` retorna exit 0 y la versión instalada matchea el tag actual.
 - AC-04: Job crea un workspace dummy con `ENGINE_VERSION.yaml` (trigger de activación de la extensión, ver `activationEvents` en `package.json`), abre VSCode headless, verifica vía `code --status` o un test script que la extensión está activa.
 - AC-05: Job corre el smoke en matrix `locale: [en, es]` — instala con `code --locale=en` y luego `code --locale=es`, verifica para cada uno que el comando `SpecBox: Install Engine` (EN) / `SpecBox: Instalar Engine` (ES) aparece en el listado de comandos registrados. Falla el job si alguna variante no resuelve la traducción correcta.
 - AC-06: Si el smoke test falla, el workflow abre automáticamente un issue en el repo con label `marketplace-smoke-fail` y el output del workflow. NO hace rollback automático (el unpublish es manual y consciente).
@@ -306,7 +306,7 @@ server/tools/                                   sin tool get_marketplace_stats
   - ≥1 instalación con `vscode.env.language=es` confirmada (proxy: rating o issue feedback en español).
   - `marketplace-stats.jsonl` con 30 entries continuas (sin gaps > 2 días — métrica de fiabilidad del cron).
 - **A 90 días**:
-  - Ratio drift = 0 (cada tag entre v6.2.0 y v6.5.0 tiene su publish en el Marketplace con versión matcheada — verificable comparando GitHub tags con `vsce show jpsdeveloper.specbox-engine --json | jq .versions`).
+  - Ratio drift = 0 (cada tag entre v6.2.0 y v6.5.0 tiene su publish en el Marketplace con versión matcheada — verificable comparando GitHub tags con `vsce show EmbedBuild.specbox-engine --json | jq .versions`).
   - Crecimiento de instalaciones medible (delta_installs_24h promedio > 0 en `marketplace-stats.jsonl`).
   - Cobertura i18n: 100% de los strings user-facing pasan por `vscode.l10n.t(...)` (verificable por `scripts/lint-extension-strings.mjs` en CI).
 
@@ -315,7 +315,7 @@ server/tools/                                   sin tool get_marketplace_stats
 ## Dependencias y riesgos
 
 ### Dependencias externas
-- Cuenta Azure DevOps activa para el publisher `jpsdeveloper`.
+- Cuenta Azure DevOps activa para el publisher `EmbedBuild`.
 - GitHub Secrets disponibles en el repo (requiere acceso admin).
 - Marketplace policy review — Microsoft revisa la primera publicación (típicamente <24h, puede tardar más si flaggea categorías o branding).
 
@@ -326,7 +326,7 @@ server/tools/                                   sin tool get_marketplace_stats
 | Microsoft rechaza la primera publicación (branding, categorías, descripciones) | Media | Alto | Revisar [VSCode Marketplace policies](https://aka.ms/vsmarketplace-ToU) antes de publicar; tener metadata UC-636/637 conservadora y profesional. |
 | `VSCE_PAT` caduca (PATs Azure DevOps máx 1 año) | Alta a largo plazo | Medio | Runbook UC-639 documenta rotación; añadir reminder a `.quality/` o a Engram. |
 | Drift entre publisher name en `package.json` y owner real del PAT | Baja | Alto | UC-639 verifica el match con `vsce ls-publishers` antes del primer publish. |
-| Repo URL incorrecto (`jpsdeveloper/specbox-engine`) en `package.json` actual rompe badges y links al publicar | Resuelto | Bajo | UC-636 AC-02 fija explícitamente `EmbedBuild/specbox-engine` como URL canónica del repo. Publisher Marketplace sigue siendo `jpsdeveloper`. |
+| Repo URL incorrecto (`EmbedBuild/specbox-engine`) en `package.json` actual rompe badges y links al publicar | Resuelto | Bajo | UC-636 AC-02 fija explícitamente `EmbedBuild/specbox-engine` como URL canónica del repo. Publisher Marketplace sigue siendo `EmbedBuild`. |
 | Usuario instala v6.2.0 desde Marketplace pero su engine local sigue en v5.x | Media | Medio | El comando `SpecBox: Health Check` ya detecta version mismatch (capacidad existente); README de UC-637 advierte. Resolución completa pertenece a la US "thin extension" v6.3.x. |
 | Smoke test post-publish falla por flakiness de VSCode headless en CI | Media | Bajo | UC-640 AC-06 abre issue automático sin rollback; humano evalúa. |
 | Traducción ES inconsistente o incorrecta (calidad de español neutro vs argentinismos) | Media | Bajo | Traducción manual por el mantenedor (hispanohablante nativo); revisar contra guía de estilo "español sin argentinismos" del proyecto. NO usar traducción automática para strings cortos del Command Palette. |
@@ -341,8 +341,8 @@ server/tools/                                   sin tool get_marketplace_stats
 
 Si tras el primer publish v6.2.0 se detecta un problema crítico (extensión rota, ejecuta acción destructiva, leakea secret):
 
-1. **Inmediato**: `vsce unpublish jpsdeveloper.specbox-engine@6.2.0` (saca solo esa versión; las instalaciones existentes no se desinstalan).
-2. **Si grave**: `vsce unpublish jpsdeveloper.specbox-engine` (saca la extensión completa del Marketplace).
+1. **Inmediato**: `vsce unpublish EmbedBuild.specbox-engine@6.2.0` (saca solo esa versión; las instalaciones existentes no se desinstalan).
+2. **Si grave**: `vsce unpublish EmbedBuild.specbox-engine` (saca la extensión completa del Marketplace).
 3. **Comunicación**: GitHub Release v6.2.0 → editar release notes con aviso; pin issue en el repo.
 4. **Fix forward**: corregir + cortar v6.2.1 + republish. NO se republica la misma versión (Marketplace lo permite pero produce confusión en clientes que ya bajaron 6.2.0).
 
@@ -352,7 +352,7 @@ El workflow CI debe poder reproducir todo desde un repo limpio + el PAT — no d
 
 - **Telemetría rota (UC-643)**: deshabilitar el cron temporalmente via `gh workflow disable marketplace-stats.yml`. No impacta a usuarios finales — `.quality/marketplace-stats.jsonl` simplemente para de crecer. Tool MCP `get_marketplace_stats` sigue funcionando con los datos previos.
 - **i18n ES inadecuada (UC-641/642)**: borrar `package.nls.es.json` y `bundle.l10n.es.json`. La extensión cae a EN para todos los locales (fallback). Republish patch.
-- **Solo el listing rompe pero la extensión funciona**: editar metadata del listing directamente vía `vsce` sin republicar el VSIX — `vsce edit jpsdeveloper.specbox-engine` (algunas modificaciones requieren bump de versión).
+- **Solo el listing rompe pero la extensión funciona**: editar metadata del listing directamente vía `vsce` sin republicar el VSIX — `vsce edit EmbedBuild.specbox-engine` (algunas modificaciones requieren bump de versión).
 
 ---
 
@@ -361,7 +361,7 @@ El workflow CI debe poder reproducir todo desde un repo limpio + el PAT — no d
 - **Vía A pura**: solo publish + CI sync. Sin "thin extension". Sin "Setup MCP guiado".
 - **Solo VSCode Marketplace**: Open VSX queda para una US futura.
 - **Lockstep estricto**: `extension.version == engine.version` siempre. Drift = blocker de release.
-- **Publisher**: `jpsdeveloper` (ya declarado en `package.json` actual; se mantiene).
+- **Publisher**: `EmbedBuild` (ya declarado en `package.json` actual; se mantiene).
 - **License**: MIT (ya declarada en `vscode-extension/LICENSE`).
 
 ---

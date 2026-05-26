@@ -5,7 +5,7 @@ name: Publish VSCode Extension
 #   - Manual dispatch (for emergency republish without re-tagging)
 #
 # Requires the following GitHub Secrets (setup in UC-639):
-#   VSCE_PAT — Personal Access Token of the 'jpsdeveloper' Marketplace publisher.
+#   VSCE_PAT — Personal Access Token of the 'EmbedBuild' Marketplace publisher.
 
 on:
   push:
@@ -125,5 +125,5 @@ jobs:
             echo "| Version | \`${{ steps.meta.outputs.version }}\` |"
             echo "| Pre-release | \`${{ steps.meta.outputs.pre_release }}\` |"
             echo "| VSIX | \`${{ steps.package.outputs.vsix }}\` |"
-            echo "| Marketplace | https://marketplace.visualstudio.com/items?itemName=jpsdeveloper.specbox-engine |"
+            echo "| Marketplace | https://marketplace.visualstudio.com/items?itemName=EmbedBuild.specbox-engine |"
           } >> "$GITHUB_STEP_SUMMARY"

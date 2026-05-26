@@ -14,7 +14,7 @@
 
 Esta US tiene **dos productos** distintos pero acoplados que se entregan juntos en v6.2.0:
 
-1. **Publicación al VSCode Marketplace** + **CI lockstep** — la extensión `jpsdeveloper.specbox-engine` se vuelve descubrible vía un click y queda imposible de drifear respecto al engine.
+1. **Publicación al VSCode Marketplace** + **CI lockstep** — la extensión `EmbedBuild.specbox-engine` se vuelve descubrible vía un click y queda imposible de drifear respecto al engine.
 2. **i18n EN+ES** + **Telemetría de adopción** — el listing y la UI runtime son bilingües; un cron diario contra el Marketplace REST API público alimenta `.quality/marketplace-stats.jsonl` y la nueva tool MCP `get_marketplace_stats`.
 
 Sin UI nueva → **Pasos 2.5b (VEG) y 6 (Stitch) saltados** del flujo estándar de `/plan`.
@@ -118,11 +118,11 @@ Total: 10 UCs en **5 fases**.
 
 - [ ] Crear `doc/runbooks/vscode-marketplace-publisher-setup.md`.
 - [ ] Documentar: pasos para crear cuenta Azure DevOps (https://aex.dev.azure.com/), crear org `jps-marketplace` (o reusar existente si ya hay), generar PAT con scope `Marketplace > Manage` y expiry 1 año.
-- [ ] Documentar: `npm install -g @vscode/vsce`, `vsce create-publisher jpsdeveloper` (one-time), `vsce login jpsdeveloper` (interactivo, ingresar el PAT).
+- [ ] Documentar: `npm install -g @vscode/vsce`, crear el publisher `EmbedBuild` via `https://marketplace.visualstudio.com/manage` (one-time), `vsce login EmbedBuild` (interactivo, ingresar el PAT).
 - [ ] Documentar: añadir `VSCE_PAT` a GitHub Secrets vía `gh secret set VSCE_PAT --repo EmbedBuild/specbox-engine`.
-- [ ] Sección "Rotación del PAT": calendar reminder antes de expiry, `vsce login jpsdeveloper` con el nuevo PAT, `gh secret set VSCE_PAT` para actualizar el secret. NO requiere republish.
-- [ ] Sección "Verificación": `vsce ls-publishers` debe listar `jpsdeveloper`; `vsce show jpsdeveloper.specbox-engine` tras el primer publish debe responder OK.
-- [ ] Sección "Unpublish de emergencia": `vsce unpublish jpsdeveloper.specbox-engine@X.Y.Z` (versión específica) vs `vsce unpublish jpsdeveloper.specbox-engine` (extensión completa). Advertir: propagación tarda horas.
+- [ ] Sección "Rotación del PAT": calendar reminder antes de expiry, `vsce login EmbedBuild` con el nuevo PAT, `gh secret set VSCE_PAT` para actualizar el secret. NO requiere republish.
+- [ ] Sección "Verificación": `vsce ls-publishers` debe listar `EmbedBuild`; `vsce show EmbedBuild.specbox-engine` tras el primer publish debe responder OK.
+- [ ] Sección "Unpublish de emergencia": `vsce unpublish EmbedBuild.specbox-engine@X.Y.Z` (versión específica) vs `vsce unpublish EmbedBuild.specbox-engine` (extensión completa). Advertir: propagación tarda horas.
 - [ ] **EJECUCIÓN HUMANA**: el usuario corre los pasos del runbook one-time. Confirmar con captura/screenshot que el secret existe en GitHub repo settings.
 - **Tiempo estimado**: 2h doc + ~30min ejecución humana
 - **Archivos creados**: `doc/runbooks/vscode-marketplace-publisher-setup.md`
@@ -150,7 +150,7 @@ Total: 10 UCs en **5 fases**.
 #### UC-636 — Metadata Marketplace en `package.json` (3h) [AG-01]
 
 - [ ] Audit del `vscode-extension/package.json` actual contra los campos requeridos por VSCode Marketplace (https://code.visualstudio.com/api/references/extension-manifest).
-- [ ] Verificar: `displayName`, `description` (ambos pasarán a NLS keys en UC-641), `publisher: "jpsdeveloper"`, `license: "MIT"`, `engines.vscode: "^1.85.0"` (current minimum), `icon: "media/icon.png"` (verificar ≥128×128 — usar `file media/icon.png` y `identify`).
+- [ ] Verificar: `displayName`, `description` (ambos pasarán a NLS keys en UC-641), `publisher: "EmbedBuild"`, `license: "MIT"`, `engines.vscode: "^1.85.0"` (current minimum), `icon: "media/icon.png"` (verificar ≥128×128 — usar `file media/icon.png` y `identify`).
 - [ ] Actualizar `categories`: añadir `"Other"` si no está; considerar `"Programming Languages"` (no aplica), `"Snippets"` (no aplica), mantener `["AI", "Other"]`.
 - [ ] Actualizar `keywords`: `["claude", "claude-code", "agentic", "AI", "MCP", "hooks", "skills", "automation", "spec-driven", "onboarding", "BDD", "specbox", "engram"]` (los actuales). Verificar relevancia, sin pad keywords.
 - [ ] Actualizar `repository.url`, `bugs.url`, `homepage` a `https://github.com/EmbedBuild/specbox-engine[/issues|#readme]`. (El `repository.url` ya está corregido en una iteración previa).
@@ -260,9 +260,9 @@ Total: 10 UCs en **5 fases**.
 
 - [ ] Reescribir `vscode-extension/README.md` (EN canon) para audiencia Marketplace:
     - **Header**: badges (versión Marketplace, installs, license, engine compat). Usar shields.io:
-        - `![Version](https://img.shields.io/vscode-marketplace/v/jpsdeveloper.specbox-engine)`
-        - `![Installs](https://img.shields.io/vscode-marketplace/i/jpsdeveloper.specbox-engine)`
-        - `![Rating](https://img.shields.io/vscode-marketplace/r/jpsdeveloper.specbox-engine)`
+        - `![Version](https://img.shields.io/vscode-marketplace/v/EmbedBuild.specbox-engine)`
+        - `![Installs](https://img.shields.io/vscode-marketplace/i/EmbedBuild.specbox-engine)`
+        - `![Rating](https://img.shields.io/vscode-marketplace/r/EmbedBuild.specbox-engine)`
         - `![License](https://img.shields.io/badge/license-MIT-green)`
     - **Sección "What is SpecBox Engine?"**: 2-3 párrafos — qué es, qué resuelve, cuándo usarlo.
     - **Sección "Features"**: los 5 comandos con 1-2 líneas cada uno + screenshot del Command Palette mostrando los comandos.
@@ -356,7 +356,7 @@ Total: 10 UCs en **5 fases**.
         ```json
         {
           "filters": [{
-            "criteria": [{"filterType": 7, "value": "jpsdeveloper.specbox-engine"}],
+            "criteria": [{"filterType": 7, "value": "EmbedBuild.specbox-engine"}],
             "pageSize": 1,
             "pageNumber": 1
           }],
@@ -461,11 +461,11 @@ Total: 10 UCs en **5 fases**.
               sudo apt update && sudo apt install -y code xvfb
           - name: Install extension from Marketplace
             run: |
-              xvfb-run code --install-extension jpsdeveloper.specbox-engine --force
-              code --list-extensions --show-versions | grep jpsdeveloper.specbox-engine
+              xvfb-run code --install-extension EmbedBuild.specbox-engine --force
+              code --list-extensions --show-versions | grep EmbedBuild.specbox-engine
           - name: Verify version matches tag
             run: |
-              INSTALLED=$(code --list-extensions --show-versions | grep jpsdeveloper.specbox-engine | cut -d@ -f2)
+              INSTALLED=$(code --list-extensions --show-versions | grep EmbedBuild.specbox-engine | cut -d@ -f2)
               ENGINE_VER=$(grep '^version:' ENGINE_VERSION.yaml | awk '{print $2}')
               if [ "$INSTALLED" != "$ENGINE_VER" ]; then
                 echo "VERSION MISMATCH: installed=$INSTALLED, engine=$ENGINE_VER"; exit 1
@@ -534,7 +534,7 @@ pytest tests/test_marketplace_tool.py -v
 act -W .github/workflows/publish-vscode-extension.yml -j publish --dry-run
 
 # Verificar branding del listing tras el primer publish
-vsce show jpsdeveloper.specbox-engine --json | jq '.displayName, .description, .versions[0].version'
+vsce show EmbedBuild.specbox-engine --json | jq '.displayName, .description, .versions[0].version'
 ```
 
 ---
@@ -548,7 +548,7 @@ vsce show jpsdeveloper.specbox-engine --json | jq '.displayName, .description, .
 | Versionado | Lockstep estricto (`ext.version == engine.version`) | Semver independiente con compat matrix | Ya tenemos un release cadence pequeño y unificado; matriz de compat es overhead innecesario. Decidido por el usuario. |
 | Distribución | Solo VSCode Marketplace en V1 | VSCode Marketplace + Open VSX en V1 | Cursor, VSCode Insiders y la mayoría de forks leen del Marketplace transparentemente. Open VSX cubre VSCodium/Gitpod/Theia — minoritario. Diferido. |
 | Refactor extensión | Mantener "fat" (embebe recursos) | "Thin extension" (descarga engine matching desde GitHub al activar) | Thin extension es un refactor arquitectural sustancial. Diferido a US v6.3.x para no inflar v6.2.0. |
-| Publisher Marketplace | `jpsdeveloper` (cuenta personal) | `EmbedBuild` (org GitHub) | Microsoft Marketplace tiene su propio sistema de publisher; reutilizamos la cuenta personal. Es el patrón estándar (la mayoría de orgs en GitHub tienen publisher personal en el Marketplace). |
+| Publisher Marketplace | `EmbedBuild` (alineado con la org de GitHub) | `jpsdeveloper` (cuenta personal del mantenedor) | Coherencia de branding entre Marketplace y GitHub. El usuario final ve el mismo nombre en ambos sitios y los enlaces externos (badges shields.io, GitHub release notes) son consistentes. |
 | Smoke test framework | `xvfb` + `code` CLI headless | `@vscode/test-electron` con suite formal | Implementación más simple para V1. Si flakiness > 20%, migrar en una US de seguimiento. |
 
 ---
@@ -661,7 +661,7 @@ No requiere AG-02 (UI/UX), AG-03 (DB), AG-05 (n8n), AG-06 (design), AG-07 (Apps 
 Replicadas del PRD para tracking en `/implement`:
 
 - ✅ Workflow `publish-vscode-extension.yml` corre verde en tag `v6.2.0-rc1` (pre-release test).
-- ✅ `vsce show jpsdeveloper.specbox-engine` retorna metadata válida post-publish.
+- ✅ `vsce show EmbedBuild.specbox-engine` retorna metadata válida post-publish.
 - ✅ Smoke test matrix `[en, es]` verde en el primer publish real.
 - ✅ `.quality/marketplace-stats.jsonl` tiene al menos 1 entry tras el primer cron diario.
 - ✅ `get_marketplace_stats(window_days=7)` retorna `{"status": "ok", ...}` o `{"status": "no_data_yet", ...}` válido.
@@ -697,7 +697,7 @@ Replicados del PRD con énfasis en lo accionable durante `/implement`:
 - **Extensión version actual**: 5.21.1 (drift de 6 versiones)
 - **Board FreeForm**: `ff-ed0c02f4565a`
 - **Repo GitHub**: `EmbedBuild/specbox-engine`
-- **Publisher Marketplace**: `jpsdeveloper`
+- **Publisher Marketplace**: `EmbedBuild`
 
 ---
 

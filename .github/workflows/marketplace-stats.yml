@@ -1,0 +1,49 @@
+name: Marketplace Stats Snapshot
+
+# Daily snapshot of public VSCode Marketplace adoption stats.
+# Persists to .quality/marketplace-stats.jsonl on main.
+#
+# Triggers:
+#   - Daily cron at 06:00 UTC
+#   - Manual workflow_dispatch
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # required to commit the jsonl back to main
+
+jobs:
+  snapshot:
+    name: Fetch Marketplace stats and append jsonl
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          # We need write access to push back the updated jsonl
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch Marketplace stats
+        run: node scripts/fetch-marketplace-stats.mjs
+
+      - name: Commit and push if changed
+        run: |
+          if git diff --quiet .quality/marketplace-stats.jsonl; then
+            echo "ℹ No changes to .quality/marketplace-stats.jsonl (extension probably not yet published)"
+            exit 0
+          fi
+          git config user.name "specbox-stats-bot"
+          git config user.email "noreply@anthropic.com"
+          git add .quality/marketplace-stats.jsonl
+          git commit -m "chore(stats): marketplace stats $(date -u +%Y-%m-%d)"
+          git push origin main

@@ -1,0 +1,161 @@
+name: Smoke Test Marketplace Install
+
+# Verifies the just-published extension can be installed from the VSCode Marketplace
+# and that the i18n bundles resolve correctly per locale.
+#
+# Trigger:
+#   - workflow_run after Publish VSCode Extension finishes (success only)
+#   - workflow_dispatch for manual re-run
+
+on:
+  workflow_run:
+    workflows: ["Publish VSCode Extension"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  smoke:
+    name: Install + activate + locale check
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false  # report both locales even if one fails
+      matrix:
+        locale: [en, es]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install xvfb (headless display) and VSCode
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb wget gpg apt-transport-https
+          wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
+          sudo install -o root -g root -m 644 microsoft.gpg /etc/apt/trusted.gpg.d/
+          echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq code
+          code --version
+
+      - name: Read expected version
+        id: version
+        run: |
+          VERSION=$(grep '^version:' ENGINE_VERSION.yaml | head -1 | awk '{print $2}' | tr -d '"' | tr -d "'")
+          echo "expected=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "::notice::Expecting extension version $VERSION on the Marketplace"
+
+      - name: Install extension from Marketplace
+        run: |
+          xvfb-run -a code --install-extension jpsdeveloper.specbox-engine --force 2>&1 | tee install.log
+          if ! code --list-extensions --show-versions | grep -q '^jpsdeveloper.specbox-engine@'; then
+            echo "::error::Extension not present in --list-extensions after install"
+            cat install.log
+            exit 1
+          fi
+
+      - name: Verify installed version matches engine
+        run: |
+          INSTALLED=$(code --list-extensions --show-versions | grep '^jpsdeveloper.specbox-engine@' | cut -d@ -f2)
+          EXPECTED="${{ steps.version.outputs.expected }}"
+          echo "installed=$INSTALLED expected=$EXPECTED"
+          if [ "$INSTALLED" != "$EXPECTED" ]; then
+            echo "::warning::Installed version $INSTALLED does not match engine $EXPECTED."
+            echo "::warning::This is expected for the first few hours after publish (Marketplace propagation delay)."
+            # Don't fail here — Microsoft may take time to surface the new version.
+          fi
+
+      - name: Create dummy SpecBox workspace
+        run: |
+          mkdir -p /tmp/smoke-ws
+          cp ENGINE_VERSION.yaml /tmp/smoke-ws/
+          echo "Dummy workspace ready at /tmp/smoke-ws (triggers extension activation via workspaceContains:ENGINE_VERSION.yaml)"
+
+      - name: Verify locale resolution (${{ matrix.locale }})
+        run: |
+          LOCALE="${{ matrix.locale }}"
+          # Expected command label per locale, from package.nls{,.es}.json (UC-641):
+          if [ "$LOCALE" = "es" ]; then
+            EXPECTED_TITLE="SpecBox: Instalar Engine"
+            EXTRA_TITLES="SpecBox: Comprobar Salud|SpecBox: Inicializar Proyecto|SpecBox: Ver Estado|SpecBox: Configurar Servidores MCP"
+          else
+            EXPECTED_TITLE="SpecBox: Install Engine"
+            EXTRA_TITLES="SpecBox: Health Check|SpecBox: Onboard Project|SpecBox: Show Status|SpecBox: Configure MCP Servers"
+          fi
+
+          # Find the installed extension package.json in the user's extension dir
+          EXT_DIR=$(find "$HOME/.vscode/extensions" -maxdepth 1 -name 'jpsdeveloper.specbox-engine-*' -type d | head -1)
+          if [ -z "$EXT_DIR" ]; then
+            echo "::error::Could not locate installed extension dir under ~/.vscode/extensions"
+            ls -la "$HOME/.vscode/extensions" || true
+            exit 1
+          fi
+
+          # The NLS file VSCode resolves for the given locale:
+          if [ "$LOCALE" = "es" ]; then
+            NLS_FILE="$EXT_DIR/package.nls.es.json"
+          else
+            NLS_FILE="$EXT_DIR/package.nls.json"
+          fi
+          if [ ! -f "$NLS_FILE" ]; then
+            echo "::error::NLS bundle for locale=$LOCALE not found at $NLS_FILE"
+            ls "$EXT_DIR"
+            exit 1
+          fi
+
+          # Verify the expected title is in the NLS bundle (this is what VSCode will show
+          # when running with --locale=$LOCALE)
+          if ! grep -F -- "$EXPECTED_TITLE" "$NLS_FILE"; then
+            echo "::error::Expected title '$EXPECTED_TITLE' not found in $NLS_FILE"
+            cat "$NLS_FILE"
+            exit 1
+          fi
+
+          # Also verify all 4 secondary command titles resolve correctly
+          echo "$EXTRA_TITLES" | tr '|' '\n' | while read -r title; do
+            if ! grep -F -- "$title" "$NLS_FILE"; then
+              echo "::error::Secondary title '$title' not found in $NLS_FILE"
+              exit 1
+            fi
+          done
+
+          echo "::notice::Locale=$LOCALE resolves correctly: 5 SpecBox commands localized as expected"
+
+  report-failure:
+    name: Open issue if smoke failed
+    needs: smoke
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Marketplace smoke test failed (${new Date().toISOString().slice(0,10)})`,
+              labels: ['marketplace-smoke-fail'],
+              body: [
+                `The post-publish smoke test failed for the latest VSCode Marketplace publish.`,
+                ``,
+                `**Workflow run:** ${runUrl}`,
+                ``,
+                `**What to check:**`,
+                `- Did Microsoft finish propagating the new version? (can take a few hours after publish)`,
+                `- Did the NLS bundles end up in the published VSIX? (\`vsce ls --tree\` locally)`,
+                `- Did the locale matrix find the expected titles in the bundles?`,
+                ``,
+                `**No automatic rollback was performed.** If the extension is broken in the Marketplace,`,
+                `run \`vsce unpublish jpsdeveloper.specbox-engine@<version>\` manually and cut a fix-forward release.`,
+              ].join('\n'),
+            });

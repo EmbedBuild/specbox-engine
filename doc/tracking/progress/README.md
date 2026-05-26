@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-26T17:45:20.876575+00:00
+> Actualizado: 2026-05-26T17:58:05.618331+00:00
 
 ## User Stories
 
@@ -19,7 +19,7 @@
 | US-CUTOVER-FOLLOWUP | US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0 | User Stories | 0 | 1 | 0% |
 | US-MCP-OBSERVABILITY | US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0) | User Stories | 0 | 0 | 0% |
 | US-MCP-OBSERVABILITY | US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0) | User Stories | 0 | 8 | 0% |
-| US-VSCODE-MARKETPLACE | US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine | User Stories | 5 | 10 | 50% |
+| US-VSCODE-MARKETPLACE | US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine | User Stories | 10 | 10 | 100% |
 
 ## Use Cases
 
@@ -91,12 +91,12 @@
 | UC-631 | US-MCP-OBSERVABILITY | Backlog | 0 | 4 | 0% |
 | UC-632 | US-MCP-OBSERVABILITY | Backlog | 0 | 7 | 0% |
 | UC-634 | US-VSCODE-MARKETPLACE | Done | 5 | 5 | 100% |
-| UC-635 | US-VSCODE-MARKETPLACE | Backlog | 0 | 5 | 0% |
+| UC-635 | US-VSCODE-MARKETPLACE | Done | 5 | 5 | 100% |
 | UC-636 | US-VSCODE-MARKETPLACE | Done | 5 | 5 | 100% |
 | UC-637 | US-VSCODE-MARKETPLACE | Done | 5 | 5 | 100% |
-| UC-638 | US-VSCODE-MARKETPLACE | Backlog | 0 | 6 | 0% |
-| UC-639 | US-VSCODE-MARKETPLACE | Backlog | 0 | 5 | 0% |
-| UC-640 | US-VSCODE-MARKETPLACE | Backlog | 0 | 6 | 0% |
+| UC-638 | US-VSCODE-MARKETPLACE | Done | 6 | 6 | 100% |
+| UC-639 | US-VSCODE-MARKETPLACE | Done | 5 | 5 | 100% |
+| UC-640 | US-VSCODE-MARKETPLACE | Done | 6 | 6 | 100% |
 | UC-641 | US-VSCODE-MARKETPLACE | Done | 5 | 5 | 100% |
 | UC-642 | US-VSCODE-MARKETPLACE | Done | 5 | 5 | 100% |
-| UC-643 | US-VSCODE-MARKETPLACE | Backlog | 0 | 7 | 0% |
+| UC-643 | US-VSCODE-MARKETPLACE | Done | 7 | 7 | 100% |

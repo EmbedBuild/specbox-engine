@@ -60,6 +60,79 @@ git branch --show-current
 - Si hay cambios sin commitear → WARNING: "Hay cambios pendientes. Los incluire en el release commit."
 - Si no esta en `main` → WARNING: "No estas en main. ¿Continuar en rama `{branch}`?"
 
+### 0.4 Pre-flight: VSCode extension version sync (v6.2.0+)
+
+> Gate INVIOLABLE introducido por US-VSCODE-MARKETPLACE (UC-635).
+> Si `vscode-extension/package.json:version` no coincide con `ENGINE_VERSION.yaml:version`,
+> el publish CI fallará con drift. NO se permite tagear con drift.
+
+Ejecutar:
+
+```bash
+bash scripts/sync-extension-version.sh --check
+```
+
+Interpretar el exit code:
+
+| Exit | Significado | Acción |
+|------|-------------|--------|
+| 0    | Versions sincronizadas | Continuar a Paso 1 |
+| 1    | Drift detectado entre engine y extensión | Presentar las dos opciones de abajo |
+| 2    | Error de ejecución (script ausente, YAML inválido) | Abortar release, investigar |
+
+Si exit == 1, presentar al usuario EXACTAMENTE estas dos opciones (NO añadir una tercera "ignorar"):
+
+```
+✗ Drift detectado entre ENGINE_VERSION.yaml y vscode-extension/package.json
+
+Opciones:
+  [a] Auto-fix + commit
+      Ejecuta sync-extension-version.sh --write, hace commit
+      "chore(vscode-ext): sync version to v{nueva_version}" y continúa el release.
+      El commit de sync va ANTES del commit de release notes y del tag.
+
+  [b] Abortar release
+      Termina el skill. Resuelve el drift manualmente y vuelve a lanzar /release.
+
+¿Qué prefieres? [a/b]
+```
+
+Si el usuario elige `[a]`:
+
+```bash
+bash scripts/sync-extension-version.sh --write
+git add vscode-extension/package.json vscode-extension/package-lock.json
+git commit -m "chore(vscode-ext): sync version to v{nueva_version}"
+```
+
+Después de este commit, continuar normalmente a Paso 1. El orden final de commits en el release será:
+
+```
+HEAD          <tag v{nueva_version}>
+HEAD~1        release: v{nueva_version} - <codename>
+HEAD~2        chore(vscode-ext): sync version to v{nueva_version}
+```
+
+Verificable post-release con `git log --oneline -3`.
+
+#### Test manual del gate
+
+Para verificar que el gate dispara correctamente sin lanzar un release real:
+
+```bash
+# 1. Simular drift (modifica el package.json en una rama scratch)
+python3 -c "import json; p=json.load(open('vscode-extension/package.json')); p['version']='0.0.1'; json.dump(p, open('vscode-extension/package.json','w'), indent=2)"
+
+# 2. Ejecutar el gate
+bash scripts/sync-extension-version.sh --check
+# Debe salir con exit 1 + mensaje rojo "DRIFT detected"
+
+# 3. Restaurar
+git checkout vscode-extension/package.json
+```
+
+Si el script sale exit 0 con drift artificial, el gate está roto — investigar antes de lanzar /release real.
+
 ---
 
 ## Paso 1: Auditoria de Residuos

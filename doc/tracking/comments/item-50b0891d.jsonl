@@ -1,0 +1,4 @@
+{"id": "cmt-4433ceb2", "text": "Desarrollo iniciado: 2026-05-26T17:50:00.676658+00:00", "created_at": "2026-05-26T17:50:00.676690+00:00", "author": "freeform"}
+{"id": "cmt-a49a1918", "text": "Validacion AG-09b [2026-05-26 17:51 UTC]:\n  AC-01: PASSED\n  AC-02: PASSED\n  AC-03: PASSED\n  AC-04: PASSED\n  AC-05: PASSED\n  AC-06: PASSED", "created_at": "2026-05-26T17:51:05.941997+00:00", "author": "freeform"}
+{"id": "cmt-8eaf40c0", "text": "Todos los criterios de aceptacion validados", "created_at": "2026-05-26T17:51:05.942068+00:00", "author": "freeform"}
+{"id": "cmt-f67094ad", "text": "UC-640 SHIPPED. smoke-test-marketplace.yml con matrix locale [en, es]. Instala desde Marketplace en VSCode headless (xvfb), verifica los 5 títulos localizados en el package.nls correcto por locale. Fail handler auto-abre issue con label marketplace-smoke-fail sin rollback automático.", "created_at": "2026-05-26T17:51:11.795899+00:00", "author": "freeform"}

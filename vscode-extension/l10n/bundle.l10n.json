@@ -19,5 +19,22 @@
   "installed": "installed",
   "Configured": "Configured",
   "Not configured": "Not configured",
-  "OK": "OK"
+  "OK": "OK",
+  "Sign in with GitHub": "Sign in with GitHub",
+  "Continue in local mode (FreeForm)": "Continue in local mode (FreeForm)",
+  "Welcome to SpecBox Engine. Sign in to enable shared tracking, or continue in local mode.": "Welcome to SpecBox Engine. Sign in to enable shared tracking, or continue in local mode.",
+  "Signed in. Welcome!": "Signed in. Welcome!",
+  "Signed out.": "Signed out.",
+  "Sign-in failed: {0}.": "Sign-in failed: {0}.",
+  "Sign-in failed: {0}. You can try again later from the Command Palette.": "Sign-in failed: {0}. You can try again later from the Command Palette.",
+  "Continuing in local mode (FreeForm).": "Continuing in local mode (FreeForm).",
+  "Signed in as @{0}": "Signed in as @{0}",
+  "Not signed in (FreeForm mode)": "Not signed in (FreeForm mode)",
+  "Sign out": "Sign out",
+  "Open profile on cloud.specbox.build": "Open profile on cloud.specbox.build",
+  "Signed in to SpecBox": "Signed in to SpecBox",
+  "You can close this tab and return to VS Code.": "You can close this tab and return to VS Code.",
+  "Sign-in failed": "Sign-in failed",
+  "Reload Window": "Reload Window",
+  "MCP server config updated. Reload the window to apply.": "MCP server config updated. Reload the window to apply."
 }

@@ -5,22 +5,27 @@ import { StatusBarManager } from './statusbar';
 import { OnboardWizard } from './onboard';
 import { McpConfigurator } from './mcp';
 import { ExtensionUpdater } from './updater';
-import { StatusTreeProvider } from './views/status-tree';
+import { StatusTreeProvider, IdentityState } from './views/status-tree';
 import { SkillsTreeProvider } from './views/skills-tree';
+import { SecretsManager } from './secret-storage';
+import { runSignIn, runSignOut, maybeShowOnboarding } from './auth';
 
 let statusBar: StatusBarManager | undefined;
+let identityPollingHandle: NodeJS.Timeout | undefined;
+const IDENTITY_POLL_INTERVAL_MS = 60_000;
 
 export async function activate(context: vscode.ExtensionContext) {
 	const installer = new InstallManager(context);
 	const health = new HealthChecker();
 	const mcpConfig = new McpConfigurator();
+	const secrets = new SecretsManager(context);
 
 	// Status bar — created early, added to subscriptions for auto-disposal
 	statusBar = new StatusBarManager();
 	context.subscriptions.push(statusBar.item);
 
 	// Tree views
-	const statusTree = new StatusTreeProvider(health);
+	const statusTree = new StatusTreeProvider(health, secrets);
 	const skillsTree = new SkillsTreeProvider(installer);
 	vscode.window.registerTreeDataProvider('specbox.status', statusTree);
 	vscode.window.registerTreeDataProvider('specbox.skills', skillsTree);
@@ -55,6 +60,44 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		vscode.commands.registerCommand('specbox.configureMcp', async () => {
 			await mcpConfig.configureAll();
+		}),
+
+		vscode.commands.registerCommand('specbox.signIn', async () => {
+			const result = await runSignIn(context, secrets);
+			if (result.ok) {
+				vscode.window.showInformationMessage(vscode.l10n.t('Signed in. Welcome!'));
+				await refreshIdentity(statusTree, secrets);
+			} else {
+				vscode.window.showWarningMessage(
+					vscode.l10n.t('Sign-in failed: {0}.', result.error ?? 'unknown')
+				);
+			}
+		}),
+
+		vscode.commands.registerCommand('specbox.signOut', async () => {
+			await runSignOut(secrets);
+			vscode.window.showInformationMessage(vscode.l10n.t('Signed out.'));
+			await refreshIdentity(statusTree, secrets);
+		}),
+
+		vscode.commands.registerCommand('specbox.identityQuickPick', async () => {
+			const signedIn = await secrets.hasToken();
+			if (signedIn) {
+				const signOut = vscode.l10n.t('Sign out');
+				const openProfile = vscode.l10n.t('Open profile on cloud.specbox.build');
+				const pick = await vscode.window.showQuickPick([signOut, openProfile]);
+				if (pick === signOut) {
+					await vscode.commands.executeCommand('specbox.signOut');
+				} else if (pick === openProfile) {
+					await vscode.env.openExternal(vscode.Uri.parse('https://cloud.specbox.build/profile'));
+				}
+			} else {
+				const signIn = vscode.l10n.t('Sign in with GitHub');
+				const pick = await vscode.window.showQuickPick([signIn]);
+				if (pick === signIn) {
+					await vscode.commands.executeCommand('specbox.signIn');
+				}
+			}
 		}),
 	);
 
@@ -91,9 +134,42 @@ export async function activate(context: vscode.ExtensionContext) {
 			await updater.checkAndUpdate(result.enginePath);
 		}
 	}
+
+	// UC-647 — onboarding gate (only when no decision yet)
+	await maybeShowOnboarding(context, secrets).catch((err) => {
+		console.warn('[specbox] onboarding gate failed:', err);
+	});
+
+	// UC-649 — identity polling + initial refresh
+	await refreshIdentity(statusTree, secrets);
+	identityPollingHandle = setInterval(() => {
+		refreshIdentity(statusTree, secrets).catch(() => { /* ignore */ });
+	}, IDENTITY_POLL_INTERVAL_MS);
+	context.subscriptions.push({
+		dispose: () => {
+			if (identityPollingHandle) { clearInterval(identityPollingHandle); identityPollingHandle = undefined; }
+		},
+	});
+}
+
+async function refreshIdentity(tree: StatusTreeProvider, secrets: SecretsManager): Promise<void> {
+	const token = await secrets.getToken();
+	if (!token) {
+		tree.updateIdentity({ signedIn: false });
+		return;
+	}
+	// MVP: until whoami() is wired to the local MCP, treat token presence as signed-in.
+	// AG-09a smoke test verifies handle resolution via a follow-up integration test.
+	tree.updateIdentity({ signedIn: true, handle: maskHandle(token) });
+}
+
+function maskHandle(token: string): string {
+	// Show the first 6 chars of the token hash as a stable pseudo-handle until
+	// the whoami() integration lands. The real handle is resolved by UC-649 polling.
+	return token.slice(0, 6);
 }
 
 export function deactivate() {
-	// StatusBarItem is disposed via context.subscriptions
+	if (identityPollingHandle) { clearInterval(identityPollingHandle); identityPollingHandle = undefined; }
 	statusBar = undefined;
 }

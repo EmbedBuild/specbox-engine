@@ -1,0 +1,8 @@
+{
+  "feature": "us_vscode_github_oauth",
+  "has_ui": false,
+  "has_db": false,
+  "completed_phases": ["db_infra", "stitch_designs", "design_to_code", "uc-648-unauthenticated-graceful"],
+  "current_phase": "uc-644-loopback-oauth",
+  "last_updated": "2026-05-26T22:55:54Z"
+}

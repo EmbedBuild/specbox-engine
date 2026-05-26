@@ -2,7 +2,7 @@
   "name": "specbox-engine",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "6.2.0",
+  "version": "6.3.0",
   "publisher": "EmbedBuild",
   "license": "MIT",
   "engines": {
@@ -72,6 +72,19 @@
       {
         "command": "specbox.configureMcp",
         "title": "%command.configureMcp.title%"
+      },
+      {
+        "command": "specbox.signIn",
+        "title": "%command.signIn.title%",
+        "icon": "$(github-inverted)"
+      },
+      {
+        "command": "specbox.signOut",
+        "title": "%command.signOut.title%"
+      },
+      {
+        "command": "specbox.identityQuickPick",
+        "title": "%command.identityQuickPick.title%"
       }
     ],
     "viewsContainers": {
@@ -160,6 +173,11 @@
           "type": "boolean",
           "default": true,
           "description": "%configuration.mcpAutoStart.description%"
+        },
+        "specbox.signInBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "%configuration.signInBaseUrl.description%"
         }
       }
     }
@@ -168,6 +186,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node --test tests/*.test.mjs",
     "package": "vsce package",
     "publish": "vsce publish"
   },

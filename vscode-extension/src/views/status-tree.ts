@@ -1,14 +1,26 @@
 import * as vscode from 'vscode';
 import { HealthChecker, HealthResult } from '../health';
+import { SecretsManager } from '../secret-storage';
+
+export interface IdentityState {
+	signedIn: boolean;
+	handle?: string;
+}
 
 export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
 	private _onDidChangeTreeData = new vscode.EventEmitter<StatusItem | undefined>();
 	readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 	private cachedResult: HealthResult | null = null;
 	private cacheTime = 0;
+	private identityState: IdentityState = { signedIn: false };
 	private static readonly CACHE_TTL_MS = 10_000; // 10s — prevents duplicate checks on rapid UI events
 
-	constructor(private health: HealthChecker) {}
+	constructor(private health: HealthChecker, private secrets?: SecretsManager) {}
+
+	updateIdentity(state: IdentityState): void {
+		this.identityState = state;
+		this._onDidChangeTreeData.fire(undefined);
+	}
 
 	refresh(): void {
 		this.cachedResult = null;
@@ -28,7 +40,18 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
 		}
 		const r = this.cachedResult;
 
+		const identityItem = this.identityState.signedIn
+			? new IdentityTreeItem(
+				vscode.l10n.t('Signed in as @{0}', this.identityState.handle ?? '?'),
+				'github-inverted'
+			)
+			: new IdentityTreeItem(
+				vscode.l10n.t('Not signed in (FreeForm mode)'),
+				'person'
+			);
+
 		return [
+			identityItem,
 			new StatusItem(
 				`Engine: ${r.engineInstalled ? `v${r.engineVersion}` : 'Not installed'}`,
 				r.engineInstalled ? 'pass' : 'fail'
@@ -59,5 +82,13 @@ class StatusItem extends vscode.TreeItem {
 			info: 'info',
 		};
 		this.iconPath = new vscode.ThemeIcon(icons[status]);
+	}
+}
+
+export class IdentityTreeItem extends vscode.TreeItem {
+	constructor(label: string, icon: 'github-inverted' | 'person') {
+		super(label, vscode.TreeItemCollapsibleState.None);
+		this.iconPath = new vscode.ThemeIcon(icon);
+		this.command = { command: 'specbox.identityQuickPick', title: '' };
 	}
 }

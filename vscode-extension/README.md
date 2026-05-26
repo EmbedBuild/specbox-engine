@@ -72,7 +72,23 @@ Search **"SpecBox Engine"** in the VSCode Marketplace, or run:
 code --install-extension EmbedBuild.specbox-engine
 ```
 
-### 2. Run the onboarding wizard
+### 2. Choose your mode on first activate
+
+On the first activation in a workspace, the extension shows a one-time
+notification with two choices:
+
+- **Sign in with GitHub** — opens your browser, completes a GitHub OAuth
+  flow via [cloud.specbox.build](https://cloud.specbox.build), and stores
+  the resulting MCP token in your OS keychain via VSCode SecretStorage.
+  Enables Native backend (shared tracking, multi-developer reservations).
+- **Continue in local mode (FreeForm)** — no auth, no cloud. All tracking
+  lives on disk under `doc/tracking/`. See
+  [Local mode (no auth)](#local-mode-no-auth) below.
+
+You can switch modes at any time later: `Ctrl+Shift+P` → **SpecBox: Sign
+in with GitHub** or **SpecBox: Sign out**.
+
+### 3. Run the onboarding wizard
 
 `Ctrl+Shift+P` → **SpecBox: Onboard Project**
 
@@ -85,13 +101,58 @@ Step 3  →  Install 15 skills + 20+ hooks + settings
 Step 4  →  Configure MCP servers (SpecBox + Engram)
 ```
 
-### 3. Start building
+### 4. Start building
 
 ```
 /prd "User authentication with OAuth2"     → Requirements
 /plan PROJECT-42                            → Technical plan + UI designs
 /implement auth_plan                        → Autopilot implementation
 ```
+
+---
+
+## Local mode (no auth)
+
+FreeForm remains **first-class**. If you pick "Continue in local mode" you
+get the full engine — skills, hooks, BDD acceptance, MCP tools that do not
+require shared state — without ever opening a browser or storing a token.
+
+What works without signing in:
+- The full pipeline: `/prd`, `/plan`, `/implement`, `/audit`, etc.
+- Trello and Plane backends (you provide their own API keys).
+- All non-Native tools (110+ tools).
+
+What requires signing in:
+- The Native backend's UC reservation system (multi-developer locking).
+- The four native tools: `whoami`, `reserve_uc`, `release_uc`,
+  `register_native_branch`.
+
+See [doc/runbooks/freeform-only-mode.md](https://github.com/EmbedBuild/specbox-engine/blob/main/doc/runbooks/freeform-only-mode.md)
+for a detailed walkthrough.
+
+---
+
+## How sign-in works under the hood
+
+1. You click **Sign in with GitHub**. The extension starts a one-shot HTTP
+   server on `127.0.0.1` (random port assigned by the OS), generates a
+   64-hex CSRF state, and opens `https://cloud.specbox.build/vscode/issue-token`
+   in your default browser, passing the loopback URL and state as query params.
+2. The cloud handles the GitHub OAuth dance (no plaintext credentials ever
+   touch the extension or the engine — only the cloud).
+3. The cloud redirects back to the loopback with `?mcp_token=spbx_<base64url>&state=<csrf>`. The token shape is the cloud's `issueMcpToken()` output — `spbx_` prefix + base64url body, mirroring the engine's `register_mcp_token` algorithm.
+4. The extension validates the state, regex-checks the token, persists it
+   to **VSCode SecretStorage** (Keychain on macOS, Credential Manager on
+   Windows, libsecret on Linux), and tells Claude Code to respawn the MCP
+   server so the token is in scope.
+5. If the token is **revoked** on the cloud, the engine reports
+   `UNAUTHENTICATED` on the next native tool call (≤30s thanks to the
+   server-side auth cache TTL). The sidebar polls every 60s and updates
+   on its own — total revoke-visibility ≤ 90s.
+
+The cloud side is implemented in [`EmbedBuild/specbox_cloud`](https://github.com/EmbedBuild/specbox_cloud)
+(US-09). See [doc/decisions/native_default_oauth.md](https://github.com/EmbedBuild/specbox-engine/blob/main/doc/decisions/native_default_oauth.md)
+for the architectural rationale and the residual security trade-offs.
 
 ---
 

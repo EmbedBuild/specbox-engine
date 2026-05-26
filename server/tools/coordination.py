@@ -45,6 +45,10 @@ from ..coordination.branches import (
     register_branch,
     suggest_branch_name,
 )
+from ..coordination.i18n_messages import (
+    extract_locale_from_ctx,
+    unauthenticated_payload,
+)
 from ..coordination.identity import (
     ForbiddenError,
     UnauthenticatedError,
@@ -60,6 +64,19 @@ from ..coordination.reservations import (
 from ..db.pool import get_pool
 
 logger = structlog.get_logger(__name__)
+
+
+def _unauth_for_ctx(ctx: Context, reason: str = "default") -> dict[str, Any]:
+    """Build the uniform UNAUTHENTICATED payload using the session locale.
+
+    UC-648 helper. Reads ``Accept-Language`` from the MCP request when
+    available, otherwise falls back to English. ``reason`` selects between
+    the default message ("Sign in with GitHub…") and the revoked variant
+    ("Your session was revoked…"). The payload shape is documented in
+    :func:`server.coordination.i18n_messages.unauthenticated_payload`.
+    """
+    locale = extract_locale_from_ctx(ctx)
+    return unauthenticated_payload(locale=locale, reason=reason)
 
 
 async def _authed_dev(ctx: Context):
@@ -95,10 +112,14 @@ async def whoami(ctx: Context) -> dict[str, Any]:
     pool = await get_pool()
     try:
         dev = await resolve_developer(pool, token)
-    except UnauthenticatedError as e:
+    except UnauthenticatedError:
         # Same message whether the token is absent, malformed, or simply
-        # matches no developer — no enumeration signal.
-        return {"error": str(e), "code": "UNAUTHENTICATED"}
+        # matches no developer — no enumeration signal. UC-648: returns the
+        # uniform payload with i18n message + docs_url. No stack trace.
+        # The distinction between "default" and "revoked" cannot be made
+        # at this layer (resolve_developer treats both as unauthenticated)
+        # — both surface the default message.
+        return _unauth_for_ctx(ctx, reason="default")
 
     return {
         "success": True,
@@ -123,8 +144,8 @@ async def reserve_uc(uc_id: str, ctx: Context, branch: str = "") -> dict[str, An
         project_id, dev, pool = await _authed_dev(ctx)
     except RuntimeError as e:
         return {"error": str(e), "code": "NOT_NATIVE_SESSION"}
-    except UnauthenticatedError as e:
-        return {"error": str(e), "code": "UNAUTHENTICATED"}
+    except UnauthenticatedError:
+        return _unauth_for_ctx(ctx, reason="default")
     except ForbiddenError as e:
         return {"error": str(e), "code": "FORBIDDEN"}
 
@@ -244,8 +265,8 @@ async def release_uc(uc_id: str, ctx: Context) -> dict[str, Any]:
         project_id, dev, pool = await _authed_dev(ctx)
     except RuntimeError as e:
         return {"error": str(e), "code": "NOT_NATIVE_SESSION"}
-    except UnauthenticatedError as e:
-        return {"error": str(e), "code": "UNAUTHENTICATED"}
+    except UnauthenticatedError:
+        return _unauth_for_ctx(ctx, reason="default")
     except ForbiddenError as e:
         return {"error": str(e), "code": "FORBIDDEN"}
 
@@ -290,8 +311,8 @@ async def register_native_branch(uc_id: str, branch: str, ctx: Context) -> dict[
         project_id, dev, pool = await _authed_dev(ctx)
     except RuntimeError as e:
         return {"error": str(e), "code": "NOT_NATIVE_SESSION"}
-    except UnauthenticatedError as e:
-        return {"error": str(e), "code": "UNAUTHENTICATED"}
+    except UnauthenticatedError:
+        return _unauth_for_ctx(ctx, reason="default")
     except ForbiddenError as e:
         return {"error": str(e), "code": "FORBIDDEN"}
 

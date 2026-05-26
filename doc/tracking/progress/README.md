@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-26T17:58:05.618331+00:00
+> Actualizado: 2026-05-26T22:55:45.048750+00:00
 
 ## User Stories
 
@@ -20,6 +20,7 @@
 | US-MCP-OBSERVABILITY | US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0) | User Stories | 0 | 0 | 0% |
 | US-MCP-OBSERVABILITY | US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0) | User Stories | 0 | 8 | 0% |
 | US-VSCODE-MARKETPLACE | US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine | User Stories | 10 | 10 | 100% |
+| US-VSCODE-GITHUB-OAUTH | US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth | User Stories | 1 | 8 | 12% |
 
 ## Use Cases
 
@@ -100,3 +101,11 @@
 | UC-641 | US-VSCODE-MARKETPLACE | Done | 5 | 5 | 100% |
 | UC-642 | US-VSCODE-MARKETPLACE | Done | 5 | 5 | 100% |
 | UC-643 | US-VSCODE-MARKETPLACE | Done | 7 | 7 | 100% |
+| UC-644 | US-VSCODE-GITHUB-OAUTH | Backlog | 0 | 5 | 0% |
+| UC-645 | US-VSCODE-GITHUB-OAUTH | Backlog | 0 | 6 | 0% |
+| UC-646 | US-VSCODE-GITHUB-OAUTH | Backlog | 0 | 5 | 0% |
+| UC-647 | US-VSCODE-GITHUB-OAUTH | Backlog | 0 | 5 | 0% |
+| UC-648 | US-VSCODE-GITHUB-OAUTH | Done | 5 | 5 | 100% |
+| UC-649 | US-VSCODE-GITHUB-OAUTH | Backlog | 0 | 5 | 0% |
+| UC-650 | US-VSCODE-GITHUB-OAUTH | Backlog | 0 | 6 | 0% |
+| UC-651 | US-VSCODE-GITHUB-OAUTH | Backlog | 0 | 5 | 0% |

@@ -19,5 +19,22 @@
   "installed": "instalados",
   "Configured": "Configurado",
   "Not configured": "Sin configurar",
-  "OK": "OK"
+  "OK": "OK",
+  "Sign in with GitHub": "Iniciar sesión con GitHub",
+  "Continue in local mode (FreeForm)": "Continuar en modo local (FreeForm)",
+  "Welcome to SpecBox Engine. Sign in to enable shared tracking, or continue in local mode.": "Te damos la bienvenida a SpecBox Engine. Inicia sesión para activar el seguimiento compartido o continúa en modo local.",
+  "Signed in. Welcome!": "Sesión iniciada. ¡Bienvenido!",
+  "Signed out.": "Sesión cerrada.",
+  "Sign-in failed: {0}.": "Error al iniciar sesión: {0}.",
+  "Sign-in failed: {0}. You can try again later from the Command Palette.": "Error al iniciar sesión: {0}. Puedes intentarlo más tarde desde la paleta de comandos.",
+  "Continuing in local mode (FreeForm).": "Continuando en modo local (FreeForm).",
+  "Signed in as @{0}": "Sesión iniciada como @{0}",
+  "Not signed in (FreeForm mode)": "Sin sesión (modo FreeForm)",
+  "Sign out": "Cerrar sesión",
+  "Open profile on cloud.specbox.build": "Abrir perfil en cloud.specbox.build",
+  "Signed in to SpecBox": "Sesión iniciada en SpecBox",
+  "You can close this tab and return to VS Code.": "Puedes cerrar esta pestaña y volver a VS Code.",
+  "Sign-in failed": "Error al iniciar sesión",
+  "Reload Window": "Recargar ventana",
+  "MCP server config updated. Reload the window to apply.": "Se ha actualizado la configuración del servidor MCP. Recarga la ventana para aplicar los cambios."
 }

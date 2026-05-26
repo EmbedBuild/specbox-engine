@@ -140,7 +140,7 @@ for a detailed walkthrough.
    in your default browser, passing the loopback URL and state as query params.
 2. The cloud handles the GitHub OAuth dance (no plaintext credentials ever
    touch the extension or the engine — only the cloud).
-3. The cloud redirects back to the loopback with `?mcp_token=<64-hex>&state=<csrf>`.
+3. The cloud redirects back to the loopback with `?mcp_token=spbx_<base64url>&state=<csrf>`. The token shape is the cloud's `issueMcpToken()` output — `spbx_` prefix + base64url body, mirroring the engine's `register_mcp_token` algorithm.
 4. The extension validates the state, regex-checks the token, persists it
    to **VSCode SecretStorage** (Keychain on macOS, Credential Manager on
    Windows, libsecret on Linux), and tells Claude Code to respawn the MCP

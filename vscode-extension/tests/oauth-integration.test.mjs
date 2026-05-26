@@ -55,7 +55,7 @@ test('happy path: mock cloud round-trip resolves with a valid token', async () =
 		const result = await loopback.awaitCallback;
 		await browser;
 		assert.equal(result.ok, true);
-		assert.match(result.token, /^[a-f0-9]{64}$/);
+		assert.match(result.token, /^spbx_[A-Za-z0-9_-]{32,128}$/);
 		assert.equal(result.state, loopback.state);
 	} finally {
 		loopback.close();

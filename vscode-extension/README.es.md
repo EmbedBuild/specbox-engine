@@ -143,7 +143,7 @@ para una guía detallada.
    defecto, pasando la URL del loopback y el state como query params.
 2. La nube gestiona el baile OAuth de GitHub (las credenciales en plano
    no tocan nunca la extensión ni el engine — solo la nube).
-3. La nube redirige al loopback con `?mcp_token=<64-hex>&state=<csrf>`.
+3. La nube redirige al loopback con `?mcp_token=spbx_<base64url>&state=<csrf>`. El shape del token es la salida de `issueMcpToken()` del cloud — prefijo `spbx_` + cuerpo base64url, espejo del algoritmo `register_mcp_token` del engine.
 4. La extensión valida el state, comprueba el regex del token, lo persiste
    en **VSCode SecretStorage** (Keychain en macOS, Credential Manager en
    Windows, libsecret en Linux) y le pide a Claude Code que reinicie el

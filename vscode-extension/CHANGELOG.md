@@ -40,9 +40,11 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 - **Server-side i18n.** Identity errors from the engine (`UNAUTHENTICATED`,
   revoked tokens) respect the client's `Accept-Language` header — EN
   default, ES fallback (engine UC-648, shipped in commit `a7410f8`).
-- **OAuth test suite.** `tests/oauth.test.mjs` (10 cases) covers the
+- **OAuth test suite.** `tests/oauth.test.mjs` (11 cases) covers the
   loopback HTTP contract: loopback-only binding, single-use, state mismatch,
-  invalid method, origin allow-list, token regex, success page rendering.
+  invalid method, origin allow-list, token regex (accepts the
+  cloud's `spbx_<base64url>` shape, rejects legacy 64-hex), success page
+  rendering.
   `tests/oauth-integration.test.mjs` (3 cases) exercises the full mock-cloud
   ↔ loopback round trip, CSRF reject, and error propagation. Zero-deps
   via `node:test`. Wired in `package.json` as `npm test`.

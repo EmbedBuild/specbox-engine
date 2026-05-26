@@ -34,15 +34,18 @@ export async function startMockCloudServer({ port = 0 } = {}) {
 			return;
 		}
 		const target = new URL(returnTo);
+		// Mirror the cloud's `issueMcpToken()` shape exactly:
+		// clear_token = `spbx_` + base64url(randomBytes(32))
+		const fakeToken = `spbx_${crypto.randomBytes(32).toString('base64url')}`;
 		if (mode === 'error') {
 			target.searchParams.set('error', 'access_denied');
 			target.searchParams.set('error_description', 'user_rejected');
 			target.searchParams.set('state', state);
 		} else if (mode === 'bad_state') {
-			target.searchParams.set('mcp_token', crypto.randomBytes(32).toString('hex'));
+			target.searchParams.set('mcp_token', fakeToken);
 			target.searchParams.set('state', 'wrong-state');
 		} else {
-			target.searchParams.set('mcp_token', crypto.randomBytes(32).toString('hex'));
+			target.searchParams.set('mcp_token', fakeToken);
 			target.searchParams.set('state', state);
 		}
 		res.statusCode = 302;

@@ -34,6 +34,14 @@ require.cache['vscode-stub'] = { id: 'vscode-stub', filename: 'vscode-stub', loa
 
 const { startLoopbackServer, buildSignInUrl } = require(path.join(outDir, 'oauth.js'));
 
+// Cross-repo contract: the cloud's issueMcpToken() emits clear tokens of
+// shape `spbx_<base64url(32 bytes)>`. Mirror it here so tests reflect what
+// the live cloud will actually send.
+import crypto from 'node:crypto';
+function fakeMcpToken() {
+	return `spbx_${crypto.randomBytes(32).toString('base64url')}`;
+}
+
 async function fetchCallback(port, params, headers = {}) {
 	const qs = new URLSearchParams(params).toString();
 	return new Promise((resolve, reject) => {
@@ -57,7 +65,7 @@ test('server listens only on 127.0.0.1 (loopback-only)', async () => {
 	const server = await startLoopbackServer();
 	try {
 		// Hit on loopback works; hitting localhost name resolves to loopback too on most systems.
-		const r = await fetchCallback(server.port, { state: server.state, mcp_token: 'a'.repeat(64) });
+		const r = await fetchCallback(server.port, { state: server.state, mcp_token: fakeMcpToken() });
 		assert.equal(r.status, 200);
 	} finally {
 		server.close();
@@ -66,7 +74,7 @@ test('server listens only on 127.0.0.1 (loopback-only)', async () => {
 
 test('second request returns 410 / server closed', async () => {
 	const server = await startLoopbackServer();
-	const token = 'b'.repeat(64);
+	const token = fakeMcpToken();
 	await fetchCallback(server.port, { state: server.state, mcp_token: token });
 	await server.awaitCallback;
 	// give the closure a tick
@@ -83,7 +91,7 @@ test('second request returns 410 / server closed', async () => {
 test('state mismatch returns 400 and resolves with state_mismatch', async () => {
 	const server = await startLoopbackServer();
 	try {
-		const r = await fetchCallback(server.port, { state: 'wrong', mcp_token: 'c'.repeat(64) });
+		const r = await fetchCallback(server.port, { state: 'wrong', mcp_token: fakeMcpToken() });
 		assert.equal(r.status, 400);
 		const result = await server.awaitCallback;
 		assert.equal(result.ok, false);
@@ -106,7 +114,7 @@ test('non-GET method returns 400', async () => {
 test('Origin not in allow-list returns 400', async () => {
 	const server = await startLoopbackServer();
 	try {
-		const r = await fetchCallback(server.port, { state: server.state, mcp_token: 'd'.repeat(64) }, { Origin: 'https://evil.example' });
+		const r = await fetchCallback(server.port, { state: server.state, mcp_token: fakeMcpToken() }, { Origin: 'https://evil.example' });
 		assert.equal(r.status, 400);
 	} finally {
 		server.close();
@@ -140,15 +148,28 @@ test('error param surfaces in callback result', async () => {
 	}
 });
 
-test('happy path: valid token resolves ok with token + state', async () => {
+test('happy path: valid spbx_* token resolves ok with token + state', async () => {
 	const server = await startLoopbackServer();
-	const token = 'e'.repeat(64);
+	const token = fakeMcpToken();
 	const r = await fetchCallback(server.port, { state: server.state, mcp_token: token });
 	assert.equal(r.status, 200);
 	const result = await server.awaitCallback;
 	assert.equal(result.ok, true);
 	assert.equal(result.token, token);
 	assert.equal(result.state, server.state);
+});
+
+test('legacy hex token (no spbx_ prefix) is rejected as invalid_token_shape', async () => {
+	const server = await startLoopbackServer();
+	try {
+		const r = await fetchCallback(server.port, { state: server.state, mcp_token: 'a'.repeat(64) });
+		assert.equal(r.status, 400);
+		const result = await server.awaitCallback;
+		assert.equal(result.ok, false);
+		assert.equal(result.error, 'invalid_token_shape');
+	} finally {
+		server.close();
+	}
 });
 
 test('buildSignInUrl encodes return_to and includes state', () => {

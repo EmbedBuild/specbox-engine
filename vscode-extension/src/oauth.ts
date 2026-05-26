@@ -8,7 +8,12 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 
 const CALLBACK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-const MCP_TOKEN_REGEX = /^[a-f0-9]{64}$/;
+// Token shape is `spbx_<base64url(32 bytes)>` — frozen by the cloud's
+// `issueMcpToken()` in apps/api/src/lib/tokens.ts (US-09 of specbox_cloud).
+// Base64url charset is [A-Za-z0-9_-]; randomBytes(32) yields a 43-char body
+// (no padding). We allow 32–128 chars to be tolerant of future entropy bumps
+// without losing the prefix invariant.
+const MCP_TOKEN_REGEX = /^spbx_[A-Za-z0-9_-]{32,128}$/;
 
 export type CallbackResult =
 	| { ok: true; token: string; state: string }

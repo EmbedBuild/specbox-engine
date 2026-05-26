@@ -156,16 +156,35 @@ UC-651) revert as a single unit.
 ## Cross-repo dependency
 
 This US is one half of a cross-repo feature. The cloud half lives in
-`EmbedBuild/specbox_cloud` US-09 and implements:
+`EmbedBuild/specbox_cloud` US-09 (**merged 2026-05-27** in
+[PR #47](https://github.com/EmbedBuild/specbox_cloud/pull/47)) and implements:
 
 - `GET /vscode/issue-token?return_to=<loopback>&state=<csrf>` — the
   endpoint the extension redirects the browser to.
-- The GitHub OAuth dance + token provisioning into `mcp_tokens` (Supabase).
+- `POST /api/mcp-tokens/issue-for-self` — the API that issues a fresh
+  `mcp_token` for the currently authenticated developer (called by the
+  page server-side, never by the extension directly).
+- The GitHub OAuth dance via Supabase + token provisioning into
+  `panel.mcp_tokens`.
 
-The contracts that the two halves agree on are frozen in the PRD of this
-US (UC-645 AC-02). The engine half can ship and be tested against the
-**mock cloud server** in `vscode-extension/tests/mock-cloud-server.mjs`
-before the real US-09 lands in production.
+**Contract surface (frozen on both sides)**:
+
+| Surface | Value |
+|---|---|
+| Cloud URL | `https://cloud.specbox.build/vscode/issue-token` |
+| Query params (extension → cloud) | `return_to=<URI-encoded loopback>` + `state=<64-hex>` |
+| `return_to` regex (cloud-side guard) | `^http://127\.0\.0\.1:\d+/callback$` |
+| `state` regex (cloud-side guard) | `^[0-9a-f]{64}$` |
+| Success redirect | `<return_to>?mcp_token=<clear>&state=<csrf>` |
+| Failure redirect | `<return_to>?error=<code>&error_description=<msg>&state=<csrf>` |
+| `clear_token` shape | `spbx_<base64url(32 bytes)>` — issued by the cloud's `issueMcpToken()` |
+| Token regex (engine-side guard, `oauth.ts`) | `^spbx_[A-Za-z0-9_-]{32,128}$` |
+
+The engine half ships and is tested against a **mock cloud server**
+(`vscode-extension/tests/mock-cloud-server.mjs`) that mirrors the
+contract above. The cross-stack live test in the cloud's
+`tests/e2e/steps/vscode-self-service.steps.ts` verified the same shape
+against the real Supabase + API at merge time.
 
 ## Engram references
 

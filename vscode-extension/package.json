@@ -1,13 +1,14 @@
 {
   "name": "specbox-engine",
-  "displayName": "SpecBox Engine — Agentic Dev for Claude Code",
-  "description": "Install and manage SpecBox Engine: skills, hooks, MCP servers, and Engram memory for Claude Code agentic development.",
+  "displayName": "%extension.displayName%",
+  "description": "%extension.description%",
   "version": "6.1.1",
   "publisher": "jpsdeveloper",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.86.0"
   },
+  "l10n": "./l10n",
   "categories": [
     "AI",
     "Other"
@@ -51,33 +52,33 @@
     "commands": [
       {
         "command": "specbox.install",
-        "title": "SpecBox: Install Engine",
+        "title": "%command.install.title%",
         "icon": "$(rocket)"
       },
       {
         "command": "specbox.healthCheck",
-        "title": "SpecBox: Health Check",
+        "title": "%command.healthCheck.title%",
         "icon": "$(pulse)"
       },
       {
         "command": "specbox.onboard",
-        "title": "SpecBox: Onboard Project",
+        "title": "%command.onboard.title%",
         "icon": "$(wand)"
       },
       {
         "command": "specbox.showStatus",
-        "title": "SpecBox: Show Status"
+        "title": "%command.showStatus.title%"
       },
       {
         "command": "specbox.configureMcp",
-        "title": "SpecBox: Configure MCP Servers"
+        "title": "%command.configureMcp.title%"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
           "id": "specbox",
-          "title": "SpecBox Engine",
+          "title": "%viewContainer.specbox.title%",
           "icon": "media/icon-sidebar.svg"
         }
       ]
@@ -86,23 +87,23 @@
       "specbox": [
         {
           "id": "specbox.status",
-          "name": "Status"
+          "name": "%view.status.name%"
         },
         {
           "id": "specbox.skills",
-          "name": "Skills"
+          "name": "%view.skills.name%"
         }
       ]
     },
     "walkthroughs": [
       {
         "id": "specbox.gettingStarted",
-        "title": "Get Started with SpecBox Engine",
-        "description": "Set up agentic development for Claude Code in 3 steps.",
+        "title": "%walkthrough.title%",
+        "description": "%walkthrough.description%",
         "steps": [
           {
             "id": "specbox.step.prerequisites",
-            "title": "Check Prerequisites",
+            "title": "%walkthrough.step.prerequisites.title%",
             "description": "Verify that Node.js, Python 3.12+, and Claude Code are installed.\n\n[Run Health Check](command:specbox.healthCheck)",
             "media": {
               "markdown": "media/walkthrough/step-prerequisites.md"
@@ -110,7 +111,7 @@
           },
           {
             "id": "specbox.step.install",
-            "title": "Install Engine",
+            "title": "%walkthrough.step.install.title%",
             "description": "Install 15 skills, 20+ hooks, and quality settings with one click.\n\n[Install SpecBox Engine](command:specbox.install)",
             "media": {
               "markdown": "media/walkthrough/step-install.md"
@@ -118,7 +119,7 @@
           },
           {
             "id": "specbox.step.mcp",
-            "title": "Configure MCP Servers",
+            "title": "%walkthrough.step.mcp.title%",
             "description": "Set up SpecBox MCP server and Engram persistent memory for Claude Code.\n\n[Configure MCP](command:specbox.configureMcp)",
             "media": {
               "markdown": "media/walkthrough/step-mcp.md"
@@ -126,7 +127,7 @@
           },
           {
             "id": "specbox.step.firstProject",
-            "title": "Onboard Your First Project",
+            "title": "%walkthrough.step.firstProject.title%",
             "description": "Create a CLAUDE.md from the engine template and start using /prd, /plan, /implement.\n\n[Open Onboarding Wizard](command:specbox.onboard)",
             "media": {
               "markdown": "media/walkthrough/step-first-project.md"
@@ -143,22 +144,22 @@
       }
     ],
     "configuration": {
-      "title": "SpecBox Engine",
+      "title": "%configuration.title%",
       "properties": {
         "specbox.enginePath": {
           "type": "string",
           "default": "",
-          "description": "Path to the SpecBox Engine repository. Auto-detected if empty."
+          "description": "%configuration.enginePath.description%"
         },
         "specbox.autoHealthCheck": {
           "type": "boolean",
           "default": true,
-          "description": "Run health check on startup when a SpecBox project is detected."
+          "description": "%configuration.autoHealthCheck.description%"
         },
         "specbox.mcpAutoStart": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically configure MCP servers (SpecBox + Engram) on install."
+          "description": "%configuration.mcpAutoStart.description%"
         }
       }
     }
@@ -172,7 +173,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.86.0",
     "@vscode/vsce": "^3.0.0",
     "typescript": "^5.5.0"
   }

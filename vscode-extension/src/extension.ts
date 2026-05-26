@@ -68,15 +68,18 @@ export async function activate(context: vscode.ExtensionContext) {
 		await vscode.commands.executeCommand('setContext', 'specbox.installed', result.engineInstalled);
 
 		if (!result.engineInstalled) {
+			const runWizard = vscode.l10n.t('Run Wizard');
+			const installNow = vscode.l10n.t('Install Now');
+			const later = vscode.l10n.t('Later');
 			const action = await vscode.window.showInformationMessage(
-				'SpecBox Engine detected but not installed. Run the setup wizard?',
-				'Run Wizard',
-				'Install Now',
-				'Later'
+				vscode.l10n.t('SpecBox Engine detected but not installed. Run the setup wizard?'),
+				runWizard,
+				installNow,
+				later
 			);
-			if (action === 'Run Wizard') {
+			if (action === runWizard) {
 				await vscode.commands.executeCommand('specbox.onboard');
-			} else if (action === 'Install Now') {
+			} else if (action === installNow) {
 				await vscode.commands.executeCommand('specbox.install');
 			}
 		}

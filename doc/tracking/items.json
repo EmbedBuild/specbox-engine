@@ -6999,7 +6999,7 @@
     "id": "item-f8aea17a",
     "name": "UC-637: README y CHANGELOG de la extensión para Marketplace",
     "description": "# UC-637: README y CHANGELOG de la extensión para Marketplace\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: vscode-extension/README.md reescrito: sección Features con los 5 comandos (SpecBox Install, Health Check, Onboard Project, Show Status, Configure MCP), Requirements (Claude Code CLI o VSCode extension de Claude), Quick Start (3 pasos), Troubleshooting, link al repo del engine.\n- AC-02: README incluye al menos 1 screenshot del Command Palette filtrado por SpecBox. Imagen vive en vscode-extension/media/screenshots/.\n- AC-03: README incluye badges: VSCode Marketplace version, VSCode Marketplace installs, License, engine version compatibility.\n- AC-04: vscode-extension/CHANGELOG.md creado con formato Keep a Changelog. Entry 6.2.0 describe First Marketplace release; lockstep versioning with SpecBox Engine; EN+ES localization; Marketplace stats telemetry.\n- AC-05: README.es.md creado con traducción completa al español neutro España (NO argentinismos), tuteo estándar. Link cruzado en header de ambos READMEs.\n\n## Contexto\nReescribir README.md (EN canon) + README.es.md + CHANGELOG.md.",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-662987b1",
     "labels": [
       "UC",
@@ -7016,13 +7016,14 @@
     },
     "created_at": "2026-05-26T17:26:03.943814+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-26T17:45:20.872177+00:00"
   },
   {
     "id": "ac-0b426d97",
     "name": "[AC-01] vscode-extension/README.md reescrito: sección Features con los 5 comandos (SpecBox Install, Health Check, Onboard Project, Show Status, Configure MCP), Requirements (Claude Code CLI o VSCode extension de Claude), Quick Start (3 pasos), Troubleshooting, link al repo del engine.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-f8aea17a",
     "labels": [
       "AC"
@@ -7032,13 +7033,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:03.951993+00:00"
+    "created_at": "2026-05-26T17:26:03.951993+00:00",
+    "updated_at": "2026-05-26T17:45:14.927013+00:00"
   },
   {
     "id": "ac-37ee0330",
     "name": "[AC-02] README incluye al menos 1 screenshot del Command Palette filtrado por SpecBox. Imagen vive en vscode-extension/media/screenshots/.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-f8aea17a",
     "labels": [
       "AC"
@@ -7048,13 +7050,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:03.952000+00:00"
+    "created_at": "2026-05-26T17:26:03.952000+00:00",
+    "updated_at": "2026-05-26T17:45:14.962711+00:00"
   },
   {
     "id": "ac-c26d9c8e",
     "name": "[AC-03] README incluye badges: VSCode Marketplace version, VSCode Marketplace installs, License, engine version compatibility.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-f8aea17a",
     "labels": [
       "AC"
@@ -7064,13 +7067,14 @@
       "ac_id": "AC-03",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:03.952004+00:00"
+    "created_at": "2026-05-26T17:26:03.952004+00:00",
+    "updated_at": "2026-05-26T17:45:14.974380+00:00"
   },
   {
     "id": "ac-4a0fb5b0",
     "name": "[AC-04] vscode-extension/CHANGELOG.md creado con formato Keep a Changelog. Entry 6.2.0 describe First Marketplace release; lockstep versioning with SpecBox Engine; EN+ES localization; Marketplace stats telemetry.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-f8aea17a",
     "labels": [
       "AC"
@@ -7080,13 +7084,14 @@
       "ac_id": "AC-04",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:03.952007+00:00"
+    "created_at": "2026-05-26T17:26:03.952007+00:00",
+    "updated_at": "2026-05-26T17:45:14.984841+00:00"
   },
   {
     "id": "ac-8964fadf",
     "name": "[AC-05] README.es.md creado con traducción completa al español neutro España (NO argentinismos), tuteo estándar. Link cruzado en header de ambos READMEs.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-f8aea17a",
     "labels": [
       "AC"
@@ -7096,7 +7101,8 @@
       "ac_id": "AC-05",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:03.952010+00:00"
+    "created_at": "2026-05-26T17:26:03.952010+00:00",
+    "updated_at": "2026-05-26T17:45:14.994736+00:00"
   },
   {
     "id": "item-97762fc9",
@@ -7443,7 +7449,7 @@
     "id": "item-daccc90c",
     "name": "UC-641: i18n del listing del Marketplace (EN + ES) via NLS",
     "description": "# UC-641: i18n del listing del Marketplace (EN + ES) via NLS\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: vscode-extension/package.nls.json (EN) creado con keys: extension.displayName, extension.description, command.install.title, command.healthCheck.title, command.onboard.title, command.showStatus.title, command.configureMcp.title, view.status.title. Cada key con su valor en inglés.\n- AC-02: vscode-extension/package.nls.es.json creado con las mismas keys traducidas al español neutro España (tuteo estándar, NO argentinismos). Ejemplos: command.install.title SpecBox Instalar Engine, command.healthCheck.title SpecBox Comprobar Salud.\n- AC-03: vscode-extension/package.json actualizado: displayName y description apuntan a %extension.displayName% y %extension.description%. Cada command.title y view.name referencia su key NLS correspondiente.\n- AC-04: Smoke test local: code --locale=es + abrir VSCode con la extensión instalada todos los items del Command Palette empiezan por SpecBox en español. code --locale=en en inglés.\n- AC-05: El Marketplace listing (panel web) muestra la descripción en español cuando el navegador del usuario tiene Accept-Language es-* (verificable post-publish abriendo la URL del listing con cookie de idioma ES).\n\n## Contexto\npackage.nls.json (EN fallback) + package.nls.es.json (ES). VSCode auto-resuelve según vscode.env.language.",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-662987b1",
     "labels": [
       "UC",
@@ -7460,13 +7466,14 @@
     },
     "created_at": "2026-05-26T17:26:04.013949+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-26T17:38:46.183738+00:00"
   },
   {
     "id": "ac-3c637e5a",
     "name": "[AC-01] vscode-extension/package.nls.json (EN) creado con keys: extension.displayName, extension.description, command.install.title, command.healthCheck.title, command.onboard.title, command.showStatus.title, command.configureMcp.title, view.status.title. Cada key con su valor en inglés.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-daccc90c",
     "labels": [
       "AC"
@@ -7476,13 +7483,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:04.023321+00:00"
+    "created_at": "2026-05-26T17:26:04.023321+00:00",
+    "updated_at": "2026-05-26T17:38:41.276745+00:00"
   },
   {
     "id": "ac-2f81c3bc",
     "name": "[AC-02] vscode-extension/package.nls.es.json creado con las mismas keys traducidas al español neutro España (tuteo estándar, NO argentinismos). Ejemplos: command.install.title SpecBox Instalar Engine, command.healthCheck.title SpecBox Comprobar Salud.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-daccc90c",
     "labels": [
       "AC"
@@ -7492,13 +7500,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:04.023328+00:00"
+    "created_at": "2026-05-26T17:26:04.023328+00:00",
+    "updated_at": "2026-05-26T17:38:41.294086+00:00"
   },
   {
     "id": "ac-7fa32f2f",
     "name": "[AC-03] vscode-extension/package.json actualizado: displayName y description apuntan a %extension.displayName% y %extension.description%. Cada command.title y view.name referencia su key NLS correspondiente.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-daccc90c",
     "labels": [
       "AC"
@@ -7508,13 +7517,14 @@
       "ac_id": "AC-03",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:04.023331+00:00"
+    "created_at": "2026-05-26T17:26:04.023331+00:00",
+    "updated_at": "2026-05-26T17:38:41.306571+00:00"
   },
   {
     "id": "ac-c7f28bb6",
     "name": "[AC-04] Smoke test local: code --locale=es + abrir VSCode con la extensión instalada todos los items del Command Palette empiezan por SpecBox en español. code --locale=en en inglés.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-daccc90c",
     "labels": [
       "AC"
@@ -7524,13 +7534,14 @@
       "ac_id": "AC-04",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:04.023334+00:00"
+    "created_at": "2026-05-26T17:26:04.023334+00:00",
+    "updated_at": "2026-05-26T17:38:41.317759+00:00"
   },
   {
     "id": "ac-f9529fa6",
     "name": "[AC-05] El Marketplace listing (panel web) muestra la descripción en español cuando el navegador del usuario tiene Accept-Language es-* (verificable post-publish abriendo la URL del listing con cookie de idioma ES).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-daccc90c",
     "labels": [
       "AC"
@@ -7540,13 +7551,14 @@
       "ac_id": "AC-05",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:04.023337+00:00"
+    "created_at": "2026-05-26T17:26:04.023337+00:00",
+    "updated_at": "2026-05-26T17:38:41.329003+00:00"
   },
   {
     "id": "item-43f63ede",
     "name": "UC-642: i18n de strings runtime de la extensión (vscode-l10n)",
     "description": "# UC-642: i18n de strings runtime de la extensión (vscode-l10n)\n\n**User Story:** US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine\n**Actor:** Engine\n**Horas estimadas:** 6.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: vscode-extension/package.json declara l10n ./l10n apuntando al directorio que contiene los bundles. Mecanismo oficial vscode-l10n (VSCode >=1.86). engines.vscode bump a ^1.86.0.\n- AC-02: vscode-extension/l10n/bundle.l10n.json contiene todos los strings user-facing en EN, extraídos de src/extension.ts y comandos. Cada key es el string EN literal (convención vscode-l10n).\n- AC-03: vscode-extension/l10n/bundle.l10n.es.json traduce todas las keys al español. Strings con placeholders 0, 1 preservan el orden de argumentos.\n- AC-04: src/extension.ts y archivos hermanos NO contienen literales de strings user-facing: todos pasan por vscode.l10n.t. Verificado por scripts/lint-extension-strings.mjs que falla si encuentra vscode.window.showInformationMessage literal sin l10n.t.\n- AC-05: Smoke test: instalar la extensión en VSCode con locale es ejecutar SpecBox Comprobar Salud la notificación sale en español. Misma operación con locale en sale en inglés.\n\n## Contexto\nRefactor src/*.ts para que strings user-facing pasen por vscode.l10n.t(...). Bundles + linter CI.",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-662987b1",
     "labels": [
       "UC",
@@ -7563,13 +7575,14 @@
     },
     "created_at": "2026-05-26T17:26:04.032816+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-26T17:42:10.377871+00:00"
   },
   {
     "id": "ac-91fad0ba",
     "name": "[AC-01] vscode-extension/package.json declara l10n ./l10n apuntando al directorio que contiene los bundles. Mecanismo oficial vscode-l10n (VSCode >=1.86). engines.vscode bump a ^1.86.0.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-43f63ede",
     "labels": [
       "AC"
@@ -7579,13 +7592,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:04.041479+00:00"
+    "created_at": "2026-05-26T17:26:04.041479+00:00",
+    "updated_at": "2026-05-26T17:42:03.441630+00:00"
   },
   {
     "id": "ac-f34f2cfa",
     "name": "[AC-02] vscode-extension/l10n/bundle.l10n.json contiene todos los strings user-facing en EN, extraídos de src/extension.ts y comandos. Cada key es el string EN literal (convención vscode-l10n).",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-43f63ede",
     "labels": [
       "AC"
@@ -7595,13 +7609,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:04.041485+00:00"
+    "created_at": "2026-05-26T17:26:04.041485+00:00",
+    "updated_at": "2026-05-26T17:42:03.459636+00:00"
   },
   {
     "id": "ac-d1bd0568",
     "name": "[AC-03] vscode-extension/l10n/bundle.l10n.es.json traduce todas las keys al español. Strings con placeholders 0, 1 preservan el orden de argumentos.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-43f63ede",
     "labels": [
       "AC"
@@ -7611,13 +7626,14 @@
       "ac_id": "AC-03",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:04.041489+00:00"
+    "created_at": "2026-05-26T17:26:04.041489+00:00",
+    "updated_at": "2026-05-26T17:42:03.473040+00:00"
   },
   {
     "id": "ac-241e66be",
     "name": "[AC-04] src/extension.ts y archivos hermanos NO contienen literales de strings user-facing: todos pasan por vscode.l10n.t. Verificado por scripts/lint-extension-strings.mjs que falla si encuentra vscode.window.showInformationMessage literal sin l10n.t.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-43f63ede",
     "labels": [
       "AC"
@@ -7627,13 +7643,14 @@
       "ac_id": "AC-04",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:04.041492+00:00"
+    "created_at": "2026-05-26T17:26:04.041492+00:00",
+    "updated_at": "2026-05-26T17:42:03.485156+00:00"
   },
   {
     "id": "ac-5dab5a8c",
     "name": "[AC-05] Smoke test: instalar la extensión en VSCode con locale es ejecutar SpecBox Comprobar Salud la notificación sale en español. Misma operación con locale en sale en inglés.",
     "description": "",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-43f63ede",
     "labels": [
       "AC"
@@ -7643,7 +7660,8 @@
       "ac_id": "AC-05",
       "tipo": "AC"
     },
-    "created_at": "2026-05-26T17:26:04.041495+00:00"
+    "created_at": "2026-05-26T17:26:04.041495+00:00",
+    "updated_at": "2026-05-26T17:42:03.496930+00:00"
   },
   {
     "id": "item-f484371a",

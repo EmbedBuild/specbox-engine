@@ -1,0 +1,4 @@
+{"id": "cmt-707cceb7", "text": "Desarrollo iniciado: 2026-05-26T17:37:30.741673+00:00", "created_at": "2026-05-26T17:37:30.741700+00:00", "author": "freeform"}
+{"id": "cmt-af6781c0", "text": "Validacion AG-09b [2026-05-26 17:38 UTC]:\n  AC-01: PASSED\n  AC-02: PASSED\n  AC-03: PASSED\n  AC-04: PASSED\n  AC-05: PASSED", "created_at": "2026-05-26T17:38:41.338403+00:00", "author": "freeform"}
+{"id": "cmt-b418a731", "text": "Todos los criterios de aceptacion validados", "created_at": "2026-05-26T17:38:41.338475+00:00", "author": "freeform"}
+{"id": "cmt-efd6d6f2", "text": "UC-641 SHIPPED. package.nls.json (EN, 20 keys) + package.nls.es.json (ES, 20 keys, parity verificada). package.json reescrito con placeholders %key% en displayName/description/commands/views/walkthrough/configuration. vsce ls confirma ambos bundles incluidos en el VSIX.", "created_at": "2026-05-26T17:38:46.199922+00:00", "author": "freeform"}

@@ -61,8 +61,13 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 - Identity polling: the extension polls `whoami()` every 60 seconds and
   refreshes the sidebar when the identity state changes. Combined with the
   engine's 30s auth cache TTL, revocation becomes visible in ≤90s.
-- Default backend for **new** projects (templates) remains `freeform`
-  pending owner confirmation; **existing** projects are unaffected.
+- **Default backend for new projects is now `native`.** `onboard_project()`
+  without an explicit `backend_type` now returns `backend_type=native`
+  (was `freeform` in v5.29.0..v6.2.x). Materialized in
+  `server/tools/onboarding.py::DEFAULT_BACKEND_TYPE`. Existing projects
+  are unaffected: the runtime `detect_backend()` still falls back to
+  `freeform` when no signal is present, and `onboard_project()` with
+  `backend_type="freeform"` works exactly as before. See the ADR.
 
 ### Security
 - `mcp_token` is persisted exclusively to VSCode SecretStorage. The

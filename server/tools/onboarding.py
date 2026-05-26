@@ -438,6 +438,36 @@ def _create_initial_baseline(project_name: str, stack: str) -> dict:
     }
 
 
+# v6.3.0 — canonical defaults exposed as module-level constants so tests
+# and other modules can reference them without entering the closure of
+# register_onboarding_tools.
+DEFAULT_BACKEND_TYPE = "native"
+VALID_BACKEND_TYPES = frozenset({"freeform", "trello", "plane", "native"})
+
+
+def resolve_default_backend_type(
+    backend_type: str | None,
+    trello_board_name: str | None,
+) -> str:
+    """Pick the backend_type for onboard_project when the caller is implicit.
+
+    Order:
+      1. If the caller passed an explicit backend_type, return it verbatim.
+      2. Else, if trello_board_name is set, infer "trello" (back-compat with
+         pre-v5.29 onboards that only knew the Trello path).
+      3. Else, return DEFAULT_BACKEND_TYPE ("native" since v6.3.0,
+         "freeform" before v6.3.0).
+
+    The caller is responsible for validating the result against
+    VALID_BACKEND_TYPES before relying on it.
+    """
+    if backend_type:
+        return backend_type
+    if trello_board_name:
+        return "trello"
+    return DEFAULT_BACKEND_TYPE
+
+
 def register_onboarding_tools(
     mcp: FastMCP,
     engine_path: Path,
@@ -741,7 +771,7 @@ def register_onboarding_tools(
             repo_url: Git repository URL for reference.
             developer_name: Developer name for templates. Defaults to 'Jesús Pérez'.
             trello_board_name: Optional Trello board name. If provided, creates a SpecBox Engine board with workflow lists, custom fields, and labels via the Trello API.
-            backend_type: Tracking backend selection (v5.29.0). One of "freeform", "trello", "plane". Defaults to "freeform" — the recommended v5.29.0 default for projects without external client reporting requirements. If "trello" and trello_board_name is set, creates the board. If empty AND trello_board_name is provided, "trello" is inferred for backward compatibility.
+            backend_type: Tracking backend selection. One of "freeform", "trello", "plane", "native". Defaults to "native" since v6.3.0 ("Native Default OAuth") — multi-developer shared tracking via Supabase + GitHub OAuth, recommended for any project that ships through the VSCode extension's sign-in flow. If "trello" and trello_board_name is set, creates the board. If empty AND trello_board_name is provided, "trello" is inferred for backward compatibility. Use "freeform" explicitly for solo / air-gapped projects (still first-class — see doc/runbooks/freeform-only-mode.md).
             freeform_root_absolute: Absolute path to the FreeForm tracking directory when backend_type="freeform". When omitted, defaults to "<repo_root>/doc/tracking" — but the caller is responsible for resolving <repo_root> client-side because the MCP server may run remotely (see PR-1). The /app-init skill handles this automatically.
             multirepo_role: Optional multi-repo role: 'orchestrator' or 'satellite'. Leave empty for standard single-repo projects (default). When 'satellite', the project inherits the board from the orchestrator and generates a settings.local.json with the orchestrator reference.
             orchestrator_project: Required when multirepo_role='satellite'. Name of the orchestrator project in the registry. Used to inherit the board_id and set the orchestrator path.
@@ -754,15 +784,17 @@ def register_onboarding_tools(
         If trello_board_name is given, includes the board_id in the generated settings.
 
         Use to onboard a new project into the SpecBox Engine ecosystem with quality gates and agent teams."""
-        # v5.29.0: backend_type selection. Default = freeform unless legacy
-        # trello_board_name is provided (back-compat). Validate against the
-        # known set early so the rest of the flow can rely on it.
-        if not backend_type:
-            backend_type = "trello" if trello_board_name else "freeform"
-        if backend_type not in {"freeform", "trello", "plane"}:
+        # v6.3.0: backend_type selection. Default = native (Native Default OAuth)
+        # unless legacy trello_board_name is provided (back-compat).
+        # Pre-v6.3.0 (v5.29.0..v6.2.x) the default was "freeform"; existing
+        # projects are unaffected because detect_backend() still falls back to
+        # "freeform" when no explicit signal is present — only NEW onboards via
+        # onboard_project() without an explicit backend_type get "native" now.
+        backend_type = resolve_default_backend_type(backend_type, trello_board_name)
+        if backend_type not in VALID_BACKEND_TYPES:
             return {
                 "error": f"Invalid backend_type {backend_type!r}. "
-                         "Must be one of: freeform, trello, plane.",
+                         f"Must be one of: {', '.join(sorted(VALID_BACKEND_TYPES))}.",
                 "code": "INVALID_BACKEND_TYPE",
             }
         detected_stack = stack or "unknown"

@@ -1243,7 +1243,13 @@ Config: ENGINE_VERSION.yaml
 ## Native Default OAuth (v6.3.0)
 
 US-VSCODE-GITHUB-OAUTH añade onboarding first-class para el Native backend
-desde la extensión VSCode (publicada en v6.2.0). El flow es:
+desde la extensión VSCode (publicada en v6.2.0) **y promueve `native` a
+backend por defecto en `onboard_project()`** (antes era `freeform` desde
+v5.29.0). FreeForm sigue first-class para uso solo / air-gapped y los
+proyectos legacy no se migran — `detect_backend()` runtime conserva
+`freeform` como fallback final.
+
+El flow es:
 
 1. Extensión arranca un servidor HTTP one-shot en `127.0.0.1` (puerto
    random). Abre el browser contra `https://cloud.specbox.build/vscode/issue-token`
@@ -1282,10 +1288,23 @@ Componentes nuevos:
 | `doc/runbooks/freeform-only-mode.md` | Runbook para usuarios que prefieren FreeForm |
 | `doc/runbooks/github-oauth-troubleshooting.md` | Errores comunes y recovery |
 
-Cross-repo: la mitad del cloud es `EmbedBuild/specbox_cloud` US-09. El
-contrato (URL + shape del callback) está congelado en el PRD de la US, así
-que el engine puede testearse contra el mock cloud server local antes de
-que la US-09 esté en producción.
+Cross-repo: la mitad del cloud es `EmbedBuild/specbox_cloud` US-09 (mergeada
+en PR #47, 2026-05-27). El contrato (URL + shape del callback +
+`clear_token` con prefijo `spbx_`) está documentado en
+`doc/decisions/native_default_oauth.md` sección "Contract surface".
+
+**Default canónico del onboarding**:
+
+| Período | `onboard_project()` sin `backend_type` | Justificación |
+|---|---|---|
+| pre-v5.29.0 | "trello" si `trello_board_name`, error si no | Solo Trello era first-class |
+| v5.29.0..v6.2.x | "trello" si `trello_board_name`, else **"freeform"** | FreeForm pasa a first-class — discovery prioritizado |
+| **v6.3.0+** | "trello" si `trello_board_name`, else **"native"** | Native OAuth disponible — multi-developer y compartido por defecto |
+
+El cambio se materializa en `server/tools/onboarding.py::DEFAULT_BACKEND_TYPE`
+(constante module-level) + `resolve_default_backend_type()` (helper puro,
+testeable). El `detect_backend()` runtime conserva su fallback en
+`freeform` para no romper proyectos legacy.
 
 ## Smoke Test Followups (v6.0.2)
 

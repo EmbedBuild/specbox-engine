@@ -43,13 +43,23 @@ Ship a first-class sign-in flow in the VSCode extension that:
 5. Shows the current identity in the **sidebar** and on the **status bar**
    so users always know which mode they are in.
 
-Native becomes the **recommended default for multi-developer projects**.
+Native becomes the **recommended default for all new projects**.
 FreeForm stays first-class for solo and air-gapped users.
 
-The default in `templates/settings.json.template` **does not change yet** —
-it remains `freeform`. The decision to bump it is owner-pending (see PRD
-follow-up). This ADR documents the architectural intent; the template flip
-is a separate decision.
+**Implementation site**: `server/tools/onboarding.py`. The
+module-level constant `DEFAULT_BACKEND_TYPE = "native"` and the helper
+`resolve_default_backend_type()` materialize the decision. Pre-v6.3.0
+the default in the same call site was `"freeform"` (v5.29.0 PR-8).
+
+**Backwards compatibility**: existing projects are **not migrated**.
+`detect_backend()` (the runtime resolver in `server/app_docs/discovery.py`)
+still falls back to `"freeform"` when no explicit signal is present in
+`.claude/settings.local.json` or in `doc/app/app_spec.md`. Only NEW
+onboards via `onboard_project()` without an explicit `backend_type` get
+`"native"` from v6.3.0 onwards.
+
+Owner sign-off on this default flip: **confirmed** in conversation on
+2026-05-27 during the `/implement US-VSCODE-GITHUB-OAUTH` session.
 
 ## Three auditable guarantees
 

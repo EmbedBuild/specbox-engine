@@ -3,7 +3,13 @@ import * as https from 'node:https';
 import * as http from 'node:http';
 import { URL } from 'node:url';
 
-const DEFAULT_BASE_URL = 'https://cloud.specbox.build';
+// Cloud has two distinct hostnames:
+//   cloud.specbox.build     — frontend SPA (Vite/Astro) and OAuth pages.
+//   api-cloud.specbox.build — backend API endpoints (/api/whoami, etc.).
+// We default to the API host here. The signInBaseUrl override targets the
+// frontend (for E2E tests against the mock cloud); we derive the API host
+// from it by adding the "api-" prefix to the hostname when applicable.
+const DEFAULT_API_BASE_URL = 'https://api-cloud.specbox.build';
 const SIGN_IN_BASE_URL_CONFIG = 'specbox.signInBaseUrl';
 const REQUEST_TIMEOUT_MS = 5_000;
 const CACHE_TTL_MS = 30_000;
@@ -27,20 +33,23 @@ export function _resetCacheForTests(): void {
 }
 
 /**
- * Derive the cloud API base URL from the same setting that powers the sign-in
- * flow. If the user overrode `specbox.signInBaseUrl` to point at a mock cloud
- * (E2E tests), strip the `/vscode/issue-token` suffix so /api/whoami resolves
- * against the same host.
+ * Derive the cloud API base URL. Production lives at
+ * api-cloud.specbox.build (separate hostname from the frontend SPA at
+ * cloud.specbox.build).
+ *
+ * For E2E tests, `specbox.signInBaseUrl` points at a mock cloud at
+ * http://127.0.0.1:<port>/vscode/issue-token; in that case we use the same
+ * host:port for the API (mock servers expose both endpoints).
  */
 function getCloudBaseUrl(): string {
 	const cfg = vscode.workspace.getConfiguration();
 	const raw = cfg.get<string>(SIGN_IN_BASE_URL_CONFIG);
-	if (!raw) { return DEFAULT_BASE_URL; }
+	if (!raw) { return DEFAULT_API_BASE_URL; }
 	try {
 		const u = new URL(raw);
 		return `${u.protocol}//${u.host}`;
 	} catch {
-		return DEFAULT_BASE_URL;
+		return DEFAULT_API_BASE_URL;
 	}
 }
 

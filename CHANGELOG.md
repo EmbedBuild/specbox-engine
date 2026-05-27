@@ -2,6 +2,72 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.4.0] - 2026-05-26 — "Stitch Native Migration"
+
+PR-1 de la migración Stitch a la chain nativa post-Google-I/O. **Foundation, no cutover.** Esta release introduce los componentes técnicos (cliente + enums reales + mapper VEG↔M3 + tests) y elimina deuda visible (subsistema de cuota, tools fantasma). La adaptación de `generate_design_md_tool`, `stitch_generate_screen_v2` y la skill `/visual-setup --migrate-stitch` se entrega en una **PR-2 posterior** una vez validado el mapping VEG↔M3 con el mantenedor.
+
+El smoke test contra la API real (incluido en evidencia bajo `.quality/evidence/stitch_smoke/`) confirma 8 de 8 pasos verde para la chain canónica (upload → create_design_system_from_design_md → list → update → apply), validando el contrato técnico del PRD.
+
+Trazabilidad: PRD `doc/prd/stitch_native_migration_prd.md` con 13 UCs (UC-700 a UC-712). PR-1 cubre UC-700 (foundation cliente), UC-701 (tools MCP de design-system), UC-702 (REST batchCreate), UC-703 (mapper VEG↔M3) y UC-708 (quota purge). PR-2 cubrirá el resto.
+
+### Added
+
+- **`server/stitch_enums.py`** — 8 enums sincronizados con `tools/list` del MCP real: `ColorMode` (3v), `ColorVariant` (10v incluyendo `TONAL_SPOT` y `NEUTRAL` que las docs públicas no listan), `Roundness` (6v incluyendo `ROUND_TWO`), `StitchFont` (**65 fonts** vs 9 documentadas públicamente), `DeviceType` (sin `AGNOSTIC`), `CreativeRange`, `VariantAspect`, `ScreenType`.
+- **6 wrappers nativos en `server/stitch_client.py`**: `upload_design_md`, `create_design_system`, `create_design_system_from_design_md`, `update_design_system`, `list_design_systems`, `apply_design_system`. Pre-flight validation: rechaza el campo legacy `font` y los campos `x/y/width/height` en `selectedScreenInstances` que el servidor rechazaría con error opaco.
+- **`server/stitch_client.py::upload_via_rest_batch_create`** — helper REST `POST /v1/projects/{id}/screens:batchCreate` para DESIGN.md > 5KB, HTML, e imágenes (PNG / JPEG / WebP). Bypassa el límite de output tokens del LLM en el base64 echo de la MCP tool.
+- **6 `@mcp.tool` correspondientes en `server/tools/stitch.py`**: `stitch_upload_design_md` (auto-elige MCP vs REST según tamaño), `stitch_create_design_system`, `stitch_create_design_system_from_design_md`, `stitch_update_design_system`, `stitch_list_design_systems`, `stitch_apply_design_system`.
+- **`server/veg/material3_mapper.py`** — mapper determinista de los 6 arquetipos VEG (`corporate`, `startup`, `creative`, `consumer`, `gen_z`, `gobierno`) a `Material3Theme`. Resolution order: archetype defaults → JTBD overrides → brand-kit overrides. Función inversa `material3_to_veg_hints` para migration case E.
+- **`tests/test_stitch_enums.py`, `tests/test_veg_material3_mapper.py`, `tests/test_stitch_client_native.py`** — 40 tests dedicados pinning enums contra `mcp_tools_schema.json`, validando todas las combinaciones del mapper y los payloads JSON-RPC de los 6 wrappers nuevos.
+- **`.quality/evidence/stitch_smoke/`** — 3 scripts Python standalone (`smoke_test.py`, `smoke_test_mcp.py`, `smoke_test_mcp_v2.py`) + 4 reports (Markdown + JSON) + `mcp_tools_schema.json` con los 14 tool schemas reales del servidor. Reusables: `STITCH_API_KEY=... python3 smoke_test_mcp_v2.py` reproduce el verdict.
+- **`doc/prd/stitch_native_migration_prd.md`** (615 líneas) — PRD canónico con 13 UCs, evidencia smoke, decisiones (D.2 retroactivo, cutover v7.0), mapping table VEG↔M3, riesgos, orden de ejecución.
+
+### Removed
+
+- **`server/stitch_quota/`** entero (módulo `computation.py` + `__init__.py`). Stitch MCP es free of charge (verificado por la extensión oficial Gemini CLI + smoke v2). La cuota documentada 350+200 corresponde a la UI web, no al MCP.
+- **`get_stitch_quota_status` MCP tool** — junto con los imports muertos en `server/tools/stitch_v2.py`.
+- **`FlashSafetyNet` strategy** del enum `FallbackStrategy` + parámetros `enable_flash_safety_net` / `flash_model_id` / `flash_safety_net` de `generate_screen_with_fallback` y `stitch_generate_screen_v2`. Degradar a Flash era un workaround para una cuota que no existe.
+- **`.claude/hooks/stitch-quota-guard.mjs`** + su entry `PreToolUse` en `.claude/settings.json`.
+- **Secciones `quota` y `flash_safety_net`** de `templates/settings.json.template`.
+- **`tests/test_stitch_quota.py`** + clase `TestFlashSafetyNet` de `tests/test_stitch_orchestration.py`.
+- **2 tools fantasma**: `StitchClient.extract_design_context` y `StitchClient.build_site` + sus MCP wrappers `stitch_extract_design_context` y `stitch_build_site`. No existen en la API del MCP de Stitch (verificado vía `tools/list`); los tests legacy quedaron como assertions de no-existencia.
+
+### Changed
+
+- **`server/stitch_client.py`** — añadido `STITCH_MCP_URL` y `STITCH_REST_BASE` como constantes separadas; `STITCH_BASE_URL` se mantiene como alias backwards-compat para callers externos. Nuevo timeout `DESIGN_SYSTEM_TIMEOUT = 180s` para tools de DS (la latencia real medida es 43s para `create_design_system_from_design_md` y 19s para `apply_design_system`).
+- **`templates/settings.json.template`** — añadida zona `stitch.contract` con valor default `native_v2` (proyectos nuevos arrancan en la chain nativa). El valor `inline_prefix_v1` queda como contrato legacy soportado en v6.x; removido en v7.0.
+- **`pyproject.toml`** y **`ENGINE_VERSION.yaml`** bumpeados a `6.4.0` "Stitch Native Migration".
+
+### Documentation
+
+- **`CLAUDE.md`** — sección "Stitch MCP Proxy v5.6.0" reescrita en `Stitch MCP Proxy (v6.4.0)`: lista las 14 tools nativas reales, los enums verdaderos (65 fonts, TONAL_SPOT, etc.), elimina las afirmaciones obsoletas ("350 Standard + 200 Experimental por mes", "Stitch MCP no expone endpoint nativo de attach", `AGNOSTIC` en DeviceType).
+- **`CHANGELOG.md`** — esta entrada.
+
+### Tests
+
+Suite verde post-cleanup: **1249 passed, 71 skipped, 0 failed** (+57 vs baseline v6.1.1, -3 tests obsoletos eliminados).
+
+### Migration
+
+**Aditivo, no destructivo.** Proyectos onboarded antes de v6.4.0 mantienen `stitch.contract=inline_prefix_v1` (o sin setting alguno) y siguen funcionando sin cambios. Las 6 tools nativas + el mapper + los enums están disponibles para callers nuevos y para la PR-2 que las integrará en `generate_design_md_tool` y `stitch_generate_screen_v2`.
+
+Para usar la chain nativa hoy manualmente:
+
+```python
+client = StitchClient(api_key=STITCH_API_KEY)
+upload = await client.upload_via_rest_batch_create(
+    project_id, content_bytes=design_md.encode(), mime_type="text/markdown"
+)
+inst = upload["screenInstances"][0]
+ds = await client.create_design_system_from_design_md(
+    project_id, selected_screen_instance={"id": inst["id"], "sourceScreen": inst["sourceScreen"]}
+)
+await client.apply_design_system(project_id, ds["assetId"], [{"id": s, "sourceScreen": ss} for ...])
+```
+
+Cutover duro previsto para v7.0: el contrato `inline_prefix_v1` se eliminará y `upload_design_md_to_stitch` operará exclusivamente sobre la chain nativa. Documentado en el PRD bajo "Backwards compat strategy".
+
+---
+
 ## [6.1.1] - 2026-05-25 — "Cutover Followup"
 
 Patch release que cierra 11 residuos identificados tras v6.1.0 (Cloud Cutover). La pieza más grave era la tool MCP `get_sala_de_maquinas` que seguía registrada y expuesta — un cliente que la llamase recibía datos vivos en vez del esperado tool-not-found. Sumado a docstrings, menciones en skills, canónicos `doc/app/` desactualizados, entradas huérfanas en VSCode extension y `ENGINE_VERSION.yaml` features array. Cero código nuevo, sólo deletes + cleanup de strings.

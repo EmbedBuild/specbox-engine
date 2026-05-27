@@ -1,0 +1,691 @@
+{
+  "started_at": "2026-05-26T23:44:02Z",
+  "endpoint": "https://stitch.googleapis.com/mcp",
+  "screen_instance_found": true,
+  "screen_instance": {
+    "id": "7723562061268561647",
+    "sourceScreen": "projects/9887632132611822982/screens/7723562061268561647"
+  },
+  "asset_id": "dff528fbb925415d9582bd8a04dd729f",
+  "finished_at": "2026-05-26T23:45:20Z",
+  "steps": [
+    {
+      "name": "create_project",
+      "started_at": "2026-05-26T23:44:02Z",
+      "duration_ms": 1097,
+      "status": "ok",
+      "http_code": 200,
+      "parsed": {
+        "name": "projects/9887632132611822982",
+        "title": "SmokeMCPv2-1779839042",
+        "visibility": "PRIVATE",
+        "projectType": "PROJECT_DESIGN",
+        "origin": "STITCH"
+      },
+      "error": null
+    },
+    {
+      "name": "upload_design_md",
+      "started_at": "2026-05-26T23:44:03Z",
+      "duration_ms": 4198,
+      "status": "ok",
+      "http_code": 200,
+      "parsed": {
+        "id": "7723562061268561647",
+        "sourceScreen": "projects/9887632132611822982/screens/7723562061268561647",
+        "width": 390,
+        "height": 884
+      },
+      "error": null
+    },
+    {
+      "name": "get_project_by_name",
+      "started_at": "2026-05-26T23:44:07Z",
+      "duration_ms": 921,
+      "status": "ok",
+      "http_code": 200,
+      "parsed": {
+        "name": "projects/9887632132611822982",
+        "title": "SmokeMCPv2-1779839042",
+        "visibility": "PRIVATE",
+        "createTime": "2026-05-26T23:44:03.019026Z",
+        "updateTime": "2026-05-26T23:44:06.532407Z",
+        "projectType": "PROJECT_DESIGN",
+        "origin": "STITCH",
+        "designTheme": {},
+        "screenInstances": [
+          {
+            "id": "7723562061268561647",
+            "sourceScreen": "projects/9887632132611822982/screens/7723562061268561647",
+            "width": 390,
+            "height": 884
+          }
+        ],
+        "metadata": {
+          "userRole": "OWNER"
+        }
+      },
+      "error": null
+    },
+    {
+      "name": "list_design_systems_pre",
+      "started_at": "2026-05-26T23:44:08Z",
+      "duration_ms": 1493,
+      "status": "ok",
+      "http_code": 200,
+      "parsed": {},
+      "error": null
+    },
+    {
+      "name": "create_design_system_from_design_md",
+      "started_at": "2026-05-26T23:44:09Z",
+      "duration_ms": 43516,
+      "status": "ok",
+      "http_code": 200,
+      "parsed": {
+        "assetId": "dff528fbb925415d9582bd8a04dd729f"
+      },
+      "error": null
+    },
+    {
+      "name": "list_design_systems_post",
+      "started_at": "2026-05-26T23:44:53Z",
+      "duration_ms": 1977,
+      "status": "ok",
+      "http_code": 200,
+      "parsed": {
+        "designSystems": [
+          {
+            "name": "assets/dff528fbb925415d9582bd8a04dd729f",
+            "designSystem": {
+              "displayName": "SmokeTest M3 Tokens",
+              "styleGuidelines": "## Brand & Style\nThis design system is built for technical environments where clarity, speed, and reliability are paramount. It adopts a **Corporate / Modern** aesthetic with strong influences from Material 3 principles, prioritizing a functional and utilitarian interface. The brand personality is systematic and unobtrusive, designed to support complex workflows without visual fatigue. The visual language utilizes high-contrast text and a structured color application to ensure the user\u2019s focus remains on data and status indicators.\n\n## Layout & Spacing\nThe layout relies on a **Fluid Grid** system with a base 8px spacing rhythm (4px increments for fine-tuning). \n\nOn desktop, a 12-column grid is used with 16px gutters and 32px side margins. On mobile, the system collapses to a 4-column grid with 16px side margins. Spacing between related elements (like labels and inputs) should use `space-sm`, while spacing between distinct sections should use `space-lg` or `space-xl`.\n\n## Elevation & Depth\nVisual hierarchy is established through **Tonal Layers** and **Ambient Shadows**. Surfaces are tiered to represent depth:\n- **Level 0 (Background):** Solid `#FFFFFF`.\n- **Level 1 (Cards/Sheet):** Slight ambient shadow (0px 2px 4px, 5% opacity) or a 1px `outline` border.\n- **Level 2 (Modals/Popovers):** Higher diffusion shadow (0px 8px 16px, 10% opacity).\n\nInstead of heavy shadows, the system prefers using the `primary-container` and `outline` colors to create structural definition and depth.\n\n## Components\n- **Buttons:** Primary buttons use a solid `primary` background with `on-primary` text. Secondary buttons use the `outline` for a ghost-style appearance or the `primary-container` for a tonal, low-priority look.\n- **Chips:** Used for filtering and status; they should use the `primary-container` for active states and a light neutral background for inactive ones.\n- **Input Fields:** Use the `outline` color for the border in the default state, thickening and changing to `primary` on focus. Labels should be `label-md` and placed above the field.\n- **Cards:** White surfaces with a 1px `outline` border and a `rounded-lg` radius.\n- **Lists:** Clean rows with `space-md` vertical padding and a subtle `outline` divider between items.\n- **Checkboxes & Radio Buttons:** When active, these should fill with the `primary` color. Inactive states should use the `outline` color.",
+              "theme": {
+                "colorMode": "LIGHT",
+                "font": "INTER",
+                "roundness": "ROUND_EIGHT",
+                "customColor": "#0ea5e9",
+                "headlineFont": "INTER",
+                "bodyFont": "INTER",
+                "labelFont": "INTER",
+                "namedColors": {
+                  "background": "#f6faff",
+                  "error": "#DC2626",
+                  "error_container": "#ffdad6",
+                  "inverse_on_surface": "#edf1f7",
+                  "inverse_primary": "#89ceff",
+                  "inverse_surface": "#2c3135",
+                  "on-primary-container": "#0C4A6E",
+                  "on-surface": "#1A1A1A",
+                  "on_background": "#171c20",
+                  "on_error": "#ffffff",
+                  "on_error_container": "#93000a",
+                  "on_primary": "#ffffff",
+                  "on_primary_container": "#003751",
+                  "on_primary_fixed": "#001e2f",
+                  "on_primary_fixed_variant": "#004c6e",
+                  "on_secondary": "#ffffff",
+                  "on_secondary_container": "#54647a",
+                  "on_secondary_fixed": "#0b1c30",
+                  "on_secondary_fixed_variant": "#38485d",
+                  "on_surface": "#171c20",
+                  "on_surface_variant": "#3e4850",
+                  "on_tertiary": "#ffffff",
+                  "on_tertiary_container": "#4d2b00",
+                  "on_tertiary_fixed": "#2c1600",
+                  "on_tertiary_fixed_variant": "#693c00",
+                  "outline": "#94A3B8",
+                  "outline_variant": "#bec8d2",
+                  "primary": "#006591",
+                  "primary-container": "#E0F2FE",
+                  "primary_container": "#0ea5e9",
+                  "primary_fixed": "#c9e6ff",
+                  "primary_fixed_dim": "#89ceff",
+                  "secondary": "#505f76",
+                  "secondary_container": "#d0e1fb",
+                  "secondary_fixed": "#d3e4fe",
+                  "secondary_fixed_dim": "#b7c8e1",
+                  "surface": "#FFFFFF",
+                  "surface_bright": "#f6faff",
+                  "surface_container": "#eaeef4",
+                  "surface_container_high": "#e4e8ee",
+                  "surface_container_highest": "#dee3e9",
+                  "surface_container_low": "#f0f4fa",
+                  "surface_container_lowest": "#ffffff",
+                  "surface_dim": "#d6dae0",
+                  "surface_tint": "#006591",
+                  "surface_variant": "#dee3e9",
+                  "tertiary": "#8a5100",
+                  "tertiary_container": "#de8712",
+                  "tertiary_fixed": "#ffdcbd",
+                  "tertiary_fixed_dim": "#ffb86e"
+                },
+                "designMd": "---\nname: SmokeTest M3 Tokens\ncolors:\n  surface: '#FFFFFF'\n  on-surface: '#1A1A1A'\n  primary: '#0EA5E9'\n  on-primary: '#FFFFFF'\n  primary-container: '#E0F2FE'\n  on-primary-container: '#0C4A6E'\n  secondary: '#64748B'\n  error: '#DC2626'\n  background: '#FFFFFF'\n  on-background: '#1A1A1A'\n  outline: '#94A3B8'\n  surface-dim: '#d6dae0'\n  surface-bright: '#f6faff'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#f0f4fa'\n  surface-container: '#eaeef4'\n  surface-container-high: '#e4e8ee'\n  surface-container-highest: '#dee3e9'\n  on-surface-variant: '#3e4850'\n  inverse-surface: '#2c3135'\n  inverse-on-surface: '#edf1f7'\n  outline-variant: '#bec8d2'\n  surface-tint: '#006591'\n  inverse-primary: '#89ceff'\n  on-secondary: '#ffffff'\n  secondary-container: '#d0e1fb'\n  on-secondary-container: '#54647a'\n  tertiary: '#8a5100'\n  on-tertiary: '#ffffff'\n  tertiary-container: '#de8712'\n  on-tertiary-container: '#4d2b00'\n  on-error: '#ffffff'\n  error-container: '#ffdad6'\n  on-error-container: '#93000a'\n  primary-fixed: '#c9e6ff'\n  primary-fixed-dim: '#89ceff'\n  on-primary-fixed: '#001e2f'\n  on-primary-fixed-variant: '#004c6e'\n  secondary-fixed: '#d3e4fe'\n  secondary-fixed-dim: '#b7c8e1'\n  on-secondary-fixed: '#0b1c30'\n  on-secondary-fixed-variant: '#38485d'\n  tertiary-fixed: '#ffdcbd'\n  tertiary-fixed-dim: '#ffb86e'\n  on-tertiary-fixed: '#2c1600'\n  on-tertiary-fixed-variant: '#693c00'\n  surface-variant: '#dee3e9'\ntypography:\n  display-lg:\n    fontFamily: Inter\n    fontSize: 48px\n    fontWeight: '800'\n    lineHeight: 56px\n    letterSpacing: -0.02em\n  headline-md:\n    fontFamily: Inter\n    fontSize: 24px\n    fontWeight: '700'\n    lineHeight: 32px\n  body-base:\n    fontFamily: Inter\n    fontSize: 16px\n    fontWeight: '400'\n    lineHeight: 24px\n  display-lg-mobile:\n    fontFamily: Inter\n    fontSize: 32px\n    fontWeight: '800'\n    lineHeight: 40px\n    letterSpacing: -0.02em\n  headline-sm:\n    fontFamily: Inter\n    fontSize: 20px\n    fontWeight: '700'\n    lineHeight: 28px\n  body-sm:\n    fontFamily: Inter\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 20px\n  label-md:\n    fontFamily: Inter\n    fontSize: 12px\n    fontWeight: '600'\n    lineHeight: 16px\n    letterSpacing: 0.05em\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  unit: 4px\n  space-xs: 4px\n  space-sm: 8px\n  space-md: 16px\n  space-lg: 24px\n  space-xl: 32px\n  gutter: 16px\n  margin-mobile: 16px\n  margin-desktop: 32px\n---\n\n# SmokeTest MCP DS v2\n\nMaterial 3 design system for the SpecBox Stitch native chain smoke test (v2).",
+                "colorVariant": "FIDELITY",
+                "overridePrimaryColor": "#0ea5e9",
+                "overrideSecondaryColor": "#64748b",
+                "spacingScale": 2,
+                "typography": {
+                  "body-base": {
+                    "fontFamily": "Inter",
+                    "fontSize": "16px",
+                    "fontWeight": "400",
+                    "lineHeight": "24px"
+                  },
+                  "body-sm": {
+                    "fontFamily": "Inter",
+                    "fontSize": "14px",
+                    "fontWeight": "400",
+                    "lineHeight": "20px"
+                  },
+                  "display-lg": {
+                    "fontFamily": "Inter",
+                    "fontSize": "48px",
+                    "fontWeight": "800",
+                    "lineHeight": "56px",
+                    "letterSpacing": "-0.02em"
+                  },
+                  "display-lg-mobile": {
+                    "fontFamily": "Inter",
+                    "fontSize": "32px",
+                    "fontWeight": "800",
+                    "lineHeight": "40px",
+                    "letterSpacing": "-0.02em"
+                  },
+                  "headline-md": {
+                    "fontFamily": "Inter",
+                    "fontSize": "24px",
+                    "fontWeight": "700",
+                    "lineHeight": "32px"
+                  },
+                  "headline-sm": {
+                    "fontFamily": "Inter",
+                    "fontSize": "20px",
+                    "fontWeight": "700",
+                    "lineHeight": "28px"
+                  },
+                  "label-md": {
+                    "fontFamily": "Inter",
+                    "fontSize": "12px",
+                    "fontWeight": "600",
+                    "lineHeight": "16px",
+                    "letterSpacing": "0.05em"
+                  }
+                },
+                "spacing": {
+                  "gutter": "16px",
+                  "margin-desktop": "32px",
+                  "margin-mobile": "16px",
+                  "space-lg": "24px",
+                  "space-md": "16px",
+                  "space-sm": "8px",
+                  "space-xl": "32px",
+                  "space-xs": "4px",
+                  "unit": "4px"
+                },
+                "headlineFontFamily": "Inter",
+                "bodyFontFamily": "Inter",
+                "labelFontFamily": "Inter"
+              }
+            },
+            "version": "1"
+          }
+        ]
+      },
+      "error": null
+    },
+    {
+      "name": "update_design_system",
+      "started_at": "2026-05-26T23:44:55Z",
+      "duration_ms": 6258,
+      "status": "ok",
+      "http_code": 200,
+      "parsed": {
+        "name": "projects/9887632132611822982/sessions/13768570501260803832",
+        "designSystem": {
+          "displayName": "SmokeTest Update",
+          "theme": {
+            "colorMode": "LIGHT",
+            "roundness": "ROUND_EIGHT",
+            "customColor": "#0EA5E9",
+            "headlineFont": "INTER",
+            "bodyFont": "INTER"
+          }
+        }
+      },
+      "error": null
+    },
+    {
+      "name": "apply_design_system",
+      "started_at": "2026-05-26T23:45:01Z",
+      "duration_ms": 19072,
+      "status": "ok",
+      "http_code": 200,
+      "parsed": {
+        "projectId": "9887632132611822982",
+        "sessionId": "1653082140869513894",
+        "outputComponents": [
+          {
+            "design": {
+              "screens": [
+                {
+                  "screenshot": {
+                    "name": "projects/9887632132611822982/files/2eb7985a2b1d4b7b82ebf8d642b36677",
+                    "downloadUrl": "https://lh3.googleusercontent.com/aida/ADBb0uhenAYmgnwLzDSn3FoQVs0VZlJTDbCAHp6dI-YbkzfMzqsuTQJ37Ww3N-VpmBwLAq1tDIU2doPcnlKdWdkA2H9TK3eGQa5RSKxKKXhWKnkN5sIDLMEwVNberzvCfUbdyvgOfdNCaIk0io6pS01orCfGLzXGZNhPW0-pJghVZVcOjVWBoUhF4AZUU-10umZoAP_aqllrtsTPASX1EnlLrWQ41PYV1vqjyN19vXorhd-3tzuBRZMA-gb6CGI"
+                  },
+                  "htmlCode": {
+                    "name": "projects/9887632132611822982/files/93611b63068246718da75815433e9893",
+                    "downloadUrl": "https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBJ7Eh1hcHBfY29tcGFuaW9uX2dlbmVyYXRlZF9maWxlcxpaCiVodG1sXzU4NjE5ZDhlZWVjMDQyN2E4MDE3OWYxNWNhZjU1ZDY5EgsSBxD99oOQ-gQYAZIBIwoKcHJvamVjdF9pZBIVQhM5ODg3NjMyMTMyNjExODIyOTgy&filename=&opi=96797242",
+                    "mimeType": "text/html"
+                  },
+                  "id": "6f20f57fbb8c4aa383615643b2901191",
+                  "generatedBy": "polish_edit_theme_agent",
+                  "width": "2560",
+                  "height": "2048",
+                  "title": "DESIGN.md",
+                  "name": "projects/9887632132611822982/screens/6f20f57fbb8c4aa383615643b2901191",
+                  "theme": {
+                    "colorMode": "LIGHT",
+                    "font": "INTER",
+                    "roundness": "ROUND_EIGHT",
+                    "customColor": "#0ea5e9",
+                    "headlineFont": "INTER",
+                    "bodyFont": "INTER",
+                    "labelFont": "INTER",
+                    "namedColors": {
+                      "background": "#f6faff",
+                      "error": "#DC2626",
+                      "error_container": "#ffdad6",
+                      "inverse_on_surface": "#edf1f7",
+                      "inverse_primary": "#89ceff",
+                      "inverse_surface": "#2c3135",
+                      "on-primary-container": "#0C4A6E",
+                      "on-surface": "#1A1A1A",
+                      "on_background": "#171c20",
+                      "on_error": "#ffffff",
+                      "on_error_container": "#93000a",
+                      "on_primary": "#ffffff",
+                      "on_primary_container": "#003751",
+                      "on_primary_fixed": "#001e2f",
+                      "on_primary_fixed_variant": "#004c6e",
+                      "on_secondary": "#ffffff",
+                      "on_secondary_container": "#54647a",
+                      "on_secondary_fixed": "#0b1c30",
+                      "on_secondary_fixed_variant": "#38485d",
+                      "on_surface": "#171c20",
+                      "on_surface_variant": "#3e4850",
+                      "on_tertiary": "#ffffff",
+                      "on_tertiary_container": "#4d2b00",
+                      "on_tertiary_fixed": "#2c1600",
+                      "on_tertiary_fixed_variant": "#693c00",
+                      "outline": "#94A3B8",
+                      "outline_variant": "#bec8d2",
+                      "primary": "#006591",
+                      "primary-container": "#E0F2FE",
+                      "primary_container": "#0ea5e9",
+                      "primary_fixed": "#c9e6ff",
+                      "primary_fixed_dim": "#89ceff",
+                      "secondary": "#505f76",
+                      "secondary_container": "#d0e1fb",
+                      "secondary_fixed": "#d3e4fe",
+                      "secondary_fixed_dim": "#b7c8e1",
+                      "surface": "#FFFFFF",
+                      "surface_bright": "#f6faff",
+                      "surface_container": "#eaeef4",
+                      "surface_container_high": "#e4e8ee",
+                      "surface_container_highest": "#dee3e9",
+                      "surface_container_low": "#f0f4fa",
+                      "surface_container_lowest": "#ffffff",
+                      "surface_dim": "#d6dae0",
+                      "surface_tint": "#006591",
+                      "surface_variant": "#dee3e9",
+                      "tertiary": "#8a5100",
+                      "tertiary_container": "#de8712",
+                      "tertiary_fixed": "#ffdcbd",
+                      "tertiary_fixed_dim": "#ffb86e"
+                    },
+                    "designMd": "---\nname: SmokeTest M3 Tokens\ncolors:\n  surface: '#FFFFFF'\n  on-surface: '#1A1A1A'\n  primary: '#0EA5E9'\n  on-primary: '#FFFFFF'\n  primary-container: '#E0F2FE'\n  on-primary-container: '#0C4A6E'\n  secondary: '#64748B'\n  error: '#DC2626'\n  background: '#FFFFFF'\n  on-background: '#1A1A1A'\n  outline: '#94A3B8'\n  surface-dim: '#d6dae0'\n  surface-bright: '#f6faff'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#f0f4fa'\n  surface-container: '#eaeef4'\n  surface-container-high: '#e4e8ee'\n  surface-container-highest: '#dee3e9'\n  on-surface-variant: '#3e4850'\n  inverse-surface: '#2c3135'\n  inverse-on-surface: '#edf1f7'\n  outline-variant: '#bec8d2'\n  surface-tint: '#006591'\n  inverse-primary: '#89ceff'\n  on-secondary: '#ffffff'\n  secondary-container: '#d0e1fb'\n  on-secondary-container: '#54647a'\n  tertiary: '#8a5100'\n  on-tertiary: '#ffffff'\n  tertiary-container: '#de8712'\n  on-tertiary-container: '#4d2b00'\n  on-error: '#ffffff'\n  error-container: '#ffdad6'\n  on-error-container: '#93000a'\n  primary-fixed: '#c9e6ff'\n  primary-fixed-dim: '#89ceff'\n  on-primary-fixed: '#001e2f'\n  on-primary-fixed-variant: '#004c6e'\n  secondary-fixed: '#d3e4fe'\n  secondary-fixed-dim: '#b7c8e1'\n  on-secondary-fixed: '#0b1c30'\n  on-secondary-fixed-variant: '#38485d'\n  tertiary-fixed: '#ffdcbd'\n  tertiary-fixed-dim: '#ffb86e'\n  on-tertiary-fixed: '#2c1600'\n  on-tertiary-fixed-variant: '#693c00'\n  surface-variant: '#dee3e9'\ntypography:\n  display-lg:\n    fontFamily: Inter\n    fontSize: 48px\n    fontWeight: '800'\n    lineHeight: 56px\n    letterSpacing: -0.02em\n  headline-md:\n    fontFamily: Inter\n    fontSize: 24px\n    fontWeight: '700'\n    lineHeight: 32px\n  body-base:\n    fontFamily: Inter\n    fontSize: 16px\n    fontWeight: '400'\n    lineHeight: 24px\n  display-lg-mobile:\n    fontFamily: Inter\n    fontSize: 32px\n    fontWeight: '800'\n    lineHeight: 40px\n    letterSpacing: -0.02em\n  headline-sm:\n    fontFamily: Inter\n    fontSize: 20px\n    fontWeight: '700'\n    lineHeight: 28px\n  body-sm:\n    fontFamily: Inter\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 20px\n  label-md:\n    fontFamily: Inter\n    fontSize: 12px\n    fontWeight: '600'\n    lineHeight: 16px\n    letterSpacing: 0.05em\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  unit: 4px\n  space-xs: 4px\n  space-sm: 8px\n  space-md: 16px\n  space-lg: 24px\n  space-xl: 32px\n  gutter: 16px\n  margin-mobile: 16px\n  margin-desktop: 32px\n---\n\n# SmokeTest MCP DS v2\n\nMaterial 3 design system for the SpecBox Stitch native chain smoke test (v2).",
+                    "colorVariant": "FIDELITY",
+                    "overridePrimaryColor": "#0ea5e9",
+                    "overrideSecondaryColor": "#64748b",
+                    "spacingScale": 2,
+                    "typography": {
+                      "body-base": {
+                        "fontFamily": "Inter",
+                        "fontSize": "16px",
+                        "fontWeight": "400",
+                        "lineHeight": "24px"
+                      },
+                      "body-sm": {
+                        "fontFamily": "Inter",
+                        "fontSize": "14px",
+                        "fontWeight": "400",
+                        "lineHeight": "20px"
+                      },
+                      "display-lg": {
+                        "fontFamily": "Inter",
+                        "fontSize": "48px",
+                        "fontWeight": "800",
+                        "lineHeight": "56px",
+                        "letterSpacing": "-0.02em"
+                      },
+                      "display-lg-mobile": {
+                        "fontFamily": "Inter",
+                        "fontSize": "32px",
+                        "fontWeight": "800",
+                        "lineHeight": "40px",
+                        "letterSpacing": "-0.02em"
+                      },
+                      "headline-md": {
+                        "fontFamily": "Inter",
+                        "fontSize": "24px",
+                        "fontWeight": "700",
+                        "lineHeight": "32px"
+                      },
+                      "headline-sm": {
+                        "fontFamily": "Inter",
+                        "fontSize": "20px",
+                        "fontWeight": "700",
+                        "lineHeight": "28px"
+                      },
+                      "label-md": {
+                        "fontFamily": "Inter",
+                        "fontSize": "12px",
+                        "fontWeight": "600",
+                        "lineHeight": "16px",
+                        "letterSpacing": "0.05em"
+                      }
+                    },
+                    "spacing": {
+                      "gutter": "16px",
+                      "margin-desktop": "32px",
+                      "margin-mobile": "16px",
+                      "space-lg": "24px",
+                      "space-md": "16px",
+                      "space-sm": "8px",
+                      "space-xl": "32px",
+                      "space-xs": "4px",
+                      "unit": "4px"
+                    },
+                    "headlineFontFamily": "Inter",
+                    "bodyFontFamily": "Inter",
+                    "labelFontFamily": "Inter"
+                  },
+                  "screenType": "DESIGN",
+                  "screenMetadata": {
+                    "agentType": "PRO_AGENT",
+                    "status": "COMPLETE"
+                  },
+                  "designSystem": {
+                    "name": "assets/dff528fbb925415d9582bd8a04dd729f",
+                    "designSystem": {
+                      "displayName": "SmokeTest M3 Tokens",
+                      "styleGuidelines": "## Brand & Style\nThis design system is built for technical environments where clarity, speed, and reliability are paramount. It adopts a **Corporate / Modern** aesthetic with strong influences from Material 3 principles, prioritizing a functional and utilitarian interface. The brand personality is systematic and unobtrusive, designed to support complex workflows without visual fatigue. The visual language utilizes high-contrast text and a structured color application to ensure the user\u2019s focus remains on data and status indicators.\n\n## Layout & Spacing\nThe layout relies on a **Fluid Grid** system with a base 8px spacing rhythm (4px increments for fine-tuning). \n\nOn desktop, a 12-column grid is used with 16px gutters and 32px side margins. On mobile, the system collapses to a 4-column grid with 16px side margins. Spacing between related elements (like labels and inputs) should use `space-sm`, while spacing between distinct sections should use `space-lg` or `space-xl`.\n\n## Elevation & Depth\nVisual hierarchy is established through **Tonal Layers** and **Ambient Shadows**. Surfaces are tiered to represent depth:\n- **Level 0 (Background):** Solid `#FFFFFF`.\n- **Level 1 (Cards/Sheet):** Slight ambient shadow (0px 2px 4px, 5% opacity) or a 1px `outline` border.\n- **Level 2 (Modals/Popovers):** Higher diffusion shadow (0px 8px 16px, 10% opacity).\n\nInstead of heavy shadows, the system prefers using the `primary-container` and `outline` colors to create structural definition and depth.\n\n## Components\n- **Buttons:** Primary buttons use a solid `primary` background with `on-primary` text. Secondary buttons use the `outline` for a ghost-style appearance or the `primary-container` for a tonal, low-priority look.\n- **Chips:** Used for filtering and status; they should use the `primary-container` for active states and a light neutral background for inactive ones.\n- **Input Fields:** Use the `outline` color for the border in the default state, thickening and changing to `primary` on focus. Labels should be `label-md` and placed above the field.\n- **Cards:** White surfaces with a 1px `outline` border and a `rounded-lg` radius.\n- **Lists:** Clean rows with `space-md` vertical padding and a subtle `outline` divider between items.\n- **Checkboxes & Radio Buttons:** When active, these should fill with the `primary` color. Inactive states should use the `outline` color.",
+                      "theme": {
+                        "colorMode": "LIGHT",
+                        "font": "INTER",
+                        "roundness": "ROUND_EIGHT",
+                        "customColor": "#0ea5e9",
+                        "headlineFont": "INTER",
+                        "bodyFont": "INTER",
+                        "labelFont": "INTER",
+                        "namedColors": {
+                          "background": "#f6faff",
+                          "error": "#DC2626",
+                          "error_container": "#ffdad6",
+                          "inverse_on_surface": "#edf1f7",
+                          "inverse_primary": "#89ceff",
+                          "inverse_surface": "#2c3135",
+                          "on-primary-container": "#0C4A6E",
+                          "on-surface": "#1A1A1A",
+                          "on_background": "#171c20",
+                          "on_error": "#ffffff",
+                          "on_error_container": "#93000a",
+                          "on_primary": "#ffffff",
+                          "on_primary_container": "#003751",
+                          "on_primary_fixed": "#001e2f",
+                          "on_primary_fixed_variant": "#004c6e",
+                          "on_secondary": "#ffffff",
+                          "on_secondary_container": "#54647a",
+                          "on_secondary_fixed": "#0b1c30",
+                          "on_secondary_fixed_variant": "#38485d",
+                          "on_surface": "#171c20",
+                          "on_surface_variant": "#3e4850",
+                          "on_tertiary": "#ffffff",
+                          "on_tertiary_container": "#4d2b00",
+                          "on_tertiary_fixed": "#2c1600",
+                          "on_tertiary_fixed_variant": "#693c00",
+                          "outline": "#94A3B8",
+                          "outline_variant": "#bec8d2",
+                          "primary": "#006591",
+                          "primary-container": "#E0F2FE",
+                          "primary_container": "#0ea5e9",
+                          "primary_fixed": "#c9e6ff",
+                          "primary_fixed_dim": "#89ceff",
+                          "secondary": "#505f76",
+                          "secondary_container": "#d0e1fb",
+                          "secondary_fixed": "#d3e4fe",
+                          "secondary_fixed_dim": "#b7c8e1",
+                          "surface": "#FFFFFF",
+                          "surface_bright": "#f6faff",
+                          "surface_container": "#eaeef4",
+                          "surface_container_high": "#e4e8ee",
+                          "surface_container_highest": "#dee3e9",
+                          "surface_container_low": "#f0f4fa",
+                          "surface_container_lowest": "#ffffff",
+                          "surface_dim": "#d6dae0",
+                          "surface_tint": "#006591",
+                          "surface_variant": "#dee3e9",
+                          "tertiary": "#8a5100",
+                          "tertiary_container": "#de8712",
+                          "tertiary_fixed": "#ffdcbd",
+                          "tertiary_fixed_dim": "#ffb86e"
+                        },
+                        "designMd": "---\nname: SmokeTest M3 Tokens\ncolors:\n  surface: '#FFFFFF'\n  on-surface: '#1A1A1A'\n  primary: '#0EA5E9'\n  on-primary: '#FFFFFF'\n  primary-container: '#E0F2FE'\n  on-primary-container: '#0C4A6E'\n  secondary: '#64748B'\n  error: '#DC2626'\n  background: '#FFFFFF'\n  on-background: '#1A1A1A'\n  outline: '#94A3B8'\n  surface-dim: '#d6dae0'\n  surface-bright: '#f6faff'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#f0f4fa'\n  surface-container: '#eaeef4'\n  surface-container-high: '#e4e8ee'\n  surface-container-highest: '#dee3e9'\n  on-surface-variant: '#3e4850'\n  inverse-surface: '#2c3135'\n  inverse-on-surface: '#edf1f7'\n  outline-variant: '#bec8d2'\n  surface-tint: '#006591'\n  inverse-primary: '#89ceff'\n  on-secondary: '#ffffff'\n  secondary-container: '#d0e1fb'\n  on-secondary-container: '#54647a'\n  tertiary: '#8a5100'\n  on-tertiary: '#ffffff'\n  tertiary-container: '#de8712'\n  on-tertiary-container: '#4d2b00'\n  on-error: '#ffffff'\n  error-container: '#ffdad6'\n  on-error-container: '#93000a'\n  primary-fixed: '#c9e6ff'\n  primary-fixed-dim: '#89ceff'\n  on-primary-fixed: '#001e2f'\n  on-primary-fixed-variant: '#004c6e'\n  secondary-fixed: '#d3e4fe'\n  secondary-fixed-dim: '#b7c8e1'\n  on-secondary-fixed: '#0b1c30'\n  on-secondary-fixed-variant: '#38485d'\n  tertiary-fixed: '#ffdcbd'\n  tertiary-fixed-dim: '#ffb86e'\n  on-tertiary-fixed: '#2c1600'\n  on-tertiary-fixed-variant: '#693c00'\n  surface-variant: '#dee3e9'\ntypography:\n  display-lg:\n    fontFamily: Inter\n    fontSize: 48px\n    fontWeight: '800'\n    lineHeight: 56px\n    letterSpacing: -0.02em\n  headline-md:\n    fontFamily: Inter\n    fontSize: 24px\n    fontWeight: '700'\n    lineHeight: 32px\n  body-base:\n    fontFamily: Inter\n    fontSize: 16px\n    fontWeight: '400'\n    lineHeight: 24px\n  display-lg-mobile:\n    fontFamily: Inter\n    fontSize: 32px\n    fontWeight: '800'\n    lineHeight: 40px\n    letterSpacing: -0.02em\n  headline-sm:\n    fontFamily: Inter\n    fontSize: 20px\n    fontWeight: '700'\n    lineHeight: 28px\n  body-sm:\n    fontFamily: Inter\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 20px\n  label-md:\n    fontFamily: Inter\n    fontSize: 12px\n    fontWeight: '600'\n    lineHeight: 16px\n    letterSpacing: 0.05em\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  unit: 4px\n  space-xs: 4px\n  space-sm: 8px\n  space-md: 16px\n  space-lg: 24px\n  space-xl: 32px\n  gutter: 16px\n  margin-mobile: 16px\n  margin-desktop: 32px\n---\n\n# SmokeTest MCP DS v2\n\nMaterial 3 design system for the SpecBox Stitch native chain smoke test (v2).",
+                        "colorVariant": "FIDELITY",
+                        "overridePrimaryColor": "#0ea5e9",
+                        "overrideSecondaryColor": "#64748b",
+                        "spacingScale": 2,
+                        "typography": {
+                          "body-base": {
+                            "fontFamily": "Inter",
+                            "fontSize": "16px",
+                            "fontWeight": "400",
+                            "lineHeight": "24px"
+                          },
+                          "body-sm": {
+                            "fontFamily": "Inter",
+                            "fontSize": "14px",
+                            "fontWeight": "400",
+                            "lineHeight": "20px"
+                          },
+                          "display-lg": {
+                            "fontFamily": "Inter",
+                            "fontSize": "48px",
+                            "fontWeight": "800",
+                            "lineHeight": "56px",
+                            "letterSpacing": "-0.02em"
+                          },
+                          "display-lg-mobile": {
+                            "fontFamily": "Inter",
+                            "fontSize": "32px",
+                            "fontWeight": "800",
+                            "lineHeight": "40px",
+                            "letterSpacing": "-0.02em"
+                          },
+                          "headline-md": {
+                            "fontFamily": "Inter",
+                            "fontSize": "24px",
+                            "fontWeight": "700",
+                            "lineHeight": "32px"
+                          },
+                          "headline-sm": {
+                            "fontFamily": "Inter",
+                            "fontSize": "20px",
+                            "fontWeight": "700",
+                            "lineHeight": "28px"
+                          },
+                          "label-md": {
+                            "fontFamily": "Inter",
+                            "fontSize": "12px",
+                            "fontWeight": "600",
+                            "lineHeight": "16px",
+                            "letterSpacing": "0.05em"
+                          }
+                        },
+                        "spacing": {
+                          "gutter": "16px",
+                          "margin-desktop": "32px",
+                          "margin-mobile": "16px",
+                          "space-lg": "24px",
+                          "space-md": "16px",
+                          "space-sm": "8px",
+                          "space-xl": "32px",
+                          "space-xs": "4px",
+                          "unit": "4px"
+                        },
+                        "headlineFontFamily": "Inter",
+                        "bodyFontFamily": "Inter",
+                        "labelFontFamily": "Inter"
+                      }
+                    },
+                    "version": "1"
+                  }
+                }
+              ],
+              "theme": {
+                "colorMode": "LIGHT",
+                "font": "INTER",
+                "roundness": "ROUND_EIGHT",
+                "customColor": "#0ea5e9",
+                "headlineFont": "INTER",
+                "bodyFont": "INTER",
+                "labelFont": "INTER",
+                "namedColors": {
+                  "background": "#f6faff",
+                  "error": "#DC2626",
+                  "error_container": "#ffdad6",
+                  "inverse_on_surface": "#edf1f7",
+                  "inverse_primary": "#89ceff",
+                  "inverse_surface": "#2c3135",
+                  "on-primary-container": "#0C4A6E",
+                  "on-surface": "#1A1A1A",
+                  "on_background": "#171c20",
+                  "on_error": "#ffffff",
+                  "on_error_container": "#93000a",
+                  "on_primary": "#ffffff",
+                  "on_primary_container": "#003751",
+                  "on_primary_fixed": "#001e2f",
+                  "on_primary_fixed_variant": "#004c6e",
+                  "on_secondary": "#ffffff",
+                  "on_secondary_container": "#54647a",
+                  "on_secondary_fixed": "#0b1c30",
+                  "on_secondary_fixed_variant": "#38485d",
+                  "on_surface": "#171c20",
+                  "on_surface_variant": "#3e4850",
+                  "on_tertiary": "#ffffff",
+                  "on_tertiary_container": "#4d2b00",
+                  "on_tertiary_fixed": "#2c1600",
+                  "on_tertiary_fixed_variant": "#693c00",
+                  "outline": "#94A3B8",
+                  "outline_variant": "#bec8d2",
+                  "primary": "#006591",
+                  "primary-container": "#E0F2FE",
+                  "primary_container": "#0ea5e9",
+                  "primary_fixed": "#c9e6ff",
+                  "primary_fixed_dim": "#89ceff",
+                  "secondary": "#505f76",
+                  "secondary_container": "#d0e1fb",
+                  "secondary_fixed": "#d3e4fe",
+                  "secondary_fixed_dim": "#b7c8e1",
+                  "surface": "#FFFFFF",
+                  "surface_bright": "#f6faff",
+                  "surface_container": "#eaeef4",
+                  "surface_container_high": "#e4e8ee",
+                  "surface_container_highest": "#dee3e9",
+                  "surface_container_low": "#f0f4fa",
+                  "surface_container_lowest": "#ffffff",
+                  "surface_dim": "#d6dae0",
+                  "surface_tint": "#006591",
+                  "surface_variant": "#dee3e9",
+                  "tertiary": "#8a5100",
+                  "tertiary_container": "#de8712",
+                  "tertiary_fixed": "#ffdcbd",
+                  "tertiary_fixed_dim": "#ffb86e"
+                },
+                "designMd": "---\nname: SmokeTest M3 Tokens\ncolors:\n  surface: '#FFFFFF'\n  on-surface: '#1A1A1A'\n  primary: '#0EA5E9'\n  on-primary: '#FFFFFF'\n  primary-container: '#E0F2FE'\n  on-primary-container: '#0C4A6E'\n  secondary: '#64748B'\n  error: '#DC2626'\n  background: '#FFFFFF'\n  on-background: '#1A1A1A'\n  outline: '#94A3B8'\n  surface-dim: '#d6dae0'\n  surface-bright: '#f6faff'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#f0f4fa'\n  surface-container: '#eaeef4'\n  surface-container-high: '#e4e8ee'\n  surface-container-highest: '#dee3e9'\n  on-surface-variant: '#3e4850'\n  inverse-surface: '#2c3135'\n  inverse-on-surface: '#edf1f7'\n  outline-variant: '#bec8d2'\n  surface-tint: '#006591'\n  inverse-primary: '#89ceff'\n  on-secondary: '#ffffff'\n  secondary-container: '#d0e1fb'\n  on-secondary-container: '#54647a'\n  tertiary: '#8a5100'\n  on-tertiary: '#ffffff'\n  tertiary-container: '#de8712'\n  on-tertiary-container: '#4d2b00'\n  on-error: '#ffffff'\n  error-container: '#ffdad6'\n  on-error-container: '#93000a'\n  primary-fixed: '#c9e6ff'\n  primary-fixed-dim: '#89ceff'\n  on-primary-fixed: '#001e2f'\n  on-primary-fixed-variant: '#004c6e'\n  secondary-fixed: '#d3e4fe'\n  secondary-fixed-dim: '#b7c8e1'\n  on-secondary-fixed: '#0b1c30'\n  on-secondary-fixed-variant: '#38485d'\n  tertiary-fixed: '#ffdcbd'\n  tertiary-fixed-dim: '#ffb86e'\n  on-tertiary-fixed: '#2c1600'\n  on-tertiary-fixed-variant: '#693c00'\n  surface-variant: '#dee3e9'\ntypography:\n  display-lg:\n    fontFamily: Inter\n    fontSize: 48px\n    fontWeight: '800'\n    lineHeight: 56px\n    letterSpacing: -0.02em\n  headline-md:\n    fontFamily: Inter\n    fontSize: 24px\n    fontWeight: '700'\n    lineHeight: 32px\n  body-base:\n    fontFamily: Inter\n    fontSize: 16px\n    fontWeight: '400'\n    lineHeight: 24px\n  display-lg-mobile:\n    fontFamily: Inter\n    fontSize: 32px\n    fontWeight: '800'\n    lineHeight: 40px\n    letterSpacing: -0.02em\n  headline-sm:\n    fontFamily: Inter\n    fontSize: 20px\n    fontWeight: '700'\n    lineHeight: 28px\n  body-sm:\n    fontFamily: Inter\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 20px\n  label-md:\n    fontFamily: Inter\n    fontSize: 12px\n    fontWeight: '600'\n    lineHeight: 16px\n    letterSpacing: 0.05em\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  unit: 4px\n  space-xs: 4px\n  space-sm: 8px\n  space-md: 16px\n  space-lg: 24px\n  space-xl: 32px\n  gutter: 16px\n  margin-mobile: 16px\n  margin-desktop: 32px\n---\n\n# SmokeTest MCP DS v2\n\nMaterial 3 design system for the SpecBox Stitch native chain smoke test (v2).",
+                "colorVariant": "FIDELITY",
+                "overridePrimaryColor": "#0ea5e9",
+                "overrideSecondaryColor": "#64748b",
+                "spacingScale": 2,
+                "typography": {
+                  "body-base": {
+                    "fontFamily": "Inter",
+                    "fontSize": "16px",
+                    "fontWeight": "400",
+                    "lineHeight": "24px"
+                  },
+                  "body-sm": {
+                    "fontFamily": "Inter",
+                    "fontSize": "14px",
+                    "fontWeight": "400",
+                    "lineHeight": "20px"
+                  },
+                  "display-lg": {
+                    "fontFamily": "Inter",
+                    "fontSize": "48px",
+                    "fontWeight": "800",
+                    "lineHeight": "56px",
+                    "letterSpacing": "-0.02em"
+                  },
+                  "display-lg-mobile": {
+                    "fontFamily": "Inter",
+                    "fontSize": "32px",
+                    "fontWeight": "800",
+                    "lineHeight": "40px",
+                    "letterSpacing": "-0.02em"
+                  },
+                  "headline-md": {
+                    "fontFamily": "Inter",
+                    "fontSize": "24px",
+                    "fontWeight": "700",
+                    "lineHeight": "32px"
+                  },
+                  "headline-sm": {
+                    "fontFamily": "Inter",
+                    "fontSize": "20px",
+                    "fontWeight": "700",
+                    "lineHeight": "28px"
+                  },
+                  "label-md": {
+                    "fontFamily": "Inter",
+                    "fontSize": "12px",
+                    "fontWeight": "600",
+                    "lineHeight": "16px",
+                    "letterSpacing": "0.05em"
+                  }
+                },
+                "spacing": {
+                  "gutter": "16px",
+                  "margin-desktop": "32px",
+                  "margin-mobile": "16px",
+                  "space-lg": "24px",
+                  "space-md": "16px",
+                  "space-sm": "8px",
+                  "space-xl": "32px",
+                  "space-xs": "4px",
+                  "unit": "4px"
+                },
+                "headlineFontFamily": "Inter",
+                "bodyFontFamily": "Inter",
+                "labelFontFamily": "Inter"
+              }
+            }
+          }
+        ]
+      },
+      "error": null
+    }
+  ],
+  "verdict": "pass"
+}

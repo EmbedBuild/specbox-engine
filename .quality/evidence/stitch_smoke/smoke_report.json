@@ -1,0 +1,116 @@
+{
+  "started_at": "2026-05-26T23:39:52Z",
+  "steps": [
+    {
+      "name": "list_projects",
+      "started_at": "2026-05-26T23:39:52Z",
+      "duration_ms": 1545,
+      "status": "ok",
+      "http_code": 200,
+      "payload_summary": {
+        "project_count": 30
+      },
+      "error": null,
+      "raw_excerpt": null
+    },
+    {
+      "name": "create_project",
+      "started_at": "2026-05-26T23:39:53Z",
+      "duration_ms": 1633,
+      "status": "ok",
+      "http_code": 200,
+      "payload_summary": {
+        "project_name": "projects/8968909107061645047",
+        "title": "SmokeTest-NativeChain-1779838793"
+      },
+      "error": null,
+      "raw_excerpt": null
+    },
+    {
+      "name": "upload_design_md_batchCreate",
+      "started_at": "2026-05-26T23:39:55Z",
+      "duration_ms": 4420,
+      "status": "ok",
+      "http_code": 200,
+      "payload_summary": {
+        "design_md_size_bytes": 1462,
+        "response_keys": [
+          "results",
+          "screenInstances"
+        ]
+      },
+      "error": null,
+      "raw_excerpt": "{\n  \"results\": [\n    {\n      \"screen\": {\n        \"htmlCode\": {\n          \"name\": \"projects/8968909107061645047/files/12517139344046392614\",\n          \"downloadUrl\": \"https://contribution.usercontent.google.com/download?c=CgthaWRhX2NvZGVmeBKNARIhYXBwX2NvbXBhbmlvbl91c2VyX3VwbG9hZGVkX2ZpbGVzGmgKM3VzZXJfdXBsb2FkZWRfaHRtbF8wMDA2NTJjMTAzNDc2NmQ2MDQ3OWM5MjMwNDE5ODZiYhILEgcQ_faDkPoEGAGSASMKCnByb2plY3RfaWQSFUITODk2ODkwOTEwNzA2MTY0NTA0Nw&filename=&opi=96797242\",\n          \"mimeType\": \"text/markdown\"\n        },\n        \"id\": \"12517139344046393767\",\n        \"width\": \"780\",\n        \"height\": \"1768\",\n        \"title\": \"SmokeTest DESIGN.md\",\n        \"name\": \"projects/8968909107061645047/screens/12517139344046393767\",\n        \"theme\": {},\n        \"screenType\": \"DOCUMENT\",\n        \"isCreatedByClient\": true,\n        \"screenMetadata\": {\n          \"status\": \"COMPLETE\",\n          \"displayMode\": \"MARKDOWN\"\n        }\n      }\n    }\n  ],\n  \"screenInstances\": [\n    {\n      \"id\": \"12517139344046393767\",\n      \"sourceScreen\": \"projects/8968909107061645047/screens/12517139344046393767\",\n      \"width\": 390,\n      \"height\": 884\n    }\n  ]\n}"
+    },
+    {
+      "name": "get_project_screens",
+      "started_at": "2026-05-26T23:40:00Z",
+      "duration_ms": 1738,
+      "status": "ok",
+      "http_code": 200,
+      "payload_summary": {
+        "screen_instances_count": 1,
+        "instance_types": []
+      },
+      "error": null,
+      "raw_excerpt": "[\n  {\n    \"id\": \"12517139344046393767\",\n    \"sourceScreen\": \"projects/8968909107061645047/screens/12517139344046393767\",\n    \"width\": 390,\n    \"height\": 884\n  }\n]"
+    },
+    {
+      "name": "list_design_systems_pre",
+      "started_at": "2026-05-26T23:40:01Z",
+      "duration_ms": 206,
+      "status": "ok",
+      "http_code": 404,
+      "payload_summary": {
+        "design_systems_count_pre": 0
+      },
+      "error": null,
+      "raw_excerpt": null
+    },
+    {
+      "name": "create_design_system_from_design_md",
+      "started_at": "2026-05-26T23:40:01Z",
+      "duration_ms": 735,
+      "status": "error",
+      "http_code": null,
+      "payload_summary": {
+        "all_attempts_failed": true,
+        "attempts": [
+          {
+            "path": "/v1/projects/8968909107061645047/designSystems:createFromDesignMd",
+            "code": 404,
+            "body_preview": ""
+          },
+          {
+            "path": "/v1/projects/8968909107061645047:createDesignSystemFromDesignMd",
+            "code": 404,
+            "body_preview": ""
+          },
+          {
+            "path": "/v1/projects/8968909107061645047/designSystems",
+            "code": 404,
+            "body_preview": ""
+          }
+        ]
+      },
+      "error": "RuntimeError: create_design_system_from_design_md: all candidate paths returned non-2xx",
+      "raw_excerpt": "[\n  {\n    \"path\": \"/v1/projects/8968909107061645047/designSystems:createFromDesignMd\",\n    \"code\": 404,\n    \"body_preview\": \"\"\n  },\n  {\n    \"path\": \"/v1/projects/8968909107061645047:createDesignSystemFromDesignMd\",\n    \"code\": 404,\n    \"body_preview\": \"\"\n  },\n  {\n    \"path\": \"/v1/projects/8968909107061645047/designSystems\",\n    \"code\": 404,\n    \"body_preview\": \"\"\n  }\n]"
+    },
+    {
+      "name": "cleanup_delete_project",
+      "started_at": "2026-05-26T23:40:02Z",
+      "duration_ms": 2511,
+      "status": "warn",
+      "http_code": 403,
+      "payload_summary": {
+        "deleted": false,
+        "code": 403
+      },
+      "error": null,
+      "raw_excerpt": "{'error': {'code': 403, 'message': 'The caller does not have permission', 'status': 'PERMISSION_DENIED'}}"
+    }
+  ],
+  "verdict": "partial",
+  "notes": [],
+  "finished_at": "2026-05-26T23:40:05Z"
+}

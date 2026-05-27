@@ -36,12 +36,9 @@ from ..stitch_prompt import (
     build_prompt,
     validate_and_normalize,
 )
-from ..stitch_quota import (
-    DEFAULT_LIMIT_EXPERIMENTAL,
-    DEFAULT_LIMIT_STANDARD,
-    compute_quota_payload,
-)
-from ..stitch_quota.computation import load_entries
+# Quota subsystem removed in v6.4.0. Stitch MCP is free of charge —
+# the 350+200 monthly ceiling applies only to the Stitch web UI, not to
+# the MCP/API surface. See doc/decisions/stitch_native_chain.md.
 
 logger = structlog.get_logger(__name__)
 
@@ -296,35 +293,32 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
         device_type: str = "DESKTOP",
         model_id: str = "GEMINI_3_PRO",
         baseline_screen_id: str | None = None,
-        flash_safety_net: bool = False,
         max_total_attempts: int = 3,
     ) -> dict:
         """Generate a screen with the v5.31.0 fallback chain.
 
         Strategy ladder when the natural call fails:
             edit_baseline → variants_refine → regenerate
-        and, opt-in, ``flash_safety_net`` (Flash as last-resort, marks
-        the result ``degraded=True``).
 
         Args:
             project: SpecBox project slug.
             stitch_project_id: Target Stitch project ID.
             prompt: The generation prompt (already validated upstream).
-            device_type: DESKTOP|MOBILE|TABLET|AGNOSTIC.
+            device_type: DESKTOP|MOBILE|TABLET.
             model_id: Stitch model. Default GEMINI_3_PRO (per user
                 preference for quality).
             baseline_screen_id: If a previous screen exists for this
                 spot, supply its ID — it unlocks the EDIT_BASELINE and
                 VARIANTS_REFINE strategies. Without it, the chain
                 degrades to REGENERATE only.
-            flash_safety_net: Default False. When True, an extra Flash
-                attempt runs as last resort if the PRO chain exhausts.
-                Use for unattended autopilot where any output is better
-                than failure.
 
         Returns:
             ``{status, outcome, final_strategy, model_used, attempts,
               degraded, degraded_reason, result}``.
+
+        Note: the v5.31 ``flash_safety_net`` parameter was removed in
+        v6.4.0. Stitch MCP has no quota; degrading to Flash was a
+        defensive measure for a constraint that does not exist.
         """
 
         try:
@@ -337,7 +331,6 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 device_type=device_type,
                 model_id=model_id,
                 baseline_screen_id=baseline_screen_id,
-                enable_flash_safety_net=flash_safety_net,
                 max_total_attempts=max_total_attempts,
             )
 
@@ -463,98 +456,10 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
             )
             return {"error": str(exc), "project": project}
 
-    @mcp.tool
-    async def get_stitch_quota_status(
-        ctx: Context,
-        project: str,
-        month: str | None = None,
-        warn_pct: float = 80.0,
-        standard_limit: int = DEFAULT_LIMIT_STANDARD,
-        experimental_limit: int = DEFAULT_LIMIT_EXPERIMENTAL,
-        write_cache: bool = True,
-        project_root: str | None = None,
-    ) -> dict:
-        """Compute current Stitch quota usage from telemetry.
-
-        Aggregates ``stitch_usage.jsonl`` entries by month and model
-        class (Pro=Experimental, Flash=Standard). Stitch's published
-        ceilings are 350 Standard + 200 Experimental per month with no
-        upgrade path; this tool surfaces consumption so autopilot and
-        the user can avoid the late-month cliff.
-
-        Only successful generation calls count; metadata operations
-        (set_api_key, generate_design_md, validate_stitch_prompt, list
-        and read tools) do not consume quota.
-
-        Args:
-            project: SpecBox project slug.
-            month: YYYY-MM. Default: current UTC month.
-            warn_pct: Threshold for warning surface. Default 80.
-            standard_limit / experimental_limit: Override Google's
-                defaults if Stitch communicates a different ceiling.
-            write_cache: When True (default) and ``project_root`` is
-                provided, persist a compact summary at
-                ``{project_root}/.quality/stitch_quota.json`` for local
-                inspection (and for the quota guard hook).
-            project_root: Required only when ``write_cache=True``.
-
-        Returns:
-            ``{status, month, standard, experimental, warning, summary,
-              reset_at}``.
-        """
-
-        try:
-            jsonl = state_path / "projects" / project / "stitch_usage.jsonl"
-            entries = load_entries(jsonl)
-            payload = compute_quota_payload(
-                entries,
-                month=month,
-                warn_pct=warn_pct,
-                standard_limit=standard_limit,
-                experimental_limit=experimental_limit,
-            )
-
-            response = {
-                "status": "ok",
-                "project": project,
-                "month": payload.snapshot.month,
-                "standard": {
-                    "used": payload.snapshot.standard_used,
-                    "limit": payload.snapshot.standard_limit,
-                    "remaining": payload.snapshot.standard_limit
-                    - payload.snapshot.standard_used,
-                    "percent": round(payload.snapshot.standard_pct, 1),
-                },
-                "experimental": {
-                    "used": payload.snapshot.experimental_used,
-                    "limit": payload.snapshot.experimental_limit,
-                    "remaining": payload.snapshot.experimental_limit
-                    - payload.snapshot.experimental_used,
-                    "percent": round(payload.snapshot.experimental_pct, 1),
-                },
-                "warning": payload.warning,
-                "summary": payload.summary,
-                "reset_at": payload.reset_at,
-            }
-
-            if write_cache and project_root:
-                cache_path = (
-                    Path(project_root).expanduser().resolve()
-                    / ".quality" / "stitch_quota.json"
-                )
-                cache_path.parent.mkdir(parents=True, exist_ok=True)
-                cache_path.write_text(
-                    json.dumps(response, indent=2, ensure_ascii=False),
-                    encoding="utf-8",
-                )
-                response["cache_written"] = str(cache_path)
-
-            return response
-        except Exception as exc:
-            logger.error(
-                "get_stitch_quota_status_error", project=project, error=str(exc)
-            )
-            return {"error": str(exc), "project": project}
+    # `get_stitch_quota_status` was removed in v6.4.0. The Stitch MCP/API
+    # surface is free of charge — quota tracking only made sense for the
+    # legacy assumption that 350+200 monthly ceilings applied to MCP
+    # calls. They don't.
 
     @mcp.tool
     async def validate_stitch_prompt(

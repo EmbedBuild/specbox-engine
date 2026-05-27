@@ -193,53 +193,17 @@ class TestStitchClientPayload:
         assert result["id"] == "new-proj"
         await stitch_client.close()
 
-    @respx.mock
-    async def test_extract_design_context_payload(self, stitch_client):
-        route = respx.post(STITCH_BASE_URL).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "jsonrpc": "2.0",
-                    "id": "test",
-                    "result": {
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": json.dumps(
-                                    {"fonts": ["Inter"], "colors": ["#000"]}
-                                ),
-                            }
-                        ]
-                    },
-                },
-            )
-        )
-        result = await stitch_client.extract_design_context("proj1", "screen1")
-        body = json.loads(route.calls[0].request.content)
-        assert body["params"]["name"] == "extract_design_context"
-        assert result["fonts"] == ["Inter"]
+    # `extract_design_context` and `build_site` were removed in v6.4.0:
+    # neither tool is exposed by the live Stitch MCP (verified via
+    # tools/list — see .quality/evidence/stitch_smoke/mcp_tools_schema.json).
+    # Their tests are dropped along with the wrappers.
+
+    async def test_extract_design_context_removed(self, stitch_client):
+        assert not hasattr(stitch_client, "extract_design_context")
         await stitch_client.close()
 
-    @respx.mock
-    async def test_build_site_payload(self, stitch_client):
-        routes = [
-            {"screenId": "s1", "route": "/"},
-            {"screenId": "s2", "route": "/about"},
-        ]
-        route = respx.post(STITCH_BASE_URL).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "jsonrpc": "2.0",
-                    "id": "test",
-                    "result": {"content": [{"type": "text", "text": "{}"}]},
-                },
-            )
-        )
-        await stitch_client.build_site("proj1", routes)
-        body = json.loads(route.calls[0].request.content)
-        assert body["params"]["name"] == "build_site"
-        assert body["params"]["arguments"]["routes"] == routes
+    async def test_build_site_removed(self, stitch_client):
+        assert not hasattr(stitch_client, "build_site")
         await stitch_client.close()
 
     @respx.mock

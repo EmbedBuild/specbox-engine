@@ -477,88 +477,288 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
             )
             return {"error": str(exc), "project": project}
 
+    # -- Design system (native chain, v6.4.0) -----------------------------
+    # These 6 tools replace the v5.31 `inline-prefix` workaround. They map
+    # 1:1 to the Stitch MCP server's native design-system surface
+    # (verified via tools/list on 2026-05-26, see
+    # `.quality/evidence/stitch_smoke/mcp_tools_schema.json`).
+
     @mcp.tool
-    async def stitch_extract_design_context(
+    async def stitch_upload_design_md(
         ctx: Context,
         project: str,
         stitch_project_id: str,
-        screen_id: str,
+        design_md_content: str,
+        use_rest_for_large: bool = True,
     ) -> dict:
-        """Extract Design DNA from a Stitch screen — fonts, colors, layouts.
+        """Upload a DESIGN.md (Material 3 YAML frontmatter) to a Stitch project.
 
-        Use when you need to analyze an existing design to maintain style
-        consistency across new screens. Returns structured design tokens
-        that can be used as context for generate/edit operations.
+        Returns the new screen instance `{id, sourceScreen}` so it can
+        anchor `stitch_create_design_system_from_design_md`.
 
         Args:
-            project: SpecBox Engine project slug (to resolve the API Key).
-            stitch_project_id: The Stitch project ID.
-            screen_id: The screen ID to analyze.
-
-        Returns:
-            Design DNA: fonts, colors, layouts, spacing, and other design tokens.
+            project: SpecBox project slug (resolves the API key).
+            stitch_project_id: Stitch project ID.
+            design_md_content: Full Markdown text (NOT base64 — the
+                client encodes).
+            use_rest_for_large: If true (default) and the content exceeds
+                ~5KB, automatically switches to REST batchCreate to
+                bypass the MCP output-token limit.
         """
         try:
             client = await _get_client_for_project(ctx, project)
-            result = await client.extract_design_context(
-                stitch_project_id, screen_id
+            size = len(design_md_content.encode("utf-8"))
+            # 5KB heuristic for MCP path; above that we hit the LLM output
+            # token limit on the base64 echo.
+            if use_rest_for_large and size > 5 * 1024:
+                rest = await client.upload_via_rest_batch_create(
+                    stitch_project_id,
+                    content_bytes=design_md_content.encode("utf-8"),
+                    mime_type="text/markdown",
+                    title="DESIGN.md",
+                )
+                _log_stitch_usage(project, "upload_design_md_rest")
+                # Normalise to the same shape as the MCP tool.
+                instances = rest.get("screenInstances") if isinstance(rest, dict) else None
+                first = instances[0] if instances else {}
+                return {
+                    "status": "ok",
+                    "project": project,
+                    "transport": "rest_batch_create",
+                    "size_bytes": size,
+                    "screen_instance": {
+                        "id": first.get("id"),
+                        "sourceScreen": first.get("sourceScreen"),
+                    },
+                    "result": rest,
+                }
+            result = await client.upload_design_md(
+                stitch_project_id, design_md_content
             )
-            _log_stitch_usage(project, "extract_design_context")
-            return {"status": "ok", "project": project, "result": result}
+            _log_stitch_usage(project, "upload_design_md")
+            return {
+                "status": "ok",
+                "project": project,
+                "transport": "mcp",
+                "size_bytes": size,
+                "result": result,
+            }
         except Exception as exc:
             logger.error(
-                "stitch_extract_design_context_error",
+                "stitch_upload_design_md_error",
                 project=project,
                 error=str(exc),
             )
             return {"error": str(exc), "project": project}
 
     @mcp.tool
-    async def stitch_build_site(
+    async def stitch_create_design_system(
         ctx: Context,
         project: str,
         stitch_project_id: str,
-        routes: str,
+        display_name: str = "",
     ) -> dict:
-        """Build a multi-page site by mapping Stitch screens to URL routes.
+        """Create an empty design system on a Stitch project.
 
-        WARNING: This operation can take several minutes to complete.
-
-        Use when you have multiple screens and want to assemble them into
-        a complete site with proper routing.
-
-        Args:
-            project: SpecBox Engine project slug (to resolve the API Key).
-            stitch_project_id: The Stitch project ID.
-            routes: JSON array of route mappings, e.g.:
-                    [{"screenId": "abc", "route": "/"}, {"screenId": "def", "route": "/about"}]
-
-        Returns:
-            Site build result with HTML for each route.
+        Prefer `stitch_create_design_system_from_design_md` for the
+        DESIGN.md-driven flow — this tool exists for full manual control
+        when you want to populate theme tokens via
+        `stitch_update_design_system` instead.
         """
         try:
-            import json as json_mod
-
-            try:
-                route_list = json_mod.loads(routes)
-            except (json_mod.JSONDecodeError, TypeError):
-                return {
-                    "error": "Invalid routes JSON. Expected array of {screenId, route} objects.",
-                    "project": project,
-                }
-
             client = await _get_client_for_project(ctx, project)
-            logger.info(
-                "stitch_build_site_start",
-                project=project,
-                route_count=len(route_list),
+            result = await client.create_design_system(
+                stitch_project_id,
+                display_name=display_name or None,
             )
-            result = await client.build_site(stitch_project_id, route_list)
-            _log_stitch_usage(project, "build_site")
-            logger.info("stitch_build_site_complete", project=project)
+            _log_stitch_usage(project, "create_design_system")
             return {"status": "ok", "project": project, "result": result}
         except Exception as exc:
             logger.error(
-                "stitch_build_site_error", project=project, error=str(exc)
+                "stitch_create_design_system_error",
+                project=project,
+                error=str(exc),
             )
             return {"error": str(exc), "project": project}
+
+    @mcp.tool
+    async def stitch_create_design_system_from_design_md(
+        ctx: Context,
+        project: str,
+        stitch_project_id: str,
+        screen_instance_id: str,
+        source_screen: str,
+        device_type: str = "DESKTOP",
+    ) -> dict:
+        """Parse a previously-uploaded DESIGN.md into a server-side Design System.
+
+        This is step 4 of the canonical chain
+        (upload → create_ds_from_md → list → apply). It auto-populates
+        all DesignTheme tokens from the YAML frontmatter.
+
+        Latency observed in smoke v2: ~43s. Don't rush the user — surface
+        progress.
+
+        Args:
+            project: SpecBox project slug.
+            stitch_project_id: Stitch project ID (just the ID).
+            screen_instance_id: The `id` from `stitch_upload_design_md`'s
+                returned screen instance.
+            source_screen: The `sourceScreen` (full path
+                `projects/{id}/screens/{id}`).
+            device_type: DESKTOP | MOBILE | TABLET.
+        """
+        try:
+            client = await _get_client_for_project(ctx, project)
+            result = await client.create_design_system_from_design_md(
+                stitch_project_id,
+                selected_screen_instance={
+                    "id": screen_instance_id,
+                    "sourceScreen": source_screen,
+                },
+                device_type=device_type,
+            )
+            _log_stitch_usage(project, "create_design_system_from_design_md")
+            return {"status": "ok", "project": project, "result": result}
+        except Exception as exc:
+            logger.error(
+                "stitch_create_ds_from_md_error",
+                project=project,
+                error=str(exc),
+            )
+            return {"error": str(exc), "project": project}
+
+    @mcp.tool
+    async def stitch_update_design_system(
+        ctx: Context,
+        project: str,
+        stitch_project_id: str,
+        asset_name: str,
+        theme: dict,
+        display_name: str = "",
+    ) -> dict:
+        """Mutate the theme tokens of an existing design system in place.
+
+        Args:
+            project: SpecBox project slug.
+            stitch_project_id: Stitch project ID.
+            asset_name: Full asset name `assets/{assetId}` (from
+                `stitch_list_design_systems`).
+            theme: DesignTheme dict. Use the enums in
+                `server.stitch_enums`:
+                  - colorMode: LIGHT | DARK
+                  - headlineFont / bodyFont / labelFont: any value of
+                    `StitchFont` (do NOT use the deprecated `font` key)
+                  - roundness: ROUND_TWO..ROUND_FULL
+                  - colorVariant: e.g. TONAL_SPOT (M3 default), FIDELITY,
+                    VIBRANT, EXPRESSIVE, MONOCHROME, NEUTRAL, CONTENT,
+                    RAINBOW, FRUIT_SALAD
+                  - customColor: hex like "#0EA5E9"
+                  - overridePrimaryColor / overrideSecondaryColor /
+                    overrideTertiaryColor / overrideNeutralColor: hex
+                  - designMd: full DESIGN.md content (optional)
+            display_name: Optional new displayName for the DS.
+        """
+        if "font" in theme:
+            return {
+                "error": (
+                    "DesignTheme.font is the deprecated legacy field; use "
+                    "headlineFont / bodyFont / labelFont. The Stitch server "
+                    "will reject this payload."
+                ),
+                "project": project,
+            }
+        try:
+            client = await _get_client_for_project(ctx, project)
+            result = await client.update_design_system(
+                asset_name,
+                stitch_project_id,
+                theme,
+                display_name=display_name or None,
+            )
+            _log_stitch_usage(project, "update_design_system")
+            return {"status": "ok", "project": project, "result": result}
+        except Exception as exc:
+            logger.error(
+                "stitch_update_design_system_error",
+                project=project,
+                error=str(exc),
+            )
+            return {"error": str(exc), "project": project}
+
+    @mcp.tool
+    async def stitch_list_design_systems(
+        ctx: Context,
+        project: str,
+        stitch_project_id: str,
+    ) -> dict:
+        """List all design systems attached to a Stitch project.
+
+        Returns `{"designSystems": [...]}` or an empty dict when the
+        project has none. Useful for `stitch_generate_screen_v2` to
+        decide whether to omit theme directives from the prompt.
+        """
+        try:
+            client = await _get_client_for_project(ctx, project)
+            result = await client.list_design_systems(stitch_project_id)
+            _log_stitch_usage(project, "list_design_systems")
+            return {"status": "ok", "project": project, "result": result}
+        except Exception as exc:
+            logger.error(
+                "stitch_list_design_systems_error",
+                project=project,
+                error=str(exc),
+            )
+            return {"error": str(exc), "project": project}
+
+    @mcp.tool
+    async def stitch_apply_design_system(
+        ctx: Context,
+        project: str,
+        stitch_project_id: str,
+        asset_id: str,
+        selected_screen_instances: list,
+    ) -> dict:
+        """Apply a design system to a batch of screen instances.
+
+        Args:
+            project: SpecBox project slug.
+            stitch_project_id: Stitch project ID.
+            asset_id: Bare assetId (the part after `assets/`).
+            selected_screen_instances: List of `{id, sourceScreen}` dicts.
+                Position/dimension fields (`x`, `y`, `width`, `height`)
+                are NOT allowed and the client will reject them with a
+                pre-flight error before the server does. Filter out
+                instances of type `DESIGN_SYSTEM_INSTANCE`.
+
+        Latency observed in smoke v2: ~19s for a single screen.
+        """
+        try:
+            client = await _get_client_for_project(ctx, project)
+            result = await client.apply_design_system(
+                stitch_project_id,
+                asset_id,
+                selected_screen_instances,
+            )
+            _log_stitch_usage(project, "apply_design_system")
+            return {"status": "ok", "project": project, "result": result}
+        except Exception as exc:
+            logger.error(
+                "stitch_apply_design_system_error",
+                project=project,
+                error=str(exc),
+            )
+            return {"error": str(exc), "project": project}
+
+    # -- Removed in v6.4.0 --------------------------------------------------
+    # The legacy MCP tools `stitch_extract_design_context` and
+    # `stitch_build_site` were removed because their underlying server
+    # endpoints do not exist in the Stitch MCP (verified via tools/list
+    # on 2026-05-26). They were never functional in production. Replace:
+    #   - `stitch_extract_design_context` → use `stitch_get_screen` +
+    #     parse `designTheme` from the screen response (or read the
+    #     project's design system via `stitch_list_design_systems`).
+    #   - `stitch_build_site` → use multiple `stitch_generate_screen`
+    #     calls with a shared `designSystem` parameter, or batched via
+    #     `stitch_build_site_batched_v2` (autopilot v5.31, separate
+    #     tool).

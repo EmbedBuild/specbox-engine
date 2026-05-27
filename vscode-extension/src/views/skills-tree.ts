@@ -2,6 +2,9 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { CLAUDE_SKILLS_DIR } from '../constants';
 import { loadSkillsFromFilesystem, SkillInfo } from './skill-loader';
+import {
+	SkillCategory, CATEGORY_ORDER, CATEGORY_LABELS, CATEGORY_ICONS, getCategoryFor,
+} from './skill-categories';
 
 let outputChannel: vscode.OutputChannel | undefined;
 
@@ -16,11 +19,13 @@ export class SkillsTreeProvider implements vscode.TreeDataProvider<vscode.TreeIt
 	private _onDidChangeTreeData = new vscode.EventEmitter<vscode.TreeItem | undefined>();
 	readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 	private cachedSkills: SkillInfo[] | null = null;
+	private cachedByCategory: Map<SkillCategory, SkillInfo[]> | null = null;
 
 	constructor(private workspaceFolders: string[] = []) {}
 
 	refresh(): void {
 		this.cachedSkills = null;
+		this.cachedByCategory = null;
 		this._onDidChangeTreeData.fire(undefined);
 	}
 
@@ -42,12 +47,46 @@ export class SkillsTreeProvider implements vscode.TreeDataProvider<vscode.TreeIt
 		return this.cachedSkills;
 	}
 
-	async getChildren(): Promise<vscode.TreeItem[]> {
+	private getSkillsByCategory(): Map<SkillCategory, SkillInfo[]> {
+		if (this.cachedByCategory !== null) { return this.cachedByCategory; }
+		const map = new Map<SkillCategory, SkillInfo[]>();
+		for (const cat of CATEGORY_ORDER) { map.set(cat, []); }
+		for (const skill of this.getLoadedSkills()) {
+			const cat = getCategoryFor(skill.name);
+			map.get(cat)!.push(skill);
+		}
+		this.cachedByCategory = map;
+		return map;
+	}
+
+	async getChildren(element?: vscode.TreeItem): Promise<vscode.TreeItem[]> {
 		const skills = this.getLoadedSkills();
 		if (skills.length === 0) {
-			return [new EmptyStateItem()];
+			return element ? [] : [new EmptyStateItem()];
 		}
-		return skills.map(s => new SkillItem(s));
+
+		if (!element) {
+			// Root: 7 categorías en orden fijo, siempre visibles (incluso con count 0)
+			const byCat = this.getSkillsByCategory();
+			return CATEGORY_ORDER.map(cat => new SkillCategoryItem(cat, byCat.get(cat)!.length));
+		}
+
+		if (element instanceof SkillCategoryItem) {
+			const byCat = this.getSkillsByCategory();
+			return byCat.get(element.category)!.map(s => new SkillItem(s));
+		}
+
+		// Leaf items have no children
+		return [];
+	}
+}
+
+class SkillCategoryItem extends vscode.TreeItem {
+	constructor(public readonly category: SkillCategory, public readonly count: number) {
+		super(CATEGORY_LABELS[category], vscode.TreeItemCollapsibleState.Expanded);
+		this.description = `(${count})`;
+		this.iconPath = new vscode.ThemeIcon(CATEGORY_ICONS[category]);
+		this.contextValue = 'specboxSkillCategory';
 	}
 }
 
@@ -70,3 +109,5 @@ class EmptyStateItem extends vscode.TreeItem {
 		this.contextValue = 'specboxNoSkills';
 	}
 }
+
+export { SkillCategoryItem, SkillItem, EmptyStateItem };

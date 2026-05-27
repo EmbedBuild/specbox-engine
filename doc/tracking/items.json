@@ -8746,7 +8746,7 @@
     "id": "item-42b4bc03",
     "name": "UC-701: Auto-detección de skills desde filesystem",
     "description": "# UC-701: Auto-detección de skills desde filesystem\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Engine + extensión VSCode\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [JR-F.1] SkillsTreeProvider.getChildren() lee skills desde ~/.claude/skills/*/SKILL.md (global) y ${workspace}/.claude/skills/*/SKILL.md (local) en lugar del array CORE_SKILLS hardcoded; cada skill detectado es una entrada con su nombre (sin slash) y su description extraída del frontmatter YAML del SKILL.md.\n- AC-02: Si un skill aparece tanto en global como en local, prevalece el local; el árbol nunca muestra duplicados.\n- AC-03: Si el filesystem no es legible (permisos, FS corrupto), el TreeView muestra un único item informativo 'No skills detected — run /install or check ~/.claude/skills/' en vez de fallar; el bug se loguea a la output channel SpecBox con stack trace completo.\n- AC-04: [JR-F.1] Tras instalar un skill nuevo vía installer.runFullInstall(), llamar skillsTree.refresh() repuebla el árbol con el skill nuevo sin reiniciar VSCode.\n\n## Contexto\nRefactor de skills-tree.ts para reemplazar el array hardcoded CORE_SKILLS por lectura dinámica de ~/.claude/skills/ (global) + ${workspace}/.claude/skills/ (local).",
-    "state": "in_progress",
+    "state": "review",
     "parent_id": "item-874a771b",
     "labels": [
       "UC",
@@ -8764,7 +8764,7 @@
     "created_at": "2026-05-27T09:24:03.300796+00:00",
     "external_source": "",
     "external_id": "",
-    "updated_at": "2026-05-27T10:52:47.425009+00:00"
+    "updated_at": "2026-05-27T10:56:02.318382+00:00"
   },
   {
     "id": "ac-a09fda52",
@@ -8834,7 +8834,7 @@
     "id": "item-96f6fea9",
     "name": "UC-702: Agrupación de skills por categoría",
     "description": "# UC-702: Agrupación de skills por categoría\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Extensión VSCode\n**Horas estimadas:** 3.0\n**Pantallas:** sidebar specbox.skills\n\n## Criterios de Aceptacion\n- AC-01: [JR-F.5] El TreeView muestra 7 categorías de primer nivel colapsables en orden fijo: Pipeline, Quality, Visual, Tracking, Stripe, Lifecycle, Otros.\n- AC-02: Cada categoría tiene un icono ThemeIcon distinto y consistente (rocket / shield / paintcan / list-tree / credit-card / tools / question).\n- AC-03: El mapping skill→categoría está declarado en skill-categories.ts con tipado TypeScript estricto; skills no listados caen automáticamente en Otros.\n- AC-04: Cada categoría muestra entre paréntesis el número de skills detectados que contiene (p.ej. 'Pipeline (4)', 'Otros (0)'). Una categoría con 0 skills sigue mostrándose colapsada con '(0)' para preservar el mental model.\n- AC-05: El mapping cubre al menos los 25 skills actuales del engine: prd, plan, implement, feedback (Pipeline); audit, compliance, quality-gate, acceptance-check (Quality); visual-setup, adapt-ui, check-designs (Visual); switch-backend, app-init, app-sync, queue-review (Tracking); stripe-connect, stripe-standard, stripe-switch-account (Stripe); release, handoff, discovery, quickstart, manual-test, optimize-agents, explore (Lifecycle).\n\n## Contexto\nIntroduce 7 categorías root en el TreeView (Pipeline / Quality / Visual / Tracking / Stripe / Lifecycle / Otros). Mapping skill→categoría declarado en archivo dedicado skill-categories.ts con tipado TypeScript estricto.",
-    "state": "backlog",
+    "state": "in_progress",
     "parent_id": "item-874a771b",
     "labels": [
       "UC",
@@ -8851,7 +8851,8 @@
     },
     "created_at": "2026-05-27T09:24:03.330982+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-27T10:56:06.961023+00:00"
   },
   {
     "id": "ac-6e90bb00",

@@ -5,6 +5,9 @@ import { loadSkillsFromFilesystem, SkillInfo } from './skill-loader';
 import {
 	SkillCategory, CATEGORY_ORDER, CATEGORY_LABELS, CATEGORY_ICONS, getCategoryFor,
 } from './skill-categories';
+import { SKILL_DEFAULTS } from './skill-defaults';
+
+const TOOLTIP_MAX_CHARS = 120;
 
 let outputChannel: vscode.OutputChannel | undefined;
 
@@ -93,10 +96,11 @@ class SkillCategoryItem extends vscode.TreeItem {
 class SkillItem extends vscode.TreeItem {
 	constructor(public readonly skill: SkillInfo) {
 		super(`/${skill.name}`, vscode.TreeItemCollapsibleState.None);
-		this.description = skill.description || '(no description)';
+		const summary = pickTooltipSummary(skill);
+		this.description = truncate(summary, 60);
 		this.iconPath = new vscode.ThemeIcon('extensions');
 		const tooltip = new vscode.MarkdownString();
-		tooltip.appendMarkdown(`**\`/${skill.name}\`** — ${skill.description || '(no description available)'}`);
+		tooltip.appendMarkdown(`**\`/${skill.name}\`** — ${summary}`);
 		this.tooltip = tooltip;
 		this.contextValue = 'specboxSkill';
 		this.command = {
@@ -105,6 +109,18 @@ class SkillItem extends vscode.TreeItem {
 			title: vscode.l10n.t('Show skill card'),
 		};
 	}
+}
+
+function pickTooltipSummary(skill: SkillInfo): string {
+	const def = SKILL_DEFAULTS[skill.name];
+	if (def) { return truncate(def.whatItDoes, TOOLTIP_MAX_CHARS); }
+	if (skill.description) { return truncate(skill.description, TOOLTIP_MAX_CHARS); }
+	return '(no description available)';
+}
+
+function truncate(text: string, max: number): string {
+	if (text.length <= max) { return text; }
+	return text.slice(0, max - 1).trimEnd() + '…';
 }
 
 class EmptyStateItem extends vscode.TreeItem {

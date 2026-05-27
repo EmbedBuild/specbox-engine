@@ -129,7 +129,7 @@
           {
             "id": "specbox.step.install",
             "title": "%walkthrough.step.install.title%",
-            "description": "Install 15 skills, 20+ hooks, and quality settings with one click.\n\n[Install SpecBox Engine](command:specbox.install)",
+            "description": "Install all SpecBox skills, 20+ hooks, and quality settings with one click.\n\n[Install SpecBox Engine](command:specbox.install)",
             "media": {
               "markdown": "media/walkthrough/step-install.md"
             }
@@ -148,6 +148,14 @@
             "description": "Create a CLAUDE.md from the engine template and start using /prd, /plan, /implement.\n\n[Open Onboarding Wizard](command:specbox.onboard)",
             "media": {
               "markdown": "media/walkthrough/step-first-project.md"
+            }
+          },
+          {
+            "id": "specbox.step.discoverSkills",
+            "title": "%walkthrough.step.discoverSkills.title%",
+            "description": "Open the SpecBox sidebar to browse all installed skills grouped by category. Click any skill to see what it does and the exact command to use.\n\n[Open SpecBox sidebar](command:workbench.view.extension.specbox)",
+            "media": {
+              "markdown": "media/walkthrough/step-discover-skills.md"
             }
           }
         ]

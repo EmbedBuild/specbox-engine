@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-27T10:57:07.343104+00:00
+> Actualizado: 2026-05-27T10:59:45.313277+00:00
 
 ## User Stories
 
@@ -112,6 +112,6 @@
 | UC-651 | US-VSCODE-GITHUB-OAUTH | Backlog | 0 | 5 | 0% |
 | UC-701 | US-VSCODE-DISCOVERABILITY | Review | 0 | 4 | 0% |
 | UC-702 | US-VSCODE-DISCOVERABILITY | Review | 0 | 5 | 0% |
-| UC-703 | US-VSCODE-DISCOVERABILITY | In Progress | 0 | 6 | 0% |
-| UC-704 | US-VSCODE-DISCOVERABILITY | Backlog | 0 | 4 | 0% |
+| UC-703 | US-VSCODE-DISCOVERABILITY | Review | 0 | 6 | 0% |
+| UC-704 | US-VSCODE-DISCOVERABILITY | In Progress | 0 | 4 | 0% |
 | UC-705 | US-VSCODE-DISCOVERABILITY | Backlog | 0 | 6 | 0% |

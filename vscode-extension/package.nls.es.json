@@ -20,6 +20,7 @@
   "walkthrough.step.install.title": "Instalar Engine",
   "walkthrough.step.mcp.title": "Configurar servidores MCP",
   "walkthrough.step.firstProject.title": "Inicializa tu primer proyecto",
+  "walkthrough.step.discoverSkills.title": "Explora tus skills",
   "configuration.title": "SpecBox Engine",
   "configuration.enginePath.description": "Ruta al repositorio de SpecBox Engine. Se autodetecta si está vacío.",
   "configuration.autoHealthCheck.description": "Ejecuta la comprobación de salud al arrancar cuando se detecta un proyecto SpecBox.",

@@ -8938,7 +8938,7 @@
     "id": "item-3bdd011e",
     "name": "UC-703: Ficha de skill al hacer click",
     "description": "# UC-703: Ficha de skill al hacer click\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Dev (ICP-1 y ICP-2)\n**Horas estimadas:** 6.0\n**Pantallas:** webview o quickpick (decisión técnica en /plan)\n\n## Criterios de Aceptacion\n- AC-01: [JR-F.4] Al hacer click en un skill del TreeView, se abre una ficha (webview panel o quickpick — decisión en plan) con cuatro bloques claramente separados: Qué hace, Cuándo usarlo, Comando exacto, Ejemplo.\n- AC-02: La información de los cuatro bloques se lee del frontmatter description del SKILL.md correspondiente cuando esté presente, y de un fallback estático (objeto en código de la extensión) cuando el SKILL.md no tenga ese contenido estructurado. La fuente del contenido se etiqueta visiblemente al pie de la ficha ('from SKILL.md' o 'from extension defaults').\n- AC-03: [JR-F.4] El bloque 'Comando exacto' muestra el slash command como string monoespaciado (p.ej. '/prd <feature_name>') con un botón 'Copiar al portapapeles' inmediatamente al lado.\n- AC-04: Al pulsar 'Copiar al portapapeles', el comando se copia vía vscode.env.clipboard.writeText y aparece una notificación 'Comando copiado — pega en el chat de Claude Code' durante 3 segundos.\n- AC-05: Cerrar la ficha (X del webview, Esc del quickpick) la cierra sin dejar estado residual; volver a hacer click en el mismo skill la vuelve a abrir.\n- AC-06: [JE-F.3] El Ejemplo mostrado para cada skill es funcional — el comando exacto del bloque 'Comando exacto' debe ejecutarse correctamente si el usuario lo pega tal cual en el chat. Validado manualmente para los 5 skills más usados (prd, plan, implement, audit, handoff) antes del merge.\n\n## Contexto\nClick en un skill abre ficha con 4 bloques fijos: Qué hace, Cuándo usarlo, Comando exacto (+ botón copiar), Ejemplo. El click NO ejecuta el skill — solo despliega documentación.",
-    "state": "in_progress",
+    "state": "review",
     "parent_id": "item-874a771b",
     "labels": [
       "UC",
@@ -8956,7 +8956,7 @@
     "created_at": "2026-05-27T09:24:03.355133+00:00",
     "external_source": "",
     "external_id": "",
-    "updated_at": "2026-05-27T10:57:07.337091+00:00"
+    "updated_at": "2026-05-27T10:59:44.859391+00:00"
   },
   {
     "id": "ac-3719a5b2",
@@ -9058,7 +9058,7 @@
     "id": "item-47a77348",
     "name": "UC-704: Walkthrough actualizado + tooltip rico",
     "description": "# UC-704: Walkthrough actualizado + tooltip rico\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Dev nuevo tras Install (ICP-2)\n**Horas estimadas:** 3.0\n**Pantallas:** walkthrough specbox.gettingStarted, tooltips del TreeView\n\n## Criterios de Aceptacion\n- AC-01: [JR-F.3] El step step-install.md del walkthrough deja de afirmar 'Install 15 skills' — la nueva copy es agnóstica al número: 'Install all SpecBox skills and hooks'.\n- AC-02: [JR-F.3] El walkthrough gana un quinto step step-discover-skills con título 'Explore your new skills' + descripción que indica abrir el sidebar SpecBox y hacer click en cualquier skill; incluye command link a 'command:workbench.view.extension.specbox'.\n- AC-03: [JR-F.2] Cada item de skill en el TreeView muestra como tooltip la primera frase de 'Qué hace' tomada del mismo source que la ficha. Tooltip legible en <5s (≤120 caracteres en la primera línea).\n- AC-04: El package.json declara step-discover-skills y su markdown asociado en vscode-extension/media/walkthrough/step-discover-skills.md; el step pasa el linter de i18n existente.\n\n## Contexto\nWalkthrough deja de hardcodear 'Install 15 skills' y gana un quinto step que tour-guía el sidebar. Cada item del TreeView gana tooltip con la primera frase de 'Qué hace'.",
-    "state": "backlog",
+    "state": "in_progress",
     "parent_id": "item-874a771b",
     "labels": [
       "UC",
@@ -9075,7 +9075,8 @@
     },
     "created_at": "2026-05-27T09:24:03.378878+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-27T10:59:45.306168+00:00"
   },
   {
     "id": "ac-8c3345eb",

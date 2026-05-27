@@ -85,6 +85,10 @@
       {
         "command": "specbox.identityQuickPick",
         "title": "%command.identityQuickPick.title%"
+      },
+      {
+        "command": "specbox.showSkillCard",
+        "title": "%command.showSkillCard.title%"
       }
     ],
     "viewsContainers": {

@@ -99,6 +99,11 @@ class SkillItem extends vscode.TreeItem {
 		tooltip.appendMarkdown(`**\`/${skill.name}\`** — ${skill.description || '(no description available)'}`);
 		this.tooltip = tooltip;
 		this.contextValue = 'specboxSkill';
+		this.command = {
+			command: 'specbox.showSkillCard',
+			arguments: [skill],
+			title: vscode.l10n.t('Show skill card'),
+		};
 	}
 }
 

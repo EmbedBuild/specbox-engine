@@ -7,6 +7,8 @@ import { McpConfigurator } from './mcp';
 import { ExtensionUpdater } from './updater';
 import { StatusTreeProvider, IdentityState } from './views/status-tree';
 import { SkillsTreeProvider } from './views/skills-tree';
+import { showSkillCard } from './views/skill-card';
+import { SkillInfo } from './views/skill-loader';
 import { SecretsManager } from './secret-storage';
 import { runSignIn, runSignOut, maybeShowOnboarding } from './auth';
 
@@ -79,6 +81,14 @@ export async function activate(context: vscode.ExtensionContext) {
 			await runSignOut(secrets);
 			vscode.window.showInformationMessage(vscode.l10n.t('Signed out.'));
 			await refreshIdentity(statusTree, secrets);
+		}),
+
+		vscode.commands.registerCommand('specbox.showSkillCard', async (skill: SkillInfo) => {
+			if (!skill || typeof skill.name !== 'string') {
+				vscode.window.showWarningMessage(vscode.l10n.t('Invalid skill — refresh the sidebar and try again.'));
+				return;
+			}
+			await showSkillCard(skill);
 		}),
 
 		vscode.commands.registerCommand('specbox.identityQuickPick', async () => {

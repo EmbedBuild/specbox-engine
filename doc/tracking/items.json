@@ -8834,7 +8834,7 @@
     "id": "item-96f6fea9",
     "name": "UC-702: Agrupación de skills por categoría",
     "description": "# UC-702: Agrupación de skills por categoría\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Extensión VSCode\n**Horas estimadas:** 3.0\n**Pantallas:** sidebar specbox.skills\n\n## Criterios de Aceptacion\n- AC-01: [JR-F.5] El TreeView muestra 7 categorías de primer nivel colapsables en orden fijo: Pipeline, Quality, Visual, Tracking, Stripe, Lifecycle, Otros.\n- AC-02: Cada categoría tiene un icono ThemeIcon distinto y consistente (rocket / shield / paintcan / list-tree / credit-card / tools / question).\n- AC-03: El mapping skill→categoría está declarado en skill-categories.ts con tipado TypeScript estricto; skills no listados caen automáticamente en Otros.\n- AC-04: Cada categoría muestra entre paréntesis el número de skills detectados que contiene (p.ej. 'Pipeline (4)', 'Otros (0)'). Una categoría con 0 skills sigue mostrándose colapsada con '(0)' para preservar el mental model.\n- AC-05: El mapping cubre al menos los 25 skills actuales del engine: prd, plan, implement, feedback (Pipeline); audit, compliance, quality-gate, acceptance-check (Quality); visual-setup, adapt-ui, check-designs (Visual); switch-backend, app-init, app-sync, queue-review (Tracking); stripe-connect, stripe-standard, stripe-switch-account (Stripe); release, handoff, discovery, quickstart, manual-test, optimize-agents, explore (Lifecycle).\n\n## Contexto\nIntroduce 7 categorías root en el TreeView (Pipeline / Quality / Visual / Tracking / Stripe / Lifecycle / Otros). Mapping skill→categoría declarado en archivo dedicado skill-categories.ts con tipado TypeScript estricto.",
-    "state": "in_progress",
+    "state": "review",
     "parent_id": "item-874a771b",
     "labels": [
       "UC",
@@ -8852,7 +8852,7 @@
     "created_at": "2026-05-27T09:24:03.330982+00:00",
     "external_source": "",
     "external_id": "",
-    "updated_at": "2026-05-27T10:56:06.961023+00:00"
+    "updated_at": "2026-05-27T10:57:06.849164+00:00"
   },
   {
     "id": "ac-6e90bb00",
@@ -8938,7 +8938,7 @@
     "id": "item-3bdd011e",
     "name": "UC-703: Ficha de skill al hacer click",
     "description": "# UC-703: Ficha de skill al hacer click\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Dev (ICP-1 y ICP-2)\n**Horas estimadas:** 6.0\n**Pantallas:** webview o quickpick (decisión técnica en /plan)\n\n## Criterios de Aceptacion\n- AC-01: [JR-F.4] Al hacer click en un skill del TreeView, se abre una ficha (webview panel o quickpick — decisión en plan) con cuatro bloques claramente separados: Qué hace, Cuándo usarlo, Comando exacto, Ejemplo.\n- AC-02: La información de los cuatro bloques se lee del frontmatter description del SKILL.md correspondiente cuando esté presente, y de un fallback estático (objeto en código de la extensión) cuando el SKILL.md no tenga ese contenido estructurado. La fuente del contenido se etiqueta visiblemente al pie de la ficha ('from SKILL.md' o 'from extension defaults').\n- AC-03: [JR-F.4] El bloque 'Comando exacto' muestra el slash command como string monoespaciado (p.ej. '/prd <feature_name>') con un botón 'Copiar al portapapeles' inmediatamente al lado.\n- AC-04: Al pulsar 'Copiar al portapapeles', el comando se copia vía vscode.env.clipboard.writeText y aparece una notificación 'Comando copiado — pega en el chat de Claude Code' durante 3 segundos.\n- AC-05: Cerrar la ficha (X del webview, Esc del quickpick) la cierra sin dejar estado residual; volver a hacer click en el mismo skill la vuelve a abrir.\n- AC-06: [JE-F.3] El Ejemplo mostrado para cada skill es funcional — el comando exacto del bloque 'Comando exacto' debe ejecutarse correctamente si el usuario lo pega tal cual en el chat. Validado manualmente para los 5 skills más usados (prd, plan, implement, audit, handoff) antes del merge.\n\n## Contexto\nClick en un skill abre ficha con 4 bloques fijos: Qué hace, Cuándo usarlo, Comando exacto (+ botón copiar), Ejemplo. El click NO ejecuta el skill — solo despliega documentación.",
-    "state": "backlog",
+    "state": "in_progress",
     "parent_id": "item-874a771b",
     "labels": [
       "UC",
@@ -8955,7 +8955,8 @@
     },
     "created_at": "2026-05-27T09:24:03.355133+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-27T10:57:07.337091+00:00"
   },
   {
     "id": "ac-3719a5b2",

@@ -9,6 +9,7 @@
   "command.signIn.title": "SpecBox: Iniciar sesión con GitHub",
   "command.signOut.title": "SpecBox: Cerrar sesión",
   "command.identityQuickPick.title": "SpecBox: Identidad",
+  "command.showSkillCard.title": "SpecBox: Mostrar ficha del skill",
   "configuration.signInBaseUrl.description": "Sobrescribe la URL de inicio de sesión en la nube (avanzado; por defecto https://cloud.specbox.build/vscode/issue-token).",
   "viewContainer.specbox.title": "SpecBox Engine",
   "view.status.name": "Estado",

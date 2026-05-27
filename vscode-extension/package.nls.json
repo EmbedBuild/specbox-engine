@@ -9,6 +9,7 @@
   "command.signIn.title": "SpecBox: Sign in with GitHub",
   "command.signOut.title": "SpecBox: Sign out",
   "command.identityQuickPick.title": "SpecBox: Identity",
+  "command.showSkillCard.title": "SpecBox: Show Skill Card",
   "configuration.signInBaseUrl.description": "Override the cloud sign-in URL (advanced; defaults to https://cloud.specbox.build/vscode/issue-token).",
   "viewContainer.specbox.title": "SpecBox Engine",
   "view.status.name": "Status",

@@ -42,6 +42,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			skillsTree.refresh();
 			statusBar?.update(result);
 			await vscode.commands.executeCommand('setContext', 'specbox.installed', result.engineInstalled);
+			await updateSkillsContext(skillsTree);
 		}),
 
 		vscode.commands.registerCommand('specbox.healthCheck', async () => {
@@ -89,6 +90,12 @@ export async function activate(context: vscode.ExtensionContext) {
 				return;
 			}
 			await showSkillCard(skill);
+		}),
+
+		vscode.commands.registerCommand('specbox.refresh', async () => {
+			skillsTree.refresh();
+			statusTree.refresh();
+			await updateSkillsContext(skillsTree);
 		}),
 
 		vscode.commands.registerCommand('specbox.identityQuickPick', async () => {
@@ -151,6 +158,9 @@ export async function activate(context: vscode.ExtensionContext) {
 		console.warn('[specbox] onboarding gate failed:', err);
 	});
 
+	// Skills context bootstrapping (drives viewsWelcome for specbox.skills)
+	await updateSkillsContext(skillsTree);
+
 	// UC-649 — identity polling + initial refresh
 	await refreshIdentity(statusTree, secrets);
 	identityPollingHandle = setInterval(() => {
@@ -167,11 +177,16 @@ async function refreshIdentity(tree: StatusTreeProvider, secrets: SecretsManager
 	const token = await secrets.getToken();
 	if (!token) {
 		tree.updateIdentity({ signedIn: false });
+		await vscode.commands.executeCommand('setContext', 'specbox.signedIn', false);
 		return;
 	}
-	// MVP: until whoami() is wired to the local MCP, treat token presence as signed-in.
-	// AG-09a smoke test verifies handle resolution via a follow-up integration test.
 	tree.updateIdentity({ signedIn: true, handle: maskHandle(token) });
+	await vscode.commands.executeCommand('setContext', 'specbox.signedIn', true);
+}
+
+async function updateSkillsContext(skillsTree: SkillsTreeProvider): Promise<void> {
+	const skills = skillsTree.getLoadedSkills();
+	await vscode.commands.executeCommand('setContext', 'specbox.hasSkills', skills.length > 0);
 }
 
 function maskHandle(token: string): string {

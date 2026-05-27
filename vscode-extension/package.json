@@ -48,60 +48,116 @@
     "workspaceContains:.claude/settings.json"
   ],
   "main": "./out/extension.js",
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "%capabilities.untrustedWorkspaces.description%"
+    }
+  },
   "contributes": {
     "commands": [
       {
         "command": "specbox.install",
         "title": "%command.install.title%",
+        "category": "SpecBox",
         "icon": "$(rocket)"
       },
       {
         "command": "specbox.healthCheck",
         "title": "%command.healthCheck.title%",
+        "category": "SpecBox",
         "icon": "$(pulse)"
       },
       {
         "command": "specbox.onboard",
         "title": "%command.onboard.title%",
-        "icon": "$(wand)"
+        "category": "SpecBox",
+        "icon": "$(wand)",
+        "enablement": "specbox.installed"
       },
       {
         "command": "specbox.showStatus",
-        "title": "%command.showStatus.title%"
+        "title": "%command.showStatus.title%",
+        "category": "SpecBox",
+        "enablement": "specbox.installed"
       },
       {
         "command": "specbox.configureMcp",
-        "title": "%command.configureMcp.title%"
+        "title": "%command.configureMcp.title%",
+        "category": "SpecBox",
+        "enablement": "specbox.installed"
       },
       {
         "command": "specbox.signIn",
         "title": "%command.signIn.title%",
-        "icon": "$(github-inverted)"
+        "category": "SpecBox",
+        "icon": "$(github-inverted)",
+        "enablement": "specbox.installed"
       },
       {
         "command": "specbox.signOut",
-        "title": "%command.signOut.title%"
+        "title": "%command.signOut.title%",
+        "category": "SpecBox",
+        "enablement": "specbox.installed && specbox.signedIn"
       },
       {
         "command": "specbox.identityQuickPick",
-        "title": "%command.identityQuickPick.title%"
+        "title": "%command.identityQuickPick.title%",
+        "category": "SpecBox",
+        "enablement": "specbox.installed"
       },
       {
         "command": "specbox.showSkillCard",
-        "title": "%command.showSkillCard.title%"
+        "title": "%command.showSkillCard.title%",
+        "category": "SpecBox"
+      },
+      {
+        "command": "specbox.refresh",
+        "title": "%command.refresh.title%",
+        "category": "SpecBox",
+        "icon": "$(refresh)",
+        "enablement": "specbox.installed"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "specbox.showSkillCard",
+          "when": "false"
+        },
+        {
+          "command": "specbox.signIn",
+          "when": "!specbox.signedIn"
+        },
+        {
+          "command": "specbox.signOut",
+          "when": "specbox.signedIn"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "specbox.healthCheck",
+          "when": "view == specbox.status",
+          "group": "navigation"
+        },
+        {
+          "command": "specbox.refresh",
+          "when": "view == specbox.skills",
+          "group": "navigation"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "specbox",
+          "id": "specbox-engine",
           "title": "%viewContainer.specbox.title%",
           "icon": "media/icon-sidebar.svg"
         }
       ]
     },
     "views": {
-      "specbox": [
+      "specbox-engine": [
         {
           "id": "specbox.status",
           "name": "%view.status.name%"
@@ -124,7 +180,10 @@
             "description": "Verify that Node.js, Python 3.12+, and Claude Code are installed.\n\n[Run Health Check](command:specbox.healthCheck)",
             "media": {
               "markdown": "media/walkthrough/step-prerequisites.md"
-            }
+            },
+            "completionEvents": [
+              "onCommand:specbox.healthCheck"
+            ]
           },
           {
             "id": "specbox.step.install",
@@ -132,7 +191,11 @@
             "description": "Install all SpecBox skills, 20+ hooks, and quality settings with one click.\n\n[Install SpecBox Engine](command:specbox.install)",
             "media": {
               "markdown": "media/walkthrough/step-install.md"
-            }
+            },
+            "completionEvents": [
+              "onCommand:specbox.install",
+              "onContext:specbox.installed"
+            ]
           },
           {
             "id": "specbox.step.mcp",
@@ -140,7 +203,10 @@
             "description": "Set up SpecBox MCP server and Engram persistent memory for Claude Code.\n\n[Configure MCP](command:specbox.configureMcp)",
             "media": {
               "markdown": "media/walkthrough/step-mcp.md"
-            }
+            },
+            "completionEvents": [
+              "onCommand:specbox.configureMcp"
+            ]
           },
           {
             "id": "specbox.step.firstProject",
@@ -148,15 +214,21 @@
             "description": "Create a CLAUDE.md from the engine template and start using /prd, /plan, /implement.\n\n[Open Onboarding Wizard](command:specbox.onboard)",
             "media": {
               "markdown": "media/walkthrough/step-first-project.md"
-            }
+            },
+            "completionEvents": [
+              "onCommand:specbox.onboard"
+            ]
           },
           {
             "id": "specbox.step.discoverSkills",
             "title": "%walkthrough.step.discoverSkills.title%",
-            "description": "Open the SpecBox sidebar to browse all installed skills grouped by category. Click any skill to see what it does and the exact command to use.\n\n[Open SpecBox sidebar](command:workbench.view.extension.specbox)",
+            "description": "Open the SpecBox sidebar to browse all installed skills grouped by category. Click any skill to see what it does and the exact command to use.\n\n[Open SpecBox sidebar](command:workbench.view.extension.specbox-engine)",
             "media": {
               "markdown": "media/walkthrough/step-discover-skills.md"
-            }
+            },
+            "completionEvents": [
+              "onView:specbox.skills"
+            ]
           }
         ]
       }
@@ -166,6 +238,11 @@
         "view": "specbox.status",
         "contents": "SpecBox Engine is not installed yet.\n\n[Install Engine](command:specbox.install)\n\nOr run the guided setup:\n\n[Start Onboarding Wizard](command:specbox.onboard)\n\n[Learn more](https://github.com/EmbedBuild/specbox-engine)",
         "when": "!specbox.installed"
+      },
+      {
+        "view": "specbox.skills",
+        "contents": "No skills detected on disk.\n\n[Install Skills](command:specbox.install)\n\nOr check `~/.claude/skills/` and reload the sidebar:\n\n[Refresh](command:specbox.refresh)",
+        "when": "specbox.installed && !specbox.hasSkills"
       }
     ],
     "configuration": {
@@ -174,22 +251,30 @@
         "specbox.enginePath": {
           "type": "string",
           "default": "",
+          "scope": "machine",
+          "order": 1,
           "description": "%configuration.enginePath.description%"
         },
         "specbox.autoHealthCheck": {
           "type": "boolean",
           "default": true,
+          "scope": "application",
+          "order": 2,
           "description": "%configuration.autoHealthCheck.description%"
         },
         "specbox.mcpAutoStart": {
           "type": "boolean",
           "default": true,
+          "scope": "machine",
+          "order": 3,
           "description": "%configuration.mcpAutoStart.description%"
         },
         "specbox.signInBaseUrl": {
           "type": "string",
           "default": "",
-          "description": "%configuration.signInBaseUrl.description%"
+          "scope": "application",
+          "order": 4,
+          "markdownDescription": "%configuration.signInBaseUrl.markdownDescription%"
         }
       }
     }

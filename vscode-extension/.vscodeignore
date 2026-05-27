@@ -1,7 +1,22 @@
 .vscode/**
+.vscode-test/**
 src/**
+tests/**
 node_modules/**
-tsconfig.json
-.gitignore
+out/**/*.d.ts
+out/**/*.js.map
+out/tsconfig.tsbuildinfo
 **/*.ts
 **/*.map
+**/tsconfig*.json
+.gitignore
+.vscodeignore
+.eslintrc*
+**/.eslintrc*
+package-lock.json
+install-ext.mjs
+specbox-engine-*.vsix
+media/screenshots/**
+media/specbox_sidebar_icon.png
+media/Logo SpecBox.png
+README.es.md

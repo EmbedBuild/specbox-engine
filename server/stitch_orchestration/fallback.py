@@ -20,7 +20,8 @@ class FallbackStrategy(str, Enum):
     EDIT_BASELINE = "edit_baseline"
     VARIANTS_REFINE = "variants_refine"
     REGENERATE = "regenerate"
-    FLASH_SAFETY_NET = "flash_safety_net"
+    # FLASH_SAFETY_NET removed in v6.4.0 — Stitch MCP is free of charge,
+    # there is no quota cliff to degrade away from.
 
 
 class FallbackOutcome(str, Enum):
@@ -123,10 +124,8 @@ async def generate_screen_with_fallback(
     *,
     device_type: str = "DESKTOP",
     model_id: str = "GEMINI_3_PRO",
-    flash_model_id: str = "GEMINI_3_FLASH",
     baseline_screen_id: str | None = None,
     fallback_strategy: list[FallbackStrategy] | None = None,
-    enable_flash_safety_net: bool = False,
     max_total_attempts: int = 3,
     sleep: Callable[[float], Awaitable[None]] | None = None,
 ) -> FallbackResult:
@@ -139,10 +138,11 @@ async def generate_screen_with_fallback(
             screen; without it those strategies are skipped.
         fallback_strategy: Strategies in order. Defaults to
             ``[EDIT_BASELINE, VARIANTS_REFINE, REGENERATE]``.
-        enable_flash_safety_net: When True, append a final attempt with
-            ``flash_model_id`` and mark the result ``degraded=True``.
-            Default False — calling code must opt in explicitly.
         max_total_attempts: Hard ceiling across all strategies.
+
+    Note: v5.31 ``enable_flash_safety_net`` and ``flash_model_id`` were
+    removed in v6.4.0 — Stitch MCP is free of charge, so degrading to
+    Flash to save quota is no longer warranted.
     """
 
     strategies = list(
@@ -152,8 +152,6 @@ async def generate_screen_with_fallback(
             FallbackStrategy.REGENERATE,
         ]
     )
-    if enable_flash_safety_net:
-        strategies.append(FallbackStrategy.FLASH_SAFETY_NET)
 
     attempts: list[dict] = []
 
@@ -186,41 +184,21 @@ async def generate_screen_with_fallback(
             if not baseline_screen_id:
                 continue
 
-        chosen_model = (
-            flash_model_id
-            if strat == FallbackStrategy.FLASH_SAFETY_NET
-            else model_id
-        )
-
         out = await _run_strategy(
             ops,
             strat,
             project_id=project_id,
             prompt=prompt,
             device_type=device_type,
-            model_id=chosen_model,
+            model_id=model_id,
             baseline_screen_id=baseline_screen_id,
             attempts=attempts,
         )
         if out is not None:
-            if strat == FallbackStrategy.FLASH_SAFETY_NET:
-                last_err = next(
-                    (a["error"] for a in attempts if a.get("error")),
-                    "PRO chain exhausted",
-                )
-                return FallbackResult(
-                    outcome=FallbackOutcome.OK_DEGRADED,
-                    final_strategy=strat.value,
-                    model_used=flash_model_id,
-                    attempts=attempts,
-                    result=out,
-                    degraded=True,
-                    degraded_reason=last_err,
-                )
             return FallbackResult(
                 outcome=FallbackOutcome.OK_AFTER_FALLBACK,
                 final_strategy=strat.value,
-                model_used=chosen_model,
+                model_used=model_id,
                 attempts=attempts,
                 result=out,
             )
@@ -273,8 +251,7 @@ async def _run_strategy(
                 creative_range="REFINE",
             )
         else:
-            # REGENERATE and FLASH_SAFETY_NET both call generate_screen,
-            # only model_id differs.
+            # REGENERATE calls generate_screen with the requested model.
             res = await ops.generate_screen(
                 project_id,
                 prompt,

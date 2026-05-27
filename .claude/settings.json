@@ -111,16 +111,6 @@
         ]
       },
       {
-        "matcher": "mcp__SpecBox-MCP__stitch_.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .claude/hooks/stitch-quota-guard.mjs",
-            "timeout": 3
-          }
-        ]
-      },
-      {
         "matcher": "mcp__SpecBox-MCP__(set_auth_token|onboard_project)",
         "hooks": [
           {

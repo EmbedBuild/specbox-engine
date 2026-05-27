@@ -180,69 +180,9 @@ class TestFallbackPaths:
         assert r.final_strategy == FallbackStrategy.VARIANTS_REFINE.value
 
 
-class TestFlashSafetyNet:
-    @pytest.mark.asyncio
-    async def test_off_by_default(self):
-        ops = FakeOps(
-            {
-                "generate_screen": [
-                    RuntimeError("monthly quota exhausted"),
-                    RuntimeError("monthly quota exhausted"),
-                ],
-            }
-        )
-        r = await generate_screen_with_fallback(
-            ops, "p1", "Login", baseline_screen_id=None
-        )
-        assert r.outcome == FallbackOutcome.FAILED
-        assert r.degraded is False
-        # Only PRO calls were made.
-        assert all(c.get("model_id") == "GEMINI_3_PRO" for c in ops.calls)
-
-    @pytest.mark.asyncio
-    async def test_engaged_when_opted_in_and_pro_exhausted(self):
-        ops = FakeOps(
-            {
-                "generate_screen": [
-                    RuntimeError("monthly quota exhausted"),
-                    RuntimeError("monthly quota exhausted"),
-                    {"screen_id": "s_flash", "model": "FLASH"},
-                ],
-            }
-        )
-        r = await generate_screen_with_fallback(
-            ops,
-            "p1",
-            "Login",
-            baseline_screen_id=None,
-            enable_flash_safety_net=True,
-            max_total_attempts=5,
-        )
-        assert r.outcome == FallbackOutcome.OK_DEGRADED
-        assert r.degraded is True
-        assert r.model_used == "GEMINI_3_FLASH"
-        assert "quota" in (r.degraded_reason or "").lower()
-
-    @pytest.mark.asyncio
-    async def test_does_not_engage_if_pro_succeeds_via_fallback(self):
-        ops = FakeOps(
-            {
-                "generate_screen": [
-                    TimeoutError("Read timeout"),
-                    {"screen_id": "s_regen"},
-                ],
-            }
-        )
-        r = await generate_screen_with_fallback(
-            ops,
-            "p1",
-            "Login",
-            baseline_screen_id=None,
-            enable_flash_safety_net=True,
-        )
-        assert r.outcome == FallbackOutcome.OK_AFTER_FALLBACK
-        assert r.degraded is False
-        assert r.model_used == "GEMINI_3_PRO"
+# NOTE: TestFlashSafetyNet removed in v6.4.0 — the Flash safety net was
+# a defensive degradation for a quota cliff that does not exist on the
+# Stitch MCP/API surface. See doc/decisions/stitch_native_chain.md.
 
 
 class TestFallbackBudget:

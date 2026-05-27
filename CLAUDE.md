@@ -1,4 +1,4 @@
-# SpecBox Engine v6.1.1
+# SpecBox Engine v6.4.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -658,13 +658,13 @@ Configuracion MCP de providers en `templates/settings.json.template` → seccion
 - Decisiones: `doc/research/veg-tooling-decisions.md`
 - Por feature: `doc/veg/{feature}/` (generado por /plan)
 
-## Stitch MCP Proxy (v5.6.0)
+## Stitch MCP Proxy (v6.4.0 — Native Material 3 Chain)
 
-Proxy completo de Google Stitch a traves del SpecBox Engine MCP server. Permite que usuarios de claude.ai usen Stitch sin configurar un conector OAuth adicional — la API Key se configura por proyecto. Cubre los 12 tools nativos de Stitch + 1 tool de configuracion.
+Proxy completo de Google Stitch a través del SpecBox Engine MCP server. Permite que usuarios de claude.ai usen Stitch sin configurar un conector OAuth adicional — la API Key se configura por proyecto. Cubre las **14 tools nativas** del MCP de Stitch (verificadas vía `tools/list` el 2026-05-26, ver `.quality/evidence/stitch_smoke/mcp_tools_schema.json`) + 1 tool de configuración.
 
-### Tools (13)
+### Tools (15)
 
-| Tool | Descripcion | Timeout |
+| Tool | Descripción | Timeout |
 |------|-------------|---------|
 | `stitch_set_api_key` | Configurar/actualizar API Key de Stitch para un proyecto | normal |
 | `stitch_create_project` | Crear nuevo proyecto/workspace en Stitch | normal |
@@ -677,58 +677,89 @@ Proxy completo de Google Stitch a traves del SpecBox Engine MCP server. Permite 
 | `stitch_generate_screen` | Generar pantalla desde prompt | 6 min |
 | `stitch_edit_screen` | Editar pantalla existente con prompt | 6 min |
 | `stitch_generate_variants` | Generar variantes de una pantalla | 6 min |
-| `stitch_extract_design_context` | Extraer Design DNA (fuentes, colores, layouts) | normal |
-| `stitch_build_site` | Construir sitio multi-pagina mapeando screens a rutas | 6 min |
+| `stitch_upload_design_md` | Subir DESIGN.md (Material 3 YAML) a Stitch (MCP <5KB / REST batchCreate ≥5KB) | 3 min |
+| `stitch_create_design_system` | Crear un Design System vacío para luego poblarlo con update | 3 min |
+| `stitch_create_design_system_from_design_md` | Parsear DESIGN.md previo y materializar DS server-side | 3 min |
+| `stitch_update_design_system` | Mutar tokens del theme in-place (M3) | 3 min |
+| `stitch_list_design_systems` | Listar DS aplicados al proyecto | normal |
+| `stitch_apply_design_system` | Aplicar DS a un batch de screen instances | 3 min |
 
-### Enums de Stitch
+**Removed in v6.4.0** (ghost tools — no existían en el MCP real, sólo en el cliente local): `stitch_extract_design_context` y `stitch_build_site`. Para el primero, usa `stitch_get_screen` (devuelve `designTheme`) o `stitch_list_design_systems`. Para el segundo, usa múltiples `stitch_generate_screen` con `designSystem: "assets/{id}"` compartido, o `stitch_build_site_batched_v2` (capa autopilot).
 
-- **DeviceType**: `DESKTOP`, `MOBILE`, `TABLET`, `AGNOSTIC`
-- **ModelId**: `GEMINI_3_PRO` (complejo), `GEMINI_3_FLASH` (simple)
-- **CreativeRange** (variantes): `REFINE` (sutil), `EXPLORE` (moderado), `REIMAGINE` (radical)
-- **Aspects** (variantes): `LAYOUT`, `COLOR_SCHEME`, `IMAGES`, `TEXT_FONT`, `TEXT_CONTENT`
+### Enums (verificados contra el servidor real)
 
-### Flujo
+Los enums se mantienen en `server/stitch_enums.py` y se pinnean en CI contra `mcp_tools_schema.json` para detectar drift cuando Google actualice el servidor.
 
-1. `stitch_set_api_key(project="mi-proyecto", api_key="AIza...")` — configura la key
-2. `stitch_create_project(project="mi-proyecto", title="Mi App")` — crea proyecto
-3. `stitch_generate_screen(project="mi-proyecto", stitch_project_id="xxx", prompt="...")` — genera diseño
-4. `stitch_edit_screen(...)` — itera sobre el diseño
-5. `stitch_extract_design_context(...)` — extrae Design DNA para consistencia
-6. `stitch_generate_variants(...)` — explora alternativas
-7. `stitch_fetch_screen_code(...)` — descarga HTML para integrar en codigo
-8. `stitch_build_site(...)` — ensambla sitio multi-pagina
+- **DeviceType**: `DESKTOP`, `MOBILE`, `TABLET` — el `AGNOSTIC` que aparecía en docs históricas **no existe** en el MCP real.
+- **ModelId**: `GEMINI_3_PRO` (calidad, default) / `GEMINI_3_FLASH` (rápido).
+- **ColorMode**: `LIGHT`, `DARK`.
+- **ColorVariant** (10): `FIDELITY`, `TONAL_SPOT` (no `TONAL` como dicen las docs), `VIBRANT`, `EXPRESSIVE`, `CONTENT`, `MONOCHROME`, `NEUTRAL`, `RAINBOW`, `FRUIT_SALAD` (+ UNSPECIFIED).
+- **Roundness**: `ROUND_TWO`, `ROUND_FOUR`, `ROUND_EIGHT`, `ROUND_TWELVE`, `ROUND_FULL` (+ UNSPECIFIED). `ROUND_TWO` no aparece en docs públicas.
+- **StitchFont**: 65 fuentes — incluye `GEIST`, `DM_SANS`, `GOOGLE_SANS_*`, `JETBRAINS_MONO`, etc. — vs. 9 documentadas en repos públicos.
+- **CreativeRange** (variantes): `REFINE` (sutil), `EXPLORE` (moderado), `REIMAGINE` (radical).
+- **VariantAspect**: `LAYOUT`, `COLOR_SCHEME`, `IMAGES`, `TEXT_FONT`, `TEXT_CONTENT`.
+- **ScreenType** (REST batchCreate): `DOCUMENT` (HTML / Markdown), `IMAGE` (PNG / JPEG / WebP).
+
+### Flujo (chain canónica de 7 pasos — verificada en `.quality/evidence/stitch_smoke/smoke_test_mcp_v2.py`, verdict `pass`)
+
+1. `stitch_list_projects()` → identificar proyecto, o `stitch_create_project(title)`.
+2. `stitch_upload_design_md(stitch_project_id, design_md_content)` — sube DESIGN.md (Material 3 YAML frontmatter). El wrapper auto-elige MCP (<5KB) o REST `batchCreate` (≥5KB). Devuelve `{id, sourceScreen}` del screen DOCUMENT.
+3. `stitch_create_design_system_from_design_md(stitch_project_id, screen_instance_id, source_screen, device_type)` — parsea el YAML frontmatter y materialise el DS server-side. Latencia observada ~43s. Devuelve `{assetId}`.
+4. `stitch_list_design_systems(stitch_project_id)` — resuelve `assets/{id}` para uso posterior.
+5. (opcional) `stitch_update_design_system(asset_name, project_id, theme)` — mutar tokens M3 sin regenerar.
+6. `stitch_apply_design_system(stitch_project_id, asset_id, [{id, sourceScreen}, ...])` — aplica DS a screens existentes (~19s por screen). **Importante**: el array debe contener solo `id` y `sourceScreen`; `x/y/width/height` son rechazados por el servidor.
+7. `stitch_generate_screen(project, stitch_project_id, prompt, ...)` con el DS ya aplicado → los prompts **NO** deben incluir colors / fonts / roundness, Stitch los aplica server-side.
+
+### Mapper VEG ↔ Material 3
+
+`server/veg/material3_mapper.py` traduce los 6 arquetipos VEG (`corporate`, `startup`, `creative`, `consumer`, `gen_z`, `gobierno`) a `Material3Theme` server-validatable. Resolution order: archetype defaults → JTBD overrides (whitelist de 3 campos) → BrandKit overrides. La función inversa `material3_to_veg_hints` propone candidatos VEG dado un theme existente — útil para migration case E (DESIGN.md custom).
 
 ### Almacenamiento de API Key
 
-- **Sesion**: Credenciales en FastMCP session state (aisladas por cliente)
-- **Disco**: Key en base64 en `meta.json` del proyecto (fallback entre sesiones)
-- **Telemetria**: Uso registrado en `stitch_usage.jsonl` por proyecto
+- **Sesión**: Credenciales en FastMCP session state (aisladas por cliente).
+- **Disco**: Key en base64 en `meta.json` del proyecto (fallback entre sesiones).
+- **Telemetría**: Uso registrado en `stitch_usage.jsonl` por proyecto.
+
+### Cuota — sin cuota
+
+Stitch MCP es **free of charge** (verificado por la extensión oficial Gemini CLI + smoke v2 contra el endpoint real). La cuota documentada de 350 Standard + 200 Experimental por mes **corresponde a la UI web**, no al MCP. v6.4.0 elimina el subsistema entero de tracking (`get_stitch_quota_status`, hook `stitch-quota-guard.mjs`, settings `quota`/`flash_safety_net`) — resolvía un problema que no existe.
 
 ### Arquitectura
 
-- `server/stitch_client.py` — Cliente async MCP JSON-RPC (Streamable HTTP + SSE)
-- `server/tools/stitch.py` — 13 tools registrados en FastMCP
-- `server/auth_gateway.py` — `store_stitch_credentials()` / `get_stitch_client()` per-project
-- Timeout de 6 minutos para operaciones de generacion
-- Retry con backoff exponencial para errores transitorios
+- `server/stitch_client.py` — Cliente async MCP JSON-RPC (Streamable HTTP + SSE) + helper REST `batchCreate` para uploads grandes.
+- `server/stitch_enums.py` — 8 enums pinneados contra `mcp_tools_schema.json`.
+- `server/tools/stitch.py` — 12 tools v1 + 6 tools de design-system v6.4.0 registradas en FastMCP.
+- `server/veg/material3_mapper.py` — Mapper determinista VEG ↔ M3.
+- `server/auth_gateway.py` — `store_stitch_credentials()` / `get_stitch_client()` per-project.
+- Timeouts: 30s default, 6 min para `generate_*`, 3 min para tools de DS (`create_design_system_from_design_md` mide ~43s).
+- Retry con backoff exponencial para errores transitorios.
 
-## Stitch Autopilot (v5.31.0 + /plan migration v5.31.1)
+## Stitch Autopilot (v5.31.0 + /plan migration v5.31.1, refactored v6.4.0)
 
 Capa que se asienta encima del Stitch MCP Proxy v1 para resolver los bloqueos
 recurrentes de autopilot causados por (a) drift visual entre pantallas, (b)
-fallos terminales de generación sin recuperación, (c) falta de visibilidad
-sobre la cuota mensual de Google Stitch (350 Standard + 200 Experimental, sin
-upgrade), y (d) prompts mal estructurados que producen primeras generaciones
-peores de lo necesario.
+fallos terminales de generación sin recuperación, (c) prompts mal estructurados
+que producen primeras generaciones peores de lo necesario.
+
+**Histórico**: la v5.31 original también mitigaba (d) cuota mensual y (e) la
+ausencia de endpoint nativo de attach para DESIGN.md. Tras la auditoría
+post-Google-I/O y los smoke tests reales contra el servidor (ver
+`.quality/evidence/stitch_smoke/`), ambos motivos resultaron obsoletos:
+**Stitch MCP es free of charge** y **`upload_design_md` +
+`create_design_system_from_design_md` SÍ existen nativamente** desde mediados
+de 2026. v6.4.0 retira las defensas correspondientes (quota subsystem, Flash
+safety net) y prepara la transición del `inline-prefix` al native chain.
 
 **v5.31.1 update**: `/plan` ya está migrado al pipeline v2. Cada generación
 pasa por `validate_stitch_prompt` → `stitch_generate_screen_v2` (con fallback
-chain) y los planes con >5 pantallas usan `stitch_build_site_batched_v2`. Ver
-Paso 5.5 (pre-check DESIGN.md + cuota) y Paso 6.3/6.7 del SKILL.md de `/plan`.
+chain) y los planes con >5 pantallas usan `stitch_build_site_batched_v2`. La
+adaptación de `/plan` y `stitch_generate_screen_v2` para usar la chain nativa
+y omitir tokens del prompt cuando DS está aplicado se entrega en una **PR-2
+posterior** (UC-705 del PRD `stitch_native_migration_prd.md`).
 
 **Decisión de calidad**: el modelo default sigue siendo `GEMINI_3_PRO`. Flash
-NO es default — solo está disponible como red de seguridad opt-in
-(`specbox.stitch.fallback.flash_safety_net=false` por defecto).
+como safety-net **fue eliminado en v6.4.0** — degradar a Flash era defensivo
+para una cuota inexistente.
 
 ### 5 capas (todas aditivas, v1 sigue funcionando)
 
@@ -738,9 +769,12 @@ NO es default — solo está disponible como red de seguridad opt-in
    `doc/design/DESIGN.md` (YAML front-matter + Markdown body) desde Brand Kit
    + VEG + canónicos `app_prd.md` / `app_spec.md`. Cuando faltan inputs,
    completa desde 6 arquetipos VEG (corporate / startup / creative / consumer
-   / gen_z / gov). `upload_design_md_to_stitch` lo registra contra el
-   proyecto Stitch en modo `inline-prefix` (Stitch MCP no expone hoy un
-   endpoint nativo de attach — el contenido se prepende al prompt).
+   / gen_z / gov). `upload_design_md_to_stitch` v5.31 lo registra contra el
+   proyecto Stitch en modo `inline-prefix` legacy (prepende DESIGN.md al
+   prompt). La chain nativa v6.4.0 (`stitch_upload_design_md` +
+   `stitch_create_design_system_from_design_md` + `stitch_apply_design_system`)
+   ya está disponible y será el contrato default desde **v7.0** (cutover
+   duro previsto; ver `doc/migrations/v7_stitch_native_chain.md`).
 
 2. **Prompt template 4-capas + validador** — Context (≤80 palabras) /
    Components (lista) / Style (hex codes) / Platform.
@@ -754,10 +788,10 @@ NO es default — solo está disponible como red de seguridad opt-in
 
 3. **Fallback chain** — `stitch_generate_screen_v2` aplica el ladder
    `edit_baseline → variants_refine → regenerate` cuando la llamada
-   natural falla. Clasifica el error (`transient | quota | content |
-   unknown`) para decidir si reintentar. Si todas las estrategias PRO
-   fallan AND `flash_safety_net=true`, último intento con
-   `GEMINI_3_FLASH` marcando el resultado `degraded=true`.
+   natural falla. Clasifica el error (`transient | content | unknown`)
+   para decidir si reintentar. El Flash safety-net fue eliminado en
+   v6.4.0 (cuota inexistente). El parámetro `max_total_attempts: 3` se
+   mantiene como hard ceiling para evitar loops de healing.
 
 4. **Batched build_site** — `stitch_build_site_batched_v2` particiona
    pantallas en grupos de ≤4 (priorizando tag `group` explícito, luego
@@ -766,30 +800,23 @@ NO es default — solo está disponible como red de seguridad opt-in
    batch. Resuelve el límite duro de ~5 pantallas conectadas por
    `build_site` que Google reporta en foros.
 
-5. **Quota tracking + safety net opt-in** —
-   `get_stitch_quota_status` agrega `stitch_usage.jsonl` por mes y modelo,
-   surfacea warning a ≥80% y mensaje de exhausted a 100%, y persiste un
-   cache compacto en `.quality/stitch_quota.json` para el hook
-   `stitch-quota-guard.mjs`. El hook (PreToolUse para tools
-   `mcp__SpecBox-MCP__stitch_*`) warnea ≥80% y bloquea (exit 2) cuando
-   PRO está exhausted Y `flash_safety_net=false`.
+5. **Quota tracking + safety net** — **ELIMINADO en v6.4.0**. Stitch MCP es
+   free of charge — la tool `get_stitch_quota_status`, el hook
+   `stitch-quota-guard.mjs`, el cache `.quality/stitch_quota.json` y las
+   settings `quota` + `flash_safety_net` fueron retirados. Cualquier referencia
+   en la documentación de versiones previas es obsoleta.
 
-### Settings (`templates/settings.json.template` → `stitch`)
+### Settings (`templates/settings.json.template` → `stitch`, v6.4.0)
 
 ```json
 {
   "stitch": {
     "modelId": "GEMINI_3_PRO",
+    "contract": "native_v2",
     "fallback": {
       "enabled": true,
       "strategy": ["edit_baseline", "variants_refine", "regenerate"],
-      "flash_safety_net": false,
       "max_total_attempts": 3
-    },
-    "quota": {
-      "warn_pct": 80,
-      "standard_limit": 350,
-      "experimental_limit": 200
     },
     "prompt": { "validator_mode": "warn" }
   }
@@ -798,15 +825,22 @@ NO es default — solo está disponible como red de seguridad opt-in
 
 ### Compatibilidad
 
-- 100% backwards-compatible: las 13 tools v1 siguen registradas. Las 6 tools v2
-  son aditivas (`generate_design_md_tool`, `upload_design_md_to_stitch`,
-  `validate_stitch_prompt`, `stitch_generate_screen_v2`,
-  `stitch_build_site_batched_v2`, `get_stitch_quota_status`).
-- `/plan` Paso 6 fue migrado al pipeline v2 en v5.31.1 (esta release).
-  Antes de v5.31.1 `/plan` usaba `mcp__stitch__generate_screen_from_text`
-  directo; desde v5.31.1 valida prompts antes de generar y usa
-  `stitch_generate_screen_v2` con fallback chain.
-- Solo se modifica `/visual-setup` (añade Paso 3.7 + 3.8).
+- 100% backwards-compatible para callers v5.31: las 13 tools v1 siguen
+  registradas. Las tools v2 v5.31 (`generate_design_md_tool`,
+  `upload_design_md_to_stitch`, `validate_stitch_prompt`,
+  `stitch_generate_screen_v2`, `stitch_build_site_batched_v2`) siguen
+  funcionando en modo `stitch.contract=inline_prefix_v1`.
+- 6 tools nuevas en v6.4.0 (chain nativa): `stitch_upload_design_md`,
+  `stitch_create_design_system`, `stitch_create_design_system_from_design_md`,
+  `stitch_update_design_system`, `stitch_list_design_systems`,
+  `stitch_apply_design_system`. Default `stitch.contract=native_v2` para
+  proyectos nuevos.
+- `/plan` Paso 6 fue migrado al pipeline v2 en v5.31.1. La transición a la
+  chain nativa (omitir tokens del prompt cuando DS aplicado) se entrega en
+  la PR-2 del PRD `stitch_native_migration_prd.md`.
+- Cutover duro previsto en **v7.0**: `inline_prefix_v1` se elimina,
+  migración obligatoria al upgrade. Documentado en
+  `doc/migrations/v7_stitch_native_chain.md`.
 
 ### Plan completo
 
@@ -1236,7 +1270,7 @@ documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
 
 ## Engine Version
 
-Current: v6.1.1 "Cutover Followup"
+Current: v6.4.0 "Stitch Native Migration"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

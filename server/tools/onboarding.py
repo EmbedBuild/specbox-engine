@@ -1168,6 +1168,37 @@ def register_onboarding_tools(
                 "in ICPs + JTBDs + NSM."
             ),
         }
+
+        # v6.5.0 — Stitch native chain migration hint. Loud advisory for
+        # projects still on inline_prefix_v1 because v7.0 cuts it over.
+        meta_stitch = meta.get("stitch") if isinstance(meta.get("stitch"), dict) else {}
+        stitch_contract = meta_stitch.get("contract") if meta_stitch else None
+        stitch_migration_alignment = {
+            "action": (
+                "Run /visual-setup --migrate-stitch in the project repo to "
+                "plan the Stitch native-chain migration. The skill calls "
+                "detect_stitch_migration_case + migrate_project_to_native_v2 "
+                "and walks you through the recipe (cases A-F)."
+            ),
+            "reason": (
+                f"stitch.contract recorded in meta.json is {stitch_contract!r}. "
+                "v6.4.0+ ships the native Material 3 chain; v7.0 will remove "
+                "inline_prefix_v1 entirely. Earlier migration = smoother cutover."
+            ),
+            "current_contract": stitch_contract,
+            "target_contract": "native_v2",
+            "cutover_release": "v7.0",
+            "tools": [
+                "detect_stitch_migration_case",
+                "migrate_project_to_native_v2",
+            ],
+            "doc": "doc/migrations/v7_stitch_native_chain.md",
+            "skippable_if": (
+                "stitch.contract is already 'native_v2' (case A) or the "
+                "project does not use Stitch."
+            ),
+        }
+
         all_warnings = (warnings if warnings else []) + (canonical_warnings or [])
 
         return {
@@ -1187,6 +1218,8 @@ def register_onboarding_tools(
             "visual_alignment": visual_alignment,
             "settings_migration": settings_migration,
             "discovery_alignment": discovery_alignment,  # v6.0
+            "stitch_migration_alignment": stitch_migration_alignment,  # v6.5
+            "stitch_contract": stitch_contract,  # surfaced for version_matrix
             "instructions": (
                 "IMPORTANT: Replace .claude/settings.json FIRST — the old matcher format "
                 "was broken (object instead of string) and caused Claude Code to ignore all "
@@ -1195,7 +1228,10 @@ def register_onboarding_tools(
                 "E2E evidence gaps and visual identity gaps respectively. "
                 "v6.0: review canonical_docs_to_create — for each entry, write the content "
                 "to its path ONLY IF the file doesn't already exist (preserves the invariant). "
-                "engine_version_at_onboard is now tracked in meta.json (UC-D005)."
+                "engine_version_at_onboard is now tracked in meta.json (UC-D005). "
+                "v6.5: review stitch_migration_alignment — if your project uses Stitch and "
+                "is still on inline_prefix_v1, run /visual-setup --migrate-stitch to plan "
+                "the move to native_v2 before v7.0 cuts the legacy contract over."
             ),
         }
 
@@ -1261,6 +1297,7 @@ def register_onboarding_tools(
         projects: list[dict] = []
         needs_upgrade_count = 0
 
+        stitch_contract_counts: dict[str, int] = {}
         for proj_name in sorted(registry.get("projects", {}).keys()):
             project_dir = state_path / "projects" / proj_name
             meta = _read_meta(project_dir)
@@ -1272,21 +1309,43 @@ def register_onboarding_tools(
             if needs_upgrade:
                 needs_upgrade_count += 1
 
+            # v6.5 — Stitch contract column.
+            stitch_meta = meta.get("stitch") if isinstance(meta.get("stitch"), dict) else {}
+            stitch_contract = stitch_meta.get("contract") if stitch_meta else None
+            if stitch_contract is None:
+                # Pre-v6.4 projects with Stitch wired but no contract field are
+                # implicitly on the legacy contract. Without any stitch
+                # configuration we treat them as not_applicable.
+                if stitch_meta and ("projectId" in stitch_meta or "design_md" in (meta or {})):
+                    stitch_contract_value = "inline_prefix_v1"
+                else:
+                    stitch_contract_value = "not_applicable"
+            elif stitch_contract in {"native_v2", "inline_prefix_v1"}:
+                stitch_contract_value = stitch_contract
+            else:
+                stitch_contract_value = "unknown"
+            stitch_contract_counts[stitch_contract_value] = (
+                stitch_contract_counts.get(stitch_contract_value, 0) + 1
+            )
+
             projects.append({
                 "project": proj_name,
                 "engine_version": proj_engine,
                 "mcp_version": proj_mcp,
                 "last_upgraded_at": meta.get("last_upgraded_at", "never"),
                 "stack": meta.get("stack", "unknown"),
+                "stitch_contract": stitch_contract_value,
                 "needs_upgrade": needs_upgrade,
             })
 
+        legacy_contract_count = stitch_contract_counts.get("inline_prefix_v1", 0)
         return {
             "current_engine_version": current_engine,
             "current_mcp_version": current_mcp,
             "total_projects": len(projects),
             "needs_upgrade": needs_upgrade_count,
             "up_to_date": len(projects) - needs_upgrade_count,
+            "stitch_contract_summary": stitch_contract_counts,
             "projects": projects,
             "e2e_gap_hint": (
                 "After upgrading, run get_e2e_gap_report on each project to detect "
@@ -1297,6 +1356,13 @@ def register_onboarding_tools(
                 "After upgrading, run get_visual_gap_report on each project to detect "
                 "missing brand kit, Stitch Design System, or VEG base configuration. "
                 "v5.14.0+ supports /visual-setup for consistent design identity."
+            ),
+            "stitch_migration_hint": (
+                f"{legacy_contract_count} project(s) still on stitch.contract=inline_prefix_v1. "
+                "Run /visual-setup --migrate-stitch on each to plan the move to native_v2 "
+                "before v7.0 cuts the legacy contract over. See doc/migrations/v7_stitch_native_chain.md."
+            ) if legacy_contract_count > 0 else (
+                "No projects on the legacy Stitch contract — safe for the v7.0 cutover."
             ),
         }
 

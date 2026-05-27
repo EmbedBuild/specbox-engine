@@ -224,12 +224,18 @@ class TestUploadDesignMdToStitch:
     @pytest.mark.asyncio
     async def test_registers_inline_prefix_mode(self, mcp_with_v2, project_root):
         mcp, state = mcp_with_v2
-        # First generate.
+        # Generate the DESIGN.md in legacy SpecBox-native shape — the
+        # legacy upload_design_md_to_stitch tool parses with the
+        # SpecBox-native FrontMatter schema. v6.4.0's native_v2 default
+        # is intentionally incompatible with that legacy reader; the
+        # PR-2 migration path goes through stitch_upload_design_md
+        # instead.
         await _call_tool(
             mcp,
             "generate_design_md_tool",
             project="demo",
             project_root=str(project_root),
+            contract="inline_prefix_v1",
         )
         # Then register.
         result = await _call_tool(
@@ -281,6 +287,7 @@ class TestUploadDesignMdToStitch:
             "generate_design_md_tool",
             project="demo",
             project_root=str(project_root),
+            contract="inline_prefix_v1",
         )
         explicit = project_root / "doc" / "design" / "DESIGN.md"
         result = await _call_tool(

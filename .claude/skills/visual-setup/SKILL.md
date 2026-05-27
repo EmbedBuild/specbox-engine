@@ -1410,4 +1410,97 @@ Todos los artefactos generados hasta el punto de cancelacion se mantienen. El us
 | DESKTOP | >= 1024px |
 | TABLET | 768px - 1023px |
 | MOBILE | < 768px |
-| AGNOSTIC | Sin breakpoint especifico |
+
+> `AGNOSTIC` aparecía en versiones previas de la documentación pero **no existe** en el MCP real de Stitch (verificado vía `tools/list` en v6.4.0). Usar `DESKTOP` como fallback.
+
+---
+
+## Modo `--migrate-stitch` (v6.5.0)
+
+Sub-comando que migra un proyecto del contrato legacy `inline_prefix_v1` al chain nativo `native_v2` (DESIGN.md → `create_design_system_from_design_md` → `apply_design_system`). Documentado end-to-end en [doc/migrations/v7_stitch_native_chain.md](../../doc/migrations/v7_stitch_native_chain.md). Cutover duro previsto para **v7.0**.
+
+### Cuándo usarlo
+
+- El usuario dice "migrar stitch", "pasar a chain nativa", "migrate stitch", "actualizar contrato stitch".
+- `upgrade_project` emitió un hint `stitch_migration_pending`.
+- Antes de empezar a trabajar en un proyecto v5.x con Stitch ya cableado.
+
+### Pasos
+
+**0. Pre-check**
+
+- Lee `.claude/settings.local.json` del proyecto cliente (no del MCP).
+- Lee `doc/design/DESIGN.md` si existe.
+- Cuenta los HTML generados en `doc/design/{feature}/*.html` (estimación del nº de pantallas previas).
+- Llama:
+  ```
+  detect_stitch_migration_case(
+    project="<slug>",
+    settings_local_json=<text>,
+    design_md_content=<text>,
+    generated_screens_count=<int>
+  )
+  ```
+- Toma el `case` (A-F) y el `recommended_action`.
+
+**1. Pide la recipe**
+
+```
+migrate_project_to_native_v2(
+  project="<slug>",
+  case="<A|B|C|D|E|F>",
+  settings_local_json=<text>,
+  design_md_content=<text>
+)
+```
+
+Devuelve `{actions, files_to_write, stitch_calls, settings_patch, confirmation_required, notes}`.
+
+**2. Presenta el plan al usuario**
+
+- Muestra `actions` en orden + `notes`.
+- Si `confirmation_required` no es null, dile al usuario el literal exacto que debe escribir (e.g., `MIGRATE-RETROACTIVE` para case D, `APPLY-PROPOSAL` para case E).
+- Si el caso es `A`, sal sin hacer nada.
+
+**3. Ejecuta cada action en orden**
+
+| Action ID | Operación |
+|-----------|-----------|
+| `noop` | Nada |
+| `set_contract_native_v2` | Aplica `settings_patch` a `.claude/settings.local.json` |
+| `backup_design_md` / `backup_design_md_if_present` | Renombra DESIGN.md → DESIGN.md.pre-migration.bak |
+| `regenerate_design_md_as_native_v2` | Llama `generate_design_md_tool(contract="native_v2", ...)` |
+| `create_stitch_project_if_missing` | Llama `stitch_create_project` si no hay `stitch.projectId` |
+| `upload_design_md_via_rest_batch_create` | Llama `stitch_upload_design_md` (auto-elige REST si >5KB) |
+| `create_design_system_from_design_md` | Llama `stitch_create_design_system_from_design_md` |
+| `list_design_systems` | Llama `stitch_list_design_systems` |
+| `list_screens` | Llama `stitch_list_screens` (para case D) |
+| `preview_apply_design_system` | Toma 3 screens representativas + fetch_screen_image antes y después, presenta al usuario |
+| `WAIT_FOR_LITERAL_CONFIRMATION` | Bloquea hasta que el usuario escriba el literal exacto |
+| `apply_design_system_to_all_screens` | Loop `stitch_apply_design_system` por instance |
+| `generate_mapping_proposal_material3` | Construye Material 3 candidate desde el DESIGN.md custom |
+| `WRITE_PROPOSAL_FOR_REVIEW` | Escribe `doc/design/migration_proposal_material3.md` |
+| `delegate_to_orchestrator` | Para case F satellite: terminar y dirigir al orchestrator |
+
+**4. Telemetría**
+
+Tras cada acción exitosa, append a `.quality/logs/stitch-migration.jsonl`:
+```json
+{"ts": "<iso>", "project": "<slug>", "case": "<A-F>", "action": "<id>", "outcome": "ok|fail|skipped"}
+```
+
+**5. Rollback**
+
+Si una acción falla a mitad:
+- DESIGN.md.pre-migration.bak permanece (paso 3 lo creó primero).
+- `settings.local.json` no se ha modificado hasta `set_contract_native_v2` (último step).
+- Stitch project queda en estado intermedio: el usuario puede borrarlo desde la UI Stitch o ejecutar de nuevo `--migrate-stitch` (la recipe es idempotente).
+
+### Casos resumidos
+
+- **A**: ya en `native_v2` → no-op.
+- **B**: Stitch configurado sin uso → flip de marker, no migración real.
+- **C**: DESIGN.md sin Stitch project → backup + regen + bootstrap.
+- **D**: Stitch project con screens → backup + regen + bootstrap + **preview + literal `MIGRATE-RETROACTIVE`** + apply a todas las instances.
+- **E**: DESIGN.md custom → genera mapping_proposal_material3.md + literal `APPLY-PROPOSAL`.
+- **F**: Multirepo → solo orchestrator migra.

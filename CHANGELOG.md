@@ -2,6 +2,56 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.5.0] - 2026-05-27 — "Stitch Native Migration — Behavioural (PR-2)"
+
+Cierra el ciclo de la migración Stitch iniciado en v6.4.0. PR-1 introdujo la foundation (cliente nativo + enums reales + mapper VEG↔M3 + cleanup quota). **Esta PR-2 cablea esa foundation al pipeline real**: `generate_design_md_tool` emite Material 3 estricto, `stitch_generate_screen_v2` limpia prompts cuando hay DS aplicado, `/visual-setup --migrate-stitch` cubre los 6 casos de migración, y `upgrade_project` + `version_matrix` surfacean el nuevo `stitch.contract`. Cutover duro de `inline_prefix_v1` sigue planificado para v7.0 (ver `doc/migrations/v7_stitch_native_chain.md`).
+
+Trazabilidad: PRD `doc/prd/stitch_native_migration_prd.md` UCs UC-704 (F5), UC-705 (F6), UC-706+UC-707 (F7) y UC-709+UC-710 (F9). UC-700–UC-703 y UC-708 ya entregados en v6.4.0.
+
+### Added
+
+- **`server/design_md/material3_view.py`** — proyección Material 3 de un `DesignMd`. `build_material3_frontmatter(doc, archetype, brand_kit?, jtbd_overrides?)` produce el YAML que Stitch parsea server-side (theme block + tokens M3 + typescale semántica). `render_veg_notes_section` preserva semántica VEG en el cuerpo Markdown.
+- **`server/design_md/writer.py`** acepta `material3=<Material3FrontMatter>` y emite el frontmatter alternativo + una sección final `## VEG Notes`. `io.save(...)` propaga el parámetro.
+- **`stitch_generate_screen_v2` parámetros nuevos**: `contract` (`native_v2` default, `inline_prefix_v1` legacy) y `design_md_content` (solo legacy). Cuando `native_v2` detecta DS aplicado vía `list_design_systems`, el helper `_strip_theme_directives` elimina líneas con colors / fonts / roundness del prompt antes de pasarlo a la fallback chain. Output enriquecido con `prompt_mode` (`design_system_applied` / `design_system_missing` / `inline_prefix`) + `design_system_info`.
+- **`server/tools/stitch_migration.py`** — 3 MCP tools nuevos:
+  - `detect_stitch_migration_case(project, settings_local_json?, design_md_content?, generated_screens_count)` clasifica el proyecto en uno de los 6 casos A–F con `evidence` + `recommended_action`.
+  - `migrate_project_to_native_v2(project, case, ...)` devuelve la recipe ordenada (`actions`, `files_to_write`, `stitch_calls`, `settings_patch`, `confirmation_required`). Planning-only: no ejecuta, la skill `/visual-setup --migrate-stitch` orquesta. Caso D pide literal `MIGRATE-RETROACTIVE`, caso E pide `APPLY-PROPOSAL`.
+  - `get_stitch_migration_stats(project, migration_jsonl_content?)` agrega `.quality/logs/stitch-migration.jsonl` (content-passing) y devuelve `status` ∈ `{no_data, in_progress, completed, failed}` + counts por case / action / outcome.
+- **`.claude/skills/visual-setup/SKILL.md`** — sección "Modo `--migrate-stitch` (v6.5.0)" con el playbook de 5 pasos (pre-check → recipe → preview → exec → telemetría) + tabla resumen de los 6 casos.
+- **`upgrade_project`** devuelve `stitch_migration_alignment` (advisory con `current_contract`, `target_contract`, `cutover_release=v7.0`, doc link) + `stitch_contract` para que consumidores agreguen sin re-leer meta.
+- **`get_version_matrix`** añade columna `stitch_contract` por proyecto (`native_v2 | inline_prefix_v1 | unknown | not_applicable`) + `stitch_contract_summary` con totales globales + `stitch_migration_hint` que cuenta cuántos proyectos siguen en legacy y enlaza al runbook v7.0.
+- **3 nuevos archivos de tests** (67 tests):
+  - `tests/test_stitch_migration.py` — clasificador (6 casos + multirepo precedence), recipe shape per case, agregador telemetría, recomendaciones.
+  - `tests/test_design_md_material3_view.py` — resolución fonts/roundness/luminance, derivación colors M3, mapping ArchetypeId → VegArchetype, serializer M3 vs default.
+  - `tests/test_stitch_generate_v2_prompts.py` — heurística `_strip_theme_directives`, `_resolve_prompt_for_contract` en los 5 modos (inline / native_v2 con/sin DS / fallback / list_design_systems failure).
+
+### Changed
+
+- **`generate_design_md_tool`** acepta `contract` (default `native_v2`) y emite el frontmatter Material 3 cuando se activa. Output incluye campos nuevos `contract` y `material3`. `inline_prefix_v1` reproduce el output v5.31 sin cambios.
+- **`_StitchOpsAdapter`** ya no expone `build_site` (la tool fantasma se eliminó en v6.4.0); reemplazado por un comentario apuntando a `stitch_build_site_batched_v2`.
+- **`server/server.py`** registra `register_stitch_migration_tools(mcp)` después de los wrappers v5.31.
+- **`tests/test_stitch_v2_design_md.py::TestUploadDesignMdToStitch`** ajustado: la tool legacy `upload_design_md_to_stitch` requiere ahora `contract="inline_prefix_v1"` en `generate_design_md_tool` porque parsea con el schema SpecBox-native (incompatible con el frontmatter M3 por diseño). El path moderno (v6.4.0+) es `stitch_upload_design_md`.
+
+### Versions
+
+- `ENGINE_VERSION.yaml`: 6.4.0 → 6.5.0.
+- `pyproject.toml`: 6.4.0 → 6.5.0 con descripción actualizada.
+- `CLAUDE.md` header + "Engine Version" alineados a v6.5.0.
+
+### Tests
+
+Suite final: **1316 passed, 71 skipped, 0 failed** (+67 vs v6.4.0).
+
+### Migration
+
+100% backwards-compatible. Comportamientos relevantes:
+
+- **`generate_design_md_tool` cambia default a `native_v2`**. Proyectos nuevos arrancan directamente en M3. Proyectos legacy que dependan del frontmatter SpecBox-native deben pasar `contract="inline_prefix_v1"` explícitamente (sólo `upload_design_md_to_stitch` v5.31 requiere esto — todo lo demás funciona con M3).
+- **`stitch_generate_screen_v2`** ahora ignora colors/fonts/roundness del prompt cuando hay DS aplicado. Si el caller necesita el comportamiento viejo, pasar `contract="inline_prefix_v1"` + `design_md_content`.
+- **Skill `/visual-setup --migrate-stitch`** es el camino oficial para migrar proyectos existentes. Caso D (Stitch con screens sin DS) por default usa **D.2 retroactive asistido** con preview pre/post + literal `MIGRATE-RETROACTIVE` antes de aplicar.
+
+---
+
 ## [6.4.0] - 2026-05-26 — "Stitch Native Migration"
 
 PR-1 de la migración Stitch a la chain nativa post-Google-I/O. **Foundation, no cutover.** Esta release introduce los componentes técnicos (cliente + enums reales + mapper VEG↔M3 + tests) y elimina deuda visible (subsistema de cuota, tools fantasma). La adaptación de `generate_design_md_tool`, `stitch_generate_screen_v2` y la skill `/visual-setup --migrate-stitch` se entrega en una **PR-2 posterior** una vez validado el mapping VEG↔M3 con el mantenedor.

@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "6.4.0"
-description = "SpecBox Engine v6.4.0 — Stitch Native Migration: foundation of the post-Google-I/O native chain (6 design-system tools, 65 fonts, REST batchCreate), VEG ↔ Material 3 mapper, quota subsystem removed (Stitch MCP is free of charge), ghost tools (extract_design_context, build_site) eliminated. 7.0 cutover plan documented for inline-prefix retirement."
+version = "6.5.0"
+description = "SpecBox Engine v6.5.0 — Stitch Native Migration (PR-2 behavioural): generate_design_md_tool emits Material 3 frontmatter (contract=native_v2), stitch_generate_screen_v2 strips theme directives when DS is applied, /visual-setup --migrate-stitch covers all 6 migration cases, upgrade_project + version_matrix surface the new stitch.contract column, telemetry aggregator for v7.0 cutover readiness."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.3.1,<4.0.0",

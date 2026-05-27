@@ -11,6 +11,7 @@ import { showSkillCard } from './views/skill-card';
 import { SkillInfo } from './views/skill-loader';
 import { SecretsManager } from './secret-storage';
 import { runSignIn, runSignOut, maybeShowOnboarding } from './auth';
+import { fetchWhoami } from './cloud-api';
 
 let statusBar: StatusBarManager | undefined;
 let identityPollingHandle: NodeJS.Timeout | undefined;
@@ -180,8 +181,18 @@ async function refreshIdentity(tree: StatusTreeProvider, secrets: SecretsManager
 		await vscode.commands.executeCommand('setContext', 'specbox.signedIn', false);
 		return;
 	}
-	tree.updateIdentity({ signedIn: true, handle: maskHandle(token) });
+	// Try resolving the real GitHub handle via cloud /api/whoami. If the
+	// endpoint isn't deployed yet (SPA fallback returns text/html), or the
+	// request fails for any other transient reason, fall back to the token
+	// mask so the sidebar still reflects the signed-in state.
+	const initialHandle = maskHandle(token);
+	tree.updateIdentity({ signedIn: true, handle: initialHandle });
 	await vscode.commands.executeCommand('setContext', 'specbox.signedIn', true);
+
+	const me = await fetchWhoami(token);
+	if (me && me.handle && me.handle !== initialHandle) {
+		tree.updateIdentity({ signedIn: true, handle: me.handle });
+	}
 }
 
 async function updateSkillsContext(skillsTree: SkillsTreeProvider): Promise<void> {

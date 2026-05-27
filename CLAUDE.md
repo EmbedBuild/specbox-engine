@@ -1,4 +1,4 @@
-# SpecBox Engine v6.4.0
+# SpecBox Engine v6.5.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -842,6 +842,33 @@ para una cuota inexistente.
   migración obligatoria al upgrade. Documentado en
   `doc/migrations/v7_stitch_native_chain.md`.
 
+### Migration tools (v6.5.0)
+
+3 tools nuevos en `server/tools/stitch_migration.py` orquestan el paso de
+`inline_prefix_v1` a `native_v2`, todos siguiendo el MCP Path Contract
+v6.0.1 (content-passing):
+
+- **`detect_stitch_migration_case`** — clasifica el proyecto en uno de
+  los 6 casos canónicos (A: ya en native_v2; B: Stitch unused; C:
+  DESIGN.md sin Stitch project; D: Stitch project con screens sin DS;
+  E: DESIGN.md custom; F: multirepo). Devuelve `recommended_action` +
+  `evidence`.
+- **`migrate_project_to_native_v2`** — planning-only. Dada una case,
+  devuelve `actions[]` + `files_to_write` + `stitch_calls[]` +
+  `settings_patch` + `confirmation_required` (caso D pide literal
+  `MIGRATE-RETROACTIVE`, caso E pide `APPLY-PROPOSAL`). La skill
+  `/visual-setup --migrate-stitch` orquesta la ejecución.
+- **`get_stitch_migration_stats`** — agrega
+  `.quality/logs/stitch-migration.jsonl` y devuelve un verdict
+  `{no_data | in_progress | completed | failed}` para dashboards de
+  readiness de cara al cutover v7.0.
+
+`upgrade_project` emite el hint `stitch_migration_alignment` y la
+columna `stitch_contract` en `get_version_matrix` cuenta cuántos
+proyectos siguen en legacy. El playbook completo de la skill vive en
+[.claude/skills/visual-setup/SKILL.md](.claude/skills/visual-setup/SKILL.md)
+sección "Modo `--migrate-stitch` (v6.5.0)".
+
 ### Plan completo
 
 [doc/plans/v5.31.0_stitch_autopilot_plan.md](doc/plans/v5.31.0_stitch_autopilot_plan.md)
@@ -1270,7 +1297,7 @@ documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
 
 ## Engine Version
 
-Current: v6.4.0 "Stitch Native Migration"
+Current: v6.5.0 "Stitch Native Migration — Behavioural (PR-2)"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

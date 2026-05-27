@@ -55,9 +55,15 @@ def load(path: Path) -> DesignMd:
     )
 
 
-def save(doc: DesignMd, path: Path) -> Path:
-    """Write to disk. Convenience wrapper over :func:`write_design_md`."""
-    return write_design_md(doc, path)
+def save(doc: DesignMd, path: Path, *, material3=None) -> Path:
+    """Write to disk. Convenience wrapper over :func:`write_design_md`.
+
+    When ``material3`` is supplied (a :class:`Material3FrontMatter`), the
+    output uses Stitch-parsable Material 3 token names in the YAML
+    frontmatter and appends a ``## VEG Notes`` section that preserves
+    VEG semantics not expressible as Material 3 enums.
+    """
+    return write_design_md(doc, path, material3=material3)
 
 
 def compute_signature(doc: DesignMd) -> str:

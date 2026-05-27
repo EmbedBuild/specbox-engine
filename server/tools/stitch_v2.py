@@ -13,6 +13,7 @@ tools in this same module.
 from __future__ import annotations
 
 import json
+import re
 import time
 from pathlib import Path
 
@@ -22,6 +23,7 @@ from fastmcp import Context, FastMCP
 from ..auth_gateway import get_stitch_client
 from ..design_md.generator import GeneratorInputs, generate_design_md
 from ..design_md.io import compute_signature, load, save
+from ..design_md.material3_view import build_material3_frontmatter
 from ..design_md.archetypes import ArchetypeId
 from ..stitch_orchestration import (
     FallbackOutcome,
@@ -84,6 +86,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
         project_name: str | None = None,
         output_path: str | None = None,
         archetype_override: str | None = None,
+        contract: str = "native_v2",
     ) -> dict:
         """Generate the canonical DESIGN.md for a project.
 
@@ -107,10 +110,19 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
             archetype_override: One of corporate, startup, creative,
                 consumer, gen_z, gov. If omitted, the generator detects
                 from VEG file or defaults to startup.
+            contract: ``"native_v2"`` (default, v6.4.0+) emits a
+                Material 3 YAML frontmatter consumable by Stitch's
+                ``create_design_system_from_design_md`` plus a ``VEG
+                Notes`` body section preserving VEG semantics.
+                ``"inline_prefix_v1"`` reproduces the v5.31 SpecBox-native
+                frontmatter for backwards compatibility — projects still
+                on that contract continue to work unchanged.
 
         Returns:
-            ``{status, path, signature, archetype, sections}`` on success;
-            ``{error}`` on failure.
+            ``{status, path, signature, archetype, contract, sections,
+              material3}`` on success; ``{error}`` on failure.
+            ``material3`` is the resolved theme payload (only when
+            ``contract == "native_v2"``).
         """
 
         try:
@@ -118,6 +130,14 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
             if not root.is_dir():
                 _log_v2(project, "generate_design_md", status="error", reason="bad_root")
                 return {"error": f"project_root does not exist: {project_root}"}
+
+            if contract not in {"native_v2", "inline_prefix_v1"}:
+                return {
+                    "error": (
+                        f"unknown contract {contract!r}. Use 'native_v2' or "
+                        "'inline_prefix_v1'."
+                    )
+                }
 
             out = (
                 Path(output_path).expanduser().resolve()
@@ -136,7 +156,18 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
             )
 
             doc = generate_design_md(inputs)
-            save(doc, out)
+
+            material3_payload: dict | None = None
+            if contract == "native_v2":
+                resolved_archetype = (
+                    inputs.archetype_override or ArchetypeId.STARTUP
+                )
+                m3_fm = build_material3_frontmatter(doc, resolved_archetype)
+                save(doc, out, material3=m3_fm)
+                material3_payload = m3_fm.to_dict()
+            else:
+                save(doc, out)
+
             sig = compute_signature(doc)
 
             # Persist signature in project meta so the sync layer can
@@ -148,15 +179,17 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 "generate_design_md",
                 signature=sig,
                 archetype=archetype_override or "auto",
+                contract=contract,
                 path=str(out),
             )
 
-            return {
+            response: dict = {
                 "status": "ok",
                 "project": project,
                 "path": str(out),
                 "signature": sig,
                 "archetype": archetype_override or "auto",
+                "contract": contract,
                 "sections": [
                     name
                     for name, body in (
@@ -172,6 +205,9 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                     if body and body.strip()
                 ],
             }
+            if material3_payload is not None:
+                response["material3"] = material3_payload
+            return response
         except Exception as exc:
             logger.error("generate_design_md_error", project=project, error=str(exc))
             _log_v2(project, "generate_design_md", status="error", reason=type(exc).__name__)
@@ -294,6 +330,8 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
         model_id: str = "GEMINI_3_PRO",
         baseline_screen_id: str | None = None,
         max_total_attempts: int = 3,
+        contract: str = "native_v2",
+        design_md_content: str | None = None,
     ) -> dict:
         """Generate a screen with the v5.31.0 fallback chain.
 
@@ -311,23 +349,56 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 spot, supply its ID — it unlocks the EDIT_BASELINE and
                 VARIANTS_REFINE strategies. Without it, the chain
                 degrades to REGENERATE only.
+            contract: ``"native_v2"`` (default) checks whether the
+                project has a server-side Design System applied (via
+                ``list_design_systems``) and, if so, **strips color /
+                font / roundness directives from the prompt**. Stitch
+                applies those server-side via the DS. ``"inline_prefix_v1"``
+                preserves the v5.31 behaviour of prepending the full
+                ``design_md_content`` to every prompt (legacy).
+            design_md_content: When ``contract == "inline_prefix_v1"``,
+                the DESIGN.md text to prepend. Ignored when contract is
+                ``native_v2`` and a DS is detected.
 
         Returns:
             ``{status, outcome, final_strategy, model_used, attempts,
-              degraded, degraded_reason, result}``.
+              degraded, degraded_reason, result, prompt_mode}``.
+            ``prompt_mode`` is ``"design_system_applied"``,
+            ``"design_system_missing"`` (native_v2 without applied DS,
+            fallback to legacy prefix if available), or
+            ``"inline_prefix"`` (legacy contract).
 
         Note: the v5.31 ``flash_safety_net`` parameter was removed in
         v6.4.0. Stitch MCP has no quota; degrading to Flash was a
         defensive measure for a constraint that does not exist.
         """
 
+        if contract not in {"native_v2", "inline_prefix_v1"}:
+            return {
+                "error": (
+                    f"unknown contract {contract!r}. Use 'native_v2' or "
+                    "'inline_prefix_v1'."
+                ),
+                "project": project,
+            }
+
         try:
             client = await _v2_get_client(ctx, project, state_path)
+
+            # Resolve effective prompt + mode based on contract & DS state.
+            effective_prompt, prompt_mode, ds_info = await _resolve_prompt_for_contract(
+                client,
+                stitch_project_id,
+                prompt,
+                contract=contract,
+                design_md_content=design_md_content,
+            )
+
             ops = _StitchOpsAdapter(client)
             result = await generate_screen_with_fallback(
                 ops,
                 stitch_project_id,
-                prompt,
+                effective_prompt,
                 device_type=device_type,
                 model_id=model_id,
                 baseline_screen_id=baseline_screen_id,
@@ -342,6 +413,8 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 model_used=result.model_used,
                 degraded=result.degraded,
                 attempt_count=len(result.attempts),
+                contract=contract,
+                prompt_mode=prompt_mode,
             )
 
             return {
@@ -355,6 +428,9 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 "degraded_reason": result.degraded_reason,
                 "result": result.result,
                 "error": result.error,
+                "contract": contract,
+                "prompt_mode": prompt_mode,
+                "design_system_info": ds_info,
             }
         except Exception as exc:
             logger.error(
@@ -597,8 +673,10 @@ class _StitchOpsAdapter:
             aspects=aspects,
         )
 
-    async def build_site(self, project_id, routes):
-        return await self._client.build_site(project_id, routes)
+    # ``build_site`` deliberately omitted — the underlying MCP tool was
+    # removed in v6.4.0 (ghost tool). Callers that need multi-page builds
+    # should use ``stitch_build_site_batched_v2`` which chunks via
+    # ``generate_screen`` + ``edit_screens`` instead.
 
 
 async def _v2_get_client(ctx: Context, project: str, state_path: Path):
@@ -694,3 +772,124 @@ def _store_design_md_meta(
     meta_file.write_text(
         json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8"
     )
+
+
+# ── Contract-aware prompt resolution (v6.4.0) ─────────────────────────
+
+
+# Heuristic patterns that strongly suggest a directive about colors,
+# fonts or roundness — the directives Stitch applies server-side once a
+# DS is bound. Matches are removed (line-level) so the resulting prompt
+# focuses on layout + content only.
+_THEME_DIRECTIVE_PATTERNS = (
+    # Colors as hex
+    re.compile(r"#[0-9A-Fa-f]{6}\b"),
+    # Color tokens / named directives
+    re.compile(
+        r"\b(?:primary|secondary|tertiary|accent|background|surface|"
+        r"foreground|on-?primary|on-?surface|color|colour|palette)\b\s*[:=]",
+        re.IGNORECASE,
+    ),
+    # Typography directives
+    re.compile(
+        r"\b(?:font[_\- ]?family|font[_\- ]?size|font[_\- ]?weight|"
+        r"line[_\- ]?height|letter[_\- ]?spacing|typography|typeface)\b",
+        re.IGNORECASE,
+    ),
+    # Specific font names from the StitchFont enum (subset of common ones).
+    re.compile(
+        r"\b(?:Inter|Roboto|DM Sans|Space Grotesk|Playfair Display|Bebas Neue|"
+        r"Geist|Manrope|Work Sans|Montserrat|IBM Plex|JetBrains Mono)\b",
+        re.IGNORECASE,
+    ),
+    # Roundness directives
+    re.compile(
+        r"\b(?:rounded|border[_\- ]?radius|corner[_\- ]?radius|roundness)\b",
+        re.IGNORECASE,
+    ),
+)
+
+
+def _strip_theme_directives(prompt: str) -> tuple[str, list[str]]:
+    """Remove lines containing theme directives from a prompt.
+
+    Returns ``(cleaned_prompt, stripped_lines)``. The original line break
+    structure of non-theme lines is preserved.
+
+    Heuristic by design: false positives are acceptable (the prompt stays
+    valid even with a couple of unnecessary line removals) but false
+    negatives would defeat the purpose. We err on the side of stripping
+    more than less. Callers that need full control can pre-clean their
+    prompt and skip this step.
+    """
+    if not prompt:
+        return prompt, []
+    kept: list[str] = []
+    stripped: list[str] = []
+    for line in prompt.splitlines():
+        if any(p.search(line) for p in _THEME_DIRECTIVE_PATTERNS):
+            stripped.append(line)
+        else:
+            kept.append(line)
+    return "\n".join(kept).strip(), stripped
+
+
+async def _resolve_prompt_for_contract(
+    client,
+    stitch_project_id: str,
+    prompt: str,
+    *,
+    contract: str,
+    design_md_content: str | None,
+) -> tuple[str, str, dict]:
+    """Pick the right prompt shape based on contract + DS state.
+
+    Returns ``(effective_prompt, prompt_mode, ds_info)`` where:
+      * ``prompt_mode`` is one of:
+        - ``"design_system_applied"`` — DS bound to project; prompt cleaned
+        - ``"design_system_missing"`` — native_v2 but no DS bound; falls
+          back to ``inline_prefix`` if ``design_md_content`` is provided,
+          else passes the prompt as-is.
+        - ``"inline_prefix"`` — legacy contract, DESIGN.md prepended.
+      * ``ds_info`` is the resolved DS metadata when applicable, else ``{}``.
+    """
+    if contract == "inline_prefix_v1":
+        if design_md_content:
+            prefixed = f"# DESIGN SYSTEM (REQUIRED)\n{design_md_content}\n\n# Screen\n{prompt}"
+            return prefixed, "inline_prefix", {}
+        return prompt, "inline_prefix", {}
+
+    # contract == "native_v2"
+    ds_list = await _list_design_systems_safe(client, stitch_project_id)
+    if ds_list:
+        cleaned, stripped = _strip_theme_directives(prompt)
+        ds_info = {
+            "count": len(ds_list),
+            "first_asset": ds_list[0].get("name") if isinstance(ds_list[0], dict) else None,
+            "stripped_line_count": len(stripped),
+        }
+        return cleaned, "design_system_applied", ds_info
+
+    # native_v2 but no DS — fallback to legacy prefix when available.
+    if design_md_content:
+        prefixed = f"# DESIGN SYSTEM (PROVISIONAL)\n{design_md_content}\n\n# Screen\n{prompt}"
+        return prefixed, "design_system_missing", {}
+    return prompt, "design_system_missing", {}
+
+
+async def _list_design_systems_safe(client, stitch_project_id: str) -> list:
+    """Call ``list_design_systems`` and normalise the return shape.
+
+    The MCP tool returns ``{"designSystems": [...]}`` when there is at
+    least one DS and ``{}`` (or 404) when there is none. We always
+    return a plain list so callers can ``if ds_list:`` without surprises.
+    """
+    try:
+        result = await client.list_design_systems(stitch_project_id)
+    except Exception:  # noqa: BLE001 — fallback is "no DS"
+        return []
+    if isinstance(result, dict):
+        ds = result.get("designSystems")
+        if isinstance(ds, list):
+            return ds
+    return []

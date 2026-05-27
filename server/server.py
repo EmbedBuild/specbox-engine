@@ -45,6 +45,7 @@ from .tools.marketplace import register_marketplace_tools  # v6.2.0 UC-643
 from .tools.skill_registry import register_skill_registry_tools
 from .tools.stitch import register_stitch_tools
 from .tools.stitch_v2 import register_stitch_v2_tools
+from .tools.stitch_migration import register_stitch_migration_tools
 from .tools.audit import register_audit_tools
 from .tools.app_docs import register_app_docs_tools
 from .tools.discovery import register_product_discovery_tools  # v6.0 (UC-D001/D002)
@@ -240,6 +241,12 @@ register_stitch_tools(mcp, STATE_PATH)
 # Phases 3-5 will add prompt validator, batched build, fallback chain,
 # quota tracking in this same module.
 register_stitch_v2_tools(mcp, STATE_PATH)
+
+# Register Stitch migration planning tools (v6.5.0 — F7):
+# detect_stitch_migration_case + migrate_project_to_native_v2. Both
+# follow the v6.0.1 MCP Path Contract (content-passing only). Drive
+# the v7.0 cutover from inline_prefix_v1 to native_v2.
+register_stitch_migration_tools(mcp)
 
 # Register Quality Audit tools (3 tools: run_quality_audit, attach_audit_evidence, get_last_audit)
 # ISO/IEC 25010 (SQuaRE) v1 — on-demand audit with 8 characteristic analyzers,

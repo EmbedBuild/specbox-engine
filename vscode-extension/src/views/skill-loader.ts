@@ -47,7 +47,11 @@ function readSkillDir(dir: string, source: 'local' | 'global', onError: (e: unkn
 	}
 
 	for (const entry of entries) {
-		if (!entry.isDirectory()) { continue; }
+		// install.ts uses symlinkOrCopy() — many skills under ~/.claude/skills/
+		// are symlinks. Dirent.isDirectory() is false for symlinks even when
+		// the target is a directory, so accept symlinks too. existsSync follows
+		// the link and confirms the target SKILL.md is reachable.
+		if (!entry.isDirectory() && !entry.isSymbolicLink()) { continue; }
 		const skillMdPath = path.join(dir, entry.name, 'SKILL.md');
 		if (!fs.existsSync(skillMdPath)) { continue; }
 

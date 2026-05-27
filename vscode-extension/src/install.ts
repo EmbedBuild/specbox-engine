@@ -119,8 +119,11 @@ export class InstallManager {
 		} catch {
 			return [];
 		}
+		// Accept both real directories and symlinks (installSkills() uses
+		// symlinkOrCopy(), so most entries are symlinks pointing at the
+		// engine repo). Dirent.isDirectory() is false for symlinks.
 		return entries
-			.filter(e => e.isDirectory() && fs.existsSync(path.join(CLAUDE_SKILLS_DIR, e.name, 'SKILL.md')))
+			.filter(e => (e.isDirectory() || e.isSymbolicLink()) && fs.existsSync(path.join(CLAUDE_SKILLS_DIR, e.name, 'SKILL.md')))
 			.map(e => e.name)
 			.sort();
 	}

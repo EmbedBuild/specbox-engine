@@ -164,12 +164,18 @@ export class HealthChecker {
 	}
 
 	private checkSkills(): { installed: string[]; missing: string[] } {
-		// Detect actually installed skills from disk
+		// Detect actually installed skills from disk. ./install.ts uses
+		// symlinkOrCopy(), so many entries under ~/.claude/skills/ are
+		// symlinks to the engine repo — Dirent.isDirectory() returns false
+		// for symlinks even when their target is a directory. We accept both
+		// real directories and symlinks whose final target has a SKILL.md.
 		const onDisk = new Set<string>();
 		if (fs.existsSync(CLAUDE_SKILLS_DIR)) {
 			try {
 				for (const entry of fs.readdirSync(CLAUDE_SKILLS_DIR, { withFileTypes: true })) {
-					if (entry.isDirectory() && fs.existsSync(path.join(CLAUDE_SKILLS_DIR, entry.name, 'SKILL.md'))) {
+					if (!entry.isDirectory() && !entry.isSymbolicLink()) { continue; }
+					const skillMdPath = path.join(CLAUDE_SKILLS_DIR, entry.name, 'SKILL.md');
+					if (fs.existsSync(skillMdPath)) {
 						onDisk.add(entry.name);
 					}
 				}

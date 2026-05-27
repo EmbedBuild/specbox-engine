@@ -1,0 +1,9 @@
+{
+  "feature": "vscode_discoverability_sidebar",
+  "has_ui": false,
+  "has_db": false,
+  "completed_phases": ["db_infra", "stitch_designs", "design_to_code"],
+  "current_phase": "feature_code",
+  "last_updated": "2026-05-27T09:30:00Z",
+  "notes": "VEG DISABLED + Stitch N/A: UI de VSCode nativa (TreeView + QuickPick), no UI de producto. has_ui=false en sentido SpecBox (no aplica Stitch ni design-to-code). El feature_code de esta US son los refactors a vscode-extension/src/views/."
+}

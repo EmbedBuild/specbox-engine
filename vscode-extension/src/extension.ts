@@ -19,6 +19,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const health = new HealthChecker();
 	const mcpConfig = new McpConfigurator();
 	const secrets = new SecretsManager(context);
+	const workspaceFolders = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
 
 	// Status bar — created early, added to subscriptions for auto-disposal
 	statusBar = new StatusBarManager();
@@ -26,7 +27,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Tree views
 	const statusTree = new StatusTreeProvider(health, secrets);
-	const skillsTree = new SkillsTreeProvider(installer);
+	const skillsTree = new SkillsTreeProvider(workspaceFolders);
 	vscode.window.registerTreeDataProvider('specbox.status', statusTree);
 	vscode.window.registerTreeDataProvider('specbox.skills', skillsTree);
 

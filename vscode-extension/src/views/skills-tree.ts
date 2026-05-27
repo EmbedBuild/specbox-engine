@@ -1,56 +1,72 @@
 import * as vscode from 'vscode';
-import { CORE_SKILLS } from '../constants';
-import { InstallManager } from '../install';
+import * as path from 'path';
+import { CLAUDE_SKILLS_DIR } from '../constants';
+import { loadSkillsFromFilesystem, SkillInfo } from './skill-loader';
 
-const SKILL_DESCRIPTIONS: Record<string, string> = {
-	'prd': 'Generate Product Requirements Documents',
-	'plan': 'Technical implementation plans + Stitch designs',
-	'implement': 'Autopilot end-to-end implementation',
-	'adapt-ui': 'Scan project UI components',
-	'optimize-agents': 'Audit and optimize agent system',
-	'quality-gate': 'Adaptive quality gates with evidence',
-	'explore': 'Read-only codebase analysis',
-	'feedback': 'Capture developer testing feedback',
-	'check-designs': 'Retroactive Stitch design compliance',
-	'visual-setup': 'Brand kit + design system setup',
-	'acceptance-check': 'Standalone BDD acceptance validation',
-	'quickstart': 'Interactive onboarding tutorial',
-	'remote': 'Remote project management',
-	'release': 'Audit, clean, and release new version',
-	'compliance': 'SpecBox compliance audit + auto-fix',
-};
+let outputChannel: vscode.OutputChannel | undefined;
 
-export class SkillsTreeProvider implements vscode.TreeDataProvider<SkillItem> {
-	private _onDidChangeTreeData = new vscode.EventEmitter<SkillItem | undefined>();
+function getOutputChannel(): vscode.OutputChannel {
+	if (!outputChannel) {
+		outputChannel = vscode.window.createOutputChannel('SpecBox');
+	}
+	return outputChannel;
+}
+
+export class SkillsTreeProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
+	private _onDidChangeTreeData = new vscode.EventEmitter<vscode.TreeItem | undefined>();
 	readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+	private cachedSkills: SkillInfo[] | null = null;
 
-	constructor(private installer: InstallManager) {}
+	constructor(private workspaceFolders: string[] = []) {}
 
 	refresh(): void {
+		this.cachedSkills = null;
 		this._onDidChangeTreeData.fire(undefined);
 	}
 
-	getTreeItem(element: SkillItem): vscode.TreeItem {
+	getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
 		return element;
 	}
 
-	async getChildren(): Promise<SkillItem[]> {
-		const installed = new Set(this.installer.getInstalledSkills());
-		return CORE_SKILLS.map(name => new SkillItem(
-			name,
-			installed.has(name),
-			SKILL_DESCRIPTIONS[name] ?? ''
-		));
+	getLoadedSkills(): SkillInfo[] {
+		if (this.cachedSkills === null) {
+			const localPaths = this.workspaceFolders.map(f => path.join(f, '.claude', 'skills'));
+			this.cachedSkills = loadSkillsFromFilesystem({
+				localPaths,
+				globalPaths: [CLAUDE_SKILLS_DIR],
+				onError: (err, p) => {
+					getOutputChannel().appendLine(`[skills-tree] Failed to read ${p}: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+				},
+			});
+		}
+		return this.cachedSkills;
+	}
+
+	async getChildren(): Promise<vscode.TreeItem[]> {
+		const skills = this.getLoadedSkills();
+		if (skills.length === 0) {
+			return [new EmptyStateItem()];
+		}
+		return skills.map(s => new SkillItem(s));
 	}
 }
 
 class SkillItem extends vscode.TreeItem {
-	constructor(name: string, installed: boolean, description: string) {
-		super(`/${name}`, vscode.TreeItemCollapsibleState.None);
-		this.description = description;
-		this.iconPath = new vscode.ThemeIcon(installed ? 'check' : 'circle-slash');
-		this.tooltip = installed
-			? `/${name} — installed and ready`
-			: `/${name} — not installed. Run "SpecBox: Install Engine" to install.`;
+	constructor(public readonly skill: SkillInfo) {
+		super(`/${skill.name}`, vscode.TreeItemCollapsibleState.None);
+		this.description = skill.description || '(no description)';
+		this.iconPath = new vscode.ThemeIcon('extensions');
+		const tooltip = new vscode.MarkdownString();
+		tooltip.appendMarkdown(`**\`/${skill.name}\`** — ${skill.description || '(no description available)'}`);
+		this.tooltip = tooltip;
+		this.contextValue = 'specboxSkill';
+	}
+}
+
+class EmptyStateItem extends vscode.TreeItem {
+	constructor() {
+		super('No skills detected — run /install or check ~/.claude/skills/', vscode.TreeItemCollapsibleState.None);
+		this.iconPath = new vscode.ThemeIcon('warning');
+		this.contextValue = 'specboxNoSkills';
 	}
 }

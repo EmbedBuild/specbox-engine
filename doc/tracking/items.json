@@ -8746,7 +8746,7 @@
     "id": "item-42b4bc03",
     "name": "UC-701: Auto-detección de skills desde filesystem",
     "description": "# UC-701: Auto-detección de skills desde filesystem\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Engine + extensión VSCode\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [JR-F.1] SkillsTreeProvider.getChildren() lee skills desde ~/.claude/skills/*/SKILL.md (global) y ${workspace}/.claude/skills/*/SKILL.md (local) en lugar del array CORE_SKILLS hardcoded; cada skill detectado es una entrada con su nombre (sin slash) y su description extraída del frontmatter YAML del SKILL.md.\n- AC-02: Si un skill aparece tanto en global como en local, prevalece el local; el árbol nunca muestra duplicados.\n- AC-03: Si el filesystem no es legible (permisos, FS corrupto), el TreeView muestra un único item informativo 'No skills detected — run /install or check ~/.claude/skills/' en vez de fallar; el bug se loguea a la output channel SpecBox con stack trace completo.\n- AC-04: [JR-F.1] Tras instalar un skill nuevo vía installer.runFullInstall(), llamar skillsTree.refresh() repuebla el árbol con el skill nuevo sin reiniciar VSCode.\n\n## Contexto\nRefactor de skills-tree.ts para reemplazar el array hardcoded CORE_SKILLS por lectura dinámica de ~/.claude/skills/ (global) + ${workspace}/.claude/skills/ (local).",
-    "state": "backlog",
+    "state": "in_progress",
     "parent_id": "item-874a771b",
     "labels": [
       "UC",
@@ -8763,7 +8763,8 @@
     },
     "created_at": "2026-05-27T09:24:03.300796+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-27T10:52:47.425009+00:00"
   },
   {
     "id": "ac-a09fda52",

@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "6.5.0"
-description = "SpecBox Engine v6.5.0 — Stitch Native Migration (PR-2 behavioural): generate_design_md_tool emits Material 3 frontmatter (contract=native_v2), stitch_generate_screen_v2 strips theme directives when DS is applied, /visual-setup --migrate-stitch covers all 6 migration cases, upgrade_project + version_matrix surface the new stitch.contract column, telemetry aggregator for v7.0 cutover readiness."
+version = "6.6.0"
+description = "SpecBox Engine v6.6.0 — VSCode Discoverability: the VSCode extension sidebar auto-detects skills from filesystem, groups them in 7 canonical categories (Pipeline / Quality / Visual / Tracking / Stripe / Lifecycle / Other), and opens a help card on click with 4 blocks (what / when / command / example) + copy-to-clipboard button. New walkthrough step 'Explore your skills'. 20 new node:test cases, 34/34 green."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.3.1,<4.0.0",

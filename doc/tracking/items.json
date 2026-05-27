@@ -9058,7 +9058,7 @@
     "id": "item-47a77348",
     "name": "UC-704: Walkthrough actualizado + tooltip rico",
     "description": "# UC-704: Walkthrough actualizado + tooltip rico\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Dev nuevo tras Install (ICP-2)\n**Horas estimadas:** 3.0\n**Pantallas:** walkthrough specbox.gettingStarted, tooltips del TreeView\n\n## Criterios de Aceptacion\n- AC-01: [JR-F.3] El step step-install.md del walkthrough deja de afirmar 'Install 15 skills' — la nueva copy es agnóstica al número: 'Install all SpecBox skills and hooks'.\n- AC-02: [JR-F.3] El walkthrough gana un quinto step step-discover-skills con título 'Explore your new skills' + descripción que indica abrir el sidebar SpecBox y hacer click en cualquier skill; incluye command link a 'command:workbench.view.extension.specbox'.\n- AC-03: [JR-F.2] Cada item de skill en el TreeView muestra como tooltip la primera frase de 'Qué hace' tomada del mismo source que la ficha. Tooltip legible en <5s (≤120 caracteres en la primera línea).\n- AC-04: El package.json declara step-discover-skills y su markdown asociado en vscode-extension/media/walkthrough/step-discover-skills.md; el step pasa el linter de i18n existente.\n\n## Contexto\nWalkthrough deja de hardcodear 'Install 15 skills' y gana un quinto step que tour-guía el sidebar. Cada item del TreeView gana tooltip con la primera frase de 'Qué hace'.",
-    "state": "in_progress",
+    "state": "review",
     "parent_id": "item-874a771b",
     "labels": [
       "UC",
@@ -9076,7 +9076,7 @@
     "created_at": "2026-05-27T09:24:03.378878+00:00",
     "external_source": "",
     "external_id": "",
-    "updated_at": "2026-05-27T10:59:45.306168+00:00"
+    "updated_at": "2026-05-27T11:01:13.306737+00:00"
   },
   {
     "id": "ac-8c3345eb",
@@ -9146,7 +9146,7 @@
     "id": "item-dbba0fa0",
     "name": "UC-705: Tests + smoke manual + bump versión",
     "description": "# UC-705: Tests + smoke manual + bump versión\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Engine (release pipeline)\n**Horas estimadas:** 6.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Nuevo archivo vscode-extension/tests/skills-tree.test.mjs con suite node:test que cubre: (a) loadSkillsFromFilesystem(rootPaths) lee correctamente desde dos directorios mock, (b) prevalencia local > global, (c) skill desconocido cae en Otros, (d) categorías con 0 skills aparecen con sufijo '(0)', (e) getCategoryFor(skillName) devuelve la categoría correcta para los 25 skills del mapping.\n- AC-02: Nuevo archivo vscode-extension/tests/skill-card.test.mjs (o equivalente) con suite node:test que cubre: (a) lectura de frontmatter description de un SKILL.md sintético, (b) fallback a contenido estático cuando el frontmatter no tiene la estructura esperada, (c) función pura buildSkillCardContent(skill) que devuelve los cuatro bloques esperados como string/HTML.\n- AC-03: La suite completa de la extensión (npm test en vscode-extension/) sigue verde — todos los tests previos de OAuth, secret storage, MCP launcher pasan sin regresión.\n- AC-04: El package.json de la extensión sube de 6.3.0 a 6.6.0 (lockstep con engine v6.6.0). CHANGELOG.md de la extensión gana sección [6.6.0] — 'Discoverability' con el listado de cambios.\n- AC-05: ENGINE_VERSION.yaml sube a 6.6.0 con codename 'VSCode Discoverability'. CLAUDE.md gana sección 'VSCode Discoverability (v6.6.0)' documentando el sidebar mejorado y referenciando el PRD.\n- AC-06: [JE-F.1] Smoke test manual ejecutado antes del merge: el reviewer humano (JPS) (a) instala el VSIX recién compilado en una instancia limpia de VSCode, (b) verifica que el sidebar muestra las 7 categorías con conteos correctos, (c) hace click en al menos 3 skills de categorías distintas y confirma que la ficha carga y el botón Copiar funciona, (d) ejecuta el walkthrough completo (los 5 pasos) sin errores. El veredicto manual queda como comentario en el PR antes del merge.\n\n## Contexto\nCierre de la US: tests unitarios para la lógica de loader + agrupación + builder de fichas, suite completa verde sin regresión, bump de versión 6.5.0→6.6.0 con CHANGELOG y CLAUDE.md, y smoke manual del reviewer humano antes del merge.",
-    "state": "backlog",
+    "state": "in_progress",
     "parent_id": "item-874a771b",
     "labels": [
       "UC",
@@ -9163,7 +9163,8 @@
     },
     "created_at": "2026-05-27T09:24:03.402864+00:00",
     "external_source": "",
-    "external_id": ""
+    "external_id": "",
+    "updated_at": "2026-05-27T11:01:14.311733+00:00"
   },
   {
     "id": "ac-8e1c0c65",

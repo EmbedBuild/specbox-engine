@@ -1,4 +1,4 @@
-# SpecBox Engine v6.5.0
+# SpecBox Engine v6.6.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1295,9 +1295,67 @@ fallback de `git diff`.
 [doc/plans/v5.32.0_implement_task_isolation_plan.md](doc/plans/v5.32.0_implement_task_isolation_plan.md)
 documenta los 5 gaps cerrados, fases, riesgos, métricas y rollback.
 
+## VSCode Discoverability (v6.6.0)
+
+US-VSCODE-DISCOVERABILITY cierra el funnel post-install que abrieron
+v6.2.0 (Marketplace) y v6.3.0 (Native Default OAuth). El sidebar
+`specbox.skills` ya no muestra una lista hardcoded de 15 skills (con
+un fantasma `remote` eliminado en v6.1.0 y 11 skills reales ausentes):
+ahora **auto-detecta** los skills instalados leyendo
+`~/.claude/skills/*/SKILL.md` (global) y
+`${workspace}/.claude/skills/*/SKILL.md` (local), los agrupa en
+**7 categorías canónicas** (Pipeline / Quality / Visual / Tracking /
+Stripe / Lifecycle / Other), y al hacer click sobre cualquier skill
+abre una **ficha de ayuda** con 4 bloques (qué hace, cuándo usarlo,
+comando exacto a teclear, ejemplo) + botón "Copiar al portapapeles".
+
+**El click NO ejecuta el skill** — sólo despliega la ficha. La
+invocación queda manual en el chat de Claude Code. Decisión cerrada
+en `/discovery vscode_discoverability_sidebar`: la API de Claude Code
+no expone hoy invocación pública de slash commands desde extensiones.
+
+Componentes nuevos en `vscode-extension/`:
+
+| Archivo | Rol |
+|---|---|
+| `src/views/skill-loader.ts` | Loader puro del filesystem + parser de frontmatter YAML mínimo |
+| `src/views/skill-categories.ts` | Mapping skill→categoría tipado, 7 categorías en orden fijo, iconos consistentes |
+| `src/views/skill-card.ts` | `buildSkillCardContent` + `buildSkillCardItems` + `showSkillCard` (QuickPick + botón copy) |
+| `src/views/skill-defaults.ts` | Diccionario estático con las 4 secciones de cada uno de los 25 skills canónicos |
+| `media/walkthrough/step-discover-skills.md` | 5º paso del walkthrough "Explore your skills" con command link al sidebar |
+| `tests/skill-{loader,categories,card}.test.mjs` | 20 nuevos casos `node:test` zero-deps |
+
+Cambios cross-impact en código existente:
+
+- `src/constants.ts` — `CORE_SKILLS` renombrado a **`KNOWN_SKILLS`**:
+  ahora es la lista canónica de categorización (drift detector source
+  of truth), no la fuente de verdad runtime. El runtime lee del
+  filesystem siempre.
+- `src/install.ts::getInstalledSkills()` — lee directamente con
+  `readdirSync`, no filtra contra `KNOWN_SKILLS`.
+- `src/health.ts::checkSkills()` — `installed` es lo que hay en disco
+  (conteo honesto en el sidebar); `missing` es `KNOWN_SKILLS` menos
+  disco (mantiene el checklist del onboarding).
+- `media/walkthrough/step-install.md` y su descripción en
+  `package.json` — eliminada la afirmación "Install 15 skills"; ahora
+  "Install all SpecBox skills and hooks".
+- `src/views/skills-tree.ts` — refactor mayor: del flat list al árbol
+  jerárquico (7 categorías root colapsables → skills hijos) +
+  `command` en cada `SkillItem` + tooltip rico desde
+  `SKILL_DEFAULTS.whatItDoes`.
+
+Tests: 34/34 verdes (`npm test` en `vscode-extension/`), sin
+regresión sobre los 14 OAuth previos. El smoke test manual del
+reviewer humano (AC-25 del PRD) queda como gate antes del merge —
+auto-merge OFF para esta US.
+
+- Plan: [doc/plans/US-VSCODE-DISCOVERABILITY_plan.md](doc/plans/US-VSCODE-DISCOVERABILITY_plan.md)
+- PRD: [doc/prd/US-VSCODE-DISCOVERABILITY_prd.md](doc/prd/US-VSCODE-DISCOVERABILITY_prd.md)
+- Discovery: [doc/discovery/vscode_discoverability_sidebar/icp_jtbd.md](doc/discovery/vscode_discoverability_sidebar/icp_jtbd.md)
+
 ## Engine Version
 
-Current: v6.5.0 "Stitch Native Migration — Behavioural (PR-2)"
+Current: v6.6.0 "VSCode Discoverability"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

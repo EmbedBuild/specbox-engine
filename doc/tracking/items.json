@@ -8721,5 +8721,545 @@
       "tipo": "AC"
     },
     "created_at": "2026-05-26T22:18:25.223650+00:00"
+  },
+  {
+    "id": "item-874a771b",
+    "name": "US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode",
+    "description": "# US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n\n**Horas estimadas:** 24.0\n**Pantallas:** sidebar specbox.skills, skill card (webview o quickpick)\n\nCierra el funnel post-install de la extensión SpecBox (Marketplace v6.2.0 + OAuth v6.3.0). Hoy el TreeView 'specbox.skills' lista 15 skills hardcoded (1 fantasma 'remote' eliminado en v6.1.0, 11 ausentes) y el click no hace nada. Esta US refactoriza el sidebar para que (a) liste automáticamente los skills reales del filesystem, (b) los agrupe en 7 categorías (Pipeline / Quality / Visual / Tracking / Stripe / Lifecycle / Otros), (c) al hacer click despliegue una ficha con qué hace, cuándo usarlo, comando exacto a teclear y ejemplo realista, (d) actualice el walkthrough con un quinto step de tour. El click NO ejecuta el skill — la invocación queda manual en el chat de Claude Code. Discovery: disc-6e6f4a7048af (READY_FOR_PRD). Target release: v6.6.0 'VSCode Discoverability'.",
+    "state": "user_stories",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-VSCODE-DISCOVERABILITY",
+      "horas": 24.0,
+      "pantallas": "sidebar specbox.skills, skill card (webview o quickpick)"
+    },
+    "created_at": "2026-05-27T09:24:03.268151+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "item-42b4bc03",
+    "name": "UC-701: Auto-detección de skills desde filesystem",
+    "description": "# UC-701: Auto-detección de skills desde filesystem\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Engine + extensión VSCode\n**Horas estimadas:** 4.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: [JR-F.1] SkillsTreeProvider.getChildren() lee skills desde ~/.claude/skills/*/SKILL.md (global) y ${workspace}/.claude/skills/*/SKILL.md (local) en lugar del array CORE_SKILLS hardcoded; cada skill detectado es una entrada con su nombre (sin slash) y su description extraída del frontmatter YAML del SKILL.md.\n- AC-02: Si un skill aparece tanto en global como en local, prevalece el local; el árbol nunca muestra duplicados.\n- AC-03: Si el filesystem no es legible (permisos, FS corrupto), el TreeView muestra un único item informativo 'No skills detected — run /install or check ~/.claude/skills/' en vez de fallar; el bug se loguea a la output channel SpecBox con stack trace completo.\n- AC-04: [JR-F.1] Tras instalar un skill nuevo vía installer.runFullInstall(), llamar skillsTree.refresh() repuebla el árbol con el skill nuevo sin reiniciar VSCode.\n\n## Contexto\nRefactor de skills-tree.ts para reemplazar el array hardcoded CORE_SKILLS por lectura dinámica de ~/.claude/skills/ (global) + ${workspace}/.claude/skills/ (local).",
+    "state": "review",
+    "parent_id": "item-874a771b",
+    "labels": [
+      "UC",
+      "Actor:Engine + extensión VSCode"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-701",
+      "us_id": "US-VSCODE-DISCOVERABILITY",
+      "horas": 4.0,
+      "pantallas": "",
+      "actor": "Engine + extensión VSCode"
+    },
+    "created_at": "2026-05-27T09:24:03.300796+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-27T10:56:02.318382+00:00"
+  },
+  {
+    "id": "ac-a09fda52",
+    "name": "[AC-01] [JR-F.1] SkillsTreeProvider.getChildren() lee skills desde ~/.claude/skills/*/SKILL.md (global) y ${workspace}/.claude/skills/*/SKILL.md (local) en lugar del array CORE_SKILLS hardcoded; cada skill detectado es una entrada con su nombre (sin slash) y su description extraída del frontmatter YAML del SKILL.md.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-42b4bc03",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.316720+00:00"
+  },
+  {
+    "id": "ac-38658a60",
+    "name": "[AC-02] Si un skill aparece tanto en global como en local, prevalece el local; el árbol nunca muestra duplicados.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-42b4bc03",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.316736+00:00"
+  },
+  {
+    "id": "ac-b88e6ce8",
+    "name": "[AC-03] Si el filesystem no es legible (permisos, FS corrupto), el TreeView muestra un único item informativo 'No skills detected — run /install or check ~/.claude/skills/' en vez de fallar; el bug se loguea a la output channel SpecBox con stack trace completo.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-42b4bc03",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.316743+00:00"
+  },
+  {
+    "id": "ac-a814b12c",
+    "name": "[AC-04] [JR-F.1] Tras instalar un skill nuevo vía installer.runFullInstall(), llamar skillsTree.refresh() repuebla el árbol con el skill nuevo sin reiniciar VSCode.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-42b4bc03",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.316749+00:00"
+  },
+  {
+    "id": "item-96f6fea9",
+    "name": "UC-702: Agrupación de skills por categoría",
+    "description": "# UC-702: Agrupación de skills por categoría\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Extensión VSCode\n**Horas estimadas:** 3.0\n**Pantallas:** sidebar specbox.skills\n\n## Criterios de Aceptacion\n- AC-01: [JR-F.5] El TreeView muestra 7 categorías de primer nivel colapsables en orden fijo: Pipeline, Quality, Visual, Tracking, Stripe, Lifecycle, Otros.\n- AC-02: Cada categoría tiene un icono ThemeIcon distinto y consistente (rocket / shield / paintcan / list-tree / credit-card / tools / question).\n- AC-03: El mapping skill→categoría está declarado en skill-categories.ts con tipado TypeScript estricto; skills no listados caen automáticamente en Otros.\n- AC-04: Cada categoría muestra entre paréntesis el número de skills detectados que contiene (p.ej. 'Pipeline (4)', 'Otros (0)'). Una categoría con 0 skills sigue mostrándose colapsada con '(0)' para preservar el mental model.\n- AC-05: El mapping cubre al menos los 25 skills actuales del engine: prd, plan, implement, feedback (Pipeline); audit, compliance, quality-gate, acceptance-check (Quality); visual-setup, adapt-ui, check-designs (Visual); switch-backend, app-init, app-sync, queue-review (Tracking); stripe-connect, stripe-standard, stripe-switch-account (Stripe); release, handoff, discovery, quickstart, manual-test, optimize-agents, explore (Lifecycle).\n\n## Contexto\nIntroduce 7 categorías root en el TreeView (Pipeline / Quality / Visual / Tracking / Stripe / Lifecycle / Otros). Mapping skill→categoría declarado en archivo dedicado skill-categories.ts con tipado TypeScript estricto.",
+    "state": "review",
+    "parent_id": "item-874a771b",
+    "labels": [
+      "UC",
+      "Actor:Extensión VSCode"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-702",
+      "us_id": "US-VSCODE-DISCOVERABILITY",
+      "horas": 3.0,
+      "pantallas": "sidebar specbox.skills",
+      "actor": "Extensión VSCode"
+    },
+    "created_at": "2026-05-27T09:24:03.330982+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-27T10:57:06.849164+00:00"
+  },
+  {
+    "id": "ac-6e90bb00",
+    "name": "[AC-01] [JR-F.5] El TreeView muestra 7 categorías de primer nivel colapsables en orden fijo: Pipeline, Quality, Visual, Tracking, Stripe, Lifecycle, Otros.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-96f6fea9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.342859+00:00"
+  },
+  {
+    "id": "ac-df564038",
+    "name": "[AC-02] Cada categoría tiene un icono ThemeIcon distinto y consistente (rocket / shield / paintcan / list-tree / credit-card / tools / question).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-96f6fea9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.342866+00:00"
+  },
+  {
+    "id": "ac-3f8c2bb0",
+    "name": "[AC-03] El mapping skill→categoría está declarado en skill-categories.ts con tipado TypeScript estricto; skills no listados caen automáticamente en Otros.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-96f6fea9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.342870+00:00"
+  },
+  {
+    "id": "ac-1256dacc",
+    "name": "[AC-04] Cada categoría muestra entre paréntesis el número de skills detectados que contiene (p.ej. 'Pipeline (4)', 'Otros (0)'). Una categoría con 0 skills sigue mostrándose colapsada con '(0)' para preservar el mental model.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-96f6fea9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.342874+00:00"
+  },
+  {
+    "id": "ac-f6b2fc0a",
+    "name": "[AC-05] El mapping cubre al menos los 25 skills actuales del engine: prd, plan, implement, feedback (Pipeline); audit, compliance, quality-gate, acceptance-check (Quality); visual-setup, adapt-ui, check-designs (Visual); switch-backend, app-init, app-sync, queue-review (Tracking); stripe-connect, stripe-standard, stripe-switch-account (Stripe); release, handoff, discovery, quickstart, manual-test, optimize-agents, explore (Lifecycle).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-96f6fea9",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.342877+00:00"
+  },
+  {
+    "id": "item-3bdd011e",
+    "name": "UC-703: Ficha de skill al hacer click",
+    "description": "# UC-703: Ficha de skill al hacer click\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Dev (ICP-1 y ICP-2)\n**Horas estimadas:** 6.0\n**Pantallas:** webview o quickpick (decisión técnica en /plan)\n\n## Criterios de Aceptacion\n- AC-01: [JR-F.4] Al hacer click en un skill del TreeView, se abre una ficha (webview panel o quickpick — decisión en plan) con cuatro bloques claramente separados: Qué hace, Cuándo usarlo, Comando exacto, Ejemplo.\n- AC-02: La información de los cuatro bloques se lee del frontmatter description del SKILL.md correspondiente cuando esté presente, y de un fallback estático (objeto en código de la extensión) cuando el SKILL.md no tenga ese contenido estructurado. La fuente del contenido se etiqueta visiblemente al pie de la ficha ('from SKILL.md' o 'from extension defaults').\n- AC-03: [JR-F.4] El bloque 'Comando exacto' muestra el slash command como string monoespaciado (p.ej. '/prd <feature_name>') con un botón 'Copiar al portapapeles' inmediatamente al lado.\n- AC-04: Al pulsar 'Copiar al portapapeles', el comando se copia vía vscode.env.clipboard.writeText y aparece una notificación 'Comando copiado — pega en el chat de Claude Code' durante 3 segundos.\n- AC-05: Cerrar la ficha (X del webview, Esc del quickpick) la cierra sin dejar estado residual; volver a hacer click en el mismo skill la vuelve a abrir.\n- AC-06: [JE-F.3] El Ejemplo mostrado para cada skill es funcional — el comando exacto del bloque 'Comando exacto' debe ejecutarse correctamente si el usuario lo pega tal cual en el chat. Validado manualmente para los 5 skills más usados (prd, plan, implement, audit, handoff) antes del merge.\n\n## Contexto\nClick en un skill abre ficha con 4 bloques fijos: Qué hace, Cuándo usarlo, Comando exacto (+ botón copiar), Ejemplo. El click NO ejecuta el skill — solo despliega documentación.",
+    "state": "review",
+    "parent_id": "item-874a771b",
+    "labels": [
+      "UC",
+      "Actor:Dev (ICP-1 y ICP-2)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-703",
+      "us_id": "US-VSCODE-DISCOVERABILITY",
+      "horas": 6.0,
+      "pantallas": "webview o quickpick (decisión técnica en /plan)",
+      "actor": "Dev (ICP-1 y ICP-2)"
+    },
+    "created_at": "2026-05-27T09:24:03.355133+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-27T10:59:44.859391+00:00"
+  },
+  {
+    "id": "ac-3719a5b2",
+    "name": "[AC-01] [JR-F.4] Al hacer click en un skill del TreeView, se abre una ficha (webview panel o quickpick — decisión en plan) con cuatro bloques claramente separados: Qué hace, Cuándo usarlo, Comando exacto, Ejemplo.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-3bdd011e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.366289+00:00"
+  },
+  {
+    "id": "ac-2c848948",
+    "name": "[AC-02] La información de los cuatro bloques se lee del frontmatter description del SKILL.md correspondiente cuando esté presente, y de un fallback estático (objeto en código de la extensión) cuando el SKILL.md no tenga ese contenido estructurado. La fuente del contenido se etiqueta visiblemente al pie de la ficha ('from SKILL.md' o 'from extension defaults').",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-3bdd011e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.366302+00:00"
+  },
+  {
+    "id": "ac-dccf07c6",
+    "name": "[AC-03] [JR-F.4] El bloque 'Comando exacto' muestra el slash command como string monoespaciado (p.ej. '/prd <feature_name>') con un botón 'Copiar al portapapeles' inmediatamente al lado.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-3bdd011e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.366307+00:00"
+  },
+  {
+    "id": "ac-b920b99d",
+    "name": "[AC-04] Al pulsar 'Copiar al portapapeles', el comando se copia vía vscode.env.clipboard.writeText y aparece una notificación 'Comando copiado — pega en el chat de Claude Code' durante 3 segundos.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-3bdd011e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.366311+00:00"
+  },
+  {
+    "id": "ac-632af32e",
+    "name": "[AC-05] Cerrar la ficha (X del webview, Esc del quickpick) la cierra sin dejar estado residual; volver a hacer click en el mismo skill la vuelve a abrir.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-3bdd011e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.366314+00:00"
+  },
+  {
+    "id": "ac-1e3c94f3",
+    "name": "[AC-06] [JE-F.3] El Ejemplo mostrado para cada skill es funcional — el comando exacto del bloque 'Comando exacto' debe ejecutarse correctamente si el usuario lo pega tal cual en el chat. Validado manualmente para los 5 skills más usados (prd, plan, implement, audit, handoff) antes del merge.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-3bdd011e",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.366317+00:00"
+  },
+  {
+    "id": "item-47a77348",
+    "name": "UC-704: Walkthrough actualizado + tooltip rico",
+    "description": "# UC-704: Walkthrough actualizado + tooltip rico\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Dev nuevo tras Install (ICP-2)\n**Horas estimadas:** 3.0\n**Pantallas:** walkthrough specbox.gettingStarted, tooltips del TreeView\n\n## Criterios de Aceptacion\n- AC-01: [JR-F.3] El step step-install.md del walkthrough deja de afirmar 'Install 15 skills' — la nueva copy es agnóstica al número: 'Install all SpecBox skills and hooks'.\n- AC-02: [JR-F.3] El walkthrough gana un quinto step step-discover-skills con título 'Explore your new skills' + descripción que indica abrir el sidebar SpecBox y hacer click en cualquier skill; incluye command link a 'command:workbench.view.extension.specbox'.\n- AC-03: [JR-F.2] Cada item de skill en el TreeView muestra como tooltip la primera frase de 'Qué hace' tomada del mismo source que la ficha. Tooltip legible en <5s (≤120 caracteres en la primera línea).\n- AC-04: El package.json declara step-discover-skills y su markdown asociado en vscode-extension/media/walkthrough/step-discover-skills.md; el step pasa el linter de i18n existente.\n\n## Contexto\nWalkthrough deja de hardcodear 'Install 15 skills' y gana un quinto step que tour-guía el sidebar. Cada item del TreeView gana tooltip con la primera frase de 'Qué hace'.",
+    "state": "review",
+    "parent_id": "item-874a771b",
+    "labels": [
+      "UC",
+      "Actor:Dev nuevo tras Install (ICP-2)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-704",
+      "us_id": "US-VSCODE-DISCOVERABILITY",
+      "horas": 3.0,
+      "pantallas": "walkthrough specbox.gettingStarted, tooltips del TreeView",
+      "actor": "Dev nuevo tras Install (ICP-2)"
+    },
+    "created_at": "2026-05-27T09:24:03.378878+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-27T11:01:13.306737+00:00"
+  },
+  {
+    "id": "ac-8c3345eb",
+    "name": "[AC-01] [JR-F.3] El step step-install.md del walkthrough deja de afirmar 'Install 15 skills' — la nueva copy es agnóstica al número: 'Install all SpecBox skills and hooks'.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-47a77348",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.390149+00:00"
+  },
+  {
+    "id": "ac-6cc817fd",
+    "name": "[AC-02] [JR-F.3] El walkthrough gana un quinto step step-discover-skills con título 'Explore your new skills' + descripción que indica abrir el sidebar SpecBox y hacer click en cualquier skill; incluye command link a 'command:workbench.view.extension.specbox'.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-47a77348",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.390158+00:00"
+  },
+  {
+    "id": "ac-c0dd73cb",
+    "name": "[AC-03] [JR-F.2] Cada item de skill en el TreeView muestra como tooltip la primera frase de 'Qué hace' tomada del mismo source que la ficha. Tooltip legible en <5s (≤120 caracteres en la primera línea).",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-47a77348",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.390163+00:00"
+  },
+  {
+    "id": "ac-eab3fd42",
+    "name": "[AC-04] El package.json declara step-discover-skills y su markdown asociado en vscode-extension/media/walkthrough/step-discover-skills.md; el step pasa el linter de i18n existente.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-47a77348",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.390167+00:00"
+  },
+  {
+    "id": "item-dbba0fa0",
+    "name": "UC-705: Tests + smoke manual + bump versión",
+    "description": "# UC-705: Tests + smoke manual + bump versión\n\n**User Story:** US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode\n**Actor:** Engine (release pipeline)\n**Horas estimadas:** 6.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Nuevo archivo vscode-extension/tests/skills-tree.test.mjs con suite node:test que cubre: (a) loadSkillsFromFilesystem(rootPaths) lee correctamente desde dos directorios mock, (b) prevalencia local > global, (c) skill desconocido cae en Otros, (d) categorías con 0 skills aparecen con sufijo '(0)', (e) getCategoryFor(skillName) devuelve la categoría correcta para los 25 skills del mapping.\n- AC-02: Nuevo archivo vscode-extension/tests/skill-card.test.mjs (o equivalente) con suite node:test que cubre: (a) lectura de frontmatter description de un SKILL.md sintético, (b) fallback a contenido estático cuando el frontmatter no tiene la estructura esperada, (c) función pura buildSkillCardContent(skill) que devuelve los cuatro bloques esperados como string/HTML.\n- AC-03: La suite completa de la extensión (npm test en vscode-extension/) sigue verde — todos los tests previos de OAuth, secret storage, MCP launcher pasan sin regresión.\n- AC-04: El package.json de la extensión sube de 6.3.0 a 6.6.0 (lockstep con engine v6.6.0). CHANGELOG.md de la extensión gana sección [6.6.0] — 'Discoverability' con el listado de cambios.\n- AC-05: ENGINE_VERSION.yaml sube a 6.6.0 con codename 'VSCode Discoverability'. CLAUDE.md gana sección 'VSCode Discoverability (v6.6.0)' documentando el sidebar mejorado y referenciando el PRD.\n- AC-06: [JE-F.1] Smoke test manual ejecutado antes del merge: el reviewer humano (JPS) (a) instala el VSIX recién compilado en una instancia limpia de VSCode, (b) verifica que el sidebar muestra las 7 categorías con conteos correctos, (c) hace click en al menos 3 skills de categorías distintas y confirma que la ficha carga y el botón Copiar funciona, (d) ejecuta el walkthrough completo (los 5 pasos) sin errores. El veredicto manual queda como comentario en el PR antes del merge.\n\n## Contexto\nCierre de la US: tests unitarios para la lógica de loader + agrupación + builder de fichas, suite completa verde sin regresión, bump de versión 6.5.0→6.6.0 con CHANGELOG y CLAUDE.md, y smoke manual del reviewer humano antes del merge.",
+    "state": "review",
+    "parent_id": "item-874a771b",
+    "labels": [
+      "UC",
+      "Actor:Engine (release pipeline)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-705",
+      "us_id": "US-VSCODE-DISCOVERABILITY",
+      "horas": 6.0,
+      "pantallas": "",
+      "actor": "Engine (release pipeline)"
+    },
+    "created_at": "2026-05-27T09:24:03.402864+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-27T11:05:29.722198+00:00"
+  },
+  {
+    "id": "ac-8e1c0c65",
+    "name": "[AC-01] Nuevo archivo vscode-extension/tests/skills-tree.test.mjs con suite node:test que cubre: (a) loadSkillsFromFilesystem(rootPaths) lee correctamente desde dos directorios mock, (b) prevalencia local > global, (c) skill desconocido cae en Otros, (d) categorías con 0 skills aparecen con sufijo '(0)', (e) getCategoryFor(skillName) devuelve la categoría correcta para los 25 skills del mapping.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-dbba0fa0",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.414613+00:00"
+  },
+  {
+    "id": "ac-e7d6a4f8",
+    "name": "[AC-02] Nuevo archivo vscode-extension/tests/skill-card.test.mjs (o equivalente) con suite node:test que cubre: (a) lectura de frontmatter description de un SKILL.md sintético, (b) fallback a contenido estático cuando el frontmatter no tiene la estructura esperada, (c) función pura buildSkillCardContent(skill) que devuelve los cuatro bloques esperados como string/HTML.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-dbba0fa0",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.414619+00:00"
+  },
+  {
+    "id": "ac-70b0b017",
+    "name": "[AC-03] La suite completa de la extensión (npm test en vscode-extension/) sigue verde — todos los tests previos de OAuth, secret storage, MCP launcher pasan sin regresión.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-dbba0fa0",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.414623+00:00"
+  },
+  {
+    "id": "ac-351162ce",
+    "name": "[AC-04] El package.json de la extensión sube de 6.3.0 a 6.6.0 (lockstep con engine v6.6.0). CHANGELOG.md de la extensión gana sección [6.6.0] — 'Discoverability' con el listado de cambios.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-dbba0fa0",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.414626+00:00"
+  },
+  {
+    "id": "ac-6f48f646",
+    "name": "[AC-05] ENGINE_VERSION.yaml sube a 6.6.0 con codename 'VSCode Discoverability'. CLAUDE.md gana sección 'VSCode Discoverability (v6.6.0)' documentando el sidebar mejorado y referenciando el PRD.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-dbba0fa0",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-05",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.414629+00:00"
+  },
+  {
+    "id": "ac-ef6a04f6",
+    "name": "[AC-06] [JE-F.1] Smoke test manual ejecutado antes del merge: el reviewer humano (JPS) (a) instala el VSIX recién compilado en una instancia limpia de VSCode, (b) verifica que el sidebar muestra las 7 categorías con conteos correctos, (c) hace click en al menos 3 skills de categorías distintas y confirma que la ficha carga y el botón Copiar funciona, (d) ejecuta el walkthrough completo (los 5 pasos) sin errores. El veredicto manual queda como comentario en el PR antes del merge.",
+    "description": "",
+    "state": "backlog",
+    "parent_id": "item-dbba0fa0",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-06",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-27T09:24:03.414632+00:00"
   }
 ]

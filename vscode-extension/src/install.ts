@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as os from 'os';
 import {
 	CLAUDE_SKILLS_DIR, CLAUDE_HOOKS_DIR, CLAUDE_HOOKS_LIB_DIR,
-	CLAUDE_COMMANDS_DIR, CLAUDE_SETTINGS, CORE_SKILLS
+	CLAUDE_COMMANDS_DIR, CLAUDE_SETTINGS
 } from './constants';
 import { ensureDir, symlinkOrCopy, copyFile, readJson, writeJson } from './util';
 import { HealthChecker } from './health';
@@ -113,9 +113,19 @@ export class InstallManager {
 
 	getInstalledSkills(): string[] {
 		if (!fs.existsSync(CLAUDE_SKILLS_DIR)) { return []; }
-		return CORE_SKILLS.filter(s =>
-			fs.existsSync(path.join(CLAUDE_SKILLS_DIR, s, 'SKILL.md'))
-		);
+		let entries: fs.Dirent[];
+		try {
+			entries = fs.readdirSync(CLAUDE_SKILLS_DIR, { withFileTypes: true });
+		} catch {
+			return [];
+		}
+		// Accept both real directories and symlinks (installSkills() uses
+		// symlinkOrCopy(), so most entries are symlinks pointing at the
+		// engine repo). Dirent.isDirectory() is false for symlinks.
+		return entries
+			.filter(e => (e.isDirectory() || e.isSymbolicLink()) && fs.existsSync(path.join(CLAUDE_SKILLS_DIR, e.name, 'SKILL.md')))
+			.map(e => e.name)
+			.sort();
 	}
 
 	// --- Private ---

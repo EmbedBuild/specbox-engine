@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "feature_slug": "vscode_discoverability_sidebar",
+  "branch": "feature/us-vscode-discoverability",
+  "stack": "typescript-vscode-extension",
+  "project_name": "specbox-engine",
+  "project_root_absolute": "/Users/jesusperezsanchez/Desktop/Proyectos/0_jps_iautomat/jpsdeveloper/specbox-engine",
+  "engine_version": "6.5.0",
+  "target_engine_version": "6.6.0",
+  "uc_id": "UC-701",
+  "us_id": "US-VSCODE-DISCOVERABILITY",
+  "backend_type": "freeform",
+  "board_id": "ff-ed0c02f4565a",
+  "plan_path": "doc/plans/US-VSCODE-DISCOVERABILITY_plan.md",
+  "prd_path": "doc/prd/US-VSCODE-DISCOVERABILITY_prd.md",
+  "discovery_id": "disc-6e6f4a7048af",
+  "autopilot_level": "agresivo",
+  "auto_merge": false,
+  "last_updated": "2026-05-27T09:30:00Z"
+}

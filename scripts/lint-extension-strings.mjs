@@ -22,6 +22,12 @@ const ALLOWLIST_FILES = new Set([
     'mcp.ts',         // TODO: migrate strings to l10n.t in follow-up
     'onboard.ts',     // TODO: migrate strings to l10n.t in follow-up
     'updater.ts',     // TODO: migrate strings to l10n.t in follow-up
+    // skills-tree.ts only contains `createOutputChannel('SpecBox')` as the
+    // single offending literal — the channel name is a product identifier
+    // shown in the OUTPUT panel dropdown, the same way GitHub Actions /
+    // Git Base / Dart-Code etc. use their literal product names. Not
+    // user-facing copy that needs translation.
+    'skills-tree.ts',
 ]);
 
 // Patterns that surface a user-facing string the moment they appear with a literal.

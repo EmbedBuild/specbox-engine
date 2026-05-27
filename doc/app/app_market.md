@@ -1,6 +1,6 @@
 # App Market — specbox-engine
 
-**Última actualización:** 2026-05-25
+**Última actualización:** 2026-05-27
 **Versión del documento:** 1
 **Mantenido por:** /discovery (bootstrap) + /app-init/refresh + eventos del pipeline
 
@@ -52,6 +52,7 @@ Protección contra feature creep. Estos perfiles NO son target — no priorizamo
 
 - **JE-G.1**: Confianza de que nada se pierde entre sesiones. Handoff + heartbeat son la red de seguridad psicológica que permite cerrar el laptop sin ansiedad de "¿retomaré dónde lo dejé?".
 - **JE-G.2**: Sentir que el agente trabaja **con** disciplina, no improvisando. El ruido constante de "cuidado, validá esto, no te saltes aquello" desaparece porque los hooks ya lo hacen mecánicamente — el humano puede dedicar el ciclo cognitivo a la lógica del problema, no al policing del agente.
+- **JE-G.3**: Sentir que cada artefacto visible del producto — listing del Marketplace, sidebar de la extensión VSCode, walkthrough, README, panel cloud, CLI de ayuda — refleja la disciplina interna del engine. Drift entre la realidad del código y lo que la UI muestra (skills fantasma, descripciones desactualizadas, iconos mudos) mata la credibilidad del producto frente a quien lo está adoptando. La cara visible del producto es la primera evidencia de su calidad.
 <!-- @specbox:zone end -->
 
 <!-- @specbox:zone start kind="manual" id="north_star" -->

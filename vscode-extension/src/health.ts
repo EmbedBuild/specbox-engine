@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as os from 'os';
 import {
 	CLAUDE_DIR, CLAUDE_SKILLS_DIR, CLAUDE_HOOKS_DIR,
-	CLAUDE_SETTINGS, CORE_SKILLS, REQUIRED_NODE_VERSION, REQUIRED_PYTHON_VERSION
+	CLAUDE_SETTINGS, KNOWN_SKILLS, REQUIRED_NODE_VERSION, REQUIRED_PYTHON_VERSION
 } from './constants';
 import { exec, commandExists } from './util';
 
@@ -164,16 +164,29 @@ export class HealthChecker {
 	}
 
 	private checkSkills(): { installed: string[]; missing: string[] } {
-		const installed: string[] = [];
-		const missing: string[] = [];
-		for (const skill of CORE_SKILLS) {
-			const skillPath = path.join(CLAUDE_SKILLS_DIR, skill);
-			if (fs.existsSync(path.join(skillPath, 'SKILL.md'))) {
-				installed.push(skill);
-			} else {
-				missing.push(skill);
-			}
+		// Detect actually installed skills from disk. ./install.ts uses
+		// symlinkOrCopy(), so many entries under ~/.claude/skills/ are
+		// symlinks to the engine repo — Dirent.isDirectory() returns false
+		// for symlinks even when their target is a directory. We accept both
+		// real directories and symlinks whose final target has a SKILL.md.
+		const onDisk = new Set<string>();
+		if (fs.existsSync(CLAUDE_SKILLS_DIR)) {
+			try {
+				for (const entry of fs.readdirSync(CLAUDE_SKILLS_DIR, { withFileTypes: true })) {
+					if (!entry.isDirectory() && !entry.isSymbolicLink()) { continue; }
+					const skillMdPath = path.join(CLAUDE_SKILLS_DIR, entry.name, 'SKILL.md');
+					if (fs.existsSync(skillMdPath)) {
+						onDisk.add(entry.name);
+					}
+				}
+			} catch { /* swallow — report empty */ }
 		}
+
+		// "missing" is the canonical engine list minus what's on disk;
+		// "installed" is everything actually present, including skills from
+		// other sources (so the count in the sidebar reflects reality).
+		const installed = [...onDisk].sort();
+		const missing = KNOWN_SKILLS.filter(s => !onDisk.has(s));
 		return { installed, missing };
 	}
 

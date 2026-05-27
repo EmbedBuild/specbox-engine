@@ -7,8 +7,11 @@ import { McpConfigurator } from './mcp';
 import { ExtensionUpdater } from './updater';
 import { StatusTreeProvider, IdentityState } from './views/status-tree';
 import { SkillsTreeProvider } from './views/skills-tree';
+import { showSkillCard } from './views/skill-card';
+import { SkillInfo } from './views/skill-loader';
 import { SecretsManager } from './secret-storage';
 import { runSignIn, runSignOut, maybeShowOnboarding } from './auth';
+import { fetchWhoami } from './cloud-api';
 
 let statusBar: StatusBarManager | undefined;
 let identityPollingHandle: NodeJS.Timeout | undefined;
@@ -19,6 +22,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	const health = new HealthChecker();
 	const mcpConfig = new McpConfigurator();
 	const secrets = new SecretsManager(context);
+	const workspaceFolders = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
 
 	// Status bar — created early, added to subscriptions for auto-disposal
 	statusBar = new StatusBarManager();
@@ -26,7 +30,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Tree views
 	const statusTree = new StatusTreeProvider(health, secrets);
-	const skillsTree = new SkillsTreeProvider(installer);
+	const skillsTree = new SkillsTreeProvider(workspaceFolders);
 	vscode.window.registerTreeDataProvider('specbox.status', statusTree);
 	vscode.window.registerTreeDataProvider('specbox.skills', skillsTree);
 
@@ -39,6 +43,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			skillsTree.refresh();
 			statusBar?.update(result);
 			await vscode.commands.executeCommand('setContext', 'specbox.installed', result.engineInstalled);
+			await updateSkillsContext(skillsTree);
 		}),
 
 		vscode.commands.registerCommand('specbox.healthCheck', async () => {
@@ -78,6 +83,20 @@ export async function activate(context: vscode.ExtensionContext) {
 			await runSignOut(secrets);
 			vscode.window.showInformationMessage(vscode.l10n.t('Signed out.'));
 			await refreshIdentity(statusTree, secrets);
+		}),
+
+		vscode.commands.registerCommand('specbox.showSkillCard', async (skill: SkillInfo) => {
+			if (!skill || typeof skill.name !== 'string') {
+				vscode.window.showWarningMessage(vscode.l10n.t('Invalid skill — refresh the sidebar and try again.'));
+				return;
+			}
+			await showSkillCard(skill);
+		}),
+
+		vscode.commands.registerCommand('specbox.refresh', async () => {
+			skillsTree.refresh();
+			statusTree.refresh();
+			await updateSkillsContext(skillsTree);
 		}),
 
 		vscode.commands.registerCommand('specbox.identityQuickPick', async () => {
@@ -140,6 +159,9 @@ export async function activate(context: vscode.ExtensionContext) {
 		console.warn('[specbox] onboarding gate failed:', err);
 	});
 
+	// Skills context bootstrapping (drives viewsWelcome for specbox.skills)
+	await updateSkillsContext(skillsTree);
+
 	// UC-649 — identity polling + initial refresh
 	await refreshIdentity(statusTree, secrets);
 	identityPollingHandle = setInterval(() => {
@@ -156,11 +178,26 @@ async function refreshIdentity(tree: StatusTreeProvider, secrets: SecretsManager
 	const token = await secrets.getToken();
 	if (!token) {
 		tree.updateIdentity({ signedIn: false });
+		await vscode.commands.executeCommand('setContext', 'specbox.signedIn', false);
 		return;
 	}
-	// MVP: until whoami() is wired to the local MCP, treat token presence as signed-in.
-	// AG-09a smoke test verifies handle resolution via a follow-up integration test.
-	tree.updateIdentity({ signedIn: true, handle: maskHandle(token) });
+	// Try resolving the real GitHub handle via cloud /api/whoami. If the
+	// endpoint isn't deployed yet (SPA fallback returns text/html), or the
+	// request fails for any other transient reason, fall back to the token
+	// mask so the sidebar still reflects the signed-in state.
+	const initialHandle = maskHandle(token);
+	tree.updateIdentity({ signedIn: true, handle: initialHandle });
+	await vscode.commands.executeCommand('setContext', 'specbox.signedIn', true);
+
+	const me = await fetchWhoami(token);
+	if (me && me.handle && me.handle !== initialHandle) {
+		tree.updateIdentity({ signedIn: true, handle: me.handle });
+	}
+}
+
+async function updateSkillsContext(skillsTree: SkillsTreeProvider): Promise<void> {
+	const skills = skillsTree.getLoadedSkills();
+	await vscode.commands.executeCommand('setContext', 'specbox.hasSkills', skills.length > 0);
 }
 
 function maskHandle(token: string): string {

@@ -8,6 +8,89 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.6.0] — "Discoverability"
+
+Closes the post-install funnel gap that v6.2.0 (Marketplace) and v6.3.0
+(Native Default OAuth) opened: users who install the extension now have
+a way to discover the engine's agentic skills without reading the README.
+
+### Added
+
+- **Auto-detected skill list in the sidebar.** `SkillsTreeProvider` now
+  reads `~/.claude/skills/*/SKILL.md` (global) and
+  `${workspace}/.claude/skills/*/SKILL.md` (local) at runtime instead of
+  using a hardcoded array. Local takes precedence over global; the tree
+  reflects what's actually installed on disk, not a curated list. Empty
+  filesystem surfaces a clear "No skills detected" item; read errors are
+  logged to the `SpecBox` OutputChannel.
+- **Skills grouped by 7 categories.** The TreeView now shows root items
+  for **Pipeline** (`/prd`, `/plan`, `/implement`, `/feedback`),
+  **Quality** (`/audit`, `/compliance`, `/quality-gate`,
+  `/acceptance-check`), **Visual** (`/visual-setup`, `/adapt-ui`,
+  `/check-designs`), **Tracking** (`/switch-backend`, `/app-init`,
+  `/app-sync`, `/queue-review`), **Stripe** (`/stripe-connect`,
+  `/stripe-standard`, `/stripe-switch-account`), **Lifecycle**
+  (`/release`, `/handoff`, `/discovery`, `/quickstart`, `/manual-test`,
+  `/optimize-agents`, `/explore`), and **Other** (catch-all for skills
+  outside the canonical mapping — including third-party installs).
+  Each category shows a `(N)` count, and the order is fixed.
+- **Skill card on click.** Clicking a skill in the sidebar opens a
+  QuickPick with four blocks: **What it does** / **When to use it** /
+  **Command** (with a "Copy to clipboard" button) / **Example**, plus a
+  footer that labels the content source (`SKILL.md` frontmatter,
+  extension defaults, or placeholder). The card never executes the
+  slash command — the user pastes it into the Claude Code chat
+  manually. This is by design (the Claude Code CLI exposes no public
+  API for an extension to invoke a slash command).
+- **`specbox.showSkillCard` command** registered in `package.json` with
+  EN + ES l10n strings.
+- **New walkthrough step "Explore your skills"** with a command link to
+  open the sidebar (`workbench.view.extension.specbox`) and a markdown
+  body explaining the 7 categories and the click-to-card flow.
+- **Rich tooltip on each skill item.** Hovering over a skill in the
+  sidebar shows a MarkdownString tooltip with the first sentence of the
+  skill's "What it does" content (≤120 chars), sourced from the same
+  defaults as the card.
+- **Three new test files.** `tests/skill-loader.test.mjs` (8 cases),
+  `tests/skill-categories.test.mjs` (5 cases), `tests/skill-card.test.mjs`
+  (7 cases). Total extension test count: 34 (14 OAuth + 20 new). All
+  green via `npm test`.
+
+### Changed
+
+- `CORE_SKILLS` → `KNOWN_SKILLS` in `src/constants.ts`. The new constant
+  is the **canonical categorization list** (drift detector source of
+  truth), not the runtime source. The runtime always reads from disk.
+  Removed the ghost `'remote'` skill (killed in engine v6.1.0); added
+  the 11 skills missing from the old list.
+- `InstallManager.getInstalledSkills()` now reads the filesystem
+  directly via `readdirSync` instead of filtering against
+  `CORE_SKILLS`. Reflects reality, not the curated list.
+- `HealthChecker.checkSkills()` reports `installed` as everything on
+  disk (so the sidebar count is honest), and `missing` as
+  `KNOWN_SKILLS` minus disk (so the post-install onboarding wizard
+  still has a checklist).
+- `step-install.md` and its `package.json` description drop the
+  hardcoded "Install 15 skills" claim. The copy is now agnostic to the
+  exact count: "Install all SpecBox skills and hooks."
+- `SkillItem` in the TreeView now sets a `command` pointing at
+  `specbox.showSkillCard` with the `SkillInfo` as argument. Items also
+  use the new `extensions` ThemeIcon (less noisy than the previous
+  `check`/`circle-slash` toggle).
+
+### Removed
+
+- The hardcoded `CORE_SKILLS` array as a runtime source of truth. The
+  array survives as `KNOWN_SKILLS` (categorization map), but the
+  TreeView never reads it.
+
+### Internal
+
+- New files: `src/views/skill-loader.ts`,
+  `src/views/skill-categories.ts`, `src/views/skill-card.ts`,
+  `src/views/skill-defaults.ts`,
+  `media/walkthrough/step-discover-skills.md`. Tests in `tests/`.
+
 ## [6.3.0] — "Native Default OAuth"
 
 ### Added

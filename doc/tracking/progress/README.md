@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-26T22:55:45.048750+00:00
+> Actualizado: 2026-05-27T11:05:29.728812+00:00
 
 ## User Stories
 
@@ -21,6 +21,7 @@
 | US-MCP-OBSERVABILITY | US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0) | User Stories | 0 | 8 | 0% |
 | US-VSCODE-MARKETPLACE | US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine | User Stories | 10 | 10 | 100% |
 | US-VSCODE-GITHUB-OAUTH | US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth | User Stories | 1 | 8 | 12% |
+| US-VSCODE-DISCOVERABILITY | US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode | User Stories | 0 | 5 | 0% |
 
 ## Use Cases
 
@@ -109,3 +110,8 @@
 | UC-649 | US-VSCODE-GITHUB-OAUTH | Backlog | 0 | 5 | 0% |
 | UC-650 | US-VSCODE-GITHUB-OAUTH | Backlog | 0 | 6 | 0% |
 | UC-651 | US-VSCODE-GITHUB-OAUTH | Backlog | 0 | 5 | 0% |
+| UC-701 | US-VSCODE-DISCOVERABILITY | Review | 0 | 4 | 0% |
+| UC-702 | US-VSCODE-DISCOVERABILITY | Review | 0 | 5 | 0% |
+| UC-703 | US-VSCODE-DISCOVERABILITY | Review | 0 | 6 | 0% |
+| UC-704 | US-VSCODE-DISCOVERABILITY | Review | 0 | 4 | 0% |
+| UC-705 | US-VSCODE-DISCOVERABILITY | Review | 0 | 6 | 0% |

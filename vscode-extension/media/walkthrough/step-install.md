@@ -2,11 +2,8 @@
 
 One click installs everything Claude Code needs:
 
-### Skills (15)
-Slash commands that extend Claude Code with structured workflows:
-`/prd` `/plan` `/implement` `/feedback` `/quality-gate` `/explore`
-`/visual-setup` `/adapt-ui` `/optimize-agents` `/acceptance-check`
-`/check-designs` `/quickstart` `/remote` `/release` `/compliance`
+### Skills
+Slash commands that extend Claude Code with structured workflows — discovery, planning, implementation, quality audits, payments scaffolding, and more. The exact list evolves with each engine release; check the **SpecBox** sidebar after install to browse what's available.
 
 ### Hooks (20+)
 Automatic enforcement rules that run before/after Claude Code actions:

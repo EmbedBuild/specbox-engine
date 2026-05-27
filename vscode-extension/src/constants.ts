@@ -9,11 +9,18 @@ export const CLAUDE_COMMANDS_DIR = path.join(CLAUDE_DIR, 'commands');
 export const CLAUDE_SETTINGS = path.join(CLAUDE_DIR, 'settings.json');
 export const CLAUDE_SETTINGS_LOCAL = path.join(CLAUDE_DIR, 'settings.local.json');
 
-export const CORE_SKILLS = [
-	'prd', 'plan', 'implement', 'adapt-ui', 'optimize-agents',
-	'quality-gate', 'explore', 'feedback', 'check-designs',
-	'visual-setup', 'acceptance-check', 'quickstart', 'remote',
-	'release', 'compliance'
+// Canonical list of SpecBox engine skills. Used as the categorization source
+// of truth (every entry here must be mapped in skill-categories.ts) and as a
+// drift detector in tests. The runtime sidebar reads skills from the filesystem
+// via skill-loader.ts — this array is NOT the source of truth for what the
+// TreeView displays.
+export const KNOWN_SKILLS = [
+	'acceptance-check', 'adapt-ui', 'app-init', 'app-sync', 'audit',
+	'check-designs', 'compliance', 'discovery', 'explore', 'feedback',
+	'handoff', 'implement', 'manual-test', 'optimize-agents', 'plan',
+	'prd', 'quality-gate', 'queue-review', 'quickstart', 'release',
+	'stripe-connect', 'stripe-standard', 'stripe-switch-account',
+	'switch-backend', 'visual-setup',
 ];
 
 export const REQUIRED_NODE_VERSION = 18;

@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-27T11:01:14.318868+00:00
+> Actualizado: 2026-05-27T11:05:29.728812+00:00
 
 ## User Stories
 
@@ -114,4 +114,4 @@
 | UC-702 | US-VSCODE-DISCOVERABILITY | Review | 0 | 5 | 0% |
 | UC-703 | US-VSCODE-DISCOVERABILITY | Review | 0 | 6 | 0% |
 | UC-704 | US-VSCODE-DISCOVERABILITY | Review | 0 | 4 | 0% |
-| UC-705 | US-VSCODE-DISCOVERABILITY | In Progress | 0 | 6 | 0% |
+| UC-705 | US-VSCODE-DISCOVERABILITY | Review | 0 | 6 | 0% |

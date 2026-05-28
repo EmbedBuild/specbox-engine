@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { startLoopbackServer, buildSignInUrl } from './oauth';
 import { SecretsManager } from './secret-storage';
 import { updateMcpServerConfigWithToken, clearMcpServerConfig, respawnMcpServer } from './mcp';
+import { fetchWhoami } from './cloud-api';
 
 const ONBOARDING_DECISION_KEY = 'specbox.onboardingDecision';
 const SIGN_IN_BASE_URL_CONFIG = 'specbox.signInBaseUrl';
@@ -15,17 +16,35 @@ export interface OnboardingDecision {
 }
 
 /**
- * UC-644 + UC-645 + UC-646 — runs the full sign-in flow:
+ * Maps a raw sign-in error code to a human, actionable message. Keeps the
+ * notification copy in one place so the onboarding path and the direct
+ * `specbox.signIn` command stay consistent.
+ */
+export function describeSignInError(error?: string): string {
+	switch (error) {
+		case 'identity_unverified':
+			return vscode.l10n.t('the cloud could not confirm your identity. Sign out of cloud.specbox.build in your browser and try again');
+		case 'timeout':
+			return vscode.l10n.t('the sign-in took too long and timed out. Run "SpecBox: Sign in with GitHub" again and complete it without long pauses');
+		case 'browser_blocked':
+			return vscode.l10n.t('the browser could not be opened. Allow VS Code to open external links and try again');
+		default:
+			return error ?? 'unknown';
+	}
+}
+
+/**
+ * UC-644 + UC-645 + UC-646 + UC-652 — runs the full sign-in flow:
  *   1. start loopback HTTP server (one-shot)
  *   2. open cloud sign-in URL in default browser
- *   3. await callback (5 min timeout)
- *   4. validate token, persist to SecretStorage
- *   5. update MCP config to use launcher + respawn
+ *   3. arm the loopback timeout (10 min) only after the browser opened
+ *   4. await callback, then verify identity via whoami before trusting it
+ *   5. persist to SecretStorage + update MCP config + respawn
  */
 export async function runSignIn(
 	context: vscode.ExtensionContext,
 	secrets: SecretsManager
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; handle?: string }> {
 	const cfg = vscode.workspace.getConfiguration();
 	const baseUrl = cfg.get<string>(SIGN_IN_BASE_URL_CONFIG) || undefined;
 
@@ -38,9 +57,28 @@ export async function runSignIn(
 			return { ok: false, error: 'browser_blocked' };
 		}
 
+		// Arm the timeout only now that the browser is open — the time the user
+		// spent on VS Code's "open external website" trust dialog should not
+		// count against the sign-in window.
+		server.armTimeout();
+
 		const result = await server.awaitCallback;
 		if (!result.ok) {
 			return { ok: false, error: result.error };
+		}
+
+		// Defense in depth (UC-645 AC-05): before trusting the token, resolve the
+		// identity it actually maps to. The cloud's /vscode/issue-token flow can
+		// hand back a token for the WRONG developer if a stale Supabase session
+		// is reused in the browser — that bug must be visible here, not silent.
+		// `fetchWhoami` returns the real handle, or null when the cloud rejects
+		// the token (401) or the endpoint is unreachable / not yet deployed.
+		const identity = await fetchWhoami(result.token);
+		if (identity === null) {
+			// The token reached us but the cloud will not vouch for an identity.
+			// We do NOT persist a token we cannot attribute to a developer — a
+			// silent accept is exactly how the cross-identity leak happened.
+			return { ok: false, error: 'identity_unverified' };
 		}
 
 		await secrets.storeToken(result.token);
@@ -51,7 +89,7 @@ export async function runSignIn(
 			// Token is stored; config update failure is recoverable on next reload.
 			console.warn('[specbox.signIn] MCP config update failed:', err);
 		}
-		return { ok: true };
+		return { ok: true, handle: identity.handle };
 	} catch (err) {
 		server.close();
 		return { ok: false, error: (err instanceof Error ? err.message : String(err)) };
@@ -116,11 +154,17 @@ export async function maybeShowOnboarding(
 				extVersion: context.extension.packageJSON.version,
 			};
 			await context.workspaceState.update(ONBOARDING_DECISION_KEY, decision);
-			vscode.window.showInformationMessage(vscode.l10n.t('Signed in. Welcome!'));
+			// Show the resolved GitHub handle so the user can immediately confirm
+			// they signed in as themselves, not someone else's reused session.
+			vscode.window.showInformationMessage(
+				result.handle
+					? vscode.l10n.t('Signed in as @{0}. Welcome!', result.handle)
+					: vscode.l10n.t('Signed in. Welcome!')
+			);
 			return decision;
 		}
 		vscode.window.showWarningMessage(
-			vscode.l10n.t('Sign-in failed: {0}. You can try again later from the Command Palette.', result.error ?? 'unknown')
+			vscode.l10n.t('Sign-in failed: {0}. You can try again later from the Command Palette.', describeSignInError(result.error))
 		);
 		return null;
 	}

@@ -9261,5 +9261,95 @@
       "tipo": "AC"
     },
     "created_at": "2026-05-27T09:24:03.414632+00:00"
+  },
+  {
+    "id": "item-0dbf31fa",
+    "name": "UC-652: Loopback timeout diferido + verificacion whoami en sign-in",
+    "description": "# UC-652: Loopback timeout diferido + verificacion whoami en sign-in\n\n**User Story:** US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extension VSCode, Native Backend como default registrado en Supabase Auth\n**Actor:** Engine (VSCode extension)\n**Horas estimadas:** 3\n**Pantallas:** sidebar specbox.status, notification de sign-in\n\n## Contexto\n\nFix de UX y defensa en profundidad descubierto en el smoke test post-deploy de v6.3.0 (cross-repo con specbox_cloud PR #49, UC-905). Dos problemas reales reproducidos en vivo:\n\n1. El servidor loopback de la extension arrancaba su timeout de 5 min en startLoopbackServer, ANTES de que el usuario navegara. Al leer la pantalla \"Confirm your account\" del cloud, cambiar de cuenta GitHub o despejar el dialogo \"open external website\" de VS Code, el reloj se agotaba y el callback llegaba a un puerto muerto (ERR_CONNECTION_REFUSED), sin mensaje accionable. Reproducido 4 veces.\n2. runSignIn persistia el mcp_token recibido SIN verificar a que developer resuelve, dejando a la extension ciega ante el bug de identidad cruzada que arreglo el cloud.\n\n## Fix (solo vscode-extension/)\n\n- oauth.ts: CALLBACK_TIMEOUT_MS subido a 10 min; el timeout ya no arranca al crear el server, se arma via armTimeout() idempotente que runSignIn invoca solo tras un openExternal exitoso (el setup no cuenta contra la ventana).\n- auth.ts: runSignIn llama fetchWhoami(token) antes de persistir en SecretStorage; rechaza con error 'identity_unverified' si el cloud no confirma identidad; muestra \"Signed in as @handle\" con el handle real. Helper describeSignInError() centraliza copys accionables.\n- extension.ts: el comando directo specbox.signIn usa el mismo helper.\n\n## Criterios de Aceptacion\n- AC-01: Timeout 10 min, armado solo tras openExternal via armTimeout() idempotente; no arranca en startLoopbackServer. Tests: 'no timeout fires before armTimeout is called' + 'armTimeout: callback still resolves after the timeout is armed'.\n- AC-02: runSignIn llama fetchWhoami antes de persistir; null -> error 'identity_unverified' sin guardar token; ok -> muestra 'Signed in as @handle'. Cubierto por suite cloud-api (200->handle, 401->null, 5xx->null).\n- AC-03: describeSignInError centraliza copys para timeout/browser_blocked/identity_unverified; usado por maybeShowOnboarding y el comando directo specbox.signIn. Sin ERR_CONNECTION_REFUSED crudo al usuario.\n- AC-04: tsc -p ./ limpio + suite node:test 47/47 verde (+4 nuevos del timeout diferido, sin regresion sobre los 43 previos).\n",
+    "state": "review",
+    "parent_id": "item-a09052d6",
+    "labels": [
+      "UC",
+      "Actor:Engine (VSCode extension)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-652",
+      "us_id": "US-VSCODE-GITHUB-OAUTH",
+      "horas": 3,
+      "pantallas": "sidebar specbox.status, notification de sign-in",
+      "actor": "Engine (VSCode extension)"
+    },
+    "created_at": "2026-05-28T10:52:27.226156+00:00",
+    "updated_at": "2026-05-28T10:52:27.226156+00:00"
+  },
+  {
+    "id": "ac-bc81be16",
+    "name": "[AC-01] Timeout 10 min, armado solo tras openExternal via armTimeout() idempotente; no arranca en startLoopbackServer. Tests: 'no timeout fires before armTimeout is called' + 'armTimeout: callback still resolves after the timeout is armed'.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-0dbf31fa",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T10:52:27.226156+00:00",
+    "updated_at": "2026-05-28T10:52:27.226156+00:00"
+  },
+  {
+    "id": "ac-94cd38a9",
+    "name": "[AC-02] runSignIn llama fetchWhoami antes de persistir en SecretStorage; null -> error 'identity_unverified' sin guardar token; ok -> muestra 'Signed in as @handle'. Cubierto por suite cloud-api (200->handle, 401->null, 5xx->null).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-0dbf31fa",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T10:52:27.226156+00:00",
+    "updated_at": "2026-05-28T10:52:27.226156+00:00"
+  },
+  {
+    "id": "ac-7d4e0a90",
+    "name": "[AC-03] describeSignInError centraliza copys accionables para timeout/browser_blocked/identity_unverified; usado por maybeShowOnboarding y el comando directo specbox.signIn. Sin stack traces ni ERR_CONNECTION_REFUSED crudo al usuario.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-0dbf31fa",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T10:52:27.226156+00:00",
+    "updated_at": "2026-05-28T10:52:27.226156+00:00"
+  },
+  {
+    "id": "ac-0f00b9b0",
+    "name": "[AC-04] tsc -p ./ limpio + suite node:test 47/47 verde (+4 nuevos del timeout diferido, sin regresion sobre los 43 previos).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-0dbf31fa",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T10:52:27.226156+00:00",
+    "updated_at": "2026-05-28T10:52:27.226156+00:00"
   }
 ]

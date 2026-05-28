@@ -10,7 +10,7 @@ import { SkillsTreeProvider } from './views/skills-tree';
 import { showSkillCard } from './views/skill-card';
 import { SkillInfo } from './views/skill-loader';
 import { SecretsManager } from './secret-storage';
-import { runSignIn, runSignOut, maybeShowOnboarding } from './auth';
+import { runSignIn, runSignOut, maybeShowOnboarding, describeSignInError } from './auth';
 import { fetchWhoami } from './cloud-api';
 
 let statusBar: StatusBarManager | undefined;
@@ -70,11 +70,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('specbox.signIn', async () => {
 			const result = await runSignIn(context, secrets);
 			if (result.ok) {
-				vscode.window.showInformationMessage(vscode.l10n.t('Signed in. Welcome!'));
+				vscode.window.showInformationMessage(
+					result.handle
+						? vscode.l10n.t('Signed in as @{0}. Welcome!', result.handle)
+						: vscode.l10n.t('Signed in. Welcome!')
+				);
 				await refreshIdentity(statusTree, secrets);
 			} else {
 				vscode.window.showWarningMessage(
-					vscode.l10n.t('Sign-in failed: {0}.', result.error ?? 'unknown')
+					vscode.l10n.t('Sign-in failed: {0}.', describeSignInError(result.error))
 				);
 			}
 		}),

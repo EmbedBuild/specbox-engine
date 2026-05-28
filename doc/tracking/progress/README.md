@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-27T11:05:29.728812+00:00
+> Actualizado: 2026-05-28T13:44:56.227691+00:00
 
 ## User Stories
 
@@ -20,8 +20,9 @@
 | US-MCP-OBSERVABILITY | US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0) | User Stories | 0 | 0 | 0% |
 | US-MCP-OBSERVABILITY | US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0) | User Stories | 0 | 8 | 0% |
 | US-VSCODE-MARKETPLACE | US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine | User Stories | 10 | 10 | 100% |
-| US-VSCODE-GITHUB-OAUTH | US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth | User Stories | 1 | 8 | 12% |
+| US-VSCODE-GITHUB-OAUTH | US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth | User Stories | 1 | 10 | 10% |
 | US-VSCODE-DISCOVERABILITY | US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode | User Stories | 0 | 5 | 0% |
+| US-VSCODE-ZERO-PYTHON | US-VSCODE-ZERO-PYTHON: Onboarding cero-Python de la extensión VSCode | User Stories | 5 | 5 | 100% |
 
 ## Use Cases
 
@@ -115,3 +116,10 @@
 | UC-703 | US-VSCODE-DISCOVERABILITY | Review | 0 | 6 | 0% |
 | UC-704 | US-VSCODE-DISCOVERABILITY | Review | 0 | 4 | 0% |
 | UC-705 | US-VSCODE-DISCOVERABILITY | Review | 0 | 6 | 0% |
+| UC-652 | US-VSCODE-GITHUB-OAUTH | Review | 4 | 4 | 100% |
+| UC-653 | US-VSCODE-GITHUB-OAUTH | Review | 4 | 4 | 100% |
+| UC-001 | US-VSCODE-ZERO-PYTHON | Done | 2 | 2 | 100% |
+| UC-002 | US-VSCODE-ZERO-PYTHON | Done | 2 | 2 | 100% |
+| UC-003 | US-VSCODE-ZERO-PYTHON | Done | 2 | 2 | 100% |
+| UC-004 | US-VSCODE-ZERO-PYTHON | Done | 3 | 3 | 100% |
+| UC-005 | US-VSCODE-ZERO-PYTHON | Done | 2 | 2 | 100% |

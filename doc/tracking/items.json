@@ -9441,5 +9441,332 @@
     },
     "created_at": "2026-05-28T11:53:24.840287+00:00",
     "updated_at": "2026-05-28T11:53:24.840287+00:00"
+  },
+  {
+    "id": "item-213c40d0",
+    "name": "US-VSCODE-ZERO-PYTHON: Onboarding cero-Python de la extensión VSCode",
+    "description": "# US-VSCODE-ZERO-PYTHON: Onboarding cero-Python de la extensión VSCode\n\n**Horas estimadas:** 6.0\n**Pantallas:** \n\nEliminar la dependencia de Python del onboarding/actualización de la extensión VSCode. Mata el modo Local del MCP (deja solo Remote, el MCP gratuito del owner), migra Engram de pip/pipx a brew (sigue Required), y purga toda referencia a Python de los artefactos visibles (health check, walkthrough, README EN+ES, package.json, status bar, onboarding, status tree). Discovery: doc/discovery/zero_python_onboarding/icp_jtbd.md. PRD: doc/prd/US-VSCODE-ZERO-PYTHON_prd.md. JTBDs: JR-FZPY.1..4, JE-FZPY.1..2.",
+    "state": "user_stories",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-VSCODE-ZERO-PYTHON",
+      "horas": 6.0,
+      "pantallas": ""
+    },
+    "created_at": "2026-05-28T13:34:55.673514+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "item-fbdac1e2",
+    "name": "UC-001: Configuración MCP solo-Remote",
+    "description": "# UC-001: Configuración MCP solo-Remote\n\n**User Story:** US-VSCODE-ZERO-PYTHON: Onboarding cero-Python de la extensión VSCode\n**Actor:** Dev solo con Claude Code (ICP-2)\n**Horas estimadas:** 1.5\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: AC-01: Al ejecutar 'Configure MCP Servers', la extensión escribe la config del servidor SpecBox-MCP apuntando a npx mcp-remote https://mcp-specbox-engine.jpsdeveloper.com/mcp SIN mostrar ninguna QuickPick de elección local-vs-remoto.\n- AC-02: AC-02: vscode-extension/src/mcp.ts no contiene ninguna rama que construya serverConfig basado en 'uv run' o 'python -m server.server', ni ninguna llamada a commandExists('python3')/commandExists('python').\n\n## Contexto\nEliminar la QuickPick local/remote y todo el branch de modo local en configureSpecbox (mcp.ts). La extensión configura Remote directamente.",
+    "state": "done",
+    "parent_id": "item-213c40d0",
+    "labels": [
+      "UC",
+      "Actor:Dev solo con Claude Code (ICP-2)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-001",
+      "us_id": "US-VSCODE-ZERO-PYTHON",
+      "horas": 1.5,
+      "pantallas": "",
+      "actor": "Dev solo con Claude Code (ICP-2)"
+    },
+    "created_at": "2026-05-28T13:34:55.697387+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-28T13:44:40.496054+00:00"
+  },
+  {
+    "id": "ac-07886e14",
+    "name": "[AC-01] AC-01: Al ejecutar 'Configure MCP Servers', la extensión escribe la config del servidor SpecBox-MCP apuntando a npx mcp-remote https://mcp-specbox-engine.jpsdeveloper.com/mcp SIN mostrar ninguna QuickPick de elección local-vs-remoto.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-fbdac1e2",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:34:55.712852+00:00",
+    "updated_at": "2026-05-28T13:38:43.040367+00:00"
+  },
+  {
+    "id": "ac-e35b40ba",
+    "name": "[AC-02] AC-02: vscode-extension/src/mcp.ts no contiene ninguna rama que construya serverConfig basado en 'uv run' o 'python -m server.server', ni ninguna llamada a commandExists('python3')/commandExists('python').",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-fbdac1e2",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:34:55.712867+00:00",
+    "updated_at": "2026-05-28T13:38:43.058868+00:00"
+  },
+  {
+    "id": "item-732c8e75",
+    "name": "UC-002: Engram vía brew, sin Python",
+    "description": "# UC-002: Engram vía brew, sin Python\n\n**User Story:** US-VSCODE-ZERO-PYTHON: Onboarding cero-Python de la extensión VSCode\n**Actor:** Dev solo con Claude Code (ICP-2)\n**Horas estimadas:** 1.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: AC-03: configureEngram ofrece instalar Engram con 'brew install gentleman-programming/tap/engram' y NO con pip install ni pipx install.\n- AC-02: AC-04: Cuando brew no está disponible, la extensión muestra un mensaje accionable con la vía de instalación manual de Engram (no pip), sin abortar el resto del onboarding.\n\n## Contexto\nMigrar la instalación de Engram de pip/pipx a brew install gentleman-programming/tap/engram. Engram sigue Required. Fallback manual (no pip) si no hay brew.",
+    "state": "done",
+    "parent_id": "item-213c40d0",
+    "labels": [
+      "UC",
+      "Actor:Dev solo con Claude Code (ICP-2)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-002",
+      "us_id": "US-VSCODE-ZERO-PYTHON",
+      "horas": 1.0,
+      "pantallas": "",
+      "actor": "Dev solo con Claude Code (ICP-2)"
+    },
+    "created_at": "2026-05-28T13:34:55.729274+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-28T13:44:44.491570+00:00"
+  },
+  {
+    "id": "ac-a88275f0",
+    "name": "[AC-01] AC-03: configureEngram ofrece instalar Engram con 'brew install gentleman-programming/tap/engram' y NO con pip install ni pipx install.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-732c8e75",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:34:55.742563+00:00",
+    "updated_at": "2026-05-28T13:39:05.139927+00:00"
+  },
+  {
+    "id": "ac-c8780e68",
+    "name": "[AC-02] AC-04: Cuando brew no está disponible, la extensión muestra un mensaje accionable con la vía de instalación manual de Engram (no pip), sin abortar el resto del onboarding.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-732c8e75",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:34:55.742572+00:00",
+    "updated_at": "2026-05-28T13:39:05.158717+00:00"
+  },
+  {
+    "id": "item-9ddb8c8b",
+    "name": "UC-003: Health check sin Python",
+    "description": "# UC-003: Health check sin Python\n\n**User Story:** US-VSCODE-ZERO-PYTHON: Onboarding cero-Python de la extensión VSCode\n**Actor:** Owner-operator (ICP-1)\n**Horas estimadas:** 1.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: AC-05: El reporte del Health Check no incluye ninguna fila ni cadena referida a 'Python'; HealthReport no expone el campo python y REQUIRED_PYTHON_VERSION no existe en constants.ts.\n- AC-02: AC-06: La status bar, el reporte de onboarding y el status tree no muestran ningún issue ni item relativo a Python.\n\n## Contexto\nEliminar checkPython y el campo python de HealthReport, REQUIRED_PYTHON_VERSION de constants, y todas las referencias derivadas en statusbar/onboard/status-tree.",
+    "state": "done",
+    "parent_id": "item-213c40d0",
+    "labels": [
+      "UC",
+      "Actor:Owner-operator (ICP-1)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-003",
+      "us_id": "US-VSCODE-ZERO-PYTHON",
+      "horas": 1.0,
+      "pantallas": "",
+      "actor": "Owner-operator (ICP-1)"
+    },
+    "created_at": "2026-05-28T13:34:55.757720+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-28T13:44:48.172537+00:00"
+  },
+  {
+    "id": "ac-4a1ada35",
+    "name": "[AC-01] AC-05: El reporte del Health Check no incluye ninguna fila ni cadena referida a 'Python'; HealthReport no expone el campo python y REQUIRED_PYTHON_VERSION no existe en constants.ts.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-9ddb8c8b",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:34:55.771583+00:00",
+    "updated_at": "2026-05-28T13:40:56.095764+00:00"
+  },
+  {
+    "id": "ac-5ae11cfe",
+    "name": "[AC-02] AC-06: La status bar, el reporte de onboarding y el status tree no muestran ningún issue ni item relativo a Python.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-9ddb8c8b",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:34:55.771590+00:00",
+    "updated_at": "2026-05-28T13:40:56.115437+00:00"
+  },
+  {
+    "id": "item-69f7dc48",
+    "name": "UC-004: Documentación cero-Python",
+    "description": "# UC-004: Documentación cero-Python\n\n**User Story:** US-VSCODE-ZERO-PYTHON: Onboarding cero-Python de la extensión VSCode\n**Actor:** Owner-operator (ICP-1)\n**Horas estimadas:** 1.5\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: AC-07: media/walkthrough/step-prerequisites.md no contiene la fila 'Python 3.12+' y lista Engram con instalación vía brew.\n- AC-02: AC-08: README.md y README.es.md no contienen ninguna mención a Python como requisito (tabla prerequisitos, diagrama de pasos, tabla instalación Engram, troubleshooting); la instalación de Engram figura como brew.\n- AC-03: AC-09: package.json no contiene ninguna descripción de walkthrough o comando que mencione 'Python'.\n\n## Contexto\nPurgar Python de walkthrough (step-prerequisites.md, step-mcp.md si aplica), package.json, README.md y README.es.md. Engram figura como brew.",
+    "state": "done",
+    "parent_id": "item-213c40d0",
+    "labels": [
+      "UC",
+      "Actor:Owner-operator (ICP-1)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-004",
+      "us_id": "US-VSCODE-ZERO-PYTHON",
+      "horas": 1.5,
+      "pantallas": "",
+      "actor": "Owner-operator (ICP-1)"
+    },
+    "created_at": "2026-05-28T13:34:55.786938+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-28T13:44:51.581264+00:00"
+  },
+  {
+    "id": "ac-cb6331e0",
+    "name": "[AC-01] AC-07: media/walkthrough/step-prerequisites.md no contiene la fila 'Python 3.12+' y lista Engram con instalación vía brew.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-69f7dc48",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:34:55.801341+00:00",
+    "updated_at": "2026-05-28T13:43:20.413242+00:00"
+  },
+  {
+    "id": "ac-f608eafc",
+    "name": "[AC-02] AC-08: README.md y README.es.md no contienen ninguna mención a Python como requisito (tabla prerequisitos, diagrama de pasos, tabla instalación Engram, troubleshooting); la instalación de Engram figura como brew.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-69f7dc48",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:34:55.801347+00:00",
+    "updated_at": "2026-05-28T13:43:20.432903+00:00"
+  },
+  {
+    "id": "ac-09be5c3c",
+    "name": "[AC-03] AC-09: package.json no contiene ninguna descripción de walkthrough o comando que mencione 'Python'.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-69f7dc48",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:34:55.801351+00:00",
+    "updated_at": "2026-05-28T13:43:20.448969+00:00"
+  },
+  {
+    "id": "item-53601fd3",
+    "name": "UC-005: Verificación global cero-Python",
+    "description": "# UC-005: Verificación global cero-Python\n\n**User Story:** US-VSCODE-ZERO-PYTHON: Onboarding cero-Python de la extensión VSCode\n**Actor:** Owner-operator (ICP-1)\n**Horas estimadas:** 1.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: AC-10: Un grep case-insensitive de 'python' sobre los artefactos user-facing de vscode-extension/ (src, media/walkthrough, package.json, README*, l10n) devuelve cero resultados user-facing.\n- AC-02: AC-11: npm run compile y npm test pasan en vscode-extension/ sin errores tras todos los cambios.\n\n## Contexto\nGate final: grep exhaustivo cero-Python user-facing + compile + tests verdes (incluyendo casos nuevos).",
+    "state": "done",
+    "parent_id": "item-213c40d0",
+    "labels": [
+      "UC",
+      "Actor:Owner-operator (ICP-1)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-005",
+      "us_id": "US-VSCODE-ZERO-PYTHON",
+      "horas": 1.0,
+      "pantallas": "",
+      "actor": "Owner-operator (ICP-1)"
+    },
+    "created_at": "2026-05-28T13:34:55.817097+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-28T13:44:56.223524+00:00"
+  },
+  {
+    "id": "ac-750671f1",
+    "name": "[AC-01] AC-10: Un grep case-insensitive de 'python' sobre los artefactos user-facing de vscode-extension/ (src, media/walkthrough, package.json, README*, l10n) devuelve cero resultados user-facing.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-53601fd3",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:34:55.830785+00:00",
+    "updated_at": "2026-05-28T13:44:35.825260+00:00"
+  },
+  {
+    "id": "ac-a40d07a6",
+    "name": "[AC-02] AC-11: npm run compile y npm test pasan en vscode-extension/ sin errores tras todos los cambios.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-53601fd3",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:34:55.830790+00:00",
+    "updated_at": "2026-05-28T13:44:35.847356+00:00"
   }
 ]

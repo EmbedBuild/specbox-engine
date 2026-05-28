@@ -57,7 +57,6 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<StatusItem> {
 				r.engineInstalled ? 'pass' : 'fail'
 			),
 			new StatusItem(`Node.js: ${r.node.version ?? 'Missing'}`, r.node.ok ? 'pass' : 'fail'),
-			new StatusItem(`Python: ${r.python.version ?? 'Missing'}`, r.python.ok ? 'pass' : 'fail'),
 			new StatusItem(`Claude Code: ${r.claudeCode.version ?? 'Missing'}`, r.claudeCode.ok ? 'pass' : 'fail'),
 			new StatusItem(`Engram: ${r.engram.version ?? 'Not installed'}`, r.engram.ok ? 'pass' : 'fail'),
 			new StatusItem(`GGA: ${r.gga.version ?? 'Not installed'}`, r.gga.ok ? 'pass' : 'info'),

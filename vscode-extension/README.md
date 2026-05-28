@@ -51,7 +51,7 @@ The extension provides 5 commands available from the Command Palette (`Ctrl+Shif
 | Command | What it does |
 |---------|--------------|
 | **SpecBox: Install Engine** | One-click install of 15 skills, 20+ hooks, settings, and MCP servers |
-| **SpecBox: Health Check** | Diagnostic report (Node, Python, Claude Code, Engram, skills, hooks, MCP) |
+| **SpecBox: Health Check** | Diagnostic report (Node, Claude Code, Engram, skills, hooks, MCP) |
 | **SpecBox: Onboard Project** | Interactive wizard that walks you through full setup |
 | **SpecBox: Show Status** | Quick status view of the engine in the current workspace |
 | **SpecBox: Configure MCP Servers** | Set up or repair SpecBox MCP + Engram memory MCP servers |
@@ -95,9 +95,9 @@ in with GitHub** or **SpecBox: Sign out**.
 The wizard handles everything:
 
 ```
-Step 1  →  Check prerequisites (Node, Python, Claude Code, Engram)
+Step 1  →  Check prerequisites (Node, Claude Code, Engram)
 Step 2  →  Locate engine repo (auto-detect or clone)
-Step 3  →  Install 15 skills + 20+ hooks + settings
+Step 3  →  Install all skills + 20+ hooks + settings
 Step 4  →  Configure MCP servers (SpecBox + Engram)
 ```
 
@@ -160,7 +160,6 @@ for the architectural rationale and the residual security trade-offs.
 
 - **Claude Code** — [install](https://claude.ai/code) or the official Claude VSCode extension.
 - **Node.js 18+** — [download](https://nodejs.org)
-- **Python 3.12+** — [download](https://python.org)
 - **Git** — [download](https://git-scm.com)
 - **VSCode 1.86+** — required for runtime localization (`vscode.l10n`).
 
@@ -241,7 +240,7 @@ VSCode auto-resolves the language based on `vscode.env.language`. To force a loc
 | Hooks installation | Copy | Copy | Copy |
 | MCP configuration | JSON config | JSON config | JSON config |
 | Settings merge | Smart merge | Smart merge | Smart merge |
-| Engram install | pip/pipx | pip/pipx | pip/pipx |
+| Engram install | Homebrew | Homebrew | Manual binary |
 
 The extension uses symlinks where possible, with automatic fallback to file copy on Windows.
 
@@ -252,7 +251,7 @@ The extension uses symlinks where possible, with automatic fallback to file copy
 | Issue | Solution |
 |-------|----------|
 | "Claude Code not detected" | Install [Claude Code](https://claude.ai/code) or the VSCode Claude extension first. |
-| MCP servers unreachable | Run **SpecBox: Configure MCP Servers** to (re)write the MCP config. Verify Python ≥ 3.12 is on `PATH`. |
+| MCP servers unreachable | Run **SpecBox: Configure MCP Servers** to (re)write the MCP config. The SpecBox MCP server uses a free hosted endpoint — verify network access and that `npx` is on `PATH`. |
 | Engine version mismatch warning | The extension and the local engine repo are out of sync. Run **SpecBox: Install Engine** to update local files, or `git pull` in the engine repo. |
 | Commands show in English even with `--locale=es` | Reload the window after install (`Ctrl+Shift+P` → "Developer: Reload Window"). VSCode caches NLS bundles between sessions. |
 | Walkthrough not appearing | Run **SpecBox: Onboard Project** manually. The walkthrough only auto-launches on first install. |

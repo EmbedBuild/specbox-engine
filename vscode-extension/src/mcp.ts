@@ -1,20 +1,48 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 import { CLAUDE_DIR } from './constants';
-import { readJson, writeJson, ensureDir, commandExists, exec } from './util';
+import { readJson, writeJson, commandExists } from './util';
 
 // UC-646: the MCP server config references this env var; the wrapper launcher
 // (vscode-extension/bin/mcp-launcher.mjs) resolves the value from SecretStorage
 // at spawn time so the plaintext token never lands in settings.json.
 export const SPECBOX_NATIVE_MCP_TOKEN_ENV = 'SPECBOX_NATIVE_MCP_TOKEN';
-const LAUNCHER_BIN_RELATIVE = '../bin/mcp-launcher.mjs';
+
+// US-VSCODE-ZERO-PY (zero-runtime onboarding): the SpecBox MCP server is consumed
+// exclusively through the free hosted endpoint. The legacy local mode was removed
+// to keep the client onboarding path free of any extra language runtime.
+export const REMOTE_MCP_URL = 'https://mcp-specbox-engine.jpsdeveloper.com/mcp';
 
 interface McpServerConfig {
 	command: string;
 	args?: string[];
 	env?: Record<string, string>;
+}
+
+// --- Pure, vscode-free helpers (testable with node:test) ---
+
+/** The MCP server config that points at the free hosted SpecBox endpoint. */
+export function buildRemoteServerConfig(): McpServerConfig {
+	return { command: 'npx', args: ['mcp-remote', REMOTE_MCP_URL] };
+}
+
+export interface EngramInstallPlan {
+	method: 'brew' | 'manual';
+	command: string | null;
+	manualUrl: string;
+}
+
+/**
+ * How to install Engram. Engram is a native single-file binary with zero
+ * dependencies — no extra language runtime needed. Preferred install is
+ * Homebrew; when brew is absent we point the user at the manual binary install.
+ */
+export function buildEngramInstallPlan(hasBrew: boolean): EngramInstallPlan {
+	const manualUrl = 'https://github.com/Gentleman-Programming/engram';
+	if (hasBrew) {
+		return { method: 'brew', command: 'brew install gentleman-programming/tap/engram', manualUrl };
+	}
+	return { method: 'manual', command: null, manualUrl };
 }
 
 interface ClaudeSettings {
@@ -45,17 +73,31 @@ export class McpConfigurator {
 	async configureEngram(): Promise<boolean> {
 		const hasEngram = await commandExists('engram');
 		if (!hasEngram) {
-			const action = await vscode.window.showWarningMessage(
-				'Engram is not installed. It provides persistent memory for Claude Code (mandatory for token efficiency). Install it now?',
-				'Install with pip', 'Install with pipx', 'Skip'
-			);
-			if (action === 'Install with pip') {
-				const result = await this.runInstallCommand('pip install engram');
-				if (!result) { return false; }
-			} else if (action === 'Install with pipx') {
-				const result = await this.runInstallCommand('pipx install engram');
-				if (!result) { return false; }
+			const hasBrew = await commandExists('brew');
+			const plan = buildEngramInstallPlan(hasBrew);
+
+			if (plan.method === 'brew' && plan.command) {
+				const action = await vscode.window.showWarningMessage(
+					'Engram is not installed. It provides persistent memory for Claude Code (mandatory for token efficiency). Install it now?',
+					'Install with Homebrew', 'Skip'
+				);
+				if (action === 'Install with Homebrew') {
+					const result = await this.runInstallCommand(plan.command);
+					if (!result) { return false; }
+				} else {
+					return false;
+				}
 			} else {
+				// No Homebrew available — point the user at the native binary install.
+				// Engram ships as a single self-contained binary with zero deps.
+				await vscode.window.showWarningMessage(
+					`Engram is not installed and Homebrew was not found. Install the Engram binary manually from ${plan.manualUrl} (single binary, no extra runtime needed), then re-run "Configure MCP Servers".`,
+					'Open install guide'
+				).then((choice) => {
+					if (choice === 'Open install guide') {
+						vscode.env.openExternal(vscode.Uri.parse(plan.manualUrl));
+					}
+				});
 				return false;
 			}
 		}
@@ -76,57 +118,9 @@ export class McpConfigurator {
 	}
 
 	async configureSpecbox(): Promise<boolean> {
-		// Ask user: local or remote MCP server?
-		const mode = await vscode.window.showQuickPick([
-			{ label: 'Remote (recommended)', description: 'Connect to https://mcp-specbox-engine.jpsdeveloper.com/mcp', value: 'remote' },
-			{ label: 'Local', description: 'Run MCP server locally (requires Python 3.12+)', value: 'local' },
-		], { placeHolder: 'How should the SpecBox MCP server connect?' });
-
-		if (!mode) { return false; }
-
-		if (mode.value === 'remote') {
-			this.addMcpServer('SpecBox-MCP', {
-				command: 'npx',
-				args: ['mcp-remote', 'https://mcp-specbox-engine.jpsdeveloper.com/mcp'],
-			});
-			return true;
-		}
-
-		// Local mode
-		const enginePath = await this.findEnginePath();
-		if (!enginePath) {
-			vscode.window.showWarningMessage('SpecBox Engine path not found. Install the engine first.');
-			return false;
-		}
-
-		const hasPython = await commandExists('python3') || await commandExists('python');
-		if (!hasPython) {
-			vscode.window.showErrorMessage('Python 3.12+ is required for the local SpecBox MCP server.');
-			return false;
-		}
-
-		// Determine how to run the MCP server
-		// Option A: uv run (preferred — handles venv automatically)
-		// Option B: python -m server.server
-		const hasUv = await commandExists('uv');
-
-		let serverConfig: McpServerConfig;
-		if (hasUv) {
-			serverConfig = {
-				command: 'uv',
-				args: ['run', '--directory', enginePath, 'specbox-engine'],
-			};
-		} else {
-			const pythonCmd = await commandExists('python3') ? 'python3' : 'python';
-			serverConfig = {
-				command: pythonCmd,
-				args: ['-m', 'server.server'],
-				env: { PYTHONPATH: enginePath },
-			};
-		}
-
-		this.addMcpServer('SpecBox-MCP', serverConfig);
-
+		// The SpecBox MCP server is consumed through the free hosted endpoint.
+		// No local mode — keeps the client onboarding path free of extra runtimes.
+		this.addMcpServer('SpecBox-MCP', buildRemoteServerConfig());
 		return true;
 	}
 
@@ -161,24 +155,6 @@ export class McpConfigurator {
 		} catch (err) {
 			vscode.window.showWarningMessage(`Failed to write workspace MCP config: ${err instanceof Error ? err.message : String(err)}`);
 		}
-	}
-
-	private async findEnginePath(): Promise<string | null> {
-		const configured = vscode.workspace.getConfiguration('specbox').get<string>('enginePath');
-		if (configured && fs.existsSync(path.join(configured, 'ENGINE_VERSION.yaml'))) {
-			return configured;
-		}
-		for (const folder of vscode.workspace.workspaceFolders ?? []) {
-			if (fs.existsSync(path.join(folder.uri.fsPath, 'ENGINE_VERSION.yaml'))) {
-				return folder.uri.fsPath;
-			}
-		}
-		const home = os.homedir();
-		for (const rel of ['specbox-engine', 'Desktop/specbox-engine', 'dev/specbox-engine', 'projects/specbox-engine']) {
-			const p = path.join(home, rel);
-			if (fs.existsSync(path.join(p, 'ENGINE_VERSION.yaml'))) { return p; }
-		}
-		return null;
 	}
 
 	private async runInstallCommand(cmd: string): Promise<boolean> {

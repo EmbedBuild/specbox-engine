@@ -177,7 +177,7 @@
           {
             "id": "specbox.step.prerequisites",
             "title": "%walkthrough.step.prerequisites.title%",
-            "description": "Verify that Node.js, Python 3.12+, and Claude Code are installed.\n\n[Run Health Check](command:specbox.healthCheck)",
+            "description": "Verify that Node.js and Claude Code are installed.\n\n[Run Health Check](command:specbox.healthCheck)",
             "media": {
               "markdown": "media/walkthrough/step-prerequisites.md"
             },

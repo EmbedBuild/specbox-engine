@@ -9351,5 +9351,95 @@
     },
     "created_at": "2026-05-28T10:52:27.226156+00:00",
     "updated_at": "2026-05-28T10:52:27.226156+00:00"
+  },
+  {
+    "id": "item-cad5be6b",
+    "name": "UC-653: activate() no bloqueante — extension atascada en \"Activating...\"",
+    "description": "# UC-653: activate() no bloqueante — extension atascada en \"Activating...\"\n\n**User Story:** US-VSCODE-GITHUB-OAUTH\n**Actor:** Engine (VSCode extension)\n**Horas estimadas:** 2\n**Pantallas:** ninguna (arranque de la extension)\n\n## Contexto\n\nHotfix critico descubierto tras publicar v6.6.1 al Marketplace: la extension\nse quedaba indefinidamente en \"Activating...\" para practicamente todos los\nusuarios. Confirmado via Extension Host log: specbox-engine inicia activacion\n(activationEvent workspaceContains:ENGINE_VERSION.yaml) y nunca reporta fin.\n\n## Causa raiz\n\nactivate() hacia await en serie de: health.run(), el prompt del ExtensionUpdater\n(\"SpecBox Engine updated to vX. Update extension?\") y el onboarding gate. El\nshowInformationMessage del updater BLOQUEA hasta que el usuario pulsa. Como cada\nrelease bumpa la version, tras publicar v6.6.1 todos los usuarios tenian engine\nlocal en 6.6.0 != extension 6.6.1 -> el prompt de update saltaba en CADA primer\nactivate y, al estar awaiteado dentro de activate(), VS Code se quedaba en\n\"Activating...\" hasta que el usuario respondiera (o para siempre si lo ignoraba).\n\n## Fix (solo vscode-extension/src/extension.ts)\n\nactivate() ahora registra comandos/vistas y arma el polling de identidad de\nforma sincrona, y retorna de inmediato. Todo el trabajo lento o interactivo\n(health check, prompt de update, onboarding gate, refresh inicial de identidad)\nse mueve a runStartupTasks(), disparado con `void` (fire-and-forget) y con\nguards en cada paso para que nada pueda volver a colgar la activacion.\n\n## Criterios de Aceptacion\n- AC-01: activate() no contiene ningun await sobre showInformationMessage ni sobre red. Registra comandos/vistas + arma setInterval de polling de forma sincrona y retorna. El trabajo diferido vive en runStartupTasks() invocado con `void`.\n- AC-02: runStartupTasks() envuelve cada fase (health+update, onboarding, skills context, identity refresh) en try/catch o .catch; ningun fallo propaga fuera y por tanto no puede afectar al estado de activacion.\n- AC-03: El disposal del setInterval de polling queda registrado en context.subscriptions de forma sincrona dentro de activate(), independiente de como resuelva runStartupTasks.\n- AC-04: tsc -p ./ limpio, lint i18n verde y suite node:test 47/47 sin regresion. Verificacion manual: instalar la extension y confirmar que el sidebar pasa de \"Activating...\" a estado normal sin requerir interaccion del usuario.\n",
+    "state": "review",
+    "parent_id": "item-a09052d6",
+    "labels": [
+      "UC",
+      "Actor:Engine (VSCode extension)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-653",
+      "us_id": "US-VSCODE-GITHUB-OAUTH",
+      "horas": 2,
+      "pantallas": "",
+      "actor": "Engine (VSCode extension)"
+    },
+    "created_at": "2026-05-28T11:53:24.840287+00:00",
+    "updated_at": "2026-05-28T11:53:24.840287+00:00"
+  },
+  {
+    "id": "ac-b6376211",
+    "name": "[AC-01] activate() no contiene ningun await sobre showInformationMessage ni sobre red. Registra comandos/vistas + arma el setInterval de polling de forma sincrona y retorna. El trabajo diferido vive en runStartupTasks() invocado con void.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-cad5be6b",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T11:53:24.840287+00:00",
+    "updated_at": "2026-05-28T11:53:24.840287+00:00"
+  },
+  {
+    "id": "ac-e63e1a7c",
+    "name": "[AC-02] runStartupTasks() envuelve cada fase (health+update, onboarding, skills context, identity refresh) en try/catch o .catch; ningun fallo propaga fuera y no puede afectar al estado de activacion.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-cad5be6b",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T11:53:24.840287+00:00",
+    "updated_at": "2026-05-28T11:53:24.840287+00:00"
+  },
+  {
+    "id": "ac-2e62316d",
+    "name": "[AC-03] El disposal del setInterval de polling queda registrado en context.subscriptions de forma sincrona dentro de activate().",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-cad5be6b",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T11:53:24.840287+00:00",
+    "updated_at": "2026-05-28T11:53:24.840287+00:00"
+  },
+  {
+    "id": "ac-309f6bd8",
+    "name": "[AC-04] tsc limpio + lint i18n verde + 47/47 node:test sin regresion. Verificacion manual: la extension pasa de 'Activating...' a estado normal sin requerir interaccion.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-cad5be6b",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T11:53:24.840287+00:00",
+    "updated_at": "2026-05-28T11:53:24.840287+00:00"
   }
 ]

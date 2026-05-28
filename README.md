@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.6.1 — "Loopback Resilience" (sobre v6.6.0 "VSCode Discoverability", v6.3.0 "Native Default OAuth", v6.1.0 "Cloud Cutover")<br/>
+  v 6.6.2 — "Fast Activate" (sobre v6.6.1 "Loopback Resilience", v6.6.0 "VSCode Discoverability", v6.3.0 "Native Default OAuth")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -367,7 +367,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.6.1 — "Loopback Resilience" (over v6.6.0 "VSCode Discoverability", v6.3.0 "Native Default OAuth", v6.1.0 "Cloud Cutover")
+> v 6.6.2 — "Fast Activate" (over v6.6.1 "Loopback Resilience", v6.6.0 "VSCode Discoverability", v6.3.0 "Native Default OAuth")
 
 ## What is this?
 

@@ -2,6 +2,30 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.6.2] - 2026-05-28 — "Fast Activate"
+
+Hotfix crítico descubierto tras publicar v6.6.1 al Marketplace: la extensión VSCode se quedaba indefinidamente en **"Activating…"** para prácticamente todos los usuarios. Trazabilidad: UC-653 bajo US-VSCODE-GITHUB-OAUTH ([PR #81](https://github.com/EmbedBuild/specbox-engine/pull/81)).
+
+### Fixed
+
+- **Extensión atascada en "Activating…"** — `activate()` hacía `await` en serie de `health.run()`, el prompt del `ExtensionUpdater` ("Update extension?") y el onboarding gate. El `showInformationMessage` del updater **bloquea hasta que el usuario pulsa**. Como cada release bumpa la versión, tras publicar v6.6.1 todos los usuarios tenían engine local 6.6.0 ≠ extensión 6.6.1 → el prompt saltaba en cada primer `activate` y, al estar `await`eado dentro de `activate()`, VS Code se quedaba en "Activating…" hasta que el usuario respondiera (o para siempre si lo ignoraba). Confirmado vía Extension Host log: `specbox-engine` inicia activación y nunca reporta finalización.
+
+### Changed
+
+- `vscode-extension/src/extension.ts` — `activate()` registra comandos/vistas y arma el polling de identidad de forma **síncrona** y retorna de inmediato. Todo el trabajo lento/interactivo (health check, prompt de update, onboarding gate, refresh inicial de identidad) se mueve a `runStartupTasks()`, disparado con `void` (fire-and-forget) y con guards por fase para que nada pueda volver a colgar la activación.
+
+### Decisions
+
+- Trade-off aceptado: las welcome views del sidebar pueden mostrar estado vacío ~1-15s al arrancar (hasta que `health.run()` resuelve y dispara `setContext`) — un parpadeo breve a cambio de eliminar el cuelgue eterno.
+
+### Compatibility
+
+- 100% backwards-compatible. Sólo toca `vscode-extension/src/extension.ts`; backend MCP, cloud y los otros backends de tracking no se ven afectados.
+
+### Tests
+
+- 47/47 verde en la suite `node:test` de la extensión (sin regresión). `tsc -p ./` y lint i18n limpios. Verificación manual en directo: la extensión pasa de "Activating…" a estado normal sin requerir interacción del usuario.
+
 ## [6.6.1] - 2026-05-28 — "Loopback Resilience"
 
 Patch que cierra dos defectos del flujo OAuth de la extensión VSCode descubiertos en el smoke test post-deploy de v6.3.0 (cross-repo con [specbox_cloud#49](https://github.com/EmbedBuild/specbox_cloud/pull/49) / UC-905, ya en producción). El bug de captación de usuarios (identidad cruzada) lo arregló el cloud; este patch endurece el lado consumidor de la extensión. Trazabilidad: UC-652 bajo US-VSCODE-GITHUB-OAUTH ([PR #80](https://github.com/EmbedBuild/specbox-engine/pull/80)).

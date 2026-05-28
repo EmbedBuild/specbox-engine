@@ -1,5 +1,5 @@
-version: 6.6.1
-codename: "Loopback Resilience"
+version: 6.6.2
+codename: "Fast Activate"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-05-28
@@ -395,6 +395,11 @@ features:
   - dashboard-health-real-version
 
 changelog:
+  6.6.2:
+    date: 2026-05-28
+    codename: "Fast Activate"
+    changes:
+      - "fix: VSCode extension stuck on 'Activating…' for every user after a version bump. activate() awaited the engine-update prompt (showInformationMessage blocks until clicked) in series with the health check and onboarding gate, so the prompt that fires when engine-local != extension-version wedged activation indefinitely. activate() now registers commands/views + arms identity polling synchronously and returns immediately; all slow/interactive startup work moves to runStartupTasks() fired fire-and-forget with per-step guards (UC-653)."
   6.6.1:
     date: 2026-05-28
     codename: "Loopback Resilience"

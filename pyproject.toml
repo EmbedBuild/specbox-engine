@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "6.6.1"
-description = "SpecBox Engine v6.6.1 — Loopback Resilience: VSCode OAuth sign-in loopback timeout raised to 10 min and armed only after the browser opens (no more ERR_CONNECTION_REFUSED while reading the cloud confirm screen), plus whoami identity verification before persisting the token (closes UC-645 AC-05) and centralized actionable error copy with EN+ES l10n."
+version = "6.6.2"
+description = "SpecBox Engine v6.6.2 — Fast Activate: hotfix for the VSCode extension getting stuck on 'Activating…' after a version bump. activate() now registers commands/views synchronously and returns immediately; slow/interactive startup work (health check, engine-update prompt, onboarding gate, identity refresh) runs fire-and-forget so a blocking notification can never wedge activation again (UC-653)."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.3.1,<4.0.0",

@@ -2,7 +2,7 @@
   "name": "specbox-engine",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "6.6.1",
+  "version": "6.6.2",
   "publisher": "EmbedBuild",
   "license": "MIT",
   "engines": {

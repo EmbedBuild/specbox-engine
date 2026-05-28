@@ -1,4 +1,4 @@
-# SpecBox Engine v6.6.1
+# SpecBox Engine v6.6.2
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1384,9 +1384,37 @@ tests (47/47 verde, +4 del timeout diferido).
 
 - PR: [#80](https://github.com/EmbedBuild/specbox-engine/pull/80)
 
+## Fast Activate (v6.6.2)
+
+UC-653 (bajo US-VSCODE-GITHUB-OAUTH) es un hotfix crítico descubierto tras
+publicar v6.6.1 al Marketplace: la extensión se quedaba indefinidamente en
+**"Activating…"** para prácticamente todos los usuarios.
+
+**Causa raíz** (confirmada vía Extension Host log: `specbox-engine` inicia
+activación y nunca reporta finalización): `activate()` hacía `await` en serie
+de `health.run()`, el prompt del `ExtensionUpdater` y el onboarding gate. El
+`showInformationMessage("SpecBox Engine updated to vX. Update extension?")` del
+updater **bloquea hasta que el usuario pulsa**. Como cada release bumpa la
+versión, tras publicar v6.6.1 todos tenían engine local 6.6.0 ≠ extensión
+6.6.1 → el prompt saltaba en cada primer `activate` y, al estar `await`eado,
+VS Code se quedaba en "Activating…" hasta que el usuario respondiera.
+
+**Fix** (sólo `vscode-extension/src/extension.ts`): `activate()` ahora registra
+comandos/vistas y arma el polling de identidad de forma **síncrona**, y retorna
+de inmediato. Todo el trabajo lento o interactivo (health check, prompt de
+update, onboarding gate, refresh inicial de identidad) se mueve a
+`runStartupTasks()`, disparado con `void` (fire-and-forget) y con guards en cada
+fase para que nada pueda volver a colgar la activación.
+
+Trade-off aceptado: las welcome views del sidebar pueden mostrar estado vacío
+~1-15s al arrancar (hasta que `health.run()` resuelve y dispara `setContext`) —
+un parpadeo breve a cambio de eliminar el cuelgue.
+
+- PR: [#81](https://github.com/EmbedBuild/specbox-engine/pull/81)
+
 ## Engine Version
 
-Current: v6.6.1 "Loopback Resilience"
+Current: v6.6.2 "Fast Activate"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

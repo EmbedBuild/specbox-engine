@@ -2,6 +2,36 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.7.0] - 2026-05-28 — "Zero-Friction Onboarding"
+
+Dos features encadenadas del onboarding de la extensión VSCode, mergeadas en [PR #82](https://github.com/EmbedBuild/specbox-engine/pull/82). Disparadas por el feedback de un beta-tester (ICP-2) bloqueado por la dependencia de Python: como el MCP server se sirve gratis en remoto, el modo Local no aportaba valor suficiente para justificar la fricción; y la extensión sabía qué faltaba pero no lo comunicaba proactivamente.
+
+### Added
+
+- **Gate de prerequisitos no bloqueante** (US-VSCODE-PREREQ-GATE) — nuevo `vscode-extension/src/prerequisites.ts` con `evaluatePrerequisites(health)` (pura, testeable) que clasifica el entorno en `ready`/`degraded` sobre el set crítico (Claude Code, Engram, Node, MCP SpecBox, MCP Engram; GGA es opcional). En el arranque, si `degraded`, `showWarningMessage` no bloqueante avisa que SpecBox puede no funcionar correctamente, con acciones (Run Setup Wizard / Configure MCP / Open Guide). Silencio si `ready`.
+- **Comando "SpecBox: Check Prerequisites"** (`specbox.checkPrerequisites`) — re-evalúa el entorno a demanda desde la paleta; declarado en `package.json` + nls EN/ES.
+- **Helpers puros en `mcp.ts`** — `buildRemoteServerConfig` y `buildEngramInstallPlan`, testeables sin `vscode`.
+
+### Changed
+
+- **Onboarding cero-Python** (US-VSCODE-ZERO-PYTHON) — `mcp.ts`: eliminado el modo Local del MCP (QuickPick local/remote + rama `uv`/`python` + `findEnginePath` huérfano); `configureSpecbox` escribe directo el endpoint hospedado (`npx mcp-remote`). Engram migra de `pip/pipx` a `brew install gentleman-programming/tap/engram` con fallback manual; sigue Required.
+- **Python eliminado de la UI** — `health.ts` (sin `checkPython` ni campo `python`), `constants.ts` (sin `REQUIRED_PYTHON_VERSION`), `statusbar.ts`, `onboard.ts`, `views/status-tree.ts`. El panel Status ya no muestra fila Python.
+- **Docs** — walkthrough, `package.json`, `README.md` y `README.es.md` de la extensión purgados de Python; Engram documentado vía Homebrew. README raíz + CLAUDE.md con sección v6.7.0.
+
+### Decisions
+
+- Sin fallback air-gapped: el cliente depende del MCP remoto gratuito (decisión de producto explícita; no se conserva un modo local oculto).
+- Severidad del gate: warning no bloqueante (filosofía "avisar, no impedir" + arranque rápido de v6.6.2).
+- Alcance del gate incluye MCP configurado (SpecBox + Engram), no solo binarios.
+
+### Compatibility
+
+- 100% backwards-compatible. No toca el server Python ni el backend de tracking. La decisión canónica "FreeForm requiere MCP local (stdio)" es sobre el MCP de tracking, no sobre el MCP del engine que configura la extensión — no afectada.
+
+### Tests
+
+- +9 tests de la extensión (`tests/mcp.test.mjs` + `tests/prerequisites.test.mjs`), 56/56 verde. `npm run compile` limpio.
+
 ## [6.6.2] - 2026-05-28 — "Fast Activate"
 
 Hotfix crítico descubierto tras publicar v6.6.1 al Marketplace: la extensión VSCode se quedaba indefinidamente en **"Activating…"** para prácticamente todos los usuarios. Trazabilidad: UC-653 bajo US-VSCODE-GITHUB-OAUTH ([PR #81](https://github.com/EmbedBuild/specbox-engine/pull/81)).

@@ -1,4 +1,4 @@
-# SpecBox Engine v6.6.2
+# SpecBox Engine v6.7.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1412,9 +1412,57 @@ un parpadeo breve a cambio de eliminar el cuelgue.
 
 - PR: [#81](https://github.com/EmbedBuild/specbox-engine/pull/81)
 
+## Zero-Friction Onboarding (v6.7.0)
+
+Dos features encadenadas del onboarding de la extensión VSCode, mergeadas en
+PR [#82](https://github.com/EmbedBuild/specbox-engine/pull/82).
+
+**US-VSCODE-ZERO-PYTHON** elimina Python del path del cliente. El beta-tester
+ICP-2 se bloqueó por la dependencia de Python; como el MCP server se sirve
+gratis en remoto, el modo Local no aportaba valor suficiente para justificar
+la fricción. Cambios en `vscode-extension/`:
+
+- `src/mcp.ts` — eliminado el modo Local del MCP (la QuickPick local/remote, la
+  rama `uv run` / `python -m server.server` y el `findEnginePath` huérfano).
+  `configureSpecbox()` ahora escribe directamente el endpoint hospedado
+  (`npx mcp-remote https://mcp-specbox-engine.jpsdeveloper.com/mcp`). Engram
+  migra de `pip/pipx install engram` a `brew install
+  gentleman-programming/tap/engram` (binario nativo sin dependencias) con
+  fallback a instalación manual del binario cuando no hay Homebrew. Engram
+  sigue **Required**. Helpers puros testeables: `buildRemoteServerConfig`,
+  `buildEngramInstallPlan`.
+- `src/health.ts` + `constants.ts` + `statusbar.ts` + `onboard.ts` +
+  `views/status-tree.ts` — eliminado `checkPython`, el campo `python` de
+  `HealthResult`, `REQUIRED_PYTHON_VERSION` y toda referencia derivada. El panel
+  Status ya no muestra fila Python.
+- `media/walkthrough/step-prerequisites.md`, `package.json`, `README.md`,
+  `README.es.md` — purgada toda mención a Python; Engram documentado vía brew.
+
+**US-VSCODE-PREREQ-GATE** añade un gate de prerequisitos no bloqueante. Cierra
+el drift entre "lo que la UI sugiere" y "la realidad" (JE-G.3): un usuario podía
+creer que SpecBox estaba operativo cuando le faltaba una pieza crítica.
+
+- `src/prerequisites.ts` (nuevo) — `evaluatePrerequisites(health)` puro:
+  clasifica el entorno en `ready | degraded` sobre el set crítico (Claude Code,
+  Engram, Node, MCP SpecBox, MCP Engram; GGA es opcional y no dispara).
+  `buildPrereqWarning` produce el texto accionable. `showPrereqGate` es la capa
+  vscode.
+- `src/extension.ts` — en `runStartupTasks`, tras el health check, dispara el
+  gate con su propio try/catch (patrón fire-and-forget de v6.6.2): si
+  `degraded`, `showWarningMessage` no bloqueante con botones (Run Setup Wizard /
+  Configure MCP / Open Guide) avisando que SpecBox puede no funcionar
+  correctamente; silencio si `ready`. Nuevo comando `specbox.checkPrerequisites`
+  ("SpecBox: Check Prerequisites") para re-evaluar a demanda.
+- Documentado en walkthrough + README EN/ES; comando en `package.json` +
+  `package.nls.json` / `package.nls.es.json`.
+
+Tests: +9 (`tests/mcp.test.mjs` + `tests/prerequisites.test.mjs`), 56/56 verde.
+Decisiones de producto: sin fallback air-gapped (MCP remoto gratuito); severidad
+warning no bloqueante; alcance del gate incluye MCP configurado.
+
 ## Engine Version
 
-Current: v6.6.2 "Fast Activate"
+Current: v6.7.0 "Zero-Friction Onboarding"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

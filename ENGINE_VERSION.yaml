@@ -1,5 +1,5 @@
-version: 6.6.2
-codename: "Fast Activate"
+version: 6.7.0
+codename: "Zero-Friction Onboarding"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-05-28
@@ -394,7 +394,22 @@ features:
   - docker-cachebust-arg
   - dashboard-health-real-version
 
+  # New (v6.7.0) — Zero-Friction Onboarding
+  - vscode-python-free-onboarding
+  - vscode-mcp-remote-only
+  - vscode-engram-homebrew-install
+  - vscode-prerequisites-gate
+  - vscode-check-prerequisites-command
+
 changelog:
+  6.7.0:
+    date: 2026-05-28
+    codename: "Zero-Friction Onboarding"
+    changes:
+      - "feat: VSCode extension onboarding is now Python-free. Removed the MCP server Local mode (the QuickPick + the uv/python branch + the orphaned findEnginePath); configureSpecbox now writes the hosted Remote endpoint directly (npx mcp-remote). Engram install migrated from pip/pipx to Homebrew (brew install gentleman-programming/tap/engram, a native zero-dependency binary) with a manual-binary fallback when brew is absent (US-VSCODE-ZERO-PYTHON)."
+      - "feat: Health check, status bar, onboarding wizard and status tree no longer probe or display Python; REQUIRED_PYTHON_VERSION removed. Walkthrough and README (EN+ES) purged of every Python reference."
+      - "feat: New non-blocking prerequisites gate. evaluatePrerequisites(health) (pure, tested) classifies the environment as ready/degraded over the critical set (Claude Code, Engram, Node, MCP SpecBox, MCP Engram; GGA stays optional). On startup a degraded environment shows an actionable warning that SpecBox may not work correctly (Run Setup Wizard / Configure MCP / Open Guide); silent when ready. New command 'SpecBox: Check Prerequisites' re-evaluates on demand (US-VSCODE-PREREQ-GATE)."
+      - "test: +9 extension tests (mcp.test.mjs + prerequisites.test.mjs), 56/56 green."
   6.6.2:
     date: 2026-05-28
     codename: "Fast Activate"

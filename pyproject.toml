@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "6.6.2"
-description = "SpecBox Engine v6.6.2 — Fast Activate: hotfix for the VSCode extension getting stuck on 'Activating…' after a version bump. activate() now registers commands/views synchronously and returns immediately; slow/interactive startup work (health check, engine-update prompt, onboarding gate, identity refresh) runs fire-and-forget so a blocking notification can never wedge activation again (UC-653)."
+version = "6.7.0"
+description = "SpecBox Engine v6.7.0 — Zero-Friction Onboarding: the VSCode extension is now Python-free (MCP Local mode removed, only the free hosted Remote endpoint; Engram installs via Homebrew not pip) and ships a non-blocking prerequisites gate that warns clearly when a critical requirement is missing (Claude Code, Engram, Node, MCP), plus a 'SpecBox: Check Prerequisites' command (US-VSCODE-ZERO-PYTHON + US-VSCODE-PREREQ-GATE)."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.3.1,<4.0.0",

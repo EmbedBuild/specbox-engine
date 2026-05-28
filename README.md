@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.6.2 — "Fast Activate" (sobre v6.6.1 "Loopback Resilience", v6.6.0 "VSCode Discoverability", v6.3.0 "Native Default OAuth")<br/>
+  v 6.7.0 — "Zero-Friction Onboarding" (sobre v6.6.2 "Fast Activate", v6.6.1 "Loopback Resilience", v6.6.0 "VSCode Discoverability")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,18 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v6.7
+
+**v6.7.0 — "Zero-Friction Onboarding"** quita toda la fricción de instalar la extensión VSCode y hace que avise con claridad cuando le falta algo:
+
+- **Onboarding cero-Python** — el MCP server se consume solo por el endpoint hospedado gratuito (se eliminó el modo Local que pedía Python). Engram se instala como binario nativo vía Homebrew, no por pip. Health check, walkthrough y README ya no mencionan Python.
+- **Gate de prerequisitos** — al arrancar, si falta un requisito crítico (Claude Code, Engram, Node o los servidores MCP) la extensión avisa de forma clara y no bloqueante que SpecBox puede no funcionar correctamente, con acciones de un clic. Silencio cuando todo está listo.
+- **Comando "SpecBox: Check Prerequisites"** — re-evalúa el entorno a demanda desde la paleta.
+
+100% backwards-compatible. Decisión: sin fallback air-gapped (el MCP remoto es gratuito); el aviso avisa, no impide.
 
 ---
 
@@ -367,7 +379,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.6.2 — "Fast Activate" (over v6.6.1 "Loopback Resilience", v6.6.0 "VSCode Discoverability", v6.3.0 "Native Default OAuth")
+> v 6.7.0 — "Zero-Friction Onboarding" (over v6.6.2 "Fast Activate", v6.6.1 "Loopback Resilience", v6.6.0 "VSCode Discoverability")
 
 ## What is this?
 
@@ -379,6 +391,18 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v6.7
+
+**v6.7.0 — "Zero-Friction Onboarding"** removes all the friction from installing the VSCode extension and makes it tell you clearly when something is missing:
+
+- **Python-free onboarding** — the MCP server is consumed only through the free hosted endpoint (the Local mode that required Python is gone). Engram installs as a native binary via Homebrew, not pip. Health check, walkthrough and README no longer mention Python.
+- **Prerequisites gate** — on startup, if a critical requirement is missing (Claude Code, Engram, Node, or the MCP servers) the extension warns — clearly and non-blocking — that SpecBox may not work correctly, with one-click fixes. Silent when everything is ready.
+- **"SpecBox: Check Prerequisites" command** — re-evaluate the environment on demand from the Command Palette.
+
+100% backwards-compatible. Decision: no air-gapped fallback (the remote MCP is free); the gate warns, it does not block.
+
+---
 
 ## What's new in v6.0
 

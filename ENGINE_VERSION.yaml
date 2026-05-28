@@ -1,8 +1,8 @@
-version: 6.6.0
-codename: "VSCode Discoverability"
+version: 6.6.1
+codename: "Loopback Resilience"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-05-27
+release_date: 2026-05-28
 min_claude_code: "1.0.0"
 
 stacks:
@@ -395,6 +395,13 @@ features:
   - dashboard-health-real-version
 
 changelog:
+  6.6.1:
+    date: 2026-05-28
+    codename: "Loopback Resilience"
+    changes:
+      - "fix: VSCode sign-in loopback timeout was armed at server creation (5 min), so reading the cloud confirm screen or clearing VS Code's trust dialog could exhaust it and the callback hit a dead port (ERR_CONNECTION_REFUSED). Now 10 min, armed only after the browser opens via armTimeout()."
+      - "fix: runSignIn now verifies token identity via whoami before persisting (closes UC-645 AC-05); rejects unverifiable tokens and shows the real GitHub handle on success."
+      - "feat: describeSignInError() centralizes actionable sign-in error copy (timeout / browser_blocked / identity_unverified) for onboarding and the direct command; EN+ES l10n parity."
   6.0.2:
     date: 2026-05-25
     codename: "Smoke Test Followups"

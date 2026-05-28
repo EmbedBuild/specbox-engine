@@ -1,4 +1,4 @@
-# SpecBox Engine v6.6.0
+# SpecBox Engine v6.6.1
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1353,9 +1353,40 @@ auto-merge OFF para esta US.
 - PRD: [doc/prd/US-VSCODE-DISCOVERABILITY_prd.md](doc/prd/US-VSCODE-DISCOVERABILITY_prd.md)
 - Discovery: [doc/discovery/vscode_discoverability_sidebar/icp_jtbd.md](doc/discovery/vscode_discoverability_sidebar/icp_jtbd.md)
 
+## Loopback Resilience (v6.6.1)
+
+UC-652 (bajo US-VSCODE-GITHUB-OAUTH) cierra dos defectos del flujo OAuth de la
+extensión descubiertos en el smoke test post-deploy de v6.3.0 (cross-repo con
+`specbox_cloud#49` / UC-905):
+
+1. **Timeout del loopback prematuro.** `startLoopbackServer` armaba el timeout
+   de 5 min al crear el server, antes de que el usuario navegara. Leer la
+   pantalla "Confirm your account" del cloud, cambiar de cuenta GitHub o
+   despejar el diálogo "open external website" de VS Code agotaba el reloj y el
+   callback caía en un puerto muerto (`ERR_CONNECTION_REFUSED`). Ahora el
+   timeout es de **10 min** y se arma vía `armTimeout()` idempotente **sólo tras
+   un `openExternal` exitoso**, de modo que el tiempo de setup no cuenta contra
+   la ventana de sign-in.
+
+2. **Token persistido sin verificar identidad.** `runSignIn` guardaba el
+   `mcp_token` sin comprobar a qué developer resuelve. Ahora llama
+   `fetchWhoami()` antes de persistir, rechaza con `identity_unverified` si el
+   cloud no confirma identidad, y muestra el handle real ("Signed in as
+   @handle"). Cierra **UC-645 AC-05**, que estaba especificado pero sin
+   implementar.
+
+Helper `describeSignInError()` centraliza copys accionables (`timeout` /
+`browser_blocked` / `identity_unverified`) para el onboarding y el comando
+directo `specbox.signIn`. Strings nuevas en los bundles l10n EN + ES.
+
+Sólo toca `vscode-extension/` (`oauth.ts`, `auth.ts`, `extension.ts`, l10n) +
+tests (47/47 verde, +4 del timeout diferido).
+
+- PR: [#80](https://github.com/EmbedBuild/specbox-engine/pull/80)
+
 ## Engine Version
 
-Current: v6.6.0 "VSCode Discoverability"
+Current: v6.6.1 "Loopback Resilience"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

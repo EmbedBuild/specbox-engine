@@ -2,6 +2,33 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.6.1] - 2026-05-28 — "Loopback Resilience"
+
+Patch que cierra dos defectos del flujo OAuth de la extensión VSCode descubiertos en el smoke test post-deploy de v6.3.0 (cross-repo con [specbox_cloud#49](https://github.com/EmbedBuild/specbox_cloud/pull/49) / UC-905, ya en producción). El bug de captación de usuarios (identidad cruzada) lo arregló el cloud; este patch endurece el lado consumidor de la extensión. Trazabilidad: UC-652 bajo US-VSCODE-GITHUB-OAUTH ([PR #80](https://github.com/EmbedBuild/specbox-engine/pull/80)).
+
+### Fixed
+
+- **Loopback timeout prematuro (`ERR_CONNECTION_REFUSED`)** — `startLoopbackServer` armaba el timeout de 5 min al crear el server, antes de que el usuario navegara. Leer la pantalla "Confirm your account" del cloud, cambiar de cuenta GitHub o despejar el diálogo "open external website" de VS Code agotaba el reloj y el callback caía en un puerto muerto. Ahora el timeout es de 10 min y se arma vía `armTimeout()` idempotente **sólo tras un `openExternal` exitoso**, de modo que el tiempo de setup no cuenta contra la ventana de sign-in.
+- **Token persistido sin verificar identidad** — `runSignIn` guardaba el `mcp_token` sin comprobar a qué developer resuelve. Ahora llama `fetchWhoami()` antes de persistir, rechaza con `identity_unverified` si el cloud no confirma identidad, y muestra el handle real ("Signed in as @handle"). Cierra **UC-645 AC-05**, especificado en v6.3.0 pero sin implementar.
+
+### Added
+
+- **`describeSignInError()`** — helper que centraliza los copys accionables de error de sign-in (`timeout` / `browser_blocked` / `identity_unverified`) para el onboarding y el comando directo `specbox.signIn`. Strings nuevas en los bundles l10n EN + ES (paridad 42/42).
+
+### Changed
+
+- `vscode-extension/src/oauth.ts` — `LoopbackServer` expone `armTimeout()`; `CALLBACK_TIMEOUT_MS` 5 → 10 min.
+- `vscode-extension/src/auth.ts` — `runSignIn` verifica identidad vía whoami; `maybeShowOnboarding` muestra el handle real.
+- `vscode-extension/src/extension.ts` — el comando `specbox.signIn` usa `describeSignInError`.
+
+### Compatibility
+
+- 100% backwards-compatible. Sólo toca `vscode-extension/`; backend MCP, cloud y los otros 3 backends de tracking no se ven afectados.
+
+### Tests
+
+- 47/47 verde en la suite `node:test` de la extensión (+4 nuevos del timeout diferido, sin regresión sobre los 43 previos). Lint i18n y `tsc -p ./` limpios.
+
 ## [6.5.0] - 2026-05-27 — "Stitch Native Migration — Behavioural (PR-2)"
 
 Cierra el ciclo de la migración Stitch iniciado en v6.4.0. PR-1 introdujo la foundation (cliente nativo + enums reales + mapper VEG↔M3 + cleanup quota). **Esta PR-2 cablea esa foundation al pipeline real**: `generate_design_md_tool` emite Material 3 estricto, `stitch_generate_screen_v2` limpia prompts cuando hay DS aplicado, `/visual-setup --migrate-stitch` cubre los 6 casos de migración, y `upgrade_project` + `version_matrix` surfacean el nuevo `stitch.contract`. Cutover duro de `inline_prefix_v1` sigue planificado para v7.0 (ver `doc/migrations/v7_stitch_native_chain.md`).

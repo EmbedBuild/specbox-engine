@@ -52,6 +52,7 @@ La extensión expone 5 comandos en la Paleta de Comandos (`Ctrl+Shift+P` / `Cmd+
 |---------|----------|
 | **SpecBox: Instalar Engine** | Instalación en un clic de 15 skills, 20+ hooks, settings y servidores MCP |
 | **SpecBox: Comprobar Salud** | Diagnóstico (Node, Claude Code, Engram, skills, hooks, MCP) |
+| **SpecBox: Comprobar Requisitos** | Verifica que los requisitos críticos están instalados; avisa si SpecBox puede no funcionar correctamente |
 | **SpecBox: Inicializar Proyecto** | Asistente interactivo que te guía paso a paso |
 | **SpecBox: Ver Estado** | Vista rápida del estado del engine en el workspace actual |
 | **SpecBox: Configurar Servidores MCP** | Configura o repara los servidores MCP de SpecBox + Engram |

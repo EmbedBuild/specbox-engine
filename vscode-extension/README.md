@@ -52,6 +52,7 @@ The extension provides 5 commands available from the Command Palette (`Ctrl+Shif
 |---------|--------------|
 | **SpecBox: Install Engine** | One-click install of 15 skills, 20+ hooks, settings, and MCP servers |
 | **SpecBox: Health Check** | Diagnostic report (Node, Claude Code, Engram, skills, hooks, MCP) |
+| **SpecBox: Check Prerequisites** | Verify critical prerequisites are installed; warns if SpecBox may not work correctly |
 | **SpecBox: Onboard Project** | Interactive wizard that walks you through full setup |
 | **SpecBox: Show Status** | Quick status view of the engine in the current workspace |
 | **SpecBox: Configure MCP Servers** | Set up or repair SpecBox MCP + Engram memory MCP servers |

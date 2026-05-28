@@ -9768,5 +9768,291 @@
     },
     "created_at": "2026-05-28T13:34:55.830790+00:00",
     "updated_at": "2026-05-28T13:44:35.847356+00:00"
+  },
+  {
+    "id": "item-09a51bd1",
+    "name": "US-VSCODE-PREREQ-GATE: Gate de prerequisitos de la extensión VSCode",
+    "description": "# US-VSCODE-PREREQ-GATE: Gate de prerequisitos de la extensión VSCode\n\n**Horas estimadas:** 4.0\n**Pantallas:** \n\nAñadir un gate de prerequisitos a la extensión VSCode que avise de forma clara y accionable cuando falten requisitos críticos (Claude Code, Engram, Node, MCP configurado). Warning no bloqueante en startup + comando 'SpecBox: Check Prerequisites'. Discovery: doc/discovery/prerequisites_gate/icp_jtbd.md. PRD: doc/prd/US-VSCODE-PREREQ-GATE_prd.md.",
+    "state": "user_stories",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-VSCODE-PREREQ-GATE",
+      "horas": 4.0,
+      "pantallas": ""
+    },
+    "created_at": "2026-05-28T13:55:02.517310+00:00",
+    "external_source": "",
+    "external_id": ""
+  },
+  {
+    "id": "item-ddae2ba1",
+    "name": "UC-706: Evaluación de prerequisitos (función pura)",
+    "description": "# UC-706: Evaluación de prerequisitos (función pura)\n\n**User Story:** US-VSCODE-PREREQ-GATE: Gate de prerequisitos de la extensión VSCode\n**Actor:** Dev solo con Claude Code (ICP-2)\n**Horas estimadas:** 1.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Existe función pura evaluatePrerequisites(health) que devuelve {verdict:'ready'|'degraded', missing:string[]} con missing = requisitos criticos ausentes (Claude Code, Engram, Node, MCP SpecBox, MCP Engram). verdict='degraded' sii missing.length>0.\n- AC-02: GGA ausente NO produce 'degraded' (es opcional). Con todos los criticos presentes y GGA ausente, verdict='ready'.\n\n## Contexto\nFunción pura evaluatePrerequisites(health) testeable sin vscode.",
+    "state": "done",
+    "parent_id": "item-09a51bd1",
+    "labels": [
+      "UC",
+      "Actor:Dev solo con Claude Code (ICP-2)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-706",
+      "us_id": "US-VSCODE-PREREQ-GATE",
+      "horas": 1.0,
+      "pantallas": "",
+      "actor": "Dev solo con Claude Code (ICP-2)"
+    },
+    "created_at": "2026-05-28T13:55:02.537812+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-28T13:59:07.198444+00:00"
+  },
+  {
+    "id": "ac-9dee425d",
+    "name": "[AC-01] Existe función pura evaluatePrerequisites(health) que devuelve {verdict:'ready'|'degraded', missing:string[]} con missing = requisitos criticos ausentes (Claude Code, Engram, Node, MCP SpecBox, MCP Engram). verdict='degraded' sii missing.length>0.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-ddae2ba1",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:55:02.554382+00:00",
+    "updated_at": "2026-05-28T13:57:52.417472+00:00"
+  },
+  {
+    "id": "ac-63b1404b",
+    "name": "[AC-02] GGA ausente NO produce 'degraded' (es opcional). Con todos los criticos presentes y GGA ausente, verdict='ready'.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-ddae2ba1",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:55:02.554397+00:00",
+    "updated_at": "2026-05-28T13:57:52.437714+00:00"
+  },
+  {
+    "id": "item-498f7128",
+    "name": "UC-707: Gate no bloqueante en el arranque",
+    "description": "# UC-707: Gate no bloqueante en el arranque\n\n**User Story:** US-VSCODE-PREREQ-GATE: Gate de prerequisitos de la extensión VSCode\n**Actor:** Dev solo con Claude Code (ICP-2)\n**Horas estimadas:** 1.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Cuando evaluatePrerequisites devuelve 'degraded' al arrancar, la extensión muestra showWarningMessage (no modal) que enumera los requisitos ausentes e indica explicitamente que SpecBox puede no funcionar correctamente sin ellos.\n- AC-02: Cuando verdict='ready' al arrancar, NO se muestra ningún aviso de prerequisitos (silencio).\n- AC-03: El gate de arranque nunca lanza excepción no controlada (guard try/catch propio); un fallo no rompe la activacion ni el resto de runStartupTasks.\n\n## Contexto\nEn runStartupTasks, tras el health check, dispara el gate via showWarningMessage no bloqueante.",
+    "state": "done",
+    "parent_id": "item-09a51bd1",
+    "labels": [
+      "UC",
+      "Actor:Dev solo con Claude Code (ICP-2)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-707",
+      "us_id": "US-VSCODE-PREREQ-GATE",
+      "horas": 1.0,
+      "pantallas": "",
+      "actor": "Dev solo con Claude Code (ICP-2)"
+    },
+    "created_at": "2026-05-28T13:55:02.571191+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-28T13:59:10.900463+00:00"
+  },
+  {
+    "id": "ac-4288d7e1",
+    "name": "[AC-01] Cuando evaluatePrerequisites devuelve 'degraded' al arrancar, la extensión muestra showWarningMessage (no modal) que enumera los requisitos ausentes e indica explicitamente que SpecBox puede no funcionar correctamente sin ellos.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-498f7128",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:55:02.586901+00:00",
+    "updated_at": "2026-05-28T13:58:02.674450+00:00"
+  },
+  {
+    "id": "ac-60450663",
+    "name": "[AC-02] Cuando verdict='ready' al arrancar, NO se muestra ningún aviso de prerequisitos (silencio).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-498f7128",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:55:02.586912+00:00",
+    "updated_at": "2026-05-28T13:58:02.694757+00:00"
+  },
+  {
+    "id": "ac-54cfb34a",
+    "name": "[AC-03] El gate de arranque nunca lanza excepción no controlada (guard try/catch propio); un fallo no rompe la activacion ni el resto de runStartupTasks.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-498f7128",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:55:02.586916+00:00",
+    "updated_at": "2026-05-28T13:58:02.711429+00:00"
+  },
+  {
+    "id": "item-8b04d3df",
+    "name": "UC-708: Comando Check Prerequisites a demanda",
+    "description": "# UC-708: Comando Check Prerequisites a demanda\n\n**User Story:** US-VSCODE-PREREQ-GATE: Gate de prerequisitos de la extensión VSCode\n**Actor:** Owner-operator (ICP-1)\n**Horas estimadas:** 1.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: Existe el comando specbox.checkPrerequisites registrado y declarado en package.json con titulo 'SpecBox: Check Prerequisites'.\n- AC-02: Al invocarlo con todo OK muestra mensaje informativo de entorno listo; con requisitos ausentes muestra el mismo gate accionable que el de arranque.\n\n## Contexto\nComando specbox.checkPrerequisites para re-evaluar a demanda.",
+    "state": "done",
+    "parent_id": "item-09a51bd1",
+    "labels": [
+      "UC",
+      "Actor:Owner-operator (ICP-1)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-708",
+      "us_id": "US-VSCODE-PREREQ-GATE",
+      "horas": 1.0,
+      "pantallas": "",
+      "actor": "Owner-operator (ICP-1)"
+    },
+    "created_at": "2026-05-28T13:55:02.602423+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-28T13:59:14.405170+00:00"
+  },
+  {
+    "id": "ac-cd11af3e",
+    "name": "[AC-01] Existe el comando specbox.checkPrerequisites registrado y declarado en package.json con titulo 'SpecBox: Check Prerequisites'.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-8b04d3df",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:55:02.616913+00:00",
+    "updated_at": "2026-05-28T13:58:11.894435+00:00"
+  },
+  {
+    "id": "ac-0ebe00e6",
+    "name": "[AC-02] Al invocarlo con todo OK muestra mensaje informativo de entorno listo; con requisitos ausentes muestra el mismo gate accionable que el de arranque.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-8b04d3df",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:55:02.616924+00:00",
+    "updated_at": "2026-05-28T13:58:11.916131+00:00"
+  },
+  {
+    "id": "item-04d6eede",
+    "name": "UC-709: Documentación del gate",
+    "description": "# UC-709: Documentación del gate\n\n**User Story:** US-VSCODE-PREREQ-GATE: Gate de prerequisitos de la extensión VSCode\n**Actor:** Owner-operator (ICP-1)\n**Horas estimadas:** 1.0\n**Pantallas:** \n\n## Criterios de Aceptacion\n- AC-01: El walkthrough (step-prerequisites.md) menciona que la extensión avisa automaticamente si falta un requisito y como re-comprobar.\n- AC-02: README.md y README.es.md documentan el comando 'SpecBox: Check Prerequisites' en la tabla de comandos.\n- AC-03: npm run compile y npm test pasan sin errores tras todos los cambios (incluye tests nuevos de evaluatePrerequisites).\n\n## Contexto\nWalkthrough + README reflejan el nuevo gate/comando.",
+    "state": "done",
+    "parent_id": "item-09a51bd1",
+    "labels": [
+      "UC",
+      "Actor:Owner-operator (ICP-1)"
+    ],
+    "priority": "none",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-709",
+      "us_id": "US-VSCODE-PREREQ-GATE",
+      "horas": 1.0,
+      "pantallas": "",
+      "actor": "Owner-operator (ICP-1)"
+    },
+    "created_at": "2026-05-28T13:55:02.633275+00:00",
+    "external_source": "",
+    "external_id": "",
+    "updated_at": "2026-05-28T13:59:18.543793+00:00"
+  },
+  {
+    "id": "ac-b25b9f26",
+    "name": "[AC-01] El walkthrough (step-prerequisites.md) menciona que la extensión avisa automaticamente si falta un requisito y como re-comprobar.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-04d6eede",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:55:02.648422+00:00",
+    "updated_at": "2026-05-28T13:59:03.347484+00:00"
+  },
+  {
+    "id": "ac-dcfa3d2d",
+    "name": "[AC-02] README.md y README.es.md documentan el comando 'SpecBox: Check Prerequisites' en la tabla de comandos.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-04d6eede",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:55:02.648430+00:00",
+    "updated_at": "2026-05-28T13:59:03.369884+00:00"
+  },
+  {
+    "id": "ac-e9edb3ef",
+    "name": "[AC-03] npm run compile y npm test pasan sin errores tras todos los cambios (incluye tests nuevos de evaluatePrerequisites).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-04d6eede",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-28T13:55:02.648434+00:00",
+    "updated_at": "2026-05-28T13:59:03.386375+00:00"
   }
 ]

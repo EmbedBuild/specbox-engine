@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-28T13:44:56.227691+00:00
+> Actualizado: 2026-05-28T13:59:18.549044+00:00
 
 ## User Stories
 
@@ -23,6 +23,7 @@
 | US-VSCODE-GITHUB-OAUTH | US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth | User Stories | 1 | 10 | 10% |
 | US-VSCODE-DISCOVERABILITY | US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode | User Stories | 0 | 5 | 0% |
 | US-VSCODE-ZERO-PYTHON | US-VSCODE-ZERO-PYTHON: Onboarding cero-Python de la extensión VSCode | User Stories | 5 | 5 | 100% |
+| US-VSCODE-PREREQ-GATE | US-VSCODE-PREREQ-GATE: Gate de prerequisitos de la extensión VSCode | User Stories | 4 | 4 | 100% |
 
 ## Use Cases
 
@@ -123,3 +124,7 @@
 | UC-003 | US-VSCODE-ZERO-PYTHON | Done | 2 | 2 | 100% |
 | UC-004 | US-VSCODE-ZERO-PYTHON | Done | 3 | 3 | 100% |
 | UC-005 | US-VSCODE-ZERO-PYTHON | Done | 2 | 2 | 100% |
+| UC-706 | US-VSCODE-PREREQ-GATE | Done | 2 | 2 | 100% |
+| UC-707 | US-VSCODE-PREREQ-GATE | Done | 3 | 3 | 100% |
+| UC-708 | US-VSCODE-PREREQ-GATE | Done | 2 | 2 | 100% |
+| UC-709 | US-VSCODE-PREREQ-GATE | Done | 3 | 3 | 100% |

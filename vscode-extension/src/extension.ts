@@ -124,50 +124,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		}),
 	);
 
-	// Auto health check on startup
-	const config = vscode.workspace.getConfiguration('specbox');
-	if (config.get<boolean>('autoHealthCheck', true)) {
-		const result = await health.run();
-		statusBar.update(result);
-
-		// Set context for welcome views
-		await vscode.commands.executeCommand('setContext', 'specbox.installed', result.engineInstalled);
-
-		if (!result.engineInstalled) {
-			const runWizard = vscode.l10n.t('Run Wizard');
-			const installNow = vscode.l10n.t('Install Now');
-			const later = vscode.l10n.t('Later');
-			const action = await vscode.window.showInformationMessage(
-				vscode.l10n.t('SpecBox Engine detected but not installed. Run the setup wizard?'),
-				runWizard,
-				installNow,
-				later
-			);
-			if (action === runWizard) {
-				await vscode.commands.executeCommand('specbox.onboard');
-			} else if (action === installNow) {
-				await vscode.commands.executeCommand('specbox.install');
-			}
-		}
-
-		// Self-update check: compare extension version vs engine version
-		if (result.enginePath) {
-			const extVersion = context.extension.packageJSON.version as string;
-			const updater = new ExtensionUpdater(extVersion);
-			await updater.checkAndUpdate(result.enginePath);
-		}
-	}
-
-	// UC-647 — onboarding gate (only when no decision yet)
-	await maybeShowOnboarding(context, secrets).catch((err) => {
-		console.warn('[specbox] onboarding gate failed:', err);
-	});
-
-	// Skills context bootstrapping (drives viewsWelcome for specbox.skills)
-	await updateSkillsContext(skillsTree);
-
-	// UC-649 — identity polling + initial refresh
-	await refreshIdentity(statusTree, secrets);
+	// Identity polling — registered synchronously so its disposal is wired up
+	// regardless of how the async startup tasks below resolve.
 	identityPollingHandle = setInterval(() => {
 		refreshIdentity(statusTree, secrets).catch(() => { /* ignore */ });
 	}, IDENTITY_POLL_INTERVAL_MS);
@@ -175,6 +133,83 @@ export async function activate(context: vscode.ExtensionContext) {
 		dispose: () => {
 			if (identityPollingHandle) { clearInterval(identityPollingHandle); identityPollingHandle = undefined; }
 		},
+	});
+
+	// CRITICAL: activate() must resolve fast. Health check, the engine-update
+	// prompt, the onboarding gate and the identity refresh all either hit the
+	// network or block on user input (showInformationMessage). Awaiting them
+	// here kept the extension stuck on "Activating…" until the user clicked a
+	// notification — which is exactly what happened to every user after a
+	// version bump (the updater's "Update extension?" prompt blocked startup).
+	// We fire them in the background and never await; failures are swallowed so
+	// they can never wedge activation.
+	void runStartupTasks(context, { health, statusBar: statusBar!, statusTree, skillsTree, secrets });
+}
+
+interface StartupDeps {
+	health: HealthChecker;
+	statusBar: StatusBarManager;
+	statusTree: StatusTreeProvider;
+	skillsTree: SkillsTreeProvider;
+	secrets: SecretsManager;
+}
+
+/**
+ * Non-blocking startup work. Runs AFTER activate() has already resolved, so
+ * VS Code marks the extension active immediately. Nothing here may throw out
+ * — each step guards itself and logs on failure.
+ */
+async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDeps): Promise<void> {
+	const { health, statusBar: bar, statusTree, skillsTree, secrets } = deps;
+
+	const config = vscode.workspace.getConfiguration('specbox');
+	if (config.get<boolean>('autoHealthCheck', true)) {
+		try {
+			const result = await health.run();
+			bar.update(result);
+			await vscode.commands.executeCommand('setContext', 'specbox.installed', result.engineInstalled);
+
+			if (!result.engineInstalled) {
+				const runWizard = vscode.l10n.t('Run Wizard');
+				const installNow = vscode.l10n.t('Install Now');
+				const later = vscode.l10n.t('Later');
+				const action = await vscode.window.showInformationMessage(
+					vscode.l10n.t('SpecBox Engine detected but not installed. Run the setup wizard?'),
+					runWizard,
+					installNow,
+					later
+				);
+				if (action === runWizard) {
+					await vscode.commands.executeCommand('specbox.onboard');
+				} else if (action === installNow) {
+					await vscode.commands.executeCommand('specbox.install');
+				}
+			}
+
+			// Self-update check: compare extension version vs engine version.
+			if (result.enginePath) {
+				const extVersion = context.extension.packageJSON.version as string;
+				const updater = new ExtensionUpdater(extVersion);
+				await updater.checkAndUpdate(result.enginePath);
+			}
+		} catch (err) {
+			console.warn('[specbox] startup health/update task failed:', err);
+		}
+	}
+
+	// UC-647 — onboarding gate (only when no decision yet).
+	await maybeShowOnboarding(context, secrets).catch((err) => {
+		console.warn('[specbox] onboarding gate failed:', err);
+	});
+
+	// Skills context bootstrapping (drives viewsWelcome for specbox.skills).
+	await updateSkillsContext(skillsTree).catch((err) => {
+		console.warn('[specbox] skills context bootstrap failed:', err);
+	});
+
+	// UC-649 — initial identity refresh (polling already armed in activate()).
+	await refreshIdentity(statusTree, secrets).catch((err) => {
+		console.warn('[specbox] initial identity refresh failed:', err);
 	});
 }
 

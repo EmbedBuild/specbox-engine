@@ -67,14 +67,12 @@ export class OnboardWizard {
 
 	private prerequisiteSummary(h: {
 		node: { ok: boolean; version: string | null };
-		python: { ok: boolean; version: string | null };
 		claudeCode: { ok: boolean; version: string | null };
 		engram: { ok: boolean; version: string | null };
 	}): string {
 		const check = (ok: boolean) => ok ? 'OK' : 'MISSING';
 		return [
 			`Node.js: ${check(h.node.ok)} ${h.node.version ?? ''}`,
-			`Python 3.12+: ${check(h.python.ok)} ${h.python.version ?? ''}`,
 			`Claude Code: ${check(h.claudeCode.ok)} ${h.claudeCode.version ?? ''}`,
 			`Engram: ${check(h.engram.ok)} ${h.engram.version ?? ''}`,
 			'',

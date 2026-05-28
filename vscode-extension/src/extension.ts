@@ -12,6 +12,7 @@ import { SkillInfo } from './views/skill-loader';
 import { SecretsManager } from './secret-storage';
 import { runSignIn, runSignOut, maybeShowOnboarding, describeSignInError } from './auth';
 import { fetchWhoami } from './cloud-api';
+import { showPrereqGate } from './prerequisites';
 
 let statusBar: StatusBarManager | undefined;
 let identityPollingHandle: NodeJS.Timeout | undefined;
@@ -65,6 +66,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		vscode.commands.registerCommand('specbox.configureMcp', async () => {
 			await mcpConfig.configureAll();
+		}),
+
+		vscode.commands.registerCommand('specbox.checkPrerequisites', async () => {
+			const result = await health.run();
+			statusBar?.update(result);
+			statusTree.refresh();
+			await showPrereqGate(result, { onStartup: false });
 		}),
 
 		vscode.commands.registerCommand('specbox.signIn', async () => {
@@ -194,6 +202,16 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 			}
 		} catch (err) {
 			console.warn('[specbox] startup health/update task failed:', err);
+		}
+
+		// US-VSCODE-PREREQ-GATE — non-blocking prerequisites gate. Warns (and
+		// only warns) when a critical prerequisite is missing so the user knows
+		// SpecBox may not work correctly. Silent when everything is ready.
+		try {
+			const result = await health.run();
+			await showPrereqGate(result, { onStartup: true });
+		} catch (err) {
+			console.warn('[specbox] prerequisites gate failed:', err);
 		}
 	}
 

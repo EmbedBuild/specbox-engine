@@ -51,7 +51,8 @@ La extensión expone 5 comandos en la Paleta de Comandos (`Ctrl+Shift+P` / `Cmd+
 | Comando | Qué hace |
 |---------|----------|
 | **SpecBox: Instalar Engine** | Instalación en un clic de 15 skills, 20+ hooks, settings y servidores MCP |
-| **SpecBox: Comprobar Salud** | Diagnóstico (Node, Python, Claude Code, Engram, skills, hooks, MCP) |
+| **SpecBox: Comprobar Salud** | Diagnóstico (Node, Claude Code, Engram, skills, hooks, MCP) |
+| **SpecBox: Comprobar Requisitos** | Verifica que los requisitos críticos están instalados; avisa si SpecBox puede no funcionar correctamente |
 | **SpecBox: Inicializar Proyecto** | Asistente interactivo que te guía paso a paso |
 | **SpecBox: Ver Estado** | Vista rápida del estado del engine en el workspace actual |
 | **SpecBox: Configurar Servidores MCP** | Configura o repara los servidores MCP de SpecBox + Engram |
@@ -96,9 +97,9 @@ Iniciar sesión con GitHub** o **SpecBox: Cerrar sesión**.
 El asistente se encarga de todo:
 
 ```
-Paso 1  →  Comprueba requisitos (Node, Python, Claude Code, Engram)
+Paso 1  →  Comprueba requisitos (Node, Claude Code, Engram)
 Paso 2  →  Localiza el repo del engine (autodetectado o clonado)
-Paso 3  →  Instala 15 skills + 20+ hooks + settings
+Paso 3  →  Instala todos los skills + 20+ hooks + settings
 Paso 4  →  Configura servidores MCP (SpecBox + Engram)
 ```
 
@@ -163,7 +164,6 @@ para el rationale arquitectural y los trade-offs de seguridad residuales.
 
 - **Claude Code** — [instalar](https://claude.ai/code) o la extensión oficial de Claude para VSCode.
 - **Node.js 18+** — [descargar](https://nodejs.org)
-- **Python 3.12+** — [descargar](https://python.org)
 - **Git** — [descargar](https://git-scm.com)
 - **VSCode 1.86+** — requerido para localización runtime (`vscode.l10n`).
 
@@ -244,7 +244,7 @@ VSCode resuelve el idioma automáticamente según `vscode.env.language`. Para fo
 | Instalación de hooks | Copia | Copia | Copia |
 | Configuración MCP | Config JSON | Config JSON | Config JSON |
 | Merge de settings | Smart merge | Smart merge | Smart merge |
-| Instalación de Engram | pip/pipx | pip/pipx | pip/pipx |
+| Instalación de Engram | Homebrew | Homebrew | Binario manual |
 
 La extensión usa symlinks cuando es posible, con fallback automático a copia en Windows.
 
@@ -255,7 +255,7 @@ La extensión usa symlinks cuando es posible, con fallback automático a copia e
 | Problema | Solución |
 |----------|----------|
 | "Claude Code no detectado" | Instala primero [Claude Code](https://claude.ai/code) o la extensión Claude para VSCode. |
-| Servidores MCP inalcanzables | Ejecuta **SpecBox: Configurar Servidores MCP** para reescribir la config MCP. Verifica que Python ≥ 3.12 esté en el `PATH`. |
+| Servidores MCP inalcanzables | Ejecuta **SpecBox: Configurar Servidores MCP** para reescribir la config MCP. El servidor MCP de SpecBox usa un endpoint hospedado gratuito — verifica el acceso a la red y que `npx` esté en el `PATH`. |
 | Aviso de versión del engine no coincide | La extensión y el repo local del engine están desincronizados. Ejecuta **SpecBox: Instalar Engine** para actualizar los archivos locales, o `git pull` en el repo del engine. |
 | Los comandos salen en inglés aun con `--locale=es` | Recarga la ventana después de instalar (`Ctrl+Shift+P` → "Developer: Reload Window"). VSCode cachea los bundles NLS entre sesiones. |
 | El walkthrough no aparece | Ejecuta **SpecBox: Inicializar Proyecto** manualmente. El walkthrough solo se lanza automáticamente en la primera instalación. |

@@ -11,6 +11,7 @@
   "command.identityQuickPick.title": "SpecBox: Identidad",
   "command.showSkillCard.title": "SpecBox: Ver ficha de skill",
   "command.refresh.title": "SpecBox: Refrescar",
+  "command.checkPrerequisites.title": "SpecBox: Comprobar Requisitos",
   "capabilities.untrustedWorkspaces.description": "SpecBox instala skills, hooks y servidores MCP que ejecutan comandos. En Modo Restringido solo están disponibles Health Check y el sidebar de solo lectura; install, onboard, configurar MCP e iniciar sesión se desactivan hasta que se conceda confianza al workspace.",
   "command.showSkillCard.title": "SpecBox: Mostrar ficha del skill",
   "configuration.signInBaseUrl.description": "Sobrescribe la URL de inicio de sesión en la nube (avanzado; por defecto https://cloud.specbox.build/vscode/issue-token).",

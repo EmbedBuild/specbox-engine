@@ -1,0 +1,4 @@
+{"id": "cmt-ee7cfbf9", "text": "Desarrollo iniciado: 2026-05-28T13:44:28.838099+00:00", "created_at": "2026-05-28T13:44:28.838126+00:00", "author": "freeform"}
+{"id": "cmt-885b24ce", "text": "Validacion AG-09b [2026-05-28 13:44 UTC]:\n  AC-01: PASSED\n  AC-02: PASSED", "created_at": "2026-05-28T13:44:35.863007+00:00", "author": "freeform"}
+{"id": "cmt-782d3e41", "text": "Todos los criterios de aceptacion validados", "created_at": "2026-05-28T13:44:35.863093+00:00", "author": "freeform"}
+{"id": "cmt-0f5aa3b5", "text": "Gate final: grep cero-python user-facing CLEAN; npm run compile OK; npm test 51/51 verde (incluye tests/mcp.test.mjs nuevo).", "created_at": "2026-05-28T13:44:56.241278+00:00", "author": "freeform"}

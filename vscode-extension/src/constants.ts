@@ -24,4 +24,3 @@ export const KNOWN_SKILLS = [
 ];
 
 export const REQUIRED_NODE_VERSION = 18;
-export const REQUIRED_PYTHON_VERSION = '3.12';

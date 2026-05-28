@@ -24,7 +24,6 @@ export class StatusBarManager {
 		if (!health.engram.ok) { issues.push('Engram missing'); }
 		if (!health.mcpSpecbox.configured) { issues.push('MCP not configured'); }
 		if (!health.mcpEngram.configured) { issues.push('Engram MCP not configured'); }
-		if (!health.python.ok) { issues.push('Python 3.12+ missing'); }
 
 		if (issues.length > 0) {
 			this.item.text = `$(alert) SpecBox v${health.engineVersion}`;

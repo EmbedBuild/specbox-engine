@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as os from 'os';
 import {
 	CLAUDE_DIR, CLAUDE_SKILLS_DIR, CLAUDE_HOOKS_DIR,
-	CLAUDE_SETTINGS, KNOWN_SKILLS, REQUIRED_NODE_VERSION, REQUIRED_PYTHON_VERSION
+	CLAUDE_SETTINGS, KNOWN_SKILLS, REQUIRED_NODE_VERSION
 } from './constants';
 import { exec, commandExists } from './util';
 
@@ -13,7 +13,6 @@ export interface HealthResult {
 	engineVersion: string | null;
 	enginePath: string | null;
 	node: { ok: boolean; version: string | null };
-	python: { ok: boolean; version: string | null };
 	claudeCode: { ok: boolean; version: string | null };
 	engram: { ok: boolean; version: string | null };
 	skills: { installed: string[]; missing: string[] };
@@ -30,9 +29,8 @@ export class HealthChecker {
 		const enginePath = await this.findEnginePath();
 		const engineVersion = enginePath ? this.readEngineVersion(enginePath) : null;
 
-		const [node, python, claudeCode, engram, gga] = await Promise.all([
+		const [node, claudeCode, engram, gga] = await Promise.all([
 			this.checkNode(),
-			this.checkPython(),
 			this.checkClaudeCode(),
 			this.checkEngram(),
 			this.checkGga(),
@@ -48,7 +46,7 @@ export class HealthChecker {
 			engineInstalled: !!enginePath && skills.missing.length === 0,
 			engineVersion,
 			enginePath,
-			node, python, claudeCode, engram,
+			node, claudeCode, engram,
 			skills, hooks, settings,
 			mcpSpecbox, mcpEngram, gga,
 		};
@@ -72,7 +70,6 @@ export class HealthChecker {
 			`| ${vscode.l10n.t('Engine')} | ${r.engineInstalled ? `v${r.engineVersion}` : notInstalled} |`,
 			`| ${vscode.l10n.t('Engine Path')} | ${r.enginePath ?? notFound} |`,
 			`| Node.js | ${r.node.ok ? r.node.version : vscode.l10n.t('Missing (need {0}+)', REQUIRED_NODE_VERSION)} |`,
-			`| Python | ${r.python.ok ? r.python.version : vscode.l10n.t('Missing (need {0}+)', REQUIRED_PYTHON_VERSION)} |`,
 			`| Claude Code | ${r.claudeCode.ok ? r.claudeCode.version : missing} |`,
 			`| Engram | ${r.engram.ok ? r.engram.version : notInstalled} |`,
 			`| GGA | ${r.gga.ok ? r.gga.version : optional} |`,
@@ -133,19 +130,6 @@ export class HealthChecker {
 		const match = v.match(/(\d+)/);
 		const major = match ? Number(match[1]) : 0;
 		return { ok: major >= REQUIRED_NODE_VERSION, version: v };
-	}
-
-	private async checkPython(): Promise<{ ok: boolean; version: string | null }> {
-		// Try python3 first, then python
-		let v = await exec('python3 --version');
-		if (!v) { v = await exec('python --version'); }
-		if (!v) { return { ok: false, version: null }; }
-		const match = v.match(/(\d+)\.(\d+)/);
-		if (!match) { return { ok: false, version: v }; }
-		const major = Number(match[1]);
-		const minor = Number(match[2]);
-		const ok = major >= 3 && minor >= 12;
-		return { ok, version: v.replace('Python ', '').trim() };
 	}
 
 	private async checkClaudeCode(): Promise<{ ok: boolean; version: string | null }> {

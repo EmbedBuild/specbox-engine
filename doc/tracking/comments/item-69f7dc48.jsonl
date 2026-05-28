@@ -1,0 +1,4 @@
+{"id": "cmt-afd580fb", "text": "Desarrollo iniciado: 2026-05-28T13:41:06.144787+00:00", "created_at": "2026-05-28T13:41:06.144813+00:00", "author": "freeform"}
+{"id": "cmt-7c2ff9ee", "text": "Validacion AG-09b [2026-05-28 13:43 UTC]:\n  AC-01: PASSED\n  AC-02: PASSED\n  AC-03: PASSED", "created_at": "2026-05-28T13:43:20.462871+00:00", "author": "freeform"}
+{"id": "cmt-000adc1d", "text": "Todos los criterios de aceptacion validados", "created_at": "2026-05-28T13:43:20.462941+00:00", "author": "freeform"}
+{"id": "cmt-072e0874", "text": "walkthrough, package.json, README.md y README.es.md sin menciones a Python; Engram documentado como brew. grep docs CLEAN.", "created_at": "2026-05-28T13:44:51.602357+00:00", "author": "freeform"}

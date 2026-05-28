@@ -7,7 +7,13 @@ const ALLOWED_ORIGINS = new Set([
 	'https://cloud.specbox.build',
 ]);
 
-const CALLBACK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+// The user has to read the cloud "Confirm your account" screen, possibly
+// switch GitHub accounts, and clear VS Code's "open external website" trust
+// dialog — all inside this window. 5 minutes was too tight in practice
+// (users hit ERR_CONNECTION_REFUSED because the loopback had already closed).
+// The clock is also armed AFTER the browser opens (see armTimeout), not when
+// the server is created, so setup time is not counted against the user.
+const CALLBACK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 // Token shape is `spbx_<base64url(32 bytes)>` — frozen by the cloud's
 // `issueMcpToken()` in apps/api/src/lib/tokens.ts (US-09 of specbox_cloud).
 // Base64url charset is [A-Za-z0-9_-]; randomBytes(32) yields a 43-char body
@@ -23,6 +29,12 @@ export interface LoopbackServer {
 	port: number;
 	state: string;
 	awaitCallback: Promise<CallbackResult>;
+	/**
+	 * Arm the inactivity timeout. Call this AFTER the browser has actually
+	 * opened, so the window the user gets to complete sign-in is not eaten by
+	 * the time spent opening the browser / clearing trust dialogs. Idempotent.
+	 */
+	armTimeout: () => void;
 	close: () => void;
 }
 
@@ -48,16 +60,10 @@ export async function startLoopbackServer(): Promise<LoopbackServer> {
 		}
 	});
 
-	const timeoutHandle = setTimeout(() => {
-		if (!resolved) {
-			resolved = true;
-			try { server.close(); } catch { /* ignore */ }
-			resolvePromise({ ok: false, error: 'timeout' });
-		}
-	}, CALLBACK_TIMEOUT_MS);
+	let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 
 	awaitCallback.then(() => {
-		clearTimeout(timeoutHandle);
+		if (timeoutHandle) { clearTimeout(timeoutHandle); }
 		// Small delay so the success HTML reaches the browser before closing.
 		setTimeout(() => { try { server.close(); } catch { /* ignore */ } }, 250);
 	});
@@ -74,8 +80,19 @@ export async function startLoopbackServer(): Promise<LoopbackServer> {
 		port,
 		state,
 		awaitCallback,
+		armTimeout: () => {
+			// Idempotent: only the first call arms the clock.
+			if (timeoutHandle || resolved) { return; }
+			timeoutHandle = setTimeout(() => {
+				if (!resolved) {
+					resolved = true;
+					try { server.close(); } catch { /* ignore */ }
+					resolvePromise({ ok: false, error: 'timeout' });
+				}
+			}, CALLBACK_TIMEOUT_MS);
+		},
 		close: () => {
-			clearTimeout(timeoutHandle);
+			if (timeoutHandle) { clearTimeout(timeoutHandle); }
 			try { server.close(); } catch { /* ignore */ }
 			if (!resolved) {
 				resolved = true;

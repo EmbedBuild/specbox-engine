@@ -183,3 +183,53 @@ test('buildSignInUrl respects baseUrl override', () => {
 	const url = buildSignInUrl(1234, 'xyz', 'http://localhost:9999/vscode/issue-token');
 	assert.match(url, /^http:\/\/localhost:9999\/vscode\/issue-token\?/);
 });
+
+test('armTimeout: server exposes the deferred-timeout API', async () => {
+	const server = await startLoopbackServer();
+	try {
+		assert.equal(typeof server.armTimeout, 'function');
+	} finally {
+		server.close();
+	}
+});
+
+test('armTimeout: callback still resolves after the timeout is armed', async () => {
+	// Arming the clock must not interfere with a legitimate callback that
+	// arrives well within the window.
+	const server = await startLoopbackServer();
+	try {
+		server.armTimeout();
+		const r = await fetchCallback(server.port, { state: server.state, mcp_token: fakeMcpToken() });
+		assert.equal(r.status, 200);
+		const result = await server.awaitCallback;
+		assert.equal(result.ok, true);
+	} finally {
+		server.close();
+	}
+});
+
+test('armTimeout: is idempotent (double-arm does not throw or double-close)', async () => {
+	const server = await startLoopbackServer();
+	try {
+		server.armTimeout();
+		server.armTimeout();
+		const r = await fetchCallback(server.port, { state: server.state, mcp_token: fakeMcpToken() });
+		assert.equal(r.status, 200);
+	} finally {
+		server.close();
+	}
+});
+
+test('no timeout fires before armTimeout is called', async () => {
+	// Before arming, the server should not auto-resolve with a timeout even
+	// after a short wait — the clock only starts once the browser is open.
+	const server = await startLoopbackServer();
+	try {
+		let settled = false;
+		server.awaitCallback.then(() => { settled = true; });
+		await new Promise((r) => setTimeout(r, 200));
+		assert.equal(settled, false, 'awaitCallback must not resolve before a real callback or an armed timeout');
+	} finally {
+		server.close();
+	}
+});

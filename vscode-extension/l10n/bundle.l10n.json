@@ -36,5 +36,9 @@
   "You can close this tab and return to VS Code.": "You can close this tab and return to VS Code.",
   "Sign-in failed": "Sign-in failed",
   "Reload Window": "Reload Window",
-  "MCP server config updated. Reload the window to apply.": "MCP server config updated. Reload the window to apply."
+  "MCP server config updated. Reload the window to apply.": "MCP server config updated. Reload the window to apply.",
+  "Signed in as @{0}. Welcome!": "Signed in as @{0}. Welcome!",
+  "the cloud could not confirm your identity. Sign out of cloud.specbox.build in your browser and try again": "the cloud could not confirm your identity. Sign out of cloud.specbox.build in your browser and try again",
+  "the sign-in took too long and timed out. Run \"SpecBox: Sign in with GitHub\" again and complete it without long pauses": "the sign-in took too long and timed out. Run \"SpecBox: Sign in with GitHub\" again and complete it without long pauses",
+  "the browser could not be opened. Allow VS Code to open external links and try again": "the browser could not be opened. Allow VS Code to open external links and try again"
 }

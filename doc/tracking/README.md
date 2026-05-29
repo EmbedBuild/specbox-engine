@@ -50,4 +50,4 @@ python3 .quality/scripts/generate-readable-tracking.py
 | US-16 | [US-VSCODE-ZERO-PYTHON](us/US-16-onboarding-cero-python-de-la-extension-vscode.md) | Onboarding cero-Python de la extensión VSCode | draft | 5 |
 | US-17 | [US-VSCODE-PREREQ-GATE](us/US-17-gate-de-prerequisitos-de-la-extension-vscode.md) | Gate de prerequisitos de la extensión VSCode | draft | 4 |
 
-_Generado 2026-05-29 desde `items.json` (17 US · 99 UC · 462 AC)._
+_Generado 2026-05-29 desde `items.json` (17 US · 99 UC · 426 AC)._

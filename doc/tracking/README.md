@@ -1,0 +1,53 @@
+# Tracking — specbox-engine
+
+Capa de **lectura humana** sobre el FreeformBackend. Cuando necesites revisar
+una US o un UC, busca aquí su markdown:
+
+- **[`us/`](us/)** — un `.md` legible por cada User Story (17 docs).
+- **[`uc/`](uc/)** — un `.md` legible por cada Use Case con sus ACs y enlace al US padre (99 docs).
+- **[`_templates/`](_templates/)** — plantillas para crear US/UC nuevos a mano.
+
+## Fuente de verdad
+
+| Archivo | Rol | ¿Editar a mano? |
+|---------|-----|-----------------|
+| `items.json` | Fuente de verdad del FreeformBackend (US/UC/AC) | ❌ vía MCP |
+| `config.json`, `labels.json`, `archive.json` | Estado del backend | ❌ vía MCP |
+| `comments/`, `attachments/` | Comentarios y evidencia adjunta | ❌ vía MCP |
+| `progress/` | Telemetría markdown auto-generada por el backend | ❌ auto |
+| **`us/`, `uc/`** | **Capa de lectura curada (regenerable)** | ⚠️ regenerar |
+| `index.json` | Índice ligero de esta capa | ⚠️ regenerar |
+
+`us/` y `uc/` se **regeneran** desde `items.json` con:
+
+```bash
+python3 .quality/scripts/generate-readable-tracking.py
+```
+
+> Editar un `.md` de `us/` o `uc/` a mano se perderá en la próxima regeneración.
+> Para cambios persistentes, muta el board vía las tools MCP (`update_uc`, `mark_ac`, …)
+> y vuelve a generar.
+
+## User Stories
+
+| # | US | Título | Estado | UCs |
+|---|----|--------|--------|-----|
+| US-01 | [US-NATIVE-BACKEND](us/US-01-specbox-para-equipos-sobre-postgres-nativo.md) | SpecBox para equipos sobre Postgres nativo | done | 10 |
+| US-02 | [US-NATIVE-SUPABASE](us/US-02-migrar-el-native-backend-de-postgres-vps-a-supabase-gestiona.md) | Migrar el Native Backend de Postgres-VPS a Supabase gestionado | done | 5 |
+| US-03 | [US-BACKEND-SWITCH](us/US-03-cambio-guiado-de-backend-entre-los-4-freeform-trello-plane-n.md) | Cambio guiado de backend entre los 4 (FreeForm/Trello/Plane/Native) | review | 6 |
+| US-04 | [US-NATIVE-SECURITY](us/US-04-blindar-el-native-backend-contra-mutaciones-de-identidades-r.md) | Blindar el Native Backend contra mutaciones de identidades revocadas | review | 6 |
+| US-05 | [US-CLAIM-RENAME](us/US-05-renombrar-el-concepto-claim-a-reservation-en-native-backend-.md) | Renombrar el concepto "claim" a "reservation" en Native Backend y Control Panel | draft | 13 |
+| US-06 | [US-D04](us/US-06-multi-document-canonical-registry-foundation.md) | Multi-document canonical registry foundation | ready | 2 |
+| US-07 | [US-D03](us/US-07-strategic-drift-detection-across-project-lifetime.md) | Strategic drift detection across project lifetime | ready | 1 |
+| US-08 | [US-D02](us/US-08-inheritance-and-traceability-from-discovery-to-implementatio.md) | Inheritance and traceability from discovery to implementation | ready | 1 |
+| US-09 | [US-D01](us/US-09-discovery-conversational-flow-per-feature.md) | Discovery conversational flow per feature | ready | 2 |
+| US-10 | [US-MCP-PATH-CONTRACT](us/US-10-eliminar-deuda-tecnica-de-paths-filesystem-mcp-remoto-en-tod.md) | Eliminar deuda técnica de paths filesystem MCP-remoto en todas las tools cat A | ready | 10 |
+| US-11 | [US-CUTOVER-FOLLOWUP](us/US-11-cerrar-deuda-residual-de-sala-de-maquinas-tras-v6-1-0.md) | Cerrar deuda residual de Sala de Máquinas tras v6.1.0 | draft | 1 |
+| US-12 | [US-MCP-OBSERVABILITY](us/US-12-observabilidad-otel-del-mcp-server-v6-2-0.md) | Observabilidad OTel del MCP server (v6.2.0) | draft | 8 |
+| US-13 | [US-VSCODE-MARKETPLACE](us/US-13-publicar-la-extension-specbox-al-vscode-marketplace-con-sync.md) | Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine | draft | 10 |
+| US-14 | [US-VSCODE-GITHUB-OAUTH](us/US-14-github-oauth-en-la-extension-vscode-native-backend-como-defa.md) | GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth | draft | 10 |
+| US-15 | [US-VSCODE-DISCOVERABILITY](us/US-15-sidebar-de-descubrimiento-y-ayuda-para-la-extension-vscode.md) | Sidebar de descubrimiento y ayuda para la extensión VSCode | draft | 5 |
+| US-16 | [US-VSCODE-ZERO-PYTHON](us/US-16-onboarding-cero-python-de-la-extension-vscode.md) | Onboarding cero-Python de la extensión VSCode | draft | 5 |
+| US-17 | [US-VSCODE-PREREQ-GATE](us/US-17-gate-de-prerequisitos-de-la-extension-vscode.md) | Gate de prerequisitos de la extensión VSCode | draft | 4 |
+
+_Generado 2026-05-29 desde `items.json` (17 US · 99 UC · 462 AC)._

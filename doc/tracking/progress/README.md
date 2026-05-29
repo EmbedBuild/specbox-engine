@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-28T13:59:18.549044+00:00
+> Actualizado: 2026-05-29T08:13:35.590226+00:00
 
 ## User Stories
 
@@ -17,7 +17,6 @@
 | US-D03 | [US-D03] Strategic drift detection across project lifetime | todo | 0 | 1 | 0% |
 | US-MCP-PATH-CONTRACT | [US-MCP-PATH-CONTRACT] Eliminar deuda técnica de paths filesystem MCP-remoto en todas las tools cat A | Backlog | 0 | 10 | 0% |
 | US-CUTOVER-FOLLOWUP | US-CUTOVER-FOLLOWUP: Cerrar deuda residual de Sala de Máquinas tras v6.1.0 | User Stories | 0 | 1 | 0% |
-| US-MCP-OBSERVABILITY | US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0) | User Stories | 0 | 0 | 0% |
 | US-MCP-OBSERVABILITY | US-MCP-OBSERVABILITY: Observabilidad OTel del MCP server (v6.2.0) | User Stories | 0 | 8 | 0% |
 | US-VSCODE-MARKETPLACE | US-VSCODE-MARKETPLACE: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine | User Stories | 10 | 10 | 100% |
 | US-VSCODE-GITHUB-OAUTH | US-VSCODE-GITHUB-OAUTH: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth | User Stories | 1 | 10 | 10% |
@@ -44,12 +43,12 @@
 | UC-403 | US-NATIVE-SUPABASE | Done | 3 | 3 | 100% |
 | UC-404 | US-NATIVE-SUPABASE | Done | 3 | 3 | 100% |
 | UC-405 | US-NATIVE-SUPABASE | Done | 3 | 3 | 100% |
-| UC-401 | US-BACKEND-SWITCH | Done | 0 | 3 | 0% |
-| UC-402 | US-BACKEND-SWITCH | Done | 0 | 3 | 0% |
-| UC-403 | US-BACKEND-SWITCH | Done | 0 | 3 | 0% |
-| UC-404 | US-BACKEND-SWITCH | Done | 0 | 4 | 0% |
-| UC-405 | US-BACKEND-SWITCH | Done | 0 | 3 | 0% |
-| UC-406 | US-BACKEND-SWITCH | Done | 3 | 3 | 100% |
+| UC-801 | US-BACKEND-SWITCH | Done | 0 | 3 | 0% |
+| UC-802 | US-BACKEND-SWITCH | Done | 0 | 3 | 0% |
+| UC-803 | US-BACKEND-SWITCH | Done | 0 | 3 | 0% |
+| UC-804 | US-BACKEND-SWITCH | Done | 0 | 4 | 0% |
+| UC-805 | US-BACKEND-SWITCH | Done | 0 | 3 | 0% |
+| UC-806 | US-BACKEND-SWITCH | Done | 3 | 3 | 100% |
 | UC-501 | US-NATIVE-SECURITY | Done | 5 | 5 | 100% |
 | UC-502 | US-NATIVE-SECURITY | Done | 6 | 6 | 100% |
 | UC-503 | US-NATIVE-SECURITY | Done | 4 | 4 | 100% |

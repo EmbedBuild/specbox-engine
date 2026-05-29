@@ -1,6 +1,6 @@
 ---
 id: US-VSCODE-PREREQ-GATE
-ordinal: US-18
+ordinal: US-17
 title: Gate de prerequisitos de la extensión VSCode
 status: draft
 hours: 4.0

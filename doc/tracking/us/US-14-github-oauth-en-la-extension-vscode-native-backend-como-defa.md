@@ -1,6 +1,6 @@
 ---
 id: US-VSCODE-GITHUB-OAUTH
-ordinal: US-15
+ordinal: US-14
 title: GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth
 status: draft
 hours:

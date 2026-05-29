@@ -1,6 +1,6 @@
 ---
 id: US-VSCODE-MARKETPLACE
-ordinal: US-14
+ordinal: US-13
 title: Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine
 status: draft
 hours: 42.0

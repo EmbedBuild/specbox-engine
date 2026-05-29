@@ -14,7 +14,7 @@ source: items.json (FreeformBackend)
 
 # UC-649 — UI en sidebar de la extensión — 'Signed in as @user' + comando 'Sign out'
 
-> **US padre:** [US-VSCODE-GITHUB-OAUTH](../us/US-15-github-oauth-en-la-extension-vscode-native-backend-como-defa.md)
+> **US padre:** [US-VSCODE-GITHUB-OAUTH](../us/US-14-github-oauth-en-la-extension-vscode-native-backend-como-defa.md)
 
 ## Objetivo / Descripción
 

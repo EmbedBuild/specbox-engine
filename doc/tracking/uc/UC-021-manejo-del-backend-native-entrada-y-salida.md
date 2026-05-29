@@ -1,5 +1,5 @@
 ---
-id: UC-403
+id: UC-803
 ordinal: UC-021
 title: Manejo del backend Native (entrada y salida)
 parent_us: US-BACKEND-SWITCH
@@ -12,7 +12,7 @@ updated: 2026-05-29
 source: items.json (FreeformBackend)
 ---
 
-# UC-403 — Manejo del backend Native (entrada y salida)
+# UC-803 — Manejo del backend Native (entrada y salida)
 
 > **US padre:** [US-BACKEND-SWITCH](../us/US-03-cambio-guiado-de-backend-entre-los-4-freeform-trello-plane-n.md)
 

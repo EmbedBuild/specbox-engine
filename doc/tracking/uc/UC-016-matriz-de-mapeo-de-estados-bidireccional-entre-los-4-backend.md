@@ -1,5 +1,5 @@
 ---
-id: UC-402
+id: UC-802
 ordinal: UC-016
 title: Matriz de mapeo de estados bidireccional entre los 4 backends
 parent_us: US-BACKEND-SWITCH
@@ -12,7 +12,7 @@ updated: 2026-05-29
 source: items.json (FreeformBackend)
 ---
 
-# UC-402 — Matriz de mapeo de estados bidireccional entre los 4 backends
+# UC-802 — Matriz de mapeo de estados bidireccional entre los 4 backends
 
 > **US padre:** [US-BACKEND-SWITCH](../us/US-03-cambio-guiado-de-backend-entre-los-4-freeform-trello-plane-n.md)
 

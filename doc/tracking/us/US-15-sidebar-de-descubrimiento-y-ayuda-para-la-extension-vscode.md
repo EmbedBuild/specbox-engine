@@ -1,6 +1,6 @@
 ---
 id: US-VSCODE-DISCOVERABILITY
-ordinal: US-16
+ordinal: US-15
 title: Sidebar de descubrimiento y ayuda para la extensión VSCode
 status: draft
 hours: 24.0

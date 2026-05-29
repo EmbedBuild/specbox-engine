@@ -14,7 +14,7 @@ source: items.json (FreeformBackend)
 
 # UC-705 — Tests + smoke manual + bump versión
 
-> **US padre:** [US-VSCODE-DISCOVERABILITY](../us/US-16-sidebar-de-descubrimiento-y-ayuda-para-la-extension-vscode.md)
+> **US padre:** [US-VSCODE-DISCOVERABILITY](../us/US-15-sidebar-de-descubrimiento-y-ayuda-para-la-extension-vscode.md)
 
 ## Objetivo / Descripción
 

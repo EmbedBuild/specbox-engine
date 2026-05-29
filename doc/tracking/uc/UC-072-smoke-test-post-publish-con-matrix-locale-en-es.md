@@ -14,7 +14,7 @@ source: items.json (FreeformBackend)
 
 # UC-640 — Smoke test post-publish con matrix locale [en, es]
 
-> **US padre:** [US-VSCODE-MARKETPLACE](../us/US-14-publicar-la-extension-specbox-al-vscode-marketplace-con-sync.md)
+> **US padre:** [US-VSCODE-MARKETPLACE](../us/US-13-publicar-la-extension-specbox-al-vscode-marketplace-con-sync.md)
 
 ## Objetivo / Descripción
 

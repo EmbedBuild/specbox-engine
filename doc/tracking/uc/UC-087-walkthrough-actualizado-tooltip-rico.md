@@ -14,7 +14,7 @@ source: items.json (FreeformBackend)
 
 # UC-704 — Walkthrough actualizado + tooltip rico
 
-> **US padre:** [US-VSCODE-DISCOVERABILITY](../us/US-16-sidebar-de-descubrimiento-y-ayuda-para-la-extension-vscode.md)
+> **US padre:** [US-VSCODE-DISCOVERABILITY](../us/US-15-sidebar-de-descubrimiento-y-ayuda-para-la-extension-vscode.md)
 
 ## Objetivo / Descripción
 

@@ -14,7 +14,7 @@ source: items.json (FreeformBackend)
 
 # UC-650 — Tests de integración E2E del flow loopback OAuth (Supabase test mode)
 
-> **US padre:** [US-VSCODE-GITHUB-OAUTH](../us/US-15-github-oauth-en-la-extension-vscode-native-backend-como-defa.md)
+> **US padre:** [US-VSCODE-GITHUB-OAUTH](../us/US-14-github-oauth-en-la-extension-vscode-native-backend-como-defa.md)
 
 ## Objetivo / Descripción
 

@@ -14,7 +14,7 @@ source: items.json (FreeformBackend)
 
 # UC-707 — Gate no bloqueante en el arranque
 
-> **US padre:** [US-VSCODE-PREREQ-GATE](../us/US-18-gate-de-prerequisitos-de-la-extension-vscode.md)
+> **US padre:** [US-VSCODE-PREREQ-GATE](../us/US-17-gate-de-prerequisitos-de-la-extension-vscode.md)
 
 ## Objetivo / Descripción
 

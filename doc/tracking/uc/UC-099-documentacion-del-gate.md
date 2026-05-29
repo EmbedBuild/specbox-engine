@@ -14,7 +14,7 @@ source: items.json (FreeformBackend)
 
 # UC-709 — Documentación del gate
 
-> **US padre:** [US-VSCODE-PREREQ-GATE](../us/US-18-gate-de-prerequisitos-de-la-extension-vscode.md)
+> **US padre:** [US-VSCODE-PREREQ-GATE](../us/US-17-gate-de-prerequisitos-de-la-extension-vscode.md)
 
 ## Objetivo / Descripción
 

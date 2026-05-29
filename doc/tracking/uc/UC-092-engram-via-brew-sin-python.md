@@ -14,7 +14,7 @@ source: items.json (FreeformBackend)
 
 # UC-002 — Engram vía brew, sin Python
 
-> **US padre:** [US-VSCODE-ZERO-PYTHON](../us/US-17-onboarding-cero-python-de-la-extension-vscode.md)
+> **US padre:** [US-VSCODE-ZERO-PYTHON](../us/US-16-onboarding-cero-python-de-la-extension-vscode.md)
 
 ## Objetivo / Descripción
 

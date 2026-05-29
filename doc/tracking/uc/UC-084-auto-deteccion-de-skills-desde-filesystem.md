@@ -14,7 +14,7 @@ source: items.json (FreeformBackend)
 
 # UC-701 — Auto-detección de skills desde filesystem
 
-> **US padre:** [US-VSCODE-DISCOVERABILITY](../us/US-16-sidebar-de-descubrimiento-y-ayuda-para-la-extension-vscode.md)
+> **US padre:** [US-VSCODE-DISCOVERABILITY](../us/US-15-sidebar-de-descubrimiento-y-ayuda-para-la-extension-vscode.md)
 
 ## Objetivo / Descripción
 

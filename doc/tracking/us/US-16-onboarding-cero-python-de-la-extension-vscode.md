@@ -1,6 +1,6 @@
 ---
 id: US-VSCODE-ZERO-PYTHON
-ordinal: US-17
+ordinal: US-16
 title: Onboarding cero-Python de la extensión VSCode
 status: draft
 hours: 6.0

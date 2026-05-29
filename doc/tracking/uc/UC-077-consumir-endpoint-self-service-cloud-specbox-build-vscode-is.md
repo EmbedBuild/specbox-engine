@@ -14,7 +14,7 @@ source: items.json (FreeformBackend)
 
 # UC-645 — Consumir endpoint self-service cloud.specbox.build/vscode/issue-token (cross-repo dependency)
 
-> **US padre:** [US-VSCODE-GITHUB-OAUTH](../us/US-15-github-oauth-en-la-extension-vscode-native-backend-como-defa.md)
+> **US padre:** [US-VSCODE-GITHUB-OAUTH](../us/US-14-github-oauth-en-la-extension-vscode-native-backend-como-defa.md)
 
 ## Objetivo / Descripción
 

@@ -14,7 +14,7 @@ source: items.json (FreeformBackend)
 
 # UC-637 — README y CHANGELOG de la extensión para Marketplace
 
-> **US padre:** [US-VSCODE-MARKETPLACE](../us/US-14-publicar-la-extension-specbox-al-vscode-marketplace-con-sync.md)
+> **US padre:** [US-VSCODE-MARKETPLACE](../us/US-13-publicar-la-extension-specbox-al-vscode-marketplace-con-sync.md)
 
 ## Objetivo / Descripción
 

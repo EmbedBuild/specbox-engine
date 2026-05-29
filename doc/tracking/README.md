@@ -3,7 +3,7 @@
 Capa de **lectura humana** sobre el FreeformBackend. Cuando necesites revisar
 una US o un UC, busca aquí su markdown:
 
-- **[`us/`](us/)** — un `.md` legible por cada User Story (18 docs).
+- **[`us/`](us/)** — un `.md` legible por cada User Story (17 docs).
 - **[`uc/`](uc/)** — un `.md` legible por cada Use Case con sus ACs y enlace al US padre (99 docs).
 - **[`_templates/`](_templates/)** — plantillas para crear US/UC nuevos a mano.
 
@@ -43,12 +43,11 @@ python3 .quality/scripts/generate-readable-tracking.py
 | US-09 | [US-D01](us/US-09-discovery-conversational-flow-per-feature.md) | Discovery conversational flow per feature | ready | 2 |
 | US-10 | [US-MCP-PATH-CONTRACT](us/US-10-eliminar-deuda-tecnica-de-paths-filesystem-mcp-remoto-en-tod.md) | Eliminar deuda técnica de paths filesystem MCP-remoto en todas las tools cat A | ready | 10 |
 | US-11 | [US-CUTOVER-FOLLOWUP](us/US-11-cerrar-deuda-residual-de-sala-de-maquinas-tras-v6-1-0.md) | Cerrar deuda residual de Sala de Máquinas tras v6.1.0 | draft | 1 |
-| US-12 | [US-MCP-OBSERVABILITY](us/US-12-observabilidad-otel-del-mcp-server-v6-2-0.md) | Observabilidad OTel del MCP server (v6.2.0) | draft | 0 |
-| US-13 | [US-MCP-OBSERVABILITY](us/US-13-observabilidad-otel-del-mcp-server-v6-2-0.md) | Observabilidad OTel del MCP server (v6.2.0) | draft | 8 |
-| US-14 | [US-VSCODE-MARKETPLACE](us/US-14-publicar-la-extension-specbox-al-vscode-marketplace-con-sync.md) | Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine | draft | 10 |
-| US-15 | [US-VSCODE-GITHUB-OAUTH](us/US-15-github-oauth-en-la-extension-vscode-native-backend-como-defa.md) | GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth | draft | 10 |
-| US-16 | [US-VSCODE-DISCOVERABILITY](us/US-16-sidebar-de-descubrimiento-y-ayuda-para-la-extension-vscode.md) | Sidebar de descubrimiento y ayuda para la extensión VSCode | draft | 5 |
-| US-17 | [US-VSCODE-ZERO-PYTHON](us/US-17-onboarding-cero-python-de-la-extension-vscode.md) | Onboarding cero-Python de la extensión VSCode | draft | 5 |
-| US-18 | [US-VSCODE-PREREQ-GATE](us/US-18-gate-de-prerequisitos-de-la-extension-vscode.md) | Gate de prerequisitos de la extensión VSCode | draft | 4 |
+| US-12 | [US-MCP-OBSERVABILITY](us/US-12-observabilidad-otel-del-mcp-server-v6-2-0.md) | Observabilidad OTel del MCP server (v6.2.0) | draft | 8 |
+| US-13 | [US-VSCODE-MARKETPLACE](us/US-13-publicar-la-extension-specbox-al-vscode-marketplace-con-sync.md) | Publicar la extensión SpecBox al VSCode Marketplace con sync automático al engine | draft | 10 |
+| US-14 | [US-VSCODE-GITHUB-OAUTH](us/US-14-github-oauth-en-la-extension-vscode-native-backend-como-defa.md) | GitHub OAuth en la extensión VSCode, Native Backend como default registrado en Supabase Auth | draft | 10 |
+| US-15 | [US-VSCODE-DISCOVERABILITY](us/US-15-sidebar-de-descubrimiento-y-ayuda-para-la-extension-vscode.md) | Sidebar de descubrimiento y ayuda para la extensión VSCode | draft | 5 |
+| US-16 | [US-VSCODE-ZERO-PYTHON](us/US-16-onboarding-cero-python-de-la-extension-vscode.md) | Onboarding cero-Python de la extensión VSCode | draft | 5 |
+| US-17 | [US-VSCODE-PREREQ-GATE](us/US-17-gate-de-prerequisitos-de-la-extension-vscode.md) | Gate de prerequisitos de la extensión VSCode | draft | 4 |
 
-_Generado 2026-05-29 desde `items.json` (18 US · 99 UC · 462 AC)._
+_Generado 2026-05-29 desde `items.json` (17 US · 99 UC · 462 AC)._

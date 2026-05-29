@@ -14,7 +14,7 @@ source: items.json (FreeformBackend)
 
 # UC-634 — Script sync-extension-version.sh con modos --check/--write
 
-> **US padre:** [US-VSCODE-MARKETPLACE](../us/US-14-publicar-la-extension-specbox-al-vscode-marketplace-con-sync.md)
+> **US padre:** [US-VSCODE-MARKETPLACE](../us/US-13-publicar-la-extension-specbox-al-vscode-marketplace-con-sync.md)
 
 ## Objetivo / Descripción
 

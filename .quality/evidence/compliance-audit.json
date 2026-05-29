@@ -2,9 +2,9 @@
   "project": "specbox-engine",
   "project_path": "/Users/jesusperezsanchez/Desktop/Proyectos/0_jps_iautomat/jpsdeveloper/specbox-engine",
   "self_audit": true,
-  "timestamp": "2026-05-21T19:46:08.707Z",
-  "engine_version": "5.33.0",
-  "project_version": "5.33.0",
+  "timestamp": "2026-05-27T16:46:16.831Z",
+  "engine_version": "6.6.0",
+  "project_version": "6.6.0",
   "needs_upgrade": false,
   "overall_score": 100,
   "overall_grade": "A+ (Full Compliance)",
@@ -20,7 +20,7 @@
         {
           "name": "Version aligned",
           "pass": true,
-          "detail": "Both at v5.33.0"
+          "detail": "Both at v6.6.0"
         },
         {
           "name": "Registered in engine state",
@@ -135,7 +135,7 @@
         {
           "name": "Hook: mcp-report.mjs",
           "pass": true,
-          "detail": "project-local",
+          "detail": "global",
           "critical": false
         },
         {

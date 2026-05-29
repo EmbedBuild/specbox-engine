@@ -1,0 +1,68 @@
+---
+id: UC-D003
+title: Integración bidireccional Discovery <-> PRD <-> Plan <-> Implement
+parent_us: US-D02
+status: ready
+actor: Engine
+hours: 12
+owner: Jesús Pérez
+created: 2026-05-24
+updated: 2026-05-29
+source: items.json (FreeformBackend)
+---
+
+# UC-D003 — Integración bidireccional Discovery <-> PRD <-> Plan <-> Implement
+
+> **US padre:** [US-D02](../us/US-D02_inheritance-and-traceability-from-discovery-to-implementatio.md)
+
+## Objetivo / Descripción
+
+La herencia funciona como pipeline: /prd lee icp_jtbd.md y pre-rellena secciones, cada AC del PRD se taggea con >=1 JTBD, /plan chequea cobertura JTBD en UCs, /implement valida AC racionales vía Playwright (existente) y añade qualitative gate para JTBDs emocionales.
+
+## Acceptance Criteria
+
+### AC-01
+
+[AC-01] La invocación de /prd [feature_name] detecta automáticamente doc/discovery/<feature_name>/icp_jtbd.md si existe, lo lee y pre-rellena las secciones 'Audience' y 'Success Criteria' del PRD. [JR-1.2]
+
+- **Estado:** ⬜ pendiente
+
+### AC-02
+
+[AC-02] El PRD generado contiene un bloque 'Discovery traceability' con: discovery_id, hash del icp_jtbd.md referenciado, lista de ICPs y JTBDs heredados. [JR-1.2, JE-1.3]
+
+- **Estado:** ⬜ pendiente
+
+### AC-03
+
+[AC-03] Cada Acceptance Criterion del PRD lleva un tag [JR-X.Y] o [JE-X.Y] referenciando los JTBDs que satisface. Si un AC no tiene tag, el sistema emite warning ('AC-XX sin JTBD backing — ¿feature creep?'). [JR-1.2]
+
+- **Estado:** ⬜ pendiente
+
+### AC-04
+
+[AC-04] La invocación de /plan [feature_name] lee el PRD taggeado, calcula la cobertura JTBD por UC y emite warning si algún JTBD definido en discovery no tiene UC que lo satisfaga. [JR-1.3, JE-1.1]
+
+- **Estado:** ⬜ pendiente
+
+### AC-05
+
+[AC-05] Durante /implement, los tests E2E Playwright (mecanismo existente) validan AC racionales como ahora. Para AC taggeados a JTBDs emocionales ([JE-X.Y]), se añade un qualitative gate: prompt al developer con preguntas reflexivas + screenshot review obligatorio antes de marcar AC como passed. [JR-1.3, JE-1.3]
+
+- **Estado:** ⬜ pendiente
+
+### AC-06
+
+[AC-06] El HTML Evidence Report final (mecanismo existente evidenceStep()) incluye nueva sección 'Discovery alignment' mostrando: cobertura JTBD alcanzada, AC con qualitative gate passed, AC sin JTBD tag (si los hay). [JR-1.3]
+
+- **Estado:** ⬜ pendiente
+
+### AC-07
+
+[AC-07] La sincronización es bidireccional via apply_app_docs_sync extendido: cambios en icp_jtbd.md post-PRD generan warning de drift; cambios en AC sin update de JTBDs generan warning inverso. [JR-2.2]
+
+- **Estado:** ⬜ pendiente
+
+## Notas
+
+_Documento legible auto-generado desde `items.json`. Editar la fuente vía MCP o regenerar con `.quality/scripts/generate-readable-tracking.py`._

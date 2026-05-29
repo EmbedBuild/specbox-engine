@@ -92,28 +92,38 @@ def main() -> None:
             shutil.rmtree(d)
         d.mkdir(parents=True)
 
-    # us_id -> filename (para enlaces relativos desde uc/). Desambigua us_id duplicados
-    # (drift de datos en items.json) por sufijo -dupN para que TODOS sean visibles.
-    us_filename: dict[str, str] = {}
+    # Ordinalidad cronológica: orden por (created_at, id) → prefijo NN al FINAL del
+    # id-prefix del nombre de archivo. Formato: US-XX-NN_slug.md / UC-XXX-NN_slug.md.
+    # Los más recientes quedan al final del listado de la carpeta.
     dup_warnings: list[str] = []
-    seen_files: dict[str, int] = {}
-    # nota: con us_id duplicado, el último gana en el dict de enlaces; los UC apuntan
-    # al primero registrado. Reportamos el drift al final.
-    seen_usid: set[str] = set()
-    for us in us_items:
-        usid = us["meta"]["us_id"]
-        if usid in seen_usid:
-            dup_warnings.append(f"us_id duplicado en items.json: {usid} (item {us['id']})")
-        seen_usid.add(usid)
-        base = f"{usid}_{slugify(us['name'])}"
-        fname = f"{base}.md"
-        if fname in seen_files:
-            seen_files[fname] += 1
-            fname = f"{base}-dup{seen_files[fname]}.md"
-        else:
-            seen_files[fname] = 0
-        us_filename.setdefault(usid, fname)  # primer item gana el enlace canónico
-        us["_fname"] = fname
+
+    def _assign_ordinals(group: list[dict], id_key: str, kind: str, width: int) -> dict[str, str]:
+        """Asigna _fname con ordinal cronológico al FRENTE y devuelve {id_meta: fname}.
+
+        Formato: <KIND>-<NN>-<slug>.md (p.ej. US-01-specbox-para-equipos.md).
+        El ordinal NN va delante para que la carpeta se ordene cronológicamente
+        (los más recientes al final). El id original (us_id/uc_id) vive en el
+        frontmatter, no se pierde. Reporta ids duplicados (drift en items.json).
+        El primer item registrado gana el enlace canónico (clave = id de meta).
+        """
+        ordered = sorted(group, key=lambda i: (i["created_at"], i["id"]))
+        canonical: dict[str, str] = {}
+        seen_ids: set[str] = set()
+        for n, item in enumerate(ordered, 1):
+            mid = item["meta"][id_key]
+            if mid in seen_ids:
+                dup_warnings.append(
+                    f"{id_key} duplicado en items.json: {mid} (item {item['id']})"
+                )
+            seen_ids.add(mid)
+            fname = f"{kind}-{n:0{width}d}-{slugify(item['name'])}.md"
+            item["_fname"] = fname
+            item["_ordinal"] = f"{kind}-{n:0{width}d}"
+            canonical.setdefault(mid, fname)
+        return canonical
+
+    us_filename = _assign_ordinals(us_items, "us_id", "US", 2)
+    uc_filename = _assign_ordinals(uc_items, "uc_id", "UC", 3)
 
     # ---- Generar US ----
     for us in us_items:
@@ -128,13 +138,14 @@ def main() -> None:
             key=lambda c: c["meta"].get("uc_id", ""),
         )
         uc_rows = "\n".join(
-            f"| {c['meta']['uc_id']} | [{strip_prefix(c['name'])}](../uc/{c['meta']['uc_id']}_{slugify(c['name'])}.md) | {STATE_MAP.get(c['state'], c['state'])} |"
+            f"| {c['meta']['uc_id']} | [{strip_prefix(c['name'])}](../uc/{c['_fname']}) | {STATE_MAP.get(c['state'], c['state'])} |"
             for c in child_ucs
         ) or "| — | _Sin UCs registrados_ | — |"
 
         fm = [
             "---",
             f"id: {usid}",
+            f"ordinal: {us['_ordinal']}",
             f"title: {yaml_escape(title)}",
             f"status: {status}",
             f"hours: {hours}" if hours else "hours:",
@@ -206,6 +217,7 @@ def main() -> None:
         fm = [
             "---",
             f"id: {ucid}",
+            f"ordinal: {uc['_ordinal']}",
             f"title: {yaml_escape(title)}",
             f"parent_us: {usid}",
             f"status: {status}",
@@ -237,9 +249,7 @@ def main() -> None:
             "regenerar con `.quality/scripts/generate-readable-tracking.py`._",
             "",
         ]
-        (uc_dir / f"{ucid}_{slugify(uc['name'])}.md").write_text(
-            "\n".join(fm + body), encoding="utf-8"
-        )
+        (uc_dir / uc["_fname"]).write_text("\n".join(fm + body), encoding="utf-8")
 
     # ---- index.json ----
     index = {
@@ -261,9 +271,10 @@ def main() -> None:
         json.dumps(index, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
 
-    # ---- README.md (índice navegable) ----
-    us_sorted = sorted(us_items, key=lambda u: u["meta"]["us_id"])
+    # ---- README.md (índice navegable, orden cronológico) ----
+    us_sorted = sorted(us_items, key=lambda u: (u["created_at"], u["id"]))
     us_table = "\n".join(
+        f"| {u['_ordinal']} "
         f"| [{u['meta']['us_id']}](us/{u['_fname']}) "
         f"| {strip_prefix(u['name'])} "
         f"| {STATE_MAP.get(u['state'], u['state'])} "
@@ -302,8 +313,8 @@ python3 .quality/scripts/generate-readable-tracking.py
 
 ## User Stories
 
-| US | Título | Estado | UCs |
-|----|--------|--------|-----|
+| # | US | Título | Estado | UCs |
+|---|----|--------|--------|-----|
 {us_table}
 
 _Generado {TODAY} desde `items.json` ({index['counts']['us']} US · {index['counts']['uc']} UC · {index['counts']['ac']} AC)._

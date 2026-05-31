@@ -9764,7 +9764,7 @@
     "id": "item-conn-018",
     "name": "[UC-664] Deteccion de configuracion obsoleta (cliente)",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-017",
     "labels": [
       "UC"
@@ -9777,13 +9777,14 @@
       "actor": "Client",
       "horas": "5"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
   },
   {
     "id": "ac-conn-019",
     "name": "[AC-01] Al activarse tras una actualizacion, la extension lee .claude/settings.local.json + la config MCP y clasifica el estado del cliente en uno de los casos canonicos (FreeForm+Local-obsoleto, FreeForm+Remoto-ya-ok, Trello/Plane-sin-cambios, Native+OAuth-sin-cambios, onboarding-incompleto). Funcion pura detectClientConfigCase(settings, mcpConfig) con test que cubre los 5 casos.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-018",
     "labels": [
       "AC"
@@ -9793,13 +9794,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
   },
   {
     "id": "ac-conn-020",
     "name": "[AC-02] La extension envia el caso detectado + la version origen al server via upgrade_project / detect_*_migration_case y recibe un plan de migracion (acciones + diffs propuestos). Test de integracion mock-server que asserta que el plan recibido corresponde al caso.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-018",
     "labels": [
       "AC"
@@ -9809,13 +9811,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
   },
   {
     "id": "item-conn-021",
     "name": "[UC-665] Auto-migracion de config con backup + resumen pedagogico",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-017",
     "labels": [
       "UC"
@@ -9828,13 +9831,14 @@
       "actor": "Client",
       "horas": "7"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
   },
   {
     "id": "ac-conn-022",
     "name": "[AC-01] Cuando el caso es config obsoleta (ej. modo Local), la extension hace backup de settings.local.json (a settings.local.json.bak-<ts>) ANTES de tocar nada, y luego aplica la migracion (Local->Remoto+bridge). Test: asserta que el .bak existe con el contenido original y que el settings.local.json migrado apunta al remoto.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-021",
     "labels": [
       "AC"
@@ -9844,13 +9848,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
   },
   {
     "id": "ac-conn-023",
     "name": "[AC-02] Tras migrar, la extension muestra un resumen pedagogico no bloqueante con: que cambio, que se migro automaticamente, donde esta el backup, y que -si algo- debe hacer el usuario, con copy especifico por caso de ICP. Test: para cada caso asserta el copy contiene las 4 secciones (cambio/migrado/backup/accion).",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-021",
     "labels": [
       "AC"
@@ -9860,13 +9865,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
   },
   {
     "id": "ac-conn-024",
     "name": "[AC-03] La migracion de settings.json es reversible: un comando 'SpecBox: Revert last migration' restaura desde el .bak mas reciente. Test: migra, revierte y asserta que el settings.local.json vuelve al estado original byte-a-byte.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-021",
     "labels": [
       "AC"
@@ -9876,13 +9882,14 @@
       "ac_id": "AC-03",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
   },
   {
     "id": "ac-conn-025",
     "name": "[AC-04] La auto-migracion respeta el gate de acciones destructivas inviolables: mover/transformar datos de tracking (no solo reconfigurar transporte) NO se auto-ejecuta; se propone con confirmacion explicita. Test: un plan que incluye movimiento de datos exige confirmacion, mientras que uno que solo reconfigura transporte no.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-021",
     "labels": [
       "AC"
@@ -9892,13 +9899,14 @@
       "ac_id": "AC-04",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
   },
   {
     "id": "item-conn-026",
     "name": "[UC-666] Updater no bloqueante y orquestador del flujo completo",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-017",
     "labels": [
       "UC"
@@ -9911,13 +9919,14 @@
       "actor": "Client",
       "horas": "4"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
   },
   {
     "id": "ac-conn-027",
     "name": "[AC-01] El flujo de actualizacion (binario -> skills/hooks -> deteccion de config -> migracion -> resumen) se ejecuta sin bloquear la activacion (patron fire-and-forget de v6.6.2), con try/catch por fase que impide que un fallo cuelgue la extension. Test: simula un fallo en la fase de migracion y asserta que la activacion completa igualmente.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-026",
     "labels": [
       "AC"
@@ -9927,13 +9936,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
   },
   {
     "id": "ac-conn-028",
     "name": "[AC-02] Tras una actualizacion exitosa sin config obsoleta (ej. Trello/Plane), el usuario ve un mensaje minimo 'Actualizado a vX - sin cambios para tu configuracion', sin ruido innecesario. Test: para el caso 'sin cambios' asserta el copy breve y la ausencia de prompts de migracion.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-026",
     "labels": [
       "AC"
@@ -9943,7 +9953,8 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
   },
   {
     "id": "item-conn-029",

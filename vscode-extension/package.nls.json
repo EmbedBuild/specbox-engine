@@ -28,5 +28,6 @@
   "configuration.title": "SpecBox Engine",
   "configuration.enginePath.description": "Path to the SpecBox Engine repository. Auto-detected if empty.",
   "configuration.autoHealthCheck.description": "Run health check on startup when a SpecBox project is detected.",
-  "configuration.mcpAutoStart.description": "Automatically configure MCP servers (SpecBox + Engram) on install."
+  "configuration.mcpAutoStart.description": "Automatically configure MCP servers (SpecBox + Engram) on install.",
+  "command.revertMigration.title": "Revert last migration"
 }

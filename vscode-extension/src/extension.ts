@@ -13,6 +13,7 @@ import { SecretsManager } from './secret-storage';
 import { runSignIn, runSignOut, maybeShowOnboarding, describeSignInError } from './auth';
 import { fetchWhoami } from './cloud-api';
 import { showPrereqGate } from './prerequisites';
+import { registerRevertCommand } from './migration';
 
 let statusBar: StatusBarManager | undefined;
 let identityPollingHandle: NodeJS.Timeout | undefined;
@@ -132,6 +133,9 @@ export async function activate(context: vscode.ExtensionContext) {
 		}),
 	);
 
+	// UC-665 — "SpecBox: Revert last migration" command (config rollback).
+	registerRevertCommand(context);
+
 	// Identity polling — registered synchronously so its disposal is wired up
 	// regardless of how the async startup tasks below resolve.
 	identityPollingHandle = setInterval(() => {
@@ -194,11 +198,13 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 				}
 			}
 
-			// Self-update check: compare extension version vs engine version.
+			// Self-update + post-update orchestration (UC-666): binary → detect
+			// config case → migrate → summary. Fire-and-forget per phase so a
+			// failure never wedges activation.
 			if (result.enginePath) {
 				const extVersion = context.extension.packageJSON.version as string;
 				const updater = new ExtensionUpdater(extVersion);
-				await updater.checkAndUpdate(result.enginePath);
+				await updater.runUpdateFlow(result.enginePath);
 			}
 		} catch (err) {
 			console.warn('[specbox] startup health/update task failed:', err);

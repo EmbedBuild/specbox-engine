@@ -84,6 +84,7 @@ async def update_uc(
     context_text: str | None = None,
     milestone: str | None = None,
     satellite: str | None = None,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Update metadata of a single Use Case without touching ACs or workflow state.
 
@@ -98,10 +99,14 @@ async def update_uc(
     Idempotent: calling twice with the same args returns `reason: "no_change"`
     on the second call.
 
+    `items_content` (FreeForm content-passing, UC-660): pass items.json as a
+    string for remote MCP; the mutated string is returned under `items_content`.
+
     Returns:
         {uc_id, updated_fields, backend_item_url, updated_at, reason?}
+        plus `items_content` when `items_content` was provided.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         if milestone is not None:
             ok, err = mh.validate_milestone(milestone)
@@ -130,13 +135,16 @@ async def update_uc(
         desc_changed = description is not None and description != uc_item.description
 
         if not meta_changed and not name_changed and not desc_changed:
-            return {
+            no_change = {
                 "uc_id": uc_id,
                 "updated_fields": [],
                 "backend_item_url": uc_item.url,
                 "updated_at": mh.utc_now_iso(),
                 "reason": "no_change",
             }
+            if items_content is not None:
+                no_change["items_content"] = backend.get_items_content()
+            return no_change
 
         try:
             updated = await backend.update_item(
@@ -156,12 +164,15 @@ async def update_uc(
         if desc_changed:
             fields.append("description")
 
-        return {
+        result = {
             "uc_id": uc_id,
             "updated_fields": fields,
             "backend_item_url": updated.url or uc_item.url,
             "updated_at": mh.utc_now_iso(),
         }
+        if items_content is not None:
+            result["items_content"] = backend.get_items_content()
+        return result
     finally:
         await backend.close()
 
@@ -619,6 +630,7 @@ async def add_ac(
     ctx: Context,
     *,
     done: bool = False,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Append a new Acceptance Criterion to an existing UC.
 
@@ -629,10 +641,14 @@ async def add_ac(
     rewriting the UC's full AC list via `import_spec` — it's idempotent and
     cheaper than a loop.
 
+    `items_content` (FreeForm content-passing, UC-660): pass items.json as a
+    string for remote MCP; the mutated string is returned under `items_content`.
+
     Returns:
         {uc_id, ac_id, text, done, created_at}
+        plus `items_content` when `items_content` was provided.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         if not text or not text.strip():
             return _mk_error("VALIDATION_FAILED", "text must be non-empty")
@@ -660,7 +676,7 @@ async def add_ac(
                 logger.exception("add_ac_mark_done_failed", uc=uc_id, ac=new_id)
 
         created_ac = created[0] if created else None
-        return {
+        result = {
             "uc_id": uc_id,
             "ac_id": new_id,
             "text": text,
@@ -668,6 +684,9 @@ async def add_ac(
             "created_at": mh.utc_now_iso(),
             "backend_id": created_ac.backend_id if created_ac else "",
         }
+        if items_content is not None:
+            result["items_content"] = backend.get_items_content()
+        return result
     finally:
         await backend.close()
 
@@ -796,6 +815,7 @@ async def add_uc(
     context_text: str | None = None,
     milestone: str | None = None,
     satellite: str | None = None,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Create a single new Use Case under an existing User Story.
 
@@ -809,10 +829,17 @@ async def add_uc(
     uc_id is auto-assigned by scanning `max(uc_id)` on the board and
     incrementing (e.g. UC-001..UC-027 exist → new UC is UC-028).
 
+    `items_content` (FreeForm content-passing, UC-660): when the MCP server is
+    remote it cannot read the client's items.json. Pass its contents as a
+    string and the mutated items.json is returned under the `items_content`
+    key for the client to write back. Omit it for local MCP / disk mode.
+
     Returns:
         {uc_id, name, ac_count, backend_item_url, created_at}
+        plus `items_content` (mutated items.json string) when `items_content`
+        was provided.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         if milestone is not None:
             ok, err = mh.validate_milestone(milestone)
@@ -869,13 +896,16 @@ async def add_uc(
             except Exception:
                 logger.exception("add_uc_create_acs_failed", uc=new_uc_id)
 
-        return {
+        result = {
             "uc_id": new_uc_id,
             "name": name,
             "ac_count": len(ac_pairs),
             "backend_item_url": created.url,
             "created_at": mh.utc_now_iso(),
         }
+        if items_content is not None:
+            result["items_content"] = backend.get_items_content()
+        return result
     finally:
         await backend.close()
 

@@ -122,6 +122,11 @@
         "command": "specbox.checkPrerequisites",
         "title": "%command.checkPrerequisites.title%",
         "category": "SpecBox"
+      },
+      {
+        "command": "specbox.revertMigration",
+        "title": "%command.revertMigration.title%",
+        "category": "SpecBox"
       }
     ],
     "menus": {

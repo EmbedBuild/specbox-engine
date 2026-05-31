@@ -9,11 +9,10 @@
   "command.signIn.title": "SpecBox: Iniciar sesión con GitHub",
   "command.signOut.title": "SpecBox: Cerrar sesión",
   "command.identityQuickPick.title": "SpecBox: Identidad",
-  "command.showSkillCard.title": "SpecBox: Ver ficha de skill",
+  "command.showSkillCard.title": "SpecBox: Mostrar ficha del skill",
   "command.refresh.title": "SpecBox: Refrescar",
   "command.checkPrerequisites.title": "SpecBox: Comprobar Requisitos",
   "capabilities.untrustedWorkspaces.description": "SpecBox instala skills, hooks y servidores MCP que ejecutan comandos. En Modo Restringido solo están disponibles Health Check y el sidebar de solo lectura; install, onboard, configurar MCP e iniciar sesión se desactivan hasta que se conceda confianza al workspace.",
-  "command.showSkillCard.title": "SpecBox: Mostrar ficha del skill",
   "configuration.signInBaseUrl.description": "Sobrescribe la URL de inicio de sesión en la nube (avanzado; por defecto https://cloud.specbox.build/vscode/issue-token).",
   "configuration.signInBaseUrl.markdownDescription": "Sobrescribe la URL de inicio de sesión en la nube (avanzado; por defecto [https://cloud.specbox.build/vscode/issue-token](https://cloud.specbox.build/vscode/issue-token)). La usan los tests E2E contra el mock cloud.",
   "viewContainer.specbox.title": "SpecBox Engine",
@@ -29,5 +28,6 @@
   "configuration.title": "SpecBox Engine",
   "configuration.enginePath.description": "Ruta al repositorio de SpecBox Engine. Se autodetecta si está vacío.",
   "configuration.autoHealthCheck.description": "Ejecuta la comprobación de salud al arrancar cuando se detecta un proyecto SpecBox.",
-  "configuration.mcpAutoStart.description": "Configura automáticamente los servidores MCP (SpecBox + Engram) al instalar."
+  "configuration.mcpAutoStart.description": "Configura automáticamente los servidores MCP (SpecBox + Engram) al instalar.",
+  "command.revertMigration.title": "Revertir ultima migracion"
 }

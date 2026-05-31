@@ -6,7 +6,7 @@ status: ready
 hours: 12
 owner: Jesús Pérez
 created: 2026-05-24
-updated: 2026-05-29
+updated: 2026-05-31
 source: items.json (FreeformBackend)
 ---
 

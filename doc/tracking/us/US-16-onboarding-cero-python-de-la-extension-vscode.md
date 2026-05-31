@@ -6,7 +6,7 @@ status: draft
 hours: 6.0
 owner: Jesús Pérez
 created: 2026-05-28
-updated: 2026-05-29
+updated: 2026-05-31
 source: items.json (FreeformBackend)
 ---
 

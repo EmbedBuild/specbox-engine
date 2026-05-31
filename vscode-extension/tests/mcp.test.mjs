@@ -26,7 +26,13 @@ Module._resolveFilename = function (req, ...rest) {
 };
 require.cache['vscode-stub'] = { id: 'vscode-stub', filename: 'vscode-stub', loaded: true, exports: vscodeStub };
 
-const { buildRemoteServerConfig, buildEngramInstallPlan, REMOTE_MCP_URL } = require(path.join(outDir, 'mcp.js'));
+const {
+	buildRemoteServerConfig,
+	buildEngramInstallPlan,
+	buildFreeformProjectSettings,
+	FREEFORM_ROOT_RELATIVE,
+	REMOTE_MCP_URL,
+} = require(path.join(outDir, 'mcp.js'));
 
 test('AC-01: SpecBox MCP config points at the free hosted remote endpoint via npx mcp-remote', () => {
 	const cfg = buildRemoteServerConfig();
@@ -56,4 +62,29 @@ test('AC-04: without brew, Engram falls back to a manual binary install (never p
 	assert.equal(plan.command, null);
 	assert.match(plan.manualUrl, /github\.com\/Gentleman-Programming\/engram/);
 	assert.ok(!JSON.stringify(plan).toLowerCase().includes('pip'));
+});
+
+// UC-662 AC-06 — FreeForm first-class onboarding, no Python.
+
+test('UC-662 AC-06: buildFreeformProjectSettings marks the project freeform with an absolute root', () => {
+	const s = buildFreeformProjectSettings('/Users/me/myproject');
+	assert.equal(s.specbox.backend_type, 'freeform');
+	assert.equal(s.specbox.freeform_root_absolute, `/Users/me/myproject/${FREEFORM_ROOT_RELATIVE}`);
+});
+
+test('UC-662 AC-06: FreeForm settings contain NO python/uv/local-mode references', () => {
+	const json = JSON.stringify(buildFreeformProjectSettings('/abs/proj')).toLowerCase();
+	for (const forbidden of ['python', 'pip', 'venv', 'local', 'localhost', '127.0.0.1', 'server.server']) {
+		assert.ok(!json.includes(forbidden), `settings should not mention ${forbidden}: ${json}`);
+	}
+});
+
+test('UC-662 AC-06: buildFreeformProjectSettings rejects a relative root (v5.29 BLOCKER)', () => {
+	assert.throws(() => buildFreeformProjectSettings('relative/proj'), /must be absolute/);
+});
+
+test('UC-662 AC-06: FreeForm reuses the SAME hosted MCP endpoint (no local mode)', () => {
+	const cfg = buildRemoteServerConfig();
+	assert.ok(cfg.args.includes(REMOTE_MCP_URL));
+	assert.ok(!JSON.stringify(cfg).toLowerCase().includes('python'));
 });

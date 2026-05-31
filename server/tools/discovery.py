@@ -210,14 +210,110 @@ def _section_has_real_content(content: str, section_re: str) -> tuple[bool, str]
     return (True, stripped[:120])
 
 
-def _validate_icp_jtbd(content: str) -> dict[str, Any]:
+def _extract_canonical_zone(app_spec_content: str) -> str | None:
+    """Return the body of the canonical_decisions zone, or None if absent.
+
+    Recognises the v5.29 zone markers (the ``merge`` / other attrs are ignored):
+      <!-- @specbox:zone start ... id="canonical_decisions" ... -->
+      ...body...
+      <!-- @specbox:zone end ... -->
+    Falls back to None when there is no such zone.
+    """
+    if not app_spec_content:
+        return None
+    start = re.search(
+        r'<!--\s*@specbox:zone start[^>]*id="canonical_decisions"[^>]*-->',
+        app_spec_content,
+    )
+    if not start:
+        return None
+    rest = app_spec_content[start.end():]
+    end = re.search(r"<!--\s*@specbox:zone end[^>]*-->", rest)
+    return rest[: end.start()] if end else rest
+
+
+def _parse_canonical_decisions(app_spec_content: str) -> list[str]:
+    """Extract registered canonical decision titles from app_spec.md.
+
+    Reads the canonical_decisions zone and returns the **bold** titles of each
+    bullet (``- **Title** — ...``). Bold is how the engine's own app_spec writes
+    them. Falls back to scanning the whole doc when no zone markers exist.
+    """
+    zone = _extract_canonical_zone(app_spec_content)
+    haystack = zone if zone is not None else (app_spec_content or "")
+    titles: list[str] = []
+    for line in haystack.splitlines():
+        m = re.match(r"\s*-\s+\*\*(.+?)\*\*", line)
+        if m:
+            titles.append(m.group(1).strip())
+    return titles
+
+
+def _detect_canonical_drift(
+    content: str, app_spec_content: str
+) -> dict[str, Any]:
+    """Detect whether the Discovery contradicts a registered canonical decision.
+
+    The gate works on DECLARATIONS, like the market-drift gate: the Discovery's
+    "## Drift from app_market" section may name a canonical decision as affected
+    ("Decisión canónica afectada"). If it does, it must also declare a resolution
+    (documented_exception / app_market_updated / feature_creep_rejected). An
+    affected canonical decision with NO declared resolution is the dangerous case
+    the gate blocks — exactly the PR #82 hole.
+
+    Returns ``{decision, resolved, kind}`` (AC-21):
+      - decision: the registered decision title the Discovery names, or None.
+      - resolved: True when a resolution is declared.
+      - kind: the declared resolution, "undeclared" when affected-but-unresolved,
+              or "no_canonical_drift" when the Discovery names none.
+    """
+    drift_match = re.search(
+        r"## Drift from app_market\s*\n(.+?)(?=\n## |\Z)",
+        content,
+        re.IGNORECASE | re.DOTALL,
+    )
+    drift_body = drift_match.group(1) if drift_match else ""
+    low = drift_body.lower()
+
+    names_canonical = (
+        "decisión canónica afectada" in low
+        or "decision canonica afectada" in low
+        or "canonical decision affected" in low
+    )
+    if not names_canonical:
+        return {"decision": None, "resolved": False, "kind": "no_canonical_drift"}
+
+    # Which registered decision does it name? Match any app_spec title verbatim.
+    decision: str | None = None
+    for title in _parse_canonical_decisions(app_spec_content):
+        if title.lower() in low:
+            decision = title
+            break
+
+    kind = "undeclared"
+    for explicit in ("documented_exception", "app_market_updated", "feature_creep_rejected"):
+        if explicit in low:
+            kind = explicit
+            break
+
+    return {"decision": decision, "resolved": kind != "undeclared", "kind": kind}
+
+
+def _validate_icp_jtbd(
+    content: str, app_spec_content: str | None = None
+) -> dict[str, Any]:
     """Parse icp_jtbd.md and report missing sections.
+
+    When ``app_spec_content`` is provided (UC-667), also validates against the
+    registered canonical decisions: a Discovery that contradicts one without
+    declaring a resolution is NOT READY_FOR_PRD.
 
     Returns:
         {
           "verdict": "READY_FOR_PRD" | "DISCOVERY_INCOMPLETE",
           "missing": [...],
           "drift": {...},
+          "canonical_decision_drift": {decision, resolved, kind},  # UC-667
         }
     """
     missing: list[str] = []
@@ -274,12 +370,26 @@ def _validate_icp_jtbd(content: str) -> dict[str, Any]:
         elif "pendiente" in drift_body.lower():
             missing.append("drift_resolution")
 
+    # Canonical-decision drift (UC-667): block an undeclared contradiction of a
+    # registered canonical decision. Only active when app_spec_content is given
+    # (retrocompat: without it, behaviour is identical to before).
+    canonical_drift: dict[str, Any] = {
+        "decision": None,
+        "resolved": False,
+        "kind": "no_canonical_drift",
+    }
+    if app_spec_content:
+        canonical_drift = _detect_canonical_drift(content, app_spec_content)
+        if canonical_drift["kind"] == "undeclared":
+            missing.append("canonical_decision_resolution")
+
     verdict = "READY_FOR_PRD" if not missing else "DISCOVERY_INCOMPLETE"
 
     return {
         "verdict": verdict,
         "missing": missing,
         "drift": drift_info,
+        "canonical_decision_drift": canonical_drift,
     }
 
 
@@ -718,6 +828,7 @@ def register_product_discovery_tools(mcp: FastMCP, engine_path: Path) -> None:
     def validate_discovery_completeness(
         feature_name: str,
         icp_jtbd_content: str | None = None,
+        app_spec_content: str | None = None,
     ) -> dict[str, Any]:
         """Check whether icp_jtbd.md is complete enough to proceed to /prd.
 
@@ -734,12 +845,18 @@ def register_product_discovery_tools(mcp: FastMCP, engine_path: Path) -> None:
             icp_jtbd_content: Current content of
                 ``doc/discovery/<feature_name>/icp_jtbd.md``, or ``None``
                 when the file does not exist locally.
+            app_spec_content: Current content of ``doc/app/app_spec.md`` (UC-667).
+                When provided, the gate also validates against the registered
+                canonical decisions: a Discovery that contradicts one without
+                declaring a resolution is NOT READY_FOR_PRD — the PR #82 hole.
 
         Returns:
             {
               "verdict": "READY_FOR_PRD" | "DISCOVERY_INCOMPLETE",
               "missing": ["icps_involucrados", "jtbds_emocionales", ...],
               "drift": { "section_present": bool, "resolved": bool },
+              "canonical_decision_drift": { "decision": str|None,
+                                            "resolved": bool, "kind": str },
               "artifact_path": "doc/discovery/<feature>/icp_jtbd.md",
             }
         """
@@ -758,7 +875,7 @@ def register_product_discovery_tools(mcp: FastMCP, engine_path: Path) -> None:
                 ),
             }
 
-        result = _validate_icp_jtbd(icp_jtbd_content)
+        result = _validate_icp_jtbd(icp_jtbd_content, app_spec_content=app_spec_content)
         result["artifact_path"] = relative_artifact
         return result
 

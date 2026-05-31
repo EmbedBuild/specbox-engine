@@ -8,7 +8,7 @@ actor: Dev nuevo tras Install (ICP-2)
 hours: 3.0
 owner: Jesús Pérez
 created: 2026-05-27
-updated: 2026-05-29
+updated: 2026-05-31
 source: items.json (FreeformBackend)
 ---
 

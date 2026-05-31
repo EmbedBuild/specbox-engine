@@ -3,8 +3,8 @@
 Capa de **lectura humana** sobre el FreeformBackend. Cuando necesites revisar
 una US o un UC, busca aquí su markdown:
 
-- **[`us/`](us/)** — un `.md` legible por cada User Story (17 docs).
-- **[`uc/`](uc/)** — un `.md` legible por cada Use Case con sus ACs y enlace al US padre (99 docs).
+- **[`us/`](us/)** — un `.md` legible por cada User Story (21 docs).
+- **[`uc/`](uc/)** — un `.md` legible por cada Use Case con sus ACs y enlace al US padre (108 docs).
 - **[`_templates/`](_templates/)** — plantillas para crear US/UC nuevos a mano.
 
 ## Fuente de verdad
@@ -49,5 +49,9 @@ python3 .quality/scripts/generate-readable-tracking.py
 | US-15 | [US-VSCODE-DISCOVERABILITY](us/US-15-sidebar-de-descubrimiento-y-ayuda-para-la-extension-vscode.md) | Sidebar de descubrimiento y ayuda para la extensión VSCode | draft | 5 |
 | US-16 | [US-VSCODE-ZERO-PYTHON](us/US-16-onboarding-cero-python-de-la-extension-vscode.md) | Onboarding cero-Python de la extensión VSCode | draft | 5 |
 | US-17 | [US-VSCODE-PREREQ-GATE](us/US-17-gate-de-prerequisitos-de-la-extension-vscode.md) | Gate de prerequisitos de la extensión VSCode | draft | 4 |
+| US-18 | [US-CONN-TRANSPORT](us/US-18-freeform-operativo-sin-python-via-content-passing.md) | FreeForm operativo sin Python via content-passing | draft | 3 |
+| US-19 | [US-CONN-AUDIT](us/US-19-audit-operativo-en-remoto-via-analyzers-locales.md) | /audit operativo en remoto via analyzers locales | draft | 1 |
+| US-20 | [US-CONN-UPGRADE](us/US-20-actualizacion-robusta-y-pedagogica-consciente-de-la-configur.md) | Actualizacion robusta y pedagogica consciente de la configuracion | draft | 3 |
+| US-21 | [US-CONN-GATE](us/US-21-drift-gate-consciente-de-las-decisiones-canonicas.md) | Drift gate consciente de las decisiones canonicas | draft | 2 |
 
-_Generado 2026-05-29 desde `items.json` (17 US · 99 UC · 426 AC)._
+_Generado 2026-05-31 desde `items.json` (21 US · 108 UC · 448 AC)._

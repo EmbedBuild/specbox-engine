@@ -74,7 +74,7 @@ export function readContentBundle(relativePaths, opts = {}) {
   if (!Array.isArray(relativePaths)) {
     throw new TypeError('readContentBundle: paths must be an array');
   }
-  const root = opts.root || resolveProjectRoot();
+  const root = opts.root || resolveProjectRoot(opts);
   const bundle = {};
   for (const rel of relativePaths) {
     if (typeof rel !== 'string' || rel.length === 0) {
@@ -119,7 +119,7 @@ export function writeContentBundle(bundle, opts = {}) {
   if (bundle === null || typeof bundle !== 'object') {
     throw new TypeError('writeContentBundle: bundle must be an object');
   }
-  const root = opts.root || resolveProjectRoot();
+  const root = opts.root || resolveProjectRoot(opts);
   const written = [];
   const skipped = [];
   for (const [rel, content] of Object.entries(bundle)) {
@@ -154,4 +154,57 @@ export function writeContentBundle(bundle, opts = {}) {
     written.push(rel);
   }
   return { written, skipped };
+}
+
+// ── FreeForm tracking helpers (UC-661) ───────────────────────────────
+//
+// The FreeForm backend's source of truth is doc/tracking/items.json. With a
+// remote MCP server (SPECBOX_ENGINE_MCP_URL set) the server cannot read or
+// write this file — UC-660 made the mutation tools content-passing, so the
+// client reads items.json, sends its content, and writes back the mutated
+// string the tool returns. These two helpers are the single client-side door
+// for that round-trip: skills never compute the path themselves.
+
+/** Canonical relative path to the FreeForm source-of-truth file. */
+export const TRACKING_ITEMS_PATH = 'doc/tracking/items.json';
+
+/**
+ * Read the FreeForm tracking items.json as a string, ready to pass as the
+ * `items_content` parameter of a content-passing mutation tool (UC-660).
+ *
+ * Resolves the repo root via `git rev-parse --show-toplevel` (inherited from
+ * readContentBundle) and honours the path-traversal guard. A board that has
+ * never been initialised (no items.json yet) reads as "[]" so the first
+ * import_spec / add_uc starts from an empty board instead of crashing.
+ *
+ * @param {object} [opts]
+ * @param {string} [opts.root] - Override project root (default: git toplevel of CWD).
+ * @returns {string} The items.json content, or "[]" when the file is absent.
+ */
+export function readTrackingBundle(opts = {}) {
+  const bundle = readContentBundle([TRACKING_ITEMS_PATH], opts);
+  const content = bundle[TRACKING_ITEMS_PATH];
+  return content === null ? '[]' : content;
+}
+
+/**
+ * Write the mutated items.json string back to the FreeForm tracking file.
+ *
+ * Call this with the `items_content` a content-passing mutation tool returned.
+ * Same root resolution + traversal guard as writeContentBundle. The readable
+ * layer (progress/, us/, uc/) is regenerated separately by the skill — this
+ * helper only persists the source of truth.
+ *
+ * @param {string} itemsContent - The mutated items.json string.
+ * @param {object} [opts]
+ * @param {string} [opts.root] - Override project root.
+ * @returns {{ written: string[], skipped: string[] }}
+ */
+export function writeTrackingBundle(itemsContent, opts = {}) {
+  if (typeof itemsContent !== 'string') {
+    throw new TypeError(
+      `writeTrackingBundle: itemsContent must be a string (got ${typeof itemsContent})`
+    );
+  }
+  return writeContentBundle({ [TRACKING_ITEMS_PATH]: itemsContent }, opts);
 }

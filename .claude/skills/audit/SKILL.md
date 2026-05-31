@@ -42,7 +42,15 @@ context: direct
 2. Carga el skill `embed-build-brand` para aplicar paleta negro + cyan `#29F3E3`
    al PDF final. Si el skill no está disponible, degrada a defaults y lo
    reporta en `meta.warnings` (la auditoría continúa).
-3. **Ejecuta los analizadores localmente** desde `.quality/scripts/audit/` (en v6.0.1 este directorio contiene un README descriptivo; el porting de los 8 scripts está planeado para v6.0.2). Cada analizador produce un fragmento JSON del `QualityReport`. El skill consolida los fragmentos en un único dict y lo envía con `submit_quality_audit(project, report=<dict>)`. El backend valida el dict y devuelve el report canónico que pasa a AG-10. **No uses `run_quality_audit` salvo como fallback** — está deprecado y devuelve error si lo invocas sin `report`.
+3. **Ejecuta los analizadores localmente** con el orquestador Node de `.quality/scripts/audit/` (v6.0.2+ — los 8 analyzers están portados a `.mjs`, sin dependencia de Python en el cliente). Una sola llamada:
+
+   ```bash
+   node .quality/scripts/audit/run-audit.mjs --project <name> --stack <detected> [--scope <char>]
+   ```
+
+   Imprime a stdout el `QualityReport` completo (8 `CharacteristicResult` en orden canónico, `global_score`, `global_traffic_light`, `tools_used`, `audit_id`). El skill captura ese JSON y lo envía verbatim con `submit_quality_audit(project, report=<dict>)`. El backend valida el dict (`QualityReport.from_dict`), reetiqueta `audit_tools_status` y devuelve el report canónico que pasa a AG-10. **No uses `run_quality_audit` salvo como fallback** — está deprecado y devuelve error si lo invocas sin `report`.
+
+   Los analyzers escanean el filesystem del **cliente** (no el del MCP host), por eso funcionan en MCP remoto. Las herramientas externas (semgrep, gitleaks, pip-audit, npm, lizard, jscpd, checkov) son opcionales: si faltan, `tools_used` las marca `missing` y el audit continúa con degradación. El scoring (penalties por severidad, mix 60/40 de maintainability, media global) se calcula client-side en `lib/scoring.mjs` (réplica fiel de `server/audit/scoring.py`); el **PDF se renderiza server-side** en `attach_audit_evidence` (ReportLab + brand embed.build).
 
    El report cubre los 8 analizadores SQuaRE en orden:
    1. Functional Suitability
@@ -69,7 +77,10 @@ context: direct
 /audit <project> maintainability
 ```
 
-Útil para re-correr un único bloque tras arreglar findings concretos.
+Se traduce a `run-audit.mjs --scope <char>`: ejecuta solo ese analizador, los
+otros 7 se emiten como `skipped` (no penalizan el `global_score`, que pasa a
+ser el del único bloque activo). Útil para re-correr un único bloque tras
+arreglar findings concretos.
 
 ## Degradación elegante
 
@@ -104,7 +115,9 @@ Las herramientas externas son opcionales — si falta alguna, se reporta en
   │     └─ cancel → abortar
   │
   ├─ 2. load_skill("embed-build-brand")   (opcional; si falta → warning)
-  ├─ 3. ejecutar .quality/scripts/audit/ localmente + submit_quality_audit("mcprofit", report=<dict>)
+  ├─ 3. node .quality/scripts/audit/run-audit.mjs --project mcprofit --stack <detected>
+  │       → captura el QualityReport JSON de stdout
+  │       → submit_quality_audit("mcprofit", report=<dict>)
   │     ↓
   │   QualityReport canónico (validado) con 8 CharacteristicResult + audit_tools_status
   │     ↓

@@ -44,3 +44,6 @@ GoogleService-Info.plist
 # OS
 .DS_Store
 Thumbs.db
+
+# FreeForm tracking backups (proceso, no versionar)
+doc/tracking/items.json.bak-*

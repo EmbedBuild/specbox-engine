@@ -8,7 +8,7 @@ actor: Engine + extensión VSCode
 hours: 4.0
 owner: Jesús Pérez
 created: 2026-05-27
-updated: 2026-05-29
+updated: 2026-05-31
 source: items.json (FreeformBackend)
 ---
 

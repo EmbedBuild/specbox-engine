@@ -27,6 +27,9 @@ import {
   resolveProjectRoot,
   readContentBundle,
   writeContentBundle,
+  readTrackingBundle,
+  writeTrackingBundle,
+  TRACKING_ITEMS_PATH,
 } from './mcp-client-io.mjs';
 
 // ── helpers ──────────────────────────────────────────────────────────
@@ -200,4 +203,73 @@ test('writeContentBundle rejects non-object input', () => {
     () => writeContentBundle('not an object'),
     /bundle must be an object/,
   );
+});
+
+// ── FreeForm tracking helpers (UC-661) ───────────────────────────────
+
+test('readTrackingBundle reads doc/tracking/items.json as a string', () => {
+  withTempRepo((repo) => {
+    mkdirSync(join(repo, 'doc/tracking'), { recursive: true });
+    const items = '[{"id":"item-1","name":"US-01: Demo","labels":["US"]}]';
+    writeFileSync(join(repo, TRACKING_ITEMS_PATH), items);
+    const content = readTrackingBundle({ root: repo });
+    assert.equal(content, items);
+    assert.equal(JSON.parse(content)[0].id, 'item-1');
+  });
+});
+
+test('readTrackingBundle returns "[]" when items.json is absent (uninitialised board)', () => {
+  withTempRepo((repo) => {
+    const content = readTrackingBundle({ root: repo });
+    assert.equal(content, '[]');
+    assert.deepEqual(JSON.parse(content), []);
+  });
+});
+
+test('writeTrackingBundle persists the mutated items.json string', () => {
+  withTempRepo((repo) => {
+    const mutated = '[{"id":"item-2","name":"UC-001: X","labels":["UC"]}]';
+    const { written, skipped } = writeTrackingBundle(mutated, { root: repo });
+    assert.deepEqual(written, [TRACKING_ITEMS_PATH]);
+    assert.deepEqual(skipped, []);
+    assert.equal(readFileSync(join(repo, TRACKING_ITEMS_PATH), 'utf-8'), mutated);
+  });
+});
+
+test('read → write → read round-trips the tracking content', () => {
+  withTempRepo((repo) => {
+    mkdirSync(join(repo, 'doc/tracking'), { recursive: true });
+    writeFileSync(join(repo, TRACKING_ITEMS_PATH), '[]');
+    // Simulate a content-passing mutation: read, mutate the string, write back.
+    const before = readTrackingBundle({ root: repo });
+    const board = JSON.parse(before);
+    board.push({ id: 'item-3', name: 'UC-002: Added', labels: ['UC'] });
+    writeTrackingBundle(JSON.stringify(board), { root: repo });
+    const after = JSON.parse(readTrackingBundle({ root: repo }));
+    assert.equal(after.length, 1);
+    assert.equal(after[0].id, 'item-3');
+  });
+});
+
+test('writeTrackingBundle rejects non-string content', () => {
+  withTempRepo((repo) => {
+    assert.throws(
+      () => writeTrackingBundle({ not: 'a string' }, { root: repo }),
+      /itemsContent must be a string/,
+    );
+  });
+});
+
+test('readTrackingBundle honours the path-traversal guard via a non-repo root', () => {
+  // resolveProjectRoot would throw outside a git repo — exercising the
+  // inherited guard chain. Here we just confirm the helper delegates to it.
+  const notARepo = mkdtempSync(join(tmpdir(), 'mcp-tracking-no-git-'));
+  try {
+    assert.throws(
+      () => readTrackingBundle({ cwd: notARepo }),
+      /not inside a git repository/,
+    );
+  } finally {
+    rmSync(notARepo, { recursive: true, force: true });
+  }
 });

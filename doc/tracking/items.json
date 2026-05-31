@@ -9458,5 +9458,627 @@
     },
     "created_at": "2026-05-28T13:55:02.648434+00:00",
     "updated_at": "2026-05-28T13:59:03.386375+00:00"
+  },
+  {
+    "id": "item-conn-001",
+    "name": "[US-CONN-TRANSPORT] FreeForm operativo sin Python via content-passing",
+    "description": "Como dev solo que usa FreeForm en local (ICP-2), quiero que mis tools de tracking lean y escriban mi doc/tracking real a traves del MCP remoto sin instalar Python ni un MCP local, para recuperar la trazabilidad US->UC->AC que la v6.7.0 me rompio. Discovery: doc/discovery/specbox_connectivity_ux/icp_jtbd.md. PRD: doc/prd/specbox_connectivity_ux_prd.md. JTBDs: JR-FCUX.1..4, JE-FCUX.2.",
+    "state": "user_stories",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "meta": {
+      "us_id": "US-CONN-TRANSPORT",
+      "tipo": "US",
+      "horas": "24"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00"
+  },
+  {
+    "id": "item-conn-002",
+    "name": "[UC-660] Tools de mutacion FreeForm con content-passing",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-001",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-660",
+      "tipo": "UC",
+      "us_id": "US-CONN-TRANSPORT",
+      "actor": "Engine",
+      "horas": "10"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T170102Z"
+  },
+  {
+    "id": "ac-conn-003",
+    "name": "[AC-01] Cada tool de mutacion FreeForm (add_uc, add_ac, mark_ac, update_uc, import_spec, complete_uc, start_uc) acepta el contenido de items.json como parametro string y devuelve el items.json mutado como string, sin que el server llame Path(...).resolve() contra un filesystem ajeno. Test: ejecuta cada tool con SPECBOX_ENGINE_MCP_URL set y un items.json inyectado por string, y asserta que el resultado refleja la mutacion sin tocar el FS del server.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-002",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T132549Z"
+  },
+  {
+    "id": "ac-conn-004",
+    "name": "[AC-02] Con el MCP en modo remoto, una secuencia add_uc -> mark_ac -> find_next_uc sobre un items.json de cliente pasado por content-passing devuelve resultados correctos (el UC aparece, el AC queda marcado, el siguiente UC es el esperado), replicando el flujo que hoy falla con 'esto no existe'.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-002",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T132549Z"
+  },
+  {
+    "id": "ac-conn-005",
+    "name": "[AC-03] Las tools de mutacion FreeForm migradas conservan compatibilidad in-process (callers Python del propio server) via helper *_impl(path) preservado, patron v6.0.1. Test: los tests existentes de FreeForm in-process siguen verdes sin modificacion.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-002",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T132549Z"
+  },
+  {
+    "id": "item-conn-006",
+    "name": "[UC-661] Bridge cliente canonico para I/O FreeForm",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-001",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-661",
+      "tipo": "UC",
+      "us_id": "US-CONN-TRANSPORT",
+      "actor": "Client",
+      "horas": "6"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T144628Z"
+  },
+  {
+    "id": "ac-conn-007",
+    "name": "[AC-01] lib/mcp-client-io.mjs expone helpers (readTrackingBundle/writeTrackingBundle o reuso de readContentBundle/writeContentBundle) que las skills FreeForm usan para leer/escribir doc/tracking resolviendo la raiz via git rev-parse --show-toplevel. Test node:test que lee un items.json de fixture y escribe el resultado, con guard de path-traversal activo (rechaza .. y paths absolutos fuera del repo).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-006",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T144628Z"
+  },
+  {
+    "id": "ac-conn-008",
+    "name": "[AC-02] Las skills que mutan FreeForm (/prd, /implement, /feedback en su ruta de tracking) usan el bridge en lugar de pasar paths al server. Verificable: grep en .claude/skills/ no encuentra llamadas a tools de mutacion FreeForm con project_path como ruta de filesystem del server.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-006",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T144628Z"
+  },
+  {
+    "id": "item-conn-009",
+    "name": "[UC-662] FreeForm first-class en onboarding de la extension (sin Python)",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-001",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-662",
+      "tipo": "UC",
+      "us_id": "US-CONN-TRANSPORT",
+      "actor": "Client",
+      "horas": "5"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T165935Z"
+  },
+  {
+    "id": "ac-conn-010",
+    "name": "[AC-01] El onboarding de la extension ofrece FreeForm como opcion operativa de primer nivel junto a Native/Trello; al elegirla, configura el MCP remoto + el bridge sin pedir Python en ningun punto. Test de la extension que simula la eleccion de FreeForm y asserta que el settings.json resultante apunta al remoto y NO contiene referencias a Python/uv/modo Local.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-009",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T165935Z"
+  },
+  {
+    "id": "ac-conn-011",
+    "name": "[AC-02] Tras elegir FreeForm en el onboarding, el health check / sidebar reporta el backend como operativo (no degraded por falta de modo local). Test: tras configurar FreeForm, evaluatePrerequisites devuelve ready para ese proyecto.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-009",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T165935Z"
+  },
+  {
+    "id": "item-conn-012",
+    "name": "[US-CONN-AUDIT] /audit operativo en remoto via analyzers locales",
+    "description": "Como owner del engine (ICP-1) y dev que audita su proyecto (ICP-2), quiero que /audit funcione con el MCP remoto ejecutando los 8 analyzers SQuaRE en el cliente (Node) y enviando el QualityReport por content-passing, para cerrar la ultima pieza que quedo rota en remoto desde v6.0.1. PRD: doc/prd/specbox_connectivity_ux_prd.md. JTBDs: JR-FCUX.3, JR-FCUX.4.",
+    "state": "user_stories",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "meta": {
+      "us_id": "US-CONN-AUDIT",
+      "tipo": "US",
+      "horas": "12"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00"
+  },
+  {
+    "id": "item-conn-013",
+    "name": "[UC-663] Porting de los 8 SQuaRE analyzers a .quality/scripts/audit/ (Node local)",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-012",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-663",
+      "tipo": "UC",
+      "us_id": "US-CONN-AUDIT",
+      "actor": "Client",
+      "horas": "12"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:10:39.446025+00:00"
+  },
+  {
+    "id": "ac-conn-014",
+    "name": "[AC-01] Los 8 analyzers SQuaRE (functional, performance, compatibility, usability, reliability, security, maintainability, portability) se ejecutan client-side desde .quality/scripts/audit/ (Node) escaneando el codigo local, sin que el server toque el filesystem del cliente. Test: corre cada analyzer sobre un fixture y asserta que produce su bloque del QualityReport (score 0-100, traffic_light, findings, recommendations).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-013",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:10:39.446025+00:00"
+  },
+  {
+    "id": "ac-conn-015",
+    "name": "[AC-02] submit_quality_audit(report) acepta el QualityReport construido client-side por content-passing, lo persiste bajo evidence/audits/ y autogenera audit_id si no se pasa. Test: envia un report serializado y asserta persistencia (JSON + PDF) + audit_id formato audit_YYYYMMDDTHHMMSSZ.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-013",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:10:39.446025+00:00"
+  },
+  {
+    "id": "ac-conn-016",
+    "name": "[AC-03] La skill /audit orquesta el flujo nuevo (lazy-check de tools externas -> ejecutar analyzers locales -> submit_quality_audit) y funciona end-to-end con SPECBOX_ENGINE_MCP_URL set. Smoke test que ejecuta /audit en remoto sobre el propio repo y produce evidencia valida.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-013",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:10:39.446025+00:00"
+  },
+  {
+    "id": "item-conn-017",
+    "name": "[US-CONN-UPGRADE] Actualizacion robusta y pedagogica consciente de la configuracion",
+    "description": "Como dev que actualiza SpecBox via la extension (ICP-2, ICP-3), quiero que la actualizacion detecte si mi configuracion quedo obsoleta, la migre por mi con backup, y me explique que cambio y que debo hacer, para no descubrir roturas por errores cripticos. PRD: doc/prd/specbox_connectivity_ux_prd.md. JTBDs: JR-FCUX.5..7, JE-FCUX.1.",
+    "state": "user_stories",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "meta": {
+      "us_id": "US-CONN-UPGRADE",
+      "tipo": "US",
+      "horas": "16"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00"
+  },
+  {
+    "id": "item-conn-018",
+    "name": "[UC-664] Deteccion de configuracion obsoleta (cliente)",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-017",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-664",
+      "tipo": "UC",
+      "us_id": "US-CONN-UPGRADE",
+      "actor": "Client",
+      "horas": "5"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
+  },
+  {
+    "id": "ac-conn-019",
+    "name": "[AC-01] Al activarse tras una actualizacion, la extension lee .claude/settings.local.json + la config MCP y clasifica el estado del cliente en uno de los casos canonicos (FreeForm+Local-obsoleto, FreeForm+Remoto-ya-ok, Trello/Plane-sin-cambios, Native+OAuth-sin-cambios, onboarding-incompleto). Funcion pura detectClientConfigCase(settings, mcpConfig) con test que cubre los 5 casos.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-018",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
+  },
+  {
+    "id": "ac-conn-020",
+    "name": "[AC-02] La extension envia el caso detectado + la version origen al server via upgrade_project / detect_*_migration_case y recibe un plan de migracion (acciones + diffs propuestos). Test de integracion mock-server que asserta que el plan recibido corresponde al caso.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-018",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
+  },
+  {
+    "id": "item-conn-021",
+    "name": "[UC-665] Auto-migracion de config con backup + resumen pedagogico",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-017",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-665",
+      "tipo": "UC",
+      "us_id": "US-CONN-UPGRADE",
+      "actor": "Client",
+      "horas": "7"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
+  },
+  {
+    "id": "ac-conn-022",
+    "name": "[AC-01] Cuando el caso es config obsoleta (ej. modo Local), la extension hace backup de settings.local.json (a settings.local.json.bak-<ts>) ANTES de tocar nada, y luego aplica la migracion (Local->Remoto+bridge). Test: asserta que el .bak existe con el contenido original y que el settings.local.json migrado apunta al remoto.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-021",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
+  },
+  {
+    "id": "ac-conn-023",
+    "name": "[AC-02] Tras migrar, la extension muestra un resumen pedagogico no bloqueante con: que cambio, que se migro automaticamente, donde esta el backup, y que -si algo- debe hacer el usuario, con copy especifico por caso de ICP. Test: para cada caso asserta el copy contiene las 4 secciones (cambio/migrado/backup/accion).",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-021",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
+  },
+  {
+    "id": "ac-conn-024",
+    "name": "[AC-03] La migracion de settings.json es reversible: un comando 'SpecBox: Revert last migration' restaura desde el .bak mas reciente. Test: migra, revierte y asserta que el settings.local.json vuelve al estado original byte-a-byte.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-021",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
+  },
+  {
+    "id": "ac-conn-025",
+    "name": "[AC-04] La auto-migracion respeta el gate de acciones destructivas inviolables: mover/transformar datos de tracking (no solo reconfigurar transporte) NO se auto-ejecuta; se propone con confirmacion explicita. Test: un plan que incluye movimiento de datos exige confirmacion, mientras que uno que solo reconfigura transporte no.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-021",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-04",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
+  },
+  {
+    "id": "item-conn-026",
+    "name": "[UC-666] Updater no bloqueante y orquestador del flujo completo",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-017",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-666",
+      "tipo": "UC",
+      "us_id": "US-CONN-UPGRADE",
+      "actor": "Client",
+      "horas": "4"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
+  },
+  {
+    "id": "ac-conn-027",
+    "name": "[AC-01] El flujo de actualizacion (binario -> skills/hooks -> deteccion de config -> migracion -> resumen) se ejecuta sin bloquear la activacion (patron fire-and-forget de v6.6.2), con try/catch por fase que impide que un fallo cuelgue la extension. Test: simula un fallo en la fase de migracion y asserta que la activacion completa igualmente.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-026",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
+  },
+  {
+    "id": "ac-conn-028",
+    "name": "[AC-02] Tras una actualizacion exitosa sin config obsoleta (ej. Trello/Plane), el usuario ve un mensaje minimo 'Actualizado a vX - sin cambios para tu configuracion', sin ruido innecesario. Test: para el caso 'sin cambios' asserta el copy breve y la ausencia de prompts de migracion.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-026",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:34:36.914641+00:00"
+  },
+  {
+    "id": "item-conn-029",
+    "name": "[US-CONN-GATE] Drift gate consciente de las decisiones canonicas",
+    "description": "Como owner del engine (ICP-1), quiero que el drift gate de /discovery valide los cambios tambien contra app_spec.md decisiones canonicas (no solo app_market.md), para que un cambio que contradiga una decision registrada no pueda declararse no_drift y colarse a produccion (como ocurrio con el PR #82). PRD: doc/prd/specbox_connectivity_ux_prd.md. JTBDs: JR-FCUX.8, JE-FCUX.3.",
+    "state": "user_stories",
+    "parent_id": null,
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "meta": {
+      "us_id": "US-CONN-GATE",
+      "tipo": "US",
+      "horas": "7"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00"
+  },
+  {
+    "id": "item-conn-030",
+    "name": "[UC-667] Validacion de drift contra decisiones canonicas",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-029",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-667",
+      "tipo": "UC",
+      "us_id": "US-CONN-GATE",
+      "actor": "Engine",
+      "horas": "5"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T173036Z"
+  },
+  {
+    "id": "ac-conn-031",
+    "name": "[AC-01] validate_discovery_completeness acepta el contenido de app_spec.md canonical_decisions (content-passing) y detecta si el Discovery contradice alguna decision registrada. Test: con un artefacto que contradice una decision canonica SIN declararla en 'Drift from app_market' devuelve verdict != READY_FOR_PRD con un missing especifico.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-030",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T173036Z"
+  },
+  {
+    "id": "ac-conn-032",
+    "name": "[AC-02] Cuando un Discovery contradice una decision canonica pero la declara explicitamente como documented_exception con justificacion, el gate la acepta. Test: con el artefacto de specbox_connectivity_ux devuelve READY_FOR_PRD.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-030",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-02",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T173036Z"
+  },
+  {
+    "id": "ac-conn-033",
+    "name": "[AC-03] El reporte de drift distingue entre drift de mercado (app_market.md) y drift de decision canonica (app_spec.md), nombrando la decision concreta contradicha. Test: asserta el payload incluye canonical_decision_drift {decision, resolved, kind}.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-030",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-03",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T173036Z"
+  },
+  {
+    "id": "item-conn-034",
+    "name": "[UC-668] Registro de la nueva decision canonica",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-029",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "meta": {
+      "uc_id": "UC-668",
+      "tipo": "UC",
+      "us_id": "US-CONN-GATE",
+      "actor": "Engine",
+      "horas": "2"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T173036Z"
+  },
+  {
+    "id": "ac-conn-035",
+    "name": "[AC-01] app_spec.md canonical_decisions registra la nueva decision (MCP server nunca toca filesystem ajeno; estado cliente via content-passing/bridge; transporte unico remoto online-first) y marca la anterior (FreeForm requiere MCP local) como revisada/sustituida con referencia a este PRD, sin borrar el historico (append-only). Verificable: el archivo contiene ambas entradas con la relacion de sustitucion explicita.",
+    "description": "",
+    "state": "done",
+    "parent_id": "item-conn-034",
+    "labels": [
+      "AC"
+    ],
+    "priority": "none",
+    "meta": {
+      "ac_id": "AC-01",
+      "tipo": "AC"
+    },
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T173036Z"
   }
 ]

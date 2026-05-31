@@ -8,7 +8,7 @@ actor: Dev
 hours: 3
 owner: Jesús Pérez
 created: 2026-05-21
-updated: 2026-05-29
+updated: 2026-05-31
 source: items.json (FreeformBackend)
 ---
 

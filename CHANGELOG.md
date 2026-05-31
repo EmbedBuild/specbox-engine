@@ -2,6 +2,33 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.8.0] - 2026-05-31 — "Connectivity UX"
+
+Reenfoca la conectividad cliente/servidor bajo un transporte único (MCP remoto, online-first) donde el server nunca toca un filesystem ajeno y el estado del cliente fluye por content-passing vía un bridge Node. Cierra la regresión #82 (fallo silencioso en MCP remoto), hace `/audit` operativo en remoto, convierte la actualización de la extensión en un proceso pedagógico, y blinda el drift gate contra violaciones de decisiones canónicas. US-CONN-TRANSPORT — 9 UC en 4 hitos (PR #85).
+
+### Added
+
+- **FreeForm content-passing** (UC-660/661/662) — las 7 tools de mutación aceptan `items_content` y operan sobre un dict en memoria; bridge cliente `lib/mcp-client-io.mjs` (`readTrackingBundle`/`writeTrackingBundle`) con guard de path-traversal; FreeForm first-class en el onboarding de la extensión sin Python.
+- **Audit analyzers client-side** (UC-663) — los 8 analyzers SQuaRE ISO/IEC 25010 portados de Python a Node `.mjs` en `.quality/scripts/audit/`; `lib/scoring.mjs` réplica de `scoring.py`; `submit_quality_audit(report)` valida el reporte construido en el cliente. El PDF se sigue renderizando server-side.
+- **Updater pedagógico de la extensión** (UC-664/665/666) — `detectClientConfigCase()` (5 casos), auto-migración de transporte con backup `.bak-<ts>` + comando "Revert last migration", orquestador `runUpdateFlow()` fire-and-forget por fase, mensaje mínimo para el caso sin cambios.
+- **Drift gate canónico** (UC-667/668) — `validate_discovery_completeness` valida contra `app_spec.md § canonical_decisions`; registrada la nueva decisión canónica de transporte (append-only).
+
+### Changed
+
+- `server/tools/spec_mutations.py`, `spec_driven.py`, `backends/freeform_backend.py`, `auth_gateway.py` — content-passing en mutadores FreeForm.
+- `server/tools/discovery.py` — gate validado contra decisiones canónicas.
+- `.claude/skills/audit/SKILL.md`, `feedback/SKILL.md` — flujo de analyzers locales + cableado al bridge (UC-661 AC-02).
+- `vscode-extension/src/{updater,extension,mcp,auth}.ts` — updater orquestador + FreeForm first-class.
+
+### Compatibility
+
+- 100% backwards-compatible. Cierra la clase de fallo silencioso del #82 sin cambios de schema.
+
+### Tests
+
+- Bridge FreeForm 21/21 · Audit analyzers 19/19 · Extensión VSCode 80/80 · suite Python de la feature verde · tsc RC=0.
+- Bug fix de paso: regex `/g` module-level con `lastIndex` compartido bajo concurrencia (portability analyzer) → regex fresco por uso + test de regresión.
+
 ## [6.7.0] - 2026-05-28 — "Zero-Friction Onboarding"
 
 Dos features encadenadas del onboarding de la extensión VSCode, mergeadas en [PR #82](https://github.com/EmbedBuild/specbox-engine/pull/82). Disparadas por el feedback de un beta-tester (ICP-2) bloqueado por la dependencia de Python: como el MCP server se sirve gratis en remoto, el modo Local no aportaba valor suficiente para justificar la fricción; y la extensión sabía qué faltaba pero no lo comunicaba proactivamente.

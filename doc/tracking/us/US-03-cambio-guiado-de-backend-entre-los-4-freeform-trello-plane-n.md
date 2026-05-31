@@ -6,7 +6,7 @@ status: review
 hours: 52
 owner: Jesús Pérez
 created: 2026-05-22
-updated: 2026-05-29
+updated: 2026-05-31
 source: items.json (FreeformBackend)
 ---
 

@@ -8,7 +8,7 @@ actor: Maintainer
 hours: 0.7
 owner: Jesús Pérez
 created: 2026-05-25
-updated: 2026-05-29
+updated: 2026-05-31
 source: items.json (FreeformBackend)
 ---
 

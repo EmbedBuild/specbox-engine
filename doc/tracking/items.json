@@ -9676,7 +9676,7 @@
     "id": "item-conn-013",
     "name": "[UC-663] Porting de los 8 SQuaRE analyzers a .quality/scripts/audit/ (Node local)",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-012",
     "labels": [
       "UC"
@@ -9689,13 +9689,14 @@
       "actor": "Client",
       "horas": "12"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:10:39.446025+00:00"
   },
   {
     "id": "ac-conn-014",
     "name": "[AC-01] Los 8 analyzers SQuaRE (functional, performance, compatibility, usability, reliability, security, maintainability, portability) se ejecutan client-side desde .quality/scripts/audit/ (Node) escaneando el codigo local, sin que el server toque el filesystem del cliente. Test: corre cada analyzer sobre un fixture y asserta que produce su bloque del QualityReport (score 0-100, traffic_light, findings, recommendations).",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-013",
     "labels": [
       "AC"
@@ -9705,13 +9706,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:10:39.446025+00:00"
   },
   {
     "id": "ac-conn-015",
     "name": "[AC-02] submit_quality_audit(report) acepta el QualityReport construido client-side por content-passing, lo persiste bajo evidence/audits/ y autogenera audit_id si no se pasa. Test: envia un report serializado y asserta persistencia (JSON + PDF) + audit_id formato audit_YYYYMMDDTHHMMSSZ.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-013",
     "labels": [
       "AC"
@@ -9721,13 +9723,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:10:39.446025+00:00"
   },
   {
     "id": "ac-conn-016",
     "name": "[AC-03] La skill /audit orquesta el flujo nuevo (lazy-check de tools externas -> ejecutar analyzers locales -> submit_quality_audit) y funciona end-to-end con SPECBOX_ENGINE_MCP_URL set. Smoke test que ejecuta /audit en remoto sobre el propio repo y produce evidencia valida.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-013",
     "labels": [
       "AC"
@@ -9737,7 +9740,8 @@
       "ac_id": "AC-03",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "2026-05-31T18:10:39.446025+00:00"
   },
   {
     "id": "item-conn-017",

@@ -9551,7 +9551,7 @@
     "id": "item-conn-006",
     "name": "[UC-661] Bridge cliente canonico para I/O FreeForm",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-001",
     "labels": [
       "UC"
@@ -9564,13 +9564,14 @@
       "actor": "Client",
       "horas": "6"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T144628Z"
   },
   {
     "id": "ac-conn-007",
     "name": "[AC-01] lib/mcp-client-io.mjs expone helpers (readTrackingBundle/writeTrackingBundle o reuso de readContentBundle/writeContentBundle) que las skills FreeForm usan para leer/escribir doc/tracking resolviendo la raiz via git rev-parse --show-toplevel. Test node:test que lee un items.json de fixture y escribe el resultado, con guard de path-traversal activo (rechaza .. y paths absolutos fuera del repo).",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-006",
     "labels": [
       "AC"
@@ -9580,13 +9581,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T144628Z"
   },
   {
     "id": "ac-conn-008",
     "name": "[AC-02] Las skills que mutan FreeForm (/prd, /implement, /feedback en su ruta de tracking) usan el bridge en lugar de pasar paths al server. Verificable: grep en .claude/skills/ no encuentra llamadas a tools de mutacion FreeForm con project_path como ruta de filesystem del server.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-006",
     "labels": [
       "AC"
@@ -9596,7 +9598,8 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T144628Z"
   },
   {
     "id": "item-conn-009",

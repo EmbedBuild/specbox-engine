@@ -7,6 +7,35 @@ import {
   detectClientConfigCase, planMigration, buildMigrationSummary, renderSummaryText,
   backupAndMigrate, readClientSettings, settingsLocalPath,
 } from './migration';
+import { GitRunner, defaultGitRunner, isManagedPath } from './install';
+
+/** Outcome of pulling the managed clone. `skipped` means the engine is a user clone (untouched). */
+export interface PullResult { ok: boolean; skipped?: boolean; error?: string; }
+
+/**
+ * Fast-forward the managed engine clone (UC-111). Effects (git) but NEVER throws.
+ *
+ * - If `enginePath` is NOT the managed dir → no-op `{ ok:true, skipped:true }`:
+ *   a user's own clone is never touched (AC-06, ICP-1 protection).
+ * - `git pull --ff-only` so local edits are never overwritten and a diverged
+ *   history fails cleanly into a non-blocking warning (AC-07).
+ */
+export async function pullManagedEngine(
+  enginePath: string,
+  deps: { gitRunner?: GitRunner } = {},
+): Promise<PullResult> {
+  if (!isManagedPath(enginePath)) { return { ok: true, skipped: true }; }
+  const gitRunner = deps.gitRunner ?? defaultGitRunner;
+  try {
+    const res = await gitRunner(['pull', '--ff-only'], enginePath);
+    if (res.code !== 0) {
+      return { ok: false, error: res.stderr.trim() || `git pull exited with code ${res.code}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
 
 /**
  * Self-update mechanism + post-update orchestrator (UC-666).
@@ -31,6 +60,24 @@ export class ExtensionUpdater {
 	async runUpdateFlow(enginePath: string | null): Promise<void> {
 		const engineVersion = this.resolveEngineVersion(enginePath);
 		if (!engineVersion) { return; }
+
+		// Phase 0 — pull the managed clone up to date before reinstalling skills/hooks
+		// (UC-111). Only touches the managed dir; a user clone is skipped. A failed
+		// pull (no network, diverged history) is a non-blocking warning — the flow
+		// continues with the local copy and never aborts activation (AC-07,
+		// fire-and-forget pattern of v6.6.2).
+		if (enginePath) {
+			try {
+				const pull = await pullManagedEngine(enginePath);
+				if (!pull.ok && !pull.skipped) {
+					vscode.window.showWarningMessage(
+						vscode.l10n.t('SpecBox: could not update the managed engine ({0}). Continuing with the local copy.', pull.error ?? 'unknown error'),
+					);
+				}
+			} catch (err) {
+				console.warn('[specbox] updater: pull phase failed:', err);
+			}
+		}
 
 		// Phase 1 — binary: rebuild/reinstall the extension if the version drifted.
 		// On a version match this is a no-op and the rest of the flow still runs

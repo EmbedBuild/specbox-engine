@@ -127,22 +127,71 @@ class FreeformBackend(SpecBackend):
     Thread-safe for single-writer scenarios (typical Claude Code usage).
     """
 
-    def __init__(self, root: str, *, allow_relative: bool = False) -> None:
-        """Initialize FreeformBackend with a project root path.
+    def __init__(
+        self,
+        root: str | None = None,
+        *,
+        allow_relative: bool = False,
+        items_content: str | None = None,
+    ) -> None:
+        """Initialize FreeformBackend in disk mode or memory mode.
+
+        Disk mode (default): operations read/write ``items.json`` and the
+        progress Markdown layer under ``root`` on the local filesystem.
+
+        Memory mode (``items_content`` given): the backend operates entirely
+        on an in-memory list parsed from ``items_content`` and never touches a
+        filesystem. This is the content-passing contract (v6.0.1, UC-660): a
+        remote MCP server (``SPECBOX_ENGINE_MCP_URL`` set) cannot reach the
+        client's filesystem, so the client reads ``items.json`` locally, passes
+        the string in, and writes back ``get_items_content()`` afterwards. The
+        progress / readable-layer regeneration is the client's responsibility
+        in this mode (the server has no disk to write).
 
         Args:
-            root: Path to the FreeForm data directory. MUST be absolute
-                unless ``allow_relative`` is explicitly True.
-            allow_relative: Escape hatch for tests and tools that operate
-                on a known-local CWD. Production callers (``set_auth_token``)
-                resolve to absolute before calling, so this stays False.
+            root: Path to the FreeForm data directory. Required in disk mode;
+                ignored (and may be omitted) in memory mode. MUST be absolute
+                in disk mode unless ``allow_relative`` is True.
+            allow_relative: Escape hatch for tests and tools that operate on a
+                known-local CWD. Production disk-mode callers resolve to
+                absolute before calling, so this stays False.
+            items_content: When provided, activates memory mode. The string is
+                the raw contents of ``items.json`` (a JSON array). An empty or
+                whitespace-only string is treated as an empty board.
 
         Raises:
-            FreeformPathError: If ``root`` is relative and ``allow_relative``
-                is False. This guards against the silent-failure mode where
-                a remote MCP server resolves a relative path against its
+            FreeformPathError: In disk mode, if ``root`` is relative and
+                ``allow_relative`` is False. Guards against the silent-failure
+                mode where a remote MCP resolves a relative path against its
                 own CWD instead of the client's repo.
+            ValueError: In disk mode, if ``root`` is None; in memory mode, if
+                ``items_content`` is not a valid JSON array.
         """
+        self._items_cache: list[dict[str, Any]] | None = None
+        self._memory_mode = items_content is not None
+
+        if self._memory_mode:
+            # Memory mode: no filesystem. `root` is irrelevant.
+            self.root = None
+            self._mem_comments: dict[str, list[dict[str, Any]]] = {}
+            stripped = (items_content or "").strip()
+            if not stripped:
+                self._mem_items: list[dict[str, Any]] = []
+            else:
+                parsed = json.loads(stripped)
+                if not isinstance(parsed, list):
+                    raise ValueError(
+                        "items_content must be a JSON array (the contents of "
+                        f"items.json), got {type(parsed).__name__}"
+                    )
+                self._mem_items = parsed
+            return
+
+        if root is None:
+            raise ValueError(
+                "FreeformBackend requires either root (disk mode) or "
+                "items_content (memory mode)."
+            )
         path = Path(root)
         if not path.is_absolute() and not allow_relative:
             raise FreeformPathError(
@@ -153,7 +202,6 @@ class FreeformBackend(SpecBackend):
                 "or use the /app-init skill which auto-detects it."
             )
         self.root = path
-        self._items_cache: list[dict[str, Any]] | None = None
 
     # ── File I/O primitives ──────────────────────────────────────
 
@@ -176,17 +224,33 @@ class FreeformBackend(SpecBackend):
         return self.root / "progress"
 
     def _load_items(self) -> list[dict[str, Any]]:
-        """Load all items from disk."""
+        """Load all items. Memory mode: from the in-memory buffer. Disk mode: from disk."""
+        if self._memory_mode:
+            return self._mem_items
         path = self._items_path()
         if path.exists():
             return json.loads(path.read_text())
         return []
 
     def _save_items(self, items: list[dict[str, Any]]) -> None:
-        """Save all items to disk and invalidate cache."""
+        """Persist all items. Memory mode: to the in-memory buffer. Disk mode: to disk."""
+        if self._memory_mode:
+            self._mem_items = items
+            self._items_cache = None
+            return
         self._items_path().parent.mkdir(parents=True, exist_ok=True)
         self._items_path().write_text(json.dumps(items, indent=2, ensure_ascii=False) + "\n")
         self._items_cache = None
+
+    def get_items_content(self) -> str:
+        """Return the current items.json as a string (content-passing contract).
+
+        Only meaningful in memory mode: the caller (a remote-MCP client bridge)
+        reads this after a mutation and writes it back to its local items.json.
+        In disk mode it still returns a faithful serialization of the current
+        items, matching the on-disk format byte-for-byte.
+        """
+        return json.dumps(self._load_items(), indent=2, ensure_ascii=False) + "\n"
 
     def _load_labels(self) -> dict[str, dict[str, str]]:
         """Load labels. Returns {name: {id, name, color}}."""
@@ -243,7 +307,14 @@ class FreeformBackend(SpecBackend):
     # ── Progress Markdown generation ─────────────────────────────
 
     def _regenerate_progress(self) -> None:
-        """Regenerate all Markdown progress files from current items."""
+        """Regenerate all Markdown progress files from current items.
+
+        No-op in memory mode: there is no server-side filesystem to write, and
+        the client owns the readable layer (progress/, us/, uc/). The client
+        regenerates it after writing back the mutated items.json.
+        """
+        if self._memory_mode:
+            return
         items = self._load_items()
         progress_dir = self._progress_dir()
         progress_dir.mkdir(parents=True, exist_ok=True)
@@ -686,16 +757,19 @@ class FreeformBackend(SpecBackend):
         target["archived_at"] = _now_iso()
         target["archive_reason"] = reason
 
-        # Move to archive.json
-        archive_path = self.root / "archive.json"
-        archive: list[dict[str, Any]] = []
-        if archive_path.exists():
-            try:
-                archive = json.loads(archive_path.read_text())
-            except (json.JSONDecodeError, OSError):
-                archive = []
-        archive.append(target)
-        archive_path.write_text(json.dumps(archive, indent=2, ensure_ascii=False))
+        # Move to archive.json (disk mode only — memory mode has no FS; the
+        # archived item is simply dropped from the in-memory items and the
+        # client persists archival on its side if it tracks archive.json).
+        if not self._memory_mode:
+            archive_path = self.root / "archive.json"
+            archive: list[dict[str, Any]] = []
+            if archive_path.exists():
+                try:
+                    archive = json.loads(archive_path.read_text())
+                except (json.JSONDecodeError, OSError):
+                    archive = []
+            archive.append(target)
+            archive_path.write_text(json.dumps(archive, indent=2, ensure_ascii=False))
 
         # Remove from items.json
         items.pop(target_idx)
@@ -717,10 +791,15 @@ class FreeformBackend(SpecBackend):
             "author": "freeform",
         }
 
-        path = self._comments_path(item_id)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a") as f:
-            f.write(json.dumps(comment, ensure_ascii=False) + "\n")
+        if self._memory_mode:
+            # No FS in memory mode — buffer comments so callers don't crash.
+            # The client persists comments on its side if it tracks them.
+            self._mem_comments.setdefault(item_id, []).append(comment)
+        else:
+            path = self._comments_path(item_id)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("a") as f:
+                f.write(json.dumps(comment, ensure_ascii=False) + "\n")
 
         return CommentDTO(
             id=comment_id,
@@ -732,6 +811,17 @@ class FreeformBackend(SpecBackend):
     async def get_comments(
         self, board_id: str, item_id: str
     ) -> list[CommentDTO]:
+        if self._memory_mode:
+            return [
+                CommentDTO(
+                    id=c.get("id", ""),
+                    text=c.get("text", ""),
+                    created_at=c.get("created_at", ""),
+                    author=c.get("author", ""),
+                )
+                for c in self._mem_comments.get(item_id, [])
+            ]
+
         path = self._comments_path(item_id)
         if not path.exists():
             return []
@@ -760,6 +850,18 @@ class FreeformBackend(SpecBackend):
         content: bytes,
         mime_type: str = "application/pdf",
     ) -> AttachmentDTO:
+        if self._memory_mode:
+            # No FS in memory mode — return a synthetic DTO without persisting.
+            # Attachments aren't part of the items.json content-passing contract.
+            return AttachmentDTO(
+                id=_new_id("att"),
+                name=filename,
+                url="",
+                size=len(content),
+                created_at=_now_iso(),
+                mime_type=mime_type,
+            )
+
         att_dir = self._attachments_dir(item_id)
         att_dir.mkdir(parents=True, exist_ok=True)
 
@@ -778,6 +880,8 @@ class FreeformBackend(SpecBackend):
     async def get_attachments(
         self, board_id: str, item_id: str
     ) -> list[AttachmentDTO]:
+        if self._memory_mode:
+            return []
         att_dir = self._attachments_dir(item_id)
         if not att_dir.exists():
             return []

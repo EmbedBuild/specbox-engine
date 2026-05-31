@@ -1,59 +1,55 @@
 ---
-generated_at: 2026-05-31T12:42:40Z
+generated_at: 2026-05-31T16:05:00Z
 generator: specbox-handoff-v1
 schema_version: 1
 project: specbox-engine
-session_id: f8b8214744b6
+session_id: e64c4942
 trigger: manual
 ttl_minutes: 1440
-branch: main
-active_uc: null
+branch: feature/US-CONN-TRANSPORT
+active_uc: UC-660
 ---
 
 # SpecBox Handoff — specbox-engine
 
-## State snapshot
-- **Branch**: main
-- **Active UC**: none
-- **Backend**: freeform
-- **Last commit**: 18451f5 "main"
-- **Healing events this session**: 0
-- **Open feedback (blocking)**: 0
-- **Context tokens estimated this session**: 193773
-
 ## What this session did
-- Analizado el incidente del PR #82 (v6.7.0): eliminar Python mato el modo Local del MCP y rompio FreeForm via extension (MCP remoto en VPS no toca el items.json del cliente)
-- Reenfocada la arquitectura de conectividad: Discovery estrategico de 3 arquetipos (A remoto+content-passing / B local empaquetado / C bridge Node), elegido C
-- Ejecutado el pipeline completo: /discovery -> /prd -> /plan para la feature specbox_connectivity_ux (4 US, 9 UC UC-660..668, 22 AC)
-- Registrado el tracking en items.json via script con backup+guard (el MCP remoto no podia: prueba viva del bug) y regeneradas las capas us/ uc/ (21 US, 108 UC, 448 AC)
-- Guardadas las decisiones en memoria (Engram + <redacted-token>.md)
+- Creó rama feature/US-CONN-TRANSPORT + commiteó tracking de la feature (ebd2d14).
+- Implementó UC-660 (content-passing FreeForm vía memory-mode) end-to-end, verde, committeado (9c44d34).
+- Hubo 3 commits rotos intermedios por edits que aplicaron en sitio equivocado (funciones homónimas spec_driven/spec_mutations); arreglados con amend hasta dejar la suite en 107 passed / 0 failed.
 
-## Decisions taken (with key)
-- Arquetipo C -> transporte unico MCP remoto online-first + bridge Node (lib/mcp-client-io.mjs) para I/O FreeForm (offline no existe: Claude Code exige red, descarta B)
-- FreeForm = first-class permanente (solo/local), no puente hacia Native
-- Audit entra como US propia (US-CONN-AUDIT): analyzers Node solo recolectan senales FS, scoring+PDF se quedan server-side
-- 4 US separadas (TRANSPORT/AUDIT/UPGRADE/GATE), orden de implementacion por dependencias decidido en /plan
-- Actualizacion: auto-migrar config + explicar despues, inteligencia hibrida (extension detecta, server calcula plan); mover datos sigue pidiendo confirmacion
-- Incluido el fix del drift gate (validar contra app_spec.md decisiones canonicas) como causa-raiz del #82
-- Drift del Discovery resuelto como documented_exception: sustituye la decision canonica FreeForm-requiere-MCP-local
+## State snapshot
+- **Branch**: feature/US-CONN-TRANSPORT
+- **Active UC**: UC-660 — COMPLETO, verde, committeado (1a3c4f9)
+- **Backend**: freeform (MCP remoto en VPS — no toca items.json local; ESE es el bug que UC-660 arregla)
+- **Commits en la rama** (sobre main 18451f5):
+  - ebd2d14 — tracking de la feature (4 US, 9 UC, 22 AC)
+  - 63c35a3 (HEAD) — UC-660 content-passing (código + test + tracking marcado) ✅ VERDE
 
-## Open questions
-- 138 archivos de tracking modificados sin commitear (main, PR-only) -> falta crear rama + PR cuando el usuario autorice
-- El porting exacto de los 8 analyzers (cuanta logica Python queda server-side) se afina en /implement de UC-663
-- El smoke test de UC-660 (add_uc->mark_ac->find_next_uc en remoto) es el gate real de que FreeForm ya no esta roto
+## UC-660 ✅ DONE Y VERDE
+Content-passing para las 7 tools de mutación FreeForm vía **memory-mode en FreeformBackend**.
+- FreeformBackend(items_content=...) → opera en memoria, root=None, get_items_content() devuelve string mutado. _regenerate_progress/archive/comments no-op en memoria.
+- get_session_backend(ctx, *, items_content=None).
+- add_uc, add_ac, update_uc, import_spec, start_uc, complete_uc, mark_ac, find_next_uc, **get_uc** + items_content (get_uc lo necesita porque start_uc/find_next_uc lo invocan).
+- AC-01/02/03 verdes: tests/test_freeform_content_passing.py (12 passed).
+- Suite: 229 passed sin MCP_URL / 229 con MCP_URL, 0 failed (verificado ANTES del commit final 63c35a3 (HEAD)).
+- Divergencia plan→código (memory-mode vs *_impl) documentada en doc/tracking/uc/UC-100-*.md.
 
-## Hot files (top N by edits this session)
-- doc/tracking/items.json
-- .quality/read_tracker.jsonl
-- doc/tracking/index.json
-- doc/tracking/README.md
-- .quality/app_docs_drift.jsonl
-- ...entar-nativebackend-sobre-el-specbackend-abc.md
-- .../uc/UC-002-esquema-postgres-multi-tenant.md
-- ...eccion-de-backend-nativo-opt-in-por-proyecto.md
+## Lecciones de esta sesión (LEER antes de seguir)
+1. **pytest = `uv run pytest`**, NUNCA `python3 -m pytest` (el python homebrew no tiene pytest → "no tests ran", da falsos verdes/rojos).
+2. **Los Edit con old_string del plan fallan silenciosamente** cuando la firma real difiere. spec_mutations.py y spec_driven.py tienen funciones HOMÓNIMAS (mark_ac/start_uc/complete_uc/update_uc). Las registradas como tools MCP son las de spec_driven.py (excepto add_uc/add_ac/update_uc que son spec_mutations). SIEMPRE leer la firma real antes de editar y VERIFICAR que el Edit aplicó (varios fallaron y commitée roto 2 veces, arreglado con amend).
+3. Tras CADA Edit a una función con wiring nuevo, correr el test ANTES de commitear. Commitée d3608bd y 8a49ff6 rotos; 1a3c4f9 es el bueno.
+4. ImportSpec.screens espera STRING, no lista.
+5. Bash flush con retraso → correr a /tmp + Read.
 
-## Next concrete step
-Arrancar /implement sobre UC-660 (Hito 1, primer UC: tools de mutacion FreeForm con content-passing en server/tools/spec_mutations.py + spec_driven.py, preservando helpers *_impl para callers in-process). Es la base de la que dependen UC-661 y UC-662. Antes, crear rama feature/US-CONN-TRANSPORT y commitear los 138 archivos de tracking pendientes.
+## Próximo paso: UC-661 (bridge cliente)
+- Archivo: `.claude/hooks/lib/mcp-client-io.mjs` (YA existe, 157 líneas, con resolveProjectRoot/readContentBundle/writeContentBundle + guard path-traversal + test mcp-client-io.test.mjs).
+- AC-04: añadir readTrackingBundle()/writeTrackingBundle() (o reusar los existentes) para que skills FreeForm lean/escriban doc/tracking/ resolviendo raíz vía git rev-parse. Test node:test con guard activo.
+- AC-05: las skills /prd /implement /feedback usan el bridge en vez de pasar paths al server (grep en .claude/skills/).
+- Depende del contrato de UC-660 (string in/out) — YA cerrado.
+- Test runner cliente: `node --test` (no pytest).
+- Orden plan: UC-661 → UC-662 (FreeForm first-class onboarding extensión) cierra Hito 1.
 
-## Pointers para la próxima sesión
-_(none)_
+## Hot files
+- server/tools/spec_driven.py / spec_mutations.py / auth_gateway.py / backends/freeform_backend.py (UC-660, committed)
+- .claude/hooks/lib/mcp-client-io.mjs (UC-661, next)
+- tests/test_freeform_content_passing.py (UC-660 evidence)

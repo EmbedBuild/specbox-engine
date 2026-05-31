@@ -9480,7 +9480,7 @@
     "id": "item-conn-002",
     "name": "[UC-660] Tools de mutacion FreeForm con content-passing",
     "description": "",
-    "state": "user_stories",
+    "state": "in_progress",
     "parent_id": "item-conn-001",
     "labels": [
       "UC"
@@ -9493,13 +9493,14 @@
       "actor": "Engine",
       "horas": "10"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T132549Z"
   },
   {
     "id": "ac-conn-003",
     "name": "[AC-01] Cada tool de mutacion FreeForm (add_uc, add_ac, mark_ac, update_uc, import_spec, complete_uc, start_uc) acepta el contenido de items.json como parametro string y devuelve el items.json mutado como string, sin que el server llame Path(...).resolve() contra un filesystem ajeno. Test: ejecuta cada tool con SPECBOX_ENGINE_MCP_URL set y un items.json inyectado por string, y asserta que el resultado refleja la mutacion sin tocar el FS del server.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-002",
     "labels": [
       "AC"
@@ -9509,13 +9510,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T132549Z"
   },
   {
     "id": "ac-conn-004",
     "name": "[AC-02] Con el MCP en modo remoto, una secuencia add_uc -> mark_ac -> find_next_uc sobre un items.json de cliente pasado por content-passing devuelve resultados correctos (el UC aparece, el AC queda marcado, el siguiente UC es el esperado), replicando el flujo que hoy falla con 'esto no existe'.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-002",
     "labels": [
       "AC"
@@ -9525,13 +9527,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T132549Z"
   },
   {
     "id": "ac-conn-005",
     "name": "[AC-03] Las tools de mutacion FreeForm migradas conservan compatibilidad in-process (callers Python del propio server) via helper *_impl(path) preservado, patron v6.0.1. Test: los tests existentes de FreeForm in-process siguen verdes sin modificacion.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-002",
     "labels": [
       "AC"
@@ -9541,7 +9544,8 @@
       "ac_id": "AC-03",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T132549Z"
   },
   {
     "id": "item-conn-006",

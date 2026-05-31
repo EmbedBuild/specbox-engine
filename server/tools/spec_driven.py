@@ -547,7 +547,9 @@ async def get_board_status(board_id: str, ctx: Context) -> dict[str, Any]:
         await backend.close()
 
 
-async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]:
+async def import_spec(
+    board_id: str, spec: dict, ctx: Context, items_content: str | None = None
+) -> dict[str, Any]:
     """Import a full project specification into the board/project (idempotent).
 
     Uses find-or-create pattern: if items already exist they are updated,
@@ -558,11 +560,16 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
         spec: JSON spec with structure: {user_stories: [{us_id, name, hours, screens,
               description, use_cases: [{uc_id, name, actor, hours, screens,
               acceptance_criteria: [str], context}]}]}
+        items_content: FreeForm content-passing (UC-660). Pass items.json as a
+            string for remote MCP; the mutated string is returned under
+            `items_content`. Omit for local MCP / disk mode.
 
     Returns:
-        Import results with counts of created/updated items and any errors.
+        Import results with counts of created/updated items and any errors,
+        plus `items_content` (mutated items.json string) when `items_content`
+        was provided.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         parsed = ImportSpec(**spec)
 
@@ -721,11 +728,14 @@ async def import_spec(board_id: str, spec: dict, ctx: Context) -> dict[str, Any]
                 errors.append(f"US {us_spec.us_id}: {str(e)}")
                 logger.error("import_us_error", us_id=us_spec.us_id, error=str(e))
 
-        return {
+        result = {
             "created": {"us": created_us, "uc": created_uc, "ac": created_ac},
             "updated": {"us": updated_us, "uc": updated_uc},
             "errors": errors,
         }
+        if items_content is not None:
+            result["items_content"] = backend.get_items_content()
+        return result
     finally:
         await backend.close()
 
@@ -1075,7 +1085,9 @@ async def list_uc(
         await backend.close()
 
 
-async def get_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
+async def get_uc(
+    board_id: str, uc_id: str, ctx: Context, items_content: str | None = None
+) -> dict[str, Any]:
     """Get full details of a Use Case, optimized for LLM consumption.
 
     Reads the UC item, its acceptance criteria, and attachments,
@@ -1084,11 +1096,15 @@ async def get_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
     Args:
         board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
+        items_content: FreeForm content-passing (UC-660). Read-only — pass
+            items.json as a string for remote MCP so the detail reflects the
+            client's board without the server touching disk. Used by start_uc
+            and find_next_uc to forward the in-memory board.
 
     Returns:
         Complete UC detail with acceptance criteria, context, and attachments.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
 
@@ -1202,7 +1218,9 @@ async def move_uc(board_id: str, uc_id: str, target: str, ctx: Context) -> dict[
         await backend.close()
 
 
-async def start_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
+async def start_uc(
+    board_id: str, uc_id: str, ctx: Context, items_content: str | None = None
+) -> dict[str, Any]:
     """Start working on a Use Case.
 
     Shortcut that moves the UC to In Progress, adds a timestamp comment,
@@ -1211,9 +1229,13 @@ async def start_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
     Args:
         board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
+        items_content: FreeForm content-passing (UC-660). Pass items.json as a
+            string when the MCP server is remote; the mutated string is returned
+            under `items_content`. Omit for local MCP / disk mode.
 
     Returns:
-        Full UC detail (same as get_uc) for immediate use.
+        Full UC detail (same as get_uc) for immediate use, plus `items_content`
+        (mutated items.json string) when `items_content` was provided.
     """
     # Native sessions go through the reservation-aware path: reserve + in_progress
     # in one transaction (no orphan reservation) [AC-18], conflict carries owner /
@@ -1226,7 +1248,7 @@ async def start_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
         # Fall through to return the full UC detail.
         return await get_uc(board_id, uc_id, ctx)
 
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
         if not uc_item:
@@ -1239,13 +1261,28 @@ async def start_uc(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
         now = datetime.now(timezone.utc).isoformat()
         await backend.add_comment(board_id, uc_item.id, f"Desarrollo iniciado: {now}")
 
-        # Write active UC marker for spec-guard.mjs enforcement
-        feature = _extract_meta_str(uc_item, "feature", uc_id)
-        _write_active_uc_marker(uc_id, board_id, feature)
+        # Write active UC marker for spec-guard.mjs enforcement.
+        # In content-passing mode the marker is the client's responsibility
+        # (the server has no client filesystem) — skip the server-side write.
+        if items_content is None:
+            feature = _extract_meta_str(uc_item, "feature", uc_id)
+            _write_active_uc_marker(uc_id, board_id, feature)
+
+        # Content-passing: capture the mutated board now (before close), then
+        # build the detail from it. get_uc re-parses the same string, so the
+        # in_memory mutation (state=in_progress) is reflected.
+        if items_content is not None:
+            mutated = backend.get_items_content()
     finally:
         await backend.close()
 
-    # Return full UC detail (creates a new backend session)
+    if items_content is not None:
+        detail = await get_uc(board_id, uc_id, ctx, items_content=mutated)
+        if "error" not in detail:
+            detail["items_content"] = mutated
+        return detail
+
+    # Disk mode: return full UC detail (creates a new backend session)
     return await get_uc(board_id, uc_id, ctx)
 
 
@@ -1347,7 +1384,13 @@ async def _native_uc_ids_reserved_by_others(session: dict[str, str]) -> set[str]
         return set()
 
 
-async def complete_uc(board_id: str, uc_id: str, ctx: Context, evidence: str | None = None) -> dict[str, Any]:
+async def complete_uc(
+    board_id: str,
+    uc_id: str,
+    ctx: Context,
+    evidence: str | None = None,
+    items_content: str | None = None,
+) -> dict[str, Any]:
     """Mark a Use Case as complete.
 
     Moves to Done, updates the parent US module/checklist,
@@ -1357,11 +1400,15 @@ async def complete_uc(board_id: str, uc_id: str, ctx: Context, evidence: str | N
         board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
         evidence: Optional evidence text to add as comment
+        items_content: FreeForm content-passing (UC-660). Pass items.json as a
+            string for remote MCP; the mutated string is returned under
+            `items_content`. Omit for local MCP / disk mode.
 
     Returns:
-        Completion result with US update status.
+        Completion result with US update status, plus `items_content` (mutated
+        items.json string) when `items_content` was provided.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
 
@@ -1389,17 +1436,22 @@ async def complete_uc(board_id: str, uc_id: str, ctx: Context, evidence: str | N
         if item_us_id:
             us_checklist_updated, us_all_done = await _handle_uc_completion(backend, board_id, items, item_us_id, uc_id)
 
-        # Clear active UC marker — next UC must call start_uc again
-        _clear_active_uc_marker()
+        # Clear active UC marker — next UC must call start_uc again.
+        # In content-passing mode the marker is the client's responsibility.
+        if items_content is None:
+            _clear_active_uc_marker()
 
         now = datetime.now(timezone.utc).isoformat()
-        return {
+        result = {
             "uc_id": uc_id,
             "completed_at": now,
             "us_checklist_updated": us_checklist_updated,
             "us_all_done": us_all_done,
             "us_id": item_us_id,
         }
+        if items_content is not None:
+            result["items_content"] = backend.get_items_content()
+        return result
     finally:
         await backend.close()
 
@@ -1416,6 +1468,7 @@ async def mark_ac(
     passed: bool,
     ctx: Context,
     evidence: str | None = None,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Mark a single Acceptance Criterion as passed or failed.
 
@@ -1427,11 +1480,15 @@ async def mark_ac(
         ac_id: Acceptance Criterion ID (e.g., "AC-01")
         passed: True if the criterion passed, False if failed
         evidence: Optional evidence text
+        items_content: FreeForm content-passing (UC-660). Pass items.json as a
+            string for remote MCP; the mutated string is returned under
+            `items_content`. Omit for local MCP / disk mode.
 
     Returns:
-        AC status update result with totals.
+        AC status update result with totals, plus `items_content` (mutated
+        items.json string) when `items_content` was provided.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
         if not uc_item:
@@ -1459,7 +1516,7 @@ async def mark_ac(
         acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
 
         status_label = "PASSED" if passed else "FAILED"
-        return {
+        result = {
             "uc_id": uc_id,
             "ac_id": ac_id,
             "passed": passed,
@@ -1467,6 +1524,9 @@ async def mark_ac(
             "ac_done": sum(1 for ac in acs if ac.done),
             "summary": f"{ac_id} marcado como {status_label} en {uc_id}",
         }
+        if items_content is not None:
+            result["items_content"] = backend.get_items_content()
+        return result
     finally:
         await backend.close()
 
@@ -1886,6 +1946,7 @@ async def find_next_uc(
     board_id: str,
     ctx: Context,
     uc_scope: list[str] | None = None,
+    items_content: str | None = None,
 ) -> dict[str, Any] | None:
     """Find the next Use Case to work on.
 
@@ -1897,11 +1958,15 @@ async def find_next_uc(
     Args:
         board_id: Board/project ID
         uc_scope: Optional list of UC IDs to restrict selection (multi-repo satellite filter). When provided, only UCs whose uc_id is in this list are considered. Leave empty/null for all UCs on the board (default, backwards-compatible).
+        items_content: FreeForm content-passing (UC-660). Read-only — pass
+            items.json as a string for remote MCP so the lookup reflects the
+            client's board without the server touching disk (enables the
+            add_uc → mark_ac → find_next_uc chain in AC-02).
 
     Returns:
         Full UC detail (same as get_uc) or None if nothing in Backlog.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
 
@@ -1964,11 +2029,14 @@ async def find_next_uc(
                 chosen = ready_ucs[0]
 
         uc_id = _get_uc_id(chosen)
+        # Capture the board so get_uc (a fresh backend) sees the same
+        # content-passing state instead of re-reading the (unreachable) disk.
+        mutated = backend.get_items_content() if items_content is not None else None
     finally:
         await backend.close()
 
-    # Return full UC detail (creates a new backend session)
-    return await get_uc(board_id, uc_id, ctx)
+    # Return full UC detail (creates a new backend session — forward content).
+    return await get_uc(board_id, uc_id, ctx, items_content=mutated)
 
 
 # ═══════════════════════════════════════════════════════════════════════

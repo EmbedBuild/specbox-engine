@@ -39,11 +39,23 @@ BACKEND_STATE_KEY = "spec_backend_config"
 STITCH_STATE_PREFIX = "stitch_config_"
 
 
-async def get_session_backend(ctx: Context) -> "SpecBackend":
+async def get_session_backend(
+    ctx: Context, *, items_content: str | None = None
+) -> "SpecBackend":
     """Create a SpecBackend from session-stored credentials.
 
     Checks for new-style backend config first, falls back to legacy Trello creds.
     Raises a clear error if no credentials are configured.
+
+    Args:
+        ctx: FastMCP session context holding the backend config.
+        items_content: Content-passing override for the FreeForm backend
+            (UC-660). When given, the FreeForm backend is built in memory mode
+            from this string instead of reading ``root_path`` from disk. This
+            is how a remote MCP server (``SPECBOX_ENGINE_MCP_URL`` set) operates
+            on the client's ``items.json`` without touching a filesystem it
+            cannot reach. Ignored by non-FreeForm backends (Trello/Plane/Native
+            have their own remote transports and don't read a local file).
     """
     # Try new unified config first
     config = await ctx.get_state(BACKEND_STATE_KEY)
@@ -60,6 +72,11 @@ async def get_session_backend(ctx: Context) -> "SpecBackend":
         elif backend_type == "freeform":
             from .backends.freeform_backend import FreeformBackend
 
+            if items_content is not None:
+                # Content-passing (UC-660): operate in memory on the client's
+                # items.json string. No filesystem access — works with a remote
+                # MCP server where root_path would point at the wrong machine.
+                return FreeformBackend(items_content=items_content)
             return FreeformBackend(root=config["root_path"])
         elif backend_type == "native":
             # FRONTIER 2: only the project_id + dev_token are in session — never

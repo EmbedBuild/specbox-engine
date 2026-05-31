@@ -10080,5 +10080,278 @@
     },
     "created_at": "2026-05-31T12:37:51.792927+00:00",
     "updated_at": "20260531T173036Z"
+  },
+  {
+    "id": "item-auto-001",
+    "name": "[US-VSCODE-AUTOCLONE] Auto-clone del engine público desde la extensión",
+    "external_id": "US-VSCODE-AUTOCLONE",
+    "external_source": null,
+    "description": "Como dev que instala la extensión SpecBox en una máquina limpia, quiero que la extensión clone el engine público por mí automáticamente cuando no lo encuentra, para tener SpecBox operativo en minutos sin saber qué repo clonar ni dónde — y que un clon propio mío nunca se vea afectado.",
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": null,
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-VSCODE-AUTOCLONE",
+      "horas": "9",
+      "screens": ""
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+  },
+  {
+    "id": "item-auto-002",
+    "name": "[UC-109] Helper puro de resolución de directorio gestionado + URL canónica",
+    "external_id": "UC-109",
+    "external_source": null,
+    "description": "install.ts helpers puros (pure/UI pattern)",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": "item-auto-001",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-109",
+      "us_id": "US-VSCODE-AUTOCLONE",
+      "actor": "Sistema",
+      "horas": "2",
+      "screens": ""
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+  },
+  {
+    "id": "item-auto-003",
+    "name": "[AC-01] Función pura managedEnginePath() devuelve el path absoluto ~/.specbox/specbox-engine resolviendo os.homedir(), y constante ENGINE_REPO_URL = https://github.com/EmbedBuild/specbox-engine.git. Test node:test: managedEnginePath() termina en /.specbox/specbox-engine y es absoluto.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": "item-auto-002",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-01",
+      "uc_id": "UC-109"
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+  },
+  {
+    "id": "item-auto-004",
+    "name": "[AC-02] Función pura isManagedPath(p) devuelve true solo si p es exactamente el directorio gestionado, false para cualquier otra ruta. Test: isManagedPath(managedEnginePath())===true; isManagedPath(/Users/x/specbox-engine)===false.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": "item-auto-002",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-02",
+      "uc_id": "UC-109"
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+  },
+  {
+    "id": "item-auto-005",
+    "name": "[UC-110] Auto-clone con notificación en resolveEnginePath",
+    "external_id": "UC-110",
+    "external_source": null,
+    "description": "install.ts resolveEnginePath, antes del showOpenDialog",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": "item-auto-001",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-110",
+      "us_id": "US-VSCODE-AUTOCLONE",
+      "actor": "Dev (ICP-2/ICP-3)",
+      "horas": "3",
+      "screens": ""
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+  },
+  {
+    "id": "item-auto-006",
+    "name": "[AC-03] Cuando resolveEnginePath no encuentra el engine por config/workspace/rutas comunes Y el managed dir no existe, la extensión intenta el auto-clone automáticamente (sin diálogo previo) ANTES del showOpenDialog; el openDialog solo se alcanza si el clone falla. Test con stubs de git+UI: el clone se invoca antes que el openDialog.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": "item-auto-005",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-03",
+      "uc_id": "UC-110"
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+  },
+  {
+    "id": "item-auto-007",
+    "name": "[AC-04] El auto-clone ejecuta git clone https://github.com/EmbedBuild/specbox-engine.git ~/.specbox/specbox-engine (creando ~/.specbox si falta), notifica (Cloning…/Cloned), y al éxito devuelve ese path y lo persiste en specbox.enginePath. Test: con git clone stub que crea ENGINE_VERSION.yaml, resolveEnginePath devuelve el managed path y la config queda seteada, sin confirmación intermedia.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": "item-auto-005",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-04",
+      "uc_id": "UC-110"
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+  },
+  {
+    "id": "item-auto-008",
+    "name": "[AC-05] Si git clone falla (red/git ausente), la extensión muestra error accionable y degrada al showOpenDialog SIN colgarse ni dejar dir parcial (limpia ~/.specbox/specbox-engine si abortó). Test: con clone stub que falla, no lanza, reporta error, limpia el dir parcial y cae al openDialog.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": "item-auto-005",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-05",
+      "uc_id": "UC-110"
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+  },
+  {
+    "id": "item-auto-009",
+    "name": "[UC-111] git pull del clon gestionado en el update flow",
+    "external_id": "UC-111",
+    "external_source": null,
+    "description": "updater.ts, fire-and-forget v6.6.2",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": "item-auto-001",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-111",
+      "us_id": "US-VSCODE-AUTOCLONE",
+      "actor": "Sistema",
+      "horas": "2",
+      "screens": ""
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+  },
+  {
+    "id": "item-auto-010",
+    "name": "[AC-06] Cuando el engine resuelto ES el directorio gestionado (isManagedPath(enginePath)===true), el update flow ejecuta git pull --ff-only antes de reinstalar skills/hooks. Test: con enginePath=managed el flujo invoca el pull (spy); con enginePath=ruta de usuario NO lo invoca.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": "item-auto-009",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-06",
+      "uc_id": "UC-111"
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+  },
+  {
+    "id": "item-auto-011",
+    "name": "[AC-07] Si git pull falla (sin red/conflicto), el update continúa con la copia local y reporta warning no bloqueante — nunca aborta la activación. Test: con pull stub que falla, el flujo resuelve sin throw y emite warning.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": "item-auto-009",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-07",
+      "uc_id": "UC-111"
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+  },
+  {
+    "id": "item-auto-012",
+    "name": "[UC-112] Walkthrough + docs sin paso de clone manual",
+    "external_id": "UC-112",
+    "external_source": null,
+    "description": "walkthrough + README EN/ES",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": "item-auto-001",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-112",
+      "us_id": "US-VSCODE-AUTOCLONE",
+      "actor": "Dev (ICP-2/ICP-3)",
+      "horas": "2",
+      "screens": ""
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+  },
+  {
+    "id": "item-auto-013",
+    "name": "[AC-08] El walkthrough de prerequisitos y el README (EN+ES) ya no instruyen a git clone manual como paso previo obligatorio; describen que la extensión clona el engine automáticamente. Test grep: no hay instrucción clone the repo first como prerequisito y sí se menciona el auto-clone gestionado.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "user_stories",
+    "parent_id": "item-auto-012",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-08",
+      "uc_id": "UC-112"
+    },
+    "created_at": "2026-05-31T19:42:03.658625+00:00",
+    "updated_at": "2026-05-31T19:42:03.658625+00:00"
   }
 ]

@@ -5291,7 +5291,7 @@
     "meta": {
       "tipo": "US",
       "us_id": "US-MCP-OBSERVABILITY",
-      "horas": 24.0,
+      "horas": 24,
       "pantallas": ""
     },
     "created_at": "2026-05-25T13:57:57.516662+00:00",
@@ -5313,7 +5313,7 @@
       "tipo": "UC",
       "uc_id": "UC-625",
       "us_id": "US-MCP-OBSERVABILITY",
-      "horas": 3.0,
+      "horas": 3,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -5400,7 +5400,7 @@
       "tipo": "UC",
       "uc_id": "UC-626",
       "us_id": "US-MCP-OBSERVABILITY",
-      "horas": 4.0,
+      "horas": 4,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -5487,7 +5487,7 @@
       "tipo": "UC",
       "uc_id": "UC-627",
       "us_id": "US-MCP-OBSERVABILITY",
-      "horas": 3.0,
+      "horas": 3,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -5574,7 +5574,7 @@
       "tipo": "UC",
       "uc_id": "UC-628",
       "us_id": "US-MCP-OBSERVABILITY",
-      "horas": 2.0,
+      "horas": 2,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -5661,7 +5661,7 @@
       "tipo": "UC",
       "uc_id": "UC-629",
       "us_id": "US-MCP-OBSERVABILITY",
-      "horas": 3.0,
+      "horas": 3,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -5764,7 +5764,7 @@
       "tipo": "UC",
       "uc_id": "UC-630",
       "us_id": "US-MCP-OBSERVABILITY",
-      "horas": 1.0,
+      "horas": 1,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -5851,7 +5851,7 @@
       "tipo": "UC",
       "uc_id": "UC-631",
       "us_id": "US-MCP-OBSERVABILITY",
-      "horas": 4.0,
+      "horas": 4,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -5938,7 +5938,7 @@
       "tipo": "UC",
       "uc_id": "UC-632",
       "us_id": "US-MCP-OBSERVABILITY",
-      "horas": 4.0,
+      "horas": 4,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -6071,7 +6071,7 @@
     "meta": {
       "tipo": "US",
       "us_id": "US-VSCODE-MARKETPLACE",
-      "horas": 42.0,
+      "horas": 42,
       "pantallas": ""
     },
     "created_at": "2026-05-26T17:26:03.865664+00:00",
@@ -6093,7 +6093,7 @@
       "tipo": "UC",
       "uc_id": "UC-634",
       "us_id": "US-VSCODE-MARKETPLACE",
-      "horas": 4.0,
+      "horas": 4,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -6202,7 +6202,7 @@
       "tipo": "UC",
       "uc_id": "UC-635",
       "us_id": "US-VSCODE-MARKETPLACE",
-      "horas": 3.0,
+      "horas": 3,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -6311,7 +6311,7 @@
       "tipo": "UC",
       "uc_id": "UC-636",
       "us_id": "US-VSCODE-MARKETPLACE",
-      "horas": 3.0,
+      "horas": 3,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -6420,7 +6420,7 @@
       "tipo": "UC",
       "uc_id": "UC-637",
       "us_id": "US-VSCODE-MARKETPLACE",
-      "horas": 4.0,
+      "horas": 4,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -6529,7 +6529,7 @@
       "tipo": "UC",
       "uc_id": "UC-638",
       "us_id": "US-VSCODE-MARKETPLACE",
-      "horas": 6.0,
+      "horas": 6,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -6655,7 +6655,7 @@
       "tipo": "UC",
       "uc_id": "UC-639",
       "us_id": "US-VSCODE-MARKETPLACE",
-      "horas": 2.0,
+      "horas": 2,
       "pantallas": "",
       "actor": "Humano"
     },
@@ -6764,7 +6764,7 @@
       "tipo": "UC",
       "uc_id": "UC-640",
       "us_id": "US-VSCODE-MARKETPLACE",
-      "horas": 4.0,
+      "horas": 4,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -6890,7 +6890,7 @@
       "tipo": "UC",
       "uc_id": "UC-641",
       "us_id": "US-VSCODE-MARKETPLACE",
-      "horas": 4.0,
+      "horas": 4,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -6999,7 +6999,7 @@
       "tipo": "UC",
       "uc_id": "UC-642",
       "us_id": "US-VSCODE-MARKETPLACE",
-      "horas": 6.0,
+      "horas": 6,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -7108,7 +7108,7 @@
       "tipo": "UC",
       "uc_id": "UC-643",
       "us_id": "US-VSCODE-MARKETPLACE",
-      "horas": 6.0,
+      "horas": 6,
       "pantallas": "",
       "actor": "Engine"
     },
@@ -8139,7 +8139,7 @@
     "meta": {
       "tipo": "US",
       "us_id": "US-VSCODE-DISCOVERABILITY",
-      "horas": 24.0,
+      "horas": 24,
       "pantallas": "sidebar specbox.skills, skill card (webview o quickpick)"
     },
     "created_at": "2026-05-27T09:24:03.268151+00:00",
@@ -8161,7 +8161,7 @@
       "tipo": "UC",
       "uc_id": "UC-701",
       "us_id": "US-VSCODE-DISCOVERABILITY",
-      "horas": 4.0,
+      "horas": 4,
       "pantallas": "",
       "actor": "Engine + extensión VSCode"
     },
@@ -8249,7 +8249,7 @@
       "tipo": "UC",
       "uc_id": "UC-702",
       "us_id": "US-VSCODE-DISCOVERABILITY",
-      "horas": 3.0,
+      "horas": 3,
       "pantallas": "sidebar specbox.skills",
       "actor": "Extensión VSCode"
     },
@@ -8353,7 +8353,7 @@
       "tipo": "UC",
       "uc_id": "UC-703",
       "us_id": "US-VSCODE-DISCOVERABILITY",
-      "horas": 6.0,
+      "horas": 6,
       "pantallas": "webview o quickpick (decisión técnica en /plan)",
       "actor": "Dev (ICP-1 y ICP-2)"
     },
@@ -8473,7 +8473,7 @@
       "tipo": "UC",
       "uc_id": "UC-704",
       "us_id": "US-VSCODE-DISCOVERABILITY",
-      "horas": 3.0,
+      "horas": 3,
       "pantallas": "walkthrough specbox.gettingStarted, tooltips del TreeView",
       "actor": "Dev nuevo tras Install (ICP-2)"
     },
@@ -8561,7 +8561,7 @@
       "tipo": "UC",
       "uc_id": "UC-705",
       "us_id": "US-VSCODE-DISCOVERABILITY",
-      "horas": 6.0,
+      "horas": 6,
       "pantallas": "",
       "actor": "Engine (release pipeline)"
     },
@@ -8859,7 +8859,7 @@
     "meta": {
       "tipo": "US",
       "us_id": "US-VSCODE-ZERO-PYTHON",
-      "horas": 6.0,
+      "horas": 6,
       "pantallas": ""
     },
     "created_at": "2026-05-28T13:34:55.673514+00:00",
@@ -8939,7 +8939,7 @@
       "tipo": "UC",
       "uc_id": "UC-002",
       "us_id": "US-VSCODE-ZERO-PYTHON",
-      "horas": 1.0,
+      "horas": 1,
       "pantallas": "",
       "actor": "Dev solo con Claude Code (ICP-2)"
     },
@@ -8997,7 +8997,7 @@
       "tipo": "UC",
       "uc_id": "UC-003",
       "us_id": "US-VSCODE-ZERO-PYTHON",
-      "horas": 1.0,
+      "horas": 1,
       "pantallas": "",
       "actor": "Owner-operator (ICP-1)"
     },
@@ -9130,7 +9130,7 @@
       "tipo": "UC",
       "uc_id": "UC-005",
       "us_id": "US-VSCODE-ZERO-PYTHON",
-      "horas": 1.0,
+      "horas": 1,
       "pantallas": "",
       "actor": "Owner-operator (ICP-1)"
     },
@@ -9186,7 +9186,7 @@
     "meta": {
       "tipo": "US",
       "us_id": "US-VSCODE-PREREQ-GATE",
-      "horas": 4.0,
+      "horas": 4,
       "pantallas": ""
     },
     "created_at": "2026-05-28T13:55:02.517310+00:00",
@@ -9208,7 +9208,7 @@
       "tipo": "UC",
       "uc_id": "UC-706",
       "us_id": "US-VSCODE-PREREQ-GATE",
-      "horas": 1.0,
+      "horas": 1,
       "pantallas": "",
       "actor": "Dev solo con Claude Code (ICP-2)"
     },
@@ -9266,7 +9266,7 @@
       "tipo": "UC",
       "uc_id": "UC-707",
       "us_id": "US-VSCODE-PREREQ-GATE",
-      "horas": 1.0,
+      "horas": 1,
       "pantallas": "",
       "actor": "Dev solo con Claude Code (ICP-2)"
     },
@@ -9341,7 +9341,7 @@
       "tipo": "UC",
       "uc_id": "UC-708",
       "us_id": "US-VSCODE-PREREQ-GATE",
-      "horas": 1.0,
+      "horas": 1,
       "pantallas": "",
       "actor": "Owner-operator (ICP-1)"
     },
@@ -9399,7 +9399,7 @@
       "tipo": "UC",
       "uc_id": "UC-709",
       "us_id": "US-VSCODE-PREREQ-GATE",
-      "horas": 1.0,
+      "horas": 1,
       "pantallas": "",
       "actor": "Owner-operator (ICP-1)"
     },
@@ -10091,7 +10091,7 @@
       "US"
     ],
     "priority": "high",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": null,
     "meta": {
       "tipo": "US",
@@ -10100,7 +10100,7 @@
       "screens": ""
     },
     "created_at": "2026-05-31T19:42:03.658625+00:00",
-    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+    "updated_at": "2026-05-31T19:58:50+00:00"
   },
   {
     "id": "item-auto-002",
@@ -10112,7 +10112,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-auto-001",
     "meta": {
       "tipo": "UC",
@@ -10123,7 +10123,7 @@
       "screens": ""
     },
     "created_at": "2026-05-31T19:42:03.658625+00:00",
-    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+    "updated_at": "2026-05-31T19:58:50+00:00"
   },
   {
     "id": "item-auto-003",
@@ -10175,7 +10175,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-auto-001",
     "meta": {
       "tipo": "UC",
@@ -10186,7 +10186,7 @@
       "screens": ""
     },
     "created_at": "2026-05-31T19:42:03.658625+00:00",
-    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+    "updated_at": "2026-05-31T19:58:50+00:00"
   },
   {
     "id": "item-auto-006",
@@ -10258,7 +10258,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-auto-001",
     "meta": {
       "tipo": "UC",
@@ -10269,7 +10269,7 @@
       "screens": ""
     },
     "created_at": "2026-05-31T19:42:03.658625+00:00",
-    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+    "updated_at": "2026-05-31T19:58:50+00:00"
   },
   {
     "id": "item-auto-010",
@@ -10321,7 +10321,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-auto-001",
     "meta": {
       "tipo": "UC",
@@ -10332,7 +10332,7 @@
       "screens": ""
     },
     "created_at": "2026-05-31T19:42:03.658625+00:00",
-    "updated_at": "2026-05-31T19:42:03.658625+00:00"
+    "updated_at": "2026-05-31T19:58:50+00:00"
   },
   {
     "id": "item-auto-013",

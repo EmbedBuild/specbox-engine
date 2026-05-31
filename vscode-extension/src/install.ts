@@ -2,12 +2,116 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as cp from 'child_process';
 import {
 	CLAUDE_SKILLS_DIR, CLAUDE_HOOKS_DIR, CLAUDE_HOOKS_LIB_DIR,
 	CLAUDE_COMMANDS_DIR, CLAUDE_SETTINGS
 } from './constants';
 import { ensureDir, symlinkOrCopy, copyFile, readJson, writeJson } from './util';
 import { HealthChecker } from './health';
+
+// US-VSCODE-AUTOCLONE / UC-109 — managed-engine pure helpers.
+//
+// Pure core (no vscode, no git, no network) so it is testable from
+// out/install.js with node:test, mirroring the pure/UI split of
+// prerequisites.ts. The auto-clone effects (UC-110) live below in the class
+// and accept an injectable git runner so tests never touch git or the network.
+
+/** Canonical public engine repo, cloned when the extension can't find a local copy. */
+export const ENGINE_REPO_URL = 'https://github.com/EmbedBuild/specbox-engine.git';
+
+/** Absolute path of the extension-managed engine clone: `~/.specbox/specbox-engine`. */
+export function managedEnginePath(): string {
+	return path.join(os.homedir(), '.specbox', 'specbox-engine');
+}
+
+/**
+ * True only when `p` resolves to exactly the managed clone directory.
+ * A user's own clone in any other location returns false — that copy is never
+ * touched by auto-clone or auto-pull (ICP-1 protection).
+ */
+export function isManagedPath(p: string): boolean {
+	if (!p) { return false; }
+	return path.resolve(p) === managedEnginePath();
+}
+
+/** Result of a git invocation: exit code + captured streams. Never throws. */
+export interface GitRunResult { code: number; stdout: string; stderr: string; }
+
+/** Injectable git runner — defaults to `git` via child_process; tests pass a stub. */
+export type GitRunner = (args: string[], cwd?: string) => Promise<GitRunResult>;
+
+/** Default git runner. Resolves with code 127 + stderr if `git` is absent (ENOENT). */
+export const defaultGitRunner: GitRunner = (args, cwd) =>
+	new Promise((resolve) => {
+		cp.execFile('git', args, { cwd, timeout: 120_000 }, (err, stdout, stderr) => {
+			if (err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+				resolve({ code: 127, stdout: '', stderr: 'git not found' });
+				return;
+			}
+			const code = err && typeof (err as { code?: unknown }).code === 'number'
+				? (err as { code: number }).code
+				: (err ? 1 : 0);
+			resolve({ code, stdout: stdout ?? '', stderr: stderr ?? '' });
+		});
+	});
+
+/** Injectable filesystem + git deps for cloneManagedEngine — all optional, real by default. */
+export interface CloneDeps {
+	gitRunner?: GitRunner;
+	existsSync?: (p: string) => boolean;
+	mkdirSync?: (p: string, opts: fs.MakeDirectoryOptions) => void;
+	rmSync?: (p: string, opts: fs.RmOptions) => void;
+}
+
+export interface CloneResult { ok: boolean; path?: string; error?: string; }
+
+/**
+ * Clone the public engine into the managed directory (`~/.specbox/specbox-engine`).
+ *
+ * Effects (git + fs) but NEVER throws — returns a plain result so the caller's
+ * activation flow can stay fire-and-forget (NFR: no activation hang). On any
+ * failure (git missing, network down, clone produced no ENGINE_VERSION.yaml) it
+ * removes the partial directory so future detections aren't poisoned (AC-05),
+ * and reports `{ ok:false, error }`.
+ */
+export async function cloneManagedEngine(deps: CloneDeps = {}): Promise<CloneResult> {
+	const gitRunner = deps.gitRunner ?? defaultGitRunner;
+	const existsSync = deps.existsSync ?? fs.existsSync;
+	const mkdirSync = deps.mkdirSync ?? fs.mkdirSync;
+	const rmSync = deps.rmSync ?? fs.rmSync;
+
+	const dest = managedEnginePath();
+	const parent = path.dirname(dest); // ~/.specbox
+
+	const cleanupPartial = () => {
+		try {
+			if (existsSync(dest)) { rmSync(dest, { recursive: true, force: true }); }
+		} catch { /* best-effort cleanup */ }
+	};
+
+	try {
+		if (!existsSync(parent)) { mkdirSync(parent, { recursive: true }); }
+
+		const res = await gitRunner(['clone', ENGINE_REPO_URL, dest]);
+		if (res.code !== 0) {
+			cleanupPartial();
+			const why = res.code === 127 ? 'git is not installed' : (res.stderr.trim() || `git exited with code ${res.code}`);
+			return { ok: false, error: why };
+		}
+
+		// A successful clone must yield a real engine repo.
+		if (!existsSync(path.join(dest, 'ENGINE_VERSION.yaml'))) {
+			cleanupPartial();
+			return { ok: false, error: 'clone completed but ENGINE_VERSION.yaml is missing' };
+		}
+
+		return { ok: true, path: dest };
+	} catch (err) {
+		cleanupPartial();
+		return { ok: false, error: err instanceof Error ? err.message : String(err) };
+	}
+}
 
 export class InstallManager {
 	private context: vscode.ExtensionContext;
@@ -91,7 +195,15 @@ export class InstallManager {
 			if (fs.existsSync(path.join(p, 'ENGINE_VERSION.yaml'))) { return p; }
 		}
 
-		// 4. Ask user
+		// 3.5. Auto-clone the public engine into the managed dir (UC-110).
+		// Automatic (notify, don't ask) — the repo is public and the destination
+		// is our own managed folder. The showOpenDialog below is reached only if
+		// the clone fails. Idempotent: a managed clone already on disk is returned
+		// without re-cloning (it would also have matched step 3 if at a common path).
+		const autoCloned = await this.tryAutoCloneEngine();
+		if (autoCloned) { return autoCloned; }
+
+		// 4. Ask user (degradation: clone unavailable/failed)
 		const result = await vscode.window.showOpenDialog({
 			canSelectFolders: true,
 			canSelectFiles: false,
@@ -108,6 +220,48 @@ export class InstallManager {
 			}
 			vscode.window.showErrorMessage('Selected folder does not contain ENGINE_VERSION.yaml. Not a SpecBox Engine repo.');
 		}
+		return null;
+	}
+
+	/**
+	 * Step 3.5 of resolveEnginePath: auto-clone the managed engine when no local
+	 * copy was found. Returns the managed path on success, or null to fall through
+	 * to the showOpenDialog degradation. Never throws (cloneManagedEngine is safe).
+	 *
+	 * @param deps injectable for tests (clone fn + existence probe).
+	 */
+	async tryAutoCloneEngine(deps: {
+		clone?: (d?: CloneDeps) => Promise<CloneResult>;
+		existsSync?: (p: string) => boolean;
+	} = {}): Promise<string | null> {
+		const clone = deps.clone ?? cloneManagedEngine;
+		const existsSync = deps.existsSync ?? fs.existsSync;
+		const managed = managedEnginePath();
+
+		// Idempotency (NFR): a managed clone already on disk is used as-is.
+		if (existsSync(path.join(managed, 'ENGINE_VERSION.yaml'))) {
+			return managed;
+		}
+
+		const result = await vscode.window.withProgress({
+			location: vscode.ProgressLocation.Notification,
+			title: vscode.l10n.t('SpecBox Engine'),
+			cancellable: false,
+		}, async (progress) => {
+			progress.report({ message: vscode.l10n.t('Cloning SpecBox Engine…') });
+			return clone();
+		});
+
+		if (result.ok && result.path) {
+			vscode.window.showInformationMessage(vscode.l10n.t('SpecBox Engine cloned.'));
+			await vscode.workspace.getConfiguration('specbox').update('enginePath', result.path, vscode.ConfigurationTarget.Global);
+			return result.path;
+		}
+
+		// Degrade to manual selection with an actionable message.
+		vscode.window.showErrorMessage(
+			vscode.l10n.t('Could not clone the SpecBox Engine ({0}). Install git and check your network, or select the folder manually.', result.error ?? 'unknown error'),
+		);
 		return null;
 	}
 

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.8.0 — "Connectivity UX" (sobre v6.7.0 "Zero-Friction Onboarding", v6.6.2 "Fast Activate", v6.6.1 "Loopback Resilience")<br/>
+  v 6.9.0 — "Self-Provisioning" (sobre v6.8.0 "Connectivity UX", v6.7.0 "Zero-Friction Onboarding", v6.6.2 "Fast Activate")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,18 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v6.9
+
+**v6.9.0 — "Self-Provisioning"** la extensión de VS Code se aprovisiona el engine ella misma, sin clone manual:
+
+- **Auto-clone del engine público** — cuando la extensión no encuentra el engine en disco, clona `github.com/EmbedBuild/specbox-engine` a una carpeta gestionada (`~/.specbox/specbox-engine`) automáticamente (notifica, no pregunta), antes de recurrir a pedirte la carpeta a mano.
+- **Auto-pull del clon gestionado** — el update flow mantiene ese clon al día con `git pull --ff-only`. Un clon propio tuyo en otra ruta **nunca** se toca.
+- **Onboarding sin "clona primero"** — el walkthrough y el README ya no te piden `git clone` como paso previo de la extensión.
+
+100% backwards-compatible. El auto-clone es el último recurso: config/workspace/rutas comunes ganan, y un clone fallido degrada al diálogo de selección manual.
 
 ---
 
@@ -398,7 +410,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.8.0 — "Connectivity UX" (over v6.7.0 "Zero-Friction Onboarding", v6.6.2 "Fast Activate", v6.6.1 "Loopback Resilience")
+> v 6.9.0 — "Self-Provisioning" (over v6.8.0 "Connectivity UX", v6.7.0 "Zero-Friction Onboarding", v6.6.2 "Fast Activate")
 
 ## What is this?
 
@@ -410,6 +422,18 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v6.9
+
+**v6.9.0 — "Self-Provisioning"** the VS Code extension provisions the engine itself, no manual clone:
+
+- **Auto-clone of the public engine** — when the extension can't find the engine on disk, it clones `github.com/EmbedBuild/specbox-engine` into a managed folder (`~/.specbox/specbox-engine`) automatically (notifies, doesn't ask), before falling back to asking you for the folder.
+- **Auto-pull of the managed clone** — the update flow keeps that clone current with `git pull --ff-only`. A clone of your own in any other path is **never** touched.
+- **Onboarding without "clone first"** — the walkthrough and README no longer ask you to `git clone` as a prerequisite of the extension.
+
+100% backwards-compatible. Auto-clone is the last resort: config/workspace/common paths win, and a failed clone degrades to the manual folder picker.
+
+---
 
 ## What's new in v6.8
 

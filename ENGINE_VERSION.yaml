@@ -1,8 +1,8 @@
-version: 6.8.0
-codename: "Connectivity UX"
+version: 6.9.0
+codename: "Self-Provisioning"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-05-31
+release_date: 2026-06-01
 min_claude_code: "1.0.0"
 
 stacks:
@@ -401,7 +401,26 @@ features:
   - vscode-prerequisites-gate
   - vscode-check-prerequisites-command
 
+  # New (v6.9.0) — Self-Provisioning
+  - vscode-engine-autoclone
+  - vscode-managed-engine-autopull
+
 changelog:
+  6.9.0:
+    date: 2026-06-01
+    codename: "Self-Provisioning"
+    changes:
+      - "feat: VSCode extension auto-clones the public engine. When resolveEnginePath finds no local engine (config/workspace/common paths), it now clones https://github.com/EmbedBuild/specbox-engine into a managed dir (~/.specbox/specbox-engine) automatically — notifies, doesn't ask — before falling back to showOpenDialog. cloneManagedEngine() uses an injectable git runner, never throws, and cleans up a partial dir on failure (US-VSCODE-AUTOCLONE, UC-109/UC-110)."
+      - "feat: The update flow keeps the managed clone current with git pull --ff-only as Phase 0 of runUpdateFlow, only when the resolved engine IS the managed dir. A user's own clone in any other path is never touched (ICP-1). A failed pull is a non-blocking warning (fire-and-forget v6.6.2) (UC-111)."
+      - "docs: Walkthrough prerequisites + README (ES+EN) describe the auto-clone; manual git clone is no longer a prerequisite of the extension (the CLI install path is kept) (UC-112)."
+      - "test: +14 extension tests (autoclone.test.mjs), 94/94 green, no regression. tsc clean."
+  6.8.0:
+    date: 2026-05-31
+    codename: "Connectivity UX"
+    changes:
+      - "feat: Connectivity UX — single remote MCP transport + content-passing. The MCP server never touches a foreign filesystem; client state (FreeForm, evidence, audit) flows in/out via content-passing through the Node bridge (US-CONN-TRANSPORT, 9 UC)."
+      - "feat: The 8 SQuaRE audit analyzers run client-side via .quality/scripts/audit so /audit works over a remote MCP (Hito 2)."
+      - "feat: Pedagogical extension updater + drift gate fix (Hito 4); /feedback routed through the bridge (UC-661 AC-02)."
   6.7.0:
     date: 2026-05-28
     codename: "Zero-Friction Onboarding"

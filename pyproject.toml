@@ -1,6 +1,6 @@
 [project]
 name = "specbox-engine"
-version = "6.8.0"
+version = "6.9.0"
 description = "SpecBox Engine v6.8.0 — Connectivity UX: single remote transport with content-passing so the MCP server never touches a foreign filesystem. FreeForm operative end-to-end over remote MCP, audit analyzers ported to Node client-side, pedagogical extension updater, and a canonical-decision-aware drift gate. Closes the #82 silent-failure class (US-CONN-TRANSPORT)."
 requires-python = ">=3.12"
 dependencies = [

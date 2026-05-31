@@ -2,6 +2,30 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.9.0] - 2026-06-01 — "Self-Provisioning"
+
+Cierra el funnel de onboarding en máquina limpia: la extensión VSCode ahora se auto-aprovisiona el engine. Cuando no encuentra el repo en disco, clona el engine público (`github.com/EmbedBuild/specbox-engine`) a un directorio gestionado (`~/.specbox/specbox-engine`) automáticamente — notifica, no pregunta — y lo mantiene al día con `git pull`. Un clon propio del usuario nunca se toca. US-VSCODE-AUTOCLONE — 4 UC (PR #86).
+
+### Added
+
+- **Auto-clone del engine** (UC-109/UC-110) — `resolveEnginePath()` clona el engine público a `~/.specbox/specbox-engine` automáticamente como paso 3.5, antes del `showOpenDialog` (que queda como degradación). Helpers puros `ENGINE_REPO_URL` / `managedEnginePath()` / `isManagedPath()`; `cloneManagedEngine(deps)` con git runner inyectable que nunca lanza y limpia el dir parcial en fallo. Idempotente: un clon gestionado presente no se re-clona.
+- **Auto-pull del clon gestionado** (UC-111) — Phase 0 de `runUpdateFlow` hace `git pull --ff-only` solo si el engine resuelto ES el gestionado (`isManagedPath===true`); un clon de usuario en otra ruta nunca recibe pull (protección ICP-1). Pull fallido → warning no bloqueante (fire-and-forget v6.6.2).
+
+### Changed
+
+- **Walkthrough + README (ES+EN)** (UC-112) — describen el auto-clone gestionado; el `git clone` manual deja de ser prerequisito de la extensión. El bloque Quick Start de instalación CLI manual se conserva.
+- **ENGINE_VERSION.yaml** — añadida la entrada 6.8.0 al changelog del manifiesto, que faltaba del release anterior (solo estaba en CHANGELOG.md).
+
+### Compatibility
+
+- 100% backwards-compatible. La extensión sigue resolviendo config/workspace/rutas comunes primero; el auto-clone es el último recurso antes del diálogo. Clones de usuario intactos.
+
+### Tests
+
+- +14 nuevos tests, todos verdes:
+  - `vscode-extension/tests/autoclone.test.mjs` — AC-01..AC-08 + NFR idempotencia (stub de vscode/git/fs, sin red).
+- Suite de la extensión 94/94 verde, sin regresión. `tsc -p ./` limpio.
+
 ## [6.8.0] - 2026-05-31 — "Connectivity UX"
 
 Reenfoca la conectividad cliente/servidor bajo un transporte único (MCP remoto, online-first) donde el server nunca toca un filesystem ajeno y el estado del cliente fluye por content-passing vía un bridge Node. Cierra la regresión #82 (fallo silencioso en MCP remoto), hace `/audit` operativo en remoto, convierte la actualización de la extensión en un proceso pedagógico, y blinda el drift gate contra violaciones de decisiones canónicas. US-CONN-TRANSPORT — 9 UC en 4 hitos (PR #85).

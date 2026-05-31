@@ -1,4 +1,4 @@
-# SpecBox Engine v6.8.0
+# SpecBox Engine v6.9.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1460,9 +1460,39 @@ Tests: +9 (`tests/mcp.test.mjs` + `tests/prerequisites.test.mjs`), 56/56 verde.
 Decisiones de producto: sin fallback air-gapped (MCP remoto gratuito); severidad
 warning no bloqueante; alcance del gate incluye MCP configurado.
 
+## Engine Auto-Clone (v6.9.0)
+
+US-VSCODE-AUTOCLONE cierra el funnel de onboarding en máquina limpia: hasta
+v6.8.0 la extensión VSCode, cuando no encontraba el engine en disco
+(`resolveEnginePath()` fallaba en config/workspace/rutas comunes), solo ofrecía
+un `showOpenDialog` que apuntaba a una carpeta inexistente — el usuario no sabía
+qué repo clonar. Como el repo es **público**, la extensión ahora lo clona ella
+misma, **automáticamente y sin preguntar** (solo notifica).
+
+- **UC-109/UC-110** (`vscode-extension/src/install.ts`): helpers puros
+  `ENGINE_REPO_URL`, `managedEnginePath()` (`~/.specbox/specbox-engine`),
+  `isManagedPath()`; y `cloneManagedEngine(deps)` con git runner inyectable que
+  **nunca lanza** y limpia el dir parcial si el clone aborta. `resolveEnginePath`
+  inserta el auto-clone como paso 3.5 (entre rutas comunes y `showOpenDialog`),
+  idempotente: un clon gestionado ya presente se reutiliza sin re-clonar.
+- **UC-111** (`vscode-extension/src/updater.ts`): `pullManagedEngine()` hace
+  `git pull --ff-only` como Phase 0 de `runUpdateFlow`, **solo** si el engine
+  resuelto ES el gestionado (`isManagedPath===true`). Un clon propio del usuario
+  en otra ruta nunca se toca (protección ICP-1). Un pull fallido es un warning no
+  bloqueante (patrón fire-and-forget v6.6.2).
+- **UC-112**: walkthrough + README (ES+EN) describen el auto-clone; el `git clone`
+  manual deja de ser prerequisito de la extensión (la instalación CLI se conserva).
+
+Tests: +14 (`vscode-extension/tests/autoclone.test.mjs`), 94/94 verde, `tsc` limpio.
+Auto-merge OFF: el smoke real del clone contra GitHub en máquina limpia fue el
+gate humano (PR #86, mergeado).
+
+- Plan: [doc/plans/US-VSCODE-AUTOCLONE_plan.md](doc/plans/US-VSCODE-AUTOCLONE_plan.md)
+- PRD: [doc/prd/US-VSCODE-AUTOCLONE_prd.md](doc/prd/US-VSCODE-AUTOCLONE_prd.md)
+
 ## Engine Version
 
-Current: v6.8.0 "Connectivity UX"
+Current: v6.9.0 "Self-Provisioning"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

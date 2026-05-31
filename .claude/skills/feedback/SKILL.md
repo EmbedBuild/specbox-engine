@@ -6,7 +6,7 @@ description: >
   "feedback on feature", "AC-XX is wrong", or reports an issue found during
   manual testing. Links feedback to acceptance criteria and blocks merge if unresolved.
 context: direct
-allowed-tools: Read, Grep, Glob, Bash(*), Write, Edit, mcp__github__create_issue
+allowed-tools: Read, Grep, Glob, Bash(*), Write, Edit, mcp__github__create_issue, mcp__SpecBox-MCP__update_uc, mcp__SpecBox-MCP__mark_ac, mcp__SpecBox-MCP__move_uc
 ---
 
 # /feedback (Global)
@@ -307,6 +307,63 @@ Recalcular summary:
 - Si antes era ACCEPTED y ahora hay criterios INVALIDATED → cambiar verdict a `"INVALIDATED"`
 - Actualizar `blocking_criteria` con los criterios invalidados
 
+### 6.1a Reflejar la invalidación en el board (FreeForm + MCP remoto)
+
+> **Contrato de tracking I/O (UC-660/661)**: cuando el backend del proyecto es
+> FreeForm **y** el MCP server es remoto (`SPECBOX_ENGINE_MCP_URL` definido), el
+> server NO puede leer ni escribir `doc/tracking/items.json` del cliente. Toda
+> mutación del board debe ir por el **bridge** `.claude/hooks/lib/mcp-client-io.mjs`
+> con content-passing — nunca pasando `project_path` como ruta de filesystem del
+> server. Este es el patrón canónico que `/feedback`, `/prd` e `/implement` deben
+> seguir al mutar FreeForm.
+
+Aplica **solo** si `invalidates_acceptance == true`, el backend es FreeForm, y
+hay un UC asociado al feature en el board. Si el backend es Trello/Plane/Native,
+o el MCP es local, usar las tools directamente sin el bundle (el server resuelve
+el almacenamiento). Si no hay UC en el board para el feature, omitir este paso.
+
+Procedimiento (round-trip de 3 pasos):
+
+```bash
+# 1) Leer el items.json local como string vía el bridge (resuelve la raíz del
+#    repo con git rev-parse, aplica el guard de path-traversal).
+ITEMS=$(node -e "
+  import('./.claude/hooks/lib/mcp-client-io.mjs').then(m =>
+    process.stdout.write(m.readTrackingBundle())
+  );
+")
+```
+
+```
+# 2) Llamar la tool de mutación con content-passing. Por cada AC-XX invalidado,
+#    marcarlo no-completado en el board para que el estado refleje el feedback;
+#    opcionalmente mover el UC a un estado bloqueado si el feedback es
+#    critical/major. Pasar items_content=<ITEMS> y capturar el items_content
+#    mutado que la tool devuelve.
+mark_ac(uc_id=<UC>, ac_id="AC-03", completed=false, items_content=<ITEMS>)
+   → devuelve { ..., items_content: "<items.json mutado>" }
+```
+
+```bash
+# 3) Persistir el string mutado de vuelta al disco del cliente vía el bridge.
+node -e "
+  const mutated = process.env.MUTATED_ITEMS;
+  import('./.claude/hooks/lib/mcp-client-io.mjs').then(m =>
+    m.writeTrackingBundle(mutated)
+  );
+"
+# (pasar el items_content devuelto por env MUTATED_ITEMS para evitar quoting)
+```
+
+Reglas:
+- **Nunca** llamar la tool con `project_path` apuntando a una ruta del cliente:
+  en remoto el server resolvería contra su propio FS (bug raíz de v6.7.0 #82).
+- El bridge es la **única** puerta: no hacer `Read`/`Write` directos sobre
+  `doc/tracking/items.json` desde la skill.
+- Fire-and-forget defensivo: si el round-trip falla, la evidencia local
+  (`acceptance-report.json`, `FB-*.json`) ya está guardada y es la fuente de
+  verdad del gate de merge; reportar WARNING y continuar sin bloquear el flujo.
+
 ### 6.2 Crear/actualizar feedback-summary.json
 
 Archivo: `.quality/evidence/${feature}/feedback-summary.json`
@@ -472,6 +529,7 @@ Si no hay feedback → "No hay feedback registrado para '{feature}'."
 - [ ] GitHub issue creado con labels correctos
 - [ ] JSON actualizado con github_issue URL
 - [ ] acceptance-report.json actualizado si invalidates_acceptance
+- [ ] board reflejado vía bridge si FreeForm+remoto e invalidates_acceptance (Paso 6.1a)
 - [ ] feedback-summary.json creado/actualizado
 - [ ] Output final con impacto en acceptance reportado
 

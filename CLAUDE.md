@@ -1,4 +1,4 @@
-# SpecBox Engine v6.7.0
+# SpecBox Engine v6.8.0
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.

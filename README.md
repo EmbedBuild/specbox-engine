@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.7.0 — "Zero-Friction Onboarding" (sobre v6.6.2 "Fast Activate", v6.6.1 "Loopback Resilience", v6.6.0 "VSCode Discoverability")<br/>
+  v 6.8.0 — "Connectivity UX" (sobre v6.7.0 "Zero-Friction Onboarding", v6.6.2 "Fast Activate", v6.6.1 "Loopback Resilience")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,19 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v6.8
+
+**v6.8.0 — "Connectivity UX"** hace que SpecBox funcione de verdad con el MCP server en remoto: el server nunca toca un filesystem ajeno y el estado del cliente fluye por content-passing:
+
+- **FreeForm operativo end-to-end** — las 7 tools de mutación + un bridge Node (`readTrackingBundle`/`writeTrackingBundle`) leen/escriben `doc/tracking` del cliente vía content-passing. Cierra la regresión #82.
+- **`/audit` operativo en remoto** — los 8 analyzers ISO/IEC 25010 portados a Node client-side escanean el FS del cliente, no el del VPS.
+- **Updater pedagógico de la extensión** — detecta config obsoleta tras un update, migra el transporte sola (con backup + revert) y explica qué cambió.
+- **Drift gate consciente de las decisiones canónicas** — valida contra `app_spec.md`, la causa-raíz que dejó pasar #82.
+
+100% backwards-compatible. Cierra una clase de fallo silencioso en MCP remoto.
 
 ---
 
@@ -379,7 +392,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.7.0 — "Zero-Friction Onboarding" (over v6.6.2 "Fast Activate", v6.6.1 "Loopback Resilience", v6.6.0 "VSCode Discoverability")
+> v 6.8.0 — "Connectivity UX" (over v6.7.0 "Zero-Friction Onboarding", v6.6.2 "Fast Activate", v6.6.1 "Loopback Resilience")
 
 ## What is this?
 
@@ -391,6 +404,19 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v6.8
+
+**v6.8.0 — "Connectivity UX"** makes SpecBox truly work with the MCP server running remotely: the server never touches a foreign filesystem and client state flows via content-passing:
+
+- **FreeForm operative end-to-end** — the 7 mutation tools + a Node bridge (`readTrackingBundle`/`writeTrackingBundle`) read/write the client's `doc/tracking` via content-passing. Closes the #82 regression.
+- **`/audit` operative over remote MCP** — the 8 ISO/IEC 25010 analyzers ported to Node client-side scan the client's FS, not the VPS.
+- **Pedagogical extension updater** — detects stale config after an update, auto-migrates transport (with backup + revert) and explains what changed.
+- **Canonical-decision-aware drift gate** — validates against `app_spec.md`, the root cause that let #82 through.
+
+100% backwards-compatible. Closes a class of silent failure on remote MCP.
+
+---
 
 ## What's new in v6.7
 

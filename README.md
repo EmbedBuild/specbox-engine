@@ -165,8 +165,14 @@ Opt-in y aditivo: si no configuras `backend_type='native'`, todo se comporta com
 
 ## Quick Start
 
+> **¿Usas la extensión de VS Code?** No necesitas clonar nada a mano: cuando la
+> extensión no encuentra el engine, lo clona por ti automáticamente desde el
+> repo público a una carpeta gestionada (`~/.specbox/specbox-engine`) y la
+> mantiene al día. Los pasos de abajo son para la instalación manual del engine
+> por CLI.
+
 ```bash
-# Instalar el engine globalmente
+# Instalar el engine globalmente (instalación manual por CLI)
 git clone <repo-url> ~/specbox-engine
 cd ~/specbox-engine
 ./install.sh
@@ -521,7 +527,13 @@ Opt-in and additive: if you don't set `backend_type='native'`, everything behave
 
 ## Quick Start
 
+> **Using the VS Code extension?** You don't need to clone anything by hand —
+> when the extension can't find the engine, it clones the public engine for you
+> automatically into a managed folder (`~/.specbox/specbox-engine`) and keeps it
+> up to date. The steps below are for the manual CLI install of the engine.
+
 ```bash
+# Manual CLI install of the engine
 git clone <repo-url> ~/specbox-engine
 cd ~/specbox-engine
 ./install.sh

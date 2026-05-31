@@ -9480,7 +9480,7 @@
     "id": "item-conn-002",
     "name": "[UC-660] Tools de mutacion FreeForm con content-passing",
     "description": "",
-    "state": "in_progress",
+    "state": "done",
     "parent_id": "item-conn-001",
     "labels": [
       "UC"
@@ -9494,7 +9494,7 @@
       "horas": "10"
     },
     "created_at": "2026-05-31T12:37:51.792927+00:00",
-    "updated_at": "20260531T132549Z"
+    "updated_at": "20260531T170102Z"
   },
   {
     "id": "ac-conn-003",

@@ -9962,7 +9962,7 @@
     "id": "item-conn-030",
     "name": "[UC-667] Validacion de drift contra decisiones canonicas",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-029",
     "labels": [
       "UC"
@@ -9975,13 +9975,14 @@
       "actor": "Engine",
       "horas": "5"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T173036Z"
   },
   {
     "id": "ac-conn-031",
     "name": "[AC-01] validate_discovery_completeness acepta el contenido de app_spec.md canonical_decisions (content-passing) y detecta si el Discovery contradice alguna decision registrada. Test: con un artefacto que contradice una decision canonica SIN declararla en 'Drift from app_market' devuelve verdict != READY_FOR_PRD con un missing especifico.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-030",
     "labels": [
       "AC"
@@ -9991,13 +9992,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T173036Z"
   },
   {
     "id": "ac-conn-032",
     "name": "[AC-02] Cuando un Discovery contradice una decision canonica pero la declara explicitamente como documented_exception con justificacion, el gate la acepta. Test: con el artefacto de specbox_connectivity_ux devuelve READY_FOR_PRD.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-030",
     "labels": [
       "AC"
@@ -10007,13 +10009,14 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T173036Z"
   },
   {
     "id": "ac-conn-033",
     "name": "[AC-03] El reporte de drift distingue entre drift de mercado (app_market.md) y drift de decision canonica (app_spec.md), nombrando la decision concreta contradicha. Test: asserta el payload incluye canonical_decision_drift {decision, resolved, kind}.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-030",
     "labels": [
       "AC"
@@ -10023,13 +10026,14 @@
       "ac_id": "AC-03",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T173036Z"
   },
   {
     "id": "item-conn-034",
     "name": "[UC-668] Registro de la nueva decision canonica",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-029",
     "labels": [
       "UC"
@@ -10042,13 +10046,14 @@
       "actor": "Engine",
       "horas": "2"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T173036Z"
   },
   {
     "id": "ac-conn-035",
     "name": "[AC-01] app_spec.md canonical_decisions registra la nueva decision (MCP server nunca toca filesystem ajeno; estado cliente via content-passing/bridge; transporte unico remoto online-first) y marca la anterior (FreeForm requiere MCP local) como revisada/sustituida con referencia a este PRD, sin borrar el historico (append-only). Verificable: el archivo contiene ambas entradas con la relacion de sustitucion explicita.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-034",
     "labels": [
       "AC"
@@ -10058,6 +10063,7 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T173036Z"
   }
 ]

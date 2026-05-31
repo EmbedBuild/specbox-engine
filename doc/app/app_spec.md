@@ -67,8 +67,9 @@
 - **Backend default = FreeForm** — proyectos personales/internos usan FreeForm; Trello/Plane solo para reporting externo a clientes.
 - **PR-only a main** — nunca push directo a main salvo autorización explícita del usuario en la sesión.
 - **README bump en cada versión** — toda versión (major/minor/patch) actualiza README.md (bloques ES + EN), no solo ENGINE_VERSION.yaml/CLAUDE.md/CHANGELOG.
-- **FreeForm requiere MCP local (stdio)** — para escribir `doc/tracking/` en el filesystem local, el MCP SpecBox debe correr como proceso local, no como conector remoto.
+- ~~**FreeForm requiere MCP local (stdio)**~~ — **REVISADA/SUSTITUIDA** (2026-05-31, UC-668) por **Transporte único MCP remoto + content-passing** (ver abajo). Ref. `doc/prd/specbox_connectivity_ux_prd.md`. La premisa original (filesystem-local exige transporte-local) quedó obsoleta con el MCP Path Contract (v6.0.1): content-passing rompe ese acople. Histórico conservado (append-only): para escribir `doc/tracking/` el MCP debía correr como proceso local.
 - **`claim`→`reservation` (v5.35.0)**: renombre del concepto de coordinación multi-developer del Native Backend; rationale = legibilidad para no técnicos; alias deprecados v5.35–v5.36; tools MCP `claim_uc` removed in v5.37.0.
+- **Transporte único MCP remoto + content-passing** (2026-05-31, UC-668) — el MCP server nunca toca un filesystem ajeno; el estado del cliente (FreeForm, evidencia, audit) entra/sale por content-passing vía el bridge Node (`.claude/hooks/lib/mcp-client-io.mjs`); el estado cloud (Trello/Plane/Native) lo opera el server directamente contra su API. Transporte único: MCP remoto, online-first (no existe modo offline en un sistema agéntico que depende de Claude Code, que exige red). **Sustituye** a "FreeForm requiere MCP local (stdio)". Ref. `doc/prd/specbox_connectivity_ux_prd.md`.
 
 <!-- engine-entries-below -->
 {(vacío hasta que la Capa 4 detecte 3 confirmaciones consecutivas idénticas)}

@@ -26,7 +26,7 @@ _Sin descripción en el board. El detalle vive en el PRD/plan de la US._
 
 app_spec.md canonical_decisions registra la nueva decision (MCP server nunca toca filesystem ajeno; estado cliente via content-passing/bridge; transporte unico remoto online-first) y marca la anterior (FreeForm requiere MCP local) como revisada/sustituida con referencia a este PRD, sin borrar el historico (append-only). Verificable: el archivo contiene ambas entradas con la relacion de sustitucion explicita.
 
-- **Estado:** ⬜ pendiente
+- **Estado:** ✅ done — zona `canonical_decisions` de `doc/app/app_spec.md` (merge=append_only): la decisión "FreeForm requiere MCP local" queda tachada (`~~...~~`) y marcada REVISADA/SUSTITUIDA; se añade "Transporte único MCP remoto + content-passing", ambas referenciando el PRD. 4 tests `tests/test_canonical_decision_registered.py`, incluido el loop completo (gate UC-667 acepta el Discovery real como documented_exception → no auto-bloqueo).
 
 ## Notas
 

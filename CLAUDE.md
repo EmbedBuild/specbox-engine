@@ -1462,7 +1462,7 @@ warning no bloqueante; alcance del gate incluye MCP configurado.
 
 ## Engine Version
 
-Current: v6.7.0 "Zero-Friction Onboarding"
+Current: v6.8.0 "Connectivity UX"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

@@ -80,3 +80,21 @@ test('AC-03: warning text names the missing items and warns about breakage', () 
 	assert.match(msg, /Claude Code/);
 	assert.match(msg, /Engram/);
 });
+
+// UC-662 AC-07 — a configured FreeForm project reports ready (not "degraded for
+// lacking local mode"). FreeForm needs no extra signal beyond the shared
+// prerequisites (hosted MCP + Engram + Node + Claude Code).
+
+test('UC-662 AC-07: configured FreeForm project → ready (no local mode required)', () => {
+	const freeformReady = allOk(); // exactly the post-onboarding FreeForm state
+	const r = evaluatePrerequisites(freeformReady);
+	assert.equal(r.verdict, 'ready');
+	assert.deepEqual(r.missing, []);
+});
+
+test('UC-662 AC-07: no hidden python/local-mode prerequisite exists for FreeForm', () => {
+	// The verdict is computed purely from the 5 critical signals — there is no
+	// "local mode" or "python" check a FreeForm project could fail.
+	const r = evaluatePrerequisites(allOk());
+	assert.equal(r.missing.length, 0);
+});

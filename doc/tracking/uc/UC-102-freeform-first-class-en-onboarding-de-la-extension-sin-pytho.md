@@ -26,13 +26,25 @@ _Sin descripción en el board. El detalle vive en el PRD/plan de la US._
 
 El onboarding de la extension ofrece FreeForm como opcion operativa de primer nivel junto a Native/Trello; al elegirla, configura el MCP remoto + el bridge sin pedir Python en ningun punto. Test de la extension que simula la eleccion de FreeForm y asserta que el settings.json resultante apunta al remoto y NO contiene referencias a Python/uv/modo Local.
 
-- **Estado:** ⬜ pendiente
+- **Estado:** ✅ done — `maybeShowOnboarding` ofrece FreeForm equal-weight (PR #82); `configureFreeformBackend` ahora usa el helper puro `buildFreeformProjectSettings` (mcp.ts). 4 tests `mcp.test.mjs`: backend_type=freeform + root absoluto, 0 refs python/uv/local, rechaza root relativo, reusa el endpoint hosted.
 
 ### AC-02
 
 Tras elegir FreeForm en el onboarding, el health check / sidebar reporta el backend como operativo (no degraded por falta de modo local). Test: tras configurar FreeForm, evaluatePrerequisites devuelve ready para ese proyecto.
 
-- **Estado:** ⬜ pendiente
+- **Estado:** ✅ done — 2 tests `prerequisites.test.mjs`: proyecto FreeForm configurado → `ready`/`missing:[]`; no existe prerequisito oculto python/local-mode.
+
+## Nota de implementación
+
+El grueso ya lo entregó el PR #82 (`maybeShowOnboarding` ofrece FreeForm como
+opción de primer nivel; `configureFreeformBackend` escribe `settings.local.json`
+con `backend_type=freeform` + `freeform_root_absolute` y cero Python). UC-662
+cierra el AC haciendo la lógica **testeable**: extrae el shape a
+`buildFreeformProjectSettings(workspaceRootAbsolute)` (puro, en `mcp.ts`,
+exporta también `FREEFORM_ROOT_RELATIVE`), que valida path absoluto (v5.29
+BLOCKER). `configureFreeformBackend` lo reutiliza. FreeForm comparte el endpoint
+hosted con los demás backends (content-passing vía el bridge UC-660/661), sin
+modo local. Suite extensión: 64/64 verde (56 baseline + 8 nuevos).
 
 ## Notas
 

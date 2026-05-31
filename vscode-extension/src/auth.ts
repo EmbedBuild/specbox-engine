@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { startLoopbackServer, buildSignInUrl } from './oauth';
 import { SecretsManager } from './secret-storage';
-import { updateMcpServerConfigWithToken, clearMcpServerConfig, respawnMcpServer } from './mcp';
+import { updateMcpServerConfigWithToken, clearMcpServerConfig, respawnMcpServer, buildFreeformProjectSettings } from './mcp';
 import { fetchWhoami } from './cloud-api';
 
 const ONBOARDING_DECISION_KEY = 'specbox.onboardingDecision';
@@ -183,7 +183,9 @@ export async function maybeShowOnboarding(
 
 /**
  * Configures the workspace to use FreeForm backend with an absolute tracking path.
- * Mirrors the v5.29 freeform-path-guard logic on the client side.
+ * Mirrors the v5.29 freeform-path-guard logic on the client side. The shape of
+ * the settings fragment lives in `buildFreeformProjectSettings` (mcp.ts) so it
+ * can be unit-tested independently of vscode (UC-662 AC-06).
  */
 function configureFreeformBackend(): void {
 	const folder = vscode.workspace.workspaceFolders?.[0];
@@ -197,10 +199,9 @@ function configureFreeformBackend(): void {
 		if (fs.existsSync(settingsPath)) {
 			try { settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8')); } catch { settings = {}; }
 		}
+		const fragment = buildFreeformProjectSettings(root);
 		const specbox = (settings.specbox as Record<string, unknown>) ?? {};
-		specbox.backend_type = 'freeform';
-		specbox.freeform_root_absolute = path.join(root, 'doc', 'tracking');
-		settings.specbox = specbox;
+		settings.specbox = { ...specbox, ...fragment.specbox };
 		fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
 	} catch (err) {
 		console.warn('[specbox] failed to write freeform config:', err);

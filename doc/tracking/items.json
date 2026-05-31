@@ -9605,7 +9605,7 @@
     "id": "item-conn-009",
     "name": "[UC-662] FreeForm first-class en onboarding de la extension (sin Python)",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-001",
     "labels": [
       "UC"
@@ -9618,13 +9618,14 @@
       "actor": "Client",
       "horas": "5"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T165935Z"
   },
   {
     "id": "ac-conn-010",
     "name": "[AC-01] El onboarding de la extension ofrece FreeForm como opcion operativa de primer nivel junto a Native/Trello; al elegirla, configura el MCP remoto + el bridge sin pedir Python en ningun punto. Test de la extension que simula la eleccion de FreeForm y asserta que el settings.json resultante apunta al remoto y NO contiene referencias a Python/uv/modo Local.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-009",
     "labels": [
       "AC"
@@ -9634,13 +9635,14 @@
       "ac_id": "AC-01",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T165935Z"
   },
   {
     "id": "ac-conn-011",
     "name": "[AC-02] Tras elegir FreeForm en el onboarding, el health check / sidebar reporta el backend como operativo (no degraded por falta de modo local). Test: tras configurar FreeForm, evaluatePrerequisites devuelve ready para ese proyecto.",
     "description": "",
-    "state": "user_stories",
+    "state": "done",
     "parent_id": "item-conn-009",
     "labels": [
       "AC"
@@ -9650,7 +9652,8 @@
       "ac_id": "AC-02",
       "tipo": "AC"
     },
-    "created_at": "2026-05-31T12:37:51.792927+00:00"
+    "created_at": "2026-05-31T12:37:51.792927+00:00",
+    "updated_at": "20260531T165935Z"
   },
   {
     "id": "item-conn-012",

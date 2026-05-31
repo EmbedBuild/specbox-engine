@@ -32,6 +32,47 @@ export interface EngramInstallPlan {
 	manualUrl: string;
 }
 
+// UC-662 — FreeForm first-class onboarding (no Python).
+//
+// Choosing FreeForm in the onboarding gate must produce a fully operational
+// project: tracking lives locally in doc/tracking/, but the MCP server is the
+// SAME free hosted endpoint as every other backend (content-passing via the
+// bridge, UC-660/661). No local MCP, no Python/uv — that was the v6.7.0 (#82)
+// regression this UC reverts.
+
+/** Default relative location of the FreeForm tracking dir, mirrored from the engine. */
+export const FREEFORM_ROOT_RELATIVE = 'doc/tracking';
+
+export interface FreeformProjectSettings {
+	specbox: {
+		backend_type: 'freeform';
+		freeform_root_absolute: string;
+	};
+}
+
+/**
+ * Build the project-level settings.local.json fragment that marks a project as
+ * FreeForm. `freeform_root_absolute` MUST be absolute (the v5.29 BLOCKER: a
+ * relative path would resolve against the remote server CWD). The caller passes
+ * the workspace root; we join the canonical doc/tracking under it.
+ *
+ * Deliberately contains NO python/uv/local-mode keys — AC-06 asserts the output
+ * is clean of any runtime reference.
+ */
+export function buildFreeformProjectSettings(workspaceRootAbsolute: string): FreeformProjectSettings {
+	if (!path.isAbsolute(workspaceRootAbsolute)) {
+		throw new Error(
+			`buildFreeformProjectSettings: workspace root must be absolute, got ${workspaceRootAbsolute}`,
+		);
+	}
+	return {
+		specbox: {
+			backend_type: 'freeform',
+			freeform_root_absolute: path.join(workspaceRootAbsolute, FREEFORM_ROOT_RELATIVE),
+		},
+	};
+}
+
 /**
  * How to install Engram. Engram is a native single-file binary with zero
  * dependencies — no extra language runtime needed. Preferred install is

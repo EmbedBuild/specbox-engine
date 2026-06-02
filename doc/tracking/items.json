@@ -10881,5 +10881,481 @@
       "evidence": "test_e2e_freeform_to_native_preserves_states — PASSED vs Postgres dev (docker-compose.dev.yml), states preserved + developer member"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
+  },
+  {
+    "id": "item-e426f87c",
+    "name": "[US-NATIVE-BATCH-INGEST] Ingesta por lotes de sources grandes a Native",
+    "external_id": "US-NATIVE-BATCH-INGEST",
+    "external_source": null,
+    "description": "Como dev que migra su proyecto freeform a SpecBox Cloud (Native), quiero subir un items.json de tamaño real por lotes verificables sin transcribirlo a mano, para que el board en Postgres sea byte-fiel a mi source, con escritura atómica y rollback total ante fallo.",
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": null,
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-NATIVE-BATCH-INGEST",
+      "horas": "14",
+      "screens": ""
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:30:00+00:00"
+  },
+  {
+    "id": "item-9c413ccf",
+    "name": "[UC-680] Sesión de migración multi-llamada con dev_token cacheado",
+    "external_id": "UC-680",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "review",
+    "parent_id": "item-e426f87c",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-680",
+      "us_id": "US-NATIVE-BATCH-INGEST",
+      "actor": "Sistema",
+      "horas": "3",
+      "screens": ""
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:34.849567+00:00"
+  },
+  {
+    "id": "ac-7fc0247a",
+    "name": "[AC-01] start_migration_session con source_type='freeform', declared_items=568, chunk_count=6 y un dev_token válido devuelve {session_id, status:'open', declared_items:568, chunks_expected:6, chunks_received:0} y NO escribe nada en las tablas user_stories/use_cases/acceptance_criteria del proyecto (verificable con SELECT count(*) == estado previo).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-9c413ccf",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-01",
+      "uc_id": "UC-680"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:11.569113+00:00"
+  },
+  {
+    "id": "ac-cd11959a",
+    "name": "[AC-02] start_migration_session con un dev_token ausente o inválido devuelve un envelope {status:'UNAUTHENTICATED', code, message} sin abrir sesión (fail-fast antes de cualquier I/O de staging), reutilizando el contrato require_dev_token existente.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-9c413ccf",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-02",
+      "uc_id": "UC-680"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:11.606572+00:00"
+  },
+  {
+    "id": "ac-fa42b7a9",
+    "name": "[AC-03] Tras un start exitoso, una segunda tool de la misma sesión (append_chunk) reutiliza la identidad cacheada sin re-consultar mcp_tokens JOIN developers (verificable por conteo de queries de identidad: 1 en el start, 0 en los appends dentro del TTL).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-9c413ccf",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-03",
+      "uc_id": "UC-680"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:11.626478+00:00"
+  },
+  {
+    "id": "item-238708ab",
+    "name": "[UC-681] Staging server-side de chunks con verificación por chunk",
+    "external_id": "UC-681",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "review",
+    "parent_id": "item-e426f87c",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-681",
+      "us_id": "US-NATIVE-BATCH-INGEST",
+      "actor": "Sistema",
+      "horas": "3",
+      "screens": ""
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:37.789281+00:00"
+  },
+  {
+    "id": "ac-be90ec24",
+    "name": "[AC-04] append_migration_chunk con chunk_index=0, chunk_data cuyo SHA-256 == el chunk_sha256 declarado devuelve {status:'accepted', chunks_received:1, chunks_expected:N} y acumula el fragmento en el staging de esa session_id.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-238708ab",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-04",
+      "uc_id": "UC-681"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:16.227656+00:00"
+  },
+  {
+    "id": "ac-d96a1322",
+    "name": "[AC-05] append_migration_chunk cuyo SHA-256 calculado del chunk_data NO coincide con el chunk_sha256 declarado devuelve {status:'CHUNK_HASH_MISMATCH', chunk_index, expected, actual} y NO incrementa chunks_received ni acumula ese fragmento corrupto.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-238708ab",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-05",
+      "uc_id": "UC-681"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:16.258074+00:00"
+  },
+  {
+    "id": "ac-6aca1ad8",
+    "name": "[AC-06] append_migration_chunk con un session_id inexistente o ya cerrado devuelve {status:'SESSION_NOT_FOUND'} sin crear staging implícito.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-238708ab",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-06",
+      "uc_id": "UC-681"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:16.277962+00:00"
+  },
+  {
+    "id": "ac-8a07cb37",
+    "name": "[AC-07] Enviar dos chunks distintos con el mismo chunk_index en la misma sesión hace que el segundo devuelva {status:'DUPLICATE_CHUNK_INDEX', chunk_index} sin sobrescribir el primero (orden y unicidad garantizados para el reensamblado).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-238708ab",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-07",
+      "uc_id": "UC-681"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:16.294749+00:00"
+  },
+  {
+    "id": "item-fc24d2d6",
+    "name": "[UC-682] Commit diferido con pre-flight global y escritura atómica",
+    "external_id": "UC-682",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "review",
+    "parent_id": "item-e426f87c",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-682",
+      "us_id": "US-NATIVE-BATCH-INGEST",
+      "actor": "Sistema",
+      "horas": "5",
+      "screens": ""
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:41.359164+00:00"
+  },
+  {
+    "id": "ac-aff9a9df",
+    "name": "[AC-08] Con todos los chunks de un items.json real recibidos y el SHA-256 reensamblado == source_sha256 declarado y conteo == declared_items, commit_migration_session devuelve {status:'committed', migrated:{us,uc,ac}, skipped, target_id} y Postgres contiene exactamente los US/UC/AC del source (conteo igual al source).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-fc24d2d6",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-08",
+      "uc_id": "UC-682"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:21.278488+00:00"
+  },
+  {
+    "id": "ac-11aac613",
+    "name": "[AC-09] Si chunks_received < chunks_expected o el SHA-256 reensamblado != source_sha256 o el conteo parseado != declared_items/confirmed_count, commit_migration_session devuelve {status:'PREFLIGHT_FAILED', reason} y NO ejecuta ningún INSERT (verificable: el conteo de filas en Postgres es idéntico al previo al commit).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-fc24d2d6",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-09",
+      "uc_id": "UC-682"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:21.308778+00:00"
+  },
+  {
+    "id": "ac-16844e75",
+    "name": "[AC-10] Si un INSERT de la fase UC+AC falla a mitad (constraint inyectada en el test), la transacción envolvente hace rollback total: Postgres queda sin ninguna fila del proyecto migrado (ni siquiera las US de la fase 1), y la tool devuelve {status:'COMMIT_FAILED', failing_phase, error}.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-fc24d2d6",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-10",
+      "uc_id": "UC-682"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:21.328969+00:00"
+  },
+  {
+    "id": "ac-746d2674",
+    "name": "[AC-11] Tras un commit exitoso, el staging de esa session_id se libera (un segundo append_migration_chunk o commit sobre la misma sesión devuelve {status:'SESSION_NOT_FOUND'}).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-fc24d2d6",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-11",
+      "uc_id": "UC-682"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:21.346148+00:00"
+  },
+  {
+    "id": "ac-c7e3648c",
+    "name": "[AC-12] Los estados de los UC se preservan en el commit (un UC done en el source queda done en Postgres, un UC backlog queda backlog) — write_target no degrada estados a backlog.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-fc24d2d6",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-12",
+      "uc_id": "UC-682"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:21.362033+00:00"
+  },
+  {
+    "id": "item-a7dbbe71",
+    "name": "[UC-683] Integración con switch_project_backend y skill /switch-backend",
+    "external_id": "UC-683",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "review",
+    "parent_id": "item-e426f87c",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-683",
+      "us_id": "US-NATIVE-BATCH-INGEST",
+      "actor": "Sistema",
+      "horas": "2",
+      "screens": ""
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:44.415612+00:00"
+  },
+  {
+    "id": "ac-c3e76b35",
+    "name": "[AC-13] switch_project_backend(source_type='freeform', target_type='native') con un source que excede el umbral de transporte usa la ruta de ingesta por lotes (start/append/commit) como paso de escritura, y el orquestador atómico completa el switch de los 3 lugares de config solo si el commit fue 'committed' (verificable: config destino == native solo cuando la ingesta tuvo éxito).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-a7dbbe71",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-13",
+      "uc_id": "UC-683"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:26.423730+00:00"
+  },
+  {
+    "id": "ac-388379c3",
+    "name": "[AC-14] Si la ingesta por lotes falla (PREFLIGHT_FAILED o COMMIT_FAILED), el orquestador NO cambia ningún lugar de config (operación atómica: o todo, o nada) y reporta el fallo de la ingesta como failing_step.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-a7dbbe71",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-14",
+      "uc_id": "UC-683"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:26.449784+00:00"
+  },
+  {
+    "id": "ac-9aa7d1ea",
+    "name": "[AC-15] El skill /switch-backend, ante un items.json de tamaño real, reporta al usuario un plan de transporte por lotes (nº de chunks, tamaño, hash) antes de ejecutar, y un resumen post-commit (US/UC/AC migrados, estados preservados) — sin pedir al usuario que pegue el blob de 133 KB.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-a7dbbe71",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-15",
+      "uc_id": "UC-683"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:26.467480+00:00"
+  },
+  {
+    "id": "item-4ad8153e",
+    "name": "[UC-684] E2E de transporte con items.json de tamaño real",
+    "external_id": "UC-684",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "review",
+    "parent_id": "item-e426f87c",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-684",
+      "us_id": "US-NATIVE-BATCH-INGEST",
+      "actor": "Sistema",
+      "horas": "1",
+      "screens": ""
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:47.187746+00:00"
+  },
+  {
+    "id": "ac-cec8fab3",
+    "name": "[AC-16] Existe un test que genera (o carga) un items.json >=100 KB con >=100 UC de estados mixtos, lo trocea en >=4 chunks, los envía por la sesión por lotes, y asserta que el conteo de US/UC/AC en Postgres == el del source y que los estados done/backlog se preservan uno-a-uno.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-4ad8153e",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-16",
+      "uc_id": "UC-684"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:31.057603+00:00"
+  },
+  {
+    "id": "ac-893e1ce4",
+    "name": "[AC-17] El mismo test asserta atomicidad inyectando un fallo a mitad del commit (constraint o chunk corrupto) y verificando que Postgres queda sin filas del proyecto (rollback total), y que un reintento limpio (nueva sesión) reconstruye el proyecto completo.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-4ad8153e",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-17",
+      "uc_id": "UC-684"
+    },
+    "created_at": "2026-06-02T21:30:00+00:00",
+    "updated_at": "2026-06-02T21:46:31.092815+00:00"
   }
 ]

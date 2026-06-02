@@ -909,6 +909,7 @@ async def switch_project_backend(
     on_collision: str = "fail",
     dry_run: bool = True,
     confirmed_count: dict[str, int] | None = None,
+    batch_session_id: str = "",
 ) -> dict[str, Any]:
     """Change a project's tracking backend as ONE atomic operation (UC-812).
 
@@ -1011,6 +1012,21 @@ async def switch_project_backend(
         return target_id, created_fresh
 
     async def _write(tid: str) -> dict[str, Any]:
+        # UC-683: when a batch session is provided (large freeform source into
+        # native), the write step is the atomic ingestion of the staged chunks
+        # instead of the generic per-item write_target. The orchestrator keeps
+        # its all-or-nothing guarantee: if this raises, run_switch rolls back and
+        # touches no config (AC-13, AC-14).
+        if batch_session_id and target_type == "native":
+            commit_result = await _commit_batch_session(
+                batch_session_id, tid, dev_token, source_type
+            )
+            if commit_result.get("status") != "committed":
+                raise SwitchOrchestrationError(
+                    f"batch ingestion failed: {commit_result.get('status')} "
+                    f"({commit_result.get('reason') or commit_result.get('error')})"
+                )
+            return commit_result.get("migrated", {})
         source = await ctx.get_state("switch_source")
         target_backend = await ctx.get_state("switch_target_backend_obj")
         return await write_target(target_backend, tid, source, source_type)
@@ -1114,6 +1130,305 @@ async def _detect_native_collision(
 # ═══════════════════════════════════════════════════════════════════════
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# BATCH INGESTION TO NATIVE (US-NATIVE-BATCH-INGEST — v6.9.2)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The large-source transport gap: switch_project_backend(source_type='freeform')
+# took the whole items.json as one source_content string, and a real board does
+# not fit reliably in a single tool parameter. These three tools are the
+# transport fix — start → append × N → commit — accumulating the source in
+# small, hash-verified chunks server-side and committing atomically.
+
+#: Above this many bytes, a freeform source should use batch ingestion rather
+#: than one source_content string. The skill (/switch-backend) reads this to
+#: decide when to chunk; switch_project_backend uses it to pick the write path.
+BATCH_TRANSPORT_THRESHOLD_BYTES = 64 * 1024  # 64 KB
+
+
+async def start_migration_session(
+    target_project_id: str,
+    source_type: str,
+    declared_items: int,
+    declared_bytes: int,
+    source_sha256: str,
+    chunk_count: int,
+    ctx: Context,
+    dev_token: str = "",
+) -> dict[str, Any]:
+    """Open a server-side batch-migration session (UC-680).
+
+    Validates the developer token ONCE (the identity cache then serves the N
+    appends without re-querying Postgres) and registers an empty staging slot.
+    Writes NOTHING to the spec tables — opening a session never creates items.
+
+    Args:
+        target_project_id: The native (Cloud) tenant to ingest into.
+        source_type: Source backend type (``freeform`` for the large-blob case).
+        declared_items: How many spec items the client will send (pre-flight).
+        declared_bytes: Total size of the items.json (informational pre-flight).
+        source_sha256: SHA-256 of the WHOLE items.json (verified at commit).
+        chunk_count: How many chunks the client will append.
+        dev_token: The developer token minted by the Cloud panel (required).
+
+    Returns:
+        ``{session_id, status:'open', ...}`` on success, or an UNAUTHENTICATED
+        envelope when the token is missing/invalid.
+    """
+    from ..coordination.identity import (
+        UnauthenticatedError,
+        authenticate_and_authorize_cached,
+    )
+    from ..db.pool import get_pool
+    from ..migration.batch_session import get_session_store
+
+    # Fail-fast identity validation before any staging I/O (AC-02). One query;
+    # the result is cached so the N appends reuse it (AC-03).
+    try:
+        if not (dev_token or "").strip():
+            raise UnauthenticatedError()
+        pool = await get_pool()
+        await authenticate_and_authorize_cached(
+            pool, token=dev_token, project_id=target_project_id
+        )
+        dev_id = _dev_id_from_token(dev_token)
+    except UnauthenticatedError:
+        return _unauthenticated(ctx)
+
+    store = get_session_store()
+    session = store.open(
+        developer_id=dev_id,
+        target_project_id=target_project_id,
+        source_type=source_type,
+        declared_items=declared_items,
+        declared_bytes=declared_bytes,
+        source_sha256=source_sha256,
+        chunk_count=chunk_count,
+    )
+    return {
+        "session_id": session.session_id,
+        "status": "open",
+        "declared_items": declared_items,
+        "chunks_expected": chunk_count,
+        "chunks_received": 0,
+    }
+
+
+async def append_migration_chunk(
+    session_id: str,
+    chunk_index: int,
+    chunk_data: str,
+    chunk_sha256: str,
+    ctx: Context,
+    dev_token: str = "",
+) -> dict[str, Any]:
+    """Stage one verified chunk of the items.json (UC-681).
+
+    Verifies the chunk's SHA-256 on arrival (corruption caught in transport,
+    not mid-write) and accumulates it. Reuses the cached identity from the
+    ``start`` — no Postgres round-trip per chunk within the TTL.
+
+    Returns an envelope: ``accepted`` / ``CHUNK_HASH_MISMATCH`` /
+    ``SESSION_NOT_FOUND`` / ``DUPLICATE_CHUNK_INDEX`` / ``UNAUTHENTICATED`` /
+    ``FORBIDDEN_SESSION``.
+    """
+    from ..coordination.identity import UnauthenticatedError
+    from ..migration.batch_session import get_session_store
+
+    store = get_session_store()
+    session = store.get(session_id)
+    if session is None:
+        return {"status": "SESSION_NOT_FOUND", "session_id": session_id}
+
+    # The caller must be the developer who opened the session — a leaked
+    # session_id cannot be driven by another token.
+    try:
+        if not (dev_token or "").strip():
+            raise UnauthenticatedError()
+        if _dev_id_from_token(dev_token) != session.developer_id:
+            return {"status": "FORBIDDEN_SESSION", "session_id": session_id}
+    except UnauthenticatedError:
+        return _unauthenticated(ctx)
+
+    return store.append_chunk(
+        session_id=session_id,
+        chunk_index=chunk_index,
+        chunk_data=chunk_data,
+        chunk_sha256=chunk_sha256,
+    )
+
+
+async def commit_migration_session(
+    session_id: str,
+    ctx: Context,
+    confirmed_count: int,
+    dev_token: str = "",
+) -> dict[str, Any]:
+    """Verify integrity and atomically ingest the staged source (UC-682).
+
+    Pre-flight (BEFORE any write): all chunks present, reassembled SHA-256 ==
+    declared, parsed item count == declared == confirmed_count. Then a single
+    transactional ``ingest_atomic`` writes US/UC/AC — all-or-nothing. On success
+    the staging is freed.
+
+    Returns: ``committed`` / ``PREFLIGHT_FAILED`` / ``COMMIT_FAILED`` /
+    ``SESSION_NOT_FOUND`` / ``FORBIDDEN_SESSION`` / ``UNAUTHENTICATED``.
+    """
+    from ..coordination.identity import UnauthenticatedError
+    from ..migration.batch_session import get_session_store
+    from ..migration.integrity import sha256_hex
+
+    store = get_session_store()
+    session = store.get(session_id)
+    if session is None:
+        return {"status": "SESSION_NOT_FOUND", "session_id": session_id}
+
+    try:
+        if not (dev_token or "").strip():
+            raise UnauthenticatedError()
+        if _dev_id_from_token(dev_token) != session.developer_id:
+            return {"status": "FORBIDDEN_SESSION", "session_id": session_id}
+    except UnauthenticatedError:
+        return _unauthenticated(ctx)
+
+    # ── Pre-flight global integrity (no write happens if any of these fail) ──
+    if session.chunks_received != session.chunks_expected:
+        return {
+            "status": "PREFLIGHT_FAILED",
+            "reason": "incomplete_chunks",
+            "chunks_received": session.chunks_received,
+            "chunks_expected": session.chunks_expected,
+        }
+    reassembled = session.reassemble()
+    actual_hash = sha256_hex(reassembled)
+    if actual_hash != session.source_sha256:
+        return {
+            "status": "PREFLIGHT_FAILED",
+            "reason": "source_hash_mismatch",
+            "expected": session.source_sha256,
+            "actual": actual_hash,
+        }
+
+    # Parse the reassembled source in memory (never the server filesystem).
+    from ..backends.freeform_backend import FreeformBackend
+
+    src_backend = FreeformBackend(items_content=reassembled)
+    try:
+        source = await _read_source(src_backend, ".")
+    except Exception as exc:  # noqa: BLE001 - bad source = preflight failure, not a write
+        return {"status": "PREFLIGHT_FAILED", "reason": f"unparseable_source: {exc}"}
+    finally:
+        await src_backend.close()
+
+    parsed_count = (
+        len(source["classified"]["us"])
+        + len(source["classified"]["uc"])
+        + sum(len(v) for v in source.get("ac_data", {}).values())
+    )
+    if parsed_count != session.declared_items or session.declared_items != confirmed_count:
+        return {
+            "status": "PREFLIGHT_FAILED",
+            "reason": "count_mismatch",
+            "parsed": parsed_count,
+            "declared": session.declared_items,
+            "confirmed": confirmed_count,
+        }
+
+    # ── Atomic write (all-or-nothing) ───────────────────────────────────────
+    from ..backends.native_backend import NativeBackend
+
+    backend = NativeBackend(project_id=session.target_project_id, dev_token=dev_token)
+    try:
+        result = await backend.ingest_atomic(
+            session.target_project_id, source, source_type=session.source_type
+        )
+    except Exception as exc:  # noqa: BLE001 - transaction already rolled back
+        logger.error("commit_migration_failed", session_id=session_id, error=str(exc))
+        return {
+            "status": "COMMIT_FAILED",
+            "failing_phase": "ingest_atomic",
+            "error": str(exc),
+        }
+
+    store.close(session_id)  # free the staging (AC-11)
+    return {
+        "status": "committed",
+        "migrated": result["migrated"],
+        "skipped": result["skipped"],
+        "target_id": session.target_project_id,
+    }
+
+
+async def _commit_batch_session(
+    session_id: str, target_id: str, dev_token: str, source_type: str
+) -> dict[str, Any]:
+    """Reassemble + verify + atomically ingest a staged session (UC-683 helper).
+
+    Shared by ``commit_migration_session`` (standalone) and the ``_write`` step
+    of ``switch_project_backend``. Returns the same envelope shape.
+    """
+    from ..backends.freeform_backend import FreeformBackend
+    from ..backends.native_backend import NativeBackend
+    from ..migration.batch_session import get_session_store
+    from ..migration.integrity import sha256_hex
+
+    store = get_session_store()
+    session = store.get(session_id)
+    if session is None:
+        return {"status": "SESSION_NOT_FOUND", "session_id": session_id}
+    if session.chunks_received != session.chunks_expected:
+        return {
+            "status": "PREFLIGHT_FAILED",
+            "reason": "incomplete_chunks",
+            "chunks_received": session.chunks_received,
+            "chunks_expected": session.chunks_expected,
+        }
+    reassembled = session.reassemble()
+    actual_hash = sha256_hex(reassembled)
+    if actual_hash != session.source_sha256:
+        return {"status": "PREFLIGHT_FAILED", "reason": "source_hash_mismatch"}
+
+    src_backend = FreeformBackend(items_content=reassembled)
+    try:
+        source = await _read_source(src_backend, ".")
+    except Exception as exc:  # noqa: BLE001
+        return {"status": "PREFLIGHT_FAILED", "reason": f"unparseable_source: {exc}"}
+    finally:
+        await src_backend.close()
+
+    backend = NativeBackend(project_id=target_id, dev_token=dev_token)
+    try:
+        result = await backend.ingest_atomic(target_id, source, source_type=source_type)
+    except Exception as exc:  # noqa: BLE001 - transaction rolled back
+        return {"status": "COMMIT_FAILED", "failing_phase": "ingest_atomic", "error": str(exc)}
+
+    store.close(session_id)
+    return {"status": "committed", "migrated": result["migrated"], "skipped": result["skipped"]}
+
+
+def _unauthenticated(ctx: Context) -> dict[str, Any]:
+    """Build the canonical UNAUTHENTICATED payload, locale-aware from ctx."""
+    from ..coordination.i18n_messages import (
+        extract_locale_from_ctx,
+        unauthenticated_payload,
+    )
+
+    return unauthenticated_payload(locale=extract_locale_from_ctx(ctx))
+
+
+def _dev_id_from_token(dev_token: str) -> str:
+    """Stable per-token owner key for the session store.
+
+    The session only needs a consistent owner identifier across start/append/
+    commit; the authoritative identity check is the cached gate at ``start`` and
+    the membership re-check inside ``ingest_atomic``. A hash of the token is a
+    stable key that never stores the token itself.
+    """
+    from ..coordination.identity import hash_token
+
+    return hash_token(dev_token)
+
+
 def register_migration_tools(mcp_instance) -> None:
     """Register migration tools on the given FastMCP instance."""
 
@@ -1156,3 +1471,21 @@ def register_migration_tools(mcp_instance) -> None:
         "with end-to-end rollback. dry_run=True previews read_counts; confirm the "
         "count to execute."
     )(switch_project_backend)
+
+    mcp_instance.tool(
+        description="Open a batch-migration session to ingest a large freeform "
+        "items.json into Native by chunks (UC-680). Validates the dev_token once "
+        "and stages nothing in Postgres. Returns a session_id for append/commit."
+    )(start_migration_session)
+
+    mcp_instance.tool(
+        description="Append one hash-verified chunk of the items.json to an open "
+        "migration session (UC-681). Corruption is caught on arrival, not "
+        "mid-write. Reuses the cached identity — no Postgres round-trip per chunk."
+    )(append_migration_chunk)
+
+    mcp_instance.tool(
+        description="Verify integrity (all chunks + reassembled hash + item count) "
+        "and atomically ingest the staged source into Native in one transaction "
+        "(UC-682). All-or-nothing: a mid-write failure rolls back everything."
+    )(commit_migration_session)

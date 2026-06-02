@@ -13,14 +13,86 @@ UC-402. ``write_target`` writes the workflow state exactly as it arrives in
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any
 
 import structlog
 
-from ..spec_backend import SpecBackend, parse_item_id
+from ..spec_backend import ItemDTO, SpecBackend, parse_item_id
 from ..tools.migration import ENGINE_SOURCE, _build_external_id
 
 logger = structlog.get_logger(__name__)
+
+
+@dataclass
+class PlannedUC:
+    """A UC plus its resolved source-parent id and its acceptance criteria."""
+
+    item: ItemDTO
+    source_parent_id: str  # the SOURCE item id of the parent US ("" if none)
+    labels: list[str]
+    acs: list[dict[str, Any]] = field(default_factory=list)
+
+
+@dataclass
+class WritePlan:
+    """A deterministic, I/O-free plan of what ``write_target`` would write.
+
+    Extracted from the body of ``write_target`` so the same classification +
+    parent-resolution + ordering logic feeds both the generic multi-backend
+    writer AND the native atomic ingestion (``NativeBackend.ingest_atomic``)
+    without duplicating it. Building the plan touches no backend.
+    """
+
+    us_items: list[ItemDTO]
+    ucs: list[PlannedUC]
+    comments_data: dict[str, list[dict[str, Any]]]
+    src_type: str
+
+
+def build_write_plan(source_data: dict[str, Any], source_type: str | None = None) -> WritePlan:
+    """Turn a ``_read_source`` payload into an ordered, I/O-free WritePlan.
+
+    Resolves each UC's parent (explicit ``parent_id`` first, else the US whose
+    logical ``us_id`` matches the UC's ``meta['us_id']``) and attaches its ACs —
+    the exact logic ``write_target`` runs inline, but as plain data so a
+    transactional consumer can replay it on a single connection.
+    """
+    src_type = source_type or source_data.get("source_type") or "unknown"
+    classified = source_data["classified"]
+    ac_data: dict[str, list[dict[str, Any]]] = source_data.get("ac_data", {})
+    comments_data: dict[str, list[dict[str, Any]]] = source_data.get("comments_data", {})
+
+    ucs: list[PlannedUC] = []
+    for uc_item in classified["uc"]:
+        source_parent = uc_item.parent_id or ""
+        if not source_parent and uc_item.meta.get("us_id"):
+            for us in classified["us"]:
+                pid, _ = parse_item_id(us.name, "US")
+                if pid == uc_item.meta["us_id"]:
+                    source_parent = us.id
+                    break
+
+        uc_labels = ["UC"]
+        actor = uc_item.meta.get("actor", "")
+        if actor and actor != "Todos":
+            uc_labels.append(f"Actor:{actor}")
+
+        ucs.append(
+            PlannedUC(
+                item=uc_item,
+                source_parent_id=source_parent,
+                labels=uc_labels,
+                acs=ac_data.get(uc_item.id, []),
+            )
+        )
+
+    return WritePlan(
+        us_items=list(classified["us"]),
+        ucs=ucs,
+        comments_data=comments_data,
+        src_type=src_type,
+    )
 
 
 async def write_target(

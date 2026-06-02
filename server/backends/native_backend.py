@@ -603,6 +603,194 @@ class NativeBackend(SpecBackend):
         logger.info("native_item_created", item_id=db_id, type="AC")
         return self._ac_row_to_item_dto(row)
 
+    async def _insert_comment_on_conn(
+        self, conn: asyncpg.Connection, board_id: str, item_id: str, text: str
+    ) -> None:
+        """Append a comment to a US/UC row's ``meta.comments`` on a shared conn.
+
+        Mirrors :meth:`add_comment` but reuses the caller's transactional
+        connection (used by :meth:`ingest_atomic`). No identity re-check here —
+        the caller already validated membership for the whole transaction.
+        """
+        from datetime import datetime, timezone
+
+        created_at = datetime.now(timezone.utc).isoformat()
+        comment = {"text": text, "created_at": created_at, "author": "native"}
+        table = await self._locate_us_or_uc(conn, board_id, item_id)
+        if table is None:
+            return  # parent not found in this batch — skip (best-effort, like write_target)
+        await conn.execute(
+            f"""
+            UPDATE {table}
+            SET meta = jsonb_set(
+                    meta,
+                    '{{comments}}',
+                    COALESCE(meta->'comments', '[]'::jsonb) || $3::jsonb
+                ),
+                updated_at = now()
+            WHERE project_id = $1 AND id = $2
+            """,
+            board_id,
+            item_id,
+            _jsonb([comment]),
+        )
+
+    async def ingest_atomic(
+        self,
+        board_id: str,
+        source_data: dict[str, Any],
+        *,
+        source_type: str | None = None,
+    ) -> dict[str, Any]:
+        """Write a whole ``_read_source`` payload in ONE transaction (UC-682).
+
+        This is the atomic write path for batch ingestion. Unlike the generic
+        :func:`server.migration.writer.write_target` (which calls ``create_item``
+        per item, each acquiring its own connection and using per-item
+        try/except — so a mid-way failure leaves earlier items written), this
+        method acquires a SINGLE connection, opens a SINGLE transaction, and runs
+        all three phases (US, UC+AC, comments) on it. Any exception propagates
+        and the transaction rolls back **everything** — there is no
+        partially-migrated state (UC-682 AC-10).
+
+        Idempotency matches ``write_target``: US/UC already present (matched by
+        logical id) are skipped, not duplicated. UC workflow states are written
+        verbatim — ``done`` stays ``done``, ``backlog`` stays ``backlog`` (AC-12);
+        no degrade-to-backlog.
+
+        Args:
+            board_id: The native ``project_id`` (tenant) to write into.
+            source_data: Payload from ``_read_source``.
+            source_type: Source backend type for the traceability external_id.
+
+        Returns:
+            ``{"migrated": {us, uc, ac, comments}, "skipped": int, "id_map": {...}}``.
+        """
+        from ..migration.writer import build_write_plan
+        from ..tools.migration import ENGINE_SOURCE, _build_external_id
+
+        # Re-validate identity + membership at commit time. The session may have
+        # been open longer than the 30s identity-cache TTL during a slow
+        # multi-chunk upload; this guarantees a revoked token cannot commit.
+        await self._require_membership_cached()
+
+        plan = build_write_plan(source_data, source_type)
+        id_map: dict[str, str] = {}  # source_item_id -> target db id
+        migrated = {"us": 0, "uc": 0, "ac": 0, "comments": 0}
+        skipped = 0
+
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                # ── Phase 1: User Stories ────────────────────────────
+                for us_item in plan.us_items:
+                    us_id, _ = parse_item_id(us_item.name, "US")
+                    existing = await conn.fetchval(
+                        "SELECT id FROM user_stories WHERE project_id = $1 AND id = $2",
+                        board_id,
+                        us_id,
+                    )
+                    if existing:
+                        id_map[us_item.id] = existing
+                        skipped += 1
+                        continue
+                    labels = list(us_item.labels) if "US" in us_item.labels else ["US", *us_item.labels]
+                    meta = {**us_item.meta, "us_id": us_id, "tipo": "US"}
+                    await conn.execute(
+                        """
+                        INSERT INTO user_stories
+                            (id, project_id, name, description, state, labels, priority,
+                             external_source, external_id, meta)
+                        VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10::jsonb)
+                        """,
+                        us_id,
+                        board_id,
+                        us_item.name,
+                        us_item.description,
+                        us_item.state or "user_stories",
+                        _jsonb(labels),
+                        us_item.priority,
+                        ENGINE_SOURCE,
+                        _build_external_id(plan.src_type, us_item.id),
+                        _jsonb(meta),
+                    )
+                    id_map[us_item.id] = us_id
+                    migrated["us"] += 1
+
+                # ── Phase 2: Use Cases (+ acceptance criteria) ───────
+                for puc in plan.ucs:
+                    uc_item = puc.item
+                    uc_id, _ = parse_item_id(uc_item.name, "UC")
+                    existing = await conn.fetchval(
+                        "SELECT id FROM use_cases WHERE project_id = $1 AND id = $2",
+                        board_id,
+                        uc_id,
+                    )
+                    if existing:
+                        id_map[uc_item.id] = existing
+                        skipped += 1
+                        continue
+                    target_parent = id_map.get(puc.source_parent_id)
+                    meta = {**uc_item.meta, "uc_id": uc_id, "tipo": "UC"}
+                    await conn.execute(
+                        """
+                        INSERT INTO use_cases
+                            (id, project_id, us_id, name, description, state, labels,
+                             priority, external_source, external_id, meta)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11::jsonb)
+                        """,
+                        uc_id,
+                        board_id,
+                        target_parent,
+                        uc_item.name,
+                        uc_item.description,
+                        uc_item.state,  # verbatim — no degrade (AC-12)
+                        _jsonb(puc.labels),
+                        uc_item.priority,
+                        ENGINE_SOURCE,
+                        _build_external_id(plan.src_type, uc_item.id),
+                        _jsonb(meta),
+                    )
+                    id_map[uc_item.id] = uc_id
+                    migrated["uc"] += 1
+
+                    for ac in puc.acs:
+                        ac_id = ac["id"]
+                        await conn.execute(
+                            """
+                            INSERT INTO acceptance_criteria
+                                (id, project_id, uc_id, ac_id, text, done, meta)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+                            """,
+                            f"{uc_id}::{ac_id}",
+                            board_id,
+                            uc_id,
+                            ac_id,
+                            ac["text"],
+                            bool(ac.get("done")),
+                            _jsonb({"ac_id": ac_id, "tipo": "AC"}),
+                        )
+                        migrated["ac"] += 1
+
+                # ── Phase 3: Comments (audit trail) ──────────────────
+                for source_item_id, comments in plan.comments_data.items():
+                    target_item_id = id_map.get(source_item_id)
+                    if not target_item_id:
+                        continue
+                    for comment in comments:
+                        ts = comment.get("created_at", "")
+                        text = f"[Migrated from {plan.src_type} — {ts}]\n{comment['text']}"
+                        await self._insert_comment_on_conn(conn, board_id, target_item_id, text)
+                        migrated["comments"] += 1
+
+        logger.info(
+            "native_ingest_atomic_complete",
+            project_id=board_id,
+            migrated=migrated,
+            skipped=skipped,
+        )
+        return {"migrated": migrated, "skipped": skipped, "id_map": id_map}
+
     async def update_item(
         self,
         board_id: str,

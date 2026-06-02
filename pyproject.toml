@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "6.9.2"
-description = "SpecBox Engine v6.9.2 — Batch Ingest: large freeform sources migrate into Native by SHA-256-verified chunks (start → append × N → commit) accumulated server-side and written in one atomic transaction. Closes the v6.9.1 transport gap where a real items.json (133 KB) did not fit in a single source_content tool parameter (US-NATIVE-BATCH-INGEST)."
+version = "6.9.3"
+description = "SpecBox Engine v6.9.3 — Tenant Provisioning: a from-scratch Native migration auto-provisions the tenant + creator as project_admin server-side before the membership gate, and a canonical owner/repo project_id contract (with a derived display slug) is shared engine↔panel. Closes the two v6.9.2 dogfooding gaps that blocked the first 'upload my project to Cloud' (US-NATIVE-PROVISION)."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.3.1,<4.0.0",

@@ -2,6 +2,44 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.9.3] - 2026-06-03 — "Tenant Provisioning"
+
+Cierra los **dos gaps combinados** descubiertos en dogfooding v6.9.2 al migrar `specbox_cloud` freeform→native **de cero**: el transporte por lotes funcionó, pero la migración se bloqueó en `start_migration_session` con `Developer X is not a member of project EmbedBuild/specbox_cloud`. **GAP 1**: el path batch no provisionaba `public.projects` + `public.project_members` cuando el proyecto nace de cero (huevo-gallina enforced por la FK `project_members→projects`). **GAP 2**: engine (`owner/repo`) y panel (slug) nunca acordaron el formato de `project_id`. US-NATIVE-PROVISION — 6 UC (UC-818..823), PR #89.
+
+### Added
+
+- **`server/coordination/project_id.py`** (UC-818) — contrato canónico, punto único de verdad compartido engine↔panel: `canonical_project_id(owner, repo) → "owner/repo"` (identidad, case-preserving), `display_slug(project_id) → "owner-repo"` (proyección URL-safe, idempotente), `validate_project_id` (rechaza malformados con `InvalidProjectIdError`). Funciones puras.
+- **`provision_native_project()`** (`server/migration/native_handling.py`, UC-820) — UPSERT `public.projects` + `seed_native_identity(role="project_admin")` para el caller + fila `audit_log` (`OP_PROVISION_PROJECT`), todo en **una transacción**. Idempotente; nunca degrada un admin existente (decisión D2).
+- **`_maybe_auto_provision`** (`server/tools/migration.py`, UC-821) — `start_migration_session` auto-provisiona el tenant + creador antes del gate de membresía cuando el target nace de cero, rompiendo el huevo-gallina. Resuelve el `developer_id` real del token y limpia la cache de auth para que el gate relea la membresía fresca.
+- **`tests/test_native_provision.py`** (UC-822) — 15 tests (4 puros + 11 Postgres-gated). E2E `test_e2e_provision_then_migrate_from_scratch`: BD vacía → start (auto-provisión) → append → commit → verifica project_id canónico, creador `project_admin`, 1 US / 40 UC / 120 AC con estados done/backlog preservados, display_slug correcto. El camino que no tenía cobertura y por el que pasó el gap de v6.9.2.
+- **`doc/decisions/native_project_id_contract.md`** (UC-823) — declara D1 + D2 como decisiones canónicas y documenta el cambio coordinado requerido en el panel (`specbox_cloud`).
+
+### Changed
+
+- **`seed_native_identity`** gana parámetro `role` (default `member`); lo propaga a `add_project_member` (UC-819).
+- **`add_project_member`** valida `role` contra `VALID_PROJECT_ROLES` (`{project_admin, member}`) antes del INSERT — un rol arbitrario nunca se persiste (UC-819 AC-06).
+- **`server/coordination/audit.py`** — nueva constante `OP_PROVISION_PROJECT` (operación auditada no destructiva).
+- **`app_spec.md` §6** — D1 (`native_project_id_contract`) + D2 (`native_provision_authority`) registradas como decisiones canónicas del engine.
+
+### Fixed
+
+- **`start_migration_session`** ahora captura `ForbiddenError` y devuelve un envelope `FORBIDDEN` limpio. Un token válido que no es miembro de un proyecto **pre-existente** era antes un crash sin capturar — la superficie original del error "not a member" del hallazgo. Un proyecto pre-existente del que el caller no es miembro NO se auto-une (§6 del panel acotado a excepción de bootstrap, UC-821 AC-13).
+
+### Decisions
+
+- **D1 — `native_project_id_contract` = `owner/repo` + display slug derivado**: identidad `owner/repo` (cero migración de ids existentes, sin colisión cross-owner, trazabilidad GitHub); slug solo para URLs. Punto único de normalización.
+- **D2 — `native_provision_authority` = el engine auto-provisiona al creador como `project_admin` (excepción de bootstrap)**: el panel sigue siendo el único editor de **otros** miembros; el engine solo auto-provisiona al propio creador en una migración de cero.
+
+### Compatibility
+
+- 100% backwards-compatible. El path no-batch (`migrate_backend`) y los proyectos ya provisionados quedan intactos. Cero migración de `project_id` existentes (ya son `owner/repo`).
+- Cambio coordinado en el repo del panel (`specbox_cloud`): relajar la validación INSERT de `apps/api/src/routes/projects.ts:140,173` para aceptar `owner/repo` en native + derivar el display slug con el contrato compartido. Se implementa en su propio repo.
+
+### Tests
+
+- 15 nuevos tests en `tests/test_native_provision.py`, todos verdes (4 puros UC-818 + 11 Postgres-gated). Suite native/coordination/migration/audit sin regresión: **402 passed**.
+- Pre-existing failures on `main` (`tests/test_spec_mutations.py`, 7 tests, fixture stale `_fake_get_session_backend`) permanecen — verificadas idénticas en el commit base, fuera del alcance de esta release.
+
 ## [6.9.2] - 2026-06-02 — "Batch Ingest"
 
 Cierra el gap de **transporte** de v6.9.1 descubierto en dogfooding: la lógica del switch-backend funcionaba, pero `switch_project_backend` con `source_type='freeform'` exigía el `items.json` completo como **un único string** (`source_content`), y un board real (`specbox_cloud`: 133 KB / 568 ítems) no cabe fiablemente en un parámetro de tool sin riesgo de truncado/corrupción silenciosa. El MCP es siempre remoto desde v6.7.0. La migración a Native ahora cruza por **ingesta por lotes server-side**: `start → append × N → commit`, troceo verificable por SHA-256, escritura en **una transacción atómica**. US-NATIVE-BATCH-INGEST — 5 UC (UC-680..684), PR #88.

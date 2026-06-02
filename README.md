@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.9.2 — "Batch Ingest" (sobre v6.9.1 "Atomic Switch", v6.9.0 "Self-Provisioning", v6.8.0 "Connectivity UX")<br/>
+  v 6.9.3 — "Tenant Provisioning" (sobre v6.9.2 "Batch Ingest", v6.9.1 "Atomic Switch", v6.9.0 "Self-Provisioning")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -38,6 +38,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 **v6.9.1 — "Atomic Switch"** cambiar de backend (incl. hacia/desde Cloud/Native) pasa a ser **una sola operación atómica todo-o-nada**: el nuevo `switch_project_backend` migra datos + asocia identidad + conmuta la config + reporta lo descartado en una llamada con rollback total. Cierra además el path-bug de MCP remoto: el source se lee del cliente (content-passing), nunca del filesystem del servidor.
 
 **v6.9.2 — "Batch Ingest"** subir un proyecto freeform real (133 KB / cientos de ítems) a Cloud/Native ya funciona end-to-end: la migración cruza por **lotes verificables** (`start → append × N → commit`, SHA-256 por chunk) que el servidor reensambla y escribe en **una transacción atómica** (rollback total ante fallo). Cierra el gap de transporte de v6.9.1 — el `items.json` ya no tiene que caber en un único parámetro de tool.
+
+**v6.9.3 — "Tenant Provisioning"** subir un proyecto a Cloud/Native **de cero** ya funciona: la migración **auto-aprovisiona** el tenant + tu membresía como `project_admin` server-side antes del gate (rompe el huevo-gallina "no eres miembro de un proyecto que aún no existe"), y engine y panel acuerdan un único formato de `project_id` (`owner/repo` canónico + slug derivado para URLs). Cierra los 2 gaps de v6.9.2.
 
 ---
 
@@ -414,7 +416,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.9.2 — "Batch Ingest" (over v6.9.1 "Atomic Switch", v6.9.0 "Self-Provisioning", v6.8.0 "Connectivity UX")
+> v 6.9.3 — "Tenant Provisioning" (over v6.9.2 "Batch Ingest", v6.9.1 "Atomic Switch", v6.9.0 "Self-Provisioning")
 
 ## What is this?
 
@@ -440,6 +442,8 @@ A system that turns Claude Code into a serious teammate:
 **v6.9.1 — "Atomic Switch"** changing a project's backend (incl. to/from Cloud/Native) becomes **one all-or-nothing operation**: the new `switch_project_backend` migrates data + seeds identity + switches the config + reports what was discarded in a single call with full rollback. It also closes the remote-MCP path bug: the source is read from the client (content-passing), never the server filesystem.
 
 **v6.9.2 — "Batch Ingest"** uploading a real freeform project (133 KB / hundreds of items) to Cloud/Native now works end-to-end: the migration crosses in **verifiable chunks** (`start → append × N → commit`, SHA-256 per chunk) that the server reassembles and writes in **one atomic transaction** (full rollback on failure). Closes the v6.9.1 transport gap — the `items.json` no longer has to fit in a single tool parameter.
+
+**v6.9.3 — "Tenant Provisioning"** uploading a project to Cloud/Native **from scratch** now works: the migration **auto-provisions** the tenant + your membership as `project_admin` server-side before the gate (breaks the egg-chicken "you're not a member of a project that doesn't exist yet"), and engine and panel agree on a single `project_id` format (canonical `owner/repo` + a derived slug for URLs). Closes the two v6.9.2 gaps.
 
 ---
 

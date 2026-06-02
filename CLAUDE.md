@@ -1,4 +1,4 @@
-# SpecBox Engine v6.9.2
+# SpecBox Engine v6.9.3
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1637,7 +1637,7 @@ el contrato compartido. Documentado en `doc/decisions/native_project_id_contract
 
 ## Engine Version
 
-Current: v6.9.2 "Batch Ingest"
+Current: v6.9.3 "Tenant Provisioning"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

@@ -11368,7 +11368,7 @@
       "US"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": null,
     "meta": {
       "tipo": "US",
@@ -11389,7 +11389,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-prov-e72505ea",
     "meta": {
       "tipo": "UC",
@@ -11472,7 +11472,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-prov-e72505ea",
     "meta": {
       "tipo": "UC",
@@ -11555,7 +11555,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-prov-e72505ea",
     "meta": {
       "tipo": "UC",
@@ -11658,7 +11658,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-prov-e72505ea",
     "meta": {
       "tipo": "UC",
@@ -11741,7 +11741,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-prov-e72505ea",
     "meta": {
       "tipo": "UC",
@@ -11844,7 +11844,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-prov-e72505ea",
     "meta": {
       "tipo": "UC",

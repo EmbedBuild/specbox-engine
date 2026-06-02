@@ -1,8 +1,8 @@
-version: 6.9.2
-codename: "Batch Ingest"
+version: 6.9.3
+codename: "Tenant Provisioning"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-06-02
+release_date: 2026-06-03
 min_claude_code: "1.0.0"
 
 stacks:
@@ -406,6 +406,16 @@ features:
   - vscode-managed-engine-autopull
 
 changelog:
+  6.9.3:
+    date: 2026-06-03
+    codename: "Tenant Provisioning"
+    changes:
+      - "feat: Provision tenant + creator membership server-side when a Native project is born from scratch, closing GAP 1 from the v6.9.2 dogfooding. The batch path (start → append → commit) never created public.projects + public.project_members, so the membership gate blocked the very first 'upload my project to Cloud' (egg-chicken bind enforced by the project_members→projects FK). start_migration_session now auto-provisions before the gate via _maybe_auto_provision when the target is from scratch (US-NATIVE-PROVISION, UC-820/821, PR #89)."
+      - "feat: Canonical project_id contract (D1) — server/coordination/project_id.py is the single source of truth shared engine↔panel: canonical_project_id / display_slug / validate_project_id. The stored identity is owner/repo (case-preserving); the URL-safe slug (owner-repo) is a derived projection for URLs only. Zero migration of existing ids, no cross-owner collision, direct GitHub traceability (UC-818, GAP 2)."
+      - "feat: provision_native_project() — atomic tenant UPSERT + seed_native_identity(role='project_admin') + audit_log row (OP_PROVISION_PROJECT) in one transaction; idempotent and never degrades an existing admin (UC-820, decision D2). seed_native_identity gains a role param; add_project_member validates VALID_PROJECT_ROLES before INSERT (UC-819)."
+      - "fix: start_migration_session now catches ForbiddenError and returns a clean FORBIDDEN envelope. A valid token that is not a member of a pre-existing project was previously an uncaught crash — this was the original 'not a member' surface from the hallazgo. A pre-existing project the caller is not a member of is NOT auto-joined (panel §6 narrowed to a bootstrap exception, UC-821 AC-13)."
+      - "test: tests/test_native_provision.py — 15 passed (4 pure UC-818 + 11 Postgres-gated). E2E test_e2e_provision_then_migrate_from_scratch crosses empty DB → start (auto-provision) → append → commit → verify canonical project_id, creator project_admin, 1 US / 40 UC / 120 AC with done/backlog states preserved, display_slug correct — the path that had no coverage and let the v6.9.2 gap ship (UC-822). Native suite no-regression: 402 passed."
+      - "docs: Decisions D1 (native_project_id_contract) and D2 (native_provision_authority) registered as canonical decisions in app_spec.md §6 + doc/decisions/native_project_id_contract.md, which also documents the coordinated change required in the panel repo (specbox_cloud: relax projects.ts INSERT validation for native + derive display slug, UC-823)."
   6.9.2:
     date: 2026-06-02
     codename: "Batch Ingest"

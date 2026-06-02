@@ -10364,7 +10364,7 @@
       "US"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": null,
     "meta": {
       "tipo": "US",
@@ -10373,7 +10373,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T19:50:00+00:00"
+    "updated_at": "2026-06-02T21:45:00Z"
   },
   {
     "id": "item-bsn-uc-810",
@@ -10385,7 +10385,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10396,13 +10396,13 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T19:50:00+00:00"
+    "updated_at": "2026-06-02T21:45:00Z"
   },
   {
     "id": "ac-bsn-uc-810-ac-01",
     "name": "[AC-01] Dado un MCP remoto y source_type='freeform', cuando se llama migrate_preview con source_content=<items.json del cliente como string>, entonces el preview reporta exactamente el conteo de US/UC/AC presente en ese contenido (p.ej. 11 US / 88 UC) y NO ejecuta ningun Path.resolve() ni list_items contra el filesystem del servidor (con SPECBOX_ENGINE_MCP_URL seteado y un items.json de 11/88 pasado, el resultado es 11/88, nunca 22/112 ni 0/0).",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-810",
     "labels": [
       "AC"
@@ -10411,7 +10411,7 @@
     "meta": {
       "ac_id": "AC-01",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10419,7 +10419,7 @@
     "id": "ac-bsn-uc-810-ac-02",
     "name": "[AC-02] Dado source_content=None y source_type='freeform', cuando se llama migrate_preview, entonces retorna un error explicito 'freeform source requires source_content (read items.json on the client)' en vez de leer el FS del servidor.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-810",
     "labels": [
       "AC"
@@ -10428,7 +10428,7 @@
     "meta": {
       "ac_id": "AC-02",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10436,7 +10436,7 @@
     "id": "ac-bsn-uc-810-ac-03",
     "name": "[AC-03] Dado source_type en {trello, plane}, cuando se llama migrate_preview sin source_content, entonces el source se lee de la API del backend (comportamiento legitimo server-side) y el preview reporta el conteo de la API.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-810",
     "labels": [
       "AC"
@@ -10445,7 +10445,7 @@
     "meta": {
       "ac_id": "AC-03",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10459,7 +10459,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10470,13 +10470,13 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T19:50:00+00:00"
+    "updated_at": "2026-06-02T21:45:00Z"
   },
   {
     "id": "ac-bsn-uc-811-ac-04",
     "name": "[AC-04] Dado un dry-run que lee 0 US / 0 UC del source, cuando el cliente intenta dry_run=False, entonces la operacion retorna error 'refusing to execute: dry-run read 0 items - source path/content likely wrong' y no escribe nada en el target.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-811",
     "labels": [
       "AC"
@@ -10485,7 +10485,7 @@
     "meta": {
       "ac_id": "AC-04",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10493,7 +10493,7 @@
     "id": "ac-bsn-uc-811-ac-05",
     "name": "[AC-05] Dado un dry-run que reporta read_counts={us:11, uc:88}, cuando el cliente llama el execute con confirmed_count={us:11, uc:88} entonces procede; cuando llama con confirmed_count distinto (p.ej. {us:22, uc:112}) o ausente, entonces retorna error 'count mismatch: preview read 11/88, execute confirmed 22/112' y no escribe nada.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-811",
     "labels": [
       "AC"
@@ -10502,7 +10502,7 @@
     "meta": {
       "ac_id": "AC-05",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10516,7 +10516,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10527,13 +10527,13 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T19:50:00+00:00"
+    "updated_at": "2026-06-02T21:45:00Z"
   },
   {
     "id": "ac-bsn-uc-812-ac-06",
     "name": "[AC-06] Dado un proyecto freeform y switch_project_backend(target_type='native', source_content=<11/88>, dev_token=<valido>, dry_run=False, confirmed_count={us:11,uc:88}), cuando se ejecuta, entonces en una sola llamada: (1) se crea el proyecto en Postgres, (2) se copian las 11 US / 88 UC / AC, (3) se asocia el developer como project_admin, (4) se actualizan los 3 lugares de config; y el resultado lista los 4 sub-pasos como completed.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-812",
     "labels": [
       "AC"
@@ -10542,7 +10542,7 @@
     "meta": {
       "ac_id": "AC-06",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10550,7 +10550,7 @@
     "id": "ac-bsn-uc-812-ac-07",
     "name": "[AC-07] Dado que el paso de switch transaccional (escritura de los 3 lugares) falla tras haber escrito Postgres, cuando ocurre el fallo, entonces se hace rollback de la migracion de datos (el proyecto Postgres queda en su estado previo: vacio si no existia) y el resultado reporta rolled_back=true con failing_step nombrado, dejando el proyecto en su backend original.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-812",
     "labels": [
       "AC"
@@ -10559,7 +10559,7 @@
     "meta": {
       "ac_id": "AC-07",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10567,7 +10567,7 @@
     "id": "ac-bsn-uc-812-ac-08",
     "name": "[AC-08] Dado que switch_project_backend se ejecuta con exito, cuando se inspeccionan las tools MCP publicas, entonces migrate_backend y switch_backend o bien no figuran como interfaz publica recomendada o bien emiten una nota 'prefer switch_project_backend for atomic switches' en su respuesta.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-812",
     "labels": [
       "AC"
@@ -10576,7 +10576,7 @@
     "meta": {
       "ac_id": "AC-08",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10590,7 +10590,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10601,13 +10601,13 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T19:50:00+00:00"
+    "updated_at": "2026-06-02T21:45:00Z"
   },
   {
     "id": "ac-bsn-uc-813-ac-09",
     "name": "[AC-09] Dado target_type='native' y dev_token ausente o vacio, cuando se llama switch_project_backend (incluso con dry_run=True), entonces retorna error 'native target requires dev_token from the Cloud panel' ANTES de leer el source o escribir nada (fail-fast verificable: ningun INSERT en Postgres, ningun read del source).",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-813",
     "labels": [
       "AC"
@@ -10616,7 +10616,7 @@
     "meta": {
       "ac_id": "AC-09",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10624,7 +10624,7 @@
     "id": "ac-bsn-uc-813-ac-10",
     "name": "[AC-10] Dado un source con US/UC en estados mixtos (p.ej. una US done, una UC in_progress, otra review), cuando se migra a native con switch_project_backend, entonces los estados se preservan exactamente en Postgres (done/in_progress/review) - NO se usa import_spec (que degradaria a backlog), sino write_target.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-813",
     "labels": [
       "AC"
@@ -10633,7 +10633,7 @@
     "meta": {
       "ac_id": "AC-10",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10641,7 +10641,7 @@
     "id": "ac-bsn-uc-813-ac-11",
     "name": "[AC-11] Dado un project_id que ya existe en native con items, cuando se llama switch_project_backend(target_type='native') apuntando a ese project_id, entonces el preview reporta la colision (project_exists=true, item_count actual) y exige una resolucion explicita (on_collision en {reuse, skip, fail}); sin ella, el execute falla con 'project already exists in native - specify on_collision'.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-813",
     "labels": [
       "AC"
@@ -10650,7 +10650,7 @@
     "meta": {
       "ac_id": "AC-11",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10664,7 +10664,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10675,13 +10675,13 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T19:50:00+00:00"
+    "updated_at": "2026-06-02T21:45:00Z"
   },
   {
     "id": "ac-bsn-uc-814-ac-12",
     "name": "[AC-12] Dado source_type='native', cuando se llama switch_project_backend(target_type='freeform', dry_run=True), entonces el source se lee desde Postgres via NativeBackend.list_items / get_acceptance_criteria (DTO, no filesystem) y el preview reporta el conteo de US/UC/AC de la BD.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-814",
     "labels": [
       "AC"
@@ -10690,7 +10690,7 @@
     "meta": {
       "ac_id": "AC-12",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10698,7 +10698,7 @@
     "id": "ac-bsn-uc-814-ac-13",
     "name": "[AC-13] Dado source_type='native' con reservas/membresias/audit en la BD, cuando se ejecuta el preview de salida, entonces el resultado incluye un native_exit_report que lista cuantas reservas, membresias y filas de audit se descartaran, y ese reporte se muestra ANTES de la confirmacion del execute.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-814",
     "labels": [
       "AC"
@@ -10707,7 +10707,7 @@
     "meta": {
       "ac_id": "AC-13",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10715,7 +10715,7 @@
     "id": "ac-bsn-uc-814-ac-14",
     "name": "[AC-14] Dado source_type='native' y dry_run=False confirmado, cuando se ejecuta la salida, entonces los datos US/UC/AC se escriben en el target preservando estados, la coordinacion se descarta, y el resultado final incluye el native_exit_report con lo efectivamente descartado.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-814",
     "labels": [
       "AC"
@@ -10724,7 +10724,7 @@
     "meta": {
       "ac_id": "AC-14",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10738,7 +10738,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10749,13 +10749,13 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T19:50:00+00:00"
+    "updated_at": "2026-06-02T21:45:00Z"
   },
   {
     "id": "ac-bsn-uc-815-ac-15",
     "name": "[AC-15] Dado el MCP corriendo en modo remoto (SPECBOX_ENGINE_MCP_URL seteado), cuando se ejecuta /switch-backend, entonces la skill NO aborta con la precondicion 'MCP local': lee el source local del cliente (con Read), lo pasa por content-passing, y al confirmar escribe el contenido devuelto de app_spec.md y settings.local.json en el filesystem del CLIENTE (tras el switch, .claude/settings.local.json del repo cliente tiene el nuevo backend_type).",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-815",
     "labels": [
       "AC"
@@ -10764,7 +10764,7 @@
     "meta": {
       "ac_id": "AC-15",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10772,7 +10772,7 @@
     "id": "ac-bsn-uc-815-ac-16",
     "name": "[AC-16] Dado un switch hacia native, cuando la skill /switch-backend corre, entonces presenta al usuario el conteo 'N US / M UC leidas del cliente' y exige confirmacion literal del conteo antes de invocar el execute (dry_run=False).",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-815",
     "labels": [
       "AC"
@@ -10781,7 +10781,7 @@
     "meta": {
       "ac_id": "AC-16",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10795,7 +10795,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10806,13 +10806,13 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T19:50:00+00:00"
+    "updated_at": "2026-06-02T21:45:00Z"
   },
   {
     "id": "ac-bsn-uc-816-ac-17",
     "name": "[AC-17] Dado onboard_project(backend_type='native') sin migracion previa, cuando se completa el onboard, entonces el resultado documenta explicitamente el estado 'project registered, native DB empty - run switch_project_backend or import_spec to populate' y NO deja al usuario creyendo que el panel mostrara datos que no existen.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-816",
     "labels": [
       "AC"
@@ -10821,7 +10821,7 @@
     "meta": {
       "ac_id": "AC-17",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10835,7 +10835,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10846,13 +10846,13 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T19:50:00+00:00"
+    "updated_at": "2026-06-02T21:45:00Z"
   },
   {
     "id": "ac-bsn-uc-817-ac-18",
     "name": "[AC-18] Dado un test que simula MCP remoto (SPECBOX_ENGINE_MCP_URL seteado) y un items.json de cliente con 11 US / 88 UC, cuando se ejecuta migrate_preview/switch_project_backend(dry_run=True) con source_content = ese items.json, entonces el conteo reportado es 11/88 (del cliente) y un assert verifica que NO se accedio a ningun path del servidor (mock del FS del servidor con 22/112 que debe quedar intacto/no leido).",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-817",
     "labels": [
       "AC"
@@ -10861,7 +10861,7 @@
     "meta": {
       "ac_id": "AC-18",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "tests/test_backend_switch_native.py — 23 passed"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   },
@@ -10878,7 +10878,7 @@
     "meta": {
       "ac_id": "AC-19",
       "tipo": "AC",
-      "evidence": ""
+      "evidence": "test_e2e_freeform_to_native_preserves_states (skipif PG_OK — requires Postgres dev)"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   }

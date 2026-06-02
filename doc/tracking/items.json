@@ -10913,7 +10913,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-e426f87c",
     "meta": {
       "tipo": "UC",
@@ -10924,7 +10924,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T21:30:00+00:00",
-    "updated_at": "2026-06-02T21:46:34.849567+00:00"
+    "updated_at": "2026-06-02T21:50:42.773147+00:00"
   },
   {
     "id": "ac-7fc0247a",
@@ -10996,7 +10996,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-e426f87c",
     "meta": {
       "tipo": "UC",
@@ -11007,7 +11007,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T21:30:00+00:00",
-    "updated_at": "2026-06-02T21:46:37.789281+00:00"
+    "updated_at": "2026-06-02T21:50:45.754632+00:00"
   },
   {
     "id": "ac-be90ec24",
@@ -11099,7 +11099,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-e426f87c",
     "meta": {
       "tipo": "UC",
@@ -11110,7 +11110,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T21:30:00+00:00",
-    "updated_at": "2026-06-02T21:46:41.359164+00:00"
+    "updated_at": "2026-06-02T21:50:48.704405+00:00"
   },
   {
     "id": "ac-aff9a9df",
@@ -11222,7 +11222,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-e426f87c",
     "meta": {
       "tipo": "UC",
@@ -11233,7 +11233,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T21:30:00+00:00",
-    "updated_at": "2026-06-02T21:46:44.415612+00:00"
+    "updated_at": "2026-06-02T21:50:51.781793+00:00"
   },
   {
     "id": "ac-c3e76b35",
@@ -11305,7 +11305,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-e426f87c",
     "meta": {
       "tipo": "UC",
@@ -11316,7 +11316,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T21:30:00+00:00",
-    "updated_at": "2026-06-02T21:46:47.187746+00:00"
+    "updated_at": "2026-06-02T21:50:55.006867+00:00"
   },
   {
     "id": "ac-cec8fab3",

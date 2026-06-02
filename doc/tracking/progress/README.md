@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-06-02T21:46:47.191171+00:00
+> Actualizado: 2026-06-02T21:50:55.014754+00:00
 
 ## User Stories
 
@@ -29,7 +29,7 @@
 | US-CONN-GATE | [US-CONN-GATE] Drift gate consciente de las decisiones canonicas | User Stories | 2 | 2 | 100% |
 | US-VSCODE-AUTOCLONE | [US-VSCODE-AUTOCLONE] Auto-clone del engine público desde la extensión | Done | 4 | 4 | 100% |
 | US-BACKEND-SWITCH-NATIVE | [US-BACKEND-SWITCH-NATIVE] Cambiar de backend como operacion unica, atomica y completa (hacia/desde Native) | Done | 8 | 8 | 100% |
-| US-NATIVE-BATCH-INGEST | [US-NATIVE-BATCH-INGEST] Ingesta por lotes de sources grandes a Native | Backlog | 0 | 5 | 0% |
+| US-NATIVE-BATCH-INGEST | [US-NATIVE-BATCH-INGEST] Ingesta por lotes de sources grandes a Native | Backlog | 5 | 5 | 100% |
 
 ## Use Cases
 
@@ -155,8 +155,8 @@
 | UC-815 | US-BACKEND-SWITCH-NATIVE | Done | 2 | 2 | 100% |
 | UC-816 | US-BACKEND-SWITCH-NATIVE | Done | 1 | 1 | 100% |
 | UC-817 | US-BACKEND-SWITCH-NATIVE | Done | 2 | 2 | 100% |
-| UC-680 | US-NATIVE-BATCH-INGEST | Review | 3 | 3 | 100% |
-| UC-681 | US-NATIVE-BATCH-INGEST | Review | 4 | 4 | 100% |
-| UC-682 | US-NATIVE-BATCH-INGEST | Review | 5 | 5 | 100% |
-| UC-683 | US-NATIVE-BATCH-INGEST | Review | 3 | 3 | 100% |
-| UC-684 | US-NATIVE-BATCH-INGEST | Review | 2 | 2 | 100% |
+| UC-680 | US-NATIVE-BATCH-INGEST | Done | 3 | 3 | 100% |
+| UC-681 | US-NATIVE-BATCH-INGEST | Done | 4 | 4 | 100% |
+| UC-682 | US-NATIVE-BATCH-INGEST | Done | 5 | 5 | 100% |
+| UC-683 | US-NATIVE-BATCH-INGEST | Done | 3 | 3 | 100% |
+| UC-684 | US-NATIVE-BATCH-INGEST | Done | 2 | 2 | 100% |

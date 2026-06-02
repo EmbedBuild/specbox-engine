@@ -218,3 +218,40 @@ async def test_preview_trello_uses_session_api(monkeypatch: pytest.MonkeyPatch) 
     assert stub.read is True
     assert result["read_counts"]["us"] == 1
     assert result["read_counts"]["uc"] == 1
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# UC-811 — count guard
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_count_guard_blocks_zero_read() -> None:
+    """AC-04: a dry-run that read 0 items blocks the execute."""
+    from server.migration.count_guard import CountGuardError, verify_count
+
+    with pytest.raises(CountGuardError, match="read 0 items"):
+        verify_count({"us": 0, "uc": 0, "ac": 0}, confirmed_count={"us": 0, "uc": 0})
+
+
+def test_count_guard_rejects_mismatch() -> None:
+    """AC-05: a confirmed count different from the preview is rejected."""
+    from server.migration.count_guard import CountGuardError, verify_count
+
+    with pytest.raises(CountGuardError, match="count mismatch: preview read 11/88"):
+        verify_count({"us": 11, "uc": 88, "ac": 440}, confirmed_count={"us": 22, "uc": 112})
+
+
+def test_count_guard_rejects_missing_confirmation() -> None:
+    """AC-05: executing without confirming the count is rejected."""
+    from server.migration.count_guard import CountGuardError, verify_count
+
+    with pytest.raises(CountGuardError, match="count not confirmed"):
+        verify_count({"us": 11, "uc": 88}, confirmed_count=None)
+
+
+def test_count_guard_accepts_match() -> None:
+    """AC-05: a confirmed count matching the preview proceeds (no raise)."""
+    from server.migration.count_guard import verify_count
+
+    # Should not raise. ac is informational and ignored in the comparison.
+    verify_count({"us": 11, "uc": 88, "ac": 440}, confirmed_count={"us": 11, "uc": 88})

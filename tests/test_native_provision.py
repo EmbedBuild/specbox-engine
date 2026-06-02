@@ -141,7 +141,7 @@ class TestSeedRole:
         from server.migration.native_handling import seed_native_identity
 
         pool = await self._pool()
-        pid = "Acme/admin-seed"
+        pid = f"Acme/admin-seed-{uuid.uuid4().hex[:8]}"
         dev_id, _ = await _register_dev(pool)
         try:
             async with pool.acquire() as conn:
@@ -162,7 +162,7 @@ class TestSeedRole:
         from server.migration.native_handling import seed_native_identity
 
         pool = await self._pool()
-        pid = "Acme/idem-seed"
+        pid = f"Acme/idem-seed-{uuid.uuid4().hex[:8]}"
         dev_id, _ = await _register_dev(pool)
         try:
             async with pool.acquire() as conn:
@@ -191,7 +191,7 @@ class TestSeedRole:
         from server.db.pool import close_pool
 
         pool = await self._pool()
-        pid = "Acme/bad-role"
+        pid = f"Acme/bad-role-{uuid.uuid4().hex[:8]}"
         dev_id, _ = await _register_dev(pool)
         try:
             async with pool.acquire() as conn:
@@ -238,7 +238,7 @@ class TestProvisionNativeProject:
         from server.migration.native_handling import provision_native_project
 
         pool = await self._pool()
-        pid = "Acme/from-scratch"
+        pid = f"Acme/from-scratch-{uuid.uuid4().hex[:8]}"
         dev_id, _ = await _register_dev(pool)
         try:
             assert not await _project_exists(pool, pid)
@@ -259,7 +259,7 @@ class TestProvisionNativeProject:
         from server.migration.native_handling import provision_native_project
 
         pool = await self._pool()
-        pid = "Acme/audited"
+        pid = f"Acme/audited-{uuid.uuid4().hex[:8]}"
         dev_id, _ = await _register_dev(pool)
         try:
             await provision_native_project(pool, project_id=pid, developer_id=dev_id)
@@ -274,7 +274,7 @@ class TestProvisionNativeProject:
         from server.migration.native_handling import provision_native_project
 
         pool = await self._pool()
-        pid = "Acme/idempotent"
+        pid = f"Acme/idempotent-{uuid.uuid4().hex[:8]}"
         dev_id, _ = await _register_dev(pool)
         try:
             first = await provision_native_project(pool, project_id=pid, developer_id=dev_id)
@@ -306,4 +306,208 @@ class TestProvisionNativeProject:
         finally:
             async with pool.acquire() as conn:
                 await conn.execute("DELETE FROM developers WHERE developer_id = $1", dev_id)
+            await close_pool()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# UC-821 — Batch integration: auto-provision before the membership gate
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _ctx():
+    # A bare object: extract_locale_from_ctx falls back to "en" cleanly.
+    return object()
+
+
+@pytestmark_pg
+class TestStartSessionAutoProvision:
+    """AC-11..13: start_migration_session auto-provisions a from-scratch tenant."""
+
+    async def _pool(self):
+        from server.db.migrate import apply_migrations
+        from server.db.pool import init_pool
+
+        pool = await init_pool(dsn=DSN)
+        await apply_migrations(pool)
+        return pool
+
+    async def test_start_from_scratch_auto_provisions_and_opens(self):
+        """AC-11: start on a non-existent native project provisions + opens."""
+        from server.coordination.identity import _clear_auth_cache
+        from server.db.pool import close_pool
+        from server.migration.batch_session import get_session_store
+        from server.tools.migration import start_migration_session
+
+        pool = await self._pool()
+        pid = f"Acme/start-from-scratch-{uuid.uuid4().hex[:8]}"
+        dev_id, token = await _register_dev(pool)
+        try:
+            _clear_auth_cache()
+            assert not await _project_exists(pool, pid)
+            out = await start_migration_session(
+                target_project_id=pid, source_type="freeform",
+                declared_items=1, declared_bytes=10, source_sha256="abc",
+                chunk_count=1, ctx=_ctx(), dev_token=token,
+            )
+            assert out["status"] == "open", out
+            # The tenant + admin membership now exist (the gate passed).
+            assert await _project_exists(pool, pid)
+            assert await _member_role(pool, pid, dev_id) == "project_admin"
+            get_session_store().close(out["session_id"])
+        finally:
+            await _cleanup(pool, pid, dev_id)
+            await close_pool()
+
+    async def test_start_bad_token_writes_nothing(self):
+        """AC-13 edge: a bad token on a from-scratch id provisions nothing."""
+        from server.coordination.identity import _clear_auth_cache
+        from server.db.pool import close_pool
+        from server.tools.migration import start_migration_session
+
+        pool = await self._pool()
+        pid = f"Acme/bad-token-scratch-{uuid.uuid4().hex[:8]}"
+        try:
+            _clear_auth_cache()
+            out = await start_migration_session(
+                target_project_id=pid, source_type="freeform",
+                declared_items=1, declared_bytes=10, source_sha256="abc",
+                chunk_count=1, ctx=_ctx(), dev_token="not-a-real-token",
+            )
+            assert out["code"] == "UNAUTHENTICATED"
+            assert not await _project_exists(pool, pid)
+        finally:
+            async with pool.acquire() as conn:
+                await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
+            await close_pool()
+
+    async def test_start_does_not_add_caller_to_preexisting_project(self):
+        """AC-13: a project that already exists is NOT auto-joined; gate decides.
+
+        The caller is a valid developer but NOT a member of the pre-existing
+        project → the gate must FORBID (UNAUTHENTICATED envelope), and the
+        caller must NOT have been silently added as a member.
+        """
+        from server.coordination.identity import _clear_auth_cache
+        from server.db.pool import close_pool
+        from server.tools.migration import start_migration_session
+
+        pool = await self._pool()
+        pid = f"Acme/preexisting-{uuid.uuid4().hex[:8]}"
+        dev_id, token = await _register_dev(pool)
+        try:
+            # Project exists, but our developer is NOT a member.
+            async with pool.acquire() as conn:
+                await conn.execute(
+                    "INSERT INTO projects (project_id, name, backend_type, board_url, meta) "
+                    "VALUES ($1, $1, 'native', '', '{}'::jsonb) ON CONFLICT DO NOTHING",
+                    pid,
+                )
+            _clear_auth_cache()
+            out = await start_migration_session(
+                target_project_id=pid, source_type="freeform",
+                declared_items=1, declared_bytes=10, source_sha256="abc",
+                chunk_count=1, ctx=_ctx(), dev_token=token,
+            )
+            # Not a member of a pre-existing project → FORBIDDEN, not auto-joined.
+            assert out.get("code") == "FORBIDDEN"
+            assert await _member_role(pool, pid, dev_id) is None
+        finally:
+            await _cleanup(pool, pid, dev_id)
+            await close_pool()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# UC-822 — E2E: provision + migrate a brand-new native project from scratch
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytestmark_pg
+class TestProvisionMigrateE2E:
+    """AC-14..17: BD vacía → start (auto-provision) → append → commit → verify.
+
+    This is the path that had no coverage and let the gap ship: prior batch
+    tests pre-seeded the project + membership. Here the project is born from
+    scratch and the engine provisions it itself.
+    """
+
+    async def _pool(self):
+        from server.db.migrate import apply_migrations
+        from server.db.pool import init_pool
+
+        pool = await init_pool(dsn=DSN)
+        await apply_migrations(pool)
+        return pool
+
+    async def test_e2e_provision_then_migrate_from_scratch(self):
+        """AC-14..17: full from-scratch provision + batch migration."""
+        from server.coordination.identity import _clear_auth_cache
+        from server.coordination.project_id import display_slug
+        from server.db.pool import close_pool
+        from server.migration.integrity import sha256_hex
+        from server.tools.migration import (
+            append_migration_chunk,
+            commit_migration_session,
+            start_migration_session,
+        )
+        from tests.test_native_batch_ingestion import _chunk, _make_large_items_json
+
+        pool = await self._pool()
+        pid = f"EmbedBuild/e2e-from-scratch-{uuid.uuid4().hex[:8]}"
+        dev_id, token = await _register_dev(pool)
+        try:
+            _clear_auth_cache()
+            # AC-14 precondition: the target project does NOT exist.
+            assert not await _project_exists(pool, pid)
+
+            blob = _make_large_items_json(40)  # 1 US + 40 UC + 120 AC, mixed states
+            chunks = _chunk(blob)
+            started = await start_migration_session(
+                target_project_id=pid, source_type="freeform",
+                declared_items=161, declared_bytes=len(blob.encode()),
+                source_sha256=sha256_hex(blob), chunk_count=len(chunks),
+                ctx=_ctx(), dev_token=token,
+            )
+            assert started["status"] == "open", started
+            sid = started["session_id"]
+            for idx, c in enumerate(chunks):
+                acc = await append_migration_chunk(
+                    session_id=sid, chunk_index=idx, chunk_data=c,
+                    chunk_sha256=sha256_hex(c), ctx=_ctx(), dev_token=token,
+                )
+                assert acc["status"] == "accepted", acc
+            out = await commit_migration_session(
+                session_id=sid, ctx=_ctx(), confirmed_count=161, dev_token=token,
+            )
+            assert out["status"] == "committed", out
+
+            # AC-14: exactly one project row, with the canonical owner/repo id.
+            async with pool.acquire() as conn:
+                proj_count = await conn.fetchval(
+                    "SELECT count(*) FROM projects WHERE project_id = $1", pid
+                )
+            assert proj_count == 1
+
+            # AC-15: creator is project_admin.
+            assert await _member_role(pool, pid, dev_id) == "project_admin"
+
+            # AC-16: US/UC/AC == source 1:1, states preserved verbatim.
+            async with pool.acquire() as conn:
+                us = await conn.fetchval("SELECT count(*) FROM user_stories WHERE project_id = $1", pid)
+                uc = await conn.fetchval("SELECT count(*) FROM use_cases WHERE project_id = $1", pid)
+                ac = await conn.fetchval("SELECT count(*) FROM acceptance_criteria WHERE project_id = $1", pid)
+                done = await conn.fetchval(
+                    "SELECT count(*) FROM use_cases WHERE project_id = $1 AND state = 'done'", pid
+                )
+                backlog = await conn.fetchval(
+                    "SELECT count(*) FROM use_cases WHERE project_id = $1 AND state = 'backlog'", pid
+                )
+            assert (us, uc, ac) == (1, 40, 120)
+            # Mixed states from the fixture: i%4==0 → backlog (10 of 40), else done (30).
+            assert done == 30
+            assert backlog == 10
+
+            # AC-17: the display slug is the URL-safe projection of the canonical id.
+            assert display_slug(pid) == pid.lower().replace("/", "-")
+        finally:
+            await _cleanup(pool, pid, dev_id)
             await close_pool()

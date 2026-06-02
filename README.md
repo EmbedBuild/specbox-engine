@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.9.1 — "Atomic Switch" (sobre v6.9.0 "Self-Provisioning", v6.8.0 "Connectivity UX", v6.7.0 "Zero-Friction Onboarding")<br/>
+  v 6.9.2 — "Batch Ingest" (sobre v6.9.1 "Atomic Switch", v6.9.0 "Self-Provisioning", v6.8.0 "Connectivity UX")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -36,6 +36,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 100% backwards-compatible. El auto-clone es el último recurso: config/workspace/rutas comunes ganan, y un clone fallido degrada al diálogo de selección manual.
 
 **v6.9.1 — "Atomic Switch"** cambiar de backend (incl. hacia/desde Cloud/Native) pasa a ser **una sola operación atómica todo-o-nada**: el nuevo `switch_project_backend` migra datos + asocia identidad + conmuta la config + reporta lo descartado en una llamada con rollback total. Cierra además el path-bug de MCP remoto: el source se lee del cliente (content-passing), nunca del filesystem del servidor.
+
+**v6.9.2 — "Batch Ingest"** subir un proyecto freeform real (133 KB / cientos de ítems) a Cloud/Native ya funciona end-to-end: la migración cruza por **lotes verificables** (`start → append × N → commit`, SHA-256 por chunk) que el servidor reensambla y escribe en **una transacción atómica** (rollback total ante fallo). Cierra el gap de transporte de v6.9.1 — el `items.json` ya no tiene que caber en un único parámetro de tool.
 
 ---
 
@@ -412,7 +414,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.9.1 — "Atomic Switch" (over v6.9.0 "Self-Provisioning", v6.8.0 "Connectivity UX", v6.7.0 "Zero-Friction Onboarding")
+> v 6.9.2 — "Batch Ingest" (over v6.9.1 "Atomic Switch", v6.9.0 "Self-Provisioning", v6.8.0 "Connectivity UX")
 
 ## What is this?
 
@@ -436,6 +438,8 @@ A system that turns Claude Code into a serious teammate:
 100% backwards-compatible. Auto-clone is the last resort: config/workspace/common paths win, and a failed clone degrades to the manual folder picker.
 
 **v6.9.1 — "Atomic Switch"** changing a project's backend (incl. to/from Cloud/Native) becomes **one all-or-nothing operation**: the new `switch_project_backend` migrates data + seeds identity + switches the config + reports what was discarded in a single call with full rollback. It also closes the remote-MCP path bug: the source is read from the client (content-passing), never the server filesystem.
+
+**v6.9.2 — "Batch Ingest"** uploading a real freeform project (133 KB / hundreds of items) to Cloud/Native now works end-to-end: the migration crosses in **verifiable chunks** (`start → append × N → commit`, SHA-256 per chunk) that the server reassembles and writes in **one atomic transaction** (full rollback on failure). Closes the v6.9.1 transport gap — the `items.json` no longer has to fit in a single tool parameter.
 
 ---
 

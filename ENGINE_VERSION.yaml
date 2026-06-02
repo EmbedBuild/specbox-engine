@@ -1,5 +1,5 @@
-version: 6.9.1
-codename: "Atomic Switch"
+version: 6.9.2
+codename: "Batch Ingest"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-06-02
@@ -406,6 +406,15 @@ features:
   - vscode-managed-engine-autopull
 
 changelog:
+  6.9.2:
+    date: 2026-06-02
+    codename: "Batch Ingest"
+    changes:
+      - "feat: Batch ingestion of large freeform sources into Native, closing the v6.9.1 transport gap. switch_project_backend(source_type='freeform') required the whole items.json as one source_content string, and a real board (specbox_cloud: 133 KB / 568 items) does not fit reliably in a tool parameter without risking silent truncation. New session model start_migration_session → append_migration_chunk × N → commit_migration_session sends the source in small SHA-256-verified chunks accumulated server-side (US-NATIVE-BATCH-INGEST, UC-680..684, PR #88)."
+      - "feat: Atomic write path NativeBackend.ingest_atomic runs the 3 phases (US, UC+AC, comments) inside a single conn.transaction() — real total rollback on a mid-write failure, vs write_target's per-item continue that left earlier items written (UC-682). State preserved verbatim: done stays done, backlog stays backlog (no degrade-to-backlog)."
+      - "feat: Chunk staging is ephemeral (in-memory SessionStore + TTL). A session that is never committed expires and the client restarts cleanly — the commit is the only point that touches Postgres. Each chunk is hash-verified on arrival (CHUNK_HASH_MISMATCH / SESSION_NOT_FOUND / DUPLICATE_CHUNK_INDEX); the reassembled blob is hash + count verified before any INSERT (UC-680/UC-681)."
+      - "feat: switch_project_backend accepts batch_session_id and routes its write step through the atomic ingestion when the source is a large freeform board into native; the rest of the atomic switch (3 config places) is unchanged. /switch-backend skill Paso 3b documents the batch transport plan + post-commit summary, never pasting the blob (UC-683)."
+      - "test: tests/test_native_batch_ingestion.py — 19 passed (10 unit + 9 Postgres-gated). E2E crosses a real ≥100 KB / 120-UC source through the chunked transport asserting Postgres == source and states 1:1 (the test that was missing and let the gap ship), plus atomicity (mid-write failure → 0 rows, clean retry rebuilds) (UC-684). Native suite no-regression: 78 passed."
   6.9.1:
     date: 2026-06-02
     codename: "Atomic Switch"

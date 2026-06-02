@@ -1,4 +1,4 @@
-# SpecBox Engine v6.9.1
+# SpecBox Engine v6.9.2
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1529,9 +1529,53 @@ AC-19 migra freeform→native contra Postgres real preservando estados.
 - Plan: [doc/plans/US-BACKEND-SWITCH-NATIVE_plan.md](doc/plans/US-BACKEND-SWITCH-NATIVE_plan.md)
 - Discovery: [doc/discovery/backend_switch_native/icp_jtbd.md](doc/discovery/backend_switch_native/icp_jtbd.md)
 
+## Batch Ingest a Native (v6.9.2)
+
+US-NATIVE-BATCH-INGEST cierra el gap de **transporte** de v6.9.1 descubierto en
+dogfooding migrando `specbox_cloud` (133 KB / 568 ítems) freeform→native: la
+**lógica** del switch funcionaba, pero `switch_project_backend` con
+`source_type='freeform'` exigía el `items.json` completo como **un único string**
+(`source_content`), y un board real no cabe fiablemente en un parámetro de tool sin
+riesgo de truncado/corrupción silenciosa. El MCP es siempre remoto desde v6.7.0 (no
+ve el filesystem del cliente).
+
+La solución es **ingesta por lotes server-side**: una sesión de migración
+multi-llamada `start → append × N → commit` donde el cliente envía el `items.json` en
+chunks pequeños y verificables (SHA-256 por chunk), el servidor los acumula en una
+zona de staging efímera, y al commit verifica integridad global (hash reensamblado +
+conteo declarado) **antes** de ingestar en **una transacción atómica**. El chunking es
+solo del transporte; la escritura sigue siendo todo-o-nada (rollback total ante fallo
+a mitad). No relaja el blindaje de seguridad (dev_token validado server-side al start,
+escritura solo en el tenant, sin exponer `service_role`).
+
+| Componente | Archivo | Rol |
+|------------|---------|-----|
+| Sesión + staging | `server/migration/batch_session.py` | `MigrationSession` + `SessionStore` (dict en memoria + TTL, time_fn/id_fn inyectables). Staging efímero: una sesión sin commit expira y el cliente reinicia limpio (no hay resume). |
+| Integridad | `server/migration/integrity.py` | `sha256_hex` puro — único punto de hashing para chunk-check y pre-flight global. |
+| Escritura atómica | `server/backends/native_backend.py::ingest_atomic` | 3 fases (US, UC+AC, comments) en **una** `conn.transaction()` → rollback total real (vs el per-item `continue` de `write_target`). Estados preservados verbatim. Re-valida membresía al commit (cubre TTL de identidad expirado en migración lenta). |
+| Plan I/O-free | `server/migration/writer.py::build_write_plan` | Clasificación + resolución de parent + orden como datos puros, compartido por `write_target` (intacto) e `ingest_atomic`. |
+| Tools MCP | `server/tools/migration.py` | `start_migration_session` (valida dev_token 1 vez, cache reusado), `append_migration_chunk` (hash por chunk), `commit_migration_session` (pre-flight global + ingesta atómica). `switch_project_backend` acepta `batch_session_id` y rutea su paso de escritura por la ingesta cuando el source freeform excede `BATCH_TRANSPORT_THRESHOLD_BYTES` (64 KB). |
+| Skill | `.claude/skills/switch-backend/SKILL.md` | Paso 3b: plan de transporte por lotes (nº chunks, tamaño, hash) + resumen post-commit, **sin pegar el blob**. |
+
+Envelopes de las tools: `accepted` / `CHUNK_HASH_MISMATCH` / `SESSION_NOT_FOUND` /
+`DUPLICATE_CHUNK_INDEX` / `UNAUTHENTICATED` / `FORBIDDEN_SESSION` / `committed` /
+`PREFLIGHT_FAILED` / `COMMIT_FAILED`.
+
+Tests: `tests/test_native_batch_ingestion.py` — 19 passed (10 unit + 9 Postgres-gated
+con `docker compose -f docker-compose.dev.yml up`). El E2E (UC-684) cruza un
+`items.json` **≥100 KB / 120 UC** de estados mixtos por el transporte por lotes real
+verificando Postgres == source y estados done/backlog 1:1 — el test que faltaba y por
+el que el gap pasó (los previos usaban fixtures pequeñas en memoria). Suite native sin
+regresión (78 passed).
+
+- PRD: [doc/prd/US-NATIVE-BATCH-INGEST_prd.md](doc/prd/US-NATIVE-BATCH-INGEST_prd.md)
+- Plan: [doc/plans/US-NATIVE-BATCH-INGEST_plan.md](doc/plans/US-NATIVE-BATCH-INGEST_plan.md)
+- Discovery: [doc/discovery/native_batch_ingestion/icp_jtbd.md](doc/discovery/native_batch_ingestion/icp_jtbd.md)
+- Hallazgo origen: [HALLAZGO-v6.9.2-transporte-source-grande.md](HALLAZGO-v6.9.2-transporte-source-grande.md)
+
 ## Engine Version
 
-Current: v6.9.1 "Atomic Switch"
+Current: v6.9.2 "Batch Ingest"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

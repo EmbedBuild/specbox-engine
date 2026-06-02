@@ -2,6 +2,42 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.9.2] - 2026-06-02 — "Batch Ingest"
+
+Cierra el gap de **transporte** de v6.9.1 descubierto en dogfooding: la lógica del switch-backend funcionaba, pero `switch_project_backend` con `source_type='freeform'` exigía el `items.json` completo como **un único string** (`source_content`), y un board real (`specbox_cloud`: 133 KB / 568 ítems) no cabe fiablemente en un parámetro de tool sin riesgo de truncado/corrupción silenciosa. El MCP es siempre remoto desde v6.7.0. La migración a Native ahora cruza por **ingesta por lotes server-side**: `start → append × N → commit`, troceo verificable por SHA-256, escritura en **una transacción atómica**. US-NATIVE-BATCH-INGEST — 5 UC (UC-680..684), PR #88.
+
+### Added
+
+- **`server/migration/batch_session.py`** — `MigrationSession` + `SessionStore`: zona de staging en memoria por `session_id`, efímera (TTL), con `time_fn`/`id_fn` inyectables para tests. Una sesión sin commit expira y el cliente reinicia limpio (no hay resume; el commit es el único punto que toca Postgres).
+- **`server/migration/integrity.py`** — `sha256_hex`: único punto de hashing para la verificación por chunk y el pre-flight global.
+- **`NativeBackend.ingest_atomic`** (`server/backends/native_backend.py`) — escribe las 3 fases (US, UC+AC, comments) dentro de **una** `conn.transaction()` → rollback total real ante fallo a mitad (vs el per-item `continue` de `write_target`). Estados preservados verbatim (done queda done, backlog queda backlog). Re-valida membresía al commit.
+- **Tools MCP** (`server/tools/migration.py`): `start_migration_session` (valida `dev_token` una vez, cache reusado, no escribe), `append_migration_chunk` (verifica hash por chunk), `commit_migration_session` (pre-flight global hash + conteo antes de cualquier INSERT, luego `ingest_atomic`).
+
+### Changed
+
+- **`server/migration/writer.py`** — nuevo `build_write_plan(source_data)` + `WritePlan`/`PlannedUC`: extrae la clasificación + resolución de parent + orden como datos I/O-free, compartido por `ingest_atomic`. `write_target` genérico queda intacto.
+- **`switch_project_backend`** acepta `batch_session_id`: cuando el source freeform excede `BATCH_TRANSPORT_THRESHOLD_BYTES` (64 KB) y el target es native, su paso de escritura es la ingesta por lotes; el resto del switch atómico (3 lugares de config) no cambia.
+- **`.claude/skills/switch-backend/SKILL.md`** — Paso 3b: plan de transporte por lotes (nº chunks, tamaño, hash) + resumen post-commit, sin pegar el blob.
+- **`tests/test_native_unauthenticated.py`** — allowlist documentada de `migration.py` en el guard arquitectural (las batch tools son tools native que legítimamente devuelven el envelope `UNAUTHENTICATED`).
+
+### Decisions
+
+- El gap #3 (transacción envolvente) NO se resolvió hilando una `conn` por el `write_target` genérico — rompería la abstracción multi-backend (Trello/Plane no tienen `conn`). Se añadió un método `ingest_atomic` dedicado a Native que abre una transacción única.
+- Staging efímero (no reanudable) por decisión de discovery: YAGNI para v1, sin estado parcial en Postgres que reconciliar.
+- Chunk recomendado ≤16 KB; verificación SHA-256 por chunk + reensamblado global.
+
+### Compatibility
+
+- 100% backwards-compatible y aditivo. `switch_project_backend` sin `batch_session_id` usa la ruta `source_content` de siempre. No relaja el blindaje de seguridad (dev_token server-side, escritura solo en el tenant, sin exponer `service_role`, sin relajar `deny_anon`).
+
+### Tests
+
+- 19 nuevos tests en `tests/test_native_batch_ingestion.py`, todos verdes:
+  - 10 unit (sin DB): `sha256_hex` + `SessionStore` (open/append/hash-mismatch/duplicate/reassemble/close/TTL) + sanity de la fixture ≥100 KB.
+  - 9 Postgres-gated (`docker-compose.dev.yml`): tools start/append/commit, identidad cacheada, switch batch integration, `ingest_atomic` E2E ≥100 KB / 120 UC mixtos, atomicidad (rollback total + retry limpio).
+- No-regresión en la suite native: 78 passed.
+- Los 7 fallos pre-existentes en `main` de `tests/test_spec_mutations.py` (fixture desactualizada con kwarg `items_content`) permanecen, ajenos a esta release.
+
 ## [6.9.1] - 2026-06-02 — "Atomic Switch"
 
 Rediseña "cambiar de backend" como **una sola operación atómica todo-o-nada** y cierra el path-bug de MCP remoto que dejaba el cambio hacia/desde `native` (Cloud) roto en producción. Reproducido en dogfooding: un `migrate_backend(freeform→native, dry_run=True)` con MCP remoto leía el filesystem del **servidor** (22 US/112 UC del propio engine en el VPS, o 0/0) en vez de las 11/88 del cliente — ejecutar el real habría escrito un proyecto vacío en Postgres y apuntado el panel Cloud a la nada. US-BACKEND-SWITCH-NATIVE — 8 UC (UC-810..817), PR #87.

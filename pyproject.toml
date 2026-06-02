@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "6.9.1"
-description = "SpecBox Engine v6.9.1 — Atomic Switch: changing a project's tracking backend (incl. to/from Cloud/Native) is one all-or-nothing operation via switch_project_backend (migrate + seed identity + switch config + exit-report, with end-to-end rollback). Closes the remote-MCP path bug in migration — the source is read from the client via content-passing, never the server filesystem (US-BACKEND-SWITCH-NATIVE)."
+version = "6.9.2"
+description = "SpecBox Engine v6.9.2 — Batch Ingest: large freeform sources migrate into Native by SHA-256-verified chunks (start → append × N → commit) accumulated server-side and written in one atomic transaction. Closes the v6.9.1 transport gap where a real items.json (133 KB) did not fit in a single source_content tool parameter (US-NATIVE-BATCH-INGEST)."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.3.1,<4.0.0",

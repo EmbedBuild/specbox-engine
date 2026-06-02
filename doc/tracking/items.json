@@ -10869,7 +10869,7 @@
     "id": "ac-bsn-uc-817-ac-19",
     "name": "[AC-19] Dado el backup de no-regresion (native-project-backup-pre-delete.json: 10 US / 84 UC / 440 AC), cuando un test migra freeform->native con estados preservados, entonces el proyecto reconstruido en Postgres (test contra instancia native de test) tiene los conteos esperados, el developer asociado como project_admin, y los estados NO degradados a backlog.",
     "description": "",
-    "state": "pending",
+    "state": "done",
     "parent_id": "item-bsn-uc-817",
     "labels": [
       "AC"
@@ -10878,7 +10878,7 @@
     "meta": {
       "ac_id": "AC-19",
       "tipo": "AC",
-      "evidence": "test_e2e_freeform_to_native_preserves_states (skipif PG_OK — requires Postgres dev)"
+      "evidence": "test_e2e_freeform_to_native_preserves_states — PASSED vs Postgres dev (docker-compose.dev.yml), states preserved + developer member"
     },
     "created_at": "2026-06-02T19:50:00+00:00"
   }

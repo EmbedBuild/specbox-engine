@@ -657,8 +657,11 @@ async def test_e2e_freeform_to_native_preserves_states() -> None:
     """AC-19: migrating a freeform board to native (real Postgres) reconstructs
     the project with the developer as a member and states NOT degraded to
     backlog."""
+    import uuid
+
     from server.backends.native_backend import NativeBackend
-    from server.db.pool import apply_migrations, close_pool, init_pool
+    from server.db.migrate import apply_migrations
+    from server.db.pool import close_pool, init_pool
     from server.migration.native_handling import seed_native_identity
     from server.migration.writer import write_target
     from server.tools.migration import _read_source, resolve_source_backend
@@ -673,19 +676,36 @@ async def test_e2e_freeform_to_native_preserves_states() -> None:
             it["state"] = "done"
     source_content = json.dumps(source_items)
 
-    pid = f"bsn-e2e-{abs(hash(source_content)) % 10_000_000}"
+    # Per-run unique ids so the test is rerunnable against the same DB.
+    suffix = uuid.uuid4().hex[:8]
+    pid = f"bsn-e2e-{suffix}"
+    developer_id = f"jesusperezdeveloper-{suffix}"
+    token = f"bsn-tok-{uuid.uuid4().hex[:16]}"
+
     pool = await init_pool(dsn=DSN)
     await apply_migrations(pool)
-    seed = await seed_native_identity(pool, project_id=pid, developer_id="jesusperezdeveloper")
+    # The project row must exist before membership (FK). In the real flow this
+    # is created by setup_board (ensure_target) before seeding identity.
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO projects (project_id, name, backend_type, board_url, meta) "
+            "VALUES ($1, $1, 'native', '', '{}'::jsonb) "
+            "ON CONFLICT (project_id) DO NOTHING",
+            pid,
+        )
+    # Seed identity + membership with a CONTROLLED token so the NativeBackend's
+    # UC-502 mutation gate authenticates (token) + authorizes (project_members)
+    # on write_target.
+    await seed_native_identity(
+        pool, project_id=pid, developer_id=developer_id, token=token
+    )
     try:
         # Read source via content-passing (the client path), write to native.
         src_backend = await resolve_source_backend("freeform", None, source_content)
         source = await _read_source(src_backend, ".")
         await src_backend.close()
 
-        native = NativeBackend(project_id=pid, dev_token=seed.get("token", ""))
-        # the project row exists from seed_native_identity; ensure board
-        await native.setup_board("bsn e2e")
+        native = NativeBackend(project_id=pid, dev_token=token)
         result = await write_target(native, pid, source, "freeform")
 
         assert result["migrated"]["us"] == 2
@@ -696,19 +716,19 @@ async def test_e2e_freeform_to_native_preserves_states() -> None:
         assert states.get("UC-001") == "in_progress"
         assert states.get("UC-002") == "done"
 
-        # developer associated as a member
+        # developer associated as a member (project_admin via seed_native_identity)
         async with pool.acquire() as conn:
             member = await conn.fetchval(
                 "SELECT count(*) FROM project_members WHERE project_id = $1 "
                 "AND developer_id = $2",
                 pid,
-                "jesusperezdeveloper",
+                developer_id,
             )
         assert member == 1
     finally:
         async with pool.acquire() as conn:
             await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
             await conn.execute(
-                "DELETE FROM developers WHERE developer_id = $1", "jesusperezdeveloper"
+                "DELETE FROM developers WHERE developer_id = $1", developer_id
             )
         await close_pool()

@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-06-02T20:11:36.205819+00:00
+> Actualizado: 2026-06-02T20:15:35.047772+00:00
 
 ## User Stories
 
@@ -153,4 +153,4 @@
 | UC-814 | US-BACKEND-SWITCH-NATIVE | Review | 3 | 3 | 100% |
 | UC-815 | US-BACKEND-SWITCH-NATIVE | Review | 2 | 2 | 100% |
 | UC-816 | US-BACKEND-SWITCH-NATIVE | Review | 1 | 1 | 100% |
-| UC-817 | US-BACKEND-SWITCH-NATIVE | Review | 1 | 2 | 50% |
+| UC-817 | US-BACKEND-SWITCH-NATIVE | Review | 2 | 2 | 100% |

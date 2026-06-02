@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-05-29T08:13:35.590226+00:00
+> Actualizado: 2026-06-02T19:49:04.606728+00:00
 
 ## User Stories
 
@@ -23,6 +23,12 @@
 | US-VSCODE-DISCOVERABILITY | US-VSCODE-DISCOVERABILITY: Sidebar de descubrimiento y ayuda para la extensión VSCode | User Stories | 0 | 5 | 0% |
 | US-VSCODE-ZERO-PYTHON | US-VSCODE-ZERO-PYTHON: Onboarding cero-Python de la extensión VSCode | User Stories | 5 | 5 | 100% |
 | US-VSCODE-PREREQ-GATE | US-VSCODE-PREREQ-GATE: Gate de prerequisitos de la extensión VSCode | User Stories | 4 | 4 | 100% |
+| US-CONN-TRANSPORT | [US-CONN-TRANSPORT] FreeForm operativo sin Python via content-passing | User Stories | 3 | 3 | 100% |
+| US-CONN-AUDIT | [US-CONN-AUDIT] /audit operativo en remoto via analyzers locales | User Stories | 1 | 1 | 100% |
+| US-CONN-UPGRADE | [US-CONN-UPGRADE] Actualizacion robusta y pedagogica consciente de la configuracion | User Stories | 3 | 3 | 100% |
+| US-CONN-GATE | [US-CONN-GATE] Drift gate consciente de las decisiones canonicas | User Stories | 2 | 2 | 100% |
+| US-VSCODE-AUTOCLONE | [US-VSCODE-AUTOCLONE] Auto-clone del engine público desde la extensión | Done | 4 | 4 | 100% |
+| US-BACKEND-SWITCH-NATIVE | [US-BACKEND-SWITCH-NATIVE] Cambiar de backend como operacion unica, atomica y completa (hacia/desde Native) | Backlog | 0 | 8 | 0% |
 
 ## Use Cases
 
@@ -127,3 +133,24 @@
 | UC-707 | US-VSCODE-PREREQ-GATE | Done | 3 | 3 | 100% |
 | UC-708 | US-VSCODE-PREREQ-GATE | Done | 2 | 2 | 100% |
 | UC-709 | US-VSCODE-PREREQ-GATE | Done | 3 | 3 | 100% |
+| UC-660 | US-CONN-TRANSPORT | Done | 3 | 3 | 100% |
+| UC-661 | US-CONN-TRANSPORT | Done | 2 | 2 | 100% |
+| UC-662 | US-CONN-TRANSPORT | Done | 2 | 2 | 100% |
+| UC-663 | US-CONN-AUDIT | Done | 3 | 3 | 100% |
+| UC-664 | US-CONN-UPGRADE | Done | 2 | 2 | 100% |
+| UC-665 | US-CONN-UPGRADE | Done | 4 | 4 | 100% |
+| UC-666 | US-CONN-UPGRADE | Done | 2 | 2 | 100% |
+| UC-667 | US-CONN-GATE | Done | 3 | 3 | 100% |
+| UC-668 | US-CONN-GATE | Done | 1 | 1 | 100% |
+| UC-109 | US-VSCODE-AUTOCLONE | Done | 0 | 2 | 0% |
+| UC-110 | US-VSCODE-AUTOCLONE | Done | 0 | 3 | 0% |
+| UC-111 | US-VSCODE-AUTOCLONE | Done | 0 | 2 | 0% |
+| UC-112 | US-VSCODE-AUTOCLONE | Done | 0 | 1 | 0% |
+| UC-810 | US-BACKEND-SWITCH-NATIVE | Backlog | 0 | 3 | 0% |
+| UC-811 | US-BACKEND-SWITCH-NATIVE | Backlog | 0 | 2 | 0% |
+| UC-812 | US-BACKEND-SWITCH-NATIVE | Backlog | 0 | 3 | 0% |
+| UC-813 | US-BACKEND-SWITCH-NATIVE | Backlog | 0 | 3 | 0% |
+| UC-814 | US-BACKEND-SWITCH-NATIVE | Backlog | 0 | 3 | 0% |
+| UC-815 | US-BACKEND-SWITCH-NATIVE | Backlog | 0 | 2 | 0% |
+| UC-816 | US-BACKEND-SWITCH-NATIVE | Backlog | 0 | 1 | 0% |
+| UC-817 | US-BACKEND-SWITCH-NATIVE | Backlog | 0 | 2 | 0% |

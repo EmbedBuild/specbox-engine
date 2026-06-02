@@ -350,12 +350,14 @@ def test_ac03_unauth_helper_only_in_coordination_tools():
         cwd=".",
     )
     files = [f.strip() for f in result.stdout.splitlines() if f.strip()]
-    # Allow coordination.py (which DOES use it).
-    leaked = [
-        f
-        for f in files
-        if not f.endswith("server/tools/coordination.py")
-    ]
+    # Allowlist of tool modules that legitimately surface the UNAUTHENTICATED
+    # payload because they ARE native (Cloud) tools requiring identity:
+    #   - coordination.py: the original 4 native coordination tools (UC-648).
+    #   - migration.py: the batch-ingestion tools start/append/commit
+    #     (US-NATIVE-BATCH-INGEST, v6.9.2) write to Native and validate the
+    #     dev_token, returning the same UNAUTHENTICATED envelope by design.
+    allowed = ("server/tools/coordination.py", "server/tools/migration.py")
+    leaked = [f for f in files if not f.endswith(allowed)]
     assert leaked == [], (
         f"unauthenticated_payload leaked into non-native tools: {leaked}. "
         "If this is intentional, update test_ac03_unauth_helper_only_in_coordination_tools."

@@ -99,6 +99,54 @@ Si el origen es `freeform`:
 
 ---
 
+## Paso 3b — Source grande hacia Native: ingesta por lotes (US-NATIVE-BATCH-INGEST)
+
+> Solo aplica cuando **destino = native** y el `items.json` del cliente es grande
+> (> ~64 KB). Un `items.json` real (133 KB / cientos de ítems) NO cabe fiablemente
+> en un único parámetro `source_content` — pasarlo de golpe arriesga truncado/corrupción
+> silenciosa, y el skill debe **negarse** a pasar un blob no verificable. En su lugar,
+> usa la **ingesta por lotes**: troceo verificable del transporte + escritura atómica.
+
+Decisión de ruta:
+
+```
+¿destino == native Y len(items.json en bytes) > 64 KB?
+├── NO  → ruta estándar: pasa source_content de una pieza (Paso 4 / Paso 5).
+└── SÍ  → ruta por lotes (este paso):
+    1. Calcula sha256 del items.json completo y el nº de ítems (US+UC+AC) que vas a migrar.
+    2. Trocea el items.json en chunks de ≤16 KB. Calcula sha256 de cada chunk.
+    3. Presenta al usuario el PLAN DE TRANSPORTE antes de ejecutar:
+```
+
+```
+📦 Plan de transporte por lotes — items.json grande → Native
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Tamaño:  {N} KB        Ítems declarados: {US+UC+AC}
+Chunks:  {M} × ≤16 KB  SHA-256 source:   {hash[:16]}…
+La escritura sigue siendo atómica (commit diferido en 1 transacción, rollback total).
+```
+
+```
+    4. start_migration_session(target_project_id={pid native}, source_type="freeform",
+         declared_items={N}, declared_bytes={bytes}, source_sha256={hash},
+         chunk_count={M}, dev_token={token del panel})
+       → session_id. (NO escribe nada en Postgres todavía.)
+    5. Por cada chunk i en orden:
+         append_migration_chunk(session_id, chunk_index=i, chunk_data={chunk_i},
+           chunk_sha256={hash_i}, dev_token={token})
+       Si alguno devuelve CHUNK_HASH_MISMATCH → el transporte corrompió ese chunk;
+       reenvíalo. No sigas al commit con un chunk dudoso.
+    6. Confirma el conteo con el usuario (mismo guard rail del Paso 4) y ejecuta el
+       switch atómico pasando batch_session_id en vez de source_content (Paso 5).
+```
+
+> El commit (dentro del switch o vía `commit_migration_session`) verifica que llegaron
+> los M chunks, que el SHA-256 reensamblado == el declarado, y que el conteo parseado ==
+> el confirmado, **antes** de escribir un solo INSERT. Si algo falla → no escribe nada.
+> **NUNCA** le pidas al usuario que pegue el blob de 133 KB a mano.
+
+---
+
 ## Paso 4 — Preview obligatorio (dry-run) + confirmación de conteo
 
 **BLOQUEANTE**: antes de ejecutar nada, llama a la tool atómica en modo preview:
@@ -160,7 +208,8 @@ switch_project_backend(
   project_slug="{slug}",
   source_type="{actual}",
   target_type="{destino}",
-  source_content={mismo contenido del Paso 3},
+  source_content={mismo contenido del Paso 3, o None si usaste la ruta por lotes},
+  batch_session_id={session_id del Paso 3b, o "" si pasaste source_content},
   target_id={id destino o None},
   project_path=".",
   dev_token={token si native},
@@ -169,6 +218,11 @@ switch_project_backend(
   confirmed_count={"us": read_counts.us, "uc": read_counts.uc}
 )
 ```
+
+> **Ruta por lotes (Paso 3b)**: pasa `batch_session_id` (no `source_content`). El paso de
+> escritura del switch ingesta los chunks acumulados de forma atómica; el resto de la
+> operación (config de los 3 lugares) es idéntico y sigue siendo todo-o-nada — la config
+> solo cambia si la ingesta tuvo éxito.
 
 Internamente, **en una sola llamada todo-o-nada**: verifica el conteo, (target native)
 exige dev_token, crea el proyecto destino, copia US/UC/AC **preservando estados**,
@@ -231,7 +285,7 @@ Presenta al usuario un reporte con **exactamente estas 4 secciones**:
 - **NUNCA** pidas el DSN de Native por chat ni lo escribas en disco (Frontier 2).
 - **NUNCA** ejecutes `switch_project_backend(dry_run=False)` sin preview + confirmación del conteo.
 - **NUNCA** ejecutes el real si el preview leyó 0 items o un conteo que no es el de tu repo.
-- **NUNCA** dejes que el server resuelva un source `freeform` desde su propio filesystem en MCP remoto — pásalo siempre por `source_content`.
+- **NUNCA** dejes que el server resuelva un source `freeform` desde su propio filesystem en MCP remoto — pásalo por `source_content` (source pequeño) o por la ingesta por lotes del Paso 3b (source grande). Nunca pegues un blob grande no verificable en `source_content`.
 - **NUNCA** borres ni modifiques el backend origen — la migración es aditiva.
 - **NUNCA** continúes al reporte de éxito si la respuesta trae `rolled_back: true`.
 - **NUNCA** muevas o alteres `.quality/evidence/` — solo se regenera vía `regenerate_evidence`.
@@ -244,6 +298,9 @@ Presenta al usuario un reporte con **exactamente estas 4 secciones**:
 | `Read` (cliente) | 3 | Leer `doc/tracking/items.json` del cliente (content-passing) |
 | `set_migration_target` | 2 | Credenciales del destino (Trello/Plane) |
 | `switch_project_backend` | 4, 5 | **Operación atómica**: preview (dry_run) + migrate+seed+switch+exit todo-o-nada con rollback |
+| `start_migration_session` | 3b | Abrir sesión de ingesta por lotes (source freeform grande → Native) |
+| `append_migration_chunk` | 3b | Subir un chunk hash-verificado del `items.json` |
+| `commit_migration_session` | 3b/5 | Verificar integridad global + ingesta atómica (vía el switch o standalone) |
 | `Write` (cliente) | 5 | Write-back de `app_spec.md` + `settings.local.json` en el repo del cliente |
 | `regenerate_evidence` | 6 | Reejecutar acceptance por UC (opt-in) |
 

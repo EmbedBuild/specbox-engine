@@ -1,55 +1,51 @@
 ---
-generated_at: 2026-05-31T16:05:00Z
+generated_at: 2026-05-31T19:39:39Z
 generator: specbox-handoff-v1
 schema_version: 1
 project: specbox-engine
-session_id: e64c4942
+session_id: f8b8214744b6
 trigger: manual
 ttl_minutes: 1440
-branch: feature/US-CONN-TRANSPORT
-active_uc: UC-660
+branch: main
+active_uc: null
 ---
 
 # SpecBox Handoff — specbox-engine
 
-## What this session did
-- Creó rama feature/US-CONN-TRANSPORT + commiteó tracking de la feature (ebd2d14).
-- Implementó UC-660 (content-passing FreeForm vía memory-mode) end-to-end, verde, committeado (9c44d34).
-- Hubo 3 commits rotos intermedios por edits que aplicaron en sitio equivocado (funciones homónimas spec_driven/spec_mutations); arreglados con amend hasta dejar la suite en 107 passed / 0 failed.
-
 ## State snapshot
-- **Branch**: feature/US-CONN-TRANSPORT
-- **Active UC**: UC-660 — COMPLETO, verde, committeado (1a3c4f9)
-- **Backend**: freeform (MCP remoto en VPS — no toca items.json local; ESE es el bug que UC-660 arregla)
-- **Commits en la rama** (sobre main 18451f5):
-  - ebd2d14 — tracking de la feature (4 US, 9 UC, 22 AC)
-  - 63c35a3 (HEAD) — UC-660 content-passing (código + test + tracking marcado) ✅ VERDE
+- **Branch**: main
+- **Active UC**: none
+- **Backend**: freeform
+- **Last commit**: 7a40b79 "fix(release): add CHANGELOG.md [6.8.0] entry (last file missed in the v6.8.0 bump)"
+- **Healing events this session**: 0
+- **Open feedback (blocking)**: 0
+- **Context tokens estimated this session**: 5099
 
-## UC-660 ✅ DONE Y VERDE
-Content-passing para las 7 tools de mutación FreeForm vía **memory-mode en FreeformBackend**.
-- FreeformBackend(items_content=...) → opera en memoria, root=None, get_items_content() devuelve string mutado. _regenerate_progress/archive/comments no-op en memoria.
-- get_session_backend(ctx, *, items_content=None).
-- add_uc, add_ac, update_uc, import_spec, start_uc, complete_uc, mark_ac, find_next_uc, **get_uc** + items_content (get_uc lo necesita porque start_uc/find_next_uc lo invocan).
-- AC-01/02/03 verdes: tests/test_freeform_content_passing.py (12 passed).
-- Suite: 229 passed sin MCP_URL / 229 con MCP_URL, 0 failed (verificado ANTES del commit final 63c35a3 (HEAD)).
-- Divergencia plan→código (memory-mode vs *_impl) documentada en doc/tracking/uc/UC-100-*.md.
+## What this session did
+- Cerró y entregó la feature US-CONN-TRANSPORT completa (9 UC): Hito 2 (audit analyzers a Node), Hito 4 (updater pedagógico extensión), deuda UC-661 AC-02 (/feedback al bridge). PR #85 mergeado a main.
+- Release v6.8.0 'Connectivity UX' versionada y pusheada (HEAD 7a40b79) — requirió 2 commits de fix porque varios Edits fallaron en silencio y se commiteó con validador en rojo (lección crítica).
+- Respondió por qué la extensión pide el directorio del engine (no clona: asume que ya lo clonaste; instala skills/hooks por symlink desde tu repo).
+- Arrancó NUEVA feature vscode_autoclone: /discovery completado (READY_FOR_PRD), PRD escrito en doc/prd/US-VSCODE-AUTOCLONE_prd.md (1 US, 4 UC: UC-109..112, 8 AC).
+- Decisiones de producto del auto-clone cerradas con el usuario y aplicadas al PRD.
 
-## Lecciones de esta sesión (LEER antes de seguir)
-1. **pytest = `uv run pytest`**, NUNCA `python3 -m pytest` (el python homebrew no tiene pytest → "no tests ran", da falsos verdes/rojos).
-2. **Los Edit con old_string del plan fallan silenciosamente** cuando la firma real difiere. spec_mutations.py y spec_driven.py tienen funciones HOMÓNIMAS (mark_ac/start_uc/complete_uc/update_uc). Las registradas como tools MCP son las de spec_driven.py (excepto add_uc/add_ac/update_uc que son spec_mutations). SIEMPRE leer la firma real antes de editar y VERIFICAR que el Edit aplicó (varios fallaron y commitée roto 2 veces, arreglado con amend).
-3. Tras CADA Edit a una función con wiring nuevo, correr el test ANTES de commitear. Commitée d3608bd y 8a49ff6 rotos; 1a3c4f9 es el bueno.
-4. ImportSpec.screens espera STRING, no lista.
-5. Bash flush con retraso → correr a /tmp + Read.
+## Decisions taken (with key)
+- Auto-clone del engine: la extensión clona el repo PÚBLICO github.com/EmbedBuild/specbox-engine a ~/.specbox/specbox-engine (dir oculto gestionado).
+- Clone AUTOMÁTICO sin confirmación previa (solo notifica); el showOpenDialog queda solo como degradación si el clone falla.
+- git pull AUTOMÁTICO del clon gestionado en el update flow, SOLO si isManagedPath(engine)===true. Clon del usuario en otra ruta NUNCA se toca (protección ICP-1).
+- Pipeline completo elegido (/discovery → /prd → /plan → /implement) para esta feature.
 
-## Próximo paso: UC-661 (bridge cliente)
-- Archivo: `.claude/hooks/lib/mcp-client-io.mjs` (YA existe, 157 líneas, con resolveProjectRoot/readContentBundle/writeContentBundle + guard path-traversal + test mcp-client-io.test.mjs).
-- AC-04: añadir readTrackingBundle()/writeTrackingBundle() (o reusar los existentes) para que skills FreeForm lean/escriban doc/tracking/ resolviendo raíz vía git rev-parse. Test node:test con guard activo.
-- AC-05: las skills /prd /implement /feedback usan el bridge en vez de pasar paths al server (grep en .claude/skills/).
-- Depende del contrato de UC-660 (string in/out) — YA cerrado.
-- Test runner cliente: `node --test` (no pytest).
-- Orden plan: UC-661 → UC-662 (FreeForm first-class onboarding extensión) cierra Hito 1.
+## Open questions
+- El PRD US-VSCODE-AUTOCLONE está escrito pero NO commiteado ni importado al board FreeForm todavía. Falta: import_spec (content-passing) con UC-109..112 + AC-01..08.
+- El board usa external_id con prefijos slug (US-CONN-*, UC numéricos hasta 108). Para esta feature: US-VSCODE-AUTOCLONE + UC-109..112. Verificar bloque libre antes de import_spec.
+- El canal de output Bash/Read se atascó repetidamente toda la sesión (flush intermitente) — quedan wakeups obsoletos programados; descartar al disparar.
 
-## Hot files
-- server/tools/spec_driven.py / spec_mutations.py / auth_gateway.py / backends/freeform_backend.py (UC-660, committed)
-- .claude/hooks/lib/mcp-client-io.mjs (UC-661, next)
-- tests/test_freeform_content_passing.py (UC-660 evidence)
+## Hot files (top N by edits this session)
+- .quality/app_docs_drift.jsonl
+- .quality/read_tracker.jsonl
+- .quality/discovery_gate_events.jsonl
+
+## Next concrete step
+Commitear el discovery + PRD de vscode_autoclone (doc/discovery/vscode_autoclone/icp_jtbd.md + doc/prd/US-VSCODE-AUTOCLONE_prd.md) en una rama feature/US-VSCODE-AUTOCLONE, luego importar la spec al board FreeForm (import_spec content-passing con UC-109..112 / AC-01..08), luego /plan US-VSCODE-AUTOCLONE. La implementación toca vscode-extension/src/install.ts (resolveEnginePath + managedEnginePath/isManagedPath/ENGINE_REPO_URL) y updater.ts (git pull del gestionado) + tests autoclone.test.mjs.
+
+## Pointers para la próxima sesión
+_(none)_

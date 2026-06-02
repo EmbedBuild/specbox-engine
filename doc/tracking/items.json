@@ -10364,7 +10364,7 @@
       "US"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": null,
     "meta": {
       "tipo": "US",
@@ -10373,7 +10373,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T21:45:00Z"
+    "updated_at": "2026-06-02T20:25:00Z"
   },
   {
     "id": "item-bsn-uc-810",
@@ -10385,7 +10385,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10396,7 +10396,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T21:45:00Z"
+    "updated_at": "2026-06-02T20:25:00Z"
   },
   {
     "id": "ac-bsn-uc-810-ac-01",
@@ -10459,7 +10459,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10470,7 +10470,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T21:45:00Z"
+    "updated_at": "2026-06-02T20:25:00Z"
   },
   {
     "id": "ac-bsn-uc-811-ac-04",
@@ -10516,7 +10516,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10527,7 +10527,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T21:45:00Z"
+    "updated_at": "2026-06-02T20:25:00Z"
   },
   {
     "id": "ac-bsn-uc-812-ac-06",
@@ -10590,7 +10590,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10601,7 +10601,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T21:45:00Z"
+    "updated_at": "2026-06-02T20:25:00Z"
   },
   {
     "id": "ac-bsn-uc-813-ac-09",
@@ -10664,7 +10664,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10675,7 +10675,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T21:45:00Z"
+    "updated_at": "2026-06-02T20:25:00Z"
   },
   {
     "id": "ac-bsn-uc-814-ac-12",
@@ -10738,7 +10738,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10749,7 +10749,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T21:45:00Z"
+    "updated_at": "2026-06-02T20:25:00Z"
   },
   {
     "id": "ac-bsn-uc-815-ac-15",
@@ -10795,7 +10795,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10806,7 +10806,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T21:45:00Z"
+    "updated_at": "2026-06-02T20:25:00Z"
   },
   {
     "id": "ac-bsn-uc-816-ac-17",
@@ -10835,7 +10835,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "review",
+    "state": "done",
     "parent_id": "item-bsn-us",
     "meta": {
       "tipo": "UC",
@@ -10846,7 +10846,7 @@
       "screens": ""
     },
     "created_at": "2026-06-02T19:50:00+00:00",
-    "updated_at": "2026-06-02T21:45:00Z"
+    "updated_at": "2026-06-02T20:25:00Z"
   },
   {
     "id": "ac-bsn-uc-817-ac-18",

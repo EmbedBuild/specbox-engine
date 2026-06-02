@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-06-02T20:15:35.047772+00:00
+> Actualizado: 2026-06-02T20:23:09.898275+00:00
 
 ## User Stories
 
@@ -28,7 +28,7 @@
 | US-CONN-UPGRADE | [US-CONN-UPGRADE] Actualizacion robusta y pedagogica consciente de la configuracion | User Stories | 3 | 3 | 100% |
 | US-CONN-GATE | [US-CONN-GATE] Drift gate consciente de las decisiones canonicas | User Stories | 2 | 2 | 100% |
 | US-VSCODE-AUTOCLONE | [US-VSCODE-AUTOCLONE] Auto-clone del engine público desde la extensión | Done | 4 | 4 | 100% |
-| US-BACKEND-SWITCH-NATIVE | [US-BACKEND-SWITCH-NATIVE] Cambiar de backend como operacion unica, atomica y completa (hacia/desde Native) | Review | 0 | 8 | 0% |
+| US-BACKEND-SWITCH-NATIVE | [US-BACKEND-SWITCH-NATIVE] Cambiar de backend como operacion unica, atomica y completa (hacia/desde Native) | Done | 8 | 8 | 100% |
 
 ## Use Cases
 
@@ -146,11 +146,11 @@
 | UC-110 | US-VSCODE-AUTOCLONE | Done | 0 | 3 | 0% |
 | UC-111 | US-VSCODE-AUTOCLONE | Done | 0 | 2 | 0% |
 | UC-112 | US-VSCODE-AUTOCLONE | Done | 0 | 1 | 0% |
-| UC-810 | US-BACKEND-SWITCH-NATIVE | Review | 3 | 3 | 100% |
-| UC-811 | US-BACKEND-SWITCH-NATIVE | Review | 2 | 2 | 100% |
-| UC-812 | US-BACKEND-SWITCH-NATIVE | Review | 3 | 3 | 100% |
-| UC-813 | US-BACKEND-SWITCH-NATIVE | Review | 3 | 3 | 100% |
-| UC-814 | US-BACKEND-SWITCH-NATIVE | Review | 3 | 3 | 100% |
-| UC-815 | US-BACKEND-SWITCH-NATIVE | Review | 2 | 2 | 100% |
-| UC-816 | US-BACKEND-SWITCH-NATIVE | Review | 1 | 1 | 100% |
-| UC-817 | US-BACKEND-SWITCH-NATIVE | Review | 2 | 2 | 100% |
+| UC-810 | US-BACKEND-SWITCH-NATIVE | Done | 3 | 3 | 100% |
+| UC-811 | US-BACKEND-SWITCH-NATIVE | Done | 2 | 2 | 100% |
+| UC-812 | US-BACKEND-SWITCH-NATIVE | Done | 3 | 3 | 100% |
+| UC-813 | US-BACKEND-SWITCH-NATIVE | Done | 3 | 3 | 100% |
+| UC-814 | US-BACKEND-SWITCH-NATIVE | Done | 3 | 3 | 100% |
+| UC-815 | US-BACKEND-SWITCH-NATIVE | Done | 2 | 2 | 100% |
+| UC-816 | US-BACKEND-SWITCH-NATIVE | Done | 1 | 1 | 100% |
+| UC-817 | US-BACKEND-SWITCH-NATIVE | Done | 2 | 2 | 100% |

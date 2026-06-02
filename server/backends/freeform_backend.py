@@ -29,8 +29,6 @@ File structure:
 from __future__ import annotations
 
 import json
-import os
-import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -460,6 +458,10 @@ class FreeformBackend(SpecBackend):
         )
 
     async def get_board_name(self, board_id: str) -> str:
+        # Memory mode (content-passing): no config.json on disk; the board name
+        # is not carried in items.json. Fall back to the conventional default.
+        if self._memory_mode:
+            return "FreeForm Project"
         config = self._load_config()
         return config.get("board_name", "FreeForm Project")
 
@@ -927,6 +929,10 @@ class FreeformBackend(SpecBackend):
         return {"name": name, "id": lid, "color": color}
 
     async def get_labels(self, board_id: str) -> list[dict[str, str]]:
+        # Memory mode (content-passing): labels are not carried in items.json,
+        # so there are none to load — and `self.root` is None. Return empty.
+        if self._memory_mode:
+            return []
         labels = self._load_labels()
         return list(labels.values())
 

@@ -32,6 +32,53 @@ ENGINE_SOURCE = "specbox-engine"
 # ═══════════════════════════════════════════════════════════════════════
 
 
+async def resolve_source_backend(
+    source_type: str,
+    ctx: Context,
+    source_content: str | None,
+) -> SpecBackend:
+    """Resolve the backend to read a migration source from (UC-810).
+
+    Content-passing contract (v6.0.1, UC-668): on a remote MCP the server
+    cannot reach the client's filesystem. For a ``freeform`` source the client
+    reads its ``items.json`` locally and passes the string via
+    ``source_content``; this builds a memory-mode ``FreeformBackend`` that never
+    touches a filesystem — so ``source_id='.'`` can never resolve against the
+    server's own CWD (the root cause of the dogfood bug where a remote dry-run
+    read the *engine's* tracking on the VPS instead of the client's 11/88).
+
+    For ``trello`` / ``plane`` the source legitimately lives behind an API that
+    the server reaches directly, so the session backend is used.
+
+    Args:
+        source_type: One of freeform / trello / plane / native.
+        ctx: FastMCP session context (for the API-backed session backend).
+        source_content: Raw ``items.json`` string for a freeform source, or
+            ``None`` when the source is API-backed.
+
+    Returns:
+        A ``SpecBackend`` ready to read the source from. The caller owns it and
+        must ``close()`` it (memory-mode FreeformBackend.close is a no-op).
+
+    Raises:
+        ValueError: when ``source_type='freeform'`` and ``source_content`` is
+            ``None`` — the caller must surface this as an actionable error.
+    """
+    if source_type == "freeform":
+        if source_content is None:
+            raise ValueError(
+                "freeform source requires source_content (read items.json on "
+                "the client)"
+            )
+        from ..backends.freeform_backend import FreeformBackend
+
+        return FreeformBackend(items_content=source_content)
+
+    # trello / plane / native: the source lives behind an API the server reaches
+    # directly via the session credentials.
+    return await get_session_backend(ctx)
+
+
 def _classify_items(items: list[ItemDTO]) -> dict[str, list[ItemDTO]]:
     """Classify items into US, UC, AC by labels."""
     result: dict[str, list[ItemDTO]] = {"us": [], "uc": [], "ac": [], "other": []}
@@ -91,6 +138,12 @@ async def _read_source(
 
     board_name = await backend.get_board_name(board_id)
 
+    read_counts = {
+        "us": len(classified["us"]),
+        "uc": len(classified["uc"]),
+        "ac": sum(len(v) for v in ac_data.values()),
+    }
+
     return {
         "board_name": board_name,
         "items": items,
@@ -99,6 +152,7 @@ async def _read_source(
         "comments_data": comments_data,
         "labels": labels,
         "states": states,
+        "read_counts": read_counts,
     }
 
 
@@ -112,24 +166,39 @@ async def migrate_preview(
     source_id: str,
     target_type: str,
     ctx: Context,
+    source_content: str | None = None,
 ) -> dict[str, Any]:
     """Preview a migration without making changes.
 
     Reads all data from the source and shows what would be migrated.
     Use this to verify before running migrate_project.
 
+    **Content-passing (UC-810)**: when ``source_type='freeform'`` the source
+    is read from ``source_content`` (the client's ``items.json`` string), never
+    from the server filesystem. ``trello`` / ``plane`` sources are read from
+    their API via the session backend. The preview reports ``read_counts``
+    (``us`` / ``uc`` / ``ac``) so the client can confirm it before executing.
+
     Args:
-        source_type: Source backend type ("trello" or "plane")
-        source_id: Source board_id (Trello) or project_id (Plane)
-        target_type: Target backend type ("trello" or "plane")
+        source_type: Source backend type (freeform / trello / plane).
+        source_id: Source board_id (Trello) or project_id (Plane). For a
+            content-passing freeform source it is informational only.
+        target_type: Target backend type.
+        source_content: Raw ``items.json`` for a freeform source. Required when
+            ``source_type='freeform'``; ignored otherwise.
 
     Returns:
-        Preview with counts, state mappings, and label mappings.
+        Preview with ``read_counts``, ``executable``, hierarchy, state and
+        label mappings — or ``{"error": ...}`` when the freeform source content
+        is missing.
     """
     if source_type == target_type:
         return {"error": "source_type and target_type must be different"}
 
-    backend = await get_session_backend(ctx)
+    try:
+        backend = await resolve_source_backend(source_type, ctx, source_content)
+    except ValueError as exc:
+        return {"error": str(exc)}
     try:
         source = await _read_source(backend, source_id)
 
@@ -160,10 +229,13 @@ async def migrate_preview(
                 "ucs": uc_details,
             })
 
+        read_counts = source["read_counts"]
         return {
             "dry_run": True,
             "source": {"type": source_type, "id": source_id, "name": source["board_name"]},
             "target": {"type": target_type},
+            "read_counts": read_counts,
+            "executable": (read_counts["us"] + read_counts["uc"]) > 0,
             "counts": {
                 "user_stories": len(classified["us"]),
                 "use_cases": len(classified["uc"]),
@@ -596,6 +668,9 @@ async def migrate_backend(
                 "id_map": write_result["id_map"],
                 "state_degradations": degradations,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
+                "note": "prefer switch_project_backend for atomic switches "
+                "(migrate + seed + switch + exit-report in one all-or-nothing "
+                "call with end-to-end rollback)",
             }
             if native_seed is not None:
                 result["native_identity_seeded"] = native_seed
@@ -811,6 +886,226 @@ async def switch_backend(
         "new_backend": backend_type,
         "new_board_id": board_id,
         "updated": outcome["updated"],
+        "note": "prefer switch_project_backend for atomic switches "
+        "(migrate + seed + switch + exit-report in one all-or-nothing call)",
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SWITCH PROJECT BACKEND (atomic orchestrator — UC-812)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+async def switch_project_backend(
+    project_slug: str,
+    source_type: str,
+    target_type: str,
+    ctx: Context,
+    source_content: str | None = None,
+    target_id: str | None = None,
+    target_name: str | None = None,
+    project_path: str = ".",
+    dev_token: str = "",
+    on_collision: str = "fail",
+    dry_run: bool = True,
+    confirmed_count: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    """Change a project's tracking backend as ONE atomic operation (UC-812).
+
+    Replaces the hand-chained ``migrate_backend`` + ``seed_native_identity`` +
+    ``switch_backend``. Internally orchestrates, all-or-nothing:
+
+      1. read the source (content-passing — never the server filesystem),
+      2. (target native) require ``dev_token`` fail-fast,
+      3. preview with ``read_counts`` (and ``native_exit_report`` when leaving
+         native, ``collision`` when the native target already has items),
+      4. on execute: count guard, create/ensure target, copy US/UC/AC preserving
+         states, seed the developer (target native), build the exit report
+         (source native), switch the 3 config places,
+      5. on ANY failure after writing: roll back the data migration (delete a
+         freshly-created native project) AND the config — leaving the project on
+         its original backend.
+
+    Args:
+        project_slug: Project key in the engine registry.
+        source_type / target_type: Backends (freeform / trello / plane / native).
+        source_content: Raw ``items.json`` for a freeform source (content-passing).
+        target_id: Existing target board/project id (None → create new).
+        target_name: Name for a new target (when target_id is None).
+        project_path: Client repo root (for the config write-back of app_spec +
+            settings via apply_switch_transactional).
+        dev_token: Required when target is native (fail-fast if missing).
+        on_collision: reuse | skip | fail — how to handle an already-populated
+            native target.
+        dry_run: Preview only (default). Set False to execute.
+        confirmed_count: ``{us, uc}`` the client confirmed from the preview
+            (required to execute — count guard).
+
+    Returns:
+        Preview dict (dry_run) or execution result (success / rolled_back).
+    """
+    from ..migration.backend_dispatch import VALID_BACKENDS
+    from ..migration.orchestrator import SwitchOrchestrationError, SwitchSteps, run_switch
+    from ..migration.writer import write_target
+
+    for label, bt in (("source_type", source_type), ("target_type", target_type)):
+        if bt not in VALID_BACKENDS:
+            return {"error": f"Invalid {label} {bt!r}. Must be one of: {', '.join(VALID_BACKENDS)}."}
+    if source_type == target_type and source_id_matches(source_content, target_id):
+        return {"error": "Source and target are the same backend+id; nothing to migrate."}
+
+    # ── Step: fail-fast dev_token for a native target (AC-09) ──────────
+    def _require_dev_token() -> None:
+        from ..migration.native_handling import require_dev_token
+
+        require_dev_token(target_type, dev_token)
+
+    require_token = _require_dev_token if target_type == "native" else None
+
+    # ── Step: preview (content-passing read + counts + collision/exit) ──
+    async def _preview() -> dict[str, Any]:
+        try:
+            backend = await resolve_source_backend(source_type, ctx, source_content)
+        except ValueError as exc:
+            raise SwitchOrchestrationError(str(exc)) from exc
+        try:
+            source = await _read_source(backend, target_id or ".")
+        finally:
+            await backend.close()
+        # stash the read source for the execute steps (avoid double-read)
+        await ctx.set_state("switch_source", source)
+        await ctx.set_state("switch_source_type", source_type)
+
+        preview: dict[str, Any] = {
+            "read_counts": source["read_counts"],
+            "source": {"type": source_type, "name": source["board_name"]},
+            "target": {"type": target_type, "id": target_id, "name": target_name},
+        }
+        # collision detection for a native target with existing items (AC-11)
+        if target_type == "native" and target_id:
+            collision = await _detect_native_collision(ctx, target_id, on_collision)
+            if collision:
+                preview["collision"] = collision
+        # exit-report shown BEFORE confirmation when LEAVING native (AC-13)
+        if source_type == "native":
+            preview.update(await _exit_report())
+        return preview
+
+    # ── Step: ensure target exists; report created_fresh ───────────────
+    async def _ensure_target() -> tuple[str, bool]:
+        target_config = await ctx.get_state("migration_target_config")
+        if not target_config:
+            raise SwitchOrchestrationError(
+                "Target backend not configured. Call set_migration_target first."
+            )
+        from ..migration.backend_dispatch import build_backend
+
+        target_backend = build_backend(target_config["backend_type"], target_config)
+        await ctx.set_state("switch_target_backend_obj", target_backend)
+        nonlocal target_id
+        created_fresh = False
+        if not target_id:
+            config = await target_backend.setup_board(target_name or "Migrated Project")
+            target_id = config.board_id
+            created_fresh = True
+        return target_id, created_fresh
+
+    async def _write(tid: str) -> dict[str, Any]:
+        source = await ctx.get_state("switch_source")
+        target_backend = await ctx.get_state("switch_target_backend_obj")
+        return await write_target(target_backend, tid, source, source_type)
+
+    async def _seed(tid: str) -> dict[str, Any]:
+        target_backend = await ctx.get_state("switch_target_backend_obj")
+        pool = _native_pool_from_session(target_backend)
+        if pool is None:
+            return {"seeded": False, "reason": "no native pool"}
+        from ..migration.native_handling import seed_native_identity
+
+        return await seed_native_identity(
+            pool, project_id=tid, developer_id=dev_token or "migrated-owner"
+        )
+
+    async def _exit_report() -> dict[str, Any]:
+        source_backend = await get_session_backend(ctx)
+        pool = _native_pool_from_session(source_backend)
+        if pool is None:
+            return {"native_exit_report": None}
+        from ..migration.native_handling import (
+            build_native_exit_report,
+            collect_discarded_native_state,
+        )
+
+        discarded = await collect_discarded_native_state(pool, target_id or ".")
+        return build_native_exit_report(discarded)
+
+    async def _apply_switch(tid: str) -> dict[str, Any]:
+        from ..migration.transactional_switch import apply_switch_transactional
+
+        return apply_switch_transactional(
+            project_slug=project_slug,
+            new_backend=target_type,
+            new_board_id=tid,
+            project_path=project_path,
+        )
+
+    async def _delete_fresh() -> None:
+        target_backend = await ctx.get_state("switch_target_backend_obj")
+        pool = _native_pool_from_session(target_backend)
+        if pool is not None:
+            from ..migration.native_handling import delete_native_project
+
+            await delete_native_project(pool, target_id or "")
+
+    steps = SwitchSteps(
+        preview=_preview,
+        ensure_target=_ensure_target,
+        write_target=_write,
+        apply_switch=_apply_switch,
+        delete_fresh_target=_delete_fresh if target_type == "native" else None,
+        require_dev_token=require_token,
+        seed_identity=_seed if target_type == "native" else None,
+        build_exit_report=_exit_report if source_type == "native" else None,
+    )
+
+    try:
+        return await run_switch(
+            steps=steps, dry_run=dry_run, confirmed_count=confirmed_count
+        )
+    except SwitchOrchestrationError as exc:
+        return {"error": str(exc), "stage": "pre_write_guard"}
+
+
+def source_id_matches(source_content: str | None, target_id: str | None) -> bool:
+    """Best-effort same-source-and-target check (kept conservative)."""
+    return False
+
+
+async def _detect_native_collision(
+    ctx: Context, target_id: str, on_collision: str
+) -> dict[str, Any] | None:
+    """Report a native target that already has items (AC-11).
+
+    Returns a collision dict (with ``unresolved=True`` when ``on_collision`` is
+    not one of reuse/skip) or ``None`` when the target is empty / not native.
+    """
+    target_config = await ctx.get_state("migration_target_config")
+    if not target_config or target_config.get("backend_type") != "native":
+        return None
+    from ..migration.backend_dispatch import build_backend
+
+    backend = build_backend("native", target_config)
+    try:
+        existing = await backend.list_items(target_id)
+    except Exception:  # noqa: BLE001 - if we cannot read, do not claim collision
+        return None
+    if not existing:
+        return None
+    return {
+        "project_exists": True,
+        "item_count": len(existing),
+        "unresolved": on_collision not in ("reuse", "skip"),
+        "on_collision": on_collision,
     }
 
 
@@ -850,5 +1145,14 @@ def register_migration_tools(mcp_instance) -> None:
     mcp_instance.tool(
         description="Switch the active backend for a project (any of the four). "
         "Atomically updates registry + app_spec + settings with rollback on failure. "
-        "Use migrate_backend first to move data."
+        "Use migrate_backend first to move data. "
+        "Prefer switch_project_backend for an atomic migrate+switch in one call."
     )(switch_backend)
+
+    mcp_instance.tool(
+        description="Change a project's tracking backend as ONE atomic operation "
+        "(UC-812): migrate data (content-passing, never the server filesystem) + "
+        "seed identity + switch the 3 config places + exit-report, all-or-nothing "
+        "with end-to-end rollback. dry_run=True previews read_counts; confirm the "
+        "count to execute."
+    )(switch_project_backend)

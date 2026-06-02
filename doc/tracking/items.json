@@ -11357,5 +11357,564 @@
     },
     "created_at": "2026-06-02T21:30:00+00:00",
     "updated_at": "2026-06-02T21:46:31.092815+00:00"
+  },
+  {
+    "id": "item-prov-e72505ea",
+    "name": "[US-NATIVE-PROVISION] Provisión de tenant+membresía y contrato canónico de project_id",
+    "external_id": "US-NATIVE-PROVISION",
+    "external_source": null,
+    "description": "Como dev que sube su proyecto local a SpecBox Cloud por primera vez, quiero que la migración provisione automáticamente mi tenant y mi membresía como admin con un identificador de proyecto acordado entre engine y panel, para no chocarme con un 'no eres miembro de un proyecto que aún no existe' ni con dos proyectos divergentes.",
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": null,
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-NATIVE-PROVISION",
+      "horas": "28",
+      "screens": ""
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "item-prov-1da56e9d",
+    "name": "[UC-818] Helper canónico de normalización de project_id (punto único de verdad)",
+    "external_id": "UC-818",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-e72505ea",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-818",
+      "us_id": "US-NATIVE-PROVISION",
+      "actor": "Sistema",
+      "horas": "4",
+      "screens": ""
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-4e2356d9",
+    "name": "[AC-01] canonical_project_id(\"EmbedBuild\", \"specbox_cloud\") devuelve exactamente \"EmbedBuild/specbox_cloud\" (case-preserving, una sola barra, sin recortes).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-1da56e9d",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-01",
+      "uc_id": "UC-818"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-e74d24a3",
+    "name": "[AC-02] display_slug(\"EmbedBuild/specbox_cloud\") devuelve \"embedbuild-specbox-cloud\" (lowercase + barra->guion), y es idempotente sobre un slug ya derivado.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-1da56e9d",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-02",
+      "uc_id": "UC-818"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-2a4d1d68",
+    "name": "[AC-03] un project_id ya en formato owner/repo pasado a canonical_project_id (o a su validador) se acepta sin alterarlo; un id inválido (vacío, sin owner, con múltiples barras) lanza un error explícito identificable.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-1da56e9d",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-03",
+      "uc_id": "UC-818"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "item-prov-1054b9c6",
+    "name": "[UC-819] seed_native_identity parametrizado por role (creador como project_admin)",
+    "external_id": "UC-819",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-e72505ea",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-819",
+      "us_id": "US-NATIVE-PROVISION",
+      "actor": "Sistema",
+      "horas": "3",
+      "screens": ""
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-f096e486",
+    "name": "[AC-04] seed_native_identity(..., role='project_admin') deja la fila project_members con role='project_admin' para el (project_id, developer_id) indicado.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-1054b9c6",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-04",
+      "uc_id": "UC-819"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-1708ca67",
+    "name": "[AC-05] la llamada es idempotente sobre (project_id, developer_id): re-ejecutar con el mismo role no duplica filas ni lanza UNIQUE violation (UPSERT).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-1054b9c6",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-05",
+      "uc_id": "UC-819"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-d1012250",
+    "name": "[AC-06] el valor de role se valida contra el conjunto permitido (project_admin / member); un role desconocido se rechaza con error explícito antes del INSERT (no se persiste un rol arbitrario).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-1054b9c6",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-06",
+      "uc_id": "UC-819"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "item-prov-3c235de7",
+    "name": "[UC-820] Provisión server-side de tenant+membresía antes del gate",
+    "external_id": "UC-820",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-e72505ea",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-820",
+      "us_id": "US-NATIVE-PROVISION",
+      "actor": "Sistema",
+      "horas": "6",
+      "screens": ""
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-d1203b55",
+    "name": "[AC-07] invocar la provisión con dev_token válido sobre un target_project_id inexistente crea la fila en public.projects (UPSERT) y la membresía del caller como project_admin en public.project_members, en una sola transacción.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-3c235de7",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-07",
+      "uc_id": "UC-820"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-6fe5ef55",
+    "name": "[AC-08] la provisión valida el dev_token (fail-fast, reutiliza require_dev_token) antes de cualquier escritura; un token ausente/inválido deja Postgres sin tocar (cero filas creadas) y devuelve envelope UNAUTHENTICATED.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-3c235de7",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-08",
+      "uc_id": "UC-820"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-ecc8543f",
+    "name": "[AC-09] tras una provisión exitosa existe una fila en audit_log que registra la creación de tenant+membresía con el developer_id y project_id, sin exponer el token ni credenciales de la BD (SPECBOX_NATIVE_DSN nunca serializado).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-3c235de7",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-09",
+      "uc_id": "UC-820"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-c5ef0434",
+    "name": "[AC-10] re-invocar la provisión sobre un proyecto ya provisionado por el mismo caller es un no-op idempotente (tenant UPSERT, membresía ya admin -> sin cambios) y NO degrada el rol del caller de project_admin a member.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-3c235de7",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-10",
+      "uc_id": "UC-820"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "item-prov-3a1bc5f4",
+    "name": "[UC-821] Integración con el flujo batch — auto-provisión antes del gate de membresía",
+    "external_id": "UC-821",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-e72505ea",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-821",
+      "us_id": "US-NATIVE-PROVISION",
+      "actor": "Sistema",
+      "horas": "5",
+      "screens": ""
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-876de008",
+    "name": "[AC-11] start_migration_session con dev_token válido sobre un target_project_id inexistente, con condición de 'proyecto de cero', auto-provisiona (UC-820) y devuelve status:'open' en vez del envelope de bloqueo por membresía.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-3a1bc5f4",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-11",
+      "uc_id": "UC-821"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-f2085d45",
+    "name": "[AC-12] tras la auto-provisión en start, el commit_migration_session pasa la re-validación de membresía de ingest_atomic y completa la ingesta (no vuelve a bloquear por membresía a mitad del flujo).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-3a1bc5f4",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-12",
+      "uc_id": "UC-821"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-ef7cb79c",
+    "name": "[AC-13] el dev_token se valida una sola vez al start (la auto-provisión reutiliza la identidad cacheada); la auto-provisión escribe solo en el tenant target y nunca añade al caller a un proyecto que no está creando.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-3a1bc5f4",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-13",
+      "uc_id": "UC-821"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "item-prov-0c02e10c",
+    "name": "[UC-822] E2E provisión + migración de proyecto nuevo a native desde cero",
+    "external_id": "UC-822",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-e72505ea",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-822",
+      "us_id": "US-NATIVE-PROVISION",
+      "actor": "Sistema",
+      "horas": "7",
+      "screens": ""
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-e3f6404e",
+    "name": "[AC-14] el E2E parte de public.projects SIN la fila del target, ejecuta el flujo de provisión+migración de cero, y al final public.projects contiene exactamente una fila con project_id == el canónico esperado (owner/repo).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-0c02e10c",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-14",
+      "uc_id": "UC-822"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-715b71ac",
+    "name": "[AC-15] al final del E2E, public.project_members contiene al creador con role='project_admin' para ese project_id.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-0c02e10c",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-15",
+      "uc_id": "UC-822"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-7f64ffc6",
+    "name": "[AC-16] al final del E2E, las US/UC/AC ingestadas en Postgres coinciden 1:1 con el source (conteos y estados done/backlog preservados verbatim, sin degradar a backlog).",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-0c02e10c",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-16",
+      "uc_id": "UC-822"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-71409678",
+    "name": "[AC-17] el E2E verifica que display_slug(project_id) del proyecto creado es el slug URL-safe esperado, demostrando que el contrato D1 es consistente end-to-end.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-0c02e10c",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-17",
+      "uc_id": "UC-822"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "item-prov-99c12c2c",
+    "name": "[UC-823] Documentar el cambio coordinado requerido en el panel",
+    "external_id": "UC-823",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-e72505ea",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-823",
+      "us_id": "US-NATIVE-PROVISION",
+      "actor": "Sistema",
+      "horas": "3",
+      "screens": ""
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-3845bdc8",
+    "name": "[AC-18] existe doc/decisions/native_project_id_contract.md que declara D1 (formato canónico, display slug, punto único de normalización) y D2 (autoridad de provisión, excepción de bootstrap) como decisiones canónicas, con file:line del código actual.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-99c12c2c",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-18",
+      "uc_id": "UC-823"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-fffa4ab0",
+    "name": "[AC-19] el doc lista el cambio concreto requerido en specbox_cloud (apps/api/src/routes/projects.ts líneas 140/173: relajar patrón para native + derivar display slug), con el contrato de la función compartida de normalización.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-99c12c2c",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-19",
+      "uc_id": "UC-823"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "ac-prov-e3866698",
+    "name": "[AC-20] D1 y D2 quedan registradas como decisiones canónicas del engine (vía record_canonical_confirmation / sección 6 de app_spec.md) para que engine y panel tengan una sola fuente de verdad consultable.",
+    "external_id": null,
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "AC"
+    ],
+    "priority": "high",
+    "state": "backlog",
+    "parent_id": "item-prov-99c12c2c",
+    "meta": {
+      "tipo": "AC",
+      "ac_id": "AC-20",
+      "uc_id": "UC-823"
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T00:00:00+00:00"
   }
 ]

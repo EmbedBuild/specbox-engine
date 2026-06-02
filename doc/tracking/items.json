@@ -11368,7 +11368,7 @@
       "US"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": null,
     "meta": {
       "tipo": "US",
@@ -11389,7 +11389,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-prov-e72505ea",
     "meta": {
       "tipo": "UC",
@@ -11412,7 +11412,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-1da56e9d",
     "meta": {
       "tipo": "AC",
@@ -11432,7 +11432,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-1da56e9d",
     "meta": {
       "tipo": "AC",
@@ -11452,7 +11452,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-1da56e9d",
     "meta": {
       "tipo": "AC",
@@ -11472,7 +11472,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-prov-e72505ea",
     "meta": {
       "tipo": "UC",
@@ -11495,7 +11495,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-1054b9c6",
     "meta": {
       "tipo": "AC",
@@ -11515,7 +11515,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-1054b9c6",
     "meta": {
       "tipo": "AC",
@@ -11535,7 +11535,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-1054b9c6",
     "meta": {
       "tipo": "AC",
@@ -11555,7 +11555,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-prov-e72505ea",
     "meta": {
       "tipo": "UC",
@@ -11578,7 +11578,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-3c235de7",
     "meta": {
       "tipo": "AC",
@@ -11598,7 +11598,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-3c235de7",
     "meta": {
       "tipo": "AC",
@@ -11618,7 +11618,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-3c235de7",
     "meta": {
       "tipo": "AC",
@@ -11638,7 +11638,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-3c235de7",
     "meta": {
       "tipo": "AC",
@@ -11658,7 +11658,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-prov-e72505ea",
     "meta": {
       "tipo": "UC",
@@ -11681,7 +11681,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-3a1bc5f4",
     "meta": {
       "tipo": "AC",
@@ -11701,7 +11701,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-3a1bc5f4",
     "meta": {
       "tipo": "AC",
@@ -11721,7 +11721,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-3a1bc5f4",
     "meta": {
       "tipo": "AC",
@@ -11741,7 +11741,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-prov-e72505ea",
     "meta": {
       "tipo": "UC",
@@ -11764,7 +11764,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-0c02e10c",
     "meta": {
       "tipo": "AC",
@@ -11784,7 +11784,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-0c02e10c",
     "meta": {
       "tipo": "AC",
@@ -11804,7 +11804,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-0c02e10c",
     "meta": {
       "tipo": "AC",
@@ -11824,7 +11824,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-0c02e10c",
     "meta": {
       "tipo": "AC",
@@ -11844,7 +11844,7 @@
       "UC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "review",
     "parent_id": "item-prov-e72505ea",
     "meta": {
       "tipo": "UC",
@@ -11867,7 +11867,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-99c12c2c",
     "meta": {
       "tipo": "AC",
@@ -11887,7 +11887,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-99c12c2c",
     "meta": {
       "tipo": "AC",
@@ -11907,7 +11907,7 @@
       "AC"
     ],
     "priority": "high",
-    "state": "backlog",
+    "state": "done",
     "parent_id": "item-prov-99c12c2c",
     "meta": {
       "tipo": "AC",

@@ -1,6 +1,6 @@
 # Progreso del Proyecto
 
-> Actualizado: 2026-06-02T22:57:04.288644+00:00
+> Actualizado: 2026-06-02T23:11:05.839663+00:00
 
 ## User Stories
 
@@ -30,7 +30,7 @@
 | US-VSCODE-AUTOCLONE | [US-VSCODE-AUTOCLONE] Auto-clone del engine público desde la extensión | Done | 4 | 4 | 100% |
 | US-BACKEND-SWITCH-NATIVE | [US-BACKEND-SWITCH-NATIVE] Cambiar de backend como operacion unica, atomica y completa (hacia/desde Native) | Done | 8 | 8 | 100% |
 | US-NATIVE-BATCH-INGEST | [US-NATIVE-BATCH-INGEST] Ingesta por lotes de sources grandes a Native | Backlog | 5 | 5 | 100% |
-| US-NATIVE-PROVISION | [US-NATIVE-PROVISION] Provisión de tenant+membresía y contrato canónico de project_id | Backlog | 0 | 6 | 0% |
+| US-NATIVE-PROVISION | [US-NATIVE-PROVISION] Provisión de tenant+membresía y contrato canónico de project_id | Revisión | 0 | 6 | 0% |
 
 ## Use Cases
 
@@ -161,9 +161,9 @@
 | UC-682 | US-NATIVE-BATCH-INGEST | Done | 5 | 5 | 100% |
 | UC-683 | US-NATIVE-BATCH-INGEST | Done | 3 | 3 | 100% |
 | UC-684 | US-NATIVE-BATCH-INGEST | Done | 2 | 2 | 100% |
-| UC-818 | US-NATIVE-PROVISION | Backlog | 0 | 3 | 0% |
-| UC-819 | US-NATIVE-PROVISION | Backlog | 0 | 3 | 0% |
-| UC-820 | US-NATIVE-PROVISION | Backlog | 0 | 4 | 0% |
-| UC-821 | US-NATIVE-PROVISION | Backlog | 0 | 3 | 0% |
-| UC-822 | US-NATIVE-PROVISION | Backlog | 0 | 4 | 0% |
-| UC-823 | US-NATIVE-PROVISION | Backlog | 0 | 3 | 0% |
+| UC-818 | US-NATIVE-PROVISION | Revisión | 3 | 3 | 100% |
+| UC-819 | US-NATIVE-PROVISION | Revisión | 3 | 3 | 100% |
+| UC-820 | US-NATIVE-PROVISION | Revisión | 4 | 4 | 100% |
+| UC-821 | US-NATIVE-PROVISION | Revisión | 3 | 3 | 100% |
+| UC-822 | US-NATIVE-PROVISION | Revisión | 4 | 4 | 100% |
+| UC-823 | US-NATIVE-PROVISION | Revisión | 3 | 3 | 100% |

@@ -4,14 +4,14 @@
     {
       "decision_key": "native_project_id_contract",
       "last_value": "owner/repo canónico almacenado + display slug derivado URL-safe; punto único de normalización compartido engine↔panel; cero migración de ids existentes",
-      "streak": 1,
-      "updated_at": "2026-06-02T22:55:24.137590+00:00"
+      "streak": 2,
+      "updated_at": "2026-06-02T23:09:49.746551+00:00"
     },
     {
       "decision_key": "native_provision_authority",
       "last_value": "engine auto-provisiona al creador como project_admin server-side en migración de cero (excepción de bootstrap); panel sigue siendo editor de otros miembros (§6 acotado); valida dev_token, escribe solo en el tenant, audit, no relaja deny_anon/service_role",
-      "streak": 1,
-      "updated_at": "2026-06-02T22:55:27.780303+00:00"
+      "streak": 2,
+      "updated_at": "2026-06-02T23:09:54.033603+00:00"
     }
   ]
 }

@@ -578,3 +578,137 @@ async def test_onboard_native_documents_empty_db(tmp_path) -> None:
     assert result.get("native_db_state") == "empty"
     assert "native DB empty" in result.get("next_action", "")
     assert "populate" in result.get("next_action", "")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# UC-817 — E2E: reproduce the original bug
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_e2e_remote_mcp_reads_client_not_server(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AC-18: with a remote MCP (SPECBOX_ENGINE_MCP_URL set) and a client
+    items.json of 11 US / 88 UC passed as source_content, the preview reports
+    11/88 (the client) and NEVER touches the server filesystem (which a spy
+    holds at 22/112 and must stay unread)."""
+    # Simulate a remote MCP deployment.
+    monkeypatch.setenv("SPECBOX_ENGINE_MCP_URL", "https://mcp.example.com/mcp")
+
+    # The server's own tracking (the engine's 22/112) — must NEVER be read.
+    server_fs = {"read": False}
+
+    async def _server_session_backend(_ctx):  # noqa: ANN001, ANN202
+        server_fs["read"] = True
+        raise AssertionError(
+            "remote MCP read the SERVER filesystem (the 22/112 engine tracking) "
+            "instead of the client's source_content — this is the original bug"
+        )
+
+    monkeypatch.setattr(migration_mod, "get_session_backend", _server_session_backend)
+
+    ctx = _FakeContext()
+    result = await migration_mod.migrate_preview(
+        source_type="freeform",
+        source_id=".",  # the poisoned arg from the original bug
+        target_type="native",
+        ctx=ctx,
+        source_content=CLIENT_11_88,
+    )
+
+    assert result["read_counts"]["us"] == 11
+    assert result["read_counts"]["uc"] == 88
+    assert server_fs["read"] is False  # server FS never touched
+
+
+@pytest.mark.asyncio
+async def test_e2e_zero_read_blocks_real_execute() -> None:
+    """AC-18 corollary: an empty source (the 0/0 case from the bug) blocks the
+    real execute via the count guard — never writes a hollow project."""
+    from server.migration.count_guard import CountGuardError, verify_count
+
+    empty_preview = await migration_mod.migrate_preview(
+        source_type="freeform",
+        source_id=".",
+        target_type="native",
+        ctx=_FakeContext(),
+        source_content="[]",  # empty board — the 0/0 server-CWD case
+    )
+    assert empty_preview["read_counts"]["us"] == 0
+    assert empty_preview["executable"] is False
+    with pytest.raises(CountGuardError, match="read 0 items"):
+        verify_count(empty_preview["read_counts"], confirmed_count={"us": 0, "uc": 0})
+
+
+# ── AC-19: freeform → native end-to-end (requires Postgres) ──────────────
+
+try:
+    from tests._native_db import DSN, reachable
+
+    _PG_OK, _PG_REASON = reachable()
+except Exception as _exc:  # noqa: BLE001 - native infra optional
+    _PG_OK, _PG_REASON = False, f"native db infra unavailable: {_exc}"
+
+
+@pytest.mark.skipif(not _PG_OK, reason=_PG_REASON)
+@pytest.mark.asyncio
+async def test_e2e_freeform_to_native_preserves_states() -> None:
+    """AC-19: migrating a freeform board to native (real Postgres) reconstructs
+    the project with the developer as a member and states NOT degraded to
+    backlog."""
+    from server.backends.native_backend import NativeBackend
+    from server.db.pool import apply_migrations, close_pool, init_pool
+    from server.migration.native_handling import seed_native_identity
+    from server.migration.writer import write_target
+    from server.tools.migration import _read_source, resolve_source_backend
+
+    # Source: a memory-mode freeform board with mixed states.
+    source_items = json.loads(_items_json(2, 2, 3))
+    # mark a couple of items non-backlog to prove preservation
+    for it in source_items:
+        if it.get("external_id") == "UC-001":
+            it["state"] = "in_progress"
+        if it.get("external_id") == "UC-002":
+            it["state"] = "done"
+    source_content = json.dumps(source_items)
+
+    pid = f"bsn-e2e-{abs(hash(source_content)) % 10_000_000}"
+    pool = await init_pool(dsn=DSN)
+    await apply_migrations(pool)
+    seed = await seed_native_identity(pool, project_id=pid, developer_id="jesusperezdeveloper")
+    try:
+        # Read source via content-passing (the client path), write to native.
+        src_backend = await resolve_source_backend("freeform", None, source_content)
+        source = await _read_source(src_backend, ".")
+        await src_backend.close()
+
+        native = NativeBackend(project_id=pid, dev_token=seed.get("token", ""))
+        # the project row exists from seed_native_identity; ensure board
+        await native.setup_board("bsn e2e")
+        result = await write_target(native, pid, source, "freeform")
+
+        assert result["migrated"]["us"] == 2
+        assert result["migrated"]["uc"] == 4
+
+        items = await native.list_items(pid)
+        states = {i.meta.get("uc_id"): i.state for i in items if i.meta.get("uc_id")}
+        assert states.get("UC-001") == "in_progress"
+        assert states.get("UC-002") == "done"
+
+        # developer associated as a member
+        async with pool.acquire() as conn:
+            member = await conn.fetchval(
+                "SELECT count(*) FROM project_members WHERE project_id = $1 "
+                "AND developer_id = $2",
+                pid,
+                "jesusperezdeveloper",
+            )
+        assert member == 1
+    finally:
+        async with pool.acquire() as conn:
+            await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
+            await conn.execute(
+                "DELETE FROM developers WHERE developer_id = $1", "jesusperezdeveloper"
+            )
+        await close_pool()

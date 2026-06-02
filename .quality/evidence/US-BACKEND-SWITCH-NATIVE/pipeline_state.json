@@ -12,8 +12,10 @@
     "uc-813",
     "uc-814",
     "uc-815",
-    "uc-816"
+    "uc-816",
+    "uc-817",
+    "tests"
   ],
-  "current_phase": "uc-817",
-  "last_updated": "2026-06-02T21:35:00Z"
+  "current_phase": "done",
+  "last_updated": "2026-06-02T21:45:00Z"
 }

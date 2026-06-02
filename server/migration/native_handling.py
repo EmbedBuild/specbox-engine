@@ -220,3 +220,52 @@ async def seed_native_identity(
         "registered": True,
         "member_added": True,
     }
+
+
+# ── AC-09: fail-fast dev_token guard for a native target ─────────────────
+
+
+class MissingDevTokenError(RuntimeError):
+    """Raised when a native target is requested without a dev_token (AC-09)."""
+
+
+def require_dev_token(target_type: str, dev_token: str) -> None:
+    """Fail fast when switching INTO native without a dev_token.
+
+    Native (Cloud) requires a developer token minted by the panel. This guard
+    runs BEFORE the source is read or anything is written, so a missing token
+    never leaves a half-written project in Postgres (AC-09).
+
+    Args:
+        target_type: The target backend type.
+        dev_token: The developer token (empty/whitespace means absent).
+
+    Raises:
+        MissingDevTokenError: when ``target_type == "native"`` and ``dev_token``
+            is empty.
+    """
+    if target_type == "native" and not (dev_token or "").strip():
+        raise MissingDevTokenError(
+            "native target requires dev_token from the Cloud panel"
+        )
+
+
+# ── AC-07 rollback: delete a freshly-created native project ──────────────
+
+
+async def delete_native_project(pool: asyncpg.Pool, project_id: str) -> None:
+    """Delete a Native project and its rows (for atomic-switch data rollback).
+
+    Used by the orchestrator when an atomic switch into native created the
+    project fresh and a later step failed: deleting it restores the
+    pre-migration "empty" state so nothing is left half-written (AC-07/AC-12).
+
+    The ``ON DELETE CASCADE`` foreign keys on the native schema remove the
+    project's items/AC/reservations/members; this issues the parent DELETE.
+    """
+    if not project_id:
+        return
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("DELETE FROM projects WHERE project_id = $1", project_id)
+    logger.info("native_project_deleted_rollback", project_id=project_id)

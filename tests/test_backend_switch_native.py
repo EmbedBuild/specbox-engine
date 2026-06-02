@@ -255,3 +255,151 @@ def test_count_guard_accepts_match() -> None:
 
     # Should not raise. ac is informational and ignored in the comparison.
     verify_count({"us": 11, "uc": 88, "ac": 440}, confirmed_count={"us": 11, "uc": 88})
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# UC-812 — atomic orchestrator (run_switch)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _ok_steps(*, fail_switch: bool = False, created_fresh: bool = True):
+    """Build a SwitchSteps wired with in-memory fakes for a freeform→native run."""
+    from server.migration.orchestrator import SwitchSteps
+
+    calls: dict[str, Any] = {"deleted": False}
+
+    async def preview():
+        return {"read_counts": {"us": 11, "uc": 88, "ac": 440}}
+
+    async def ensure_target():
+        return ("proj-new", created_fresh)
+
+    async def write_target(_tid):
+        calls["written"] = True
+        return {"migrated": 99, "skipped": 0, "errors": [], "id_map": {}}
+
+    async def seed_identity(_tid):
+        calls["seeded"] = True
+        return {"developer_id": "jesusperezdeveloper", "member_added": True}
+
+    async def apply_switch(_tid):
+        if fail_switch:
+            from server.migration.transactional_switch import TransactionalSwitchError
+
+            raise TransactionalSwitchError("settings", RuntimeError("disk full"), [])
+        calls["switched"] = True
+        return {"updated": ["registry", "app_spec", "settings"]}
+
+    async def delete_fresh():
+        calls["deleted"] = True
+
+    steps = SwitchSteps(
+        preview=preview,
+        ensure_target=ensure_target,
+        write_target=write_target,
+        apply_switch=apply_switch,
+        delete_fresh_target=delete_fresh,
+        seed_identity=seed_identity,
+    )
+    return steps, calls
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_freeform_to_native_four_substeps() -> None:
+    """AC-06: a successful switch runs ensure_target + write + seed + switch."""
+    from server.migration.orchestrator import run_switch
+
+    steps, calls = _ok_steps()
+    result = await run_switch(
+        steps=steps, dry_run=False, confirmed_count={"us": 11, "uc": 88}
+    )
+    assert result["success"] is True
+    assert result["completed_steps"] == [
+        "ensure_target",
+        "write_target",
+        "seed_identity",
+        "apply_switch",
+    ]
+    assert calls["written"] and calls["seeded"] and calls["switched"]
+    assert calls["deleted"] is False  # no rollback on success
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_rolls_back_data_on_switch_failure() -> None:
+    """AC-07: if the config switch fails after writing data, the freshly-created
+    native project is deleted (data rollback) and rolled_back is reported."""
+    from server.migration.orchestrator import run_switch
+
+    steps, calls = _ok_steps(fail_switch=True, created_fresh=True)
+    result = await run_switch(
+        steps=steps, dry_run=False, confirmed_count={"us": 11, "uc": 88}
+    )
+    assert result["success"] is False
+    assert result["rolled_back"] is True
+    assert result["failing_step"] == "apply_switch"
+    assert result["data_rollback"]["data_rolled_back"] is True
+    assert calls["deleted"] is True
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_dry_run_does_not_write() -> None:
+    """Dry-run returns the preview and writes nothing."""
+    from server.migration.orchestrator import run_switch
+
+    steps, calls = _ok_steps()
+    result = await run_switch(steps=steps, dry_run=True, confirmed_count=None)
+    assert result["dry_run"] is True
+    assert result["read_counts"]["uc"] == 88
+    assert "written" not in calls
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_count_guard_blocks_execute() -> None:
+    """The orchestrator refuses to execute on a count mismatch (no writes)."""
+    from server.migration.orchestrator import run_switch, SwitchOrchestrationError
+
+    steps, calls = _ok_steps()
+    with pytest.raises(SwitchOrchestrationError, match="count mismatch"):
+        await run_switch(
+            steps=steps, dry_run=False, confirmed_count={"us": 22, "uc": 112}
+        )
+    assert "written" not in calls
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_dev_token_fail_fast_before_preview() -> None:
+    """AC-09: a missing dev_token fails before the source is even read."""
+    from server.migration.orchestrator import SwitchSteps, run_switch
+    from server.migration.native_handling import MissingDevTokenError, require_dev_token
+
+    read = {"happened": False}
+
+    async def preview():
+        read["happened"] = True
+        return {"read_counts": {"us": 1, "uc": 1}}
+
+    def _require():
+        require_dev_token("native", "")  # raises
+
+    steps = SwitchSteps(
+        preview=preview,
+        ensure_target=lambda: None,  # never reached
+        write_target=lambda _t: None,
+        apply_switch=lambda _t: None,
+        require_dev_token=_require,
+    )
+    with pytest.raises(MissingDevTokenError):
+        await run_switch(steps=steps, dry_run=True, confirmed_count=None)
+    assert read["happened"] is False  # fail-fast: preview never ran
+
+
+def test_legacy_tools_carry_prefer_note() -> None:
+    """AC-08: migrate_backend/switch_backend success payloads recommend the
+    atomic tool. Verified by source inspection (cheap, no live backends)."""
+    import inspect
+
+    from server.tools import migration as m
+
+    src = inspect.getsource(m)
+    # both success returns embed the recommendation
+    assert src.count("prefer switch_project_backend") >= 2

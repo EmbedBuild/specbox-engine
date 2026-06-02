@@ -36,6 +36,10 @@ logger = structlog.get_logger(__name__)
 #: OP_DELETE_AC`` without typo risk.
 OP_DELETE_AC: str = "delete_acceptance_criterion"
 OP_ARCHIVE_ITEM: str = "archive_item"
+#: Non-destructive but audited: the engine provisioned a native tenant +
+#: creator membership during a from-scratch migration (UC-820, decision D2).
+#: ``target_id`` carries the project_id; ``developer_id`` the provisioned admin.
+OP_PROVISION_PROJECT: str = "provision_project"
 
 
 async def record_destructive(

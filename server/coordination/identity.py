@@ -273,6 +273,13 @@ async def revoke_mcp_token(
     return revoked
 
 
+#: Roles a developer may hold in a project. ``project_admin`` is granted to the
+#: creator when the engine auto-provisions a from-scratch native migration
+#: (decision D2 — see :mod:`server.migration.native_handling`). The panel
+#: remains the editor for adding/removing *other* members.
+VALID_PROJECT_ROLES = frozenset({"project_admin", "member"})
+
+
 async def add_project_member(
     conn: asyncpg.Connection | asyncpg.Pool,
     *,
@@ -282,8 +289,19 @@ async def add_project_member(
 ) -> None:
     """Associate a developer with a project (authorization edge) [AC-13].
 
-    Idempotent on ``(project_id, developer_id)``.
+    Idempotent on ``(project_id, developer_id)``: re-adding with the same role
+    is a no-op; re-adding with a different role updates it.
+
+    The ``role`` is validated against :data:`VALID_PROJECT_ROLES` BEFORE the
+    INSERT (UC-819 AC-06) so an arbitrary/typo role can never be persisted.
+
+    Raises:
+        ValueError: when ``role`` is not one of :data:`VALID_PROJECT_ROLES`.
     """
+    if role not in VALID_PROJECT_ROLES:
+        raise ValueError(
+            f"invalid project role {role!r}; expected one of {sorted(VALID_PROJECT_ROLES)}"
+        )
 
     async def _run(c: asyncpg.Connection) -> None:
         await c.execute(

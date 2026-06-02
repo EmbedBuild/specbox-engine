@@ -4,3 +4,4 @@
 {"type":"discovery_gate","feature_name":"specbox_connectivity_ux","gate_mode":"warn","verdict":"DISCOVERY_INCOMPLETE","missing":["artifact_not_found"],"action":"warned","detected_at":"2026-05-31T12:18:33.187Z"}
 {"type":"discovery_gate","feature_name":"vscode_autoclone","gate_mode":"warn","verdict":"DISCOVERY_INCOMPLETE","missing":["artifact_not_found"],"action":"warned","detected_at":"2026-05-31T19:32:36.794Z"}
 {"type":"discovery_gate","feature_name":"backend_switch_native","gate_mode":"warn","verdict":"DISCOVERY_INCOMPLETE","missing":["artifact_not_found"],"action":"warned","detected_at":"2026-06-02T19:33:42.444Z"}
+{"type":"discovery_gate","feature_name":"native_batch_ingestion","gate_mode":"warn","verdict":"DISCOVERY_INCOMPLETE","missing":["artifact_not_found"],"action":"warned","detected_at":"2026-06-02T21:18:55.781Z"}

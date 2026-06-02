@@ -548,3 +548,33 @@ def test_build_native_exit_report_shape() -> None:
     report = build_native_exit_report({"reservations": [{"uc_id": "UC-1"}], "developers": []})
     assert "discarded_native_state" in report
     assert "NOT migrated" in report["note"]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# UC-816 — onboard native documents the empty DB
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_onboard_native_documents_empty_db(tmp_path) -> None:
+    """AC-17: onboard_project(backend_type='native') reports that the DB is
+    empty and must be populated, so the user does not expect Cloud data."""
+    from pathlib import Path
+
+    from fastmcp import FastMCP
+
+    from server.tools.onboarding import register_onboarding_tools
+
+    repo_root = Path(__file__).resolve().parent.parent
+    mcp = FastMCP(name="test-onboard-native")
+    register_onboarding_tools(mcp, engine_path=repo_root, state_path=tmp_path)
+    tool = await mcp.get_tool("onboard_project")
+
+    result = await tool.fn(
+        project="acme-native",
+        stack="python",
+        backend_type="native",
+    )
+    assert result.get("native_db_state") == "empty"
+    assert "native DB empty" in result.get("next_action", "")
+    assert "populate" in result.get("next_action", "")

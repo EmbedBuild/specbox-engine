@@ -1022,6 +1022,15 @@ def register_onboarding_tools(
         if board_id:
             result["trello_board_id"] = board_id
             result["trello_board_url"] = board_url
+        # UC-816 (AC-17): onboarding to native registers the project but does
+        # NOT populate the Postgres DB. Make that explicit so the user does not
+        # expect the Cloud panel to show data that does not exist yet.
+        if backend_type == "native":
+            result["native_db_state"] = "empty"
+            result["next_action"] = (
+                "project registered, native DB empty — run switch_project_backend "
+                "or import_spec to populate"
+            )
         return result
 
     @mcp.tool

@@ -1176,6 +1176,7 @@ async def start_migration_session(
         envelope when the token is missing/invalid.
     """
     from ..coordination.identity import (
+        ForbiddenError,
         UnauthenticatedError,
         authenticate_and_authorize_cached,
     )
@@ -1188,12 +1189,28 @@ async def start_migration_session(
         if not (dev_token or "").strip():
             raise UnauthenticatedError()
         pool = await get_pool()
+        # UC-821: auto-provision the tenant + creator membership when the
+        # native target is born from scratch. Resolve the real developer from
+        # the token FIRST (UNAUTHENTICATED if the token is bad — nothing is
+        # written), then, if the project does not exist yet, provision it with
+        # the caller as project_admin BEFORE the membership gate. This breaks
+        # the egg-chicken bind (decision D2): the gate below now passes because
+        # the membership exists. The auto-provision writes only into this
+        # tenant and never adds the caller to a project they are not creating
+        # (we only provision when the project is absent) (AC-11, AC-13).
+        await _maybe_auto_provision(pool, dev_token, target_project_id)
         await authenticate_and_authorize_cached(
             pool, token=dev_token, project_id=target_project_id
         )
         dev_id = _dev_id_from_token(dev_token)
     except UnauthenticatedError:
         return _unauthenticated(ctx)
+    except ForbiddenError as e:
+        # Valid token, but not a member of a PRE-EXISTING project (the
+        # auto-provision above only fires for a from-scratch target). The
+        # caller is NOT silently added — the panel owns membership of existing
+        # projects (decision D2, AC-13).
+        return {"error": str(e), "code": "FORBIDDEN", "status": "forbidden"}
 
     store = get_session_store()
     session = store.open(
@@ -1414,6 +1431,54 @@ def _unauthenticated(ctx: Context) -> dict[str, Any]:
     )
 
     return unauthenticated_payload(locale=extract_locale_from_ctx(ctx))
+
+
+async def _maybe_auto_provision(pool, dev_token: str, target_project_id: str) -> bool:
+    """Auto-provision the native tenant + creator membership if absent (UC-821).
+
+    Resolves the developer from ``dev_token`` (raises ``UnauthenticatedError``
+    on a bad token — caller maps it to the UNAUTHENTICATED envelope, nothing
+    written). If ``target_project_id`` does not yet exist in ``public.projects``,
+    provisions it with the caller as ``project_admin`` (decision D2) and clears
+    the auth cache so the subsequent membership gate reads the fresh edge.
+
+    Returns ``True`` when it provisioned, ``False`` when the project already
+    existed (the normal gate then decides membership as before — the caller is
+    NOT auto-added to a pre-existing project, AC-13).
+    """
+    from ..coordination.identity import resolve_developer
+    from ..coordination.project_id import InvalidProjectIdError, validate_project_id
+    from ..migration.native_handling import provision_native_project
+
+    # Only the canonical owner/repo shape is a valid native tenant id. A
+    # malformed id is not a "from scratch" case — let the gate reject it.
+    try:
+        canonical = validate_project_id(target_project_id)
+    except InvalidProjectIdError:
+        return False
+
+    developer = await resolve_developer(pool, dev_token)  # UNAUTHENTICATED if bad
+
+    async with pool.acquire() as conn:
+        exists = bool(
+            await conn.fetchval("SELECT 1 FROM projects WHERE project_id = $1", canonical)
+        )
+    if exists:
+        return False
+
+    await provision_native_project(
+        pool,
+        project_id=canonical,
+        developer_id=developer.developer_id,
+        display_name=developer.display_name,
+        role="project_admin",
+    )
+    # The membership edge is new; drop any cached (token, project) decision so
+    # the gate below revalidates against Postgres.
+    from ..coordination.identity import _clear_auth_cache
+
+    _clear_auth_cache()
+    return True
 
 
 def _dev_id_from_token(dev_token: str) -> str:

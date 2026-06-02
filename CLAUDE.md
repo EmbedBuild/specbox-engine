@@ -1573,6 +1573,68 @@ regresión (78 passed).
 - Discovery: [doc/discovery/native_batch_ingestion/icp_jtbd.md](doc/discovery/native_batch_ingestion/icp_jtbd.md)
 - Hallazgo origen: [HALLAZGO-v6.9.2-transporte-source-grande.md](HALLAZGO-v6.9.2-transporte-source-grande.md)
 
+## Provisión + contrato de project_id (v6.9.3)
+
+US-NATIVE-PROVISION cierra los 2 gaps que bloquearon el caso de uso central
+("subir mi proyecto a SpecBox Cloud") descubiertos validando v6.9.2 al migrar
+`specbox_cloud` freeform→native de cero: el **transporte por lotes funcionó**
+pero la migración se bloqueó en `start_migration_session` con
+`Developer X is not a member of project EmbedBuild/specbox_cloud`. Dos gaps de
+diseño combinados:
+
+- **GAP 1 — provisión**: el path batch (`start → append → commit`) no
+  provisionaba `public.projects` + `public.project_members` cuando el proyecto
+  nace de cero. Huevo-gallina **enforced por FK**
+  (`project_members.project_id REFERENCES projects(project_id)`): para ser
+  miembro el tenant debe existir, pero lo crearía la propia migración. El path
+  **no-batch** (`migrate_backend`) sí provisionaba; el batch no.
+- **GAP 2 — contrato project_id**: engine/native usa `owner/repo` (TEXT libre);
+  el panel slugifica a `embedbuild-specbox-cloud`. Los dos lados nunca acordaron
+  el formato.
+
+Decisiones canónicas (discovery `provision_native_project_id_contract`,
+registradas en `app_spec.md` §6 + `doc/decisions/native_project_id_contract.md`):
+
+- **D1 `native_project_id_contract`** = `owner/repo` canónico almacenado +
+  display slug derivado URL-safe. Punto único de normalización
+  `server/coordination/project_id.py` (`canonical_project_id` / `display_slug` /
+  `validate_project_id`); el panel consume el mismo contrato. Cero migración de
+  ids existentes, sin colisión cross-owner, trazabilidad GitHub directa.
+- **D2 `native_provision_authority`** = el engine auto-provisiona **al creador**
+  como `project_admin` server-side en migración de cero (excepción de bootstrap).
+  El §6 del panel (*"panel = único editor de project_members"*) se acota: el
+  panel sigue siendo editor de **otros** miembros; un proyecto pre-existente del
+  que el caller no es miembro NO se auto-une (`FORBIDDEN`).
+
+| Componente | Archivo | Rol |
+|------------|---------|-----|
+| Helper canónico | `server/coordination/project_id.py` | `canonical_project_id` / `display_slug` / `validate_project_id` — punto único de verdad (UC-818) |
+| Role en seed | `server/migration/native_handling.py::seed_native_identity(role=...)` + `identity.py::add_project_member` (valida `VALID_PROJECT_ROLES`) | creador como `project_admin` (UC-819) |
+| Provisión atómica | `server/migration/native_handling.py::provision_native_project` | UPSERT `projects` + `seed_native_identity(project_admin)` + fila `audit_log` (`OP_PROVISION_PROJECT`), una transacción, idempotente, no degrada admin (UC-820) |
+| Integración batch | `server/tools/migration.py::start_migration_session` (`_maybe_auto_provision`) | auto-provisión antes del gate cuando el target nace de cero; `ForbiddenError` → envelope `FORBIDDEN` (UC-821) |
+
+Seguridad (Frontier 2): la provisión valida el dev_token (fail-fast), escribe
+solo en el tenant del caller, queda en `audit_log`, no relaja `deny_anon` ni
+expone `service_role`; el DSN nunca se serializa.
+
+Tests: `tests/test_native_provision.py` — 15 passed (4 puros UC-818 + 11
+Postgres-gated). El E2E `test_e2e_provision_then_migrate_from_scratch` (UC-822)
+cruza BD vacía → auto-provisión → ingesta por lotes → verificación (project_id
+canónico, creador `project_admin`, 1 US / 40 UC / 120 AC con estados
+done/backlog preservados, display_slug correcto) — el camino sin cobertura por
+el que el gap de v6.9.2 pasó. Suite native sin regresión (402 passed).
+
+**Cambio coordinado en el panel** (`EmbedBuild/specbox_cloud`, su propio repo):
+relajar la validación INSERT de `apps/api/src/routes/projects.ts:140,173` para
+aceptar `owner/repo` cuando el backend es native + derivar el display slug con
+el contrato compartido. Documentado en `doc/decisions/native_project_id_contract.md`.
+
+- PRD: [doc/prd/US-NATIVE-PROVISION_prd.md](doc/prd/US-NATIVE-PROVISION_prd.md)
+- Plan: [doc/plans/US-NATIVE-PROVISION_plan.md](doc/plans/US-NATIVE-PROVISION_plan.md)
+- Discovery: [doc/discovery/provision_native_project_id_contract/icp_jtbd.md](doc/discovery/provision_native_project_id_contract/icp_jtbd.md)
+- Decisión: [doc/decisions/native_project_id_contract.md](doc/decisions/native_project_id_contract.md)
+- Hallazgo origen: [HALLAZGO-v6.9.3-provision-y-project-id.md](HALLAZGO-v6.9.3-provision-y-project-id.md)
+
 ## Engine Version
 
 Current: v6.9.2 "Batch Ingest"

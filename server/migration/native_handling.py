@@ -157,6 +157,7 @@ async def seed_native_identity(
     developer_id: str,
     display_name: str | None = None,
     token: str | None = None,
+    role: str = "member",
 ) -> dict[str, Any]:
     """Register the migrating developer, mint a token, add them as member.
 
@@ -164,6 +165,12 @@ async def seed_native_identity(
     identified owner [AC-08]. Idempotent on ``developer_id`` /
     ``(project_id, developer_id)``: ``register_developer`` upserts the
     ``developers`` row and ``add_project_member`` upserts the membership edge.
+
+    The ``role`` (UC-819) is validated by ``add_project_member`` against
+    :data:`server.coordination.identity.VALID_PROJECT_ROLES` and propagated to
+    the membership edge. Provisioning a from-scratch migration passes
+    ``role="project_admin"`` so the creator can later invite the rest of the
+    team from the panel (decision D2).
 
     The clear token is never persisted — only its SHA-256 hash lands in
     ``mcp_tokens`` [AC-09/AC-10]. When ``token`` is ``None`` a random
@@ -207,18 +214,123 @@ async def seed_native_identity(
                 conn,
                 project_id=project_id,
                 developer_id=developer_id,
+                role=role,
             )
 
     logger.info(
         "native_identity_seeded",
         project_id=project_id,
         developer_id=developer_id,
+        role=role,
     )
 
     return {
         "developer_id": developer_id,
         "registered": True,
         "member_added": True,
+    }
+
+
+# ── UC-820: provision tenant + creator membership (decision D2) ──────────
+
+
+async def provision_native_project(
+    pool: asyncpg.Pool,
+    *,
+    project_id: str,
+    developer_id: str,
+    display_name: str | None = None,
+    role: str = "project_admin",
+) -> dict[str, Any]:
+    """Create the tenant + add the caller as ``project_admin``, atomically.
+
+    This is the engine-side provisioning that breaks the egg-chicken bind
+    (decision D2): when a native project is born from scratch, the caller
+    cannot be a member because the ``projects`` row does not exist yet, and the
+    ``project_members.project_id`` FK forbids the membership without it. This
+    function creates both in **one transaction**, server-side:
+
+    1. validate ``project_id`` against the canonical contract (UC-818);
+    2. UPSERT ``public.projects`` (idempotent — re-provision is a no-op);
+    3. register the developer + token-less identity row and the membership
+       edge with ``role`` (defaults to ``project_admin``);
+    4. append a non-destructive ``provision_project`` row to ``audit_log``.
+
+    Idempotency (AC-10): re-provisioning a project the same caller already
+    owns is a no-op — the projects UPSERT touches only ``updated_at`` and the
+    membership UPSERT does NOT degrade an existing ``project_admin`` to a lower
+    role (the SQL only ever promotes toward the requested role; we never call
+    this with anything below the caller's current role).
+
+    The caller (UC-821) is responsible for validating the dev_token BEFORE
+    calling this (``require_dev_token`` + ``resolve_developer``), so a bad
+    token never reaches here and Postgres is never touched (AC-08).
+
+    Frontier 2 [AC-09]: writes only into the named tenant; the return dict
+    carries stable ids only — never a token nor a DSN (safe to serialize).
+
+    Returns:
+        Dict with ``project_id``, ``developer_id``, ``role``, ``provisioned``
+        (bool) and ``project_created`` (bool — False when the tenant already
+        existed).
+    """
+    from ..coordination import audit as audit_mod
+    from ..coordination.project_id import validate_project_id
+
+    canonical = validate_project_id(project_id)
+    board_url = f"native://{canonical}"
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            existed = bool(
+                await conn.fetchval("SELECT 1 FROM projects WHERE project_id = $1", canonical)
+            )
+            await conn.execute(
+                """
+                INSERT INTO projects (project_id, name, backend_type, board_url, meta)
+                VALUES ($1, $1, 'native', $2, '{}'::jsonb)
+                ON CONFLICT (project_id) DO UPDATE
+                    SET board_url = EXCLUDED.board_url,
+                        updated_at = now()
+                """,
+                canonical,
+                board_url,
+            )
+            # Do NOT degrade an existing admin: only set the requested role when
+            # the caller is being (re)provisioned as the creator. add_project_member
+            # UPSERTs role; passing project_admin keeps/promotes, never lowers.
+            await identity_mod.register_developer(
+                conn,
+                developer_id=developer_id,
+                display_name=display_name or developer_id,
+            )
+            await identity_mod.add_project_member(
+                conn,
+                project_id=canonical,
+                developer_id=developer_id,
+                role=role,
+            )
+            await audit_mod.record_destructive(
+                conn,
+                developer_id=developer_id,
+                project_id=canonical,
+                operation=audit_mod.OP_PROVISION_PROJECT,
+                target_id=canonical,
+            )
+
+    logger.info(
+        "native_project_provisioned",
+        project_id=canonical,
+        developer_id=developer_id,
+        role=role,
+        project_created=not existed,
+    )
+    return {
+        "project_id": canonical,
+        "developer_id": developer_id,
+        "role": role,
+        "provisioned": True,
+        "project_created": not existed,
     }
 
 

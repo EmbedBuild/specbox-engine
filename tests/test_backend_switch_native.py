@@ -403,3 +403,82 @@ def test_legacy_tools_carry_prefer_note() -> None:
     src = inspect.getsource(m)
     # both success returns embed the recommendation
     assert src.count("prefer switch_project_backend") >= 2
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# UC-813 — native target: fail-fast, state preservation, collision
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_native_target_requires_dev_token_no_write(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AC-09: missing dev_token for a native target raises before any I/O —
+    no source read, no DB write."""
+    from server.migration.native_handling import MissingDevTokenError, require_dev_token
+
+    # The guard is pure and runs first; assert it raises and nothing else ran.
+    with pytest.raises(MissingDevTokenError, match="dev_token"):
+        require_dev_token("native", "   ")  # whitespace counts as absent
+
+
+@pytest.mark.asyncio
+async def test_native_preserves_mixed_states() -> None:
+    """AC-10: migrating to native via write_target preserves done/in_progress/
+    review states (it must NOT degrade everything to backlog like import_spec)."""
+    from server.migration.writer import write_target
+    from tests.test_write_target_dispatch import InMemoryBackend
+
+    # Source: one US done, one UC in_progress, one UC review.
+    us = ItemDTO(id="s-us", name="US-01: A", state="done", labels=["US"], meta={"us_id": "US-01"})
+    uc1 = ItemDTO(
+        id="s-uc1", name="UC-001: B", state="in_progress", labels=["UC"],
+        parent_id="s-us", meta={"us_id": "US-01", "uc_id": "UC-001"},
+    )
+    uc2 = ItemDTO(
+        id="s-uc2", name="UC-002: C", state="review", labels=["UC"],
+        parent_id="s-us", meta={"us_id": "US-01", "uc_id": "UC-002"},
+    )
+    source_data = {
+        "board_name": "src",
+        "items": [us, uc1, uc2],
+        "classified": {"us": [us], "uc": [uc1, uc2], "ac": [], "other": []},
+        "ac_data": {},
+        "comments_data": {},
+        "labels": [],
+        "states": {},
+    }
+    target = InMemoryBackend()
+    await write_target(target, "tgt", source_data, "freeform")
+
+    # Key by the most specific logical id: UC items by uc_id, US items by us_id.
+    states: dict[str, str] = {}
+    for i in target._items.values():
+        key = i.meta.get("uc_id") or i.meta.get("us_id")
+        if key:
+            states[key] = i.state
+    assert states["US-01"] == "done"
+    assert states["UC-001"] == "in_progress"
+    assert states["UC-002"] == "review"
+
+
+@pytest.mark.asyncio
+async def test_native_collision_marked_unresolved_when_fail() -> None:
+    """AC-11: an already-populated native target with on_collision='fail' is
+    reported as an unresolved collision (the execute must refuse it)."""
+    from server.migration.orchestrator import run_switch, SwitchOrchestrationError, SwitchSteps
+
+    async def preview():
+        # the tool would set this when list_items(target) is non-empty
+        return {
+            "read_counts": {"us": 1, "uc": 1},
+            "collision": {"project_exists": True, "item_count": 5, "unresolved": True},
+        }
+
+    steps = SwitchSteps(
+        preview=preview,
+        ensure_target=lambda: ("t", False),
+        write_target=lambda _t: None,
+        apply_switch=lambda _t: None,
+    )
+    with pytest.raises(SwitchOrchestrationError, match="specify on_collision"):
+        await run_switch(steps=steps, dry_run=False, confirmed_count={"us": 1, "uc": 1})

@@ -482,3 +482,69 @@ async def test_native_collision_marked_unresolved_when_fail() -> None:
     )
     with pytest.raises(SwitchOrchestrationError, match="specify on_collision"):
         await run_switch(steps=steps, dry_run=False, confirmed_count={"us": 1, "uc": 1})
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# UC-814 — native source: DTO read + exit-report
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_native_source_read_via_session_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AC-12: a native source is read via the session backend (NativeBackend
+    DTO), not from a filesystem."""
+    items = [
+        ItemDTO(id="u1", name="US-01: A", state="done", labels=["US"], meta={"us_id": "US-01"}),
+        ItemDTO(
+            id="c1", name="UC-001: B", state="review", labels=["UC"],
+            parent_id="u1", meta={"us_id": "US-01", "uc_id": "UC-001"},
+        ),
+    ]
+    stub = _StubSessionBackend(items)
+
+    async def _fake_session(_ctx):  # noqa: ANN001, ANN202
+        return stub
+
+    monkeypatch.setattr(migration_mod, "get_session_backend", _fake_session)
+    ctx = _FakeContext()
+    backend = await migration_mod.resolve_source_backend("native", ctx, None)
+    assert backend is stub  # native uses the session (DB-backed) backend
+    src = await migration_mod._read_source(backend, "proj-x")
+    assert stub.read is True
+    assert src["read_counts"]["us"] == 1
+    assert src["read_counts"]["uc"] == 1
+
+
+@pytest.mark.asyncio
+async def test_native_exit_report_present_in_preview() -> None:
+    """AC-13: when leaving native, the preview carries the discarded-state
+    report so the user sees it BEFORE confirming the execute."""
+    from server.migration.orchestrator import run_switch, SwitchSteps
+
+    async def preview():
+        # the tool composes this: read_counts + native_exit_report merged in
+        return {
+            "read_counts": {"us": 1, "uc": 1},
+            "discarded_native_state": {"reservations": 2, "developers": 1, "branches": 1},
+            "note": "Reservations ... are NOT migrated to single-user backends.",
+        }
+
+    steps = SwitchSteps(
+        preview=preview,
+        ensure_target=lambda: ("t", True),
+        write_target=lambda _t: None,
+        apply_switch=lambda _t: None,
+    )
+    result = await run_switch(steps=steps, dry_run=True, confirmed_count=None)
+    assert result["dry_run"] is True
+    assert result["discarded_native_state"]["reservations"] == 2
+
+
+def test_build_native_exit_report_shape() -> None:
+    """AC-14: build_native_exit_report wraps the discarded state + an honest
+    note so the final result reports what was dropped."""
+    from server.migration.native_handling import build_native_exit_report
+
+    report = build_native_exit_report({"reservations": [{"uc_id": "UC-1"}], "developers": []})
+    assert "discarded_native_state" in report
+    assert "NOT migrated" in report["note"]

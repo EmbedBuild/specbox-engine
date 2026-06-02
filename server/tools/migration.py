@@ -986,6 +986,9 @@ async def switch_project_backend(
             collision = await _detect_native_collision(ctx, target_id, on_collision)
             if collision:
                 preview["collision"] = collision
+        # exit-report shown BEFORE confirmation when LEAVING native (AC-13)
+        if source_type == "native":
+            preview.update(await _exit_report())
         return preview
 
     # ── Step: ensure target exists; report created_fresh ───────────────

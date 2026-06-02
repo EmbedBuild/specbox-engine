@@ -10,32 +10,36 @@ description: >
 context: direct
 ---
 
-# /switch-backend (US-BACKEND-SWITCH)
+# /switch-backend (US-BACKEND-SWITCH / US-BACKEND-SWITCH-NATIVE)
 
 Orquestador guiado del cambio de backend de tracking entre los 4 backends de
-spec-driven. Envuelve las tools MCP `migrate_backend`, `switch_backend` y
-`regenerate_evidence` con una UX segura de principio a fin: preview obligatorio,
-confirmación literal y reporte auditable.
+spec-driven. Envuelve la tool atómica MCP `switch_project_backend` (que internamente
+hace migrate + seed + switch + exit-report como **una operación todo-o-nada**) y
+`regenerate_evidence` con una UX segura de principio a fin: preview obligatorio con
+**confirmación de conteo**, confirmación literal y reporte auditable.
 
 > **Garantía de no-pérdida**: la migración es **aditiva** — el backend origen
 > permanece intacto y legible hasta que confirmes. Nada se borra. La evidencia de
 > acceptance (`.quality/evidence/`) tampoco se toca: vive en el filesystem,
 > independiente del board.
 
-## Precondición — MCP local (BLOQUEANTE)
+> **Garantía de atomicidad (US-BACKEND-SWITCH-NATIVE)**: el cambio es **todo-o-nada**.
+> O queda todo coherente (datos migrados + los 3 lugares de config conmutados) o no
+> queda nada a medias — si cualquier paso falla, se hace rollback total (incluida la
+> migración de datos a Postgres si el destino era Native nuevo).
 
-Este skill escribe en el **filesystem local** del repo (`.claude/settings.local.json`,
-`doc/app/app_spec.md`) y, para FreeForm, en `doc/tracking/`. Por tanto **requiere que
-el MCP de SpecBox corra como proceso local (stdio)**, no como conector remoto (VPS).
+## Online-first (MCP remoto + cliente local)
 
-```
-¿El MCP de SpecBox es local (stdio)?
-├── SÍ → continuar
-└── NO (conector remoto / claude.ai) → AVISAR y PARAR:
-    "El cambio de backend escribe el filesystem local. Reconecta SpecBox como
-     MCP local (stdio) antes de continuar — un MCP remoto escribiría en el VPS,
-     no en tu repo. Ver decisión canónica 'FreeForm requiere MCP local'."
-```
+> **Cambio US-BACKEND-SWITCH-NATIVE**: este skill **ya NO exige MCP local**. Cumple
+> la decisión canónica "Transporte único MCP remoto + content-passing" (UC-668): el
+> skill lee el source del **cliente** (con `Read`) y lo pasa por **content-passing**;
+> al confirmar, escribe el contenido devuelto de los 3 lugares de config en el
+> filesystem del **cliente**. El servidor MCP nunca toca un filesystem ajeno.
+
+Implicación práctica: en MCP remoto, **nunca** dejes que el server resuelva el source
+desde su propio filesystem. Para un origen `freeform`, lee `doc/tracking/items.json`
+del cliente con `Read` y pásalo como `source_content`. Si el preview reporta 0 items o
+un conteo inesperado (p.ej. el del engine), **PARA** — el source no es el tuyo.
 
 ## Uso
 
@@ -82,89 +86,104 @@ destino antes del preview.
 
 ---
 
-## Paso 3 — Preview obligatorio (dry-run)
+## Paso 3 — Leer el source del cliente (content-passing)
 
-**BLOQUEANTE**: antes de ejecutar nada, llama a:
+> Solo para origen `freeform`. Para `trello`/`plane`/`native` el source vive detrás
+> de una API/DB que el server lee directamente — sáltate la lectura local.
+
+Si el origen es `freeform`:
+
+1. Resuelve el path absoluto del cliente: `git rev-parse --show-toplevel` + `/doc/tracking/items.json`.
+2. Lee ese archivo con la tool `Read`.
+3. Tendrás su contenido en memoria para pasarlo como `source_content` en el preview.
+
+---
+
+## Paso 4 — Preview obligatorio (dry-run) + confirmación de conteo
+
+**BLOQUEANTE**: antes de ejecutar nada, llama a la tool atómica en modo preview:
 
 ```
-migrate_backend(
+switch_project_backend(
+  project_slug="{slug}",
   source_type="{actual}",
-  source_id="{board/project id actual}",
   target_type="{destino}",
+  source_content={contenido de items.json leído en Paso 3, o None si no es freeform},
   target_id={id destino o None para crear},
+  project_path=".",
+  dev_token={token del panel si destino/origen es native, "" si no},
   dry_run=True
 )
 ```
 
-Presenta el preview al usuario con los counts y las degradaciones de estado:
+El preview devuelve `read_counts` (`us`/`uc`/`ac`) **leídos del cliente**, las
+degradaciones de estado, la `collision` si el destino native ya tiene items, y el
+`discarded_native_state` si el origen es native. Preséntalo:
 
 ```
 📋 Preview de migración — {actual} → {destino}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-User Stories:        {N}
-Use Cases:           {N}
-Acceptance Criteria: {N}
-Comments:            {N}
+Leídas DEL CLIENTE:  {read_counts.us} US / {read_counts.uc} UC / {read_counts.ac} AC
 
 ⚠️ Degradaciones de estado (si las hay):
-  {Si el destino es Plane: lista de UCs cuyo estado 'review' degradará a
-   'in_progress' y US 'user_stories' → 'backlog'. Si no hay: "ninguna".}
+  {Si el destino es Plane: UCs 'review' → 'in_progress', US 'user_stories' → 'backlog'.
+   Si no: "ninguna".}
 
-{Si el origen es Native: aviso de que claims / identidad de developers /
- branches registradas NO se migran y se listarán en el reporte final.}
+{Si el destino native ya existe (collision): item_count actual + pide on_collision.}
+{Si el origen es Native: lista de reservas / developers / branches que NO se migran.}
 ```
 
-### Confirmación literal (BLOQUEANTE)
+### Guard rail de conteo (BLOQUEANTE — US-BACKEND-SWITCH-NATIVE)
 
-Pide confirmación **literal** antes de ejecutar. No continúes con `dry_run=False`
-hasta que el usuario escriba una confirmación explícita:
+Si `read_counts.us + read_counts.uc == 0`, o el conteo **no coincide** con lo que
+esperas de tu repo (p.ej. lee 22/112 = el engine, en vez de tus 11/88) → **PARA**.
+El source no es el tuyo (típico bug de path en MCP remoto). No ejecutes el real.
+
+### Confirmación literal del conteo (BLOQUEANTE)
 
 ```
-Esto migrará {N} items de {actual} a {destino} y cambiará el backend activo del
-proyecto. El origen NO se borra. ¿Confirmas? (escribe "migrar" para continuar)
+Voy a migrar {read_counts.us} US / {read_counts.uc} UC leídas de TU repo, de
+{actual} a {destino}, y cambiar el backend activo. El origen NO se borra y la
+operación es atómica (todo-o-nada). ¿Confirmas ese conteo? (escribe "migrar")
 ```
 
-Si el usuario no confirma explícitamente → PARAR, no ejecutar.
+Si el usuario no confirma → PARAR.
 
 ---
 
-## Paso 4 — Ejecutar migración
+## Paso 5 — Ejecutar el switch atómico + write-back
 
-Tras la confirmación literal:
-
-```
-migrate_backend(..., dry_run=False)
-```
-
-Esto migra US/UC/AC/comments/estado de forma aditiva e idempotente (vía
-`external_id`). Si el destino es Native, siembra la identidad del developer; si el
-origen es Native, recopila el estado de concurrencia descartado para el reporte.
-
-Captura el resultado: `id_map`, counts de `migrated`/`skipped`/`errors`, y la
-sección `discarded_native_state` si aplica.
-
----
-
-## Paso 5 — Cambiar el backend activo (transaccional)
+Tras la confirmación, llama a la MISMA tool con `dry_run=False` y el conteo confirmado:
 
 ```
-switch_backend(
+switch_project_backend(
   project_slug="{slug}",
-  backend_type="{destino}",
-  board_id="{id destino}",
-  project_path="."
+  source_type="{actual}",
+  target_type="{destino}",
+  source_content={mismo contenido del Paso 3},
+  target_id={id destino o None},
+  project_path=".",
+  dev_token={token si native},
+  on_collision={"reuse"|"skip"|"fail" si hubo collision},
+  dry_run=False,
+  confirmed_count={"us": read_counts.us, "uc": read_counts.uc}
 )
 ```
 
-`switch_backend` actualiza **atómicamente los 3 lugares de verdad**:
+Internamente, **en una sola llamada todo-o-nada**: verifica el conteo, (target native)
+exige dev_token, crea el proyecto destino, copia US/UC/AC **preservando estados**,
+asocia el developer, (source native) recopila el estado descartado, y conmuta los **3
+lugares de verdad** (registry / app_spec / settings). Si cualquier paso falla → rollback
+total (incluida la migración de datos), y devuelve `rolled_back=true` con `failing_step`.
 
-1. `projects.json` (registry): `spec_backend` + `board_id` + `backend_history`.
-2. `doc/app/app_spec.md` zona auto `tracking_backend`.
-3. `.claude/settings.local.json` → `specbox.backend_type`.
+**Si la respuesta trae `rolled_back: true`** → reporta el fallo al usuario y NO continúes
+al reporte de éxito; el proyecto quedó en su backend original.
 
-Si **cualquiera** falla, hace **rollback** de los ya escritos y devuelve un error
-que nombra el lugar fallido, dejando el proyecto en su backend original. En ese
-caso, reporta el fallo al usuario y NO continúes al reporte de éxito.
+**Write-back de los 3 lugares (cliente)**: si la respuesta incluye contenido de
+`app_spec.md` y `settings.local.json` (porque el MCP remoto no escribe el FS del
+cliente), escríbelos con la tool `Write` en sus rutas del repo:
+`doc/app/app_spec.md` y `.claude/settings.local.json`. Verifica que
+`.claude/settings.local.json` del cliente refleja el nuevo `backend_type`.
 
 Verifica la consistencia llamando a `detect_project_backend(".")` → debe devolver
 el nuevo backend.
@@ -210,9 +229,11 @@ Presenta al usuario un reporte con **exactamente estas 4 secciones**:
 ## Anti-patterns
 
 - **NUNCA** pidas el DSN de Native por chat ni lo escribas en disco (Frontier 2).
-- **NUNCA** ejecutes `migrate_backend(dry_run=False)` sin preview + confirmación literal.
+- **NUNCA** ejecutes `switch_project_backend(dry_run=False)` sin preview + confirmación del conteo.
+- **NUNCA** ejecutes el real si el preview leyó 0 items o un conteo que no es el de tu repo.
+- **NUNCA** dejes que el server resuelva un source `freeform` desde su propio filesystem en MCP remoto — pásalo siempre por `source_content`.
 - **NUNCA** borres ni modifiques el backend origen — la migración es aditiva.
-- **NUNCA** continúes al reporte de éxito si `switch_backend` hizo rollback.
+- **NUNCA** continúes al reporte de éxito si la respuesta trae `rolled_back: true`.
 - **NUNCA** muevas o alteres `.quality/evidence/` — solo se regenera vía `regenerate_evidence`.
 
 ## Tools MCP usadas
@@ -220,7 +241,11 @@ Presenta al usuario un reporte con **exactamente estas 4 secciones**:
 | Tool | Paso | Rol |
 |------|------|-----|
 | `detect_project_backend` | 1, 5 | Detectar backend actual / verificar consistencia |
+| `Read` (cliente) | 3 | Leer `doc/tracking/items.json` del cliente (content-passing) |
 | `set_migration_target` | 2 | Credenciales del destino (Trello/Plane) |
-| `migrate_backend` | 3, 4 | Preview (dry_run) + migración N×N aditiva |
-| `switch_backend` | 5 | Cambio transaccional de los 3 lugares con rollback |
+| `switch_project_backend` | 4, 5 | **Operación atómica**: preview (dry_run) + migrate+seed+switch+exit todo-o-nada con rollback |
+| `Write` (cliente) | 5 | Write-back de `app_spec.md` + `settings.local.json` en el repo del cliente |
 | `regenerate_evidence` | 6 | Reejecutar acceptance por UC (opt-in) |
+
+> `migrate_backend` y `switch_backend` siguen disponibles como tools sueltas, pero
+> este skill usa `switch_project_backend` (atómica) — no las encadena a mano.

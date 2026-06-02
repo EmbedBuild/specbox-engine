@@ -32,6 +32,53 @@ ENGINE_SOURCE = "specbox-engine"
 # ═══════════════════════════════════════════════════════════════════════
 
 
+async def resolve_source_backend(
+    source_type: str,
+    ctx: Context,
+    source_content: str | None,
+) -> SpecBackend:
+    """Resolve the backend to read a migration source from (UC-810).
+
+    Content-passing contract (v6.0.1, UC-668): on a remote MCP the server
+    cannot reach the client's filesystem. For a ``freeform`` source the client
+    reads its ``items.json`` locally and passes the string via
+    ``source_content``; this builds a memory-mode ``FreeformBackend`` that never
+    touches a filesystem — so ``source_id='.'`` can never resolve against the
+    server's own CWD (the root cause of the dogfood bug where a remote dry-run
+    read the *engine's* tracking on the VPS instead of the client's 11/88).
+
+    For ``trello`` / ``plane`` the source legitimately lives behind an API that
+    the server reaches directly, so the session backend is used.
+
+    Args:
+        source_type: One of freeform / trello / plane / native.
+        ctx: FastMCP session context (for the API-backed session backend).
+        source_content: Raw ``items.json`` string for a freeform source, or
+            ``None`` when the source is API-backed.
+
+    Returns:
+        A ``SpecBackend`` ready to read the source from. The caller owns it and
+        must ``close()`` it (memory-mode FreeformBackend.close is a no-op).
+
+    Raises:
+        ValueError: when ``source_type='freeform'`` and ``source_content`` is
+            ``None`` — the caller must surface this as an actionable error.
+    """
+    if source_type == "freeform":
+        if source_content is None:
+            raise ValueError(
+                "freeform source requires source_content (read items.json on "
+                "the client)"
+            )
+        from ..backends.freeform_backend import FreeformBackend
+
+        return FreeformBackend(items_content=source_content)
+
+    # trello / plane / native: the source lives behind an API the server reaches
+    # directly via the session credentials.
+    return await get_session_backend(ctx)
+
+
 def _classify_items(items: list[ItemDTO]) -> dict[str, list[ItemDTO]]:
     """Classify items into US, UC, AC by labels."""
     result: dict[str, list[ItemDTO]] = {"us": [], "uc": [], "ac": [], "other": []}
@@ -91,6 +138,12 @@ async def _read_source(
 
     board_name = await backend.get_board_name(board_id)
 
+    read_counts = {
+        "us": len(classified["us"]),
+        "uc": len(classified["uc"]),
+        "ac": sum(len(v) for v in ac_data.values()),
+    }
+
     return {
         "board_name": board_name,
         "items": items,
@@ -99,6 +152,7 @@ async def _read_source(
         "comments_data": comments_data,
         "labels": labels,
         "states": states,
+        "read_counts": read_counts,
     }
 
 
@@ -112,24 +166,39 @@ async def migrate_preview(
     source_id: str,
     target_type: str,
     ctx: Context,
+    source_content: str | None = None,
 ) -> dict[str, Any]:
     """Preview a migration without making changes.
 
     Reads all data from the source and shows what would be migrated.
     Use this to verify before running migrate_project.
 
+    **Content-passing (UC-810)**: when ``source_type='freeform'`` the source
+    is read from ``source_content`` (the client's ``items.json`` string), never
+    from the server filesystem. ``trello`` / ``plane`` sources are read from
+    their API via the session backend. The preview reports ``read_counts``
+    (``us`` / ``uc`` / ``ac``) so the client can confirm it before executing.
+
     Args:
-        source_type: Source backend type ("trello" or "plane")
-        source_id: Source board_id (Trello) or project_id (Plane)
-        target_type: Target backend type ("trello" or "plane")
+        source_type: Source backend type (freeform / trello / plane).
+        source_id: Source board_id (Trello) or project_id (Plane). For a
+            content-passing freeform source it is informational only.
+        target_type: Target backend type.
+        source_content: Raw ``items.json`` for a freeform source. Required when
+            ``source_type='freeform'``; ignored otherwise.
 
     Returns:
-        Preview with counts, state mappings, and label mappings.
+        Preview with ``read_counts``, ``executable``, hierarchy, state and
+        label mappings — or ``{"error": ...}`` when the freeform source content
+        is missing.
     """
     if source_type == target_type:
         return {"error": "source_type and target_type must be different"}
 
-    backend = await get_session_backend(ctx)
+    try:
+        backend = await resolve_source_backend(source_type, ctx, source_content)
+    except ValueError as exc:
+        return {"error": str(exc)}
     try:
         source = await _read_source(backend, source_id)
 
@@ -160,10 +229,13 @@ async def migrate_preview(
                 "ucs": uc_details,
             })
 
+        read_counts = source["read_counts"]
         return {
             "dry_run": True,
             "source": {"type": source_type, "id": source_id, "name": source["board_name"]},
             "target": {"type": target_type},
+            "read_counts": read_counts,
+            "executable": (read_counts["us"] + read_counts["uc"]) > 0,
             "counts": {
                 "user_stories": len(classified["us"]),
                 "use_cases": len(classified["uc"]),

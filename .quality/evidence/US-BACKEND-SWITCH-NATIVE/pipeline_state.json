@@ -1,0 +1,13 @@
+{
+  "feature": "US-BACKEND-SWITCH-NATIVE",
+  "has_ui": false,
+  "has_db": false,
+  "completed_phases": [
+    "db_infra",
+    "stitch_designs",
+    "design_to_code",
+    "uc-810"
+  ],
+  "current_phase": "uc-811",
+  "last_updated": "2026-06-02T20:15:00Z"
+}

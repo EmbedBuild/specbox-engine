@@ -2,6 +2,45 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.9.1] - 2026-06-02 — "Atomic Switch"
+
+Rediseña "cambiar de backend" como **una sola operación atómica todo-o-nada** y cierra el path-bug de MCP remoto que dejaba el cambio hacia/desde `native` (Cloud) roto en producción. Reproducido en dogfooding: un `migrate_backend(freeform→native, dry_run=True)` con MCP remoto leía el filesystem del **servidor** (22 US/112 UC del propio engine en el VPS, o 0/0) en vez de las 11/88 del cliente — ejecutar el real habría escrito un proyecto vacío en Postgres y apuntado el panel Cloud a la nada. US-BACKEND-SWITCH-NATIVE — 8 UC (UC-810..817), PR #87.
+
+### Added
+
+- **`switch_project_backend`** (`server/tools/migration.py`) — tool MCP que orquesta migrate → seed identity → switch de los 3 lugares de config → exit-report como **todo-o-nada**, con rollback end-to-end.
+- **`server/migration/orchestrator.py`** — `run_switch` compone los pasos como callables inyectables (testeable sin MCP/Postgres).
+- **`server/migration/rollback.py`** — `rollback_data_migration` deshace la migración de datos (DELETE del proyecto native nuevo) si un paso posterior falla.
+- **`server/migration/count_guard.py`** — `verify_count` bloquea el execute si el dry-run leyó 0 items o el conteo confirmado no coincide con el preview.
+- **`require_dev_token` + `delete_native_project`** (`server/migration/native_handling.py`) — fail-fast de identidad native + DELETE para rollback.
+
+### Changed
+
+- **`resolve_source_backend` / `migrate_preview`** — content-passing: el source `freeform` se lee del `source_content` del cliente (memory-mode `FreeformBackend`), nunca del FS del servidor. trello/plane de la API; native del `NativeBackend` DTO.
+- **`migrate_backend` / `switch_backend`** — siguen funcionando pero recomiendan la tool atómica en su respuesta.
+- **`FreeformBackend`** — `get_labels`/`get_board_name` hechos FS-safe en memory-mode (devuelven vacío/default en vez de tocar `self.root`). Imports `os`/`shutil` muertos eliminados.
+- **`onboard_project --backend native`** — documenta `native_db_state="empty"` + `next_action` (no dejar al usuario esperando datos inexistentes en el panel).
+- **Skill `/switch-backend`** — online-first: elimina la precondición bloqueante "MCP local" (contradecía la decisión canónica "Transporte único MCP remoto + content-passing", UC-668), lee el source del cliente y escribe los 3 lugares de config de vuelta en el cliente.
+
+### Decisions
+
+- **Operación única atómica** (D1): `migrate`/`seed`/`switch`/`exit-report` pasan a ser pasos internos, no interfaz pública que el usuario encadena.
+- **Salida de native** (D2): reservas/membresías/audit se descartan (no tienen destino single-user) + reporte auditable mostrado antes de confirmar.
+- **Guard rail dry-run** (D3): confirmación de conteo obligatoria ("N US / M UC leídas del cliente") antes del execute.
+- **Rollback de datos**: garantizado solo para `created_fresh` (proyecto native nuevo). Para `reuse` el rollback cubre la config pero no deshace el merge de items — documentado y avisado en el preview.
+
+### Compatibility
+
+- 100% backwards-compatible: `migrate_backend`/`switch_backend` mantienen su firma (params nuevos opcionales). Ningún cambio de schema.
+
+### Tests
+
+- `tests/test_backend_switch_native.py` — **24 passed** (0 skipped con `docker compose -f docker-compose.dev.yml up`; AC-19 gated en `PG_OK`).
+  - AC-18 reproduce el bug original (MCP remoto + 11/88 cliente → lee 11/88, FS del servidor intacto).
+  - AC-19 migra freeform→native contra **Postgres real** preservando estados `in_progress`/`done` + developer como miembro.
+- Suites native existentes sin regresión: 51 passed (conformance + native_handling + dispatch + nxn).
+- Los 7 fallos de `test_spec_mutations.py` en la suite global son preexistentes en `main` (mock desactualizado), ajenos a esta release.
+
 ## [6.9.0] - 2026-06-01 — "Self-Provisioning"
 
 Cierra el funnel de onboarding en máquina limpia: la extensión VSCode ahora se auto-aprovisiona el engine. Cuando no encuentra el repo en disco, clona el engine público (`github.com/EmbedBuild/specbox-engine`) a un directorio gestionado (`~/.specbox/specbox-engine`) automáticamente — notifica, no pregunta — y lo mantiene al día con `git pull`. Un clon propio del usuario nunca se toca. US-VSCODE-AUTOCLONE — 4 UC (PR #86).

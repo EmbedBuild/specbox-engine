@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.9.0 — "Self-Provisioning" (sobre v6.8.0 "Connectivity UX", v6.7.0 "Zero-Friction Onboarding", v6.6.2 "Fast Activate")<br/>
+  v 6.9.1 — "Atomic Switch" (sobre v6.9.0 "Self-Provisioning", v6.8.0 "Connectivity UX", v6.7.0 "Zero-Friction Onboarding")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -34,6 +34,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Onboarding sin "clona primero"** — el walkthrough y el README ya no te piden `git clone` como paso previo de la extensión.
 
 100% backwards-compatible. El auto-clone es el último recurso: config/workspace/rutas comunes ganan, y un clone fallido degrada al diálogo de selección manual.
+
+**v6.9.1 — "Atomic Switch"** cambiar de backend (incl. hacia/desde Cloud/Native) pasa a ser **una sola operación atómica todo-o-nada**: el nuevo `switch_project_backend` migra datos + asocia identidad + conmuta la config + reporta lo descartado en una llamada con rollback total. Cierra además el path-bug de MCP remoto: el source se lee del cliente (content-passing), nunca del filesystem del servidor.
 
 ---
 
@@ -410,7 +412,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.9.0 — "Self-Provisioning" (over v6.8.0 "Connectivity UX", v6.7.0 "Zero-Friction Onboarding", v6.6.2 "Fast Activate")
+> v 6.9.1 — "Atomic Switch" (over v6.9.0 "Self-Provisioning", v6.8.0 "Connectivity UX", v6.7.0 "Zero-Friction Onboarding")
 
 ## What is this?
 
@@ -432,6 +434,8 @@ A system that turns Claude Code into a serious teammate:
 - **Onboarding without "clone first"** — the walkthrough and README no longer ask you to `git clone` as a prerequisite of the extension.
 
 100% backwards-compatible. Auto-clone is the last resort: config/workspace/common paths win, and a failed clone degrades to the manual folder picker.
+
+**v6.9.1 — "Atomic Switch"** changing a project's backend (incl. to/from Cloud/Native) becomes **one all-or-nothing operation**: the new `switch_project_backend` migrates data + seeds identity + switches the config + reports what was discarded in a single call with full rollback. It also closes the remote-MCP path bug: the source is read from the client (content-passing), never the server filesystem.
 
 ---
 

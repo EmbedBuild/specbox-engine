@@ -1,4 +1,4 @@
-# SpecBox Engine v6.9.0
+# SpecBox Engine v6.9.1
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1490,9 +1490,48 @@ gate humano (PR #86, mergeado).
 - Plan: [doc/plans/US-VSCODE-AUTOCLONE_plan.md](doc/plans/US-VSCODE-AUTOCLONE_plan.md)
 - PRD: [doc/prd/US-VSCODE-AUTOCLONE_prd.md](doc/prd/US-VSCODE-AUTOCLONE_prd.md)
 
+## Atomic Backend Switch (v6.9.1)
+
+US-BACKEND-SWITCH-NATIVE rediseña "cambiar de backend" como **una sola
+operación atómica** y cierra el path-bug de MCP remoto que dejaba el cambio
+hacia/desde `native` (Cloud) roto en producción (reproducido en dogfooding:
+un `migrate_backend(freeform→native, dry_run=True)` leía el filesystem del
+**servidor MCP remoto** —22 US/112 UC del propio engine en el VPS, o 0/0— en
+vez de las 11/88 del cliente).
+
+- **Tool atómica `switch_project_backend`** (`server/tools/migration.py`):
+  orquesta migrate → seed identity → switch de los 3 lugares de config →
+  exit-report como **todo-o-nada**. `migrate_backend`/`switch_backend` siguen
+  funcionando pero recomiendan la tool atómica.
+- **Orquestador testeable** (`server/migration/orchestrator.py`): `run_switch`
+  compone los pasos como callables inyectables; `rollback.py` deshace la
+  migración de datos (DELETE del proyecto native nuevo) si un paso posterior
+  falla; `count_guard.py` bloquea el execute si el dry-run leyó 0 items o el
+  conteo confirmado no coincide.
+- **Content-passing** (`resolve_source_backend`): el source `freeform` se lee
+  del `source_content` del cliente vía memory-mode `FreeformBackend`, nunca del
+  FS del servidor. trello/plane de la API; native del `NativeBackend` DTO.
+- **Native**: `require_dev_token` fail-fast antes de cualquier I/O;
+  `write_target` preserva estados (no degrada a backlog como `import_spec`);
+  colisión `on_collision`; `native_exit_report` (reservas/membresías/audit)
+  mostrado antes de confirmar; `onboard_project --backend native` documenta
+  `native_db_state=empty`.
+- **Skill `/switch-backend` online-first**: elimina la precondición bloqueante
+  "MCP local" (contradecía la decisión canónica "Transporte único MCP remoto +
+  content-passing", UC-668), lee el source del cliente y escribe los 3 lugares
+  de config de vuelta en el cliente (write-back).
+
+Tests: `tests/test_backend_switch_native.py` — 24 passed (0 skipped con
+`docker compose -f docker-compose.dev.yml up`). AC-18 reproduce el bug original;
+AC-19 migra freeform→native contra Postgres real preservando estados.
+
+- PRD: [doc/prd/US-BACKEND-SWITCH-NATIVE_prd.md](doc/prd/US-BACKEND-SWITCH-NATIVE_prd.md)
+- Plan: [doc/plans/US-BACKEND-SWITCH-NATIVE_plan.md](doc/plans/US-BACKEND-SWITCH-NATIVE_plan.md)
+- Discovery: [doc/discovery/backend_switch_native/icp_jtbd.md](doc/discovery/backend_switch_native/icp_jtbd.md)
+
 ## Engine Version
 
-Current: v6.9.0 "Self-Provisioning"
+Current: v6.9.1 "Atomic Switch"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

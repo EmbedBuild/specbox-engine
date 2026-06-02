@@ -1,8 +1,8 @@
-version: 6.9.0
-codename: "Self-Provisioning"
+version: 6.9.1
+codename: "Atomic Switch"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-06-01
+release_date: 2026-06-02
 min_claude_code: "1.0.0"
 
 stacks:
@@ -406,6 +406,16 @@ features:
   - vscode-managed-engine-autopull
 
 changelog:
+  6.9.1:
+    date: 2026-06-02
+    codename: "Atomic Switch"
+    changes:
+      - "feat: Switch a project's tracking backend as ONE atomic operation. New tool switch_project_backend orchestrates migrate → seed identity → switch the 3 config places → exit-report as all-or-nothing, with end-to-end rollback (delete a freshly-created native project if a later step fails). migrate_backend/switch_backend keep working but now recommend the atomic tool (US-BACKEND-SWITCH-NATIVE, UC-810..817, PR #87)."
+      - "fix: Close the remote-MCP path bug in backend migration. resolve_source_backend reads a freeform source from source_content (the client's items.json via memory-mode FreeformBackend), never the server filesystem — so a remote dry-run no longer reads the engine's own VPS tracking (22/112) or an empty dir (0/0) instead of the client's real board (UC-810)."
+      - "feat: Count guard for executes — verify_count refuses to run when the dry-run read 0 items (wrong path/content) or the client-confirmed count differs from the preview (UC-811)."
+      - "feat: Native target fail-fast (require_dev_token before any I/O), state preservation via write_target (not import_spec's backlog degradation), and explicit project_id collision resolution (UC-813). Native source reads via NativeBackend DTO with the discarded-coordination exit-report shown before confirming (UC-814)."
+      - "feat: /switch-backend skill is online-first — drops the blocking 'MCP local' precondition (it contradicted the canonical 'single remote MCP transport + content-passing' decision, UC-668), reads the source via content-passing and writes the 3 config places back to the client (UC-815). onboard_project --backend native now documents native_db_state=empty + next_action (UC-816)."
+      - "test: tests/test_backend_switch_native.py — 24 passed (0 skipped with docker-compose.dev.yml Postgres). AC-18 reproduces the original bug (remote MCP + 11/88 client source → reads 11/88, server FS untouched); AC-19 migrates freeform→native against real Postgres preserving states + developer membership (UC-817)."
   6.9.0:
     date: 2026-06-01
     codename: "Self-Provisioning"

@@ -1,5 +1,12 @@
 # SpecBox Engine v6.9.4
 
+> **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
+> OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
+> `EmbedBuild/specbox-manager` (topología orchestrator/satellite). Toda US/UC nueva se abre
+> AHÍ, etiquetada con `set_uc_satellite(uc, "engine")` — **no** en el `doc/tracking/` local de
+> este repo, que queda como **histórico congelado read-only** (21 US / 108 UC). Orquestador en
+> `../..` (layout anidado). Ver `repositorios/specbox_cloud/doc/specs/multirepo-orchestrator.md`.
+
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
 > Monorepo unificado: engine + MCP server + Gherkin BDD + Quality Audit ISO/IEC 25010 + Product Discovery. Tracking multi-developer corre sobre Supabase y se consume desde **specbox_cloud** (panel web externo).

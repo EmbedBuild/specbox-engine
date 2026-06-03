@@ -41,6 +41,19 @@ OP_ARCHIVE_ITEM: str = "archive_item"
 #: ``target_id`` carries the project_id; ``developer_id`` the provisioned admin.
 OP_PROVISION_PROJECT: str = "provision_project"
 
+#: UC lifecycle events (US-05 / UC-506). Non-destructive but audited so the
+#: Control Panel activity feed can show *coordination* — who reserved, released
+#: or completed which UC — instead of only administrative/destructive events.
+#: ``target_id`` carries the uc_id; ``developer_id`` the actor. Scope decision
+#: (2026-06-04): UC lifecycle only, current schema, no migration. US/AC lifecycle
+#: and a ``target_type``/``metadata`` column are intentionally deferred.
+OP_RESERVE_UC: str = "reserve_uc"
+OP_RELEASE_UC: str = "release_uc"
+OP_COMPLETE_UC: str = "complete_uc"
+#: Reserved for when a merge call-site exists (AC-02). No producer emits it yet;
+#: defined so the contract is stable and the panel can map the verb in advance.
+OP_MERGE: str = "merge"
+
 
 async def record_destructive(
     conn: asyncpg.Connection,

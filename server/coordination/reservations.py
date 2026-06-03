@@ -34,6 +34,8 @@ from typing import Any
 import asyncpg
 import structlog
 
+from . import audit
+
 logger = structlog.get_logger(__name__)
 
 
@@ -189,6 +191,18 @@ async def reserve_uc(
             branch,
         )
         logger.info("uc_reserved", project_id=project_id, uc_id=uc_id, developer_id=developer_id)
+        # UC-506: audit the lifecycle event AFTER the INSERT succeeded, on the
+        # same connection — so it participates in the caller's transaction
+        # (start_uc_atomic) and rolls back with the reservation if a later step
+        # fails. Only the genuine first reservation is recorded; the idempotent
+        # re-reserve path below is not a new event.
+        await audit.record_destructive(
+            conn,
+            developer_id=developer_id,
+            project_id=project_id,
+            operation=audit.OP_RESERVE_UC,
+            target_id=uc_id,
+        )
         return UCReservation.from_row(row)
     except asyncpg.UniqueViolationError:
         existing = await get_reservation(conn, project_id, uc_id)
@@ -227,6 +241,15 @@ async def release_uc(
         uc_id,
     )
     logger.info("uc_released", project_id=project_id, uc_id=uc_id, developer_id=developer_id)
+    # UC-506: audit the release on the same connection, after the DELETE
+    # succeeded (we only reach here when an owned reservation existed).
+    await audit.record_destructive(
+        conn,
+        developer_id=developer_id,
+        project_id=project_id,
+        operation=audit.OP_RELEASE_UC,
+        target_id=uc_id,
+    )
     return True
 
 

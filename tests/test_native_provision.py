@@ -112,10 +112,11 @@ async def _member_role(pool, project_id: str, developer_id: str) -> str | None:
         )
 
 
-async def _cleanup(pool, project_id: str, developer_id: str):
+async def _cleanup(pool, project_id: str, *developer_ids: str):
     async with pool.acquire() as conn:
         await conn.execute("DELETE FROM projects WHERE project_id = $1", project_id)
-        await conn.execute("DELETE FROM developers WHERE developer_id = $1", developer_id)
+        for developer_id in developer_ids:
+            await conn.execute("DELETE FROM developers WHERE developer_id = $1", developer_id)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -381,26 +382,35 @@ class TestStartSessionAutoProvision:
             await close_pool()
 
     async def test_start_does_not_add_caller_to_preexisting_project(self):
-        """AC-13: a project that already exists is NOT auto-joined; gate decides.
+        """AC-13: a project that already has an owner is NOT auto-joined; gate decides.
 
         The caller is a valid developer but NOT a member of the pre-existing
-        project → the gate must FORBID (UNAUTHENTICATED envelope), and the
-        caller must NOT have been silently added as a member.
+        project, which already has a different owner (≥1 member) → the gate must
+        FORBID, and the caller must NOT have been silently added as a member.
+
+        NOTE (UC-825, v6.9.4): the project must have a real member here. A project
+        row with ZERO members is now an *orphan* and is adopted, not forbidden
+        (that path is covered by ``test_native_orphan_provision.py``). AC-13 only
+        protects tenants that actually have owners — which is the real theft case.
         """
-        from server.coordination.identity import _clear_auth_cache
+        from server.coordination.identity import _clear_auth_cache, add_project_member
         from server.db.pool import close_pool
         from server.tools.migration import start_migration_session
 
         pool = await self._pool()
         pid = f"Acme/preexisting-{uuid.uuid4().hex[:8]}"
         dev_id, token = await _register_dev(pool)
+        owner_id, _owner_token = await _register_dev(pool)
         try:
-            # Project exists, but our developer is NOT a member.
+            # Project exists WITH an owner (real tenant), but our caller is NOT a member.
             async with pool.acquire() as conn:
                 await conn.execute(
                     "INSERT INTO projects (project_id, name, backend_type, board_url, meta) "
                     "VALUES ($1, $1, 'native', '', '{}'::jsonb) ON CONFLICT DO NOTHING",
                     pid,
+                )
+                await add_project_member(
+                    conn, project_id=pid, developer_id=owner_id, role="project_admin"
                 )
             _clear_auth_cache()
             out = await start_migration_session(
@@ -408,11 +418,13 @@ class TestStartSessionAutoProvision:
                 declared_items=1, declared_bytes=10, source_sha256="abc",
                 chunk_count=1, ctx=_ctx(), dev_token=token,
             )
-            # Not a member of a pre-existing project → FORBIDDEN, not auto-joined.
+            # Not a member of an owned pre-existing project → FORBIDDEN, not auto-joined.
             assert out.get("code") == "FORBIDDEN"
             assert await _member_role(pool, pid, dev_id) is None
+            # The real owner is untouched.
+            assert await _member_role(pool, pid, owner_id) == "project_admin"
         finally:
-            await _cleanup(pool, pid, dev_id)
+            await _cleanup(pool, pid, dev_id, owner_id)
             await close_pool()
 
 

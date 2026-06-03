@@ -1434,17 +1434,31 @@ def _unauthenticated(ctx: Context) -> dict[str, Any]:
 
 
 async def _maybe_auto_provision(pool, dev_token: str, target_project_id: str) -> bool:
-    """Auto-provision the native tenant + creator membership if absent (UC-821).
+    """Auto-provision (or adopt) the native tenant + creator membership (UC-821, UC-825).
 
     Resolves the developer from ``dev_token`` (raises ``UnauthenticatedError``
     on a bad token — caller maps it to the UNAUTHENTICATED envelope, nothing
-    written). If ``target_project_id`` does not yet exist in ``public.projects``,
-    provisions it with the caller as ``project_admin`` (decision D2) and clears
-    the auth cache so the subsequent membership gate reads the fresh edge.
+    written), then decides over three states of ``public.projects``:
 
-    Returns ``True`` when it provisioned, ``False`` when the project already
-    existed (the normal gate then decides membership as before — the caller is
-    NOT auto-added to a pre-existing project, AC-13).
+    - **does not exist** → provision from scratch (UC-821): create the tenant
+      with the caller as ``project_admin`` (decision D2).
+    - **exists with ZERO members (orphan tenant)** → *adopt* it (UC-825): a
+      ``projects`` row with no ``project_members`` is an artefact of a
+      ``setup_board`` that left provisioning half-done — it has no owner to
+      protect, so we complete it (``provision_native_project`` is idempotent:
+      it UPSERTs the row and inserts the membership + audit). This is the
+      v6.9.4 fix for the orphan tenant that disabled v6.9.3's auto-provision.
+    - **exists with ≥1 member (real tenant)** → return ``False``; the normal
+      membership gate decides. The caller is NOT auto-added to a pre-existing
+      project that already has owners (AC-13 / decision D2). This is the only
+      branch a malicious "join someone else's project" path could take, and it
+      is preserved unchanged.
+
+    After provisioning/adopting, clears the auth cache so the subsequent
+    membership gate reads the fresh edge from Postgres.
+
+    Returns ``True`` when it provisioned or adopted, ``False`` when the project
+    already existed with at least one member.
     """
     from ..coordination.identity import resolve_developer
     from ..coordination.project_id import InvalidProjectIdError, validate_project_id
@@ -1460,10 +1474,19 @@ async def _maybe_auto_provision(pool, dev_token: str, target_project_id: str) ->
     developer = await resolve_developer(pool, dev_token)  # UNAUTHENTICATED if bad
 
     async with pool.acquire() as conn:
-        exists = bool(
-            await conn.fetchval("SELECT 1 FROM projects WHERE project_id = $1", canonical)
+        row = await conn.fetchrow(
+            """
+            SELECT
+                EXISTS(SELECT 1 FROM projects WHERE project_id = $1) AS exists,
+                (SELECT count(*) FROM project_members WHERE project_id = $1) AS members
+            """,
+            canonical,
         )
-    if exists:
+    exists = bool(row["exists"])
+    has_members = (row["members"] or 0) > 0
+    # A real, owned tenant (≥1 member) is protected by AC-13: do not adopt it.
+    # A non-existent project OR an orphan (0 members) is provisioned/adopted.
+    if exists and has_members:
         return False
 
     await provision_native_project(

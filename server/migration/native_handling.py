@@ -241,6 +241,8 @@ async def provision_native_project(
     developer_id: str,
     display_name: str | None = None,
     role: str = "project_admin",
+    name: str | None = None,
+    validate_id: bool = True,
 ) -> dict[str, Any]:
     """Create the tenant + add the caller as ``project_admin``, atomically.
 
@@ -251,7 +253,10 @@ async def provision_native_project(
     function creates both in **one transaction**, server-side:
 
     1. validate ``project_id`` against the canonical contract (UC-818);
-    2. UPSERT ``public.projects`` (idempotent — re-provision is a no-op);
+    2. UPSERT ``public.projects`` (idempotent — re-provision is a no-op). The
+       optional ``name`` (UC-824) is used on insert and refreshed on an existing
+       row; when ``None`` the canonical project_id is used on insert and the
+       stored name is preserved on conflict (never clobbered);
     3. register the developer + token-less identity row and the membership
        edge with ``role`` (defaults to ``project_admin``);
     4. append a non-destructive ``provision_project`` row to ``audit_log``.
@@ -277,8 +282,19 @@ async def provision_native_project(
     from ..coordination import audit as audit_mod
     from ..coordination.project_id import validate_project_id
 
-    canonical = validate_project_id(project_id)
+    # ``validate_id=False`` (UC-824): ``setup_board`` reaches here for an
+    # already-constructed NativeBackend whose project_id was accepted as-is
+    # (the legacy bare INSERT never enforced the canonical contract). Skipping
+    # validation keeps setup_board permissive on the id while still creating the
+    # membership atomically — the orphan fix must not change the id contract.
+    # The from-scratch migration path keeps ``validate_id=True`` (default).
+    canonical = validate_project_id(project_id) if validate_id else project_id.strip()
     board_url = f"native://{canonical}"
+    # ``name`` defaults to the canonical project_id (the original D2 behaviour).
+    # When a caller supplies one (UC-824: ``setup_board`` delegating here), it is
+    # used on insert and refreshed on an existing row. A ``None`` name on
+    # re-provision preserves the stored name (COALESCE), never clobbering it.
+    effective_name = name if name else canonical
 
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -288,13 +304,16 @@ async def provision_native_project(
             await conn.execute(
                 """
                 INSERT INTO projects (project_id, name, backend_type, board_url, meta)
-                VALUES ($1, $1, 'native', $2, '{}'::jsonb)
+                VALUES ($1, $2, 'native', $3, '{}'::jsonb)
                 ON CONFLICT (project_id) DO UPDATE
-                    SET board_url = EXCLUDED.board_url,
+                    SET name = COALESCE($4, projects.name),
+                        board_url = EXCLUDED.board_url,
                         updated_at = now()
                 """,
                 canonical,
+                effective_name,
                 board_url,
+                name,
             )
             # Do NOT degrade an existing admin: only set the requested role when
             # the caller is being (re)provisioned as the creator. add_project_member

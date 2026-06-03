@@ -48,6 +48,26 @@ def _unique_pid(tag: str) -> str:
     return f"test-uc403-{tag}-{uuid.uuid4().hex[:8]}"
 
 
+async def _setup_board_with_identity(pool, pid: str, token: str, name: str) -> NativeBackend:
+    """Construct a NativeBackend and run setup_board, registering the token first.
+
+    UC-824 (v6.9.4): ``setup_board`` for native now resolves the developer from
+    the session token and provisions the membership atomically (so it can never
+    leave an orphan). These tests therefore must register the throwaway token +
+    developer BEFORE ``setup_board``; previously a fake token was enough because
+    the old ``setup_board`` did a bare INSERT with no identity.
+    """
+    from server.coordination.identity import register_developer, register_mcp_token
+
+    dev_id = f"setup-dev-{uuid.uuid4().hex[:8]}"
+    async with pool.acquire() as conn:
+        await register_developer(conn, developer_id=dev_id, display_name="Setup Dev")
+        await register_mcp_token(conn, developer_id=dev_id, token=token)
+    be = NativeBackend(project_id=pid, dev_token=token)
+    await be.setup_board(name)
+    return be
+
+
 @pytest.fixture
 async def native_pool() -> AsyncIterator[asyncpg.Pool]:
     """A migrated shared pool for native-only tests; closes on teardown."""
@@ -68,12 +88,12 @@ async def test_collect_discarded_native_state_reports_claim(native_pool):
     # Unique token per test: ``mcp_tokens.token_hash`` is UNIQUE so a shared
     # literal "seed-token" would silently bind to whichever test ran first.
     seed_token = f"seed-token-{pid}"
-    be = NativeBackend(project_id=pid, dev_token=seed_token)
-    await be.setup_board("UC-403 exit test")
+    # UC-824: setup_board now provisions the caller (the setup token's dev) as
+    # project_admin, so ``be``'s mutations are authorized by that membership.
+    be = await _setup_board_with_identity(native_pool, pid, seed_token, "UC-403 exit test")
     try:
-        # Seed an owner so the claim's FK to developers is satisfied. Token
-        # is wired through so UC-502's mutation gate accepts ``be``'s calls.
-        await seed_native_identity(native_pool, pid, "dev-exit", display_name="Dev Exit", token=seed_token)
+        # Seed an extra owner so the claim's FK to developers is satisfied.
+        await seed_native_identity(native_pool, pid, "dev-exit", display_name="Dev Exit")
 
         # Create a US + UC, then claim the UC.
         us = await be.create_item(pid, name="US-01: Exit", labels=["US"])
@@ -111,8 +131,9 @@ async def test_collect_discarded_native_state_reports_branch(native_pool):
     from server.coordination import branches as branches_mod
 
     pid = _unique_pid("branch")
-    be = NativeBackend(project_id=pid, dev_token="seed-token")
-    await be.setup_board("UC-403 branch test")
+    await _setup_board_with_identity(
+        native_pool, pid, f"seed-token-{pid}", "UC-403 branch test"
+    )
     try:
         await seed_native_identity(native_pool, pid, "dev-br")
         async with native_pool.acquire() as conn:
@@ -136,13 +157,18 @@ async def test_collect_discarded_native_state_reports_branch(native_pool):
 async def test_collect_discarded_empty_when_no_coordination(native_pool):
     """A project with no claims/devs/branches reports zero counts. [AC-07]"""
     pid = _unique_pid("empty")
-    be = NativeBackend(project_id=pid, dev_token="seed-token")
-    await be.setup_board("UC-403 empty test")
+    await _setup_board_with_identity(
+        native_pool, pid, f"seed-token-{pid}", "UC-403 empty test"
+    )
     try:
+        # UC-824: setup_board now provisions the caller as project_admin, so the
+        # roster has exactly ONE developer (no reservations, no branches). Before
+        # v6.9.4 the bare INSERT left zero members — that was the orphan bug.
         discarded = await collect_discarded_native_state(native_pool, pid)
-        assert discarded["counts"] == {"reservations": 0, "developers": 0, "branches": 0}
+        assert discarded["counts"] == {"reservations": 0, "developers": 1, "branches": 0}
         assert discarded["reservations"] == []
-        assert discarded["developers"] == []
+        assert len(discarded["developers"]) == 1
+        assert discarded["developers"][0]["role"] == "project_admin"
         assert discarded["branches"] == []
     finally:
         async with native_pool.acquire() as conn:
@@ -155,8 +181,9 @@ async def test_collect_discarded_empty_when_no_coordination(native_pool):
 async def test_seed_native_identity_adds_member_and_is_idempotent(native_pool):
     """seed_native_identity registers + adds member; second call is a no-op. [AC-08]"""
     pid = _unique_pid("seed")
-    be = NativeBackend(project_id=pid, dev_token="seed-token")
-    await be.setup_board("UC-403 seed test")
+    await _setup_board_with_identity(
+        native_pool, pid, f"seed-token-{pid}", "UC-403 seed test"
+    )
     try:
         result = await seed_native_identity(native_pool, pid, "dev-x", display_name="Dev X")
         assert result == {
@@ -193,11 +220,10 @@ async def test_migrated_user_story_has_version_1(native_pool):
     pid = _unique_pid("ver1")
     # Unique token per test (token_hash UNIQUE in mcp_tokens).
     seed_token = f"seed-token-{pid}"
-    be = NativeBackend(project_id=pid, dev_token=seed_token)
-    await be.setup_board("UC-403 version test")
+    # UC-824: setup_board provisions the setup token's dev as project_admin, so
+    # ``be``'s create_item passes the UC-502 mutation gate via that membership.
+    be = await _setup_board_with_identity(native_pool, pid, seed_token, "UC-403 version test")
     try:
-        # Token wired through so UC-502's mutation gate accepts ``be``'s calls.
-        await seed_native_identity(native_pool, pid, "dev-v", token=seed_token)
         us = await be.create_item(pid, name="US-01: Imported", labels=["US"])
 
         async with native_pool.acquire() as conn:
@@ -220,8 +246,9 @@ async def test_seed_native_identity_does_not_persist_token(native_pool):
     the developers table.
     """
     pid = _unique_pid("notok")
-    be = NativeBackend(project_id=pid, dev_token="seed-token")
-    await be.setup_board("UC-403 token test")
+    await _setup_board_with_identity(
+        native_pool, pid, f"seed-token-{pid}", "UC-403 token test"
+    )
     try:
         secret = "super-secret-token-value"
         await seed_native_identity(native_pool, pid, "dev-t", token=secret)
@@ -246,11 +273,11 @@ async def test_serialized_report_never_leaks_dsn(native_pool):
     pid = _unique_pid("f2")
     # Unique token per test (token_hash UNIQUE in mcp_tokens).
     seed_token = f"seed-token-{pid}"
-    be = NativeBackend(project_id=pid, dev_token=seed_token)
-    await be.setup_board("UC-403 frontier-2 test")
+    # UC-824: setup_board provisions the setup token's dev as project_admin, so
+    # ``be``'s create_item passes the UC-502 mutation gate via that membership.
+    be = await _setup_board_with_identity(native_pool, pid, seed_token, "UC-403 frontier-2 test")
     try:
-        # Token wired through so UC-502's mutation gate accepts ``be``'s calls.
-        await seed_native_identity(native_pool, pid, "dev-f2", display_name="Frontier Two", token=seed_token)
+        await seed_native_identity(native_pool, pid, "dev-f2", display_name="Frontier Two")
         us = await be.create_item(pid, name="US-01: Secret", labels=["US"])
         uc = await be.create_item(pid, name="UC-101: Secret UC", labels=["UC"], parent_id=us.id)
         async with native_pool.acquire() as conn:

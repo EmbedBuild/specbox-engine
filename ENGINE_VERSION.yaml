@@ -1,5 +1,5 @@
-version: 6.9.3
-codename: "Tenant Provisioning"
+version: 6.9.4
+codename: "Orphan Tenant Recovery"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-06-03

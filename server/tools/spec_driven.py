@@ -1353,6 +1353,57 @@ async def _start_uc_native(session: dict[str, str], board_id: str, uc_id: str, c
     return {"success": True, "reserved_by": dev.developer_id}
 
 
+async def _release_uc_native(session: dict[str, str], uc_id: str) -> None:
+    """Release a native reservation when completing a UC (symmetric to start_uc).
+
+    Best-effort by design: the UC is already moved to ``done`` by the time we get
+    here, so a failure to release must NOT abort the completion — an orphan
+    reservation is a far smaller problem than a failed ``complete_uc``. Every
+    failure path is logged and swallowed. Never raises.
+
+    Behaviour:
+      - Owner releases own reservation → deleted [AC-01].
+      - No reservation present → ``release_uc`` returns False → no-op.
+      - Reservation owned by ANOTHER developer → ``NotReservationOwnerError`` is
+        caught and the reservation is left intact (no forced release) [AC-03].
+      - Unauthenticated / DB error → logged and swallowed (UC stays done).
+    """
+    from ..coordination.identity import (
+        ForbiddenError,
+        UnauthenticatedError,
+        authenticate_and_authorize,
+    )
+    from ..coordination.reservations import NotReservationOwnerError, release_uc
+    from ..db.pool import get_pool
+
+    project_id = session["project_id"]
+    token = session.get("dev_token", "")
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            dev = await authenticate_and_authorize(conn, token=token, project_id=project_id)
+            released = await release_uc(
+                conn,
+                project_id=project_id,
+                uc_id=uc_id,
+                developer_id=dev.developer_id,
+            )
+            if released:
+                logger.info("uc_reservation_released_on_complete", project_id=project_id, uc_id=uc_id)
+    except NotReservationOwnerError as e:
+        # AC-03: another developer holds the reservation — never force a release.
+        logger.warning(
+            "complete_uc_reservation_owned_by_other",
+            project_id=project_id,
+            uc_id=uc_id,
+            error=str(e),
+        )
+    except (UnauthenticatedError, ForbiddenError) as e:
+        logger.warning("complete_uc_release_auth_failed", uc_id=uc_id, error=str(e))
+    except Exception as e:  # noqa: BLE001 — best-effort, the UC is already done
+        logger.warning("complete_uc_release_failed", uc_id=uc_id, error=str(e))
+
+
 async def _native_uc_ids_reserved_by_others(session: dict[str, str]) -> set[str]:
     """uc_ids reserved by a developer other than the session's dev [AC-20].
 
@@ -1418,6 +1469,15 @@ async def complete_uc(
 
         # Move to done
         await backend.update_item(board_id, uc_item.id, state="done")
+
+        # Native sessions release the reservation symmetrically to start_uc
+        # (which reserves via _start_uc_native). Without this, completing a UC
+        # leaves an orphan reservation: the UC is "done" yet still shows in
+        # "Reservas activas" / get_satellite_queue [US-NATIVE-RESERVATION-RELEASE].
+        # No-op for non-native backends (no reservations to release) [AC-02].
+        native_session = await _get_native_session_config(ctx)
+        if native_session is not None:
+            await _release_uc_native(native_session, uc_id)
 
         # Add evidence comment
         if evidence:

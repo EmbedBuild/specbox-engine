@@ -1,4 +1,4 @@
-# SpecBox Engine v6.9.3
+# SpecBox Engine v6.9.4
 
 > **SpecBox Engine by JPS**
 > Sistema de programacion agentica para Claude Code.
@@ -1635,9 +1635,73 @@ el contrato compartido. Documentado en `doc/decisions/native_project_id_contract
 - Decisión: [doc/decisions/native_project_id_contract.md](doc/decisions/native_project_id_contract.md)
 - Hallazgo origen: [HALLAZGO-v6.9.3-provision-y-project-id.md](HALLAZGO-v6.9.3-provision-y-project-id.md)
 
+## Tenant huérfano + auto-provisión robusta (v6.9.4)
+
+US-ORPHAN-PROVISION cierra el cuarto eslabón de la cadena de hallazgos del
+dogfooding: v6.9.3 implementó la lógica de auto-provisión correctamente, pero
+**otra ruta la desactivaba en el camino real**. Validando v6.9.3 migrando
+`specbox_cloud` freeform→native de cero, `start_migration_session` seguía
+bloqueándose con `FORBIDDEN` sobre una BD verificada vacía.
+
+**El bug, en una frase**: `setup_board`
+([`server/backends/native_backend.py`](server/backends/native_backend.py)) hacía
+`INSERT INTO projects` **sin crear membresía**, fuera de `provision_native_project`.
+Se dispara en cada `set_auth_token` native (`spec_driven.py:276`), en `import_spec`
+y en migraciones legacy. Cualquiera deja un **tenant huérfano** (fila en
+`public.projects` con CERO miembros). Entonces `_maybe_auto_provision`
+(`migration.py`) veía `exists=True` → `return False` (creía que era un tenant
+legítimo) → el gate de membresía → **FORBIDDEN**. El ecosistema se saboteaba a sí
+mismo. El test de v6.9.3 (UC-822) no lo veía porque ejercía el camino **limpio**
+(BD vacía → provisión), nunca un `setup_board` previo creando la fila huérfana.
+
+**Decisión (discovery `orphan_tenant_provision`): Enfoque Combinado — defensa en
+profundidad**, dos capas aditivas:
+
+- **FIX A (UC-824)** — `setup_board` para native delega en `provision_native_project`
+  (tenant + membresía en una transacción), resolviendo la identidad del session
+  `dev_token`. Nunca deja un proyecto con cero miembros. Idempotente: no degrada un
+  admin existente. `setup_board` ahora **requiere** un token válido (no puede crear
+  un tenant sin dueño). El id no se valida contra el contrato canónico aquí
+  (`validate_id=False`) — preserva la permisividad histórica de `setup_board` sobre
+  el id; el camino de migración from-scratch sí valida (`validate_id=True`).
+- **FIX B (UC-825)** — `_maybe_auto_provision` distingue **tenant huérfano**
+  (0 miembros → adopta, crea la membresía del creador) de **tenant real**
+  (≥1 miembro → `FORBIDDEN`, AC-13 intacto). La condición pasa de "no existe" a
+  "no existe O sin miembros".
+
+**Invariante**: *un tenant native nunca debe existir sin al menos un miembro; si por
+estado sucio legacy lo está, la auto-provisión lo adopta*. El flujo es convergente:
+cualquier estado sucio (0 miembros) se recupera a limpio (1 miembro = creador admin)
+en el primer `start_migration_session`, sin `FORBIDDEN`.
+
+**Seguridad**: un tenant con 0 miembros no tiene a quién robar — adoptarlo es seguro.
+**No contradice la decisión canónica D2** (`native_provision_authority`): la refina,
+precisando que "proyecto pre-existente protegido por AC-13" = fila con ≥1 miembro.
+
+| Componente | Archivo | Cambio |
+|------------|---------|--------|
+| FIX A | `server/backends/native_backend.py::setup_board` | Delega en `provision_native_project` (UC-824) |
+| FIX A helper | `server/migration/native_handling.py::provision_native_project` | Params opcionales `name` + `validate_id` |
+| FIX B | `server/tools/migration.py::_maybe_auto_provision` | Cuenta `project_members`; adopta huérfano (UC-825) |
+
+**Estándar transversal adoptado (UC-827)**: los E2E de migración deben partir de
+**estados sucios realistas**, no solo de BD/fixtures vírgenes. El patrón recurrente
+de los 4 hallazgos del dogfooding fue *"el test pasa con el camino ideal; el
+dogfooding encuentra el camino real"*. El E2E `test_e2e_orphan_then_migrate_recovers`
+([`tests/test_native_orphan_provision.py`](tests/test_native_orphan_provision.py))
+crea la fila huérfana **primero** y verifica la recuperación end-to-end por el
+transporte por lotes (≥64 KB), preservando estados done/backlog 1:1. Tests:
+`tests/test_native_orphan_provision.py` 7 passed; suite native completa sin regresión
+(396 passed).
+
+- PRD: [doc/prd/US-ORPHAN-PROVISION_prd.md](doc/prd/US-ORPHAN-PROVISION_prd.md)
+- Plan: [doc/plans/US-ORPHAN-PROVISION_plan.md](doc/plans/US-ORPHAN-PROVISION_plan.md)
+- Discovery: [doc/discovery/orphan_tenant_provision/icp_jtbd.md](doc/discovery/orphan_tenant_provision/icp_jtbd.md)
+- Hallazgo origen: [HALLAZGO-v6.9.4-setup-board-tenant-huerfano.md](HALLAZGO-v6.9.4-setup-board-tenant-huerfano.md)
+
 ## Engine Version
 
-Current: v6.9.3 "Tenant Provisioning"
+Current: v6.9.4 "Orphan Tenant Recovery"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

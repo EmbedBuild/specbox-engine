@@ -2,7 +2,7 @@
   "project": "specbox-engine",
   "schema_version": "1.0",
   "backend": "freeform",
-  "updated": "2026-06-02",
+  "updated": "2026-06-03",
   "source_of_truth": "doc/tracking/items.json",
   "readable_layers": {
     "us": "doc/tracking/us/ (24 markdowns)",
@@ -11,8 +11,8 @@
   },
   "note": "us/ y uc/ son capa de LECTURA curada, regenerable. La fuente de verdad es items.json.",
   "counts": {
-    "us": 24,
-    "uc": 125,
-    "ac": 492
+    "us": 25,
+    "uc": 129,
+    "ac": 504
   }
 }

@@ -11916,5 +11916,118 @@
     },
     "created_at": "2026-06-03T00:00:00+00:00",
     "updated_at": "2026-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "item-orph-us01",
+    "name": "[US-ORPHAN-PROVISION] El tenant huérfano de setup_board desactiva la auto-provisión de v6.9.3",
+    "external_id": "US-ORPHAN-PROVISION",
+    "external_source": null,
+    "description": "Como owner-operator que sube un proyecto nuevo a SpecBox Cloud (native) desde cero, quiero que la provisión de tenant + membresía sea atómica y robusta ante estado sucio, para no recibir un FORBIDDEN inexplicable siendo yo el creador con identidad válida. Cierra el bug v6.9.4: setup_board crea un tenant huérfano (0 miembros) que desactiva _maybe_auto_provision de v6.9.3.",
+    "labels": [
+      "US"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": null,
+    "meta": {
+      "tipo": "US",
+      "us_id": "US-ORPHAN-PROVISION",
+      "horas": "16",
+      "screens": ""
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T11:00:00+00:00"
+  },
+  {
+    "id": "item-orph-uc824",
+    "name": "[UC-824] setup_board native nunca deja un tenant sin miembro (FIX A)",
+    "external_id": "UC-824",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-orph-us01",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-824",
+      "us_id": "US-ORPHAN-PROVISION",
+      "actor": "Sistema",
+      "horas": "5",
+      "screens": ""
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T11:00:00+00:00"
+  },
+  {
+    "id": "item-orph-uc825",
+    "name": "[UC-825] _maybe_auto_provision adopta el tenant huérfano (FIX B)",
+    "external_id": "UC-825",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-orph-us01",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-825",
+      "us_id": "US-ORPHAN-PROVISION",
+      "actor": "Sistema",
+      "horas": "4",
+      "screens": ""
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T11:00:00+00:00"
+  },
+  {
+    "id": "item-orph-uc826",
+    "name": "[UC-826] E2E del camino sucio real — huérfano primero, recuperación después",
+    "external_id": "UC-826",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-orph-us01",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-826",
+      "us_id": "US-ORPHAN-PROVISION",
+      "actor": "Sistema",
+      "horas": "5",
+      "screens": ""
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T11:00:00+00:00"
+  },
+  {
+    "id": "item-orph-uc827",
+    "name": "[UC-827] No-regresión de la suite native + estándar de estados sucios",
+    "external_id": "UC-827",
+    "external_source": null,
+    "description": "",
+    "labels": [
+      "UC"
+    ],
+    "priority": "high",
+    "state": "done",
+    "parent_id": "item-orph-us01",
+    "meta": {
+      "tipo": "UC",
+      "uc_id": "UC-827",
+      "us_id": "US-ORPHAN-PROVISION",
+      "actor": "Sistema",
+      "horas": "2",
+      "screens": ""
+    },
+    "created_at": "2026-06-03T00:00:00+00:00",
+    "updated_at": "2026-06-03T11:00:00+00:00"
   }
 ]

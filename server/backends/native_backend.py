@@ -334,24 +334,38 @@ class NativeBackend(SpecBackend):
     # ── SpecBackend: Board / Project Setup ───────────────────────
 
     async def setup_board(self, name: str) -> BoardConfig:
-        """Create (or upsert) the project row. board_id == project_id."""
+        """Create (or upsert) the project row + the caller's membership atomically.
+
+        UC-824 (v6.9.4 — orphan tenant fix): a bare ``INSERT INTO projects``
+        without a membership row left a *tenant orphan* (a project with zero
+        members) that disabled v6.9.3's auto-provision and produced a spurious
+        ``FORBIDDEN`` on the next migration. ``setup_board`` for native now
+        resolves the developer from the session ``dev_token`` and delegates to
+        :func:`provision_native_project`, which creates the ``projects`` row and
+        the ``project_admin`` membership in one transaction. It is idempotent
+        (re-running never degrades an existing admin), so every ``setup_board``
+        is safe — the tenant can never exist without a member.
+
+        Raises ``UnauthenticatedError`` if the session token is invalid rather
+        than silently creating an orphan (the token is already validated upstream
+        in ``set_auth_token`` via ``validate_auth``).
+        """
+        from ..coordination.identity import resolve_developer
+        from ..migration.native_handling import provision_native_project
+
         board_id = self.project_id
         board_url = f"native://{board_id}"
         pool = await self._pool()
-        async with pool.acquire() as conn:
-            await conn.execute(
-                """
-                INSERT INTO projects (project_id, name, backend_type, board_url, meta)
-                VALUES ($1, $2, 'native', $3, '{}'::jsonb)
-                ON CONFLICT (project_id) DO UPDATE
-                    SET name = EXCLUDED.name,
-                        board_url = EXCLUDED.board_url,
-                        updated_at = now()
-                """,
-                board_id,
-                name,
-                board_url,
-            )
+        developer = await resolve_developer(pool, self._dev_token)
+        await provision_native_project(
+            pool,
+            project_id=board_id,
+            developer_id=developer.developer_id,
+            display_name=developer.display_name,
+            role="project_admin",
+            name=name,
+            validate_id=False,  # setup_board stays permissive on the id (UC-824)
+        )
         return BoardConfig(
             board_id=board_id,
             board_url=board_url,

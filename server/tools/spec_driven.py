@@ -1354,7 +1354,11 @@ async def _start_uc_native(session: dict[str, str], board_id: str, uc_id: str, c
 
 
 async def _release_uc_native(session: dict[str, str], uc_id: str) -> None:
-    """Release a native reservation when completing a UC (symmetric to start_uc).
+    """Release a native reservation + audit the completion when completing a UC.
+
+    Symmetric to start_uc (which reserves via _start_uc_native). Also emits the
+    UC-506 ``complete_uc`` audit event here because this is the only point in the
+    complete_uc flow with an authenticated dev + live connection.
 
     Best-effort by design: the UC is already moved to ``done`` by the time we get
     here, so a failure to release must NOT abort the completion — an orphan
@@ -1368,6 +1372,7 @@ async def _release_uc_native(session: dict[str, str], uc_id: str) -> None:
         caught and the reservation is left intact (no forced release) [AC-03].
       - Unauthenticated / DB error → logged and swallowed (UC stays done).
     """
+    from ..coordination import audit
     from ..coordination.identity import (
         ForbiddenError,
         UnauthenticatedError,
@@ -1382,6 +1387,19 @@ async def _release_uc_native(session: dict[str, str], uc_id: str) -> None:
         pool = await get_pool()
         async with pool.acquire() as conn:
             dev = await authenticate_and_authorize(conn, token=token, project_id=project_id)
+            # UC-506: audit the completion. This is the only point in the
+            # complete_uc flow with an authenticated dev + live conn, so the
+            # `complete_uc` lifecycle event is emitted here. The state→done
+            # change itself was done by backend.update_item just before; this
+            # records WHO closed WHICH uc. Always emitted on completion, even
+            # when there is no reservation to release below.
+            await audit.record_destructive(
+                conn,
+                developer_id=dev.developer_id,
+                project_id=project_id,
+                operation=audit.OP_COMPLETE_UC,
+                target_id=uc_id,
+            )
             released = await release_uc(
                 conn,
                 project_id=project_id,

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.9.3 — "Tenant Provisioning" (sobre v6.9.2 "Batch Ingest", v6.9.1 "Atomic Switch", v6.9.0 "Self-Provisioning")<br/>
+  v 6.9.4 — "Orphan Tenant Recovery" (sobre v6.9.3 "Tenant Provisioning", v6.9.2 "Batch Ingest", v6.9.1 "Atomic Switch")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -40,6 +40,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 **v6.9.2 — "Batch Ingest"** subir un proyecto freeform real (133 KB / cientos de ítems) a Cloud/Native ya funciona end-to-end: la migración cruza por **lotes verificables** (`start → append × N → commit`, SHA-256 por chunk) que el servidor reensambla y escribe en **una transacción atómica** (rollback total ante fallo). Cierra el gap de transporte de v6.9.1 — el `items.json` ya no tiene que caber en un único parámetro de tool.
 
 **v6.9.3 — "Tenant Provisioning"** subir un proyecto a Cloud/Native **de cero** ya funciona: la migración **auto-aprovisiona** el tenant + tu membresía como `project_admin` server-side antes del gate (rompe el huevo-gallina "no eres miembro de un proyecto que aún no existe"), y engine y panel acuerdan un único formato de `project_id` (`owner/repo` canónico + slug derivado para URLs). Cierra los 2 gaps de v6.9.2.
+
+**v6.9.4 — "Orphan Tenant Recovery"** cierra el bug que aún rompía la migración de cero real: `setup_board` creaba la fila del proyecto **sin membresía** (tenant huérfano), y eso **desactivaba** la auto-provisión de v6.9.3 → `FORBIDDEN` sobre una BD vacía. Doble defensa: `setup_board` native ahora aprovisiona tenant + membresía de forma atómica (nunca deja 0 miembros), y la auto-provisión **adopta** un tenant huérfano (0 miembros) mientras sigue protegiendo los tenants con dueño (AC-13). El E2E ahora parte del **estado sucio real** (huérfano primero), no de una BD virgen. 100% backwards-compatible.
 
 ---
 
@@ -416,7 +418,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.9.3 — "Tenant Provisioning" (over v6.9.2 "Batch Ingest", v6.9.1 "Atomic Switch", v6.9.0 "Self-Provisioning")
+> v 6.9.4 — "Orphan Tenant Recovery" (over v6.9.3 "Tenant Provisioning", v6.9.2 "Batch Ingest", v6.9.1 "Atomic Switch")
 
 ## What is this?
 
@@ -444,6 +446,8 @@ A system that turns Claude Code into a serious teammate:
 **v6.9.2 — "Batch Ingest"** uploading a real freeform project (133 KB / hundreds of items) to Cloud/Native now works end-to-end: the migration crosses in **verifiable chunks** (`start → append × N → commit`, SHA-256 per chunk) that the server reassembles and writes in **one atomic transaction** (full rollback on failure). Closes the v6.9.1 transport gap — the `items.json` no longer has to fit in a single tool parameter.
 
 **v6.9.3 — "Tenant Provisioning"** uploading a project to Cloud/Native **from scratch** now works: the migration **auto-provisions** the tenant + your membership as `project_admin` server-side before the gate (breaks the egg-chicken "you're not a member of a project that doesn't exist yet"), and engine and panel agree on a single `project_id` format (canonical `owner/repo` + a derived slug for URLs). Closes the two v6.9.2 gaps.
+
+**v6.9.4 — "Orphan Tenant Recovery"** closes the bug that still broke real from-scratch migration: `setup_board` created the project row **without a membership** (orphan tenant), which **disabled** v6.9.3's auto-provision → `FORBIDDEN` on an empty DB. Double defense: native `setup_board` now provisions tenant + membership atomically (never leaves 0 members), and the auto-provision **adopts** an orphan tenant (0 members) while still protecting tenants that have owners (AC-13). The E2E now starts from the **real dirty state** (orphan first), not a virgin DB. 100% backwards-compatible.
 
 ---
 

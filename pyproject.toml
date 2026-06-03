@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "6.9.3"
-description = "SpecBox Engine v6.9.3 — Tenant Provisioning: a from-scratch Native migration auto-provisions the tenant + creator as project_admin server-side before the membership gate, and a canonical owner/repo project_id contract (with a derived display slug) is shared engine↔panel. Closes the two v6.9.2 dogfooding gaps that blocked the first 'upload my project to Cloud' (US-NATIVE-PROVISION)."
+version = "6.9.4"
+description = "SpecBox Engine v6.9.4 — Orphan Tenant Recovery: setup_board for native delegates to the atomic provision (tenant + membership together) so it can never leave a tenant with zero members, and _maybe_auto_provision adopts an orphan tenant (0 members) while still forbidding join to a tenant with owners (AC-13). Closes the v6.9.4 dogfooding gap where a prior setup_board left an orphan row that disabled v6.9.3's auto-provision and produced a spurious FORBIDDEN (US-ORPHAN-PROVISION)."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.3.1,<4.0.0",

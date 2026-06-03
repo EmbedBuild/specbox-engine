@@ -2,6 +2,40 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.9.4] - 2026-06-03 — "Orphan Tenant Recovery"
+
+Cierra el **cuarto eslabón** de la cadena de hallazgos del dogfooding (v6.9.1 → v6.9.2 → v6.9.3 → **v6.9.4**). v6.9.3 implementó la lógica de auto-provisión correctamente, pero **otra ruta la desactivaba en el camino real**: `setup_board` (`server/backends/native_backend.py`) hacía `INSERT INTO projects` **sin crear membresía**, fuera de `provision_native_project`. Se dispara en cada `set_auth_token` native, `import_spec` y migraciones legacy → deja un **tenant huérfano** (fila `public.projects` con CERO miembros). Entonces `_maybe_auto_provision` veía `exists=True` → `return False` → el gate de membresía → **FORBIDDEN** sobre una BD verificada vacía. El ecosistema se saboteaba a sí mismo. US-ORPHAN-PROVISION — 4 UC (UC-824..827), PR #90.
+
+### Added
+
+- **`tests/test_native_orphan_provision.py`** (UC-826) — 7 tests Postgres-gated (3 FIX B + 3 FIX A + 1 E2E del camino sucio). El E2E `test_e2e_orphan_then_migrate_recovers` crea la fila huérfana **PRIMERO** y verifica la recuperación end-to-end por el transporte por lotes (≥64 KB), estados done/backlog preservados 1:1 — la cobertura de estado sucio que faltaba y por la que pasó el gap.
+- **`provision_native_project(name=..., validate_id=...)`** — dos parámetros opcionales (UC-824): `name` propaga el nombre del board en la provisión (preservando la semántica de `setup_board`); `validate_id=False` salta la validación del contrato canónico cuando el caller (setup_board) ya tiene un id aceptado, manteniendo `setup_board` permisivo sobre el id.
+
+### Changed
+
+- **FIX A — `setup_board` para native** (`server/backends/native_backend.py`, UC-824) delega en `provision_native_project` (tenant + membresía en una transacción), resolviendo la identidad del session `dev_token`. Nunca deja un proyecto con cero miembros; idempotente, no degrada admin. `setup_board` ahora **requiere** un token registrado válido (no puede crear un tenant sin dueño).
+- **FIX B — `_maybe_auto_provision`** (`server/tools/migration.py`, UC-825) cuenta `project_members`: la condición pasa de "no existe" a "no existe O sin miembros". Adopta un tenant huérfano (0 miembros) creando la membresía del creador; mantiene `FORBIDDEN` para un tenant con ≥1 miembro (AC-13 intacto).
+- **Fixtures de test** (`tests/test_native_handling.py`, `tests/test_native_provision.py`) — `setup_board` ahora requiere identidad registrada (helper `_setup_board_with_identity`); el test AC-13 siembra un owner real (antes era, implícitamente, el caso huérfano que ahora se adopta); el test "empty" espera `developers: 1` (el admin provisionado).
+
+### Decisions
+
+- **Invariante**: un tenant native nunca debe existir sin al menos un miembro; si por estado sucio legacy lo está, la auto-provisión lo adopta. Flujo convergente: cualquier estado sucio (0 miembros) se recupera a limpio (1 miembro = creador admin) en el primer `start_migration_session`, sin `FORBIDDEN`.
+- **No contradice D2** (`native_provision_authority`): la refina — "proyecto pre-existente protegido por AC-13" = fila con **≥1 miembro**. Seguridad: un tenant con 0 miembros no tiene a quién robar → adoptarlo es seguro.
+- **Estándar transversal (UC-827)**: los E2E de migración deben partir de **estados sucios realistas**, no solo de BD/fixtures vírgenes. Patrón recurrente de los 4 hallazgos: *el test pasa con el camino ideal; el dogfooding encuentra el camino real.*
+
+### Compatibility
+
+- 100% backwards-compatible. `provision_native_project` se reutiliza tal cual (los nuevos params son opcionales con defaults que preservan el comportamiento previo). El contrato `project_id` (D1) y el flujo OAuth/identidad no cambian.
+
+### Tests
+
+- 7 nuevos tests en `tests/test_native_orphan_provision.py`, todos verdes:
+  - FIX B (UC-825): adopta huérfano / no adopta tenant con miembros / limpia cache de auth.
+  - FIX A (UC-824): crea membresía / idempotente sin degradar admin / adopta huérfano preexistente.
+  - E2E (UC-826): huérfano primero → migración por lotes se recupera sin FORBIDDEN, estados 1:1.
+- Suite native completa sin regresión (396 passed).
+- Las 7 fallas de `test_spec_mutations.py` son **preexistentes** (mock `_fake_get_session_backend` sin `items_content`), verificadas stasheando la rama — no son de esta release.
+
 ## [6.9.3] - 2026-06-03 — "Tenant Provisioning"
 
 Cierra los **dos gaps combinados** descubiertos en dogfooding v6.9.2 al migrar `specbox_cloud` freeform→native **de cero**: el transporte por lotes funcionó, pero la migración se bloqueó en `start_migration_session` con `Developer X is not a member of project EmbedBuild/specbox_cloud`. **GAP 1**: el path batch no provisionaba `public.projects` + `public.project_members` cuando el proyecto nace de cero (huevo-gallina enforced por la FK `project_members→projects`). **GAP 2**: engine (`owner/repo`) y panel (slug) nunca acordaron el formato de `project_id`. US-NATIVE-PROVISION — 6 UC (UC-818..823), PR #89.

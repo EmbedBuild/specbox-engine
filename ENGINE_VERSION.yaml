@@ -406,6 +406,15 @@ features:
   - vscode-managed-engine-autopull
 
 changelog:
+  6.9.4:
+    date: 2026-06-03
+    codename: "Orphan Tenant Recovery"
+    changes:
+      - "fix: setup_board for native no longer leaves an orphan tenant. It did a bare INSERT INTO projects WITHOUT a membership row (fired on every native set_auth_token, import_spec and legacy migration), leaving a public.projects row with ZERO members. _maybe_auto_provision then saw exists=True → return False → the membership gate → spurious FORBIDDEN even on a verified-empty DB. v6.9.3's auto-provision logic was correct; this door disabled it on the real path (US-ORPHAN-PROVISION, UC-824, PR #90)."
+      - "feat: FIX A (UC-824) — setup_board for native delegates to provision_native_project (tenant + membership in one transaction), resolving the developer from the session dev_token. It can never leave a project with zero members and is idempotent (never degrades an existing admin). provision_native_project gains optional name + validate_id params; setup_board passes validate_id=False to stay permissive on the id (its historical behaviour), while the from-scratch migration path keeps validate_id=True."
+      - "feat: FIX B (UC-825) — _maybe_auto_provision counts project_members and distinguishes an orphan tenant (0 members → adopt: create the creator's membership) from a real tenant (≥1 member → return False → FORBIDDEN, AC-13 intact). Invariant: a native tenant never exists without at least one member; if a dirty legacy state left one, the auto-provision adopts it. Does not contradict canonical decision D2 (native_provision_authority) — it refines it: 'pre-existing project protected by AC-13' means a row with ≥1 member."
+      - "test: tests/test_native_orphan_provision.py — 7 passed (3 FIX B + 3 FIX A + 1 dirty-path E2E), Postgres-gated. The E2E test_e2e_orphan_then_migrate_recovers creates the orphan row FIRST and verifies end-to-end recovery via the batch-ingest transport (≥64 KB), done/backlog states preserved 1:1 — the missing dirty-state coverage that let the v6.9.4 gap ship. Native suite no-regression: 396 passed."
+      - "docs: Cross-cutting standard adopted (UC-827) — migration E2Es must start from realistic dirty states, not virgin DB/fixtures. The recurring pattern across the 4 dogfooding hallazgos was 'the test passes on the ideal path; the dogfooding finds the real path'. Fixtures in test_native_handling.py / test_native_provision.py adjusted: setup_board now requires a registered token; the AC-13 test seeds a real owner (was implicitly the orphan case now adopted)."
   6.9.3:
     date: 2026-06-03
     codename: "Tenant Provisioning"

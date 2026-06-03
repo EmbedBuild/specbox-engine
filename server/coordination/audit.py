@@ -54,6 +54,20 @@ OP_COMPLETE_UC: str = "complete_uc"
 #: defined so the contract is stable and the panel can map the verb in advance.
 OP_MERGE: str = "merge"
 
+#: Progress mutations (US-05 / UC-513). The realtime broadcast trigger fires on
+#: INSERT to audit_log, so a UC's detail view only refreshes live when an audit
+#: row appears. Marking an AC / editing US·UC·AC previously wrote NO audit row,
+#: so the most frequent action while working a UC ("mark this AC done") did not
+#: refresh the tree in real time. Emitting these here closes that gap via the
+#: existing trigger + useProjectRealtime (no migration, no front change needed
+#: for the refresh). The activity feed maps them to human verbs (UC-505).
+#: ``target_id`` carries the ac_id / uc_id / us_id; ``developer_id`` the actor.
+OP_MARK_AC: str = "mark_ac"
+OP_UNMARK_AC: str = "unmark_ac"
+OP_UPDATE_AC: str = "update_ac"
+OP_UPDATE_UC: str = "update_uc"
+OP_UPDATE_US: str = "update_us"
+
 
 async def record_destructive(
     conn: asyncpg.Connection,

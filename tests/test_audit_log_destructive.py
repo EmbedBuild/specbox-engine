@@ -122,6 +122,17 @@ async def _latest_audit_row(project_id: str) -> asyncpg.Record | None:
         )
 
 
+async def _audit_rows_ordered(project_id: str) -> list[asyncpg.Record]:
+    """All audit rows for a project, oldest first."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetch(
+            "SELECT developer_id, operation, target_id FROM audit_log "
+            "WHERE project_id = $1 ORDER BY id ASC",
+            project_id,
+        )
+
+
 # ── AC-12: record_destructive writes the row ──────────────────────────
 
 
@@ -235,16 +246,17 @@ class TestArchiveItemAudit:
 
 
 class TestMixedSequenceAuditPrecision:
-    """A realistic mixed sequence must leave EXACTLY one audit row per
-    destructive op — no more, no fewer [AC-25].
+    """A realistic mixed sequence audits exactly the progress + destructive
+    ops, in order [AC-25, updated by UC-513].
 
-    The 5 non-destructive mutators in the middle of the sequence must NOT
-    pollute ``audit_log``; the 3 destructive ones (2 ``delete_ac`` + 1
-    ``archive_item``) must each contribute exactly one row, in order, with
-    the correct ``(developer_id, project_id, operation, target_id)``.
+    Contract after UC-513:
+    - creates (create_acceptance_criteria) → NO audit.
+    - update_ac (×2), mark_ac (×1) → audit (progress mutations, UC-513).
+    - delete_ac (×2), archive_item (×1) → audit (destructive, UC-503).
+    So the sequence below yields exactly 6 audit rows in deterministic order.
     """
 
-    async def test_ac25_mixed_sequence_writes_exactly_three_audit_rows(self) -> None:
+    async def test_ac25_mixed_sequence_audit_order(self) -> None:
         project_id = f"test-uc503-mixed-{uuid.uuid4().hex[:8]}"
         token = f"tok-{uuid.uuid4().hex[:16]}"
         developer_id = "dev-mixed"
@@ -260,69 +272,56 @@ class TestMixedSequenceAuditPrecision:
         await backend.create_acceptance_criteria(project_id, uc_id, [("AC-05", "fifth AC")])
         await backend.create_acceptance_criteria(project_id, uc_id, [("AC-06", "sixth AC")])
 
-        # 2 updates — update_acceptance_criterion text changes. Non-destructive.
+        # 2 updates — update_acceptance_criterion text changes (UC-513: audit).
         await backend.update_acceptance_criterion(project_id, uc_id, ac_ids[0], text="AC-01 updated")
         await backend.update_acceptance_criterion(project_id, uc_id, ac_ids[1], text="AC-02 updated")
 
-        # 1 mark — non-destructive.
+        # 1 mark — UC-513: audit (mark_ac).
         await backend.mark_acceptance_criterion(project_id, uc_id, ac_ids[2], True)
 
-        # 2 destructive deletes — each must add exactly 1 audit row, target_id
-        # equal to the deleted ac_id, operation == OP_DELETE_AC.
+        # 2 destructive deletes — operation == OP_DELETE_AC.
         await backend.delete_acceptance_criterion(project_id, uc_id, "AC-04")
         await backend.delete_acceptance_criterion(project_id, uc_id, "AC-05")
 
-        # 1 destructive archive — adds 1 audit row, target_id == uc_id,
-        # operation == OP_ARCHIVE_ITEM.
-        await backend.archive_item(project_id, uc_id, reason="UC-506 mixed sequence")
+        # 1 destructive archive — operation == OP_ARCHIVE_ITEM.
+        await backend.archive_item(project_id, uc_id, reason="UC-513 mixed sequence")
 
         # ── Assertions ───────────────────────────────────────────────
         after = await _count_audit(project_id)
-        assert after == before + 3, (
-            f"expected exactly 3 audit rows (2 delete_ac + 1 archive_item), got {after - before}"
+        assert after == before + 6, (
+            f"expected exactly 6 audit rows (2 update_ac + 1 mark_ac + 2 delete_ac + "
+            f"1 archive_item), got {after - before}"
         )
 
-        # Inspect the 3 newest rows in chronological order and pin each one
-        # to its expected (operation, target_id).
-        pool = await get_pool()
-        async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                """
-                SELECT developer_id, project_id, operation, target_id
-                  FROM audit_log
-                 WHERE project_id = $1
-                 ORDER BY id ASC
-                """,
-                project_id,
-            )
-
-        # All audit rows for this project must come from THIS sequence
-        # (``_seed`` itself does not write audit). The 3 rows must be:
-        #   row 0 → delete_ac AC-04
-        #   row 1 → delete_ac AC-05
-        #   row 2 → archive_item uc_id
-        assert len(rows) == 3, f"project audit_log must contain exactly 3 rows, found {len(rows)}"
-
+        rows = await _audit_rows_ordered(project_id)
+        assert len(rows) == 6, f"project audit_log must contain exactly 6 rows, found {len(rows)}"
         for row in rows:
-            assert row["developer_id"] == developer_id, "every audit row must attribute the correct developer"
-            assert row["project_id"] == project_id, "every audit row must be scoped to this project"
+            assert row["developer_id"] == developer_id
+        seq = [(r["operation"], r["target_id"]) for r in rows]
+        assert seq == [
+            ("update_ac", ac_ids[0]),
+            ("update_ac", ac_ids[1]),
+            ("mark_ac", ac_ids[2]),
+            (OP_DELETE_AC, "AC-04"),
+            (OP_DELETE_AC, "AC-05"),
+            (OP_ARCHIVE_ITEM, uc_id),
+        ], seq
 
-        assert rows[0]["operation"] == OP_DELETE_AC
-        assert rows[0]["target_id"] == "AC-04"
-        assert rows[1]["operation"] == OP_DELETE_AC
-        assert rows[1]["target_id"] == "AC-05"
-        assert rows[2]["operation"] == OP_ARCHIVE_ITEM
-        assert rows[2]["target_id"] == uc_id
 
-
-# ── AC-15: the other 7 mutators never write audit ──────────────────────
+# ── AC-15: which non-destructive mutators audit (contract updated by UC-513) ──
 
 
 class TestNonDestructiveMutatorsLeaveAuditUntouched:
-    """create / update / mark / create_ac / update_ac / add_comment /
-    add_attachment must NOT write any audit row [AC-15]."""
+    """UC-513 (US-05) changed the UC-503 contract: progress mutations now DO
+    audit so the realtime broadcast fires and the detail view refreshes live.
 
-    async def test_ac15_seven_non_destructive_mutators_write_zero_audit_rows(self) -> None:
+    - AUDIT (UC-513): update_item (US/UC), mark_acceptance_criterion,
+      update_acceptance_criterion.
+    - STILL SILENT: create_item / create_acceptance_criteria / add_comment /
+      add_attachment (creates and side-channel writes are not progress signals).
+    """
+
+    async def test_ac15_progress_mutators_audit_creates_stay_silent(self) -> None:
         project_id = f"test-uc503-ndmut-{uuid.uuid4().hex[:8]}"
         token = f"tok-{uuid.uuid4().hex[:16]}"
         us_id, uc_id, ac_ids = await _seed(project_id, "dev-ndmut", token)
@@ -330,22 +329,23 @@ class TestNonDestructiveMutatorsLeaveAuditUntouched:
 
         before = await _count_audit(project_id)
 
-        # 1. create_item — already happened in _seed (3 creates: US, UC, ACs).
-        # 2. update_item
-        await backend.update_item(project_id, us_id, name="US-99: renamed")
-        # 3. mark_acceptance_criterion
-        await backend.mark_acceptance_criterion(project_id, uc_id, ac_ids[1], True)
-        # 4. create_acceptance_criteria — extra AC on the existing UC
+        # Progress mutators — each audits exactly one row (UC-513).
+        await backend.update_item(project_id, us_id, name="US-99: renamed")  # update_us
+        await backend.mark_acceptance_criterion(project_id, uc_id, ac_ids[1], True)  # mark_ac
+        await backend.update_acceptance_criterion(
+            project_id, uc_id, ac_ids[2], text="third AC updated"
+        )  # update_ac
+
+        # Non-progress writes — must NOT audit.
         await backend.create_acceptance_criteria(project_id, uc_id, [("AC-04", "fourth AC")])
-        # 5. update_acceptance_criterion
-        await backend.update_acceptance_criterion(project_id, uc_id, ac_ids[2], text="third AC updated")
-        # 6. add_comment
         await backend.add_comment(project_id, uc_id, "non-destructive comment")
-        # 7. add_attachment
         await backend.add_attachment(project_id, uc_id, "ref.txt", b"hello world")
 
         after = await _count_audit(project_id)
-        assert after == before, (
-            f"audit_log grew by {after - before} for non-destructive mutators — "
-            "only delete_acceptance_criterion and archive_item are allowed to audit"
+        assert after == before + 3, (
+            f"expected exactly 3 audit rows (update_us + mark_ac + update_ac), "
+            f"got {after - before}"
         )
+        rows = await _audit_rows_ordered(project_id)
+        ops = [r["operation"] for r in rows[-3:]]
+        assert ops == ["update_us", "mark_ac", "update_ac"], ops

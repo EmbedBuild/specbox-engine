@@ -836,7 +836,7 @@ class NativeBackend(SpecBackend):
         exists, different version) a :class:`StaleVersionError` is raised and
         the row is unchanged. See the module docstring.
         """
-        await self._require_membership_cached()
+        dev = await self._require_membership_cached()
         clean_meta, expected = _split_expected_version(meta)
 
         # Determine which table holds the item.
@@ -900,6 +900,23 @@ class NativeBackend(SpecBackend):
                 await self._raise_if_stale(conn, table, board_id, item_id, expected)
                 # No expected version but still no row → row vanished mid-update.
                 raise ValueError(f"Item {item_id} not found")
+
+            # UC-513: audit the US/UC update so the detail view refreshes live
+            # (audit_log broadcast trigger + useProjectRealtime). The operation
+            # distinguishes US from UC by the table the item lives in.
+            from ..coordination.audit import (
+                OP_UPDATE_UC,
+                OP_UPDATE_US,
+                record_destructive,
+            )
+
+            await record_destructive(
+                conn,
+                developer_id=dev.developer_id,
+                project_id=board_id,
+                operation=OP_UPDATE_US if table == "user_stories" else OP_UPDATE_UC,
+                target_id=item_id,
+            )
 
         return self._us_row_to_dto(row) if table == "user_stories" else self._uc_row_to_dto(row)
 
@@ -1028,7 +1045,9 @@ class NativeBackend(SpecBackend):
         ac_id: str,
         passed: bool,
     ) -> ChecklistItemDTO:
-        await self._require_membership_cached()
+        dev = await self._require_membership_cached()
+        from ..coordination.audit import OP_MARK_AC, OP_UNMARK_AC, record_destructive
+
         pool = await self._pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -1043,8 +1062,18 @@ class NativeBackend(SpecBackend):
                 ac_id,
                 passed,
             )
-        if row is None:
-            raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
+            if row is None:
+                raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
+            # UC-513: audit the progress mutation AFTER the UPDATE succeeded, on
+            # the same connection. This is what makes the audit_log broadcast
+            # trigger fire so the detail view refreshes live (useProjectRealtime).
+            await record_destructive(
+                conn,
+                developer_id=dev.developer_id,
+                project_id=board_id,
+                operation=OP_MARK_AC if passed else OP_UNMARK_AC,
+                target_id=ac_id,
+            )
         return ChecklistItemDTO(
             id=ac_id,
             text=row["text"],
@@ -1107,9 +1136,10 @@ class NativeBackend(SpecBackend):
         provided we no-op-return the current row. The version is still bumped on
         any real change so concurrent edits remain detectable on the next read.
         """
-        await self._require_membership_cached()
+        dev = await self._require_membership_cached()
         if text is None and done is None:
             # Nothing to change — return current state without bumping version.
+            # No audit row (no mutation → no realtime event).
             pool = await self._pool()
             async with pool.acquire() as conn:
                 row = await conn.fetchrow(
@@ -1145,11 +1175,21 @@ class NativeBackend(SpecBackend):
             f"WHERE project_id = {board_param} AND uc_id = {uc_param} "
             f"AND ac_id = {ac_param} RETURNING *"
         )
+        from ..coordination.audit import OP_UPDATE_AC, record_destructive
+
         pool = await self._pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(sql, *params)
-        if row is None:
-            raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
+            if row is None:
+                raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
+            # UC-513: audit the AC edit (fires the realtime broadcast trigger).
+            await record_destructive(
+                conn,
+                developer_id=dev.developer_id,
+                project_id=board_id,
+                operation=OP_UPDATE_AC,
+                target_id=ac_id,
+            )
         return ChecklistItemDTO(id=ac_id, text=row["text"], done=row["done"], backend_id=row["id"])
 
     async def delete_acceptance_criterion(

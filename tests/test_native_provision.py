@@ -73,6 +73,19 @@ class TestCanonicalProjectId:
         with pytest.raises(InvalidProjectIdError):
             display_slug("///")
 
+    def test_humanize_project_name_capitalizes_repo_words(self):
+        """UC-504 AC-02: derive a human title from the repo segment, each word
+        capitalized (first letter upper)."""
+        from server.coordination.project_id import humanize_project_name
+
+        assert humanize_project_name("EmbedBuild/specbox-manager") == "Specbox Manager"
+        assert humanize_project_name("acme/web") == "Web"
+        assert humanize_project_name("acme/my_cool_api") == "My Cool Api"
+        # bare repo segment (no owner/slash) still humanizes
+        assert humanize_project_name("standalone") == "Standalone"
+        # preserves already-uppercase rest of a word (only forces leading char)
+        assert humanize_project_name("acme/API-gateway") == "API Gateway"
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Postgres-gated helpers

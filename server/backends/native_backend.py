@@ -351,10 +351,19 @@ class NativeBackend(SpecBackend):
         in ``set_auth_token`` via ``validate_auth``).
         """
         from ..coordination.identity import resolve_developer
+        from ..coordination.project_id import humanize_project_name
         from ..migration.native_handling import provision_native_project
 
         board_id = self.project_id
         board_url = f"native://{board_id}"
+        # UC-504 (US-05): some callers pass the project_id itself as `name`
+        # (e.g. spec_driven set_auth_token → setup_board(project_id)), which
+        # stored the cryptic ``owner/repo`` slug as the project title. When the
+        # supplied name is just the id repeated, derive a human display name
+        # instead. A genuinely different name (migration target_name) is respected.
+        effective_name = (
+            humanize_project_name(board_id) if name == board_id else name
+        )
         pool = await self._pool()
         developer = await resolve_developer(pool, self._dev_token)
         await provision_native_project(
@@ -363,7 +372,7 @@ class NativeBackend(SpecBackend):
             developer_id=developer.developer_id,
             display_name=developer.display_name,
             role="project_admin",
-            name=name,
+            name=effective_name,
             validate_id=False,  # setup_board stays permissive on the id (UC-824)
         )
         return BoardConfig(

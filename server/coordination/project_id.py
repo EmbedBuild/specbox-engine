@@ -29,6 +29,7 @@ __all__ = [
     "InvalidProjectIdError",
     "canonical_project_id",
     "display_slug",
+    "humanize_project_name",
     "validate_project_id",
 ]
 
@@ -103,6 +104,36 @@ def validate_project_id(project_id: str) -> str:
             f"{project_id!r}"
         )
     return project_id
+
+
+def humanize_project_name(project_id: str) -> str:
+    """Derive a human-readable display name from a canonical ``owner/repo`` id.
+
+    UC-504 (US-05): the Native backend historically defaulted ``projects.name``
+    to the raw ``owner/repo`` id, so the Cloud panel showed a cryptic slug as the
+    project title. This derives a friendlier default: take the ``repo`` segment,
+    split on ``-``/``_``/whitespace, and Capitalize Each Word.
+
+    ``EmbedBuild/specbox-manager`` → ``"Specbox Manager"``
+    ``acme/web``                   → ``"Web"``
+    ``acme/my_cool_api``           → ``"My Cool Api"``
+
+    Pure, no I/O. The first letter of every word is uppercased (the rest of each
+    word is left as-is to preserve intentional casing like ``API`` if a word was
+    already uppercase — only the leading char is forced up).
+
+    Args:
+        project_id: A canonical ``owner/repo`` id (or a bare repo segment).
+
+    Returns:
+        A human display name. Never empty for a non-empty input.
+    """
+    raw = (project_id or "").strip()
+    repo = raw.rsplit("/", 1)[-1] if "/" in raw else raw
+    words = [w for w in re.split(r"[-_\s]+", repo) if w]
+    if not words:
+        return repo
+    return " ".join(w[0].upper() + w[1:] for w in words)
 
 
 def display_slug(project_id: str) -> str:

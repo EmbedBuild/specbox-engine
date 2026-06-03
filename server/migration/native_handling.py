@@ -280,7 +280,7 @@ async def provision_native_project(
         existed).
     """
     from ..coordination import audit as audit_mod
-    from ..coordination.project_id import validate_project_id
+    from ..coordination.project_id import humanize_project_name, validate_project_id
 
     # ``validate_id=False`` (UC-824): ``setup_board`` reaches here for an
     # already-constructed NativeBackend whose project_id was accepted as-is
@@ -290,11 +290,14 @@ async def provision_native_project(
     # The from-scratch migration path keeps ``validate_id=True`` (default).
     canonical = validate_project_id(project_id) if validate_id else project_id.strip()
     board_url = f"native://{canonical}"
-    # ``name`` defaults to the canonical project_id (the original D2 behaviour).
-    # When a caller supplies one (UC-824: ``setup_board`` delegating here), it is
-    # used on insert and refreshed on an existing row. A ``None`` name on
-    # re-provision preserves the stored name (COALESCE), never clobbering it.
-    effective_name = name if name else canonical
+    # ``name``: when a caller supplies one (UC-824: ``setup_board`` delegating
+    # here), it is used on insert and refreshed on an existing row. When NONE is
+    # supplied, UC-504 (US-05) derives a human display name from the repo segment
+    # (``EmbedBuild/specbox-manager`` → "Specbox Manager") instead of copying the
+    # raw ``owner/repo`` slug — which left the Cloud panel showing a cryptic title.
+    # A ``None`` name on re-provision still preserves the stored name (COALESCE),
+    # never clobbering an admin-edited one.
+    effective_name = name if name else humanize_project_name(canonical)
 
     async with pool.acquire() as conn:
         async with conn.transaction():

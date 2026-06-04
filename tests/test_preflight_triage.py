@@ -8,13 +8,34 @@ UC-601 (this file, Phase 1): the decision inventory.
 
 from __future__ import annotations
 
-from server.app_docs.autopilot import DECISION_KEYS
+import json
+from pathlib import Path
+
+import pytest
+
+from server.app_docs.autopilot import DECISION_KEYS, evaluate_decision
 from server.implement_context.preflight_triage import (
     AD_HOC,
+    AUTONOMOUS,
+    USER_DEPENDENT,
     DecisionEntry,
     build_decision_inventory,
+    classify_decision,
+    classify_inventory,
     inventory_to_dict,
 )
+
+
+def _project_with_level(tmp_path: Path, level: str) -> str:
+    """Write a minimal settings.local.json pinning the autopilot level and
+    return the project path string for ``evaluate_decision``'s ``projectPath``."""
+    settings = tmp_path / ".claude" / "settings.local.json"
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    settings.write_text(
+        json.dumps({"specbox": {"autopilot": {"level": level}}}),
+        encoding="utf-8",
+    )
+    return str(tmp_path)
 
 # A plan fragment that contains exactly two decisions: one that maps to the
 # catalogue (the tracking backend selection) and one that is task-specific
@@ -113,3 +134,109 @@ def test_decision_entry_to_dict_shape():
     e = DecisionEntry(id="D1", description="x", source="x", decision_key=AD_HOC)
     d = e.to_dict()
     assert d == {"id": "D1", "description": "x", "source": "x", "decision_key": AD_HOC, "family": "ad_hoc"}
+
+
+# ── UC-602: classification ──────────────────────────────────────────────────
+
+
+def test_ac03_catalogued_auto_becomes_autonomous_with_verbatim_reason(tmp_path):
+    """AC-03: a catalogued decision whose policy is ``auto`` at the current
+    level is classified ``autonomous`` and carries the policy engine's
+    ``reason`` byte-for-byte."""
+    project = _project_with_level(tmp_path, "equilibrado")
+    # backend_selection in equilibrado → auto_freeform_default → action "auto".
+    entry = DecisionEntry(
+        id="D1",
+        description="elegir backend",
+        source="elegir backend",
+        decision_key="backend_selection",
+        family=DECISION_KEYS["backend_selection"]["family"],
+    )
+    classify_decision(entry, context={"projectPath": project})
+
+    expected = evaluate_decision("backend_selection", {"projectPath": project})
+    assert expected["action"] == "auto"  # precondition for this fixture
+    assert entry.meta["classification"] == AUTONOMOUS
+    assert entry.meta["reason"] == expected["reason"]  # byte-for-byte
+
+
+def test_ac04_ad_hoc_without_inheritable_is_user_dependent():
+    """AC-04: an ad_hoc decision with no inheritable backing it is
+    ``user_dependent`` by conservative default."""
+    entry = DecisionEntry(id="D1", description="choose lib", source="choose lib", decision_key=AD_HOC)
+    classify_decision(entry, context={})  # no ad_hoc_inheritable, no app_spec
+    assert entry.meta["classification"] == USER_DEPENDENT
+    assert entry.meta["reason"] == "ad_hoc_conservative_default"
+
+
+def test_ad_hoc_with_explicit_inheritable_is_autonomous():
+    """The conservative ad_hoc default can be overridden only by an explicit
+    inheritable — the escape hatch a caller sets when app_spec resolves it."""
+    entry = DecisionEntry(id="D1", description="x", source="x", decision_key=AD_HOC)
+    classify_decision(entry, context={"ad_hoc_inheritable": True})
+    assert entry.meta["classification"] == AUTONOMOUS
+
+
+@pytest.mark.parametrize(
+    "decision_key",
+    ["destructive_action", "image_cost_over_budget", "branch_to_main_push"],
+)
+@pytest.mark.parametrize("level", ["low", "conservador", "equilibrado", "agresivo"])
+def test_ac05_inviolables_never_autonomous_at_any_level(tmp_path, decision_key, level):
+    """AC-05: the three inviolable keys are never ``autonomous`` at any of the
+    four autopilot levels — more autonomy never means less safety."""
+    project = _project_with_level(tmp_path, level)
+    entry = DecisionEntry(
+        id="D1",
+        description=decision_key,
+        source=decision_key,
+        decision_key=decision_key,
+        family=DECISION_KEYS[decision_key]["family"],
+    )
+    classify_decision(entry, context={"projectPath": project})
+    assert entry.meta["classification"] == USER_DEPENDENT
+    assert entry.meta["reason"] == "inviolable_never_autonomous"
+
+
+def test_classify_inventory_sets_verdict_needs_user_input(tmp_path):
+    """A mixed inventory yields verdict ``needs_user_input`` when any decision
+    is user-dependent (the gate must stop)."""
+    project = _project_with_level(tmp_path, "equilibrado")
+    entries = build_decision_inventory(_PLAN_ONE_CATALOGUED_ONE_AD_HOC)
+    classify_inventory(entries, context={"projectPath": project})
+    payload = inventory_to_dict(entries)
+    assert payload["verdict"] == "needs_user_input"
+    assert payload["user_dependent"] >= 1  # the ad_hoc API contract
+
+
+def test_classify_inventory_verdict_no_user_decisions_when_all_autonomous(tmp_path):
+    """When every decision is autonomous, the verdict is ``no_user_decisions``
+    so a fully-autonomous task does not interrupt (AC-08 downstream)."""
+    project = _project_with_level(tmp_path, "agresivo")
+    # A single catalogued auto decision, nothing user-dependent.
+    entries = [
+        DecisionEntry(
+            id="D1",
+            description="elegir backend",
+            source="elegir backend",
+            decision_key="backend_selection",
+            family=DECISION_KEYS["backend_selection"]["family"],
+        )
+    ]
+    classify_inventory(entries, context={"projectPath": project})
+    payload = inventory_to_dict(entries)
+    assert payload["verdict"] == "no_user_decisions"
+    assert payload["user_dependent"] == 0
+    assert payload["autonomous"] == 1
+
+
+def test_classification_surfaces_in_to_dict(tmp_path):
+    """Once classified, to_dict surfaces classification/action/reason at the
+    top level for the gate and the audit log."""
+    project = _project_with_level(tmp_path, "equilibrado")
+    entry = DecisionEntry(id="D1", description="x", source="x", decision_key=AD_HOC)
+    classify_decision(entry, context={"projectPath": project})
+    d = entry.to_dict()
+    assert d["classification"] == USER_DEPENDENT
+    assert d["action"] == "ask"
+    assert "reason" in d

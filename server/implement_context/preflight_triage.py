@@ -35,7 +35,11 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..app_docs.autopilot import DECISION_KEYS
+from ..app_docs.autopilot import DECISION_KEYS, evaluate_decision
+
+#: Classification outcomes (UC-602).
+AUTONOMOUS: str = "autonomous"
+USER_DEPENDENT: str = "user_dependent"
 
 #: Sentinel for a decision the task contains that does NOT map to one of the
 #: catalogued ``DECISION_KEYS``. Task-specific decisions (an undocumented API
@@ -74,8 +78,11 @@ class DecisionEntry:
             "decision_key": self.decision_key,
             "family": self.family,
         }
-        if self.meta:
-            out["meta"] = self.meta
+        # Surface classification fields at the top level when present (UC-602),
+        # so the gate (UC-603) and the audit log (UC-604) read them directly.
+        for k in ("classification", "action", "reason"):
+            if k in self.meta:
+                out[k] = self.meta[k]
         return out
 
 
@@ -219,11 +226,120 @@ def build_decision_inventory(
     return entries
 
 
+# ── Classification (UC-602) ────────────────────────────────────────────────
+
+
+def _is_inviolable(decision_key: str) -> bool:
+    """Whether a catalogued key is marked ``inviolable`` in the catalogue.
+
+    Inviolable keys (``destructive_action``, ``image_cost_over_budget``,
+    ``branch_to_main_push``) must NEVER be classified ``autonomous``, at any
+    autopilot level — "more autonomy" can never mean "less safety" (AC-05).
+    """
+    if decision_key == AD_HOC:
+        return False
+    return bool(DECISION_KEYS.get(decision_key, {}).get("inviolable", False))
+
+
+def classify_decision(
+    entry: DecisionEntry,
+    *,
+    context: dict[str, Any] | None = None,
+) -> DecisionEntry:
+    """Classify one decision ``autonomous`` vs. ``user_dependent`` (UC-602).
+
+    Catalogued decisions delegate to
+    :func:`server.app_docs.autopilot.evaluate_decision` — the engine's single
+    source of truth for tier policy — so the triage never re-implements the
+    autopilot levels or the inviolable rules. ``action == "auto"`` →
+    ``autonomous`` and the verbatim ``reason`` from the policy engine is
+    propagated (AC-03); ``ask`` / ``block`` → ``user_dependent``.
+
+    ``ad_hoc`` decisions (task-specific, e.g. an undocumented API contract) get
+    a **conservative default**: ``user_dependent`` unless an explicit
+    inheritable in ``context`` backs them as safe (AC-04). A false autonomous
+    brings the original bug back; a false user_dependent is merely one extra
+    question — so the asymmetry is resolved toward asking.
+
+    Inviolable keys are pinned ``user_dependent`` with a defensive guard
+    (AC-05): even if a mis-configured policy ever returned ``auto`` for one,
+    the triage refuses to mark it autonomous. The guard makes the safety
+    guarantee independent of configuration.
+
+    Mutates and returns ``entry`` (its ``meta`` carries ``classification``,
+    ``action`` and ``reason``).
+    """
+    ctx = dict(context or {})
+
+    # AC-05: inviolable keys can never be autonomous, regardless of policy.
+    if _is_inviolable(entry.decision_key):
+        decision = evaluate_decision(entry.decision_key, ctx)
+        entry.meta.update(
+            classification=USER_DEPENDENT,
+            action=decision.get("action", "ask"),
+            reason="inviolable_never_autonomous",
+        )
+        return entry
+
+    if entry.decision_key != AD_HOC:
+        # AC-03: delegate to the policy engine; propagate its reason verbatim.
+        decision = evaluate_decision(entry.decision_key, ctx)
+        action = decision.get("action", "ask")
+        classification = AUTONOMOUS if action == "auto" else USER_DEPENDENT
+        entry.meta.update(
+            classification=classification,
+            action=action,
+            reason=decision.get("reason", ""),
+        )
+        return entry
+
+    # AC-04: ad_hoc → conservative default user_dependent, unless an explicit
+    # inheritable backs it. ``ad_hoc_inheritable`` is an opt-in escape hatch a
+    # caller sets only when ``app_spec`` (or equivalent) genuinely resolves the
+    # decision — absent it, we always ask.
+    inheritable = bool(ctx.get("ad_hoc_inheritable", False))
+    entry.meta.update(
+        classification=AUTONOMOUS if inheritable else USER_DEPENDENT,
+        action="auto" if inheritable else "ask",
+        reason="ad_hoc_inheritable_resolved" if inheritable else "ad_hoc_conservative_default",
+    )
+    return entry
+
+
+def classify_inventory(
+    entries: list[DecisionEntry],
+    *,
+    context: dict[str, Any] | None = None,
+) -> list[DecisionEntry]:
+    """Classify every entry of an inventory in place (UC-602)."""
+    return [classify_decision(e, context=context) for e in entries]
+
+
 def inventory_to_dict(entries: list[DecisionEntry]) -> dict[str, Any]:
-    """Package an inventory as a JSON-serializable payload (AC-01)."""
-    return {
+    """Package an inventory as a JSON-serializable payload (AC-01).
+
+    When the entries have been classified (UC-602), the payload also reports
+    the ``user_dependent`` count and a ``verdict`` the gate (UC-603) consumes:
+    ``needs_user_input`` when any decision is user-dependent, else
+    ``no_user_decisions`` (so a fully-autonomous task does not interrupt —
+    AC-08).
+    """
+    user_dependent = sum(
+        1 for e in entries if e.meta.get("classification") == USER_DEPENDENT
+    )
+    classified = any("classification" in e.meta for e in entries)
+    payload: dict[str, Any] = {
         "decisions": [e.to_dict() for e in entries],
         "total": len(entries),
         "catalogued": sum(1 for e in entries if e.decision_key != AD_HOC),
         "ad_hoc": sum(1 for e in entries if e.decision_key == AD_HOC),
     }
+    if classified:
+        payload["user_dependent"] = user_dependent
+        payload["autonomous"] = sum(
+            1 for e in entries if e.meta.get("classification") == AUTONOMOUS
+        )
+        payload["verdict"] = (
+            "needs_user_input" if user_dependent > 0 else "no_user_decisions"
+        )
+    return payload

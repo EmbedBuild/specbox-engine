@@ -453,8 +453,12 @@ class NativeBackend(SpecBackend):
         external_source: str = "",
         external_id: str = "",
         meta: dict[str, Any] | None = None,
+        emit_audit: bool = True,
     ) -> ItemDTO:
-        await self._require_membership_cached()
+        # UC-706: ``emit_audit=False`` lets a bulk caller (``import_spec``)
+        # suppress the per-item creation event and emit ONE aggregate instead,
+        # so a large seed doesn't flood the activity feed.
+        dev = await self._require_membership_cached()
         labels = list(labels or [])
         meta = dict(meta or {})
 
@@ -482,6 +486,7 @@ class NativeBackend(SpecBackend):
                 external_source=external_source,
                 external_id=external_id,
                 meta=meta,
+                developer_id=dev.developer_id if emit_audit else None,
             )
         if item_type == "UC":
             item_id = parsed_id or name
@@ -497,6 +502,7 @@ class NativeBackend(SpecBackend):
                 external_source=external_source,
                 external_id=external_id,
                 meta=meta,
+                developer_id=dev.developer_id if emit_audit else None,
             )
         if item_type == "AC":
             if not parent_id:
@@ -512,6 +518,7 @@ class NativeBackend(SpecBackend):
                 text=text or name,
                 done=state == "done",
                 meta=meta,
+                developer_id=dev.developer_id if emit_audit else None,
             )
         raise ValueError(
             f"Cannot determine item type from name {name!r}. Native items must be named with a US-/UC-/AC- prefix."
@@ -530,28 +537,45 @@ class NativeBackend(SpecBackend):
         external_source: str,
         external_id: str,
         meta: dict[str, Any],
+        developer_id: str | None = None,
     ) -> ItemDTO:
+        from ..coordination.audit import OP_CREATE_US, record_destructive
+
         pool = await self._pool()
         async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                """
-                INSERT INTO user_stories
-                    (id, project_id, name, description, state, labels, priority,
-                     external_source, external_id, meta)
-                VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10::jsonb)
-                RETURNING *
-                """,
-                item_id,
-                conn_board,
-                name,
-                description,
-                state,
-                _jsonb(labels),
-                priority,
-                external_source,
-                external_id,
-                _jsonb(meta),
-            )
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO user_stories
+                        (id, project_id, name, description, state, labels, priority,
+                         external_source, external_id, meta)
+                    VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10::jsonb)
+                    RETURNING *
+                    """,
+                    item_id,
+                    conn_board,
+                    name,
+                    description,
+                    state,
+                    _jsonb(labels),
+                    priority,
+                    external_source,
+                    external_id,
+                    _jsonb(meta),
+                )
+                # UC-706: audit the creation on the same connection/tx so the
+                # audit_log broadcast trigger fires and the Cloud panel refreshes
+                # the tree live (no reload), exactly like UC-513 did for mark_ac.
+                # ``developer_id is None`` means a bulk caller suppressed the
+                # per-item event (it emits one aggregate instead).
+                if developer_id is not None:
+                    await record_destructive(
+                        conn,
+                        developer_id=developer_id,
+                        project_id=conn_board,
+                        operation=OP_CREATE_US,
+                        target_id=item_id,
+                    )
         logger.info("native_item_created", item_id=item_id, type="US")
         return self._us_row_to_dto(row)
 
@@ -569,29 +593,41 @@ class NativeBackend(SpecBackend):
         external_source: str,
         external_id: str,
         meta: dict[str, Any],
+        developer_id: str | None = None,
     ) -> ItemDTO:
+        from ..coordination.audit import OP_CREATE_UC, record_destructive
+
         pool = await self._pool()
         async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                """
-                INSERT INTO use_cases
-                    (id, project_id, us_id, name, description, state, labels,
-                     priority, external_source, external_id, meta)
-                VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11::jsonb)
-                RETURNING *
-                """,
-                item_id,
-                board_id,
-                us_id,
-                name,
-                description,
-                state,
-                _jsonb(labels),
-                priority,
-                external_source,
-                external_id,
-                _jsonb(meta),
-            )
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO use_cases
+                        (id, project_id, us_id, name, description, state, labels,
+                         priority, external_source, external_id, meta)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11::jsonb)
+                    RETURNING *
+                    """,
+                    item_id,
+                    board_id,
+                    us_id,
+                    name,
+                    description,
+                    state,
+                    _jsonb(labels),
+                    priority,
+                    external_source,
+                    external_id,
+                    _jsonb(meta),
+                )
+                if developer_id is not None:  # UC-706 (see _insert_us)
+                    await record_destructive(
+                        conn,
+                        developer_id=developer_id,
+                        project_id=board_id,
+                        operation=OP_CREATE_UC,
+                        target_id=item_id,
+                    )
         logger.info("native_item_created", item_id=item_id, type="UC")
         return self._uc_row_to_dto(row)
 
@@ -605,24 +641,36 @@ class NativeBackend(SpecBackend):
         text: str,
         done: bool,
         meta: dict[str, Any],
+        developer_id: str | None = None,
     ) -> ItemDTO:
+        from ..coordination.audit import OP_CREATE_AC, record_destructive
+
         pool = await self._pool()
         async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                """
-                INSERT INTO acceptance_criteria
-                    (id, project_id, uc_id, ac_id, text, done, meta)
-                VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
-                RETURNING *
-                """,
-                db_id,
-                board_id,
-                uc_id,
-                ac_id,
-                text,
-                done,
-                _jsonb(meta),
-            )
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO acceptance_criteria
+                        (id, project_id, uc_id, ac_id, text, done, meta)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+                    RETURNING *
+                    """,
+                    db_id,
+                    board_id,
+                    uc_id,
+                    ac_id,
+                    text,
+                    done,
+                    _jsonb(meta),
+                )
+                if developer_id is not None:  # UC-706 (see _insert_us)
+                    await record_destructive(
+                        conn,
+                        developer_id=developer_id,
+                        project_id=board_id,
+                        operation=OP_CREATE_AC,
+                        target_id=ac_id,
+                    )
         logger.info("native_item_created", item_id=db_id, type="AC")
         return self._ac_row_to_item_dto(row)
 
@@ -1086,8 +1134,11 @@ class NativeBackend(SpecBackend):
         board_id: str,
         uc_item_id: str,
         criteria: list[tuple[str, str]],
+        emit_audit: bool = True,
     ) -> list[ChecklistItemDTO]:
-        await self._require_membership_cached()
+        from ..coordination.audit import OP_CREATE_AC, record_destructive
+
+        dev = await self._require_membership_cached()
         result: list[ChecklistItemDTO] = []
         pool = await self._pool()
         async with pool.acquire() as conn:
@@ -1116,7 +1167,51 @@ class NativeBackend(SpecBackend):
                             backend_id=row["id"],
                         )
                     )
+                # UC-706: one audit event for the create. A single AC targets
+                # that AC (AC-02); a bulk create targets the UC with a count in
+                # metadata so the feed isn't flooded with one row per AC.
+                # ``emit_audit=False`` lets import_spec suppress this and emit a
+                # single OP_IMPORT_SPEC for the whole seed instead (AC-03).
+                if criteria and emit_audit:
+                    if len(criteria) == 1:
+                        await record_destructive(
+                            conn,
+                            developer_id=dev.developer_id,
+                            project_id=board_id,
+                            operation=OP_CREATE_AC,
+                            target_id=criteria[0][0],
+                        )
+                    else:
+                        await record_destructive(
+                            conn,
+                            developer_id=dev.developer_id,
+                            project_id=board_id,
+                            operation=OP_CREATE_AC,
+                            target_id=uc_item_id,
+                            metadata={"ac": len(criteria)},
+                        )
         return result
+
+    async def emit_import_spec_event(
+        self, board_id: str, *, counts: dict[str, int]
+    ) -> None:
+        """UC-706 (AC-03): emit ONE aggregate ``import_spec`` audit event after a
+        bulk seed, so the Cloud panel refreshes once (not once per item). The
+        counts (us/uc/ac) ride in ``metadata`` so the feed can render
+        "seeded N items"."""
+        from ..coordination.audit import OP_IMPORT_SPEC, record_destructive
+
+        dev = await self._require_membership_cached()
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            await record_destructive(
+                conn,
+                developer_id=dev.developer_id,
+                project_id=board_id,
+                operation=OP_IMPORT_SPEC,
+                target_id=board_id,
+                metadata=counts,
+            )
 
     async def update_acceptance_criterion(
         self,

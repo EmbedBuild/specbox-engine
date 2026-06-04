@@ -573,6 +573,13 @@ async def import_spec(
     try:
         parsed = ImportSpec(**spec)
 
+        # UC-706: on the Native backend, suppress the per-item creation audit
+        # events during a bulk seed and emit ONE aggregate OP_IMPORT_SPEC at the
+        # end (AC-03), so the activity feed isn't flooded with hundreds of rows.
+        # Other backends ignore this (they have no audit_log).
+        is_native = type(backend).__name__ == "NativeBackend"
+        seed_kw: dict[str, Any] = {"emit_audit": False} if is_native else {}
+
         created_us = 0
         updated_us = 0
         created_uc = 0
@@ -617,6 +624,7 @@ async def import_spec(
                         description=us_desc,
                         state="user_stories",
                         labels=["US"],
+                        **seed_kw,
                         meta=us_meta,
                     )
                     # Create module only for new US items (pass only us_id)
@@ -677,6 +685,7 @@ async def import_spec(
                                 labels=uc_labels,
                                 parent_id=us_item.id,
                                 meta=uc_meta,
+                                **seed_kw,
                             )
                             created_uc += 1
 
@@ -692,10 +701,14 @@ async def import_spec(
                                     (ac_id, text) for ac_id, text in criteria if ac_id not in existing_ac_ids
                                 ]
                                 if new_criteria:
-                                    await backend.create_acceptance_criteria(board_id, uc_item.id, new_criteria)
+                                    await backend.create_acceptance_criteria(
+                                        board_id, uc_item.id, new_criteria, **seed_kw
+                                    )
                                     created_ac += len(new_criteria)
                             else:
-                                await backend.create_acceptance_criteria(board_id, uc_item.id, criteria)
+                                await backend.create_acceptance_criteria(
+                                    board_id, uc_item.id, criteria, **seed_kw
+                                )
                                 created_ac += len(criteria)
 
                         # Only track new UCs for module linking
@@ -727,6 +740,15 @@ async def import_spec(
             except Exception as e:
                 errors.append(f"US {us_spec.us_id}: {str(e)}")
                 logger.error("import_us_error", us_id=us_spec.us_id, error=str(e))
+
+        # UC-706 (AC-03): one aggregate audit event for the whole seed, so the
+        # Cloud panel refreshes once with a "seeded N items" event instead of
+        # hundreds of per-item rows. Only when something was actually created.
+        if is_native and (created_us or created_uc or created_ac):
+            await backend.emit_import_spec_event(
+                board_id,
+                counts={"us": created_us, "uc": created_uc, "ac": created_ac},
+            )
 
         result = {
             "created": {"us": created_us, "uc": created_uc, "ac": created_ac},

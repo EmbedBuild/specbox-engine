@@ -71,6 +71,21 @@ OP_UPDATE_AC: str = "update_ac"
 OP_UPDATE_UC: str = "update_uc"
 OP_UPDATE_US: str = "update_us"
 
+#: Creation events (US-05 / UC-706). Same gap as the progress mutations above,
+#: but for *creation*: ``create_item`` (US/UC) and ``create_acceptance_criteria``
+#: (AC) and ``import_spec`` wrote NO audit row, so seeding a US/UC/AC did not
+#: refresh the Cloud panel live (had to reload). Emitting these closes that gap
+#: via the existing ``audit_log_broadcast_change`` trigger. Granularity decision
+#: (2026-06-04, UC-706): individual creates emit ONE event each (fine-grained
+#: refresh); a bulk ``import_spec`` emits ONE aggregate ``OP_IMPORT_SPEC`` with
+#: counts in ``metadata`` (NOT one per item) so a large seed doesn't flood the
+#: feed with hundreds of rows. ``target_id`` carries the us_id/uc_id/ac_id (or
+#: the project_id for import); ``developer_id`` the actor.
+OP_CREATE_US: str = "create_us"
+OP_CREATE_UC: str = "create_uc"
+OP_CREATE_AC: str = "create_ac"
+OP_IMPORT_SPEC: str = "import_spec"
+
 
 async def record_destructive(
     conn: asyncpg.Connection,

@@ -178,6 +178,23 @@ class FreeformBackend(SpecBackend):
             else:
                 parsed = json.loads(stripped)
                 if not isinstance(parsed, list):
+                    # UC-709: a nested FreeForm index.json ({"user_stories": [...]})
+                    # is a dict, not the flat items.json array. Name the dialect
+                    # and the fix instead of the cryptic "got dict".
+                    if isinstance(parsed, dict) and isinstance(
+                        parsed.get("user_stories"), list
+                    ):
+                        raise ValueError(
+                            "items_content is a nested FreeForm index.json "
+                            '({"user_stories": [...]}), not the flat items.json '
+                            "array this backend consumes. Convert it first with "
+                            "server.migration.freeform_normalize."
+                            "normalize_source_content (it maps US/UC/AC to flat "
+                            "items with labels + parent_id). Note: AC texts live "
+                            "in the markdown bodies, not in index.json — pass "
+                            "ac_texts for faithful AC, else counts are preserved "
+                            "with placeholder AC text."
+                        )
                     raise ValueError(
                         "items_content must be a JSON array (the contents of "
                         f"items.json), got {type(parsed).__name__}"

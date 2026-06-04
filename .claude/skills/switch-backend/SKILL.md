@@ -84,6 +84,34 @@ elegido, solicita las credenciales del destino **según su tipo**, con esta tabl
 Para destinos Trello/Plane, llama a `set_migration_target` con las credenciales del
 destino antes del preview.
 
+### Gate de prerequisitos Native (BLOQUEANTE — UC-709)
+
+> Solo cuando **destino == native**. Verifica los 3 gates **ANTES de leer o
+> transformar el source** — descubrirlos a mitad fue el "medio día perdido" del
+> dogfooding. Para en el primero que falle con su mensaje accionable.
+
+1. **Tenant provisionado.** El `project_id` native debe existir ya en SpecBox
+   Cloud. El MCP **no** provisiona tenants — es acción del panel
+   (`cloud.specbox.build`). Si no tienes un `project_id`, para y pide al usuario
+   que provisione el proyecto en el panel y mintee un `dev_token`.
+2. **Identidad / dev_token.** Llama `set_auth_token(backend_type="native",
+   project_id={pid}, token={dev_token})` y luego `whoami`. Si `whoami` devuelve
+   `NOT_NATIVE_SESSION` o error → el token es inválido/ausente; para y pídelo.
+   Un `whoami` con `developer_id` resuelto prueba **a la vez** identidad válida y
+   que el server tiene el DSN (el pool consultó Postgres).
+3. **DSN en el server.** No lo verifiques en tu shell local (`printenv` del
+   cliente es irrelevante — el DSN lo necesita el proceso del MCP server, no el
+   tuyo). El éxito de `whoami` en el paso 2 ya lo confirma. Si `whoami` falla con
+   un error de conexión a Postgres → el server no tiene `SPECBOX_NATIVE_DSN`;
+   para y avisa (es config del despliegue del MCP, no algo que el usuario exporte
+   en su terminal).
+
+```
+Gate native: tenant {pid} ✓ | whoami {developer_id} ✓ | DSN(server) ✓
+```
+
+Solo con los 3 en verde sigue al Paso 3.
+
 ---
 
 ## Paso 3 — Leer el source del cliente (content-passing)
@@ -93,9 +121,48 @@ destino antes del preview.
 
 Si el origen es `freeform`:
 
-1. Resuelve el path absoluto del cliente: `git rev-parse --show-toplevel` + `/doc/tracking/items.json`.
-2. Lee ese archivo con la tool `Read`.
-3. Tendrás su contenido en memoria para pasarlo como `source_content` en el preview.
+1. Resuelve el path absoluto del cliente: `git rev-parse --show-toplevel` + `/doc/tracking/`.
+2. **Pre-flight de formato (UC-709) — hazlo ANTES del preview/auth/chunks.** El
+   FreeForm tiene **dos dialectos** y la migración solo consume uno:
+
+   | Dialecto | Marcador en disco | ¿Lo consume la migración? |
+   |---|---|---|
+   | **Flat** | `doc/tracking/items.json` (array JSON `[{id,labels,parent_id,...}]`) | ✅ directo |
+   | **Exploded** | `doc/tracking/index.json` (anidado `{"user_stories":[...]}`) + `us/*.md` + `uc/*.md` con AC en checkboxes `- [x]` | ❌ hay que normalizar |
+
+   Mira qué archivo existe:
+   - **`items.json` presente** → léelo con `Read`; es el `source_content`. Sigue.
+   - **`index.json` presente (sin `items.json`)** → es el dialecto *exploded*.
+     Pasarlo tal cual al preview falla con `items_content ... got dict`. Normalízalo
+     primero (paso 3a). **NO** sigas con auth/provisioning hasta haberlo convertido
+     y validado su conteo — así el fallo de formato sale aquí, no en el Paso 4.
+   - **Ninguno** → el tracking está vacío o en otra ruta; para y pregunta.
+
+3. Tendrás el `source_content` (flat) en memoria para el preview / la ingesta por lotes.
+
+### Paso 3a — Normalizar FreeForm *exploded* → items.json (UC-709)
+
+Cuando el origen es el dialecto exploded:
+
+1. Lee `index.json` (el maestro anidado) y mide su conteo real
+   (`US`, `UC`, y `AC` = suma de `ac_total`). Ese conteo es tu **guard rail**.
+2. **AC — decide el modo y dilo al usuario:**
+   - *Faithful*: extrae los textos de AC de los checkboxes `- [x]`/`- [ ]` de los
+     `us/*.md` + `uc/*.md` y arma un mapa `{uc_id: [{text, done}]}`. Los AC migran
+     con su texto y estado reales.
+   - *Degradado*: si no extraes los textos, la conversión sintetiza `ac_total` AC
+     placeholder por UC (con `ac_done` marcados `done`). **Los conteos cuadran**
+     (el guard rail pasa) pero los textos son placeholders. Avisa explícitamente.
+3. Convierte con el normalizador del engine
+   (`server.migration.freeform_normalize.normalize_source_content(source_content,
+   ac_texts=...)`). Devuelve `{items_content, counts, converted, ac_degraded}`.
+   Usa `items_content` (array flat) como `source_content` desde aquí.
+4. Verifica que `counts` == el conteo del paso 1. Si difiere → para (source mal
+   formado o extracción incompleta). Si `ac_degraded=True`, recuérdalo en el
+   reporte final.
+
+> El tamaño que decide ruta normal vs. por lotes (Paso 3b) es el del
+> **`items_content` normalizado**, no el del `index.json` original.
 
 ---
 

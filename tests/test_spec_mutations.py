@@ -7,7 +7,6 @@ doc/design/v5.23.0-full-mutations.md → "Tier 1 test plan".
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -223,7 +222,10 @@ def backend():
 @pytest.fixture
 def ctx(backend, monkeypatch):
     """Mock Context that resolves to our in-memory backend."""
-    async def _fake_get_session_backend(_ctx):
+    async def _fake_get_session_backend(_ctx, *, items_content=None):
+        # Mirror the real get_session_backend signature (UC-660 added the
+        # keyword-only items_content for content-passing). The in-memory
+        # backend ignores it — it never reads a file.
         return backend
 
     monkeypatch.setattr(sm, "get_session_backend", _fake_get_session_backend)

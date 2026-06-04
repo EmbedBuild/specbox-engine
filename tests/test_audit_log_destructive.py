@@ -20,6 +20,7 @@ import pytest
 from server.backends.native_backend import NativeBackend
 from server.coordination.audit import (
     OP_ARCHIVE_ITEM,
+    OP_CREATE_AC,
     OP_DELETE_AC,
     record_destructive,
 )
@@ -246,14 +247,16 @@ class TestArchiveItemAudit:
 
 
 class TestMixedSequenceAuditPrecision:
-    """A realistic mixed sequence audits exactly the progress + destructive
-    ops, in order [AC-25, updated by UC-513].
+    """A realistic mixed sequence audits the create + progress + destructive
+    ops, in order [AC-25, updated by UC-513 then UC-706].
 
-    Contract after UC-513:
-    - creates (create_acceptance_criteria) → NO audit.
+    Contract after UC-706:
+    - create_ac (×3) → audit (UC-706: a single-AC create_acceptance_criteria
+      emits one create_ac targeting that AC). UC-513 used to keep creates
+      silent; UC-706 deliberately reversed that to close the realtime gap.
     - update_ac (×2), mark_ac (×1) → audit (progress mutations, UC-513).
     - delete_ac (×2), archive_item (×1) → audit (destructive, UC-503).
-    So the sequence below yields exactly 6 audit rows in deterministic order.
+    So the sequence below yields exactly 9 audit rows in deterministic order.
     """
 
     async def test_ac25_mixed_sequence_audit_order(self) -> None:
@@ -265,9 +268,9 @@ class TestMixedSequenceAuditPrecision:
 
         before = await _count_audit(project_id)
 
-        # 3 creates — single-AC ``create_acceptance_criteria`` calls so the
-        # sequence reads as "three create operations" (not one batch). None
-        # of these may write to audit_log.
+        # 3 creates — single-AC ``create_acceptance_criteria`` calls. UC-706:
+        # each single-AC create emits exactly one create_ac event targeting
+        # that AC.
         await backend.create_acceptance_criteria(project_id, uc_id, [("AC-04", "fourth AC")])
         await backend.create_acceptance_criteria(project_id, uc_id, [("AC-05", "fifth AC")])
         await backend.create_acceptance_criteria(project_id, uc_id, [("AC-06", "sixth AC")])
@@ -288,17 +291,27 @@ class TestMixedSequenceAuditPrecision:
 
         # ── Assertions ───────────────────────────────────────────────
         after = await _count_audit(project_id)
-        assert after == before + 6, (
-            f"expected exactly 6 audit rows (2 update_ac + 1 mark_ac + 2 delete_ac + "
-            f"1 archive_item), got {after - before}"
+        assert after == before + 9, (
+            f"expected exactly 9 audit rows (3 create_ac + 2 update_ac + 1 mark_ac "
+            f"+ 2 delete_ac + 1 archive_item), got {after - before}"
         )
 
-        rows = await _audit_rows_ordered(project_id)
-        assert len(rows) == 6, f"project audit_log must contain exactly 6 rows, found {len(rows)}"
+        # _seed now emits 3 audit rows of its own (create_us + create_uc +
+        # one aggregate create_ac for the 3 seeded ACs) under UC-706, so the
+        # 9 rows of interest are the LAST 9 — those produced after ``before``.
+        all_rows = await _audit_rows_ordered(project_id)
+        rows = all_rows[-9:]
+        assert len(all_rows) - len(rows) == before, (
+            f"expected {before} pre-sequence (seed) rows, "
+            f"found {len(all_rows) - len(rows)}"
+        )
         for row in rows:
             assert row["developer_id"] == developer_id
         seq = [(r["operation"], r["target_id"]) for r in rows]
         assert seq == [
+            (OP_CREATE_AC, "AC-04"),
+            (OP_CREATE_AC, "AC-05"),
+            (OP_CREATE_AC, "AC-06"),
             ("update_ac", ac_ids[0]),
             ("update_ac", ac_ids[1]),
             ("mark_ac", ac_ids[2]),
@@ -314,14 +327,17 @@ class TestMixedSequenceAuditPrecision:
 class TestNonDestructiveMutatorsLeaveAuditUntouched:
     """UC-513 (US-05) changed the UC-503 contract: progress mutations now DO
     audit so the realtime broadcast fires and the detail view refreshes live.
+    UC-706 then extended audit to CREATES so creating items also refreshes the
+    panel live.
 
     - AUDIT (UC-513): update_item (US/UC), mark_acceptance_criterion,
       update_acceptance_criterion.
-    - STILL SILENT: create_item / create_acceptance_criteria / add_comment /
-      add_attachment (creates and side-channel writes are not progress signals).
+    - AUDIT (UC-706): create_item (US/UC) and create_acceptance_criteria.
+    - STILL SILENT: add_comment / add_attachment (side-channel writes are not
+      tree-structure signals — they must not flood the realtime feed).
     """
 
-    async def test_ac15_progress_mutators_audit_creates_stay_silent(self) -> None:
+    async def test_ac15_progress_and_create_mutators_audit_sidechannel_stays_silent(self) -> None:
         project_id = f"test-uc503-ndmut-{uuid.uuid4().hex[:8]}"
         token = f"tok-{uuid.uuid4().hex[:16]}"
         us_id, uc_id, ac_ids = await _seed(project_id, "dev-ndmut", token)
@@ -336,16 +352,18 @@ class TestNonDestructiveMutatorsLeaveAuditUntouched:
             project_id, uc_id, ac_ids[2], text="third AC updated"
         )  # update_ac
 
-        # Non-progress writes — must NOT audit.
+        # create_acceptance_criteria — UC-706: DOES audit (one create_ac).
         await backend.create_acceptance_criteria(project_id, uc_id, [("AC-04", "fourth AC")])
+
+        # Side-channel writes — must NOT audit (they are not tree signals).
         await backend.add_comment(project_id, uc_id, "non-destructive comment")
         await backend.add_attachment(project_id, uc_id, "ref.txt", b"hello world")
 
         after = await _count_audit(project_id)
-        assert after == before + 3, (
-            f"expected exactly 3 audit rows (update_us + mark_ac + update_ac), "
-            f"got {after - before}"
+        assert after == before + 4, (
+            f"expected exactly 4 audit rows (update_us + mark_ac + update_ac + "
+            f"create_ac), got {after - before}"
         )
         rows = await _audit_rows_ordered(project_id)
-        ops = [r["operation"] for r in rows[-3:]]
-        assert ops == ["update_us", "mark_ac", "update_ac"], ops
+        ops = [r["operation"] for r in rows[-4:]]
+        assert ops == ["update_us", "mark_ac", "update_ac", OP_CREATE_AC], ops

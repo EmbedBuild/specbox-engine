@@ -955,6 +955,43 @@ async def switch_project_backend(
     if source_type == target_type and source_id_matches(source_content, target_id):
         return {"error": "Source and target are the same backend+id; nothing to migrate."}
 
+    # ── UC-707 bug A: large freeform source into native MUST go by batch ──────
+    # On a REMOTE MCP a big source_content string can be truncated/corrupted in
+    # transport, and the downstream guard would surface a misleading "Target
+    # backend not configured" instead of the real cause. When the source is a
+    # freeform blob bigger than the batch threshold and the caller did NOT open a
+    # batch session, refuse to execute with an ACTIONABLE envelope pointing at
+    # start/append/commit. (dry_run preview is still allowed — it only reads.)
+    if (
+        not dry_run
+        and source_type == "freeform"
+        and target_type == "native"
+        and not batch_session_id
+        and source_content is not None
+        and len(source_content.encode("utf-8")) > BATCH_TRANSPORT_THRESHOLD_BYTES
+    ):
+        size_kb = len(source_content.encode("utf-8")) // 1024
+        return {
+            "status": "SOURCE_TOO_LARGE_USE_BATCH",
+            "error": (
+                f"source_content is ~{size_kb} KB, over the "
+                f"{BATCH_TRANSPORT_THRESHOLD_BYTES // 1024} KB single-call "
+                "transport limit. A blob this big can be truncated over a remote "
+                "MCP. Ingest it via the batch session instead and pass "
+                "batch_session_id."
+            ),
+            "threshold_bytes": BATCH_TRANSPORT_THRESHOLD_BYTES,
+            "source_bytes": len(source_content.encode("utf-8")),
+            "remediation": [
+                "start_migration_session(target_project_id, source_type='freeform', "
+                "declared_items, declared_bytes, source_sha256, chunk_count, dev_token)",
+                "append_migration_chunk(session_id, i, chunk_i, sha256_i, dev_token) "
+                "for each chunk",
+                "switch_project_backend(..., batch_session_id=session_id, dry_run=False) "
+                "OR commit_migration_session(session_id, confirmed_count, dev_token)",
+            ],
+        }
+
     # ── Step: fail-fast dev_token for a native target (AC-09) ──────────
     def _require_dev_token() -> None:
         from ..migration.native_handling import require_dev_token
@@ -994,16 +1031,46 @@ async def switch_project_backend(
 
     # ── Step: ensure target exists; report created_fresh ───────────────
     async def _ensure_target() -> tuple[str, bool]:
+        from ..migration.backend_dispatch import build_backend
+
+        nonlocal target_id
+        # UC-707 bug B: a native target is self-sufficient — it needs only the
+        # session dev_token (validated fail-fast above) and project_id, NOT a
+        # migration_target_config. set_migration_target rejects backend_type
+        # 'native' on purpose (no API creds to stash), so requiring its config
+        # here made the "Target backend not configured" guard impossible to
+        # satisfy for a native target. Build the NativeBackend directly. For
+        # native the tenant id IS target_id (the canonical owner/repo); a
+        # from-scratch tenant is provisioned by setup_board under that id.
+        if target_type == "native":
+            from ..backends.native_backend import NativeBackend
+
+            if not target_id:
+                raise SwitchOrchestrationError(
+                    "A native target requires target_id (the canonical "
+                    "owner/repo tenant id). It is the project_id the items are "
+                    "ingested into; setup_board provisions it if absent."
+                )
+            target_backend: SpecBackend = NativeBackend(
+                project_id=target_id, dev_token=dev_token
+            )
+            await ctx.set_state("switch_target_backend_obj", target_backend)
+            # Provision the tenant + membership if it does not exist yet
+            # (idempotent; never degrades an existing admin). setup_board uses
+            # self.project_id as the board id, so created_fresh is reported but
+            # target_id is unchanged.
+            created_fresh = not await _native_tenant_exists(target_id)
+            if created_fresh:
+                await target_backend.setup_board(target_name or target_id)
+            return target_id, created_fresh
+
         target_config = await ctx.get_state("migration_target_config")
         if not target_config:
             raise SwitchOrchestrationError(
                 "Target backend not configured. Call set_migration_target first."
             )
-        from ..migration.backend_dispatch import build_backend
-
         target_backend = build_backend(target_config["backend_type"], target_config)
         await ctx.set_state("switch_target_backend_obj", target_backend)
-        nonlocal target_id
         created_fresh = False
         if not target_id:
             config = await target_backend.setup_board(target_name or "Migrated Project")
@@ -1502,6 +1569,28 @@ async def _maybe_auto_provision(pool, dev_token: str, target_project_id: str) ->
 
     _clear_auth_cache()
     return True
+
+
+async def _native_tenant_exists(project_id: str) -> bool:
+    """Return True if the native tenant row already exists (UC-707 bug B helper).
+
+    Used by ``switch_project_backend._ensure_target`` only to decide the
+    ``created_fresh`` flag — provisioning itself is delegated to the idempotent
+    ``setup_board`` / ``provision_native_project`` path, so a wrong answer here
+    is cosmetic, never destructive. Returns ``False`` on any read error.
+    """
+    from ..db.pool import get_pool
+
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            return bool(
+                await conn.fetchval(
+                    "SELECT 1 FROM projects WHERE project_id = $1", project_id
+                )
+            )
+    except Exception:  # noqa: BLE001 - existence probe is best-effort
+        return False
 
 
 def _dev_id_from_token(dev_token: str) -> str:

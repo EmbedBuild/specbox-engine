@@ -108,9 +108,12 @@ class ModuleDTO:
 
 # ── Name parsing helpers ─────────────────────────────────────────────
 
-_US_RE = re.compile(r"\[?(US-\d+)\]?\s*:?\s*(.*)")
-_UC_RE = re.compile(r"\[?(UC-\d+)\]?\s*:?\s*(.*)")
-_AC_RE = re.compile(r"\[?(AC-\d+)\]?\s*:?\s*(.*)")
+# UC-707 bug C: accept an optional single-letter suffix on the numeric id
+# (e.g. "[UC-004b]") so a split/derived item keeps its full logical id instead
+# of collapsing to "UC-004". The suffix is captured as part of group 1.
+_US_RE = re.compile(r"\[?(US-\d+[a-zA-Z]?)\]?\s*:?\s*(.*)")
+_UC_RE = re.compile(r"\[?(UC-\d+[a-zA-Z]?)\]?\s*:?\s*(.*)")
+_AC_RE = re.compile(r"\[?(AC-\d+[a-zA-Z]?)\]?\s*:?\s*(.*)")
 
 
 def parse_item_id(name: str, prefix: str = "US") -> tuple[str, str]:

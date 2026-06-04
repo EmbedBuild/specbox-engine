@@ -304,6 +304,18 @@ async def provision_native_project(
             existed = bool(
                 await conn.fetchval("SELECT 1 FROM projects WHERE project_id = $1", canonical)
             )
+            # UC-606: how many members the tenant had BEFORE this call. Lets us
+            # tell a real provisioning (from-scratch, or adopting an orphan with
+            # zero members) apart from a re-provisioning no-op (already has
+            # members) — only the former should emit an audit event.
+            members_before = (
+                await conn.fetchval(
+                    "SELECT count(*) FROM project_members WHERE project_id = $1",
+                    canonical,
+                )
+                if existed
+                else 0
+            )
             await conn.execute(
                 """
                 INSERT INTO projects (project_id, name, backend_type, board_url, meta)
@@ -332,13 +344,31 @@ async def provision_native_project(
                 developer_id=developer_id,
                 role=role,
             )
-            await audit_mod.record_destructive(
-                conn,
-                developer_id=developer_id,
-                project_id=canonical,
-                operation=audit_mod.OP_PROVISION_PROJECT,
-                target_id=canonical,
-            )
+            # UC-606: only emit a ``provision_project`` audit event when the
+            # provisioning REALLY provisions something — a tenant born from
+            # scratch (``not existed``) or an orphan tenant being adopted (the
+            # row existed but had zero members before this call). A
+            # re-provisioning no-op (the tenant already exists WITH members,
+            # e.g. every ``set_auth_token`` re-auth) must NOT write a row:
+            # otherwise the activity feed shows "created the project" N times
+            # for one real creation. The metadata records which real case fired
+            # so a consumer can tell them apart (AC-17).
+            if not existed:
+                provision_case: str | None = "created"
+            elif members_before == 0:
+                provision_case = "adopted_orphan"
+            else:
+                provision_case = None  # re-provision no-op → no event (AC-16)
+
+            if provision_case is not None:
+                await audit_mod.record_destructive(
+                    conn,
+                    developer_id=developer_id,
+                    project_id=canonical,
+                    operation=audit_mod.OP_PROVISION_PROJECT,
+                    target_id=canonical,
+                    metadata={"case": provision_case},
+                )
 
     logger.info(
         "native_project_provisioned",

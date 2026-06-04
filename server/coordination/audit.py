@@ -25,6 +25,9 @@ never a token, never an email.
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 import asyncpg
 import structlog
 
@@ -76,6 +79,7 @@ async def record_destructive(
     project_id: str,
     operation: str,
     target_id: str,
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     """Append one row to ``audit_log`` for a successful destructive operation.
 
@@ -101,16 +105,20 @@ async def record_destructive(
             Other strings are accepted (extensibility for future destructive
             ops) but production callers should reuse the canonical names.
         target_id: The id of the affected item (AC id, US/UC id, etc.).
+        metadata: Optional JSON payload describing the operation (e.g. the
+            provisioning case ``{"case": "created"}`` — UC-606). When ``None``
+            the row keeps the table default ``{}`` and behaviour is unchanged.
     """
     await conn.execute(
         """
-        INSERT INTO audit_log (developer_id, project_id, operation, target_id)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO audit_log (developer_id, project_id, operation, target_id, metadata)
+        VALUES ($1, $2, $3, $4, COALESCE($5::jsonb, '{}'::jsonb))
         """,
         developer_id,
         project_id,
         operation,
         target_id,
+        json.dumps(metadata) if metadata is not None else None,
     )
     # Opaque ids only — never a token, never the diff. The audit row itself is
     # what enables forensics; this log line is just so the MCP operator sees

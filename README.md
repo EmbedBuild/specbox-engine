@@ -209,6 +209,40 @@ Eso es todo. Las skills se auto-descubren cuando son relevantes; los hooks corre
 
 ---
 
+## Arrancar un proyecto con la extensión de VS Code
+
+Si usas la **extensión de VS Code** (Marketplace), el arranque no tiene un botón
+"Init" mágico: la extensión **instala y configura** el engine, y el *onboarding
+del proyecto* (crear el board, elegir backend) sigue ocurriendo en el chat de
+Claude Code con las skills/tools. Esto es lo que hace cada acción de la UI por
+debajo:
+
+| Acción en la extensión (Command Palette / sidebar) | Comando interno | Qué dispara por debajo |
+|---|---|---|
+| **SpecBox: Onboard Project** | `specbox.onboard` | Wizard de 5 pasos: prerequisitos → localizar/clonar engine (`resolveEnginePath`, auto-clone desde el repo público si falta) → instalar skills+hooks (`runFullInstall`) → **Configure MCP** → health check. **No crea el board**: deja el entorno listo para que tú corras las skills. |
+| **SpecBox: Install Engine** | `specbox.install` | Copia skills a `~/.claude/skills/` y hooks a `~/.claude/hooks/` (equivale a `./install.sh`). |
+| **SpecBox: Configure MCP Servers** | `specbox.configureMcp` | Escribe la config del MCP remoto de SpecBox (`npx mcp-remote …`) + Engram en el `settings.json` de Claude Code. |
+| **SpecBox: Sign in with GitHub** | `specbox.signIn` | OAuth de GitHub (loopback) → provisiona un `mcp_token` para el **backend native** (Cloud) y lo guarda en el SecretStorage de VS Code. Es el paso que habilita el board native compartido. |
+| **SpecBox: Check Prerequisites** | `specbox.checkPrerequisites` | Re-evalúa el entorno (Claude Code, Engram, Node, MCPs) y avisa si falta algo. |
+
+Tras `Onboard Project` + `Sign in with GitHub`, el **arranque real del proyecto**
+(crear/poblar el board) se hace en el chat con las tools del MCP:
+
+```text
+onboard_project(...)   # registra el proyecto (backend native por defecto desde v6.3.0)
+setup_board(...)       # crea el tenant native + tu membresía como project_admin
+/app-init              # crea los documentos canónicos doc/app/ (ver nota abajo)
+/prd → /plan → /implement
+```
+
+> **Nota — "app init" ≠ ningún botón.** Si alguien dice *"app init"*, se refiere a
+> la **skill `/app-init`** (crea/refresca `doc/app/app_prd.md` y `app_spec.md` —
+> v5.29). **No** es lo mismo que **`onboard_project`** (tool MCP que registra el
+> proyecto y autodetecta el stack) ni que **`/quickstart`** (tutorial interactivo
+> de onboarding). Los tres son cosas distintas; la extensión no renombra ninguno.
+
+---
+
 ## ¿Cómo funciona?
 
 ### 1. Documentos canónicos del proyecto

@@ -275,6 +275,50 @@ atomica e idempotente (no churnea el archivo si el contenido no cambia).
 debe arrancar leyendo este archivo en lugar de recibir branch/feature/stack
 en el prompt. Ver Paso 5.X.0 para el bloque reusable de invocacion.
 
+### 0.4c Pre-flight Autonomy Triage (US-06 — BLOQUEANTE)
+
+> **Por que aqui**: este paso corre **antes** de `start_uc` y de crear la rama
+> (Paso 1). El autopilot rara vez falla al ejecutar; falla cuando **adivina una
+> decision que era del usuario** (un contrato de API, un naming, un trade-off) y
+> arrastra el error por toda la cadena rama->fases->QA->PR. El gate resuelve esas
+> decisiones con el usuario **por adelantado**, cuando corregir cuesta ~50 tokens
+> en vez de un PR entero.
+
+1. **Analizar el plan** con la tool MCP (content-passing: leer el plan local con
+   `Read` y pasar su contenido):
+
+   ```
+   analyze_preflight_decisions(
+     plan_content="<contenido de doc/plans/{feature}_plan.md>",
+     autopilot_level="<specbox.autopilot.level de settings.local.json>"
+   )
+   ```
+
+   Devuelve `{decisions[], verdict, user_dependent, user_dependent_decisions[], ...}`.
+
+2. **Actuar segun el `verdict`**:
+
+   | `verdict` | Accion |
+   |-----------|--------|
+   | `no_user_decisions` | **Continuar** directo a 0.5 / start_uc / rama sin interrumpir. El gate no molesta cuando todo es autonomo o no hay decisiones (AC-08). |
+   | `needs_user_input` | **BLOQUEAR** la creacion de rama. Presentar al usuario la lista de `user_dependent_decisions` (cada una con su `description` y, si la hay, su `reason`) y pedirle que las resuelva TODAS antes de continuar (AC-06). |
+
+3. **Mostrar lo autonomo como informativo** (no pedir accion): las decisiones
+   clasificadas `autonomous` se listan con su `reason` (de la politica) para que
+   el usuario vea *que* se resolvio solo y *por que* — transparencia (JE-F.1).
+
+4. **No re-preguntar**: las decisiones resueltas aqui NO se vuelven a preguntar
+   durante las fases (AC-07). El registro queda en
+   `.quality/autopilot_decisions.jsonl` (kind=`preflight`) via la capa de log de
+   la tool, auditable despues (UC-604).
+
+5. **Inviolables**: las decisiones destructivas / push-a-main / coste-sobre-budget
+   siempre caen en `user_dependent` aunque el nivel sea `agresivo` — el gate nunca
+   las auto-confirma (AC-05). "Mas autonomia" jamas significa "menos seguridad".
+
+> **Degradacion**: si la tool no esta disponible (engine viejo), el gate se omite
+> y `/implement` se comporta como antes — backwards-compatible.
+
 ### 0.5 Validacion pre-vuelo (HARD BLOCKS)
 
 Antes de ejecutar, verificar:

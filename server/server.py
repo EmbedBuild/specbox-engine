@@ -39,6 +39,7 @@ from .tools.migration import register_migration_tools
 from .tools.sync import register_sync_tools
 from .tools.acceptance import register_acceptance_tools
 from .tools.evidence_regen import register_evidence_regen_tools
+from .tools.preflight import register_preflight_tools
 from .tools.benchmark import register_benchmark_tools
 from .tools.hints import register_hint_tools
 from .tools.marketplace import register_marketplace_tools  # v6.2.0 UC-643
@@ -216,6 +217,7 @@ register_acceptance_tools(mcp, ENGINE_PATH, STATE_PATH)
 
 # Register evidence regeneration tool (UC-405: regenerate_evidence)
 register_evidence_regen_tools(mcp, ENGINE_PATH, STATE_PATH)
+register_preflight_tools(mcp, ENGINE_PATH)
 
 # Register benchmark tools (1 tool: generate_benchmark_snapshot)
 register_benchmark_tools(mcp, ENGINE_PATH, STATE_PATH)

@@ -205,8 +205,13 @@ def evaluate_decision(decision_key: str, context: dict[str, Any] | None = None) 
     """Pure-Python equivalent of the JS evaluateDecision."""
     ctx = dict(context or {})
     project_path = ctx.pop("projectPath", ".")
+    # ``level_override`` lets a caller pin the autopilot level inline instead of
+    # reading it from ``.claude/settings.local.json`` — needed when the MCP
+    # server is remote and cannot see the client's settings (the pre-flight
+    # triage tool, US-06). When absent (the default), behaviour is unchanged.
+    level_override = ctx.pop("level_override", None)
     config = load_autopilot_config(project_path)
-    level = config["level"]
+    level = level_override if level_override in VALID_TIERS else config["level"]
 
     definition = DECISION_KEYS.get(decision_key)
     if definition is None:

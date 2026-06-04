@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.9.4 — "Orphan Tenant Recovery" (sobre v6.9.3 "Tenant Provisioning", v6.9.2 "Batch Ingest", v6.9.1 "Atomic Switch")<br/>
+  v 6.9.5 — "Tenant-Scoped Keys" (sobre v6.9.4 "Orphan Tenant Recovery", v6.9.3 "Tenant Provisioning", v6.9.2 "Batch Ingest", v6.9.1 "Atomic Switch")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -42,6 +42,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 **v6.9.3 — "Tenant Provisioning"** subir un proyecto a Cloud/Native **de cero** ya funciona: la migración **auto-aprovisiona** el tenant + tu membresía como `project_admin` server-side antes del gate (rompe el huevo-gallina "no eres miembro de un proyecto que aún no existe"), y engine y panel acuerdan un único formato de `project_id` (`owner/repo` canónico + slug derivado para URLs). Cierra los 2 gaps de v6.9.2.
 
 **v6.9.4 — "Orphan Tenant Recovery"** cierra el bug que aún rompía la migración de cero real: `setup_board` creaba la fila del proyecto **sin membresía** (tenant huérfano), y eso **desactivaba** la auto-provisión de v6.9.3 → `FORBIDDEN` sobre una BD vacía. Doble defensa: `setup_board` native ahora aprovisiona tenant + membresía de forma atómica (nunca deja 0 miembros), y la auto-provisión **adopta** un tenant huérfano (0 miembros) mientras sigue protegiendo los tenants con dueño (AC-13). El E2E ahora parte del **estado sucio real** (huérfano primero), no de una BD virgen. 100% backwards-compatible.
+
+**v6.9.5 — "Tenant-Scoped Keys"** cierra el último bloqueante de la migración a Cloud/Native: el ingest colisionaba en `user_stories_pkey` porque la PK era el id lógico (`US-01`) **sin** namespacing por proyecto — dos proyectos no podían compartir un `US-01` en el mismo Postgres. La PK de US/UC/AC pasa a **compuesta `(project_id, id)`** (migración 0009, idempotente). Además, `/switch-backend` ahora entiende el **dialecto FreeForm "exploded"** (`index.json` anidado + AC en checkboxes `.md`) vía un normalizador puro a `items.json` + un **pre-flight de formato** y un **gate de prerequisitos native** que sacan los fallos al paso 0 en vez de a mitad de la migración. Tests stale realineados a los contratos UC-660/UC-706. 100% backwards-compatible.
 
 ---
 
@@ -452,7 +454,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.9.4 — "Orphan Tenant Recovery" (over v6.9.3 "Tenant Provisioning", v6.9.2 "Batch Ingest", v6.9.1 "Atomic Switch")
+> v 6.9.5 — "Tenant-Scoped Keys" (over v6.9.4 "Orphan Tenant Recovery", v6.9.3 "Tenant Provisioning", v6.9.2 "Batch Ingest", v6.9.1 "Atomic Switch")
 
 ## What is this?
 
@@ -482,6 +484,8 @@ A system that turns Claude Code into a serious teammate:
 **v6.9.3 — "Tenant Provisioning"** uploading a project to Cloud/Native **from scratch** now works: the migration **auto-provisions** the tenant + your membership as `project_admin` server-side before the gate (breaks the egg-chicken "you're not a member of a project that doesn't exist yet"), and engine and panel agree on a single `project_id` format (canonical `owner/repo` + a derived slug for URLs). Closes the two v6.9.2 gaps.
 
 **v6.9.4 — "Orphan Tenant Recovery"** closes the bug that still broke real from-scratch migration: `setup_board` created the project row **without a membership** (orphan tenant), which **disabled** v6.9.3's auto-provision → `FORBIDDEN` on an empty DB. Double defense: native `setup_board` now provisions tenant + membership atomically (never leaves 0 members), and the auto-provision **adopts** an orphan tenant (0 members) while still protecting tenants that have owners (AC-13). The E2E now starts from the **real dirty state** (orphan first), not a virgin DB. 100% backwards-compatible.
+
+**v6.9.5 — "Tenant-Scoped Keys"** closes the last Cloud/Native migration blocker: the ingest collided on `user_stories_pkey` because the PK was the logical id (`US-01`) **without** per-project namespacing — two projects couldn't share a `US-01` in the same Postgres. The US/UC/AC PK moves to **composite `(project_id, id)`** (migration 0009, idempotent). On top, `/switch-backend` now understands the **FreeForm "exploded" dialect** (nested `index.json` + AC as `.md` checkboxes) via a pure normalizer to `items.json` + a **format pre-flight** and a **native prerequisite gate** that surface failures at step 0 instead of mid-migration. Stale tests realigned to the UC-660/UC-706 contracts. 100% backwards-compatible.
 
 ---
 

@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "6.9.4"
-description = "SpecBox Engine v6.9.4 — Orphan Tenant Recovery: setup_board for native delegates to the atomic provision (tenant + membership together) so it can never leave a tenant with zero members, and _maybe_auto_provision adopts an orphan tenant (0 members) while still forbidding join to a tenant with owners (AC-13). Closes the v6.9.4 dogfooding gap where a prior setup_board left an orphan row that disabled v6.9.3's auto-provision and produced a spurious FORBIDDEN (US-ORPHAN-PROVISION)."
+version = "6.9.5"
+description = "SpecBox Engine v6.9.5 — Tenant-Scoped Keys: native spec-table PKs move to composite (project_id, id) so two projects can share a logical id (US-01) in the same shared Postgres (fixes the FreeForm→Native ingest collision on user_stories_pkey, UC-707); /switch-backend handles the FreeForm exploded dialect (index.json + AC-in-markdown) via a pure normalizer + format pre-flight + native prerequisite gate (UC-709); stale tests realigned to the UC-660/UC-706 contracts (UC-708)."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.3.1,<4.0.0",

@@ -1,8 +1,8 @@
-version: 6.9.4
-codename: "Orphan Tenant Recovery"
+version: 6.9.5
+codename: "Tenant-Scoped Keys"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-06-03
+release_date: 2026-06-04
 min_claude_code: "1.0.0"
 
 stacks:
@@ -404,8 +404,18 @@ features:
   # New (v6.9.0) — Self-Provisioning
   - vscode-engine-autoclone
   - vscode-managed-engine-autopull
+  # New (v6.9.5) — Tenant-Scoped Keys
+  - native-tenant-scoped-pks
+  - freeform-exploded-normalizer
 
 changelog:
+  6.9.5:
+    date: 2026-06-04
+    codename: "Tenant-Scoped Keys"
+    changes:
+      - "fix: tenant-scope the native spec-table primary keys (US-NATIVE-TENANT-PK, UC-707, PR #100). The atomic ingest of a FreeForm→Native migration collided on user_stories_pkey because the PK was the logical id alone ('US-01'), not namespaced by project — in a shared multi-tenant Postgres two projects could not both hold a 'US-01'. Root cause was schema-only: native_backend.py was already tenant-scoped (every query filters project_id AND id; every INSERT passes project_id) — only the PRIMARY KEY constraint lagged. Migration 0009_tenant_scoped_pks.sql moves the PK of user_stories/use_cases/acceptance_criteria to composite (project_id, id) and rewires the 2 child FKs to composite same-tenant (idempotent via pg_constraint guards; no data backfill). Also bundled: actionable SOURCE_TOO_LARGE_USE_BATCH envelope (>64 KB freeform→native without a batch session), native target self-sufficient from dev_token in _ensure_target (was the impossible 'Target backend not configured'), and parse_item_id accepting an alpha id suffix ('[UC-004b]' → 'UC-004b')."
+      - "test: align stale tests with the UC-660 and UC-706 contracts (UC-708, PR #101). 7 tests in test_spec_mutations.py — the _fake_get_session_backend double didn't accept the keyword-only items_content kwarg production gained in UC-660 (content-passing). 2 tests in test_audit_log_destructive.py — UC-706 deliberately made create_us/uc/ac emit audit_log events; the tests still asserted the pre-UC-706 'creates stay silent' contract. Counts/order updated against Postgres dev, not masked. Full suite 1548 passed, 0 failed."
+      - "feat: /switch-backend handles the FreeForm exploded dialect + early gates (US-SWITCH-BACKEND-ROBUST, UC-709, PR #102). Some repos keep FreeForm as a nested index.json ({user_stories:[...]}) + exploded us/*.md, uc/*.md with AC as '- [x]' checkboxes — the migration consumes a flat items.json array and failed at preview with 'items_content must be a JSON array ... got dict'. New server/migration/freeform_normalize.py (pure transform nested→flat; faithful mode with ac_texts, degraded mode synthesizing ac_total placeholders with exact counts + ac_degraded flag). M3 actionable error in freeform_backend.py names the dialect + the recipe. SKILL.md adds a format pre-flight (Paso 3/3a) that surfaces the format mismatch at step 0 and a native prerequisite gate (Paso 2: tenant + whoami + DSN-on-server) before reading the source. Validated end-to-end against DDBoss scale (15 US / 82 UC / 501 AC)."
   6.9.4:
     date: 2026-06-03
     codename: "Orphan Tenant Recovery"

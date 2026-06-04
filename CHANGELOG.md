@@ -2,6 +2,36 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.9.5] - 2026-06-04 — "Tenant-Scoped Keys"
+
+Closes the last blocker of the FreeForm→Cloud/Native migration chain, found dogfooding `Dental-Data/DDBoss-Web-Saas`: the atomic ingest collided on `user_stories_pkey` because the native spec-table PK was the logical id alone (`US-01`), not namespaced by project — two projects could not both hold a `US-01` in the same shared Postgres. Plus two follow-ups surfaced in the same run: a format-dialect gap in `/switch-backend` and stale tests left behind by UC-660/UC-706.
+
+### Added
+
+- **`server/migration/freeform_normalize.py` (UC-709)** — pure transform from the nested FreeForm `index.json` (`{user_stories:[...]}`) to the flat `items.json` array the migration consumes (labels US/UC/AC, `parent_id`, `meta`). Faithful mode when the caller passes `ac_texts` extracted from the `.md` checkboxes; degraded mode synthesizes `ac_total` placeholder AC with exact counts (so the count guard passes) and sets `ac_degraded`.
+- **`0009_tenant_scoped_pks.sql` (+ supabase mirror, UC-707)** — moves the PK of `user_stories` / `use_cases` / `acceptance_criteria` to composite `(project_id, id)` and rewires the two child FKs to composite same-tenant. Idempotent via `pg_constraint` catalog guards; no data backfill (`project_id` already populated).
+
+### Changed
+
+- **`server/backends/freeform_backend.py` (UC-709)** — memory-mode now detects a nested `index.json` dict and raises an actionable error naming the exploded dialect + the `normalize_source_content` recipe + the AC-in-markdown caveat, instead of the cryptic "got dict".
+- **`server/tools/migration.py` (UC-707)** — `_ensure_target` builds the native backend from `dev_token` directly (no longer requires the unsatisfiable `migration_target_config` for native); new `SOURCE_TOO_LARGE_USE_BATCH` envelope for >64 KB freeform→native without a batch session.
+- **`server/spec_backend.py` (UC-707)** — `parse_item_id` accepts an optional alphabetic id suffix (`[UC-004b]` → `UC-004b`).
+- **`.claude/skills/switch-backend/SKILL.md` (UC-709)** — adds a format pre-flight (Paso 3/3a) that surfaces the items.json-vs-index.json mismatch at step 0, and a native prerequisite gate (Paso 2: tenant + whoami + DSN-on-server) before reading the source.
+- **`tests/test_spec_mutations.py` + `tests/test_audit_log_destructive.py` (UC-708)** — realigned to the UC-660 (`items_content` kwarg in the session-backend mock) and UC-706 (creates now audit) contracts.
+
+### Decisions
+
+- Composite PK over surrogate UUID: the app layer was already tenant-scoped (every query filters `project_id AND id`), so the composite PK needs ~zero app-code change — minimal blast radius.
+- AC normalization degradation is explicit, not silent: when AC texts aren't extracted from the markdown, counts round-trip exactly with placeholder text and `ac_degraded=True` so the skill warns.
+
+### Compatibility
+
+- 100% backwards-compatible. The PK migration is idempotent and recables constraints only (no row rewrite, no id change). The normalizer passes a flat `items.json` through unchanged.
+
+### Tests
+
+- 11 new in `tests/test_freeform_normalize.py`; `tests/test_native_tenant_pk.py` (cross-tenant isolation, Postgres-gated). Full suite **1548 passed, 0 failed**.
+
 ## [6.9.4] - 2026-06-03 — "Orphan Tenant Recovery"
 
 Cierra el **cuarto eslabón** de la cadena de hallazgos del dogfooding (v6.9.1 → v6.9.2 → v6.9.3 → **v6.9.4**). v6.9.3 implementó la lógica de auto-provisión correctamente, pero **otra ruta la desactivaba en el camino real**: `setup_board` (`server/backends/native_backend.py`) hacía `INSERT INTO projects` **sin crear membresía**, fuera de `provision_native_project`. Se dispara en cada `set_auth_token` native, `import_spec` y migraciones legacy → deja un **tenant huérfano** (fila `public.projects` con CERO miembros). Entonces `_maybe_auto_provision` veía `exists=True` → `return False` → el gate de membresía → **FORBIDDEN** sobre una BD verificada vacía. El ecosistema se saboteaba a sí mismo. US-ORPHAN-PROVISION — 4 UC (UC-824..827), PR #90.

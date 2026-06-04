@@ -1,4 +1,4 @@
-# SpecBox Engine v6.9.4
+# SpecBox Engine v6.9.5
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -90,7 +90,7 @@ set_auth_token(api_key="", token="<dev-token>", backend_type="native", project_i
 | Componente | Archivo | Rol |
 |------------|---------|-----|
 | NativeBackend | `server/backends/native_backend.py` | 26 métodos del ABC sobre pool asyncpg |
-| Schema multi-tenant | `server/db/migrations/0001_native_schema.sql` | Tablas US/UC/AC + concurrencia optimista (`expected_version`) |
+| Schema multi-tenant | `server/db/migrations/0001_native_schema.sql` + `0008_audit_log_metadata.sql` + `0009_tenant_scoped_pks.sql` | Tablas US/UC/AC + concurrencia optimista (`expected_version`). **0009 (v6.9.5, UC-707)**: PK compuesta `(project_id, id)` en US/UC/AC + FKs hijas compuestas same-tenant — dos proyectos pueden compartir `US-01` en el mismo Postgres. |
 | Identity | `0002_developers.sql` + `0004_github_identities.sql` + `0005_mcp_tokens.sql` + `server/coordination/identity.py` | Resolución token→developer vía `mcp_tokens` JOIN `developers` (filtrando `revoked_at IS NULL`). N:1 GitHub identity ↔ developer cubre el caso freelance. Frontier 1 authz (UNAUTHENTICATED / FORBIDDEN). v5.34.1. |
 | Reservations + branches | `0003_claims.sql` + `0007_rename_claims_to_reservations.sql` + `server/coordination/{reservations,branches}.py` | Reserva exclusiva de UC por developer + registro de rama feature. v5.35.0 renombró tabla, módulo, tools y vocabulario (US-CLAIM-RENAME). |
 | Mutation gate + audit | `server/coordination/identity.py` (`authenticate_and_authorize_cached`, TTL 30s hardcoded) + `server/coordination/audit.py` + `server/db/migrations/0006_audit_log.sql` | Cada uno de los 9 mutadores del NativeBackend re-valida identidad + membresía con cache (hit ~1µs / miss ~10-25ms). Tras un revoke, exposición ≤ 30s. `delete_acceptance_criterion` y `archive_item` escriben fila en `audit_log` tras SQL exitoso. v5.34.1. |
@@ -1706,9 +1706,49 @@ transporte por lotes (≥64 KB), preservando estados done/backlog 1:1. Tests:
 - Discovery: [doc/discovery/orphan_tenant_provision/icp_jtbd.md](doc/discovery/orphan_tenant_provision/icp_jtbd.md)
 - Hallazgo origen: [HALLAZGO-v6.9.4-setup-board-tenant-huerfano.md](HALLAZGO-v6.9.4-setup-board-tenant-huerfano.md)
 
+## Tenant-Scoped Keys + FreeForm exploded migration (v6.9.5)
+
+Tres cierres descubiertos en el dogfooding de migrar `Dental-Data/DDBoss-Web-Saas`
+freeform→native (PRs #100/#101/#102):
+
+**UC-707 — Tenant-scoping de PKs (el bloqueante).** El ingest atómico
+FreeForm→Native colisionaba en `user_stories_pkey` porque la PK era el `us_id`
+lógico (`US-01`) **sin** namespacing por proyecto: en un Postgres multi-tenant
+compartido dos proyectos no podían tener ambos un `US-01`. Causa raíz **solo de
+schema** — `native_backend.py` ya estaba tenant-scoped (toda query filtra
+`project_id AND id`, todo INSERT pasa `project_id`); solo faltaba la constraint.
+`0009_tenant_scoped_pks.sql` (+ mirror supabase) mueve la PK de
+US/UC/AC a compuesta `(project_id, id)` y recablea las 2 FKs hijas a compuestas
+same-tenant (idempotente vía guards `pg_constraint`, sin backfill). Bundle:
+envelope accionable `SOURCE_TOO_LARGE_USE_BATCH` (>64 KB freeform→native sin
+sesión de lotes), target native autosuficiente desde `dev_token` en
+`_ensure_target` (antes el imposible "Target backend not configured"), y
+`parse_item_id` aceptando sufijo alfabético (`[UC-004b]` → `UC-004b`).
+
+**UC-708 — Tests stale.** 7 en `test_spec_mutations.py` (el mock
+`_fake_get_session_backend` no aceptaba el kwarg `items_content` de UC-660) + 2 en
+`test_audit_log_destructive.py` (UC-706 hizo que `create_us/uc/ac` auditen; los
+tests esperaban el contrato previo). Conteos/orden ajustados contra Postgres dev.
+
+**UC-709 — Dialecto FreeForm exploded en `/switch-backend`.** Algunos repos
+guardan FreeForm como `index.json` anidado (`{user_stories:[...]}`) +
+`us/*.md`/`uc/*.md` con AC en checkboxes `- [x]`, en vez del array `items.json`
+plano que la migración consume — fallaba en el preview con `got dict`. Nuevo
+`server/migration/freeform_normalize.py` (transform puro anidado→flat; modo
+*faithful* con `ac_texts`, modo *degradado* sintetizando placeholders desde
+`ac_total` con conteos exactos + flag `ac_degraded`). Error accionable en
+`freeform_backend.py` que nombra el dialecto + la receta. `SKILL.md` añade
+pre-flight de formato (Paso 3/3a, el fallo sale en el paso 0) + gate de
+prerequisitos native (Paso 2: tenant + whoami + DSN-en-server) antes de leer el
+source. Validado contra escala DDBoss (15 US / 82 UC / 501 AC).
+
+- PRs: [#100](https://github.com/EmbedBuild/specbox-engine/pull/100),
+  [#101](https://github.com/EmbedBuild/specbox-engine/pull/101),
+  [#102](https://github.com/EmbedBuild/specbox-engine/pull/102)
+
 ## Engine Version
 
-Current: v6.9.4 "Orphan Tenant Recovery"
+Current: v6.9.5 "Tenant-Scoped Keys"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

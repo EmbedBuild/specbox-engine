@@ -31,11 +31,18 @@ single source of truth for the catalogue — it never re-declares the keys.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from ..app_docs.autopilot import DECISION_KEYS, evaluate_decision
+
+#: The pre-flight log shares the autopilot audit log so a reviewer has one
+#: place to audit "what did the autopilot decide on its own, and why" (UC-604).
+PREFLIGHT_LOG_RELPATH = Path(".quality") / "autopilot_decisions.jsonl"
 
 #: Classification outcomes (UC-602).
 AUTONOMOUS: str = "autonomous"
@@ -343,3 +350,81 @@ def inventory_to_dict(entries: list[DecisionEntry]) -> dict[str, Any]:
             "needs_user_input" if user_dependent > 0 else "no_user_decisions"
         )
     return payload
+
+
+# ── Audit log (UC-604) ──────────────────────────────────────────────────────
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def log_preflight_decision(
+    entry: DecisionEntry,
+    *,
+    resolved_by: str,
+    project_path: str | Path = ".",
+    feature: str | None = None,
+    now_fn: Any = None,
+) -> dict[str, Any]:
+    """Append one classified decision to ``.quality/autopilot_decisions.jsonl``.
+
+    Extends the autopilot audit trail (``log_auto_decision``) with the
+    pre-flight fields so a reviewer can audit, after the fact, what the gate
+    classified and how each decision was resolved (UC-604, AC-09). One JSONL
+    line per decision, with a stable schema:
+
+    ``{id, decision_key, classification, action, reason, resolved_by, feature,
+    ts}``.
+
+    ``resolved_by`` is ``"auto"`` (the gate classified it autonomous, no human
+    input) or ``"user"`` (the user resolved it at the gate). ``now_fn`` is
+    injectable so tests are deterministic.
+    """
+    stamp = (now_fn or _now_iso)()
+    log_path = Path(project_path) / PREFLIGHT_LOG_RELPATH
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "ts": stamp,
+        "kind": "preflight",
+        "id": entry.id,
+        "decision_key": entry.decision_key,
+        "family": entry.family,
+        "classification": entry.meta.get("classification"),
+        "action": entry.meta.get("action"),
+        "reason": entry.meta.get("reason"),
+        "resolved_by": resolved_by,
+        "feature": feature,
+    }
+    with log_path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    return record
+
+
+def log_preflight_inventory(
+    entries: list[DecisionEntry],
+    *,
+    project_path: str | Path = ".",
+    feature: str | None = None,
+    now_fn: Any = None,
+) -> list[dict[str, Any]]:
+    """Log every decision of a classified inventory (UC-604, AC-09).
+
+    ``resolved_by`` is derived from the classification: ``autonomous`` →
+    ``"auto"``, ``user_dependent`` → ``"user"`` (the gate will have required
+    the user to resolve it before proceeding). Returns the written records so
+    the caller can verify ``len(records) == len(inventory)``.
+    """
+    records: list[dict[str, Any]] = []
+    for e in entries:
+        resolved_by = "auto" if e.meta.get("classification") == AUTONOMOUS else "user"
+        records.append(
+            log_preflight_decision(
+                e,
+                resolved_by=resolved_by,
+                project_path=project_path,
+                feature=feature,
+                now_fn=now_fn,
+            )
+        )
+    return records

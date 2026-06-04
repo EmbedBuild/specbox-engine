@@ -23,6 +23,7 @@ from server.implement_context.preflight_triage import (
     classify_decision,
     classify_inventory,
     inventory_to_dict,
+    log_preflight_inventory,
 )
 
 
@@ -240,3 +241,53 @@ def test_classification_surfaces_in_to_dict(tmp_path):
     assert d["classification"] == USER_DEPENDENT
     assert d["action"] == "ask"
     assert "reason" in d
+
+
+# ── UC-604: audit log ───────────────────────────────────────────────────────
+
+
+def test_ac09_one_jsonl_line_per_decision(tmp_path):
+    """AC-09: after the gate runs, .quality/autopilot_decisions.jsonl has one
+    parseable line per decision of the inventory, with the documented fields."""
+    project = _project_with_level(tmp_path, "equilibrado")
+    entries = build_decision_inventory(_PLAN_ONE_CATALOGUED_ONE_AD_HOC)
+    classify_inventory(entries, context={"projectPath": project})
+
+    records = log_preflight_inventory(
+        entries, project_path=project, feature="autopilot_autonomy_triage",
+        now_fn=lambda: "2026-06-04T00:00:00+00:00",
+    )
+
+    log_file = tmp_path / ".quality" / "autopilot_decisions.jsonl"
+    assert log_file.exists()
+    lines = [ln for ln in log_file.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    assert len(lines) == len(entries), "exactly one JSONL line per inventory decision"
+
+    parsed = [json.loads(ln) for ln in lines]  # every line is valid JSON
+    for rec in parsed:
+        assert {
+            "id", "decision_key", "classification", "action",
+            "reason", "resolved_by", "feature", "ts", "kind",
+        } <= set(rec)
+        assert rec["kind"] == "preflight"
+        assert rec["resolved_by"] in ("auto", "user")
+        assert rec["feature"] == "autopilot_autonomy_triage"
+    assert len(records) == len(entries)
+
+
+def test_resolved_by_follows_classification(tmp_path):
+    """A user_dependent decision is logged resolved_by=user; an autonomous one
+    resolved_by=auto (the auditable record of who decided)."""
+    project = _project_with_level(tmp_path, "agresivo")
+    autonomous = DecisionEntry(
+        id="D1", description="elegir backend", source="elegir backend",
+        decision_key="backend_selection",
+        family=DECISION_KEYS["backend_selection"]["family"],
+    )
+    user_dep = DecisionEntry(id="D2", description="api contract", source="api contract", decision_key=AD_HOC)
+    classify_inventory([autonomous, user_dep], context={"projectPath": project})
+
+    records = log_preflight_inventory([autonomous, user_dep], project_path=project, now_fn=lambda: "t")
+    by_id = {r["id"]: r for r in records}
+    assert by_id["D1"]["resolved_by"] == "auto"
+    assert by_id["D2"]["resolved_by"] == "user"

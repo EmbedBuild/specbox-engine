@@ -1218,6 +1218,18 @@ async def move_uc(board_id: str, uc_id: str, target: str, ctx: Context) -> dict[
         # Move UC
         await backend.update_item(board_id, uc_item.id, state=target)
 
+        # UC-1007 (US-10): moving a UC to `done` releases its native reservation,
+        # symmetric to complete_uc. Without this, a UC closed via move_uc(done)
+        # leaves an orphan reservation alive in `uc_reservations` indefinitely —
+        # the UC is "done" yet still shows in "Reservas activas" until released by
+        # hand. Best-effort and only on `done` (other targets keep the reservation
+        # so the work stays attributable while in review/backlog) [AC-21]. No-op
+        # for non-native backends (no reservations to release).
+        if target == "done":
+            native_session = await _get_native_session_config(ctx)
+            if native_session is not None:
+                await _release_reservation_native(native_session, uc_id)
+
         us_checklist_updated = False
         us_all_done = False
         item_us_id = _extract_meta_str(uc_item, "us_id")
@@ -1442,6 +1454,73 @@ async def _release_uc_native(session: dict[str, str], uc_id: str) -> None:
         logger.warning("complete_uc_release_auth_failed", uc_id=uc_id, error=str(e))
     except Exception as e:  # noqa: BLE001 — best-effort, the UC is already done
         logger.warning("complete_uc_release_failed", uc_id=uc_id, error=str(e))
+
+
+async def _release_reservation_native(session: dict[str, str], uc_id: str) -> None:
+    """Release a native reservation when a UC is moved to ``done`` via move_uc.
+
+    Sibling of :func:`_release_uc_native`, but it emits ``OP_RELEASE_UC`` (not
+    ``OP_COMPLETE_UC``): moving a UC to ``done`` with ``move_uc`` is *not* a
+    ``complete_uc`` lifecycle event, so faking one would pollute the activity
+    feed [UC-1007 / US-10]. The honest audit event for "the reservation went
+    away" is ``release_uc``.
+
+    Best-effort by design — the UC is already ``done`` by the time we get here,
+    so a failure to release must NOT abort the move (an orphan reservation is a
+    far smaller problem than a failed ``move_uc``). Mirrors the error contract of
+    :func:`_release_uc_native`: every failure path is logged and swallowed,
+    never raises.
+
+    Behaviour:
+      - Owner releases own reservation → deleted [AC-19].
+      - No reservation present → ``release_uc`` returns False → no-op.
+      - Reservation owned by ANOTHER developer → ``NotReservationOwnerError`` is
+        caught and the reservation is left intact (no forced release).
+      - Unauthenticated / DB error → logged and swallowed (UC stays done) [AC-20].
+    """
+    from ..coordination import audit
+    from ..coordination.identity import (
+        ForbiddenError,
+        UnauthenticatedError,
+        authenticate_and_authorize,
+    )
+    from ..coordination.reservations import NotReservationOwnerError, release_uc
+    from ..db.pool import get_pool
+
+    project_id = session["project_id"]
+    token = session.get("dev_token", "")
+    try:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            dev = await authenticate_and_authorize(conn, token=token, project_id=project_id)
+            released = await release_uc(
+                conn,
+                project_id=project_id,
+                uc_id=uc_id,
+                developer_id=dev.developer_id,
+            )
+            if released:
+                # Honest audit: a reservation was released (not a completion).
+                await audit.record_destructive(
+                    conn,
+                    developer_id=dev.developer_id,
+                    project_id=project_id,
+                    operation=audit.OP_RELEASE_UC,
+                    target_id=uc_id,
+                )
+                logger.info("uc_reservation_released_on_move_done", project_id=project_id, uc_id=uc_id)
+    except NotReservationOwnerError as e:
+        # Another developer holds the reservation — never force a release.
+        logger.warning(
+            "move_uc_reservation_owned_by_other",
+            project_id=project_id,
+            uc_id=uc_id,
+            error=str(e),
+        )
+    except (UnauthenticatedError, ForbiddenError) as e:
+        logger.warning("move_uc_release_auth_failed", uc_id=uc_id, error=str(e))
+    except Exception as e:  # noqa: BLE001 — best-effort, the UC is already done
+        logger.warning("move_uc_release_failed", uc_id=uc_id, error=str(e))
 
 
 async def _native_uc_ids_reserved_by_others(session: dict[str, str]) -> set[str]:

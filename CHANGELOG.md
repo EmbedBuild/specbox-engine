@@ -2,6 +2,18 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.10.1] - 2026-06-11 — "Reentrant Reserve"
+
+Hotfix for a bug found in dogfooding while closing MGR-US-01 UC-06: after `reserve_uc(UC)`, calling `start_uc(UC)` with the same developer failed with `current transaction is aborted, commands ignored until end of transaction block`. Reads, standalone `reserve_uc`, and `move_uc` all worked — only `start_uc` broke.
+
+### Fixed
+
+- **reserve_uc reentrant inside a caller transaction (UC-1208, PR #118)** — `reserve_uc` ([server/coordination/reservations.py](server/coordination/reservations.py)) implemented idempotent re-reserve by catching `asyncpg.UniqueViolationError` and running a recovery `SELECT`. In Postgres a failed statement aborts the entire transaction, and a Python `try/except` does NOT open a savepoint to recover it. `start_uc_atomic` wraps `reserve_uc` + `UPDATE use_cases` in one transaction; when the same developer re-reserved a held UC, the duplicate INSERT violated `uc_reservations_pkey(project_id, uc_id)`, poisoning the transaction so the recovery SELECT and the later state UPDATE both failed. Rewritten to `INSERT ... ON CONFLICT (project_id, uc_id) DO NOTHING RETURNING *` — never raises, the transaction stays alive, the recovery SELECT is safe. Idempotency (same dev) and `AlreadyReservedError` (other dev) preserved; `audit_log` only written on the genuine first reservation. NOT the US-12 lifecycle trigger (the `UPDATE use_cases` with its triggers works in isolation).
+
+### Tests
+
+- New PG-gated `test_start_uc_atomic_after_reserve_same_dev_does_not_abort_tx` reproduces the bug (fails with `asyncpg.exceptions.InFailedSQLTransactionError` without the fix, passes with it; confirmed adversarially by stashing only the source). `FakeConn` unit mock updated to ON CONFLICT semantics (the old mock didn't replicate Postgres' aborted-transaction behaviour — UC-827 pattern). Native/reservations/coordination/lifecycle suite: 347 passed, 0 failed.
+
 ## [6.10.0] - 2026-06-11 — "UC Lifecycle Metrics"
 
 Two complete User Stories from the orchestrator board (`EmbedBuild/specbox-manager`, satellite `engine`). US-12 makes per-UC implementation lead time honestly measurable on the Native backend — the start was never recorded (`start_uc_atomic` raw UPDATE, unaudited), the completion event was best-effort and could be silently lost (`_release_uc_native` swallows by design), and there were no lifecycle timestamps. The fix delegates capture and analytics to Postgres (triggers + views) keeping the engine thin. US-11 adds the dual-backend Native mirror for clients whose primary tracker is untouchable.

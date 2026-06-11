@@ -1,4 +1,4 @@
-# SpecBox Engine v6.10.0
+# SpecBox Engine v6.10.1
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -1825,9 +1825,37 @@ re-aplica solo en dev/tests.
 - PRD/Plan: `doc/prd/uc-lifecycle-metrics/prd.md` + `doc/plans/uc-lifecycle-metrics_plan.md` en `EmbedBuild/specbox-manager`
 - Tests: `tests/test_uc_lifecycle_capture.py` + `TestCompleteTransitionResilience` en `tests/test_audit_uc_lifecycle.py`
 
+## reserve_uc reentrante en transacción (v6.10.1)
+
+UC-1208 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) es un hotfix
+descubierto en dogfooding cerrando MGR-US-01 UC-06: tras `reserve_uc(UC)`, llamar `start_uc(UC)`
+con el mismo developer fallaba con `current transaction is aborted, commands ignored until end
+of transaction block`. Las lecturas, `reserve_uc` directo y `move_uc` funcionaban; solo `start_uc`
+rompía.
+
+**Causa raíz**: `reserve_uc` ([server/coordination/reservations.py](server/coordination/reservations.py))
+implementaba el re-reserve idempotente capturando `asyncpg.UniqueViolationError` y ejecutando un
+`SELECT` de recuperación. En Postgres, **un statement que falla aborta toda la transacción**, y un
+`try/except` de Python NO abre un savepoint que la rescate. `start_uc_atomic` envuelve `reserve_uc`
++ `UPDATE use_cases` en una sola transacción; cuando la UC ya estaba reservada por el mismo dev, el
+INSERT duplicado violaba la PK `uc_reservations_pkey(project_id, uc_id)`, abortaba la tx, y el SELECT
+de recuperación y el UPDATE posterior devolvían el error. **No** era el trigger de lifecycle de la
+US-12 (verificado: el `UPDATE use_cases` con sus triggers funciona aislado). El test unitario no lo
+detectaba porque usaba un `FakeConn` mock sin la semántica de "transacción abortada" de Postgres
+real — patrón UC-827.
+
+**Fix**: `INSERT ... ON CONFLICT (project_id, uc_id) DO NOTHING RETURNING *`. Nunca lanza → la
+transacción externa nunca se aborta → el SELECT de recuperación es seguro. Idempotencia (mismo dev)
+y `AlreadyReservedError` (otro dev) preservados; el `audit_log` solo se escribe en la primera reserva
+genuina. Test PG-gated nuevo `test_start_uc_atomic_after_reserve_same_dev_does_not_abort_tx` reproduce
+el bug (sin el fix falla con `InFailedSQLTransactionError`; con el fix pasa). Suite
+native/reservas/coordinación/lifecycle: 347 passed.
+
+- PR: [#118](https://github.com/EmbedBuild/specbox-engine/pull/118)
+
 ## Engine Version
 
-Current: v6.10.0 "UC Lifecycle Metrics"
+Current: v6.10.1 "Reentrant Reserve"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

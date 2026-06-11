@@ -1,6 +1,6 @@
 [project]
 name = "specbox-engine"
-version = "6.10.0"
+version = "6.10.1"
 description = "SpecBox Engine v6.9.5 — Tenant-Scoped Keys: native spec-table PKs move to composite (project_id, id) so two projects can share a logical id (US-01) in the same shared Postgres (fixes the FreeForm→Native ingest collision on user_stories_pkey, UC-707); /switch-backend handles the FreeForm exploded dialect (index.json + AC-in-markdown) via a pure normalizer + format pre-flight + native prerequisite gate (UC-709); stale tests realigned to the UC-660/UC-706 contracts (UC-708)."
 requires-python = ">=3.12"
 dependencies = [

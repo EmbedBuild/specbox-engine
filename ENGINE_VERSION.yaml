@@ -1,5 +1,5 @@
-version: 6.10.0
-codename: "UC Lifecycle Metrics"
+version: 6.10.1
+codename: "Reentrant Reserve"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-06-11
@@ -418,6 +418,13 @@ features:
   - get-project-kpis-tool
 
 changelog:
+  6.10.1:
+    date: 2026-06-11
+    codename: "Reentrant Reserve"
+    changes:
+      - "fix: reserve_uc reentrant inside a caller transaction — INSERT ... ON CONFLICT (project_id, uc_id) DO NOTHING instead of catching asyncpg.UniqueViolationError (UC-1208, PR #118)"
+      - "fix: start_uc no longer aborts the transaction with 'current transaction is aborted' when the same developer re-reserves a UC already held (reserve_uc then start_uc)"
+      - "test: PG-gated test_start_uc_atomic_after_reserve_same_dev_does_not_abort_tx reproduces the bug (fails with InFailedSQLTransactionError without the fix); FakeConn unit mock updated to ON CONFLICT semantics"
   6.10.0:
     date: 2026-06-11
     codename: "UC Lifecycle Metrics"

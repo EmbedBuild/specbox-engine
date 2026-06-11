@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.10.0 — "UC Lifecycle Metrics" (sobre v6.9.5 "Tenant-Scoped Keys")<br/>
+  v 6.10.1 — "Reentrant Reserve" (sobre v6.10.0 "UC Lifecycle Metrics")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -35,6 +35,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Dual-backend espejo Native (US-11)** — un primario Trello/Plane/FreeForm intocable puede reportar a la vez a un espejo Native best-effort que jamás degrada al primario (`enable_mirror`/`disable_mirror` con backfill idempotente).
 
 100% backwards-compatible. Las migraciones de producción (`20260611000012..16`) se aplican vía Supabase ledger en el despliegue.
+
+**v6.10.1 — "Reentrant Reserve"** hotfix: `reserve_uc` reentrante dentro de una transacción usa `INSERT ... ON CONFLICT DO NOTHING` en vez de capturar `UniqueViolationError`, arreglando el `current transaction is aborted` de `start_uc` tras `reserve_uc` del mismo developer (UC-1208, PR #118).
 
 ---
 
@@ -467,7 +469,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.10.0 — "UC Lifecycle Metrics" (over v6.9.5 "Tenant-Scoped Keys")
+> v 6.10.1 — "Reentrant Reserve" (over v6.10.0 "UC Lifecycle Metrics")
 
 ## What is this?
 
@@ -490,6 +492,8 @@ A system that turns Claude Code into a serious teammate:
 - **Dual-backend Native mirror (US-11)** — an untouchable Trello/Plane/FreeForm primary can simultaneously report to a best-effort Native mirror that never degrades the primary (`enable_mirror`/`disable_mirror` with idempotent backfill).
 
 100% backwards-compatible. Production migrations (`20260611000012..16`) apply via the Supabase ledger at deploy time.
+
+**v6.10.1 — "Reentrant Reserve"** hotfix: reentrant `reserve_uc` inside a transaction uses `INSERT ... ON CONFLICT DO NOTHING` instead of catching `UniqueViolationError`, fixing the `current transaction is aborted` error on `start_uc` after the same developer's `reserve_uc` (UC-1208, PR #118).
 
 ---
 

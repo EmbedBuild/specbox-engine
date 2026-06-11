@@ -243,6 +243,7 @@ async def provision_native_project(
     role: str = "project_admin",
     name: str | None = None,
     validate_id: bool = True,
+    organization_id: str | None = None,
 ) -> dict[str, Any]:
     """Create the tenant + add the caller as ``project_admin``, atomically.
 
@@ -316,10 +317,48 @@ async def provision_native_project(
                 if existed
                 else 0
             )
+            # UC-1304 follow-up: ``projects.organization_id`` is NOT NULL since
+            # migration 0019. The bare INSERT below used to omit it, which now
+            # violates the constraint — even on a re-auth of an existing project,
+            # because Postgres builds the candidate row (org = NULL) before the
+            # ON CONFLICT fires. We resolve the org to write with this priority:
+            #   1. an explicit ``organization_id`` passed by the caller (UC-1303
+            #      from-scratch signup will pass the creator's brand-new org);
+            #   2. the project's CURRENT org when it already exists (re-auth /
+            #      re-provision must preserve it — never clobber);
+            #   3. an organization the ``developer_id`` already belongs to (a
+            #      developer creating a project lands it in their own org);
+            # If none resolve (a brand-new project by a developer with no org
+            # yet), we raise a clear error rather than write a NULL — UC-1303 is
+            # responsible for ensuring every developer has an org before they can
+            # create a project from scratch.
+            resolved_org = organization_id
+            if resolved_org is None and existed:
+                resolved_org = await conn.fetchval(
+                    "SELECT organization_id FROM projects WHERE project_id = $1",
+                    canonical,
+                )
+            if resolved_org is None:
+                resolved_org = await conn.fetchval(
+                    """
+                    SELECT organization_id FROM organization_members
+                    WHERE developer_id = $1
+                    ORDER BY created_at ASC
+                    LIMIT 1
+                    """,
+                    developer_id,
+                )
+            if resolved_org is None:
+                raise OrgResolutionError(
+                    f"Cannot provision project '{canonical}': no organization "
+                    f"could be resolved for developer '{developer_id}'. Pass "
+                    f"organization_id explicitly, or ensure the developer "
+                    f"belongs to an organization (signup creates one — UC-1303)."
+                )
             await conn.execute(
                 """
-                INSERT INTO projects (project_id, name, backend_type, board_url, meta)
-                VALUES ($1, $2, 'native', $3, '{}'::jsonb)
+                INSERT INTO projects (project_id, name, backend_type, board_url, meta, organization_id)
+                VALUES ($1, $2, 'native', $3, '{}'::jsonb, $5)
                 ON CONFLICT (project_id) DO UPDATE
                     SET name = COALESCE($4, projects.name),
                         board_url = EXCLUDED.board_url,
@@ -329,6 +368,7 @@ async def provision_native_project(
                 effective_name,
                 board_url,
                 name,
+                resolved_org,
             )
             # Do NOT degrade an existing admin: only set the requested role when
             # the caller is being (re)provisioned as the creator. add_project_member
@@ -391,6 +431,14 @@ async def provision_native_project(
 
 class MissingDevTokenError(RuntimeError):
     """Raised when a native target is requested without a dev_token (AC-09)."""
+
+
+class OrgResolutionError(RuntimeError):
+    """Raised when a project must be provisioned but no organization can be
+    resolved for it (UC-1304 / 0019 NOT NULL). Happens only for a brand-new
+    project created by a developer who has no organization yet — UC-1303 (signup)
+    guarantees every developer gets an org, so this should not fire in practice.
+    """
 
 
 def require_dev_token(target_type: str, dev_token: str) -> None:

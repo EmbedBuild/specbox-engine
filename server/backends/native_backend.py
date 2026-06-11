@@ -753,6 +753,15 @@ class NativeBackend(SpecBackend):
         pool = await self._pool()
         async with pool.acquire() as conn:
             async with conn.transaction():
+                # UC-1202: tag the whole ingestion transaction as 'import' so
+                # any state transition it might produce is excluded from the
+                # lifecycle metric. Defense in depth: this path INSERTs rows
+                # (the 0012 UPDATE triggers never fire), but a future
+                # collision-update would inherit the correct source.
+                from ..coordination.lifecycle import set_lifecycle_context
+
+                await set_lifecycle_context(conn, source="import")
+
                 # ── Phase 1: User Stories ────────────────────────────
                 for us_item in plan.us_items:
                     us_id, _ = parse_item_id(us_item.name, "US")
@@ -943,28 +952,44 @@ class NativeBackend(SpecBackend):
 
             sql = f"UPDATE {table} SET {', '.join(set_clauses)} WHERE {where} RETURNING *"
 
-            row = await conn.fetchrow(sql, *params)
-            if row is None:
-                await self._raise_if_stale(conn, table, board_id, item_id, expected)
-                # No expected version but still no row → row vanished mid-update.
-                raise ValueError(f"Item {item_id} not found")
+            async def _update_and_audit() -> Any:
+                inner_row = await conn.fetchrow(sql, *params)
+                if inner_row is None:
+                    await self._raise_if_stale(conn, table, board_id, item_id, expected)
+                    # No expected version but still no row → row vanished mid-update.
+                    raise ValueError(f"Item {item_id} not found")
 
-            # UC-513: audit the US/UC update so the detail view refreshes live
-            # (audit_log broadcast trigger + useProjectRealtime). The operation
-            # distinguishes US from UC by the table the item lives in.
-            from ..coordination.audit import (
-                OP_UPDATE_UC,
-                OP_UPDATE_US,
-                record_destructive,
-            )
+                # UC-513: audit the US/UC update so the detail view refreshes live
+                # (audit_log broadcast trigger + useProjectRealtime). The operation
+                # distinguishes US from UC by the table the item lives in.
+                from ..coordination.audit import (
+                    OP_UPDATE_UC,
+                    OP_UPDATE_US,
+                    record_destructive,
+                )
 
-            await record_destructive(
-                conn,
-                developer_id=dev.developer_id,
-                project_id=board_id,
-                operation=OP_UPDATE_US if table == "user_stories" else OP_UPDATE_UC,
-                target_id=item_id,
-            )
+                await record_destructive(
+                    conn,
+                    developer_id=dev.developer_id,
+                    project_id=board_id,
+                    operation=OP_UPDATE_US if table == "user_stories" else OP_UPDATE_UC,
+                    target_id=item_id,
+                )
+                return inner_row
+
+            if state is not None:
+                # UC-1202: a state change fires the 0012 lifecycle triggers,
+                # which read app.developer_id from a per-transaction GUC (SET
+                # LOCAL needs an open transaction). Wrapping UPDATE + audit in
+                # one transaction also makes them atomic — previously they were
+                # two separate autocommits.
+                from ..coordination.lifecycle import set_lifecycle_context
+
+                async with conn.transaction():
+                    await set_lifecycle_context(conn, developer_id=dev.developer_id)
+                    row = await _update_and_audit()
+            else:
+                row = await _update_and_audit()
 
         return self._us_row_to_dto(row) if table == "user_stories" else self._uc_row_to_dto(row)
 

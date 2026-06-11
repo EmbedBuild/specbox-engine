@@ -61,10 +61,11 @@ async def get_session_backend(
     config = await ctx.get_state(BACKEND_STATE_KEY)
     if config:
         backend_type = config.get("backend_type", "trello")
+        primary: "SpecBackend"
         if backend_type == "plane":
             from .backends.plane_backend import PlaneBackend
 
-            return PlaneBackend(
+            primary = PlaneBackend(
                 base_url=config["base_url"],
                 api_key=config["api_key"],
                 workspace_slug=config["workspace_slug"],
@@ -76,14 +77,17 @@ async def get_session_backend(
                 # Content-passing (UC-660): operate in memory on the client's
                 # items.json string. No filesystem access — works with a remote
                 # MCP server where root_path would point at the wrong machine.
-                return FreeformBackend(items_content=items_content)
-            return FreeformBackend(root=config["root_path"])
+                primary = FreeformBackend(items_content=items_content)
+            else:
+                primary = FreeformBackend(root=config["root_path"])
         elif backend_type == "native":
             # FRONTIER 2: only the project_id + dev_token are in session — never
             # a DSN. The DB credential is read from SPECBOX_NATIVE_DSN by the
             # pool. The dev_token is forwarded to the backend so each mutation
             # can re-validate identity + membership via the cached gate
             # (UC-502 builds on this) [UC-505 AC-02].
+            # A native primary never carries a mirror (MIRROR_ON_NATIVE_FORBIDDEN
+            # is enforced at store time) — return it directly.
             from .backends.native_backend import NativeBackend
 
             return NativeBackend(
@@ -93,7 +97,25 @@ async def get_session_backend(
         else:
             from .backends.trello_backend import TrelloBackend
 
-            return TrelloBackend(api_key=config["api_key"], token=config["token"])
+            primary = TrelloBackend(api_key=config["api_key"], token=config["token"])
+
+        # US-DUAL-BACKEND: a "mirror" sub-dict turns the session dual-write.
+        # The primary stays the source of truth; the native mirror is written
+        # best-effort by DualBackendWrapper. Without "mirror" the behavior is
+        # byte-identical to the single-backend path above.
+        mirror_config = config.get("mirror")
+        if mirror_config:
+            from .backends.dual_backend import DualBackendWrapper
+            from .backends.native_backend import NativeBackend
+
+            mirror = NativeBackend(
+                project_id=mirror_config["project_id"],
+                dev_token=mirror_config["dev_token"],
+            )
+            return DualBackendWrapper(
+                primary, mirror, mirror_board_id=mirror_config["project_id"]
+            )
+        return primary
 
     # Fallback to legacy Trello credentials
     creds = await ctx.get_state(AUTH_STATE_KEY)
@@ -206,6 +228,53 @@ async def store_native_credentials(ctx: Context, project_id: str, dev_token: str
             "dev_token": dev_token,
         },
     )
+
+
+async def store_mirror_native_credentials(
+    ctx: Context, project_id: str, dev_token: str
+) -> None:
+    """Attach a best-effort native mirror to the CURRENT session backend.
+
+    US-DUAL-BACKEND: persists the ``mirror`` sub-dict inside
+    ``BACKEND_STATE_KEY`` so :func:`get_session_backend` returns a
+    ``DualBackendWrapper``. Hard rule (defense in depth — also enforced by
+    ``enable_mirror``): a native primary cannot take a mirror.
+
+    FRONTIER 2: the sub-dict holds ONLY ``project_id`` + ``dev_token`` —
+    never a DSN. Same contract as :func:`store_native_credentials`.
+
+    Raises:
+        ValueError: If there is no primary session, the primary is native
+            (``MIRROR_ON_NATIVE_FORBIDDEN``), or an argument is empty.
+    """
+    if not project_id:
+        raise ValueError("project_id is required for a native mirror")
+    if not dev_token:
+        raise ValueError("dev_token is required for a native mirror")
+    config = await ctx.get_state(BACKEND_STATE_KEY)
+    if not config:
+        raise ValueError(
+            "No primary backend session — call set_auth_token first, then "
+            "attach the mirror."
+        )
+    if config.get("backend_type") == "native":
+        raise ValueError(
+            "MIRROR_ON_NATIVE_FORBIDDEN: the primary backend is already "
+            "native; mirroring native onto native is not allowed."
+        )
+    new_config = dict(config)
+    new_config["mirror"] = {"project_id": project_id, "dev_token": dev_token}
+    await ctx.set_state(BACKEND_STATE_KEY, new_config)
+
+
+async def clear_mirror_credentials(ctx: Context) -> None:
+    """Detach the mirror from the current session (no-op if absent)."""
+    config = await ctx.get_state(BACKEND_STATE_KEY)
+    if not config or "mirror" not in config:
+        return
+    new_config = dict(config)
+    new_config.pop("mirror", None)
+    await ctx.set_state(BACKEND_STATE_KEY, new_config)
 
 
 async def get_native_session(ctx: Context) -> dict[str, str]:

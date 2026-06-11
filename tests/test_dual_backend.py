@@ -695,3 +695,139 @@ async def test_clear_mirror_detaches_and_is_idempotent() -> None:
     backend = await get_session_backend(ctx)
     assert type(backend) is TrelloBackend  # back to single-backend
     await clear_mirror_credentials(ctx)  # second call: no-op, no raise
+
+
+# ══ UC-1103 — transactional persistence of the mirror block ═══════════
+
+
+import json  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+from server.app_docs.discovery import detect_backend  # noqa: E402
+from server.migration.transactional_switch import (  # noqa: E402
+    TransactionalSwitchError,
+    apply_mirror_transactional,
+)
+
+_APP_SPEC = """# App Spec — demo
+
+<!-- @specbox:zone start kind="auto" id="tracking_backend" auto_sync_on="set_auth_token" -->
+## 2. Tracking backend
+
+- **Tipo:** trello
+- **Trello board id:** board-1
+- **Reporting externo:** si
+
+> Esta zona la mantiene el engine.
+<!-- @specbox:zone end -->
+"""
+
+MIRROR_PID = "EmbedBuild/cliente-x"
+
+
+@pytest.fixture
+def trello_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """tmp project on a trello primary; returns (project_path, state_path, slug)."""
+    project_path = tmp_path / "proj"
+    (project_path / "doc" / "app").mkdir(parents=True)
+    (project_path / "doc" / "app" / "app_spec.md").write_text(_APP_SPEC, encoding="utf-8")
+    (project_path / ".claude").mkdir()
+    (project_path / ".claude" / "settings.local.json").write_text(
+        json.dumps({"specbox": {"backend_type": "trello"}}, indent=2), encoding="utf-8"
+    )
+    state_path = tmp_path / "state"
+    state_path.mkdir()
+    slug = "demo"
+    (state_path / "projects.json").write_text(
+        json.dumps(
+            {"projects": {slug: {"spec_backend": "trello", "board_id": "board-1"}}},
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("STATE_PATH", str(state_path))
+    return project_path, state_path, slug
+
+
+def test_enable_mirror_writes_all_three_places(trello_project) -> None:
+    project_path, state_path, slug = trello_project
+
+    outcome = apply_mirror_transactional(
+        slug, MIRROR_PID, str(project_path), str(state_path)
+    )
+    assert outcome["updated"] == ["registry", "app_spec", "settings"]
+
+    registry = json.loads((state_path / "projects.json").read_text())
+    entry = registry["projects"][slug]
+    assert entry["mirror"] == {"backend": "native", "project_id": MIRROR_PID}
+    # The PRIMARY is untouched (AC-02 of UC-1103).
+    assert entry["spec_backend"] == "trello"
+    assert entry["board_id"] == "board-1"
+
+    settings = json.loads((project_path / ".claude" / "settings.local.json").read_text())
+    assert settings["specbox"]["mirror"] == {
+        "backend": "native",
+        "project_id": MIRROR_PID,
+    }
+    assert settings["specbox"]["backend_type"] == "trello"
+
+    spec = (project_path / "doc" / "app" / "app_spec.md").read_text()
+    assert "- **Tipo:** trello" in spec
+    assert f"- **Mirror (native):** {MIRROR_PID}" in spec
+
+
+def test_disable_mirror_removes_from_all_three_places(trello_project) -> None:
+    project_path, state_path, slug = trello_project
+    apply_mirror_transactional(slug, MIRROR_PID, str(project_path), str(state_path))
+
+    apply_mirror_transactional(slug, None, str(project_path), str(state_path))
+
+    registry = json.loads((state_path / "projects.json").read_text())
+    assert "mirror" not in registry["projects"][slug]
+    settings = json.loads((project_path / ".claude" / "settings.local.json").read_text())
+    assert "mirror" not in settings["specbox"]
+    assert settings["specbox"]["backend_type"] == "trello"  # primary intact
+    spec = (project_path / "doc" / "app" / "app_spec.md").read_text()
+    assert "Mirror (native)" not in spec
+    assert "- **Tipo:** trello" in spec
+
+
+def test_mirror_write_failure_rolls_back_everything(trello_project) -> None:
+    """AC-01: a failure in any of the 3 places leaves none half-written."""
+    project_path, state_path, slug = trello_project
+    before_registry = (state_path / "projects.json").read_text()
+    before_settings = (project_path / ".claude" / "settings.local.json").read_text()
+    before_spec = (project_path / "doc" / "app" / "app_spec.md").read_text()
+
+    def explode() -> None:
+        raise OSError("disk full")
+
+    with pytest.raises(TransactionalSwitchError) as err:
+        apply_mirror_transactional(
+            slug, MIRROR_PID, str(project_path), str(state_path),
+            settings_writer=explode,  # last place fails — first two must roll back
+        )
+    assert err.value.place == "settings"
+
+    assert (state_path / "projects.json").read_text() == before_registry
+    assert (
+        project_path / ".claude" / "settings.local.json"
+    ).read_text() == before_settings
+    assert (project_path / "doc" / "app" / "app_spec.md").read_text() == before_spec
+
+
+def test_detect_backend_reports_primary_plus_mirror(trello_project) -> None:
+    """AC-02: detect_backend keeps returning the primary; new mirror field."""
+    project_path, state_path, slug = trello_project
+    apply_mirror_transactional(slug, MIRROR_PID, str(project_path), str(state_path))
+
+    detected = detect_backend(str(project_path))
+    assert detected["backend_type"] == "trello"  # primary unchanged
+    assert detected["mirror"] == {"backend": "native", "project_id": MIRROR_PID}
+
+
+def test_detect_backend_without_mirror_is_none(trello_project) -> None:
+    project_path, _, _ = trello_project
+    detected = detect_backend(str(project_path))
+    assert detected["backend_type"] == "trello"
+    assert detected["mirror"] is None

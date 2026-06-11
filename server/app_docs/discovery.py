@@ -35,6 +35,7 @@ def detect_backend(project_path: str | Path = ".") -> dict[str, Any]:
           "trello_board_id": str | None,
           "plane_project_id": str | None,
           "native_project_id": str | None,  # populated only for native
+          "mirror": {"backend": "native", "project_id": str} | None,
           "warnings": [str, ...],
         }
     """
@@ -62,6 +63,7 @@ def detect_backend(project_path: str | Path = ".") -> dict[str, Any]:
             "plane_project_id": specbox.get("plane_project_id"),
             "native_project_id": specbox.get("native_project_id")
             or specbox.get("project_id"),
+            "mirror": specbox.get("mirror"),
             "warnings": warnings,
         }
 
@@ -74,6 +76,7 @@ def detect_backend(project_path: str | Path = ".") -> dict[str, Any]:
             "freeform_root_absolute": str(root / "doc" / "tracking"),
             "trello_board_id": None,
             "plane_project_id": None,
+            "mirror": None,
             "warnings": warnings,
         }
 
@@ -87,6 +90,7 @@ def detect_backend(project_path: str | Path = ".") -> dict[str, Any]:
             "freeform_root_absolute": None,
             "trello_board_id": legacy_trello,
             "plane_project_id": None,
+            "mirror": None,
             "warnings": warnings,
         }
     if legacy_plane:
@@ -96,6 +100,7 @@ def detect_backend(project_path: str | Path = ".") -> dict[str, Any]:
             "freeform_root_absolute": None,
             "trello_board_id": None,
             "plane_project_id": legacy_plane,
+            "mirror": None,
             "warnings": warnings,
         }
 
@@ -112,6 +117,7 @@ def detect_backend(project_path: str | Path = ".") -> dict[str, Any]:
                 else None,
                 "trello_board_id": None,
                 "plane_project_id": None,
+                "mirror": None,
                 "warnings": warnings,
             }
 
@@ -123,6 +129,7 @@ def detect_backend(project_path: str | Path = ".") -> dict[str, Any]:
         "freeform_root_absolute": str(root / "doc" / "tracking"),
         "trello_board_id": None,
         "plane_project_id": None,
+        "mirror": None,
         "warnings": warnings,
     }
 

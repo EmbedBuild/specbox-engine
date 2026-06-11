@@ -314,3 +314,155 @@ def apply_switch_transactional(
         updated=applied,
     )
     return {"updated": applied, "previous": snapshots}
+
+
+# ── Mirror block (US-DUAL-BACKEND) ───────────────────────────────────
+#
+# The dual-backend "mirror" sub-config lives in the SAME three places as the
+# primary backend and moves with the same all-or-nothing semantics. Only the
+# native project_id is persisted — the mirror dev_token stays session-only
+# (Frontier 2), exactly like the primary's.
+
+
+def _write_registry_mirror(
+    project_slug: str, mirror_project_id: str | None, state_path: str | None
+) -> None:
+    """Set (or remove, when None) the project's ``mirror`` registry block."""
+    path = _registry_path(state_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Project registry not found at {path}")
+    registry = json.loads(path.read_text(encoding="utf-8"))
+    projects = registry.get("projects") or {}
+    if project_slug not in projects:
+        raise KeyError(f"Project {project_slug!r} not found in registry")
+    project = projects[project_slug]
+    if mirror_project_id is None:
+        project.pop("mirror", None)
+    else:
+        project["mirror"] = {"backend": "native", "project_id": mirror_project_id}
+    registry["projects"][project_slug] = project
+    path.write_text(json.dumps(registry, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _write_settings_mirror(project_path: str, mirror_project_id: str | None) -> None:
+    """Set (or remove) ``specbox.mirror`` in .claude/settings.local.json."""
+    path = _settings_path(project_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        try:
+            settings = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            settings = {}
+    else:
+        settings = {}
+    settings.setdefault("specbox", {})
+    if mirror_project_id is None:
+        settings["specbox"].pop("mirror", None)
+    else:
+        settings["specbox"]["mirror"] = {
+            "backend": "native",
+            "project_id": mirror_project_id,
+        }
+    path.write_text(json.dumps(settings, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _write_app_spec_mirror(
+    project_slug: str,
+    mirror_project_id: str | None,
+    project_path: str,
+    state_path: str | None,
+) -> None:
+    """Re-render the tracking_backend zone keeping the primary, ± mirror line.
+
+    The primary's data is read from the registry entry (it does not change in
+    a mirror operation); the freeform absolute path, when applicable, is read
+    from settings so an enable/disable does not degrade the rendered zone.
+    """
+    from ..app_docs.sync import sync_app_docs
+
+    snapshot = _read_registry_snapshot(project_slug, state_path)
+    entry = snapshot.get("entry") or {}
+    backend = entry.get("spec_backend", "")
+    board_id = entry.get("board_id", "")
+    freeform_root: str | None = None
+    settings_path = _settings_path(project_path)
+    if settings_path.exists():
+        try:
+            settings = json.loads(settings_path.read_text(encoding="utf-8"))
+            freeform_root = (settings.get("specbox") or {}).get("freeform_root_absolute")
+        except json.JSONDecodeError:
+            pass
+    payload = _build_app_spec_payload(backend, board_id, project_path, freeform_root)
+    if mirror_project_id is not None:
+        payload["mirror_native_project_id"] = mirror_project_id
+    result = sync_app_docs("set_auth_token", payload, project_path)
+    if not result.get("ok", False):
+        raise RuntimeError(f"app_spec sync failed: {result.get('error', result)}")
+
+
+def apply_mirror_transactional(
+    project_slug: str,
+    mirror_project_id: str | None,
+    project_path: str,
+    state_path: str | None = None,
+    *,
+    settings_writer: Callable[[], None] | None = None,
+    registry_writer: Callable[[], None] | None = None,
+    app_spec_writer: Callable[[], None] | None = None,
+) -> dict[str, Any]:
+    """Atomically persist (or remove) the ``mirror`` block in the 3 places.
+
+    ``mirror_project_id`` is the native tenant id to mirror into;
+    ``None`` removes the block (disable_mirror). Same snapshot → write
+    (registry → app_spec → settings) → rollback-on-failure semantics as
+    :func:`apply_switch_transactional`; the primary backend fields are
+    never touched.
+
+    Returns ``{"updated": [...], "previous": {...}, "mirror": ...}``.
+    """
+    snapshots: dict[str, dict[str, Any]] = {
+        PLACE_REGISTRY: _read_registry_snapshot(project_slug, state_path),
+        PLACE_APP_SPEC: _read_app_spec_snapshot(project_path),
+        PLACE_SETTINGS: _read_settings_snapshot(project_path),
+    }
+
+    writers: dict[str, Callable[[], None]] = {
+        PLACE_REGISTRY: registry_writer
+        or (lambda: _write_registry_mirror(project_slug, mirror_project_id, state_path)),
+        PLACE_APP_SPEC: app_spec_writer
+        or (
+            lambda: _write_app_spec_mirror(
+                project_slug, mirror_project_id, project_path, state_path
+            )
+        ),
+        PLACE_SETTINGS: settings_writer
+        or (lambda: _write_settings_mirror(project_path, mirror_project_id)),
+    }
+
+    restorers: dict[str, Callable[[], None]] = {
+        PLACE_REGISTRY: lambda: _restore_registry(project_slug, snapshots[PLACE_REGISTRY], state_path),
+        PLACE_APP_SPEC: lambda: _restore_app_spec(project_path, snapshots[PLACE_APP_SPEC]),
+        PLACE_SETTINGS: lambda: _restore_settings(project_path, snapshots[PLACE_SETTINGS]),
+    }
+
+    applied: list[str] = []
+    for place in WRITE_ORDER:
+        try:
+            writers[place]()
+            applied.append(place)
+        except Exception as exc:  # noqa: BLE001 - rollback then re-raise typed
+            logger.error("mirror_place_failed", place=place, error=str(exc))
+            for done in reversed(applied):
+                try:
+                    restorers[done]()
+                except Exception as rb_exc:  # noqa: BLE001 - best-effort rollback
+                    logger.error("mirror_rollback_failed", place=done, error=str(rb_exc))
+            raise TransactionalSwitchError(place, exc, list(reversed(applied))) from exc
+
+    logger.info(
+        "mirror_transactional_complete",
+        project=project_slug,
+        mirror=mirror_project_id,
+        updated=applied,
+    )
+    return {"updated": applied, "previous": snapshots, "mirror": mirror_project_id}

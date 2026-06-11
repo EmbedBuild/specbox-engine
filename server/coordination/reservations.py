@@ -173,23 +173,33 @@ async def reserve_uc(
 ) -> UCReservation:
     """Reserve a UC for a developer. Raises ALREADY_RESERVED if held [AC-16].
 
-    The UNIQUE(project_id, uc_id) constraint guarantees exactly one winner under
-    concurrency: the loser's INSERT raises ``UniqueViolationError`` which we
-    translate into :class:`AlreadyReservedError`, surfacing the current owner.
+    The PRIMARY KEY (project_id, uc_id) guarantees exactly one winner under
+    concurrency. We use ``INSERT ... ON CONFLICT DO NOTHING`` rather than
+    catching :class:`asyncpg.UniqueViolationError`: when this runs inside a
+    caller's transaction (``start_uc_atomic`` wraps reserve + state flip in one
+    tx), a raised constraint violation would abort the *whole* transaction in
+    Postgres, and a Python ``try/except`` does NOT open a savepoint to recover
+    it — every later statement on that connection would then fail with "current
+    transaction is aborted" (the UC-1203 bug: ``start_uc`` after the same dev
+    already held the reservation). ``ON CONFLICT DO NOTHING`` never raises, so
+    the transaction stays alive and the follow-up SELECT is safe.
+
     Idempotent for the same owner re-reserving (returns the existing reservation).
     """
-    try:
-        row = await conn.fetchrow(
-            """
-            INSERT INTO uc_reservations (project_id, uc_id, developer_id, branch)
-            VALUES ($1, $2, $3, $4)
-            RETURNING *
-            """,
-            project_id,
-            uc_id,
-            developer_id,
-            branch,
-        )
+    row = await conn.fetchrow(
+        """
+        INSERT INTO uc_reservations (project_id, uc_id, developer_id, branch)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (project_id, uc_id) DO NOTHING
+        RETURNING *
+        """,
+        project_id,
+        uc_id,
+        developer_id,
+        branch,
+    )
+    if row is not None:
+        # Genuine first reservation: the INSERT actually wrote a row.
         logger.info("uc_reserved", project_id=project_id, uc_id=uc_id, developer_id=developer_id)
         # UC-506: audit the lifecycle event AFTER the INSERT succeeded, on the
         # same connection — so it participates in the caller's transaction
@@ -204,17 +214,19 @@ async def reserve_uc(
             target_id=uc_id,
         )
         return UCReservation.from_row(row)
-    except asyncpg.UniqueViolationError:
-        existing = await get_reservation(conn, project_id, uc_id)
-        if existing is None:
-            # Extremely unlikely race: reservation vanished between INSERT and SELECT.
-            raise
-        if existing.developer_id == developer_id:
-            # Same dev re-reserving → idempotent success.
-            return existing
-        raise AlreadyReservedError(
-            uc_id, existing.developer_id, existing.reserved_at, existing.branch
-        )
+
+    # Conflict: the row already existed (DO NOTHING returned nothing). The
+    # transaction is intact (no statement failed), so this SELECT is safe.
+    existing = await get_reservation(conn, project_id, uc_id)
+    if existing is None:
+        # Extremely unlikely race: reservation vanished between INSERT and SELECT.
+        raise AlreadyReservedError(uc_id, "", "", "")
+    if existing.developer_id == developer_id:
+        # Same dev re-reserving → idempotent success.
+        return existing
+    raise AlreadyReservedError(
+        uc_id, existing.developer_id, existing.reserved_at, existing.branch
+    )
 
 
 async def release_uc(

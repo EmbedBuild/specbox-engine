@@ -48,18 +48,32 @@ from server.coordination.reservations import (
 
 
 class FakeConn:
-    def __init__(self, *, fetchrow=None, insert_raises=None) -> None:
+    """Fake asyncpg connection.
+
+    ``insert_conflict=True`` models the real ``INSERT ... ON CONFLICT DO
+    NOTHING`` behaviour: the INSERT statement returns no row (None) on a
+    primary-key conflict instead of raising, leaving the transaction intact so
+    the follow-up SELECT (served by ``fetchrow``) succeeds. This mirrors the
+    UC-1203 fix — the old code raised ``UniqueViolationError`` and poisoned the
+    enclosing transaction.
+    """
+
+    def __init__(self, *, fetchrow=None, insert_conflict=False) -> None:
         self.executed: list[tuple[str, tuple]] = []
         self._fetchrow = fetchrow
-        self._insert_raises = insert_raises
+        self._insert_conflict = insert_conflict
 
     async def execute(self, sql, *args):
         self.executed.append((sql, args))
         return "DELETE 1"
 
     async def fetchrow(self, sql, *args):
-        if "INSERT INTO uc_reservations" in sql and self._insert_raises:
-            raise self._insert_raises
+        if "INSERT INTO uc_reservations" in sql:
+            # ON CONFLICT DO NOTHING RETURNING *: None on conflict, row on insert.
+            if self._insert_conflict:
+                return None
+            return self._fetchrow(sql, *args) if self._fetchrow else None
+        # Plain SELECT (get_reservation) after a conflict.
         return self._fetchrow(sql, *args) if self._fetchrow else None
 
     @asynccontextmanager
@@ -97,7 +111,7 @@ async def test_reserve_uc_already_reserved_carries_owner_info():
 
     conn = FakeConn(
         fetchrow=fetchrow,
-        insert_raises=asyncpg.UniqueViolationError("dup"),
+        insert_conflict=True,
     )
     with pytest.raises(AlreadyReservedError) as exc:
         await reserve_uc(conn, project_id="p", uc_id="UC-301", developer_id="alice")
@@ -174,10 +188,13 @@ async def test_reserve_uc_idempotent_for_same_owner():
 
     conn = FakeConn(
         fetchrow=lambda sql, *a: _reservation_row(dev="alice"),
-        insert_raises=asyncpg.UniqueViolationError("dup"),
+        insert_conflict=True,
     )
     claim = await reserve_uc(conn, project_id="p", uc_id="UC-301", developer_id="alice")
     assert claim.developer_id == "alice"
+    # No audit row on the idempotent path: only the SELECT (get_reservation) ran,
+    # the INSERT wrote nothing (ON CONFLICT DO NOTHING).
+    assert not any("audit_log" in sql for sql, _ in conn.executed)
 
 
 # ── release_uc [AC-17] ───────────────────────────────────────────────
@@ -362,6 +379,69 @@ class TestReservationsRacePG:
             async with pg.acquire() as conn:
                 count = await conn.fetchval("SELECT count(*) FROM uc_reservations WHERE project_id = $1", pid)
                 assert count == 0, "reservation was orphaned despite the failed state update"
+                await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
+                await conn.execute("DELETE FROM developers WHERE developer_id = $1", "alice")
+        finally:
+            await close_pool()
+
+    async def test_start_uc_atomic_after_reserve_same_dev_does_not_abort_tx(self):
+        """UC-1203 regression: reserve_uc then start_uc_atomic for the SAME dev
+        on the SAME UC must NOT abort the transaction.
+
+        This reproduces the real bug seen in dogfooding: ``reserve_uc`` followed
+        by ``start_uc`` raised "current transaction is aborted, commands ignored
+        until end of transaction block". Root cause: start_uc_atomic re-reserves
+        inside one tx; the old reserve_uc let the duplicate INSERT raise
+        UniqueViolationError, poisoning the enclosing transaction so the SELECT
+        recovery (and the later state UPDATE) failed. With ON CONFLICT DO NOTHING
+        the INSERT never raises, the tx stays alive, and the re-reserve is
+        idempotent. The UC must end up in_progress with exactly one reservation.
+        """
+        from server.coordination.reservations import start_uc_atomic
+        from server.db.migrate import apply_migrations
+        from server.db.pool import close_pool, init_pool
+
+        pid = f"test-h3r-{uuid.uuid4().hex[:8]}"
+        pg = await init_pool(dsn=DSN)
+        try:
+            await apply_migrations(pg)
+            await self._seed(pg, pid, ["alice"])
+            # A real UC row to flip to in_progress.
+            async with pg.acquire() as conn:
+                await conn.execute(
+                    "INSERT INTO use_cases (project_id, id, name, state) VALUES ($1, $2, $3, 'backlog')",
+                    pid,
+                    "UC-301",
+                    "Regression UC",
+                )
+
+            # Pre-reserve as alice (the standalone reserve_uc path, own tx).
+            async with pg.acquire() as conn:
+                await reserve_uc(conn, project_id=pid, uc_id="UC-301", developer_id="alice")
+
+            # Now start_uc_atomic for the SAME dev — the path that used to abort.
+            reservation = await start_uc_atomic(
+                pg,
+                project_id=pid,
+                uc_db_id="UC-301",
+                uc_id="UC-301",
+                developer_id="alice",
+            )
+            assert reservation.developer_id == "alice"
+
+            async with pg.acquire() as conn:
+                state = await conn.fetchval(
+                    "SELECT state FROM use_cases WHERE project_id = $1 AND id = $2",
+                    pid,
+                    "UC-301",
+                )
+                assert state == "in_progress", f"expected in_progress, got {state!r}"
+                count = await conn.fetchval(
+                    "SELECT count(*) FROM uc_reservations WHERE project_id = $1 AND uc_id = $2",
+                    pid,
+                    "UC-301",
+                )
+                assert count == 1, f"expected exactly one reservation, got {count}"
                 await conn.execute("DELETE FROM projects WHERE project_id = $1", pid)
                 await conn.execute("DELETE FROM developers WHERE developer_id = $1", "alice")
         finally:

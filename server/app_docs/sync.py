@@ -31,7 +31,7 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from .registry import CANONICAL_DOCS, build_event_zone_map, docs_for_version, get_doc
+from .registry import build_event_zone_map, docs_for_version, get_doc
 from .zones import (
     Zone,
     ZoneKind,
@@ -384,6 +384,11 @@ def _render_zone_body(zone_id: str, payload: dict[str, Any], project_path: Path)
             lines.append(f"- **Plane project id:** {payload['plane_project_id']}")
         if backend == "native" and payload.get("native_project_id"):
             lines.append(f"- **Native project id:** {payload['native_project_id']}")
+        if payload.get("mirror_native_project_id"):
+            # US-DUAL-BACKEND: best-effort native mirror over the primary.
+            lines.append(
+                f"- **Mirror (native):** {payload['mirror_native_project_id']}"
+            )
         lines.append(f"- **Reporting externo:** {external_reporting}")
         lines.extend(
             [

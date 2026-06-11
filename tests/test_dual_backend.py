@@ -831,3 +831,249 @@ def test_detect_backend_without_mirror_is_none(trello_project) -> None:
     detected = detect_backend(str(project_path))
     assert detected["backend_type"] == "trello"
     assert detected["mirror"] is None
+
+
+# ══ UC-1104 — enable_mirror / disable_mirror + backfill ═══════════════
+
+
+from server.backends.freeform_backend import FreeformBackend  # noqa: E402
+from server.tools import migration as migration_tools  # noqa: E402
+from server.tools.migration import disable_mirror, enable_mirror  # noqa: E402
+
+MIRROR_CANONICAL = "EmbedBuild/cliente-x"
+
+
+class FakeNativeMirror(FakeBackend):
+    """Mirror double with the ingest_atomic contract (idempotent skip)."""
+
+    async def ingest_atomic(
+        self, board_id: str, source_data: dict[str, Any], *, source_type=None
+    ) -> dict[str, Any]:
+        migrated = {"us": 0, "uc": 0, "ac": 0, "comments": 0}
+        skipped = 0
+        classified = source_data["classified"]
+        for us in classified["us"]:
+            lid = us.meta.get("us_id")
+            if await self.find_item_by_field(board_id, "us_id", lid):
+                skipped += 1
+                continue
+            await self.create_item(
+                board_id, us.name, labels=["US"], state=us.state, meta=dict(us.meta)
+            )
+            migrated["us"] += 1
+        for uc in classified["uc"]:
+            lid = uc.meta.get("uc_id")
+            if await self.find_item_by_field(board_id, "uc_id", lid):
+                skipped += 1
+                continue
+            parent = await self.find_item_by_field(
+                board_id, "us_id", uc.meta.get("us_id", "")
+            )
+            created = await self.create_item(
+                board_id,
+                uc.name,
+                labels=["UC"],
+                state=uc.state,
+                parent_id=parent.id if parent else None,
+                meta=dict(uc.meta),
+            )
+            acs = source_data["ac_data"].get(uc.id, [])
+            if acs:
+                await self.create_acceptance_criteria(
+                    board_id, created.id, [(a["id"], a["text"]) for a in acs]
+                )
+                migrated["ac"] += len(acs)
+            migrated["uc"] += 1
+        return {"migrated": migrated, "skipped": skipped, "id_map": {}}
+
+
+async def _freeform_source() -> str:
+    """Build a tiny items.json (1 US / 1 UC / 2 AC) via memory-mode FreeForm."""
+    ff = FreeformBackend(items_content="[]")
+    us = await ff.create_item(
+        ".", "[US-01] Historia", labels=["US"], meta={"us_id": "US-01", "tipo": "US"}
+    )
+    uc = await ff.create_item(
+        ".",
+        "[UC-001] Caso",
+        labels=["UC"],
+        parent_id=us.id,
+        meta={"uc_id": "UC-001", "us_id": "US-01", "tipo": "UC"},
+    )
+    await ff.create_acceptance_criteria(
+        ".", uc.id, [("AC-01", "criterio uno"), ("AC-02", "criterio dos")]
+    )
+    content = ff.get_items_content()
+    await ff.close()
+    return content
+
+
+@pytest.fixture
+def mirror_seams(monkeypatch: pytest.MonkeyPatch) -> FakeNativeMirror:
+    """Patch identity/pool/provision seams + mirror factory; returns the fake."""
+    fake_mirror = FakeNativeMirror("native")
+
+    async def fake_provision(pool, dev_token, target_project_id):
+        return True
+
+    async def fake_auth(pool, *, token, project_id):
+        return None
+
+    async def fake_pool():
+        return object()
+
+    monkeypatch.setattr(migration_tools, "_maybe_auto_provision", fake_provision)
+    import server.coordination.identity as identity_mod
+    import server.db.pool as pool_mod
+
+    monkeypatch.setattr(identity_mod, "authenticate_and_authorize_cached", fake_auth)
+    monkeypatch.setattr(pool_mod, "get_pool", fake_pool)
+    monkeypatch.setattr(
+        migration_tools, "_build_mirror_backend", lambda pid, tok: fake_mirror
+    )
+    return fake_mirror
+
+
+def _freeform_ctx() -> AsyncMock:
+    return _ctx_with({"backend_type": "freeform", "root_path": "/tmp/x"})
+
+
+# AC-01 — primary native → fail-fast rejection
+
+
+async def test_enable_mirror_on_native_primary_rejected() -> None:
+    ctx = _ctx_with(
+        {"backend_type": "native", "project_id": "EmbedBuild/main", "dev_token": "x"}
+    )
+    result = await enable_mirror("demo", MIRROR_CANONICAL, "spbx_t", ctx)
+    assert result["status"] == "MIRROR_ON_NATIVE_FORBIDDEN"
+
+
+async def test_enable_mirror_requires_primary_session() -> None:
+    result = await enable_mirror("demo", MIRROR_CANONICAL, "spbx_t", _ctx_with(None))
+    assert result["code"] == "NO_PRIMARY_SESSION"
+
+
+async def test_enable_mirror_rejects_invalid_project_id() -> None:
+    result = await enable_mirror("demo", "not-canonical", "spbx_t", _freeform_ctx())
+    assert result["code"] == "INVALID_PROJECT_ID"
+
+
+async def test_enable_mirror_large_freeform_source_requires_batch() -> None:
+    big = "x" * (65 * 1024)
+    result = await enable_mirror(
+        "demo", MIRROR_CANONICAL, "spbx_t", _freeform_ctx(),
+        source_content=big, dry_run=False,
+    )
+    assert result["status"] == "SOURCE_TOO_LARGE_USE_BATCH"
+
+
+# AC-02 — validate_auth del espejo + backfill con mismos conteos
+
+
+async def test_enable_mirror_preview_counts(mirror_seams) -> None:
+    source = await _freeform_source()
+    result = await enable_mirror(
+        "demo", MIRROR_CANONICAL, "spbx_t", _freeform_ctx(), source_content=source
+    )
+    assert result["status"] == "preview"
+    assert result["primary"]["read_counts"] == {"us": 1, "uc": 1, "ac": 2}
+    assert result["mirror"]["existing_items"] == 0
+
+
+async def test_enable_mirror_execute_requires_count_guard(mirror_seams) -> None:
+    source = await _freeform_source()
+    result = await enable_mirror(
+        "demo", MIRROR_CANONICAL, "spbx_t", _freeform_ctx(),
+        source_content=source, dry_run=False,
+    )
+    assert result["status"] == "COUNT_GUARD_FAILED"
+
+
+async def test_enable_mirror_backfills_and_persists(
+    mirror_seams, trello_project
+) -> None:
+    project_path, state_path, slug = trello_project
+    source = await _freeform_source()
+    ctx = _freeform_ctx()
+
+    result = await enable_mirror(
+        slug, MIRROR_CANONICAL, "spbx_t", ctx,
+        source_content=source,
+        project_path=str(project_path),
+        dry_run=False,
+        confirmed_count={"us": 1, "uc": 1},
+    )
+
+    assert result["status"] == "enabled", result
+    # Backfill: same us/uc/ac counts in the mirror (AC-02).
+    assert result["backfill"]["verified_counts"] == {"us": 1, "uc": 1, "ac": 2}
+    assert result["backfill"]["migrated"] == {"us": 1, "uc": 1, "ac": 2, "comments": 0}
+
+    # AC-03: mirror block persisted in the 3 places via the atomic transaction.
+    assert result["config_updated"] == ["registry", "app_spec", "settings"]
+    registry = json.loads((state_path / "projects.json").read_text())
+    assert registry["projects"][slug]["mirror"]["project_id"] == MIRROR_CANONICAL
+    settings = json.loads(
+        (project_path / ".claude" / "settings.local.json").read_text()
+    )
+    assert settings["specbox"]["mirror"]["project_id"] == MIRROR_CANONICAL
+    assert "dev_token" not in json.dumps(settings)  # Frontier 2: never on disk
+
+    # Live session got the mirror sub-dict.
+    session = ctx._state_map[BACKEND_STATE_KEY]
+    assert session["mirror"] == {
+        "project_id": MIRROR_CANONICAL,
+        "dev_token": "spbx_t",
+    }
+
+
+async def test_enable_mirror_rerun_is_idempotent_rebackfill(
+    mirror_seams, trello_project
+) -> None:
+    project_path, state_path, slug = trello_project
+    source = await _freeform_source()
+    kwargs = dict(
+        source_content=source,
+        project_path=str(project_path),
+        dry_run=False,
+        confirmed_count={"us": 1, "uc": 1},
+    )
+    first = await enable_mirror(slug, MIRROR_CANONICAL, "spbx_t", _freeform_ctx(), **kwargs)
+    second = await enable_mirror(slug, MIRROR_CANONICAL, "spbx_t", _freeform_ctx(), **kwargs)
+
+    assert first["status"] == second["status"] == "enabled"
+    assert second["backfill"]["skipped"] == 2  # 1 US + 1 UC already present
+    assert second["backfill"]["verified_counts"] == {"us": 1, "uc": 1, "ac": 2}
+
+
+# AC-04 — disable_mirror revierte a single-backend sin pérdida
+
+
+async def test_disable_mirror_reverts_config_and_session(
+    mirror_seams, trello_project
+) -> None:
+    project_path, state_path, slug = trello_project
+    source = await _freeform_source()
+    ctx = _freeform_ctx()
+    await enable_mirror(
+        slug, MIRROR_CANONICAL, "spbx_t", ctx,
+        source_content=source,
+        project_path=str(project_path),
+        dry_run=False,
+        confirmed_count={"us": 1, "uc": 1},
+    )
+
+    result = await disable_mirror(slug, ctx, project_path=str(project_path))
+
+    assert result["status"] == "disabled"
+    registry = json.loads((state_path / "projects.json").read_text())
+    assert "mirror" not in registry["projects"][slug]
+    settings = json.loads(
+        (project_path / ".claude" / "settings.local.json").read_text()
+    )
+    assert "mirror" not in settings["specbox"]
+    assert settings["specbox"]["backend_type"] == "trello"  # primary intact
+    assert "mirror" not in ctx._state_map[BACKEND_STATE_KEY]
+    # The mirror's DATA is intact (additive philosophy).
+    assert len(mirror_seams.items) == 2

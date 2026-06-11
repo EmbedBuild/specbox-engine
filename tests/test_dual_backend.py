@@ -295,6 +295,8 @@ class ExplodingMirror(FakeBackend):
 
     Reads raise too: the wrapper must never consult the mirror for a read,
     so a read reaching this class is itself a contract violation [AC-03].
+    Every attempted call is recorded in ``calls`` so tests can assert the
+    wrapper tries the mirror exactly ONCE per write (no blocking retries).
     """
 
     def __getattribute__(self, name: str) -> Any:
@@ -302,7 +304,10 @@ class ExplodingMirror(FakeBackend):
         if name.startswith("_") or name in ("tag", "calls", "closed", "items"):
             return attr
         if callable(attr):
+            calls = super().__getattribute__("calls")
+
             async def _boom(*args: Any, **kwargs: Any) -> Any:
+                calls.append(name)
                 raise RuntimeError(f"mirror down ({name})")
 
             return _boom
@@ -1048,6 +1053,131 @@ async def test_enable_mirror_rerun_is_idempotent_rebackfill(
 
 
 # AC-04 — disable_mirror revierte a single-backend sin pérdida
+
+
+# ══ UC-1105 — garantía de latencia + E2E Postgres con estado sucio ════
+
+
+async def test_mirror_attempted_exactly_once_per_write_no_retries(primary) -> None:
+    """NSM latencia: el wrapper intenta el espejo UNA vez por escritura —
+    sin loops de reintento que bloqueen el flujo del primario."""
+    exploding = ExplodingMirror("mirror")
+    wrapper = make_wrapper(primary, exploding)
+
+    await wrapper.create_item(PRIMARY_BOARD, "[UC-001] One", labels=["UC"])
+    await wrapper.create_label(PRIMARY_BOARD, "Bloqueado", "red")
+
+    assert exploding.calls == ["create_item", "create_label"]
+
+
+import uuid  # noqa: E402
+
+from tests._native_db import DSN, reachable  # noqa: E402
+
+PG_OK, PG_SKIP_REASON = reachable()
+pytestmark_pg = pytest.mark.skipif(not PG_OK, reason=PG_SKIP_REASON)
+
+
+async def _pg_pool():
+    from server.db.migrate import apply_migrations
+    from server.db.pool import init_pool
+
+    pool = await init_pool(dsn=DSN)
+    await apply_migrations(pool)
+    return pool
+
+
+async def _pg_register_dev(pool):
+    from server.coordination.identity import register_developer, register_mcp_token
+
+    developer_id = f"dual-dev-{uuid.uuid4().hex[:8]}"
+    token = f"dual-tok-{uuid.uuid4().hex[:16]}"
+    async with pool.acquire() as conn:
+        await register_developer(conn, developer_id=developer_id, display_name="Dual Tester")
+        await register_mcp_token(conn, developer_id=developer_id, token=token)
+    return developer_id, token
+
+
+async def _pg_cleanup(pool, project_id: str, developer_id: str):
+    async with pool.acquire() as conn:
+        await conn.execute("DELETE FROM projects WHERE project_id = $1", project_id)
+        await conn.execute("DELETE FROM developers WHERE developer_id = $1", developer_id)
+
+
+@pytestmark_pg
+async def test_e2e_enable_mirror_onto_orphan_tenant_then_dual_write(
+    trello_project,
+) -> None:
+    """E2E con ESTADO SUCIO (estándar UC-827): el tenant espejo nace huérfano.
+
+    1. Fila ``projects`` con CERO miembros creada PRIMERO (el artefacto v6.9.4).
+    2. ``enable_mirror`` real (sin seams): adopta el huérfano, backfillea por
+       ``ingest_atomic`` real, verifica conteos y persiste config.
+    3. Una escritura por el wrapper real (``mark_acceptance_criterion``)
+       aterriza en el Postgres del espejo resuelta por id lógico.
+    """
+    from server.coordination.identity import _clear_auth_cache
+    from server.db.pool import close_pool
+
+    project_path, state_path, slug = trello_project
+    pool = await _pg_pool()
+    mirror_pid = f"EmbedBuild/e2e-dual-{uuid.uuid4().hex[:8]}"
+    dev_id, token = await _pg_register_dev(pool)
+    try:
+        _clear_auth_cache()
+        # ── Estado sucio primero: tenant huérfano (0 miembros) ────────
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO projects (project_id, name, backend_type, board_url, meta) "
+                "VALUES ($1, $1, 'native', '', '{}'::jsonb) ON CONFLICT DO NOTHING",
+                mirror_pid,
+            )
+        source = await _freeform_source()
+        ctx = _freeform_ctx()
+
+        result = await enable_mirror(
+            slug,
+            mirror_pid,
+            token,
+            ctx,
+            source_content=source,
+            project_path=str(project_path),
+            dry_run=False,
+            confirmed_count={"us": 1, "uc": 1},
+        )
+
+        # Adoptado + backfilleado + verificado + persistido.
+        assert result["status"] == "enabled", result
+        assert result["backfill"]["verified_counts"] == {"us": 1, "uc": 1, "ac": 2}
+        async with pool.acquire() as conn:
+            role = await conn.fetchval(
+                "SELECT role FROM project_members WHERE project_id = $1 AND developer_id = $2",
+                mirror_pid,
+                dev_id,
+            )
+        assert role == "project_admin"  # el huérfano fue adoptado por el caller
+
+        # ── Dual-write real por el wrapper (resolución por id lógico) ─
+        wrapper = await get_session_backend(ctx, items_content=source)
+        assert isinstance(wrapper, DualBackendWrapper)
+        ff = FreeformBackend(items_content=source)
+        uc_item = await ff.find_item_by_field(".", "uc_id", "UC-001")
+        await ff.close()
+
+        marked = await wrapper.mark_acceptance_criterion(".", uc_item.id, "AC-01", True)
+        assert marked.done is True  # el primario respondió
+
+        # El espejo Postgres refleja el AC-01 en done, via id lógico propio.
+        mirror_uc = await wrapper.mirror.find_item_by_field(mirror_pid, "uc_id", "UC-001")
+        assert mirror_uc is not None
+        mirror_acs = await wrapper.mirror.get_acceptance_criteria(mirror_pid, mirror_uc.id)
+        by_id = {ac.id: ac.done for ac in mirror_acs}
+        assert by_id["AC-01"] is True
+        assert by_id["AC-02"] is False  # solo lo escrito se replica
+        await wrapper.close()
+    finally:
+        await _pg_cleanup(pool, mirror_pid, dev_id)
+        await close_pool()
 
 
 async def test_disable_mirror_reverts_config_and_session(

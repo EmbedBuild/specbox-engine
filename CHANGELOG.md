@@ -2,6 +2,45 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.10.0] - 2026-06-11 — "UC Lifecycle Metrics"
+
+Two complete User Stories from the orchestrator board (`EmbedBuild/specbox-manager`, satellite `engine`). US-12 makes per-UC implementation lead time honestly measurable on the Native backend — the start was never recorded (`start_uc_atomic` raw UPDATE, unaudited), the completion event was best-effort and could be silently lost (`_release_uc_native` swallows by design), and there were no lifecycle timestamps. The fix delegates capture and analytics to Postgres (triggers + views) keeping the engine thin. US-11 adds the dual-backend Native mirror for clients whose primary tracker is untouchable.
+
+### Added
+
+- **Dual-backend mirror (US-11, PRs #106-#110)** — `DualBackendWrapper` (best-effort Native mirror over a Trello/Plane/FreeForm primary; reads never touch the mirror; mirror failures are logged, never propagated), dual dispatch at the `get_session_backend` chokepoint, transactional 3-place `mirror` config, `enable_mirror`/`disable_mirror` tools with idempotent initial backfill, `tests/test_dual_backend.py` (injected-failure guarantee: the primary is never degraded).
+- **Lifecycle capture (US-12 / 0012)** — append-only `uc_state_transitions` (from/to state, snapshotted `us_id`, developer, source; no FKs, audit_log pattern) + `use_cases.started_at` (first start wins) / `completed_at` (last completion wins) maintained by triggers. ANY writer of `use_cases.state` is captured transactionally — including raw SQL. Imports are excluded by construction (INSERTs don't fire the UPDATE trigger).
+- **Per-transaction GUC context (0012/UC-1202)** — `server/coordination/lifecycle.py::set_lifecycle_context` (`app.developer_id` / `app.change_source`, SET LOCAL semantics, zero pool leakage) injected in `start_uc_atomic`, `update_item` (state changes) and `ingest_atomic` (`source='import'`). Honest degradation: no GUC → NULL developer + 'interactive', never an error.
+- **Analytics views (0013)** — `v_uc_lifecycle` (lead_time, measurable, cycles, last_source), `v_lifecycle_kpis` (`coverage_pct` honesty KPI; p50/p90 over measurable+interactive only; `done_by_import`/`done_by_backfill`/`done_unmeasured` visible, never averaged), `v_us_progress`, `v_weekly_throughput`, `fn_lifecycle_kpis(project_id)`. Plain views — 2.8ms with 1004 UCs.
+- **Read-only analytics role + tool (0014)** — `specbox_analytics_ro` (schema USAGE + SELECT on the lifecycle views only; base tables denied) for the panel to read directly; `get_project_kpis` MCP tool (Frontier-1 gated, session-tenant only, intervals as seconds).
+- **Historical backfill PREPARED, not executed (0015)** — `fn_backfill_lifecycle(project_id, dry_run DEFAULT true)`: estimators `reserve_uc` → `branch_registry.created_at` for start, `complete_uc` with <10s same-developer `burst` flag for completion; fills NULLs only, marks everything `source='backfill_estimate'` with `metadata {estimator, burst}`. `fn_recompute_lifecycle_columns` makes rollback exact (transitions = source of truth, columns = cache). Execution gated on estimator calibration against real trigger data.
+- **Active-time estimate (0016)** — `v_active_time_estimate`: session clustering (>30min gap) over transitions ∪ audit_log events; `events_count`/`sessions_count` as confidence; NULL over a fake 0.
+
+### Changed
+
+- `update_item`: a state change now wraps UPDATE + audit event in one transaction (side-fix: previously two separate autocommits; the audit row could survive without its mutation or vice versa).
+- `start_uc_atomic` / `ingest_atomic`: GUC context injection (no behavioral change otherwise).
+- `server/tools/coordination.py`: registers `get_project_kpis`.
+
+### Decisions
+
+- Capture lives in DB triggers, not a Python choke point: `use_cases.state` has three writers with no common code path; the trigger captures present and future writers (and manual fixes) transactionally.
+- Honesty contract: every aggregated lead-time KPI is computed ONLY over measurable, interactive UCs; everything excluded stays visible and counted. `coverage_pct` reports how representative the metric is.
+- Per-UC migration files (0012-0016): the Supabase ledger applies each file once — no post-merge edits to applied migrations.
+- RLS on `uc_state_transitions` mirrors the 20260522000004 posture, role-guarded so the local dev Postgres (no anon/authenticated roles) keeps the file byte-for-byte mirrorable.
+
+### Compatibility
+
+- 100% backwards-compatible; no API changes to existing tools.
+- **Deploy note**: production applies `supabase/migrations/20260611000012..16` via the Supabase ledger (`apply_migration`), in order — PENDING at release time (gated). Until applied, `get_project_kpis` fails in production (views absent). The local dev runner picks them up automatically.
+
+### Tests
+
+- 23 new tests, all green; full suite **1603 passed / 0 failed**:
+  - `tests/test_uc_lifecycle_capture.py` (10) — trigger capture via the real raw UPDATE, re-cycles, ingest shape, injected-failure rollback, chain idempotency, GUC attribution, dirty-state E2E (UC-827 standard: coverage 60.0% / p50 3h exact).
+  - `tests/test_audit_uc_lifecycle.py` (+1) — the done transition survives an injected `_release_uc_native` failure.
+  - `tests/test_dual_backend.py` (12, US-11) — injected mirror failure never degrades the primary.
+
 ## [6.9.5] - 2026-06-04 — "Tenant-Scoped Keys"
 
 Closes the last blocker of the FreeForm→Cloud/Native migration chain, found dogfooding `Dental-Data/DDBoss-Web-Saas`: the atomic ingest collided on `user_stories_pkey` because the native spec-table PK was the logical id alone (`US-01`), not namespaced by project — two projects could not both hold a `US-01` in the same shared Postgres. Plus two follow-ups surfaced in the same run: a format-dialect gap in `/switch-backend` and stale tests left behind by UC-660/UC-706.

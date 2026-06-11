@@ -1,4 +1,4 @@
-# SpecBox Engine v6.9.5
+# SpecBox Engine v6.10.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -1746,9 +1746,88 @@ source. Validado contra escala DDBoss (15 US / 82 UC / 501 AC).
   [#101](https://github.com/EmbedBuild/specbox-engine/pull/101),
   [#102](https://github.com/EmbedBuild/specbox-engine/pull/102)
 
+## Dual-Backend — espejo Native best-effort (v6.10.0)
+
+US-11 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) permite que un
+proyecto **reporte a dos backends a la vez**: un primario (`trello`/`plane`/`freeform`,
+fuente de verdad, escritura síncrona) y un **espejo Native** best-effort (escritura tras el
+primario, fallos logueados y nunca propagados; las lecturas solo consultan el primario).
+Caso disparador: cliente con Trello intocable (alimenta herramienta de cliente-final) que
+quiere el panel Native a la vez. Regla dura: primario `native` → dual prohibido
+(`MIRROR_ON_NATIVE_FORBIDDEN`).
+
+| Componente | Archivo | Rol |
+|---|---|---|
+| Wrapper | `server/backends/dual_backend.py` | `DualBackendWrapper(SpecBackend)`: duplica los 12 métodos de escritura, resuelve el item espejo por id lógico (`UC-XXX`/`US-XX`), traga y loguea todo fallo del espejo |
+| Dispatch | `server/auth_gateway.py::get_session_backend` | Único chokepoint: con bloque `mirror` en config envuelve el primario; sin él, path idéntico al baseline |
+| Config | bloque `mirror` en los 3 lugares de verdad (registry / app_spec / settings) | Persistencia transaccional con rollback (`apply_switch_transactional`); solo `project_id`+`dev_token`, nunca DSN (Frontier 2) |
+| Tools | `enable_mirror` / `disable_mirror` | Validan auth del espejo + backfill inicial idempotente |
+| Tests | `tests/test_dual_backend.py` | Garantía crítica vía fallo inyectado: el primario nunca se degrada por el espejo |
+
+- PRs: [#106](https://github.com/EmbedBuild/specbox-engine/pull/106)–[#110](https://github.com/EmbedBuild/specbox-engine/pull/110)
+
+## UC Lifecycle Metrics (v6.10.0)
+
+US-12 (board del orquestador, satélite engine) hace medible el lead time real de
+implementación por UC en el backend Native, corrigiendo tres defectos estructurales: el
+inicio nunca se registraba (`start_uc_atomic` hace un UPDATE crudo sin auditar), el evento
+de fin era best-effort y podía perderse (`_release_uc_native` traga fallos por diseño), y
+no existían `started_at`/`completed_at`. **El cómputo vive en la BD; el engine queda fino.**
+
+### Captura (migración 0012)
+
+- **Triggers sobre `use_cases`**: cualquier escritor de `state` — presente o futuro,
+  incluido SQL manual — queda capturado transaccionalmente. `AFTER UPDATE OF state … WHEN
+  (OLD.state IS DISTINCT FROM NEW.state)` inserta en **`uc_state_transitions`**
+  (append-only: from/to, `us_id` snapshoteado, developer, source, occurred_at; sin FKs,
+  como `audit_log`). Un BEFORE trigger mantiene `use_cases.started_at` (primer inicio gana,
+  re-ciclos no lo pisan) y `completed_at` (último cierre gana).
+- **Contexto vía session GUCs** (`SET LOCAL`, mueren con la transacción — cero fuga de
+  pool): `server/coordination/lifecycle.py::set_lifecycle_context` inyecta
+  `app.developer_id` / `app.change_source` en los 3 escritores (`start_uc_atomic`,
+  `update_item` con cambio de state — side-fix: UPDATE+audit ahora atómicos —,
+  `ingest_atomic` con `source='import'`). Degradación honesta: sin GUC → developer NULL +
+  `interactive`, nunca un error.
+- **Imports excluidos por construcción**: la ingesta hace INSERT (no dispara el trigger de
+  UPDATE) → UCs importados ya `done` quedan sin transiciones ni timestamps y no contaminan
+  la métrica.
+
+### Analítica (0013, 0014, 0016) — contrato de honestidad
+
+Vistas planas (no matviews; <3ms con 1000 UCs): **`v_uc_lifecycle`** (lead_time,
+`measurable`, `cycles`, `last_source`), **`v_lifecycle_kpis`** (p50/p90 SOLO sobre medibles
+interactivos; **`coverage_pct`** dice qué fracción del done representa la métrica;
+`done_by_import`/`done_unmeasured` siempre visibles, jamás promediados), `v_us_progress`,
+`v_weekly_throughput`, y **`v_active_time_estimate`** (clustering de sesiones por huecos
+>30min — estimación etiquetada como tal, NULL antes que un 0 falso). Consumo: rol
+**`specbox_analytics_ro`** (0014, GRANT solo vistas — el panel lee directo) y tool MCP
+read-only **`get_project_kpis`** (tenant = el de la sesión). NO confundir con la vista
+`project_kpis` (0011, US-08): dominio progreso/reservas, intacta.
+
+### Backfill histórico (0015) — preparado, NO ejecutado
+
+`fn_backfill_lifecycle(project_id, dry_run DEFAULT true)` estima el histórico pre-0012
+(started_at ← primer `reserve_uc` del audit o `branch_registry.created_at`; completed_at ←
+`complete_uc`, con flag `burst` para ráfagas <10s) marcando todo `source='backfill_estimate'`
+y rellenando solo NULLs. **Transiciones = verdad, columnas = caché**: el rollback es
+`DELETE … WHERE source='backfill_estimate'` + `fn_recompute_lifecycle_columns(project_id)`,
+restauración exacta. La ejecución por proyecto queda gated por la calibración de
+estimadores contra datos reales de triggers en periodo solapado.
+
+### Despliegue
+
+Producción aplica los espejos del ledger (`supabase/migrations/20260611000012..16`) vía
+`apply_migration` en orden — **pendiente de aplicar**; hasta entonces `get_project_kpis`
+fallará en prod por vistas inexistentes. El runner local (`server/db/migrate.py`) las
+re-aplica solo en dev/tests.
+
+- PRs: [#111](https://github.com/EmbedBuild/specbox-engine/pull/111)–[#117](https://github.com/EmbedBuild/specbox-engine/pull/117)
+- PRD/Plan: `doc/prd/uc-lifecycle-metrics/prd.md` + `doc/plans/uc-lifecycle-metrics_plan.md` en `EmbedBuild/specbox-manager`
+- Tests: `tests/test_uc_lifecycle_capture.py` + `TestCompleteTransitionResilience` en `tests/test_audit_uc_lifecycle.py`
+
 ## Engine Version
 
-Current: v6.9.5 "Tenant-Scoped Keys"
+Current: v6.10.0 "UC Lifecycle Metrics"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

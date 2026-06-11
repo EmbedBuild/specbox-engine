@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.9.5 — "Tenant-Scoped Keys" (sobre v6.9.4 "Orphan Tenant Recovery", v6.9.3 "Tenant Provisioning", v6.9.2 "Batch Ingest", v6.9.1 "Atomic Switch")<br/>
+  v 6.10.0 — "UC Lifecycle Metrics" (sobre v6.9.5 "Tenant-Scoped Keys")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,19 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v6.10
+
+**v6.10.0 — "UC Lifecycle Metrics"** dos capacidades nuevas: métricas honestas de lead time por UC computadas en la BD, y espejo dual-backend hacia Native:
+
+- **Captura de lifecycle por triggers** — toda transición de `use_cases.state` (sea cual sea el escritor) queda registrada transaccionalmente en `uc_state_transitions`, con `started_at`/`completed_at` mantenidos en la fila. El inicio que antes no se registraba y el fin best-effort que podía perderse quedan blindados.
+- **KPIs en la BD, engine fino** — `v_lifecycle_kpis` (lead time p50/p90 solo sobre UCs medibles, `coverage_pct` como KPI de honestidad, imports excluidos por construcción y visibles), `v_active_time_estimate` (tiempo activo estimado por clustering de sesiones), rol read-only para el panel y tool `get_project_kpis`.
+- **Backfill histórico preparado, no ejecutado** — `fn_backfill_lifecycle` (dry-run default) con rollback exacto; se activará por proyecto tras calibrar estimadores con datos reales.
+- **Dual-backend espejo Native (US-11)** — un primario Trello/Plane/FreeForm intocable puede reportar a la vez a un espejo Native best-effort que jamás degrada al primario (`enable_mirror`/`disable_mirror` con backfill idempotente).
+
+100% backwards-compatible. Las migraciones de producción (`20260611000012..16`) se aplican vía Supabase ledger en el despliegue.
 
 ---
 
@@ -454,7 +467,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.9.5 — "Tenant-Scoped Keys" (over v6.9.4 "Orphan Tenant Recovery", v6.9.3 "Tenant Provisioning", v6.9.2 "Batch Ingest", v6.9.1 "Atomic Switch")
+> v 6.10.0 — "UC Lifecycle Metrics" (over v6.9.5 "Tenant-Scoped Keys")
 
 ## What is this?
 
@@ -466,6 +479,19 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v6.10
+
+**v6.10.0 — "UC Lifecycle Metrics"** two new capabilities: honest per-UC lead-time metrics computed in the database, and a dual-backend Native mirror:
+
+- **Trigger-based lifecycle capture** — every `use_cases.state` transition (whatever the writer) is recorded transactionally in `uc_state_transitions`, with `started_at`/`completed_at` maintained on the row. The start that was never recorded and the best-effort completion that could be silently lost are now bulletproof.
+- **KPIs in the DB, thin engine** — `v_lifecycle_kpis` (lead time p50/p90 over measurable UCs only, `coverage_pct` as the honesty KPI, imports excluded by construction yet visible), `v_active_time_estimate` (session-clustering active-time estimate), a read-only role for the panel and the `get_project_kpis` tool.
+- **Historical backfill prepared, not executed** — `fn_backfill_lifecycle` (dry-run default) with exact rollback; activated per project after calibrating estimators against real trigger data.
+- **Dual-backend Native mirror (US-11)** — an untouchable Trello/Plane/FreeForm primary can simultaneously report to a best-effort Native mirror that never degrades the primary (`enable_mirror`/`disable_mirror` with idempotent backfill).
+
+100% backwards-compatible. Production migrations (`20260611000012..16`) apply via the Supabase ledger at deploy time.
+
+---
 
 ## What's new in v6.9
 

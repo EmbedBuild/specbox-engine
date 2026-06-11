@@ -1,8 +1,8 @@
-version: 6.9.5
-codename: "Tenant-Scoped Keys"
+version: 6.10.0
+codename: "UC Lifecycle Metrics"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-06-04
+release_date: 2026-06-11
 min_claude_code: "1.0.0"
 
 stacks:
@@ -408,7 +408,31 @@ features:
   - native-tenant-scoped-pks
   - freeform-exploded-normalizer
 
+  # New (v6.10.0) — UC Lifecycle Metrics
+  - dual-backend-mirror-native
+  - uc-lifecycle-capture-triggers
+  - lifecycle-analytics-views
+  - lifecycle-analytics-ro-role
+  - lifecycle-backfill-prepared
+  - active-time-estimate
+  - get-project-kpis-tool
+
 changelog:
+  6.10.0:
+    date: 2026-06-11
+    codename: "UC Lifecycle Metrics"
+    changes:
+      - "feat: DualBackendWrapper — best-effort Native mirror over a Trello/Plane/FreeForm primary (US-11, PRs #106-#110)"
+      - "feat: enable_mirror / disable_mirror tools with idempotent initial backfill and transactional 3-place mirror config"
+      - "feat: 0012 lifecycle capture — uc_state_transitions append-only table + triggers maintaining use_cases.started_at/completed_at (US-12)"
+      - "feat: per-transaction GUCs (app.developer_id / app.change_source) attribute every state transition; imports excluded by construction"
+      - "feat: 0013 analytics views — v_uc_lifecycle, v_lifecycle_kpis (coverage_pct honesty KPI, p50/p90 interactive-only), v_us_progress, v_weekly_throughput + fn_lifecycle_kpis"
+      - "feat: 0014 specbox_analytics_ro read-only role (panel reads views directly) + get_project_kpis MCP tool"
+      - "feat: 0015 historical backfill PREPARED, not executed — fn_backfill_lifecycle dry-run + fn_recompute_lifecycle_columns exact rollback"
+      - "feat: 0016 v_active_time_estimate — session-clustering active-time estimate with confidence counts"
+      - "fix: update_item state change + audit event now atomic (previously two separate autocommits)"
+      - "test: test_uc_lifecycle_capture.py + dual-backend suite + complete_uc resilience under injected best-effort failure (286 native tests green)"
+      - "docs: production note — supabase migrations 20260611000012..16 pending apply via Supabase ledger (gated)"
   6.9.5:
     date: 2026-06-04
     codename: "Tenant-Scoped Keys"

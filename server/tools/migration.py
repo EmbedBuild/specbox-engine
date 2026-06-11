@@ -1606,8 +1606,295 @@ def _dev_id_from_token(dev_token: str) -> str:
     return hash_token(dev_token)
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# DUAL-BACKEND MIRROR (US-DUAL-BACKEND)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# enable_mirror / disable_mirror attach a best-effort native replica to a
+# project whose primary is trello/plane/freeform. The primary is NEVER
+# touched: the backfill is additive + idempotent (ingest_atomic skips
+# existing logical ids), and the config block travels through the same
+# 3-place transaction as a backend switch.
+
+
+def _build_mirror_backend(project_id: str, dev_token: str):
+    """NativeBackend factory for the mirror (module-level test seam)."""
+    from ..backends.native_backend import NativeBackend
+
+    return NativeBackend(project_id=project_id, dev_token=dev_token)
+
+
+async def enable_mirror(
+    project_slug: str,
+    mirror_project_id: str,
+    dev_token: str,
+    ctx: Context,
+    primary_board_id: str = ".",
+    source_content: str | None = None,
+    project_path: str = ".",
+    dry_run: bool = True,
+    confirmed_count: dict[str, int] | None = None,
+    skip_backfill: bool = False,
+) -> dict[str, Any]:
+    """Attach a best-effort native mirror to the session's primary backend.
+
+    Flow (all-or-nothing per phase, primary read-only throughout):
+
+      1. Hard rule: a native primary is rejected (``MIRROR_ON_NATIVE_FORBIDDEN``).
+      2. The mirror identity is validated fail-fast (token + canonical id) and
+         the tenant auto-provisioned/adopted when born from scratch (UC-821/825).
+      3. ``dry_run=True`` (default) previews the primary's ``read_counts`` and
+         the mirror's existing item count.
+      4. Execute: count guard → initial backfill via ``ingest_atomic``
+         (idempotent — re-running enable_mirror is a re-backfill) → post-ingest
+         count verification → ``mirror`` block persisted in the 3 config places
+         (atomic, rollback) → mirror attached to the live session.
+
+    Args:
+        project_slug: Project key in the engine registry.
+        mirror_project_id: Native tenant (canonical ``owner/repo``) to mirror into.
+        dev_token: Developer token for the mirror tenant (session-only, never
+            persisted to disk — Frontier 2).
+        primary_board_id: Primary board id to read (trello/plane); freeform
+            reads the content-passed source.
+        source_content: Raw ``items.json`` when the primary is freeform
+            (content-passing — required on a remote MCP).
+        project_path: Client repo root for the config write-back.
+        dry_run: Preview only (default). Set False to execute.
+        confirmed_count: ``{us, uc}`` confirmed from the preview (count guard).
+        skip_backfill: Skip the data copy (e.g. it already went through the
+            batch-ingestion session for a large source) and only persist config.
+
+    Returns:
+        Preview dict (dry_run) or ``{"status": "enabled", ...}`` envelope.
+    """
+    from ..auth_gateway import store_mirror_native_credentials
+    from ..coordination.identity import (
+        ForbiddenError,
+        UnauthenticatedError,
+        authenticate_and_authorize_cached,
+    )
+    from ..coordination.project_id import InvalidProjectIdError, validate_project_id
+    from ..db.pool import get_pool
+    from ..migration.transactional_switch import (
+        TransactionalSwitchError,
+        apply_mirror_transactional,
+    )
+
+    # ── 1. Hard rule + session sanity ───────────────────────────────
+    config = await ctx.get_state("spec_backend_config")
+    if not config:
+        return {
+            "error": "No primary backend session. Call set_auth_token first.",
+            "code": "NO_PRIMARY_SESSION",
+        }
+    primary_type = config.get("backend_type", "trello")
+    if primary_type == "native":
+        return {
+            "status": "MIRROR_ON_NATIVE_FORBIDDEN",
+            "error": (
+                "The primary backend is already native — mirroring native "
+                "onto native is forbidden. Dual-backend exists to protect a "
+                "trello/plane/freeform primary."
+            ),
+        }
+
+    # ── 2. Mirror identity fail-fast (before reading anything) ──────
+    if not (dev_token or "").strip():
+        return _unauthenticated(ctx)
+    try:
+        canonical = validate_project_id(mirror_project_id)
+    except InvalidProjectIdError as exc:
+        return {"error": str(exc), "code": "INVALID_PROJECT_ID"}
+
+    # Large freeform source must go through the batch session (UC-707 bug A
+    # rationale applies identically to the backfill transport).
+    if (
+        not dry_run
+        and not skip_backfill
+        and primary_type == "freeform"
+        and source_content is not None
+        and len(source_content.encode("utf-8")) > BATCH_TRANSPORT_THRESHOLD_BYTES
+    ):
+        return {
+            "status": "SOURCE_TOO_LARGE_USE_BATCH",
+            "threshold_bytes": BATCH_TRANSPORT_THRESHOLD_BYTES,
+            "source_bytes": len(source_content.encode("utf-8")),
+            "remediation": [
+                "start_migration_session(...) + append_migration_chunk(...) + "
+                "commit_migration_session(...) against the mirror tenant",
+                "enable_mirror(..., skip_backfill=True, dry_run=False) to "
+                "persist the mirror config once the data is ingested",
+            ],
+        }
+
+    try:
+        pool = await get_pool()
+        await _maybe_auto_provision(pool, dev_token, canonical)
+        await authenticate_and_authorize_cached(
+            pool, token=dev_token, project_id=canonical
+        )
+    except UnauthenticatedError:
+        return _unauthenticated(ctx)
+    except ForbiddenError as e:
+        return {"error": str(e), "code": "FORBIDDEN", "status": "forbidden"}
+
+    # ── 3. Read the primary (source of the backfill) ────────────────
+    try:
+        source_backend = await resolve_source_backend(
+            primary_type, ctx, source_content
+        )
+    except ValueError as exc:
+        return {"error": str(exc), "code": "SOURCE_CONTENT_REQUIRED"}
+    try:
+        source = await _read_source(source_backend, primary_board_id)
+    finally:
+        await source_backend.close()
+
+    mirror_backend = _build_mirror_backend(canonical, dev_token)
+    try:
+        existing = await mirror_backend.list_items(canonical)
+
+        if dry_run:
+            return {
+                "status": "preview",
+                "primary": {"type": primary_type, "read_counts": source["read_counts"]},
+                "mirror": {
+                    "project_id": canonical,
+                    "existing_items": len(existing),
+                    "backfill_idempotent": True,
+                },
+                "next_step": (
+                    "Re-run with dry_run=False and confirmed_count="
+                    f"{{'us': {source['read_counts']['us']}, "
+                    f"'uc': {source['read_counts']['uc']}}} to execute."
+                ),
+            }
+
+        # ── 4. Count guard + backfill + verification ────────────────
+        expected = {"us": source["read_counts"]["us"], "uc": source["read_counts"]["uc"]}
+        if not skip_backfill:
+            if not confirmed_count or {
+                "us": confirmed_count.get("us"),
+                "uc": confirmed_count.get("uc"),
+            } != expected:
+                return {
+                    "status": "COUNT_GUARD_FAILED",
+                    "expected": expected,
+                    "confirmed": confirmed_count,
+                    "error": "confirmed_count must match the preview's read_counts.",
+                }
+            try:
+                ingest = await mirror_backend.ingest_atomic(
+                    canonical, source, source_type=primary_type
+                )
+            except Exception as exc:  # noqa: BLE001 - transaction rolled back
+                return {
+                    "status": "BACKFILL_FAILED",
+                    "error": str(exc),
+                    "note": "ingest_atomic rolled back — the mirror is unchanged.",
+                }
+            # AC-02: the mirror must start with the SAME us/uc/ac counts.
+            verify = await _read_source(mirror_backend, canonical)
+            if verify["read_counts"] != source["read_counts"]:
+                return {
+                    "status": "BACKFILL_MISMATCH",
+                    "primary_counts": source["read_counts"],
+                    "mirror_counts": verify["read_counts"],
+                    "note": "Mirror config NOT persisted. Re-run enable_mirror "
+                    "(idempotent re-backfill) or inspect the drift.",
+                }
+            backfill_summary: dict[str, Any] = {
+                "migrated": ingest["migrated"],
+                "skipped": ingest["skipped"],
+                "verified_counts": verify["read_counts"],
+            }
+        else:
+            backfill_summary = {"skipped_by_request": True}
+    finally:
+        await mirror_backend.close()
+
+    # ── 5. Persist config (3 places, atomic) + live session ─────────
+    try:
+        outcome = apply_mirror_transactional(
+            project_slug, canonical, project_path
+        )
+    except TransactionalSwitchError as exc:
+        return {
+            "status": "CONFIG_FAILED",
+            "failing_place": exc.place,
+            "rolled_back": exc.rolled_back,
+            "error": str(exc.original),
+            "note": "Backfilled data stays in the mirror (additive); re-run "
+            "enable_mirror once the config issue is fixed.",
+        }
+    await store_mirror_native_credentials(ctx, canonical, dev_token)
+
+    return {
+        "status": "enabled",
+        "mirror": {"backend": "native", "project_id": canonical},
+        "backfill": backfill_summary,
+        "config_updated": outcome["updated"],
+        "summary": (
+            f"Espejo native {canonical} activado sobre primario {primary_type}. "
+            "Las escrituras spec-driven ahora replican best-effort; el primario "
+            "nunca se bloquea por el espejo."
+        ),
+    }
+
+
+async def disable_mirror(
+    project_slug: str,
+    ctx: Context,
+    project_path: str = ".",
+) -> dict[str, Any]:
+    """Detach the native mirror, reverting to single-backend (UC-1104 AC-04).
+
+    Removes the ``mirror`` block from the 3 config places (atomic, rollback)
+    and from the live session. The primary is untouched and the mirror's
+    DATA is left intact in Postgres (additive philosophy — re-enabling is an
+    idempotent re-backfill).
+    """
+    from ..auth_gateway import clear_mirror_credentials
+    from ..migration.transactional_switch import (
+        TransactionalSwitchError,
+        apply_mirror_transactional,
+    )
+
+    try:
+        outcome = apply_mirror_transactional(project_slug, None, project_path)
+    except TransactionalSwitchError as exc:
+        return {
+            "status": "CONFIG_FAILED",
+            "failing_place": exc.place,
+            "rolled_back": exc.rolled_back,
+            "error": str(exc.original),
+        }
+    await clear_mirror_credentials(ctx)
+    return {
+        "status": "disabled",
+        "config_updated": outcome["updated"],
+        "summary": (
+            "Espejo desactivado: el proyecto vuelve a single-backend sin "
+            "pérdida en el primario. Los datos del espejo quedan en Postgres."
+        ),
+    }
+
+
 def register_migration_tools(mcp_instance) -> None:
     """Register migration tools on the given FastMCP instance."""
+
+    mcp_instance.tool(
+        description="Attach a best-effort native mirror to a trello/plane/"
+        "freeform primary (US-DUAL-BACKEND). dry_run=True previews counts; "
+        "execute does an idempotent initial backfill + persists the mirror "
+        "config in the 3 places. Primary native → MIRROR_ON_NATIVE_FORBIDDEN."
+    )(enable_mirror)
+
+    mcp_instance.tool(
+        description="Detach the native mirror from a project (revert to "
+        "single-backend). Primary untouched; mirror data stays in Postgres."
+    )(disable_mirror)
 
     mcp_instance.tool(
         description="Preview a migration between backends (Trello ↔ Plane). "

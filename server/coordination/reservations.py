@@ -274,8 +274,14 @@ async def start_uc_atomic(
         uc_db_id: the use_cases.id (DB primary key, e.g. "UC-301").
         uc_id: the short spec id used for the reservation row (usually == uc_db_id).
     """
+    from .lifecycle import set_lifecycle_context
+
     async with pool.acquire() as conn:
         async with conn.transaction():
+            # UC-1202: the 0012 lifecycle triggers read app.developer_id from
+            # this transaction's GUC — without it the transition row would
+            # carry developer_id NULL.
+            await set_lifecycle_context(conn, developer_id=developer_id)
             reservation = await reserve_uc(
                 conn,
                 project_id=project_id,

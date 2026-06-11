@@ -573,3 +573,125 @@ async def test_mirror_close_failure_does_not_block_primary_close(primary) -> Non
     wrapper = make_wrapper(primary, ExplodingMirror("mirror"))
     await wrapper.close()  # no exception
     assert primary.closed is True
+
+
+# ══ UC-1102 — dispatch in the get_session_backend chokepoint ══════════
+
+
+from unittest.mock import AsyncMock  # noqa: E402
+
+from server.auth_gateway import (  # noqa: E402
+    BACKEND_STATE_KEY,
+    clear_mirror_credentials,
+    get_session_backend,
+    store_mirror_native_credentials,
+)
+from server.backends.native_backend import NativeBackend  # noqa: E402
+from server.backends.trello_backend import TrelloBackend  # noqa: E402
+
+
+def _ctx_with(config: dict[str, Any] | None) -> AsyncMock:
+    state_map = {BACKEND_STATE_KEY: config}
+    ctx = AsyncMock()
+
+    async def get_state(key: str) -> Any:
+        return state_map.get(key)
+
+    async def set_state(key: str, value: Any) -> None:
+        state_map[key] = value
+
+    ctx.get_state = AsyncMock(side_effect=get_state)
+    ctx.set_state = AsyncMock(side_effect=set_state)
+    ctx._state_map = state_map
+    return ctx
+
+
+TRELLO_CONFIG = {"backend_type": "trello", "api_key": "k", "token": "t"}
+MIRROR_CONFIG = {"project_id": "EmbedBuild/proj", "dev_token": "spbx_test"}
+
+
+# AC-01: without "mirror", exact single-backend behavior (no wrapper)
+
+
+async def test_dispatch_without_mirror_returns_plain_backend() -> None:
+    ctx = _ctx_with(dict(TRELLO_CONFIG))
+    backend = await get_session_backend(ctx)
+    assert type(backend) is TrelloBackend
+
+
+async def test_dispatch_freeform_without_mirror_returns_plain_backend() -> None:
+    ctx = _ctx_with({"backend_type": "freeform", "root_path": "/tmp/x"})
+    backend = await get_session_backend(ctx, items_content="[]")
+    assert type(backend).__name__ == "FreeformBackend"
+
+
+# AC-02: with "mirror" and non-native primary → DualBackendWrapper
+
+
+async def test_dispatch_with_mirror_returns_dual_wrapper() -> None:
+    ctx = _ctx_with({**TRELLO_CONFIG, "mirror": dict(MIRROR_CONFIG)})
+    backend = await get_session_backend(ctx)
+    assert isinstance(backend, DualBackendWrapper)
+    assert type(backend.primary) is TrelloBackend
+    assert type(backend.mirror) is NativeBackend
+    assert backend.mirror_board_id == "EmbedBuild/proj"
+
+
+async def test_dispatch_native_primary_ignores_stray_mirror() -> None:
+    """Defensive: a native primary returns NativeBackend even if a stray
+    mirror key slipped into the config (store-time guard is the real gate)."""
+    ctx = _ctx_with(
+        {
+            "backend_type": "native",
+            "project_id": "EmbedBuild/main",
+            "dev_token": "spbx_main",
+            "mirror": dict(MIRROR_CONFIG),
+        }
+    )
+    backend = await get_session_backend(ctx)
+    assert type(backend) is NativeBackend
+
+
+# AC-03: Frontier 2 — the mirror sub-dict holds ONLY project_id + dev_token
+
+
+async def test_store_mirror_persists_only_project_id_and_dev_token() -> None:
+    ctx = _ctx_with(dict(TRELLO_CONFIG))
+    await store_mirror_native_credentials(ctx, "EmbedBuild/proj", "spbx_test")
+    stored = ctx._state_map[BACKEND_STATE_KEY]["mirror"]
+    assert stored == {"project_id": "EmbedBuild/proj", "dev_token": "spbx_test"}
+    assert set(stored.keys()) == {"project_id", "dev_token"}  # never a DSN
+
+
+# AC-04: store/clear lifecycle + hard rule
+
+
+async def test_store_mirror_on_native_primary_is_forbidden() -> None:
+    ctx = _ctx_with(
+        {"backend_type": "native", "project_id": "EmbedBuild/main", "dev_token": "x"}
+    )
+    with pytest.raises(ValueError, match="MIRROR_ON_NATIVE_FORBIDDEN"):
+        await store_mirror_native_credentials(ctx, "EmbedBuild/proj", "spbx_test")
+
+
+async def test_store_mirror_requires_primary_session() -> None:
+    ctx = _ctx_with(None)
+    with pytest.raises(ValueError, match="No primary backend session"):
+        await store_mirror_native_credentials(ctx, "EmbedBuild/proj", "spbx_test")
+
+
+async def test_store_mirror_rejects_empty_args() -> None:
+    ctx = _ctx_with(dict(TRELLO_CONFIG))
+    with pytest.raises(ValueError, match="project_id is required"):
+        await store_mirror_native_credentials(ctx, "", "spbx_test")
+    with pytest.raises(ValueError, match="dev_token is required"):
+        await store_mirror_native_credentials(ctx, "EmbedBuild/proj", "")
+
+
+async def test_clear_mirror_detaches_and_is_idempotent() -> None:
+    ctx = _ctx_with({**TRELLO_CONFIG, "mirror": dict(MIRROR_CONFIG)})
+    await clear_mirror_credentials(ctx)
+    assert "mirror" not in ctx._state_map[BACKEND_STATE_KEY]
+    backend = await get_session_backend(ctx)
+    assert type(backend) is TrelloBackend  # back to single-backend
+    await clear_mirror_credentials(ctx)  # second call: no-op, no raise

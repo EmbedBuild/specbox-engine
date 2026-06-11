@@ -137,3 +137,49 @@ class TestReleaseAuditsEvent:
 
         rows = [r for r in await _audit_rows(project_id) if r["operation"] == OP_RELEASE_UC]
         assert rows == [], "no release event when there was no reservation to release"
+
+
+class TestCompleteTransitionResilience:
+    """US-12 / UC-1207 AC-02 — the done transition survives the best-effort leg.
+
+    complete_uc is two steps: backend.update_item(state='done') (fires the
+    0012 triggers) and then _release_uc_native (best-effort: audits the
+    OP_COMPLETE_UC event + releases the reservation, swallowing EVERY
+    failure). Before US-12, a failure there silently lost the completion
+    record. Now the lifecycle transition is written transactionally by the
+    trigger in step 1, so step 2 failing must not matter.
+    """
+
+    async def test_done_transition_survives_release_failure(self) -> None:
+        from server.tools.spec_driven import _release_uc_native
+
+        project_id = f"test-uc1207-res-{uuid.uuid4().hex[:8]}"
+        token = "tok-resil-" + uuid.uuid4().hex
+        uc_id = await _seed_project_uc(project_id, "dev-resil", token)
+
+        # Step 1 of complete_uc: the state change (spec_driven.py flow).
+        backend = NativeBackend(project_id=project_id, dev_token=token)
+        await backend.update_item(project_id, uc_id, state="done")
+
+        # Step 2 with INJECTED FAILURE: bogus token → auth fails inside and is
+        # swallowed by design ("never raises"). No OP_COMPLETE_UC audit row.
+        await _release_uc_native({"project_id": project_id, "dev_token": "bogus-token"}, uc_id)
+
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            tr = await conn.fetch(
+                "SELECT to_state, developer_id, source FROM uc_state_transitions "
+                "WHERE project_id = $1 AND uc_id = $2 AND to_state = 'done'",
+                project_id, uc_id,
+            )
+            cols = await conn.fetchrow(
+                "SELECT state, completed_at FROM use_cases "
+                "WHERE project_id = $1 AND id = $2",
+                project_id, uc_id,
+            )
+        complete_events = [r for r in await _audit_rows(project_id) if r["operation"] == "complete_uc"]
+
+        assert complete_events == [], "the best-effort audit leg did fail (precondition)"
+        assert len(tr) == 1, "the lifecycle transition must exist anyway"
+        assert tr[0]["developer_id"] == "dev-resil", "attributed by the update_item GUC"
+        assert cols["state"] == "done" and cols["completed_at"] is not None

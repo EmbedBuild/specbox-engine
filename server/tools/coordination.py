@@ -345,6 +345,50 @@ async def register_native_branch(uc_id: str, branch: str, ctx: Context) -> dict[
     }
 
 
+async def get_project_kpis(ctx: Context) -> dict[str, Any]:
+    """Lifecycle KPIs of the session's project (US-12 / UC-1204).
+
+    Read-only: one ``SELECT * FROM fn_lifecycle_kpis($1)`` with the SESSION's
+    project_id — tenant isolation by construction, there is no free project
+    parameter. Authenticates like the reservation tools (Frontier 1): KPIs
+    are aggregate project data, so membership is required even though the
+    call mutates nothing.
+
+    Returns the v_lifecycle_kpis row (lead times converted to seconds for
+    JSON), or a coded error: NOT_NATIVE_SESSION / UNAUTHENTICATED /
+    FORBIDDEN / PROJECT_NOT_FOUND.
+    """
+    try:
+        project_id, _dev, pool = await _authed_dev(ctx)
+    except RuntimeError as e:
+        return {"error": str(e), "code": "NOT_NATIVE_SESSION"}
+    except UnauthenticatedError:
+        return _unauth_for_ctx(ctx, reason="default")
+    except ForbiddenError as e:
+        return {"error": str(e), "code": "FORBIDDEN"}
+
+    row = await pool.fetchrow("SELECT * FROM fn_lifecycle_kpis($1)", project_id)
+    if row is None:
+        return {"error": f"Project {project_id!r} not found", "code": "PROJECT_NOT_FOUND"}
+
+    data: dict[str, Any] = dict(row)
+    for key in ("lead_time_p50", "lead_time_p90"):
+        if data.get(key) is not None:
+            data[key] = data[key].total_seconds()
+    coverage = data.get("coverage_pct")
+    data["coverage_pct"] = float(coverage) if coverage is not None else None
+    return {
+        "success": True,
+        **data,
+        "lead_time_unit": "seconds",
+        "summary": (
+            f"KPIs de lifecycle de {project_id}: {data['done_measurable']}/"
+            f"{data['done_total']} done medibles ({data['coverage_pct']}% cobertura), "
+            f"wip={data['wip']}."
+        ),
+    }
+
+
 def register_coordination_tools(mcp_instance) -> None:
     """Register the native coordination tools (H2 identity + H3 reservations).
 
@@ -389,3 +433,11 @@ def register_coordination_tools(mcp_instance) -> None:
         description="Register a branch <-> UC mapping. Rejects branch-name collisions and "
         "suggests feature/{uc_id}-... naming. Native backend only."
     )(register_native_branch)
+    # US-12 — lifecycle analytics (read-only)
+    mcp_instance.tool(
+        description=(
+            "Lifecycle KPIs del proyecto de la sesión (lead_time p50/p90 en segundos, "
+            "coverage_pct, wip, done_by_import...). Read-only sobre fn_lifecycle_kpis; "
+            "el tenant es siempre el de la sesión. Native backend only."
+        )
+    )(get_project_kpis)

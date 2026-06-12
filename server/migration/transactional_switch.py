@@ -70,15 +70,21 @@ def _registry_path(state_path: str | None) -> Path:
 
 
 def _read_registry_snapshot(project_slug: str, state_path: str | None) -> dict[str, Any]:
-    """Return a deep-ish snapshot of the project's registry entry (or absent)."""
+    """Return a deep-ish snapshot of the project's registry entry (or absent).
+
+    ``file_present`` records whether ``projects.json`` existed at snapshot time so
+    that rollback can DELETE a file a writer just created (mirror auto-init) instead
+    of leaving an empty-but-present registry behind.
+    """
     path = _registry_path(state_path)
     if not path.exists():
-        return {"present": False, "entry": None}
+        return {"present": False, "entry": None, "file_present": False}
     registry = json.loads(path.read_text(encoding="utf-8"))
     entry = (registry.get("projects") or {}).get(project_slug)
     return {
         "present": entry is not None,
         "entry": json.loads(json.dumps(entry)) if entry is not None else None,
+        "file_present": True,
     }
 
 
@@ -117,9 +123,17 @@ def _write_registry(
 
 
 def _restore_registry(project_slug: str, snapshot: dict[str, Any], state_path: str | None) -> None:
-    """Restore the project's registry entry from a snapshot."""
+    """Restore the project's registry entry from a snapshot.
+
+    If the registry file did not exist when snapshotted (``file_present`` False)
+    a later writer created it — rollback deletes the whole file so the state dir
+    returns byte-identical to before the transaction (mirror auto-init case).
+    """
     path = _registry_path(state_path)
     if not path.exists():
+        return
+    if snapshot.get("file_present") is False:
+        path.unlink()
         return
     registry = json.loads(path.read_text(encoding="utf-8"))
     registry.setdefault("projects", {})
@@ -325,16 +339,48 @@ def apply_switch_transactional(
 
 
 def _write_registry_mirror(
-    project_slug: str, mirror_project_id: str | None, state_path: str | None
+    project_slug: str,
+    mirror_project_id: str | None,
+    state_path: str | None,
+    primary_backend: str = "",
+    primary_board_id: str = "",
 ) -> None:
-    """Set (or remove, when None) the project's ``mirror`` registry block."""
+    """Set (or remove, when None) the project's ``mirror`` registry block.
+
+    The mirror is opt-in best-effort over an already-live primary, and on a cloud
+    MCP the ``projects.json`` registry may never have been materialised for the
+    project (no local onboarding ran there). So enabling a mirror auto-bootstraps
+    what it needs instead of failing:
+
+    - **File missing** → create the ``{"projects": {}}`` skeleton (rollback deletes
+      it; see :func:`_restore_registry`).
+    - **Entry missing** (only when SETTING a mirror) → seed it from the PRIMARY
+      (``spec_backend``/``board_id`` come from the session + tool args). The
+      primary is the source of truth; the mirror block is purely additive.
+    - **Entry present** → its ``spec_backend``/``board_id`` are NEVER overwritten;
+      only the ``mirror`` sub-block is added or removed.
+    - **Disable** (``mirror_project_id is None``) with a missing file/entry → no-op:
+      we don't fabricate an entry just to remove something that isn't there.
+    """
     path = _registry_path(state_path)
-    if not path.exists():
-        raise FileNotFoundError(f"Project registry not found at {path}")
-    registry = json.loads(path.read_text(encoding="utf-8"))
-    projects = registry.get("projects") or {}
+    if path.exists():
+        registry = json.loads(path.read_text(encoding="utf-8"))
+    elif mirror_project_id is None:
+        return  # disable on a non-existent registry — nothing to remove
+    else:
+        registry = {"projects": {}}
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+    projects = registry.setdefault("projects", {})
     if project_slug not in projects:
-        raise KeyError(f"Project {project_slug!r} not found in registry")
+        if mirror_project_id is None:
+            return  # disable with no entry — no-op
+        # Auto-seed from the primary (never invents a primary it wasn't given).
+        projects[project_slug] = {
+            "spec_backend": primary_backend,
+            "board_id": primary_board_id,
+        }
+
     project = projects[project_slug]
     if mirror_project_id is None:
         project.pop("mirror", None)
@@ -406,6 +452,8 @@ def apply_mirror_transactional(
     project_path: str,
     state_path: str | None = None,
     *,
+    primary_backend: str = "",
+    primary_board_id: str = "",
     settings_writer: Callable[[], None] | None = None,
     registry_writer: Callable[[], None] | None = None,
     app_spec_writer: Callable[[], None] | None = None,
@@ -418,6 +466,11 @@ def apply_mirror_transactional(
     :func:`apply_switch_transactional`; the primary backend fields are
     never touched.
 
+    ``primary_backend`` / ``primary_board_id`` are the live primary's identity,
+    used ONLY to auto-seed a brand-new registry entry when the project was never
+    materialised in ``projects.json`` on this MCP host (cloud case). When the
+    entry already exists they are ignored — the on-disk primary always wins.
+
     Returns ``{"updated": [...], "previous": {...}, "mirror": ...}``.
     """
     snapshots: dict[str, dict[str, Any]] = {
@@ -428,7 +481,15 @@ def apply_mirror_transactional(
 
     writers: dict[str, Callable[[], None]] = {
         PLACE_REGISTRY: registry_writer
-        or (lambda: _write_registry_mirror(project_slug, mirror_project_id, state_path)),
+        or (
+            lambda: _write_registry_mirror(
+                project_slug,
+                mirror_project_id,
+                state_path,
+                primary_backend,
+                primary_board_id,
+            )
+        ),
         PLACE_APP_SPEC: app_spec_writer
         or (
             lambda: _write_app_spec_mirror(

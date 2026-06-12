@@ -838,6 +838,106 @@ def test_detect_backend_without_mirror_is_none(trello_project) -> None:
     assert detected["mirror"] is None
 
 
+# ══ FIX — registry auto-init + auto-seed (cloud projects.json absent) ══
+#
+# Production bug (potencial_digital_2026): on a cloud MCP host the registry
+# `projects.json` was never materialised, so `_write_registry_mirror` raised
+# FileNotFoundError and the mirror block never persisted (CONFIG_FAILED on
+# place="registry"). The `trello_project` fixture always pre-seeds the entry —
+# which is exactly why the suite above never caught it. These tests start from
+# the real dirty state: file and/or entry absent (UC-827 pattern).
+
+
+def test_mirror_autoinits_registry_when_file_missing(trello_project) -> None:
+    """File absent → writer creates it + seeds the entry from the primary."""
+    project_path, state_path, slug = trello_project
+    (state_path / "projects.json").unlink()  # cloud reality: no registry on disk
+
+    outcome = apply_mirror_transactional(
+        slug,
+        MIRROR_PID,
+        str(project_path),
+        str(state_path),
+        primary_backend="trello",
+        primary_board_id="board-1",
+    )
+    assert outcome["updated"] == ["registry", "app_spec", "settings"]
+
+    registry = json.loads((state_path / "projects.json").read_text())
+    entry = registry["projects"][slug]
+    # Primary seeded from the session/tool args; mirror block set.
+    assert entry["spec_backend"] == "trello"
+    assert entry["board_id"] == "board-1"
+    assert entry["mirror"] == {"backend": "native", "project_id": MIRROR_PID}
+
+
+def test_mirror_autoseeds_entry_when_slug_absent(trello_project) -> None:
+    """File exists but without our slug → seed the entry, leave others intact."""
+    project_path, state_path, slug = trello_project
+    (state_path / "projects.json").write_text(
+        json.dumps({"projects": {"other": {"spec_backend": "plane", "board_id": "p-9"}}}),
+        encoding="utf-8",
+    )
+
+    apply_mirror_transactional(
+        slug,
+        MIRROR_PID,
+        str(project_path),
+        str(state_path),
+        primary_backend="trello",
+        primary_board_id="board-1",
+    )
+
+    registry = json.loads((state_path / "projects.json").read_text())
+    assert registry["projects"][slug]["spec_backend"] == "trello"
+    assert registry["projects"][slug]["board_id"] == "board-1"
+    assert registry["projects"][slug]["mirror"]["project_id"] == MIRROR_PID
+    # The unrelated project is untouched.
+    assert registry["projects"]["other"] == {"spec_backend": "plane", "board_id": "p-9"}
+
+
+def test_mirror_does_not_overwrite_existing_primary(trello_project) -> None:
+    """Entry present → its primary is NEVER overwritten by the seed args."""
+    project_path, state_path, slug = trello_project
+    # The fixture already seeded {spec_backend: trello, board_id: board-1}.
+    apply_mirror_transactional(
+        slug,
+        MIRROR_PID,
+        str(project_path),
+        str(state_path),
+        primary_backend="freeform",   # deliberately WRONG — must be ignored
+        primary_board_id="bogus",     # the on-disk primary wins
+    )
+
+    entry = json.loads((state_path / "projects.json").read_text())["projects"][slug]
+    assert entry["spec_backend"] == "trello"   # not "freeform"
+    assert entry["board_id"] == "board-1"      # not "bogus"
+    assert entry["mirror"] == {"backend": "native", "project_id": MIRROR_PID}
+
+
+def test_rollback_deletes_registry_created_by_writer(trello_project) -> None:
+    """A later-place failure rolls back the auto-created registry file entirely."""
+    project_path, state_path, slug = trello_project
+    (state_path / "projects.json").unlink()  # no registry to start with
+
+    def explode() -> None:
+        raise OSError("disk full")
+
+    with pytest.raises(TransactionalSwitchError) as err:
+        apply_mirror_transactional(
+            slug,
+            MIRROR_PID,
+            str(project_path),
+            str(state_path),
+            primary_backend="trello",
+            primary_board_id="board-1",
+            settings_writer=explode,  # last place fails → registry must roll back
+        )
+    assert err.value.place == "settings"
+    # The file the registry writer created is removed — state dir as before.
+    assert not (state_path / "projects.json").exists()
+
+
 # ══ UC-1104 — enable_mirror / disable_mirror + backfill ═══════════════
 
 
@@ -1050,6 +1150,39 @@ async def test_enable_mirror_rerun_is_idempotent_rebackfill(
     assert first["status"] == second["status"] == "enabled"
     assert second["backfill"]["skipped"] == 2  # 1 US + 1 UC already present
     assert second["backfill"]["verified_counts"] == {"us": 1, "uc": 1, "ac": 2}
+
+
+async def test_enable_mirror_e2e_seeds_registry_from_session(
+    mirror_seams, trello_project
+) -> None:
+    """FIX e2e: registry absent → enable_mirror seeds it from the session primary.
+
+    Reproduces the potencial_digital_2026 path: projects.json is missing on the
+    MCP host, yet enable_mirror succeeds and the entry is seeded from the live
+    primary instead of failing with CONFIG_FAILED on place="registry".
+    """
+    project_path, state_path, slug = trello_project
+    (state_path / "projects.json").unlink()  # cloud reality: no registry
+    source = await _freeform_source()
+
+    result = await enable_mirror(
+        slug,
+        MIRROR_CANONICAL,
+        "spbx_t",
+        _freeform_ctx(),  # primary = freeform (session source of truth)
+        source_content=source,
+        project_path=str(project_path),
+        dry_run=False,
+        confirmed_count={"us": 1, "uc": 1},
+    )
+
+    assert result["status"] == "enabled", result
+    assert result["config_updated"] == ["registry", "app_spec", "settings"]
+
+    registry = json.loads((state_path / "projects.json").read_text())
+    entry = registry["projects"][slug]
+    assert entry["spec_backend"] == "freeform"  # seeded from the session primary
+    assert entry["mirror"]["project_id"] == MIRROR_CANONICAL
 
 
 # AC-04 — disable_mirror revierte a single-backend sin pérdida

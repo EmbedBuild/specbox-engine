@@ -1815,9 +1815,16 @@ async def enable_mirror(
         await mirror_backend.close()
 
     # ── 5. Persist config (3 places, atomic) + live session ─────────
+    # Pass the primary's identity so the registry writer can auto-seed the
+    # project entry if projects.json was never materialised on this MCP host
+    # (cloud case) — the primary block stays read-only when it already exists.
     try:
         outcome = apply_mirror_transactional(
-            project_slug, canonical, project_path
+            project_slug,
+            canonical,
+            project_path,
+            primary_backend=primary_type,
+            primary_board_id=primary_board_id,
         )
     except TransactionalSwitchError as exc:
         return {

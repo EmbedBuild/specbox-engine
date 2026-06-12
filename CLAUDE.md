@@ -1,4 +1,4 @@
-# SpecBox Engine v6.10.1
+# SpecBox Engine v6.10.2
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**

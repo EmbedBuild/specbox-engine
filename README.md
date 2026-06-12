@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.10.1 — "Reentrant Reserve" (sobre v6.10.0 "UC Lifecycle Metrics")<br/>
+  v 6.10.2 — "Mirror Bootstrap" (sobre v6.10.1 "Reentrant Reserve")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -37,6 +37,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 100% backwards-compatible. Las migraciones de producción (`20260611000012..16`) se aplican vía Supabase ledger en el despliegue.
 
 **v6.10.1 — "Reentrant Reserve"** hotfix: `reserve_uc` reentrante dentro de una transacción usa `INSERT ... ON CONFLICT DO NOTHING` en vez de capturar `UniqueViolationError`, arreglando el `current transaction is aborted` de `start_uc` tras `reserve_uc` del mismo developer (UC-1208, PR #118).
+
+**v6.10.2 — "Mirror Bootstrap"** hotfix: `enable_mirror` auto-inicializa `projects.json` y auto-siembra la entrada del proyecto desde el primario cuando el registry nunca se materializó en el host MCP cloud — cierra el `CONFIG_FAILED`/`failing_place=registry` al activar el espejo Native sobre el cliente potencial_digital_2026; el primario en disco nunca se sobrescribe y la rollback transaccional borra el `projects.json` recién creado (US-11/UC-1104, PR #123).
 
 ---
 
@@ -469,7 +471,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.10.1 — "Reentrant Reserve" (over v6.10.0 "UC Lifecycle Metrics")
+> v 6.10.2 — "Mirror Bootstrap" (over v6.10.1 "Reentrant Reserve")
 
 ## What is this?
 
@@ -494,6 +496,8 @@ A system that turns Claude Code into a serious teammate:
 100% backwards-compatible. Production migrations (`20260611000012..16`) apply via the Supabase ledger at deploy time.
 
 **v6.10.1 — "Reentrant Reserve"** hotfix: reentrant `reserve_uc` inside a transaction uses `INSERT ... ON CONFLICT DO NOTHING` instead of catching `UniqueViolationError`, fixing the `current transaction is aborted` error on `start_uc` after the same developer's `reserve_uc` (UC-1208, PR #118).
+
+**v6.10.2 — "Mirror Bootstrap"** hotfix: `enable_mirror` auto-inits `projects.json` and auto-seeds the project entry from the primary when the registry was never materialised on the cloud MCP host — fixes the `CONFIG_FAILED`/`failing_place=registry` when enabling the Native mirror on the potencial_digital_2026 client; the on-disk primary is never overwritten and the transactional rollback deletes a just-created `projects.json` (US-11/UC-1104, PR #123).
 
 ---
 

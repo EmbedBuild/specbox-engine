@@ -418,6 +418,14 @@ features:
   - get-project-kpis-tool
 
 changelog:
+  6.10.2:
+    date: 2026-06-12
+    codename: "Mirror Bootstrap"
+    changes:
+      - "fix: enable_mirror auto-inits projects.json + auto-seeds the project entry from the PRIMARY when the registry was never materialised on a cloud MCP host — closes CONFIG_FAILED/failing_place=registry on potencial_digital_2026 (US-11/UC-1104)"
+      - "fix: _write_registry_mirror no longer raises FileNotFoundError/KeyError; an existing entry's primary (spec_backend/board_id) is never overwritten — the mirror block stays purely additive"
+      - "fix: transactional rollback deletes a projects.json a writer just created (file_present snapshot flag) so the state dir returns byte-identical on a later-place failure"
+      - "test: 5 new tests in test_dual_backend.py for the real dirty state (file/entry absent, primary not overwritten, rollback deletes created file, e2e seed-from-session); UC-827 pattern"
   6.10.1:
     date: 2026-06-11
     codename: "Reentrant Reserve"

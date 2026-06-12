@@ -1853,9 +1853,45 @@ native/reservas/coordinación/lifecycle: 347 passed.
 
 - PR: [#118](https://github.com/EmbedBuild/specbox-engine/pull/118)
 
+## enable_mirror: auto-init del registry en cloud (v6.10.2)
+
+UC-1104 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) es un hotfix de
+producción descubierto en dogfooding al activar el espejo Native sobre el cliente
+`potencial_digital_2026` (primario Trello). El backfill Trello→Native se ejecutó y verificó
+(11 US / 36 UC / 111 AC), pero persistir el bloque `mirror` falló con `CONFIG_FAILED` /
+`failing_place: "registry"` / `Project registry not found at /data/state/projects.json`, así que
+el dual-write nunca se activó. El primario (Trello) quedó read-only todo el flujo — la garantía
+dura se respetó.
+
+**Causa raíz**: `_write_registry_mirror`
+([server/migration/transactional_switch.py](server/migration/transactional_switch.py)) lanzaba
+`FileNotFoundError` cuando `$STATE_PATH/projects.json` no existía y `KeyError` cuando el slug no
+estaba. En el host MCP **cloud** ese registry nunca se materializó para el proyecto, por lo que la
+**primera** escritura de config (el bloque mirror) abortaba la transacción de 3 lugares en el
+primer escritor.
+
+**Fix**: el espejo es opt-in best-effort sobre un primario ya vivo, así que ahora auto-bootstrapea
+lo que necesita: un `projects.json` ausente se crea, y una entrada de proyecto ausente se
+**auto-siembra desde el PRIMARIO** (`spec_backend`/`board_id` tomados de `spec_backend_config` de la
+sesión + el arg `primary_board_id`) **antes** de fijar el bloque `mirror`. Una entrada existente
+**nunca** se sobrescribe — el primario en disco gana; el bloque mirror es puramente aditivo.
+`disable_mirror` sobre fichero/entrada ausente es un no-op seguro. La rollback transaccional borra
+el `projects.json` recién creado si un lugar posterior falla (`_read_registry_snapshot` registra
+`file_present`; `_restore_registry` lo borra) → el dir de estado queda byte-idéntico.
+`primary_backend`/`primary_board_id` se propagan `enable_mirror → apply_mirror_transactional →
+_write_registry_mirror` como kwargs opcionales (default vacío → 100% backwards-compatible).
+
+5 tests nuevos en [tests/test_dual_backend.py](tests/test_dual_backend.py) ejercen el estado sucio
+real que la suite previa no tocaba (la fixture `trello_project` siempre pre-sembraba la entrada —
+patrón UC-827): auto-init con fichero ausente, auto-seed con slug ausente, primario existente no
+sobrescrito, rollback que borra el fichero creado, y un e2e de `enable_mirror` que siembra el
+registry desde la sesión. Suites dual-backend + transactional-switch: 63 passed, 1 skipped.
+
+- Spec: [doc/feature-requests/FIX_enable_mirror_registry_autoinit.md](doc/feature-requests/FIX_enable_mirror_registry_autoinit.md)
+
 ## Engine Version
 
-Current: v6.10.1 "Reentrant Reserve"
+Current: v6.10.2 "Mirror Bootstrap"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

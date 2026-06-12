@@ -269,7 +269,7 @@ def test_switch_to_freeform_defaults_root_and_renders(project) -> None:
 
 def test_registry_snapshot_absent_when_no_registry(tmp_path: Path) -> None:
     snap = ts._read_registry_snapshot("nope", str(tmp_path / "missing"))
-    assert snap == {"present": False, "entry": None}
+    assert snap == {"present": False, "entry": None, "file_present": False}
 
 
 def test_write_registry_raises_when_registry_missing(tmp_path: Path) -> None:

@@ -2,6 +2,27 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.10.2] - 2026-06-12 — "Mirror Bootstrap"
+
+Production hotfix found in dogfooding while enabling the Native mirror on the client project `potencial_digital_2026` (Trello primary). The Trello→Native backfill ran and verified (11 US / 36 UC / 111 AC), but persisting the `mirror` config block failed with `CONFIG_FAILED` / `failing_place: "registry"` / `Project registry not found at /data/state/projects.json`, so the dual-write never activated. The primary (Trello) stayed read-only throughout — the hard guarantee held.
+
+### Fixed
+
+- **enable_mirror: registry auto-init + entry auto-seed (US-11 / UC-1104, FIX_enable_mirror_registry_autoinit)** — `_write_registry_mirror` ([server/migration/transactional_switch.py](server/migration/transactional_switch.py)) raised `FileNotFoundError` when `$STATE_PATH/projects.json` was absent and `KeyError` when the slug was missing. On a **cloud** MCP host that registry was never materialised for the project, so the very first config write (the mirror block) aborted the 3-place transaction at the first writer. The mirror is opt-in best-effort over an already-live primary, so it now bootstraps what it needs: a missing `projects.json` is created, and a missing project entry is **auto-seeded from the PRIMARY** (`spec_backend`/`board_id` taken from the live session's `spec_backend_config` + the `primary_board_id` tool arg) **before** the `mirror` block is set. An existing entry's primary fields are **never overwritten** — the on-disk primary always wins; the mirror block is purely additive. `disable_mirror` over a missing file/entry is a safe no-op (no entry is fabricated to remove something that isn't there).
+- **Transactional rollback coherent for the just-created file** — `_read_registry_snapshot` now records `file_present`, and `_restore_registry` **deletes** a `projects.json` that a writer created (instead of leaving an empty-but-present registry) when a later place (app_spec/settings) fails — the state dir returns byte-identical to before the transaction.
+
+### Changed
+
+- `apply_mirror_transactional` gains optional `primary_backend` / `primary_board_id` kwargs (default empty → 100% backwards-compatible); `enable_mirror` passes the session primary's `backend_type` + `primary_board_id`. `disable_mirror` is unchanged.
+
+### Tests
+
+- 5 new tests in [tests/test_dual_backend.py](tests/test_dual_backend.py) exercise the real dirty state the previous suite never hit (the `trello_project` fixture always pre-seeded the entry — UC-827 pattern): file-missing auto-init, slug-absent auto-seed (other projects untouched), existing-primary-not-overwritten, rollback-deletes-the-created-file, and an end-to-end `enable_mirror` that seeds the registry from the session when `projects.json` is absent. `test_registry_snapshot_absent_when_no_registry` updated for the new `file_present` key. Dual-backend + transactional-switch suites: 63 passed, 1 skipped; mirror/migration/switch keyword slice: 59 passed.
+
+### Compatibility
+
+- 100% backwards-compatible; no API changes. `disable_mirror` behavior unchanged. Projects whose `projects.json` already contains the entry are written exactly as before.
+
 ## [6.10.1] - 2026-06-11 — "Reentrant Reserve"
 
 Hotfix for a bug found in dogfooding while closing MGR-US-01 UC-06: after `reserve_uc(UC)`, calling `start_uc(UC)` with the same developer failed with `current transaction is aborted, commands ignored until end of transaction block`. Reads, standalone `reserve_uc`, and `move_uc` all worked — only `start_uc` broke.

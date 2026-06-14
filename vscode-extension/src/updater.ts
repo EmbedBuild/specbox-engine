@@ -7,7 +7,11 @@ import {
   detectClientConfigCase, planMigration, buildMigrationSummary, renderSummaryText,
   backupAndMigrate, readClientSettings, settingsLocalPath,
 } from './migration';
-import { GitRunner, defaultGitRunner, isManagedPath } from './install';
+import {
+	GitRunner, defaultGitRunner, isManagedPath,
+	fetchRemote, remoteEngineVersion, compareSemver, isDivergedFromRemote,
+	DEFAULT_REMOTE_BRANCH,
+} from './install';
 
 /** Outcome of pulling the managed clone. `skipped` means the engine is a user clone (untouched). */
 export interface PullResult { ok: boolean; skipped?: boolean; error?: string; }
@@ -50,7 +54,18 @@ export async function pullManagedEngine(
  * automatically; anything that moves data is surfaced for explicit confirmation.
  */
 export class ExtensionUpdater {
-	constructor(private extensionVersion: string) {}
+	/** Remote versions the user chose to postpone — lives for this session only (US-14 AC-08). */
+	private postponedVersions = new Set<string>();
+
+	/**
+	 * @param extensionVersion the running extension version (package.json).
+	 * @param gitRunner injectable git runner so the remote check (US-14) is testable
+	 *   without touching git or the network; defaults to the real runner.
+	 */
+	constructor(
+		private extensionVersion: string,
+		private gitRunner: GitRunner = defaultGitRunner,
+	) {}
 
 	/**
 	 * Orchestrate the full post-update flow without blocking activation.
@@ -61,6 +76,22 @@ export class ExtensionUpdater {
 		const engineVersion = this.resolveEngineVersion(enginePath);
 		if (!engineVersion) { return; }
 
+		// Phase -1 — remote version check (US-14, UC-1401..1404). BEFORE the pull:
+		// fetch origin, read the version on origin/main, and if it is newer than the
+		// local one, offer an actionable X→Y upgrade. Self-contained and fire-and-
+		// forget — any failure (no network, no git) skips silently and the rest of
+		// the flow continues unchanged (AC-03). When the user accepts and the upgrade
+		// applies, the engineVersion below is already stale, but Phase 1's rebuild +
+		// reload supersede it, so we simply return after a successful applied upgrade.
+		if (enginePath) {
+			try {
+				const handled = await this.checkRemoteAndOffer(enginePath, engineVersion);
+				if (handled === 'reloading') { return; }
+			} catch (err) {
+				console.warn('[specbox] updater: remote-check phase failed:', err);
+			}
+		}
+
 		// Phase 0 — pull the managed clone up to date before reinstalling skills/hooks
 		// (UC-111). Only touches the managed dir; a user clone is skipped. A failed
 		// pull (no network, diverged history) is a non-blocking warning — the flow
@@ -68,7 +99,7 @@ export class ExtensionUpdater {
 		// fire-and-forget pattern of v6.6.2).
 		if (enginePath) {
 			try {
-				const pull = await pullManagedEngine(enginePath);
+				const pull = await pullManagedEngine(enginePath, { gitRunner: this.gitRunner });
 				if (!pull.ok && !pull.skipped) {
 					vscode.window.showWarningMessage(
 						vscode.l10n.t('SpecBox: could not update the managed engine ({0}). Continuing with the local copy.', pull.error ?? 'unknown error'),
@@ -181,6 +212,212 @@ export class ExtensionUpdater {
 				);
 			}
 		});
+	}
+
+	/**
+	 * Phase -1 (US-14): fetch origin, read the remote version, and — if it is
+	 * strictly newer than `localVersion` — offer an actionable X→Y upgrade.
+	 *
+	 * Returns:
+	 *  - 'reloading' when the upgrade applied AND the user accepted a reload (the
+	 *    caller stops the flow; the window is reloading).
+	 *  - 'noop' for every other path: no network, no upgrade available, the user
+	 *    postponed, the upgrade was offered but not completed, etc. The caller
+	 *    continues the normal flow.
+	 *
+	 * Never throws (callers also wrap it). UC-1401 AC-01..03, UC-1402 AC-04..08.
+	 */
+	private async checkRemoteAndOffer(
+		enginePath: string,
+		localVersion: string,
+	): Promise<'reloading' | 'noop'> {
+		// UC-1401 AC-01: fetch (tags included). Non-throwing; a failure (no network,
+		// no git → code 127) just means we cannot compare → skip silently (AC-03).
+		const fetched = await fetchRemote(enginePath, this.gitRunner);
+		if (fetched.code !== 0) { return 'noop'; }
+
+		// UC-1401 AC-02: read origin/main:ENGINE_VERSION.yaml. null → skip silently.
+		const remoteVersion = await remoteEngineVersion(enginePath, this.gitRunner);
+		if (!remoteVersion) { return 'noop'; }
+
+		// UC-1402 AC-04 / AC-06: numeric semver compare. Only a strictly-newer remote
+		// is an upgrade; equal or local-ahead (the engine developer's case) shows nothing.
+		if (compareSemver(remoteVersion, localVersion) <= 0) { return 'noop'; }
+
+		// UC-1402 AC-08: do not re-prompt for a version the user already postponed
+		// this session. A still-newer version would not be in the set, so it re-prompts.
+		if (this.postponedVersions.has(remoteVersion)) { return 'noop'; }
+
+		// UC-1402 AC-05: actionable modal X→Y with the three canonical buttons.
+		const update = vscode.l10n.t('Update now');
+		const changes = vscode.l10n.t('View changes');
+		const later = vscode.l10n.t('Later');
+		const choice = await vscode.window.showInformationMessage(
+			vscode.l10n.t('SpecBox Engine v{0} → v{1} available. Update?', localVersion, remoteVersion),
+			{ modal: true },
+			update, changes, later,
+		);
+
+		if (choice === changes) {
+			// UC-1402 AC-07: open the CHANGELOG, then re-offer the decision.
+			await this.openChangelog(enginePath);
+			return this.checkRemoteAndOffer(enginePath, localVersion);
+		}
+		if (choice === update) {
+			return this.applyUpgrade(enginePath, remoteVersion);
+		}
+		// Later or dismissed (undefined): postpone this version for the session.
+		this.postponedVersions.add(remoteVersion);
+		return 'noop';
+	}
+
+	/** Open the engine CHANGELOG.md in a preview (UC-1402 AC-07). Best-effort. */
+	private async openChangelog(enginePath: string): Promise<void> {
+		const changelog = path.join(enginePath, 'CHANGELOG.md');
+		if (!fs.existsSync(changelog)) { return; }
+		try {
+			const doc = await vscode.workspace.openTextDocument(changelog);
+			await vscode.window.showTextDocument(doc, { preview: true });
+		} catch (err) {
+			console.warn('[specbox] updater: could not open CHANGELOG:', err);
+		}
+	}
+
+	/**
+	 * Apply the accepted upgrade (UC-1403). `git pull --ff-only` inside a progress
+	 * notification, then VERIFY by re-reading ENGINE_VERSION.yaml — a pull that
+	 * reports success but did not move the version is surfaced as an error, never
+	 * declared a success (AC-11). On a diverged history (--ff-only fails) it routes
+	 * to the gated reset path (UC-1404). Returns 'reloading' only when the upgrade
+	 * applied and the user chose to reload.
+	 */
+	private async applyUpgrade(enginePath: string, targetVersion: string): Promise<'reloading' | 'noop'> {
+		const pull = await vscode.window.withProgress({
+			location: vscode.ProgressLocation.Notification,
+			title: vscode.l10n.t('SpecBox: updating engine…'),
+			cancellable: false,
+		}, async () => this.gitRunner(['pull', '--ff-only'], enginePath));
+
+		if (pull.code !== 0) {
+			// --ff-only failed. If it is because the history diverged, offer the gated
+			// reset-with-backup path (UC-1404). Otherwise it is a transient failure.
+			const diverged = await isDivergedFromRemote(enginePath, this.gitRunner);
+			if (diverged) {
+				return this.handleDivergence(enginePath, targetVersion);
+			}
+			vscode.window.showWarningMessage(
+				vscode.l10n.t('SpecBox: could not update the engine ({0}). Continuing with the local copy.', pull.stderr.trim() || `git exited with code ${pull.code}`),
+			);
+			return 'noop';
+		}
+
+		return this.verifyAndFinish(enginePath, targetVersion);
+	}
+
+	/**
+	 * Re-read ENGINE_VERSION.yaml and confirm it now equals `targetVersion`
+	 * (UC-1403 AC-10/AC-11). On match → rebuild + offer reload. On mismatch →
+	 * actionable error, NOT a silent success.
+	 */
+	private async verifyAndFinish(enginePath: string, targetVersion: string): Promise<'reloading' | 'noop'> {
+		const applied = this.resolveEngineVersion(enginePath);
+		if (applied && compareSemver(applied, targetVersion) === 0) {
+			// AC-10: version moved as expected → rebuild the extension and offer reload.
+			await this.rebuildExtension(enginePath, applied);
+			return 'reloading';
+		}
+		// AC-11: the pull "succeeded" but the version did not change → do not lie.
+		const openTerminal = vscode.l10n.t('Open Terminal');
+		const choice = await vscode.window.showErrorMessage(
+			vscode.l10n.t('SpecBox: the upgrade did not apply — still on v{0}. Update manually from a terminal.', applied ?? 'unknown'),
+			openTerminal,
+		);
+		if (choice === openTerminal) {
+			vscode.commands.executeCommand('workbench.action.terminal.new');
+		}
+		return 'noop';
+	}
+
+	/**
+	 * Diverged managed clone (UC-1404): the engine developer's case. NEVER resets a
+	 * user clone (isManagedPath gate, ICP-1). On the managed clone, ask for explicit
+	 * confirmation, back up the current branch FIRST (recoverable), then
+	 * fetch → checkout default → reset --hard, and verify like AC-10/AC-11.
+	 */
+	private async handleDivergence(enginePath: string, targetVersion: string): Promise<'reloading' | 'noop'> {
+		const branch = await this.currentBranch(enginePath);
+
+		// AC-15 guard / ICP-1: a user clone is never reset — only an informational notice.
+		if (!isManagedPath(enginePath)) {
+			vscode.window.showWarningMessage(
+				vscode.l10n.t('SpecBox: the local engine clone has diverged (branch {0}). Update it manually.', branch ?? 'unknown'),
+			);
+			return 'noop';
+		}
+
+		// AC-12: explicit, modal, destructive confirmation. No reset without it.
+		const doReset = vscode.l10n.t('Reset with backup');
+		const cancel = vscode.l10n.t('Cancel');
+		const choice = await vscode.window.showWarningMessage(
+			vscode.l10n.t('The local engine clone has diverged (branch {0}). Updating requires resetting to origin/{1}. Your current branch will be backed up. Continue?', branch ?? 'unknown', DEFAULT_REMOTE_BRANCH),
+			{ modal: true },
+			doReset, cancel,
+		);
+		// AC-15: Cancel (or dismiss) leaves the clone untouched — no fetch, checkout or reset.
+		if (choice !== doReset) {
+			vscode.window.showInformationMessage(
+				vscode.l10n.t('SpecBox: engine update cancelled. Continuing with the local copy.'),
+			);
+			return 'noop';
+		}
+
+		// AC-13: back up the current branch BEFORE touching anything (recoverable SHA).
+		const backupRef = `specbox-backup/${branch ?? 'detached'}-${utcStamp()}`;
+		const backup = await this.gitRunner(['branch', backupRef], enginePath);
+		if (backup.code !== 0) {
+			vscode.window.showErrorMessage(
+				vscode.l10n.t('SpecBox: could not create the backup branch ({0}). Aborting the reset.', backup.stderr.trim() || `git exited with code ${backup.code}`),
+			);
+			return 'noop';
+		}
+
+		// AC-14: only after confirmation → fetch + checkout default + reset --hard, then verify.
+		const result = await vscode.window.withProgress({
+			location: vscode.ProgressLocation.Notification,
+			title: vscode.l10n.t('SpecBox: updating engine…'),
+			cancellable: false,
+		}, async (): Promise<'reloading' | 'noop'> => {
+			const steps: string[][] = [
+				['fetch', 'origin'],
+				['checkout', DEFAULT_REMOTE_BRANCH],
+				['reset', '--hard', `origin/${DEFAULT_REMOTE_BRANCH}`],
+			];
+			for (const args of steps) {
+				const r = await this.gitRunner(args, enginePath);
+				if (r.code !== 0) {
+					vscode.window.showErrorMessage(
+						vscode.l10n.t('SpecBox: reset failed at `git {0}` ({1}). Your branch is safe at {2}.', args.join(' '), r.stderr.trim() || `code ${r.code}`, backupRef),
+					);
+					return 'noop';
+				}
+			}
+			return this.verifyAndFinish(enginePath, targetVersion);
+		});
+
+		if (result === 'reloading') {
+			vscode.window.showInformationMessage(
+				vscode.l10n.t('SpecBox: engine reset to origin/{0}. Previous work backed up at {1}.', DEFAULT_REMOTE_BRANCH, backupRef),
+			);
+		}
+		return result;
+	}
+
+	/** Current branch name (or null if detached / git fails). Used for backup naming. */
+	private async currentBranch(enginePath: string): Promise<string | null> {
+		const r = await this.gitRunner(['rev-parse', '--abbrev-ref', 'HEAD'], enginePath);
+		if (r.code !== 0) { return null; }
+		const name = r.stdout.trim();
+		return name && name !== 'HEAD' ? name : null;
 	}
 
 	/** Backwards-compatible alias for the old entry point. */

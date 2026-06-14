@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.10.2 — "Mirror Bootstrap" (sobre v6.10.1 "Reentrant Reserve")<br/>
+  v 6.11.0 — "Self Update" (sobre v6.10.2 "Mirror Bootstrap")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,19 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v6.11
+
+**v6.11.0 — "Self Update"** la extensión VSCode ahora detecta una versión más nueva del engine al arrancar y ofrece actualizar — antes solo comparaba la versión instalada contra el disco, nunca el remoto:
+
+- **Chequeo de versión remota al arrancar** — `git fetch` + leer `origin/main:ENGINE_VERSION.yaml`, comparación semver numérica (`6.10.2 > 6.9.4`). Sin red / sin git → se omite en silencio, la activación no se bloquea.
+- **Diálogo accionable X→Y** — modal `Update now` / `View changes` / `Later`; "Later" silencia esa versión durante la sesión, una más nueva sí vuelve a preguntar.
+- **Upgrade garantizado** — `pull --ff-only` y luego **verifica** releyendo la versión en disco: un pull que no movió la versión se reporta como error, nunca como éxito silencioso.
+- **Camino de divergencia con backup** — un clon managed divergido (el caso del developer del engine) ofrece `reset --hard` con backup `git branch` previo y confirmación modal; un clon de usuario nunca se resetea, solo se avisa.
+
+100% backwards-compatible. `extension.ts` intacto; la feature solo *ofrece* el upgrade, nunca lo aplica sin consentimiento (US-14, PR #125).
 
 ---
 
@@ -471,7 +484,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.10.2 — "Mirror Bootstrap" (over v6.10.1 "Reentrant Reserve")
+> v 6.11.0 — "Self Update" (over v6.10.2 "Mirror Bootstrap")
 
 ## What is this?
 
@@ -483,6 +496,17 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v6.11
+
+**v6.11.0 — "Self Update"** the VSCode extension now detects a newer engine version on start-up and offers to update — it used to only compare the installed version against the on-disk one, never the remote:
+
+- **Remote version check on start-up** — `git fetch` + read `origin/main:ENGINE_VERSION.yaml`, numeric semver compare (`6.10.2 > 6.9.4`). No network / no git → skipped silently, activation never blocks.
+- **Actionable X→Y dialog** — `Update now` / `View changes` / `Later` modal; "Later" postpones that version for the session, a newer one re-prompts.
+- **Guaranteed upgrade** — `pull --ff-only` then **verifies** by re-reading the on-disk version: a pull that did not move the version is surfaced as an error, never a silent success.
+- **Diverged path with backup** — a diverged managed clone (the engine developer's case) offers `reset --hard` with a `git branch` backup first and a modal confirmation; a user clone is never reset, only warned.
+
+100% backwards-compatible. `extension.ts` untouched; the feature only *offers* the upgrade, never applies it without consent (US-14, PR #125).
 
 ## What's new in v6.10
 

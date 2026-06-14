@@ -2,6 +2,34 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.11.0] - 2026-06-14 — "Self Update"
+
+US-14 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) cierra el funnel que abrió el auto-clone de v6.9.0: la extensión VSCode clonaba y hacía `git pull --ff-only` al arrancar, pero **solo comparaba la versión de la extensión instalada contra el `ENGINE_VERSION.yaml` en disco** — nunca consultaba el remoto. Un clon managed en versión vieja (o una rama divergida del developer) se quedaba atrás en silencio: el `--ff-only` fallaba sobre historia divergida y solo emitía un warning no bloqueante. Reproducido en dogfooding el 2026-06-14 (clon en 6.9.4 mientras `origin/main` ya estaba en 6.10.2).
+
+### Added
+
+- **Chequeo de versión remota al arrancar (UC-1401)** — fase −1 de `runUpdateFlow`: `git fetch origin --tags` + `git show origin/main:ENGINE_VERSION.yaml`. Helpers puros `fetchRemote` / `remoteEngineVersion` en [vscode-extension/src/install.ts](vscode-extension/src/install.ts) (git inyectable, nunca lanzan). Sin red / sin git (code 127) → se omite en silencio, activación normal.
+- **Diálogo accionable X→Y + comparación semver (UC-1402)** — `compareSemver` numérico (`6.10.2 > 6.9.4`, no lexicográfico); si remota > local, modal `Update now` / `View changes` / `Later`. "Later" silencia esa versión durante la sesión (`Set` en memoria); una versión más nueva sí vuelve a preguntar. `View changes` abre el CHANGELOG y reabre la decisión.
+- **Upgrade garantizado con verificación (UC-1403)** — `pull --ff-only` en progress bar, luego **relee `ENGINE_VERSION.yaml`** y verifica que la versión es la objetivo; un pull que reporta éxito pero no movió la versión se surface como `showErrorMessage` accionable, nunca como éxito.
+- **Camino de divergencia con backup (UC-1404)** — si `--ff-only` falla por historia divergida, `reset --hard origin/main` **con backup `git branch specbox-backup/{rama}-{stamp}` previo + confirmación modal**. Un clon de usuario (no managed) **nunca** se resetea, solo se avisa (`isManagedPath` gate, ICP-1). Detección robusta vía `git rev-list --left-right --count origin/main...HEAD` además del stderr.
+
+### Changed
+
+- `vscode-extension/src/updater.ts` — `ExtensionUpdater` acepta un `GitRunner` inyectable; `runUpdateFlow` gana la fase −1 antes del pull. `extension.ts` **sin cambios** (sigue llamando `runUpdateFlow` fire-and-forget — el patrón de activación de v6.6.2 se preserva).
+
+### Decisions
+
+- Fuente de verdad de la versión remota = `origin/main:ENGINE_VERSION.yaml` (no GitHub Releases API ni tags) — reutiliza el `GitRunner` existente y funciona sin publicar releases.
+- El `reset --hard` es opt-in y solo para el clon managed: los usuarios normales tienen el managed limpio en `main` y un `--ff-only` basta; solo el developer del engine diverge.
+
+### Compatibility
+
+- 100% backwards-compatible. `extension.ts` intacto; los helpers nuevos son aditivos. La feature solo *ofrece* el upgrade — nunca lo aplica sin consentimiento explícito del usuario.
+
+### Tests
+
+- 16 nuevos casos `node:test` en [vscode-extension/tests/updater-remote.test.mjs](vscode-extension/tests/updater-remote.test.mjs) con un `GitRunner` mock guionizado, cubriendo AC-01..AC-15. Suite completa de la extensión 109/109 verde; ningún test toca git ni la red.
+
 ## [6.10.2] - 2026-06-12 — "Mirror Bootstrap"
 
 Production hotfix found in dogfooding while enabling the Native mirror on the client project `potencial_digital_2026` (Trello primary). The Trello→Native backfill ran and verified (11 US / 36 UC / 111 AC), but persisting the `mirror` config block failed with `CONFIG_FAILED` / `failing_place: "registry"` / `Project registry not found at /data/state/projects.json`, so the dual-write never activated. The primary (Trello) stayed read-only throughout — the hard guarantee held.

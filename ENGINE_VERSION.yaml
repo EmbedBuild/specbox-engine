@@ -1,8 +1,8 @@
-version: 6.10.2
-codename: "Mirror Bootstrap"
+version: 6.11.0
+codename: "Self Update"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-06-12
+release_date: 2026-06-14
 min_claude_code: "1.0.0"
 
 stacks:
@@ -417,7 +417,21 @@ features:
   - active-time-estimate
   - get-project-kpis-tool
 
+  # New (v6.11.0) — Self Update
+  - vscode-remote-version-check
+  - vscode-guaranteed-upgrade
+  - vscode-diverged-reset-with-backup
+
 changelog:
+  6.11.0:
+    date: 2026-06-14
+    codename: "Self Update"
+    changes:
+      - "feat: VSCode extension checks the REMOTE engine version on start-up (git fetch + git show origin/main:ENGINE_VERSION.yaml) — it no longer only compares the installed extension against the on-disk version, so a managed clone on an old version is detected (US-14/UC-1401)"
+      - "feat: actionable X→Y upgrade modal (Update now / View changes / Later); numeric semver comparison so 6.10.2 > 6.9.4 is correct; 'Later' postpones that version for the session (US-14/UC-1402)"
+      - "feat: guaranteed upgrade — pull --ff-only then VERIFY by re-reading ENGINE_VERSION.yaml; a pull that did not move the version is surfaced as an error, never declared a success (US-14/UC-1403)"
+      - "feat: diverged managed clone offers a gated reset-with-backup (git branch backup before any reset, modal confirmation); a non-managed user clone is never reset, only warned (US-14/UC-1404)"
+      - "test: 16 new node:test cases in vscode-extension/tests/updater-remote.test.mjs with a scripted GitRunner mock covering AC-01..AC-15; suite 109/109 green, no network/git touched"
   6.10.2:
     date: 2026-06-12
     codename: "Mirror Bootstrap"

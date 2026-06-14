@@ -1,4 +1,4 @@
-# SpecBox Engine v6.10.2
+# SpecBox Engine v6.11.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -1889,9 +1889,40 @@ registry desde la sesión. Suites dual-backend + transactional-switch: 63 passed
 
 - Spec: [doc/feature-requests/FIX_enable_mirror_registry_autoinit.md](doc/feature-requests/FIX_enable_mirror_registry_autoinit.md)
 
+## VSCode Self-Update — remote version check + guaranteed upgrade (v6.11.0)
+
+US-14 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) cierra el funnel que
+abrió el auto-clone de v6.9.0: la extensión clonaba y hacía `git pull --ff-only` al arrancar, pero
+**solo comparaba la versión de la extensión instalada (`package.json`) contra el `ENGINE_VERSION.yaml`
+en disco** ([updater.ts](vscode-extension/src/updater.ts)) — **nunca consultaba el remoto**. Un clon
+managed en versión vieja (o una rama divergida del developer) se quedaba atrás en silencio: el
+`--ff-only` fallaba sobre historia divergida y solo emitía un warning no bloqueante. Reproducido en
+dogfooding el 2026-06-14: el clon en 6.9.4 mientras `origin/main` ya estaba en 6.10.2.
+
+La extensión ahora, al arrancar (fase −1 de `runUpdateFlow`, antes del pull, fire-and-forget):
+
+| UC | Qué | Dónde |
+|----|-----|-------|
+| UC-1401 | `git fetch origin --tags` + leer `git show origin/main:ENGINE_VERSION.yaml`; sin red / sin git (code 127) → se omite en silencio, activación normal | `vscode-extension/src/install.ts` (`fetchRemote`, `remoteEngineVersion`) |
+| UC-1402 | Comparación **semver numérica** (`6.10.2 > 6.9.4`, no lexicográfica); si remota > local → modal accionable **X→Y** con `Update now` / `View changes` / `Later`; "Later" silencia esa versión durante la sesión | `install.ts` (`compareSemver`) + `updater.ts` (`checkRemoteAndOffer`) |
+| UC-1403 | `pull --ff-only` en progress bar + **verificación post-upgrade**: relee `ENGINE_VERSION.yaml` y, si la versión no se movió, `showErrorMessage` accionable en vez de declarar éxito | `updater.ts` (`applyUpgrade`, `verifyAndFinish`) |
+| UC-1404 | Divergencia (caso developer): `reset --hard origin/main` **con backup `git branch` previo + confirmación modal**; un clon de usuario (no managed) **nunca** se resetea, solo se avisa (`isManagedPath` gate, ICP-1) | `updater.ts` (`handleDivergence`) + `install.ts` (`isDivergedFromRemote`) |
+
+Decisiones (confirmadas con el usuario): fuente de verdad = `origin/main:ENGINE_VERSION.yaml` (no
+GitHub Releases API ni tags); detección de divergencia robusta vía
+`git rev-list --left-right --count origin/main...HEAD` (ahead>0) además del stderr. `extension.ts`
+sin cambios (sigue llamando `runUpdateFlow` fire-and-forget). Helpers puros (sin `vscode`, git
+inyectable) siguiendo el split de `install.ts`/`prerequisites.ts`.
+
+Tests: `vscode-extension/tests/updater-remote.test.mjs` — 16 casos `node:test` con `GitRunner` mock
+(AC-01..AC-15). Suite 109/109 verde, ningún test toca git ni red.
+
+- PR: [#125](https://github.com/EmbedBuild/specbox-engine/pull/125)
+- PRD/Plan: `doc/prd/vscode-engine-autoupdate/` + `doc/plans/vscode-engine-autoupdate_plan.md` en `EmbedBuild/specbox-manager`
+
 ## Engine Version
 
-Current: v6.10.2 "Mirror Bootstrap"
+Current: v6.11.0 "Self Update"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

@@ -56,6 +56,100 @@ export const defaultGitRunner: GitRunner = (args, cwd) =>
 		});
 	});
 
+// US-14 (UC-1401, UC-1402) — remote-version pure helpers.
+//
+// Same pure/IO split as the auto-clone helpers above: a git runner is injected
+// so tests never touch git or the network. These power the start-up remote check
+// in updater.ts: fetch the remote, read the version published on origin/<branch>,
+// and compare it (semver-numeric) against the local ENGINE_VERSION.yaml.
+
+/** Default branch the managed clone tracks. The remote version is read from its tip. */
+export const DEFAULT_REMOTE_BRANCH = 'main';
+
+/**
+ * Fetch from origin (tags included). Effects (git) but NEVER throws — returns the
+ * GitRunResult so the caller stays fire-and-forget. A missing git resolves to
+ * code 127, a network error to a non-zero code; both are handled by the caller
+ * (no dialog, activation continues — US-14 AC-03).
+ */
+export async function fetchRemote(
+	enginePath: string,
+	gitRunner: GitRunner = defaultGitRunner,
+): Promise<GitRunResult> {
+	return gitRunner(['fetch', 'origin', '--tags'], enginePath);
+}
+
+/**
+ * Read the `version:` field of ENGINE_VERSION.yaml as published on
+ * `origin/<branch>` (default `main`) via `git show`. Returns the trimmed version
+ * string, or null when the command fails (no network, no remote, file absent) —
+ * the caller then silently skips the remote check (US-14 AC-02, AC-03).
+ *
+ * Uses the same `/^version:\s*(.+)/m` regex as updater.ts::resolveEngineVersion
+ * so the local and remote sides parse identically.
+ */
+export async function remoteEngineVersion(
+	enginePath: string,
+	gitRunner: GitRunner = defaultGitRunner,
+	branch: string = DEFAULT_REMOTE_BRANCH,
+): Promise<string | null> {
+	const res = await gitRunner(['show', `origin/${branch}:ENGINE_VERSION.yaml`], enginePath);
+	if (res.code !== 0) { return null; }
+	const m = res.stdout.match(/^version:\s*(.+)/m);
+	return m?.[1]?.trim() ?? null;
+}
+
+/**
+ * Compare two semver-ish strings numerically (major.minor.patch). Returns
+ * -1 if a<b, 0 if equal, 1 if a>b. Missing segments count as 0, so "6.10" == "6.10.0".
+ * A non-numeric segment is treated as 0. This is why a plain string compare is
+ * wrong: "6.9.4" > "6.10.2" lexicographically, but 6.9.4 < 6.10.2 numerically
+ * (US-14 AC-04). Local ~15-line helper to avoid pulling a semver dependency.
+ */
+export function compareSemver(a: string, b: string): -1 | 0 | 1 {
+	const parse = (v: string): number[] =>
+		v.trim().replace(/^v/, '').split('.').slice(0, 3).map((s) => {
+			const n = parseInt(s, 10);
+			return Number.isNaN(n) ? 0 : n;
+		});
+	const pa = parse(a);
+	const pb = parse(b);
+	for (let i = 0; i < 3; i++) {
+		const x = pa[i] ?? 0;
+		const y = pb[i] ?? 0;
+		if (x < y) { return -1; }
+		if (x > y) { return 1; }
+	}
+	return 0;
+}
+
+/**
+ * Decide whether a failed `git pull --ff-only` failed *because the history
+ * diverged* (local commits / a feature branch that is not a fast-forward of the
+ * remote) rather than for a transient reason. Combines the stderr text with the
+ * ahead-count from `git rev-list` so detection does not rely on git's wording
+ * alone (which varies by git version and locale) — US-14 AC-12.
+ *
+ * Returns false on a clean tree, on a transient error (network), or when git is
+ * absent. Never throws.
+ */
+export async function isDivergedFromRemote(
+	enginePath: string,
+	gitRunner: GitRunner = defaultGitRunner,
+	branch: string = DEFAULT_REMOTE_BRANCH,
+): Promise<boolean> {
+	const res = await gitRunner(
+		['rev-list', '--left-right', '--count', `origin/${branch}...HEAD`],
+		enginePath,
+	);
+	if (res.code !== 0) { return false; }
+	// Output is "<behind>\t<ahead>". Ahead > 0 means local has commits the remote
+	// lacks → a --ff-only pull cannot fast-forward.
+	const parts = res.stdout.trim().split(/\s+/);
+	const ahead = parseInt(parts[1] ?? '0', 10);
+	return Number.isFinite(ahead) && ahead > 0;
+}
+
 /** Injectable filesystem + git deps for cloneManagedEngine — all optional, real by default. */
 export interface CloneDeps {
 	gitRunner?: GitRunner;

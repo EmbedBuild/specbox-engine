@@ -193,19 +193,22 @@ class PublishResult:
     message: str = ""
 
 
-def publish(state: EngineState, creds: PublishCredentials, http_client) -> PublishResult:
-    """Ejecuta la publicación con un cliente HTTP inyectable (httpx.Client-compatible).
+def execute_requests(
+    requests: list[PublishRequest], creds: PublishCredentials, http_client
+) -> PublishResult:
+    """Ejecuta una secuencia de PublishRequest con un cliente HTTP inyectable.
 
-    `http_client` debe exponer `.request(method, url, params=..., json=..., headers=...)`
-    devolviendo un objeto con `.status_code` y `.text` (contrato de httpx).
-    No imprime la credencial; cualquier error se redacta con `_redact`.
+    Loop de transporte compartido por `publish` (release/changelog) y por la publicación del
+    inventario de capacidades (UC-2002). `http_client` debe exponer
+    `.request(method, url, params=..., json=..., headers=...)` devolviendo un objeto con
+    `.status_code` y `.text` (contrato de httpx). No imprime la credencial; cualquier error se
+    redacta con `_redact`. Una secuencia vacía es un éxito trivial (0 pasos).
     """
     base_headers = {
         "apikey": creds.service_role_key,
         "Authorization": f"Bearer {creds.service_role_key}",
         "Content-Type": "application/json",
     }
-    requests = build_publish_requests(state)
 
     for idx, req in enumerate(requests):
         headers = dict(base_headers)
@@ -226,3 +229,11 @@ def publish(state: EngineState, creds: PublishCredentials, http_client) -> Publi
             )
 
     return PublishResult(ok=True, steps=len(requests), message="Publicación completada")
+
+
+def publish(state: EngineState, creds: PublishCredentials, http_client) -> PublishResult:
+    """Ejecuta la publicación de release/changelog con un cliente HTTP inyectable.
+
+    Construye las peticiones de `build_publish_requests` y las ejecuta vía `execute_requests`.
+    """
+    return execute_requests(build_publish_requests(state), creds, http_client)

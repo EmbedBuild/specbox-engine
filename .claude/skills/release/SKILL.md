@@ -460,15 +460,19 @@ git push
 
 ---
 
-## Paso 6.5: Publicar estado del engine al site (US-16 — v6.11.0+)
+## Paso 6.5: Publicar estado del engine al site (US-16 + US-20 — v6.11.0+)
 
 > **Qué**: tras bumpear `ENGINE_VERSION.yaml` + `CHANGELOG.md` (Pasos 3 y 5.5) y
-> commitear (Paso 6), publica el estado del engine (release actual, features, changelog
-> curado) al schema público de Supabase `SpecBox-Cloud`. El site `specbox.embed.build`
-> (satélite `site`) lee esas tablas y refleja la versión recién liberada sin editar `.astro`.
+> commitear (Paso 6), publica al schema público de Supabase `SpecBox-Cloud`, en una sola
+> invocación, **dos** cosas: (1) el **estado del engine** —release actual, features, changelog
+> curado (US-16)— y (2) el **inventario de capacidades** —agentes, MCP tools, skills y la
+> extensión VSCode (US-20)— extraído del propio código del engine (`agents/*.md`, decoradores
+> `@*.tool` en `server/`, `.claude/skills/*/SKILL.md`, `vscode-extension/package.json`). El site
+> `specbox.embed.build` (satélite `site`) lee esas tablas y refleja la versión y el inventario
+> recién liberados **sin editar `.astro` a mano**.
 >
 > **Por qué aquí**: la única vía de liberar (`/release`) es también la única vía de
-> publicar → el changelog del site nunca diverge del engine.
+> publicar → el changelog Y el inventario del site nunca divergen del engine.
 
 ### 6.5.1 Ejecutar el publicador
 
@@ -487,7 +491,7 @@ Exit codes:
 
 | Exit | Significado | Acción |
 |------|-------------|--------|
-| 0 | Publicado OK | Reportar en el resumen del release: "Estado publicado al site (N features, M versiones)" |
+| 0 | Publicado OK | Reportar en el resumen del release: "Estado + inventario publicados al site (N features, M versiones; A agentes, T tools, S skills, ext vX.Y.Z)" |
 | 2 | Faltan credenciales | WARNING accionable: "No se publicó al site — define SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY y re-ejecuta `uv run python -m server.site_publish`". El release NO se aborta. |
 | 3 | Fallo de red / HTTP | WARNING accionable con el mismo comando de re-ejecución. El release NO se aborta. |
 
@@ -502,7 +506,7 @@ veces que haga falta hasta exit 0, incluso días después del release.
 Añadir una línea al bloque "Release completado" del Paso 6.4:
 
 ```
-- Estado publicado al site: {OK (N features, M versiones) | WARNING: no publicado — re-ejecutar `uv run python -m server.site_publish`}
+- Estado + inventario publicados al site: {OK (N features, M versiones; A agentes, T tools, S skills, ext vX.Y.Z) | WARNING: no publicado — re-ejecutar `uv run python -m server.site_publish`}
 ```
 
 ---

@@ -460,6 +460,53 @@ git push
 
 ---
 
+## Paso 6.5: Publicar estado del engine al site (US-16 — v6.11.0+)
+
+> **Qué**: tras bumpear `ENGINE_VERSION.yaml` + `CHANGELOG.md` (Pasos 3 y 5.5) y
+> commitear (Paso 6), publica el estado del engine (release actual, features, changelog
+> curado) al schema público de Supabase `SpecBox-Cloud`. El site `specbox.embed.build`
+> (satélite `site`) lee esas tablas y refleja la versión recién liberada sin editar `.astro`.
+>
+> **Por qué aquí**: la única vía de liberar (`/release`) es también la única vía de
+> publicar → el changelog del site nunca diverge del engine.
+
+### 6.5.1 Ejecutar el publicador
+
+El paso es **no bloqueante**: el release ya está consumado (commit + push hechos). Si la
+publicación falla, se reporta como WARNING accionable, NO se revierte el release.
+
+```bash
+# Requiere las credenciales del proyecto Supabase SpecBox-Cloud (service-role, NO anon key).
+# Viven en el entorno del mantenedor, nunca en el repo.
+SUPABASE_URL="https://nywjsvumsvxlpflpbord.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
+  uv run python -m server.site_publish
+```
+
+Exit codes:
+
+| Exit | Significado | Acción |
+|------|-------------|--------|
+| 0 | Publicado OK | Reportar en el resumen del release: "Estado publicado al site (N features, M versiones)" |
+| 2 | Faltan credenciales | WARNING accionable: "No se publicó al site — define SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY y re-ejecuta `uv run python -m server.site_publish`". El release NO se aborta. |
+| 3 | Fallo de red / HTTP | WARNING accionable con el mismo comando de re-ejecución. El release NO se aborta. |
+
+### 6.5.2 Idempotencia
+
+El publicador hace UPSERT (`resolution=merge-duplicates`): re-ejecutarlo es seguro y deja
+la BD en el mismo estado. Por eso el comando de recuperación de 6.5.1 puede correrse las
+veces que haga falta hasta exit 0, incluso días después del release.
+
+### 6.5.3 Reflejar en el reporte final
+
+Añadir una línea al bloque "Release completado" del Paso 6.4:
+
+```
+- Estado publicado al site: {OK (N features, M versiones) | WARNING: no publicado — re-ejecutar `uv run python -m server.site_publish`}
+```
+
+---
+
 ## Paso 7: Pre-commit Consistency Check (BLOQUEANTE — v5.32.1+)
 
 > **Regla**: ANTES del `git commit` del Paso 6, correr el validador automatico

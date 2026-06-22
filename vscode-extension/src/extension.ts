@@ -14,6 +14,7 @@ import { runSignIn, runSignOut, maybeShowOnboarding, describeSignInError } from 
 import { fetchWhoami } from './cloud-api';
 import { showPrereqGate } from './prerequisites';
 import { registerRevertCommand } from './migration';
+import { registerActivationUriHandler, maybeEmitActivation } from './activation';
 
 let statusBar: StatusBarManager | undefined;
 let identityPollingHandle: NodeJS.Timeout | undefined;
@@ -136,6 +137,11 @@ export async function activate(context: vscode.ExtensionContext) {
 	// UC-665 — "SpecBox: Revert last migration" command (config rollback).
 	registerRevertCommand(context);
 
+	// US-26 (UC-2601) — funnel deep-link handler. Registered synchronously so a
+	// vscode://EmbedBuild.specbox-engine/activate?anon_id=... link that triggered
+	// activation is captured even on this very startup.
+	registerActivationUriHandler(context);
+
 	// Identity polling — registered synchronously so its disposal is wired up
 	// regardless of how the async startup tasks below resolve.
 	identityPollingHandle = setInterval(() => {
@@ -235,6 +241,11 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 	await refreshIdentity(statusTree, secrets).catch((err) => {
 		console.warn('[specbox] initial identity refresh failed:', err);
 	});
+
+	// US-26 (UC-2601) — emit the one-shot `activation` funnel event. Idempotent,
+	// privacy-respecting, fully self-guarded — fired without await so a slow or
+	// failing POST can never wedge activation.
+	void maybeEmitActivation(context);
 }
 
 async function refreshIdentity(tree: StatusTreeProvider, secrets: SecretsManager): Promise<void> {

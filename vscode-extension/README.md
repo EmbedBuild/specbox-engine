@@ -157,6 +157,44 @@ for the architectural rationale and the residual security trade-offs.
 
 ---
 
+## Activation telemetry (funnel)
+
+To measure how many people who discover SpecBox on the website actually install
+the extension, the extension emits a single, anonymous **`activation`** event the
+first time it runs after installation. This closes the loop with the website's
+anonymous funnel (page view → install intent → activation).
+
+How it works:
+
+1. When you click **Get the extension** on the SpecBox site, the site opens a
+   deep-link `vscode://EmbedBuild.specbox-engine/activate?anon_id=<uuid>`. The
+   `anon_id` is the website's opaque, randomly-generated anonymous session id —
+   it is **not** tied to your identity, GitHub account, email, or repository.
+2. The extension validates the `anon_id` (must be a UUID v4) and stores it in VS
+   Code global state.
+3. On the next activation, the extension posts **one** `activation` event to the
+   public funnel endpoint (the same Supabase project the website uses). The event
+   carries the `anon_id` (so the install can be correlated with the anonymous web
+   session) plus a small technical `meta` block: **extension version**,
+   **OS platform**, and **VS Code version**. Nothing else.
+4. The event is emitted **at most once per install** (an idempotency flag in
+   global state). If the deep-link `anon_id` never arrived (e.g. you installed
+   from the Marketplace directly), the activation is still emitted, just without a
+   web-session origin.
+
+What is **never** sent: local file paths, your git email or name, workspace or
+repo contents, MCP/auth tokens, or any other personally identifiable data. The
+`anon_id` is opaque and is never enriched.
+
+Respecting your preferences: if you have **disabled VS Code telemetry**
+(`telemetry.telemetryLevel: "off"`, surfaced as `vscode.env.isTelemetryEnabled`),
+the extension emits **nothing**. The emitter is fully best-effort and
+fire-and-forget — it never blocks activation and never surfaces errors to you.
+
+Implementation: [`src/activation.ts`](src/activation.ts) (US-26, UC-2601/UC-2602).
+
+---
+
 ## Requirements
 
 - **Claude Code** — [install](https://claude.ai/code) or the official Claude VSCode extension.

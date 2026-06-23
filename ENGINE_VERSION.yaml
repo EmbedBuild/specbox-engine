@@ -1,8 +1,8 @@
-version: 6.11.0
-codename: "Self Update"
+version: 6.11.1
+codename: "Living Funnel"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-06-14
+release_date: 2026-06-23
 min_claude_code: "1.0.0"
 
 stacks:
@@ -422,7 +422,22 @@ features:
   - vscode-guaranteed-upgrade
   - vscode-diverged-reset-with-backup
 
+  # New (v6.11.1) — Living Funnel
+  - site-publish-engine-state
+  - site-publish-capability-inventory
+  - site-publish-on-release
+  - vscode-activation-event-funnel
+
 changelog:
+  6.11.1:
+    date: 2026-06-23
+    codename: "Living Funnel"
+    changes:
+      - "feat: publish-on-release of the engine state to the site (US-16). Pure parser of ENGINE_VERSION.yaml + CHANGELOG.md (server/site_publish/parser.py) with deterministic public_highlights derivation; idempotent UPSERT publisher to Supabase via PostgREST with the service-role (server/site_publish/publisher.py), injectable HTTP client, secret redaction; re-runnable CLI (python -m server.site_publish). The site (specbox.embed.build) reads it and reflects the freshly-released version without editing .astro by hand (UC-1601..1603, PR #126)"
+      - "feat: publish the capability inventory to the site (US-20). Pure parser build_capability_inventory extracts agents (agents/*.md), real @*.tool decorators (not commented-out), skills (.claude/skills/*/SKILL.md) and the VSCode extension version from the engine's own code — verified vs the real repo: 13 agents, 120 tools, 25 skills, ext v6.11.x. Idempotent merge-duplicates UPSERT to 4 public.engine_* tables; versioned SQL migration 20260618000020 (RLS read-only anon) closes the US-15 debt of tables created by MCP without an .sql in the repo (UC-2001..2003, PR #127)"
+      - "feat: VSCode extension emits an activation event to close the funnel (US-26). registerActivationUriHandler persists an anon_id from the activation deep-link in globalState; maybeEmitActivation emits ONE idempotent 'activation' event to the ingest_site_event RPC over node:https (zero deps), no PII (only ext_version/platform/vscode_version), respecting isTelemetryEnabled. Verified e2e: page_view→cta_click→install_intent→activation is a complete correlated conversion in site_event (UC-2601/2602)"
+      - "feat: /release Paso 6.5 publishes engine state + capability inventory to the site in one invocation (python -m server.site_publish) as a non-blocking post-commit step — the only release path is also the only publish path, so the site changelog and inventory never diverge from the engine"
+      - "test: +56 tests green — 44 Python (test_site_publish_*.py: parser, publisher, inventory parser/publisher, main) + 6 VSCode node:test (activation.test.mjs) + the 6 release/main entries; 94% coverage on the new site_publish code, ruff clean, no service-role ever logged"
   6.11.0:
     date: 2026-06-14
     codename: "Self Update"

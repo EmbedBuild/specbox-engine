@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.11.0 — "Self Update" (sobre v6.10.2 "Mirror Bootstrap")<br/>
+  v 6.11.1 — "Living Funnel" (sobre v6.11.0 "Self Update")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -35,6 +35,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Camino de divergencia con backup** — un clon managed divergido (el caso del developer del engine) ofrece `reset --hard` con backup `git branch` previo y confirmación modal; un clon de usuario nunca se resetea, solo se avisa.
 
 100% backwards-compatible. `extension.ts` intacto; la feature solo *ofrece* el upgrade, nunca lo aplica sin consentimiento (US-14, PR #125).
+
+**v6.11.1 — "Living Funnel"** cierra el funnel site↔engine: el engine publica su estado vivo y su inventario de capacidades (13 agentes, 120 tools, 25 skills) al site en cada `/release`, y la extensión VSCode emite el evento de activación que cierra el funnel anónimo — `page_view→cta_click→install_intent→activation` como una conversión correlada y sin PII (US-16/US-20/US-26).
 
 ---
 
@@ -484,7 +486,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.11.0 — "Self Update" (over v6.10.2 "Mirror Bootstrap")
+> v 6.11.1 — "Living Funnel" (over v6.11.0 "Self Update")
 
 ## What is this?
 
@@ -507,6 +509,8 @@ A system that turns Claude Code into a serious teammate:
 - **Diverged path with backup** — a diverged managed clone (the engine developer's case) offers `reset --hard` with a `git branch` backup first and a modal confirmation; a user clone is never reset, only warned.
 
 100% backwards-compatible. `extension.ts` untouched; the feature only *offers* the upgrade, never applies it without consent (US-14, PR #125).
+
+**v6.11.1 — "Living Funnel"** closes the site↔engine funnel: the engine publishes its live state and capability inventory (13 agents, 120 tools, 25 skills) to the site on every `/release`, and the VSCode extension emits the activation event that closes the anonymous funnel — `page_view→cta_click→install_intent→activation` as one correlated, PII-free conversion (US-16/US-20/US-26).
 
 ## What's new in v6.10
 

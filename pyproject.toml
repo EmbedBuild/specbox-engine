@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "6.11.0"
-description = "SpecBox Engine v6.9.5 — Tenant-Scoped Keys: native spec-table PKs move to composite (project_id, id) so two projects can share a logical id (US-01) in the same shared Postgres (fixes the FreeForm→Native ingest collision on user_stories_pkey, UC-707); /switch-backend handles the FreeForm exploded dialect (index.json + AC-in-markdown) via a pure normalizer + format pre-flight + native prerequisite gate (UC-709); stale tests realigned to the UC-660/UC-706 contracts (UC-708)."
+version = "6.11.1"
+description = "SpecBox Engine v6.11.1 — Living Funnel: the engine publishes its own state (US-16) and capability inventory (US-20) to the site on every /release, and the VSCode extension emits an idempotent activation event (US-26) to close the site funnel — page_view→cta_click→install_intent→activation as one correlated, PII-free conversion."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.3.1,<4.0.0",

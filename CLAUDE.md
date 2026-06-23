@@ -1,4 +1,4 @@
-# SpecBox Engine v6.11.0
+# SpecBox Engine v6.11.1
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -1889,6 +1889,31 @@ registry desde la sesión. Suites dual-backend + transactional-switch: 63 passed
 
 - Spec: [doc/feature-requests/FIX_enable_mirror_registry_autoinit.md](doc/feature-requests/FIX_enable_mirror_registry_autoinit.md)
 
+## Living Funnel — site publish-on-release + activation event (v6.11.1)
+
+Tres US del board del orquestador `EmbedBuild/specbox-manager` (satélite engine) cierran el
+**funnel site↔engine de punta a punta**: el engine publica su estado vivo y su inventario de
+capacidades al site `specbox.embed.build` en cada `/release`, y la extensión VSCode emite el
+evento de activación que cierra el funnel anónimo. La única vía de liberar (`/release`) es también
+la única vía de publicar → el changelog y el inventario del site nunca divergen del engine.
+
+| US | Qué | Componentes |
+|----|-----|-------------|
+| **US-16** | **Publish-on-release del estado del engine.** Parser puro de `ENGINE_VERSION.yaml` + `CHANGELOG.md` con derivación determinista de `public_highlights`; publicador UPSERT idempotente a Supabase vía PostgREST con service-role (cliente HTTP inyectable, secreto redactado en logs); CLI re-ejecutable `python -m server.site_publish`. El site lee las tablas y refleja la versión recién liberada sin editar `.astro` a mano. | `server/site_publish/parser.py`, `server/site_publish/publisher.py`, `server/site_publish/__main__.py` (UC-1601..1603, PR #126) |
+| **US-20** | **Publish del inventario de capacidades.** Parser puro `build_capability_inventory` extrae del propio código: agentes (`agents/*.md`), decoradores `@*.tool` **reales** (no comentados), skills (`.claude/skills/*/SKILL.md`) y la versión de la extensión VSCode — verificado vs el repo real: **13 agentes, 120 tools, 25 skills, ext v6.11.x**. UPSERT idempotente `merge-duplicates` a 4 tablas `public.engine_{agent,tool,skill,vscode_ext}`; migración SQL versionada `20260618000020` (RLS read-only anon) que cierra la deuda de US-15 (tablas creadas por MCP sin `.sql` en repo). | `server/site_publish/inventory.py`, `supabase/migrations/20260618000020_engine_capability_inventory.sql` (UC-2001..2003, PR #127) |
+| **US-26** | **Activation event que cierra el funnel.** `registerActivationUriHandler` persiste el `anon_id` del deep-link de activación en `globalState`; `maybeEmitActivation` emite **UN** evento `activation` idempotente a la RPC `ingest_site_event` sobre `node:https` (cero deps), **sin PII** (solo `ext_version`/`platform`/`vscode_version`), respetando `isTelemetryEnabled`. Verificado e2e: `page_view→cta_click→install_intent→activation` = conversión completa correlacionada en `site_event`. | `vscode-extension/src/activation.ts`, `vscode-extension/src/constants.ts`, `vscode-extension/src/extension.ts` (UC-2601/2602) |
+
+`/release` Paso 6.5 publica estado + inventario en una invocación (`python -m server.site_publish`)
+como paso post-commit **no bloqueante**: si la publicación falla, se reporta como WARNING accionable
+y el release NO se revierte. El publicador es UPSERT idempotente — re-ejecutarlo es seguro.
+
+Tests: +56 verdes — 44 Python (`tests/test_site_publish_*.py`: parser, publisher, inventory
+parser/publisher, main) + 6 VSCode `node:test` (`activation.test.mjs`); 94% cobertura del código
+nuevo de `site_publish`, ruff limpio, service-role nunca logueada.
+
+- PRD/Plan: `doc/prd/site-self-maintaining-showcase/` + `doc/prd/specbox-site-living-showcase/` en `EmbedBuild/specbox-manager`
+- PRs: [#126](https://github.com/EmbedBuild/specbox-engine/pull/126), [#127](https://github.com/EmbedBuild/specbox-engine/pull/127), US-26 mergeada a main
+
 ## VSCode Self-Update — remote version check + guaranteed upgrade (v6.11.0)
 
 US-14 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) cierra el funnel que
@@ -1922,7 +1947,7 @@ Tests: `vscode-extension/tests/updater-remote.test.mjs` — 16 casos `node:test`
 
 ## Engine Version
 
-Current: v6.11.0 "Self Update"
+Current: v6.11.1 "Living Funnel"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

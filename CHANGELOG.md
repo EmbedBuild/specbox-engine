@@ -2,6 +2,31 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.11.1] - 2026-06-23 — "Living Funnel"
+
+Closes the site↔engine funnel end-to-end. The engine now publishes its own live state and capability inventory to the site `specbox.embed.build` on every `/release`, and the VSCode extension emits the activation event that closes the anonymous funnel. The only path to release is also the only path to publish, so the site changelog and inventory never diverge from the engine. Three US from the orchestrator board `EmbedBuild/specbox-manager` (engine satellite).
+
+### Added
+
+- **US-16 — publish-on-release of the engine state.** Pure parser of `ENGINE_VERSION.yaml` + `CHANGELOG.md` (`server/site_publish/parser.py`) with deterministic `public_highlights` derivation; idempotent UPSERT publisher to Supabase via PostgREST with the service-role (`server/site_publish/publisher.py`), injectable HTTP client, secret redaction; re-runnable CLI `python -m server.site_publish`. The site reads the tables and reflects the freshly-released version without editing `.astro` by hand (UC-1601..1603, PR #126).
+- **US-20 — capability inventory publish.** Pure parser `build_capability_inventory` extracts from the engine's own code: agents (`agents/*.md`), real `@*.tool` decorators (not commented-out), skills (`.claude/skills/*/SKILL.md`) and the VSCode extension version — verified vs the real repo: 13 agents, 120 tools, 25 skills, ext v6.11.x. Idempotent `merge-duplicates` UPSERT to 4 `public.engine_*` tables; versioned SQL migration `20260618000020` (RLS read-only anon) closes the US-15 debt of tables created by MCP without an `.sql` in the repo (UC-2001..2003, PR #127).
+- **US-26 — activation event that closes the funnel.** `registerActivationUriHandler` persists an `anon_id` from the activation deep-link in `globalState`; `maybeEmitActivation` emits ONE idempotent `activation` event to the `ingest_site_event` RPC over `node:https` (zero deps), no PII (only `ext_version`/`platform`/`vscode_version`), respecting `isTelemetryEnabled`. Verified e2e: `page_view→cta_click→install_intent→activation` is one correlated conversion in `site_event` (UC-2601/2602).
+
+### Changed
+
+- **`/release` Paso 6.5** publishes engine state + capability inventory in one invocation (`python -m server.site_publish`) as a non-blocking post-commit step — a publish failure is an actionable WARNING, never a release rollback. The publisher is idempotent UPSERT, safe to re-run.
+
+### Compatibility
+
+- 100% backwards-compatible. The site_publish subsystem is additive; the activation event is opt-in via existing telemetry consent. The new SQL migration is idempotent (`IF NOT EXISTS` + RLS read-only anon).
+
+### Tests
+
+- +56 tests green:
+  - 44 Python (`tests/test_site_publish_parser.py`, `test_site_publish_publisher.py`, `test_site_publish_inventory_parser.py`, `test_site_publish_inventory_publisher.py`, `test_site_publish_main_inventory.py`).
+  - 6 VSCode `node:test` (`vscode-extension/tests/activation.test.mjs`).
+- 94% coverage on the new `site_publish` code, ruff clean, service-role never logged.
+
 ## [6.11.0] - 2026-06-14 — "Self Update"
 
 US-14 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) cierra el funnel que abrió el auto-clone de v6.9.0: la extensión VSCode clonaba y hacía `git pull --ff-only` al arrancar, pero **solo comparaba la versión de la extensión instalada contra el `ENGINE_VERSION.yaml` en disco** — nunca consultaba el remoto. Un clon managed en versión vieja (o una rama divergida del developer) se quedaba atrás en silencio: el `--ff-only` fallaba sobre historia divergida y solo emitía un warning no bloqueante. Reproducido en dogfooding el 2026-06-14 (clon en 6.9.4 mientras `origin/main` ya estaba en 6.10.2).

@@ -620,6 +620,40 @@ el estado de cuota por proyecto.
                  Continuar sin generar
 ```
 
+### 6.0b Claude Design Gate (US-29 — si `veg.providers` incluye `claude_design`)
+
+> Claude Design diseña con los componentes reales del design-system compilado.
+> `decision_key`: `claude_design_config_check`. Respeta los prompts de permiso de
+> DesignSync (`create_project`, `finalize_plan`, `write_files`) — **no** auto-aprobar.
+
+```
+¿veg.providers incluye "claude_design"?
+├── NO → omitir 6.0b (seguir solo con Stitch según 6.0a)
+└── SI → Evaluar el gate de precondición por topología:
+
+    mcp__SpecBox-MCP__claude_design_status(project, project_root)
+    → gate_ready, role, site, projectId, login_active
+
+    ¿gate_ready == true (hay design-system compilado en el sitio resuelto)?
+    ├── SI → Ejecutar/guiar el sync ANTES de construir pantallas:
+    │        mcp__SpecBox-MCP__claude_design_sync_design_system(
+    │          project, project_root, session_projects=<DesignSync.list_projects>)
+    │        - El agente corre DesignSync en orden list/read → finalize_plan →
+    │          write/delete (prompts de permiso respetados).
+    │        - Idempotente: si _ds_sync.json coincide, no re-sube (status="skip").
+    │        - Multi-cuenta: si el projectId lo creó otra cuenta pero la sesión
+    │          activa es writable, procede y avisa; el consumo va a la suscripción
+    │          del usuario logueado.
+    └── NO (not-ready: no hay design-system todavía) →
+            Registrar en plan: claude_design_veg: PENDING (reason del gate)
+            NO fallar — /plan continúa. Si Stitch también está activo, usarlo;
+            si solo estaba claude_design, las pantallas quedan pending con motivo.
+```
+
+> **Caso "no design-system todavía → pending"**: el gate devuelve `ready=false` con un
+> motivo legible (p. ej. "missing dist/"). El VEG de Claude Design se marca `pending` y
+> el plan NO se interrumpe (JR-CD.3).
+
 ### 6.0 Detectar Proyecto Stitch
 
 1. Buscar `stitch.projectId` en `.claude/settings.local.json` del proyecto

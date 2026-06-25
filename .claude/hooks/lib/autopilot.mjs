@@ -50,6 +50,9 @@ export const DECISION_KEYS = {
   uncommitted_changes_warning:    { family: 'operational', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' } },
   stitch_api_key_missing:         { family: 'operational', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' } },
   stitch_config_decision:         { family: 'operational', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' } },
+  // US-29 — visual provider del VEG (stitch/claude_design). Elección del usuario: siempre ask.
+  visual_provider_selection:      { family: 'operational', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' } },
+  claude_design_config_check:     { family: 'operational', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' } },
 
   // Inviolables — siempre síncronos.
   destructive_action:        { family: 'destructive', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' }, inviolable: true },

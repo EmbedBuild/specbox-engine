@@ -646,7 +646,68 @@ Brand Kit generado en doc/brand/brand_kit/:
 
 ---
 
+## Paso 2.9: Seleccionar proveedor visual del VEG (US-29)
+
+> Antes de configurar Stitch, decide **qué proveedor(es) visual(es)** usará el VEG.
+> El resultado se escribe en `veg.providers` de `.claude/settings.local.json`.
+> `decision_key`: `visual_provider_selection` (siempre `ask` — elección del usuario).
+
+### 2.9.1 Detectar si hay design-system compilado
+
+Resolver el sitio por topología y comprobar la precondición (gate de UC-2903):
+
+```
+mcp__SpecBox-MCP__claude_design_status(
+  project="{project-slug}",
+  project_root="{ruta absoluta del repo}"
+)
+```
+
+El status devuelve `gate_ready` (hay `package.json` + `dist/`/Storybook en el sitio
+resuelto — orquestador en multirepo, repo en monorepo), `role`, `site` y `login_active`.
+
+### 2.9.2 Preguntar proveedor(es)
+
+```
+¿Qué proveedor visual quieres para este proyecto?
+├── [1] Claude Design — diseña con tus componentes reales (1:1 a código).
+│        Requiere design-system compilado. RECOMENDADO si gate_ready=true.
+├── [2] Stitch — text-to-mockup. Útil en fase temprana sin código.
+└── [3] Ambos — Claude Design preferido cuando hay design-system; Stitch fallback.
+```
+
+- Si `gate_ready=true`, **recomendar Claude Design por defecto** (JR-CD.6). Si `false`,
+  recomendar Stitch y explicar que Claude Design quedará `pending` hasta que exista el
+  design-system compilado (no bloquea).
+- Escribir el resultado en `veg.providers` con **MERGE** (no sobrescribir el resto del
+  JSON), p. ej. `["claude_design"]`, `["stitch"]` o `["stitch","claude_design"]`.
+
+### 2.9.3 Configurar Claude Design (si se eligió)
+
+> Claude Design usa el **login de claude.ai de esta máquina** (vía la tool `DesignSync`).
+> **No** se pide ni se guarda ninguna API key; el consumo se factura a la **suscripción
+> del usuario logueado**. Respeta los prompts de permiso de DesignSync (`create_project`,
+> `finalize_plan`, `write_files`) — **no** asumir auto-aprobación.
+
+```
+Si veg.providers incluye "claude_design":
+1. Verificar login activo (claude_design_status → login_active). Si no hay login,
+   informar que la capacidad queda pending hasta iniciar sesión en claude.ai.
+2. Si no hay veg.claude_design.projectId y el usuario quiere crearlo ahora:
+   mcp__SpecBox-MCP__claude_design_create_project(project, project_root, name)
+   → el agente ejecuta DesignSync.create_project (PROMPT de permiso) y el engine
+     ancla el projectId devuelto en veg.claude_design.projectId.
+3. Si solo se eligió Claude Design, se puede SALTAR el Paso 3 (Stitch).
+```
+
+> **Borrado**: no hay borrado programático de proyectos Claude Design. Para eliminar uno,
+> hazlo manualmente en claude.ai.
+
+---
+
 ## Paso 3: Configurar Google Stitch
+
+> Saltar este paso si `veg.providers == ["claude_design"]` (solo Claude Design).
 
 ### 3.1 Verificar API Key de Stitch
 

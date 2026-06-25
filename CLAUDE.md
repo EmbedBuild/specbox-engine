@@ -1,4 +1,4 @@
-# SpecBox Engine v6.11.1
+# SpecBox Engine v6.12.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -1947,7 +1947,7 @@ Tests: `vscode-extension/tests/updater-remote.test.mjs` — 16 casos `node:test`
 
 ## Engine Version
 
-Current: v6.11.1 "Living Funnel"
+Current: v6.12.0 "Claude Design Native"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

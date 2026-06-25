@@ -1,7 +1,7 @@
 [project]
 name = "specbox-engine"
-version = "6.11.1"
-description = "SpecBox Engine v6.11.1 — Living Funnel: the engine publishes its own state (US-16) and capability inventory (US-20) to the site on every /release, and the VSCode extension emits an idempotent activation event (US-26) to close the site funnel — page_view→cta_click→install_intent→activation as one correlated, PII-free conversion."
+version = "6.12.0"
+description = "SpecBox Engine v6.12.0 — Claude Design Native: the VEG gains Claude Design (US-29) as a second visual provider via the harness DesignSync tool, selectable per project (veg.providers), preferred when a compiled design-system exists, with Stitch as the default fallback — no token held, consumption billed to the session's claude.ai subscription."
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.3.1,<4.0.0",

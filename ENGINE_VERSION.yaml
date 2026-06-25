@@ -1,8 +1,8 @@
-version: 6.11.1
-codename: "Living Funnel"
+version: 6.12.0
+codename: "Claude Design Native"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-06-23
+release_date: 2026-06-25
 min_claude_code: "1.0.0"
 
 stacks:
@@ -428,7 +428,24 @@ features:
   - site-publish-on-release
   - vscode-activation-event-funnel
 
+  # New (v6.12.0) — Claude Design Native
+  - veg-visual-provider
+  - claude-design-provider
+  - claude-design-mcp-tools
+  - design-system-topology-gate
+  - claude-design-sync-engine
+
 changelog:
+  6.12.0:
+    date: 2026-06-25
+    codename: "Claude Design Native"
+    changes:
+      - "feat: Claude Design as a second VEG visual provider (US-29). The VEG now has a visual_provider abstraction {stitch, claude_design} selectable per project via veg.providers in .claude/settings.local.json; a project without it behaves exactly like Stitch-only (no breakage). When a compiled design-system exists, Claude Design is the preferred provider (server/veg/visual_provider.py, UC-2901)"
+      - "feat: 5 claude_design_* MCP orchestrator tools (list_projects, get_project, create_project, sync_design_system, status) that delegate to the harness DesignSync tool under the session's claude.ai login — no token is held or persisted, no programmatic delete. The consumption is billed to the logged-in user's subscription; without an active login the capability degrades to pending (server/tools/claude_design.py, UC-2902)"
+      - "feat: topology-aware design-system precondition gate — in a multirepo orchestrator/satellite project the design-system lives ONCE in the orchestrator (projectId anchored there, dist/ synced once; UI satellites consume it); in a monorepo it lives in the repo itself. Detects package.json + dist/ (or Storybook); not-ready yields pending with a reason, never raises (server/veg/design_system_gate.py, UC-2903)"
+      - "feat: design-system sync engine that prepares .design-sync/config.json with the anchored projectId and delegates the repo→bundle conversion to the harness /design-sync skill (does not reimplement package-build.mjs/resync.mjs); idempotent via the _ds_sync.json anchor — an unchanged dist/ emits no writes (server/veg/claude_design_sync.py, UC-2905)"
+      - "feat: /visual-setup gains a provider-selection step (Claude Design / Stitch / both; recommends Claude Design when a design-system is compiled) and /plan gains a Claude Design gate (sync when ready, pending when not — never fails); autopilot.mjs adds visual_provider_selection + claude_design_config_check decision keys. User runbook doc/runbooks/claude-design-veg.md + ADR doc/decisions/veg_visual_provider.md (UC-2904/2906)"
+      - "test: +54 tests green (test_visual_provider.py, test_design_system_gate.py, test_claude_design.py, test_claude_design_sync.py); +34 regression on the existing Stitch+VEG suite stays green; ruff clean, server.py boots with the new tools registered, autopilot.mjs valid"
   6.11.1:
     date: 2026-06-23
     codename: "Living Funnel"

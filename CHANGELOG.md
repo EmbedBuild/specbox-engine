@@ -2,6 +2,37 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.12.0] - 2026-06-25 — "Claude Design Native"
+
+Adds **Claude Design** as a second visual provider of the VEG, alongside Stitch. Claude Design (`claude.ai/design`, operated through the harness `DesignSync` tool) designs with the **real compiled components** of the project's design-system — a 1:1 mapping to code — whereas Stitch is text-to-mockup. SpecBox is an agentic system *for Claude*, so the design platform now matches the execution platform. One US from the orchestrator board `EmbedBuild/specbox-manager` (engine satellite), discovery `disc-52cbe4033fae`.
+
+### Added
+
+- **`visual_provider` abstraction** (`server/veg/visual_provider.py`, UC-2901) — the VEG resolves a per-project provider from `veg.providers` ∈ `["stitch"]` | `["claude_design"]` | both. A project without the key resolves to `["stitch"]` (legacy behaviour preserved). When `claude_design` is active and the gate is ready, it is the preferred provider; Stitch is the fallback. Config schema `veg.claude_design` (`projectId`, `syncRepo`) in `templates/settings.json.template`. ADR `doc/decisions/veg_visual_provider.md`.
+- **5 `claude_design_*` MCP tools** (`server/tools/claude_design.py`, UC-2902) — `list_projects`, `get_project`, `create_project`, `sync_design_system`, `status`. Orchestrators that delegate to the harness `DesignSync` tool under the session's claude.ai login: no token is accepted or persisted, no programmatic delete. `assert_session_identity` + `resolve_writability` guarantee the consumption is billed to the logged-in user's subscription (multi-account: a writable project owned by another account proceeds with a warning; otherwise pending). Registered in `server/server.py`.
+- **Topology-aware design-system gate** (`server/veg/design_system_gate.py`, UC-2903) — resolves where the design-system lives (orchestrator in multirepo, repo in monorepo) and checks `package.json` + `dist/`/Storybook. Not-ready yields `pending` with a reason, never raises.
+- **Design-system sync engine** (`server/veg/claude_design_sync.py`, UC-2905) — prepares `.design-sync/config.json` with the anchored `projectId` and delegates the repo→bundle conversion to the harness `/design-sync` skill (does not reimplement `package-build.mjs`/`resync.mjs`). Idempotent via the `_ds_sync.json` anchor.
+- **User runbook** `doc/runbooks/claude-design-veg.md` (UC-2906) — activation, Stitch-vs-Claude-Design table, topology anchoring, subscription model, no-delete.
+
+### Changed
+
+- **`/visual-setup`** gains a provider-selection step (Claude Design / Stitch / both; recommends Claude Design when a design-system is compiled) and **`/plan`** gains a Claude Design gate (sync when ready, pending when not — never fails). **`.claude/hooks/lib/autopilot.mjs`** adds `visual_provider_selection` + `claude_design_config_check` decision keys (always `ask`). (UC-2904)
+
+### Decisions
+
+- Claude Design is **complementary**, not a replacement for Stitch: it has its own precondition (a compiled design-system). It is the **preferred** provider when that precondition holds, but Stitch remains the default for projects without the new config.
+- **No credentials**: auth is the session's claude.ai login (DesignSync), never an API key — the opposite of Stitch's stored key. **No programmatic delete**: DesignSync exposes none.
+
+### Compatibility
+
+- 100% backwards-compatible. A project without `veg.providers` behaves exactly like Stitch-only. No migration required.
+
+### Tests
+
+- 54 new tests, all green:
+  - `test_visual_provider.py` (18), `test_design_system_gate.py` (11), `test_claude_design.py` (16), `test_claude_design_sync.py` (9).
+- 34 regression tests on the existing Stitch + VEG suite stay green. `ruff` clean, `server.py` boots with the new tools registered, `autopilot.mjs` valid.
+
 ## [6.11.1] - 2026-06-23 — "Living Funnel"
 
 Closes the site↔engine funnel end-to-end. The engine now publishes its own live state and capability inventory to the site `specbox.embed.build` on every `/release`, and the VSCode extension emits the activation event that closes the anonymous funnel. The only path to release is also the only path to publish, so the site changelog and inventory never diverge from the engine. Three US from the orchestrator board `EmbedBuild/specbox-manager` (engine satellite).

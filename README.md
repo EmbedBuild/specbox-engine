@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.11.1 — "Living Funnel" (sobre v6.11.0 "Self Update")<br/>
+  v 6.12.0 — "Claude Design Native" (sobre v6.11.1 "Living Funnel")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,20 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v6.12
+
+**v6.12.0 — "Claude Design Native"** añade **Claude Design** como segundo proveedor visual del VEG, alineando la plataforma de diseño con la de ejecución (SpecBox es agéntico para Claude):
+
+- **Proveedor visual seleccionable por proyecto** — `veg.providers` ∈ `["stitch"]`, `["claude_design"]` o ambos. Claude Design diseña con los **componentes reales compilados** del design-system (1:1 a código), no con mockups de texto.
+- **Preferido cuando hay design-system compilado** — Stitch queda como fallback para la fase temprana sin código. Un proyecto sin config nueva se comporta **exactamente como hoy** (solo Stitch).
+- **Sin tokens** — usa el login de claude.ai de la máquina vía la tool `DesignSync`; el consumo recae en la **suscripción del usuario logueado**. Sin login → `pending`.
+- **Anclaje por topología** — en multirepo el design-system vive una sola vez en el **orquestador** (los satélites de UI lo consumen); en monorepo, en el repo. Gate que detecta `package.json` + `dist/`/Storybook.
+- **5 MCP tools `claude_design_*`** + integración en `/visual-setup` y `/plan` + motor de sync idempotente que delega en `/design-sync`.
+
+100% backwards-compatible. Stitch sigue siendo el default; no hay borrado programático de proyectos Claude Design (US-29).
 
 ---
 
@@ -486,7 +500,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.11.1 — "Living Funnel" (over v6.11.0 "Self Update")
+> v 6.12.0 — "Claude Design Native" (over v6.11.1 "Living Funnel")
 
 ## What is this?
 
@@ -498,6 +512,20 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v6.12
+
+**v6.12.0 — "Claude Design Native"** adds **Claude Design** as a second VEG visual provider, aligning the design platform with the execution platform (SpecBox is agentic for Claude):
+
+- **Per-project visual provider** — `veg.providers` ∈ `["stitch"]`, `["claude_design"]`, or both. Claude Design designs with the **real compiled components** of the design-system (1:1 to code), not text mockups.
+- **Preferred when a design-system is compiled** — Stitch stays the fallback for the early phase without code. A project without the new config behaves **exactly like today** (Stitch-only).
+- **No tokens** — uses the machine's claude.ai login via the `DesignSync` tool; consumption is billed to the **logged-in user's subscription**. No login → `pending`.
+- **Topology-aware anchoring** — in multirepo the design-system lives once in the **orchestrator** (UI satellites consume it); in monorepo, in the repo. Gate detects `package.json` + `dist/`/Storybook.
+- **5 `claude_design_*` MCP tools** + `/visual-setup` and `/plan` integration + an idempotent sync engine that delegates to `/design-sync`.
+
+100% backwards-compatible. Stitch remains the default; there is no programmatic delete of Claude Design projects (US-29).
+
+---
 
 ## What's new in v6.11
 

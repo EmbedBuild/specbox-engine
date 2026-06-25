@@ -47,6 +47,7 @@ from .tools.skill_registry import register_skill_registry_tools
 from .tools.stitch import register_stitch_tools
 from .tools.stitch_v2 import register_stitch_v2_tools
 from .tools.stitch_migration import register_stitch_migration_tools
+from .tools.claude_design import register_claude_design_tools  # US-29 UC-2902
 from .tools.audit import register_audit_tools
 from .tools.app_docs import register_app_docs_tools
 from .tools.discovery import register_product_discovery_tools  # v6.0 (UC-D001/D002)
@@ -249,6 +250,13 @@ register_stitch_v2_tools(mcp, STATE_PATH)
 # follow the v6.0.1 MCP Path Contract (content-passing only). Drive
 # the v7.0 cutover from inline_prefix_v1 to native_v2.
 register_stitch_migration_tools(mcp)
+
+# Register Claude Design proxy tools (US-29 UC-2902 — 5 orchestrator tools:
+# claude_design_list_projects, claude_design_get_project,
+# claude_design_create_project, claude_design_sync_design_system,
+# claude_design_status). They delegate to the harness DesignSync tool under the
+# session's claude.ai login — no token is held, no programmatic delete.
+register_claude_design_tools(mcp, STATE_PATH)
 
 # Register Quality Audit tools (3 tools: run_quality_audit, attach_audit_evidence, get_last_audit)
 # ISO/IEC 25010 (SQuaRE) v1 — on-demand audit with 8 characteristic analyzers,

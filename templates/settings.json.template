@@ -271,6 +271,14 @@
   },
   "veg": {
     "enabled": true,
+    "providers": ["stitch"],
+    "_providers_note": "Visual provider(s) for the VEG. Allowed: 'stitch' (text-to-mockup, default) and 'claude_design' (claude.ai/design via the harness DesignSync tool — designs with the real compiled design-system, 1:1 to code). Use ['claude_design'] or ['stitch','claude_design']. A project without this key behaves exactly like Stitch-only. When 'claude_design' is active AND a compiled design-system exists (gate ready), claude_design is the preferred provider; Stitch is the fallback for the early phase without code. US-29.",
+    "claude_design": {
+      "projectId": null,
+      "syncRepo": null,
+      "_note": "claude.ai/design project anchor. 'projectId' is optional — the engine creates it with claude_design_create_project on first use and persists it here (like Stitch anchors its projectId). 'syncRepo' is the repo whose dist/ holds the design-system. AUTH: Claude Design uses the claude.ai login of the session on this machine (DesignSync) — NO API key, NO service account; the consumption is billed to the logged-in user's subscription. There is NO programmatic delete: removing a Claude Design project is a manual action in claude.ai.",
+      "_anchor_rule": "Topology-aware: in a multirepo orchestrator/satellite project the design-system lives ONCE in the ORCHESTRATOR (projectId anchored there, dist/ synced once; UI satellites consume it). In a monorepo it lives in the repo itself."
+    },
     "image_provider": {
       "primary": "canva",
       "fallback": "lansespirit",

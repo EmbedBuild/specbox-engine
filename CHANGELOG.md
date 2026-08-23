@@ -632,6 +632,20 @@ Cero acción requerida para proyectos onboarded. La tool `get_sala_de_maquinas` 
 
 ## [6.1.0] - 2026-05-25 — "Cloud Cutover"
 
+> **⚠️ NOTA POSTERIOR (añadida 2026-07-31) — esta entrada está PARCIALMENTE SUPERADA.**
+> El apagado del VPS `mcp-specbox-engine.jpsdeveloper.com` que anuncia este release
+> **no llegó a consumarse**. Desde **v6.7.0 "Zero-Friction Onboarding"** ese endpoint es el
+> **transporte MCP remoto canónico** del ecosistema: la extensión VSCode eliminó el modo
+> local y escribe directamente
+> `npx mcp-remote https://mcp-specbox-engine.jpsdeveloper.com/mcp`.
+>
+> Lo que **sí** se eliminó y sigue eliminado es la "Sala de Máquinas" (dashboard React,
+> REST `/api/*`, heartbeats, skill `/remote`) — esa parte de la entrada es correcta.
+>
+> **No sigas la instrucción de la sección Migration** que pide mover `SPECBOX_ENGINE_MCP_URL`
+> a stdio local: te saca del endpoint canónico. `SPECBOX_SYNC_TOKEN` sí sigue muerto y se
+> puede borrar del shell profile.
+
 Minor release que **elimina la "Sala de Máquinas"** — dashboard global multi-proyecto que vivía dentro del MCP server (frontend React + REST API + heartbeats + GitHub sync + skill `/remote`). La función de panel multi-proyecto la absorbe **specbox_cloud** (panel web externo), que lee directamente la instancia Supabase del Native Backend y llama al MCP para escrituras de coordinación (`reserve_uc` / `release_uc`). Reduce ~3.800 LoC de código vivo + ~237k LoC de `node_modules`, deja el Dockerfile single-stage Python (sin Node), apaga el VPS `mcp-specbox-engine.jpsdeveloper.com` y su dominio.
 
 ### Removed

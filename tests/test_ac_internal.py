@@ -239,19 +239,21 @@ class TestSetAcInternal:
             await backend.close()
             await _cleanup(pool, project_id, developer_id)
 
-    async def test_ac_of_another_tenant_is_not_found(self):
-        """AC-02: un AC de OTRO proyecto es, desde esta sesión, inexistente.
+    async def test_ac_of_another_tenant_is_denied(self):
+        """AC-02: una sesión no puede tocar un AC de otro proyecto.
 
         ESTE TEST ENCONTRÓ UN FALLO REAL. Escrito como "un AC inexistente da
-        error" habría pasado en verde; escrito como "un AC de otro tenant es
-        inexistente" falló con DID NOT RAISE y destapó que
-        `_require_membership_cached()` valida contra `self.project_id` mientras
-        el WHERE usa el `board_id` recibido — es decir, la sesión de A escribía
-        en el proyecto de B. Verificado también sobre `mark_acceptance_criterion`,
-        que es preexistente y comparte el hueco (se aborda en UC aparte).
+        error" habría pasado en verde; escrito como "un AC de otro tenant" falló
+        con DID NOT RAISE y destapó que `_require_membership_cached()` validaba
+        contra `self.project_id` mientras el WHERE usaba el `board_id` recibido
+        — la sesión de A escribía en el proyecto de B. El inventario de UC-3401
+        midió 10 mutadores afectados.
 
-        Aquí se fija el contrato del método nuevo: cruzar de tenant es
-        indistinguible de que el AC no exista.
+        US-34/UC-3402 cerró el hueco en el punto donde se cruzan las dos piezas,
+        y con ello el vocabulario cambió: el guard local de UC-3301 lanzaba
+        `ValueError` («no encontrado») y el gate lanza `ForbiddenError`. Se
+        retiró el guard para no tener dos respuestas distintas al mismo intento;
+        FORBIDDEN es el vocabulario de no-membresía del backend.
         """
         pool = await _pool()
         p_a, dev_a, tok_a, uc = await _seed_project_with_ac(pool)
@@ -259,7 +261,9 @@ class TestSetAcInternal:
         backend_a = _backend(p_a, tok_a)
         try:
             # La sesión de A intenta tocar el AC de B usando el board_id de B.
-            with pytest.raises(ValueError):
+            from server.coordination.identity import ForbiddenError
+
+            with pytest.raises(ForbiddenError):
                 await backend_a.set_ac_internal(p_b, uc, "AC-01", True)
 
             async with pool.acquire() as conn:

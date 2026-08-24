@@ -71,6 +71,14 @@ OP_UPDATE_AC: str = "update_ac"
 OP_UPDATE_UC: str = "update_uc"
 OP_UPDATE_US: str = "update_us"
 
+#: US-34 / UC-3402. Un intento de escritura sobre un proyecto del que el actor
+#: NO es miembro. Se registra ANTES de propagar el `ForbiddenError`, contra el
+#: proyecto que se intentó tocar, para que sea visible desde la auditoría de la
+#: víctima y no solo desde los logs del servidor. `metadata.session_project`
+#: guarda desde qué proyecto se lanzó el intento — sin eso, un intento cruzado
+#: y un simple error de configuración se leen igual.
+OP_CROSS_TENANT_DENIED: str = "cross_tenant_denied"
+
 #: US-33 / UC-3301. Marcar un AC como interno lo RETIRA de lo que ve el
 #: stakeholder en el portal de negocio, así que deja rastro con actor y
 #: timestamp: si un criterio desaparece de una reunión, tiene que poder

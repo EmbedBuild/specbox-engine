@@ -49,8 +49,20 @@ async def validate_ac_quality(
     Use this tool to audit AC quality before a milestone acceptance check.
     For rewriting flagged ACs, use `update_ac` or `update_ac_batch`.
 
+    US-33/UC-3303 — además del veredicto de calidad, devuelve una lista
+    SEPARADA de avisos de exposición: AC que citan credenciales o rutas
+    internas de fichero. Desde D7 los AC pueden acabar proyectados en una
+    reunión con cliente, y ahí un criterio que nombra la contraseña de una
+    cuenta deja de ser un criterio.
+
+    Los avisos NO cuentan para `pass_rate` y NO bloquean el Definition Quality
+    Gate: son visibilidad, no fricción. Van en su propia lista porque un AC
+    puede exponer credenciales y ser impecable como criterio — son dos ejes
+    distintos.
+
     Returns:
-        {total_acs, passed, failed:[{uc_id, ac_id, text, issues}], pass_rate}
+        {total_acs, passed, failed:[{uc_id, ac_id, text, issues}],
+         warnings:[{uc_id, ac_id, text, warnings}], exposure_warnings, pass_rate}
     """
     backend = await get_session_backend(ctx)
     try:
@@ -64,6 +76,7 @@ async def validate_ac_quality(
 
         total = 0
         failed: list[dict[str, Any]] = []
+        warnings: list[dict[str, Any]] = []
 
         for uc in ucs:
             uid = _get_uc_id(uc)
@@ -83,12 +96,30 @@ async def validate_ac_quality(
                         "issues": issues,
                     })
 
+                # US-33/UC-3303 — los avisos de exposición van en su PROPIA
+                # lista, no en `issues`. Un AC puede exponer credenciales y ser
+                # impecable como criterio: son dos ejes distintos, y meterlos en
+                # la misma lista los haría indistinguibles para el consumidor.
+                exposure = mh.detect_ac_exposure(ac.text)
+                if exposure:
+                    warnings.append({
+                        "uc_id": uid,
+                        "ac_id": ac.id,
+                        "text": ac.text,
+                        "warnings": exposure,
+                    })
+
+        # AC-02: los avisos NO entran en el cómputo. `pass_rate` sigue midiendo
+        # solo calidad de redacción, así que un AC con `exposure_warning` no
+        # impide aprobar el Definition Quality Gate — solo aparece listado.
         passed = total - len(failed)
         rate = round(passed / total, 4) if total else 1.0
         return {
             "total_acs": total,
             "passed": passed,
             "failed": failed,
+            "warnings": warnings,
+            "exposure_warnings": len(warnings),
             "pass_rate": rate,
         }
     finally:
@@ -518,7 +549,9 @@ def register_board_operations_tools(mcp_instance) -> None:
     )(set_ac_internal)
     mcp_instance.tool(
         description="Validate AC quality against Definition Quality Gate rules. "
-        "Flags vague, too-short, and untestable ACs. For a single UC pass uc_id."
+        "Flags vague, too-short and non-verifiable ACs, and separately warns about "
+        "ACs that expose credentials or internal file paths (warn-only, does not "
+        "affect pass_rate). For a single UC pass uc_id."
     )(validate_ac_quality)
     mcp_instance.tool(
         description="Attach structured evidence metadata (URL, screenshot, verdict) "

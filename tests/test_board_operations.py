@@ -222,6 +222,54 @@ async def test_validate_ac_quality_single_uc(backend, ctx):
     assert result["passed"] == 3  # UC-002 ACs are fine
 
 
+# ── US-33/UC-3303: avisos de exposición ──────────────────────────────
+
+
+async def test_validate_ac_quality_reports_exposure_in_its_own_list(backend, ctx):
+    """AC-01/AC-02: el aviso sale en `warnings`, NO en `failed`."""
+    _, ucs = await _seed(backend)
+    backend.acs[ucs[0].id][0].text = (
+        "el sistema devuelve la contraseña de la cuenta enmascarada en el detalle"
+    )
+    result = await bo.validate_ac_quality("b", ctx)
+
+    avisados = [w for w in result["warnings"] if "exposure_warning" in w["warnings"]]
+    assert len(avisados) == 1
+    assert "exposure_credentials" in avisados[0]["warnings"]
+    assert result["exposure_warnings"] == 1
+
+    # Y NO aparece entre los fallos de calidad: son dos ejes distintos.
+    assert all(a["ac_id"] != avisados[0]["ac_id"] for a in result["failed"])
+
+
+async def test_exposure_warning_does_not_move_pass_rate(backend, ctx):
+    """AC-02: avisa pero no bloquea el Definition Quality Gate.
+
+    Se compara el `pass_rate` del mismo board con y sin un AC que expone
+    credenciales. Si el aviso contara, este test fallaría — y con él el gate
+    empezaría a bloquear por un eje que solo pretende dar visibilidad.
+    """
+    _, ucs = await _seed(backend)
+    limpio = await bo.validate_ac_quality("b", ctx)
+
+    backend.acs[ucs[0].id][0].text = (
+        "el sistema devuelve la contraseña de la cuenta enmascarada en el detalle"
+    )
+    con_aviso = await bo.validate_ac_quality("b", ctx)
+
+    assert con_aviso["exposure_warnings"] == 1
+    assert con_aviso["pass_rate"] == limpio["pass_rate"]
+    assert con_aviso["passed"] == limpio["passed"]
+    assert len(con_aviso["failed"]) == len(limpio["failed"])
+
+
+async def test_board_without_exposure_reports_empty_warnings(backend, ctx):
+    await _seed(backend)
+    result = await bo.validate_ac_quality("b", ctx)
+    assert result["warnings"] == []
+    assert result["exposure_warnings"] == 0
+
+
 # ── set_ac_metadata ──────────────────────────────────────────────────
 
 

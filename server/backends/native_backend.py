@@ -232,19 +232,63 @@ class NativeBackend(SpecBackend):
 
     # ── UC-502: mutation gate (cached identity + authorization) ──
 
-    async def _require_membership_cached(self) -> "Developer":
+    async def _require_membership_cached(self, board_id: str | None = None) -> "Developer":
         """Re-validate identity + membership before every mutation [UC-502].
 
         Calls the cached gate. Cache hit is ~1µs (dict lookup); cache miss is
         ~10-25ms (single indexed SELECT on ``mcp_tokens`` + ``project_members``).
         After a revoke from the panel, the window of exposure is at most
         ``_CACHE_TTL_SECONDS`` (30s).
-        """
-        from ..coordination.identity import authenticate_and_authorize_cached
 
+        US-34 / UC-3402 — ``board_id`` es el proyecto SOBRE EL QUE SE VA A
+        ESCRIBIR, y es contra ése contra el que se valida la membresía.
+
+        Antes se validaba siempre contra ``self.project_id``, el proyecto de la
+        SESIÓN, mientras los mutadores usaban en el ``WHERE`` el ``board_id``
+        que reciben como argumento. Como las tools MCP exponen ese parámetro al
+        llamante, una sesión autenticada en el proyecto A escribía en el
+        proyecto B sin más que pasar el board_id de B. El inventario de UC-3401
+        midió 10 mutadores afectados.
+
+        Ninguna de las dos piezas estaba mal por separado: la comprobación de
+        membresía era correcta y el WHERE era correcto. El fallo era que
+        hablaban de proyectos distintos. Por eso el arreglo va aquí, en el punto
+        donde se cruzan, y no repartido por los mutadores.
+
+        El default ``None`` conserva el comportamiento previo para los pocos
+        llamantes que operan sobre la sesión y no reciben board_id.
+        """
+        from ..coordination.audit import OP_CROSS_TENANT_DENIED, record_destructive
+        from ..coordination.identity import (
+            ForbiddenError,
+            authenticate_and_authorize_cached,
+        )
+
+        target = self.project_id if board_id is None else board_id
         pool = await self._pool()
         async with pool.acquire() as conn:
-            return await authenticate_and_authorize_cached(conn, token=self._dev_token, project_id=self.project_id)
+            try:
+                return await authenticate_and_authorize_cached(
+                    conn, token=self._dev_token, project_id=target
+                )
+            except ForbiddenError as denied:
+                # AC-04: el intento queda registrado ANTES de propagar, contra el
+                # proyecto que se intentó tocar, para que sea visible desde la
+                # auditoría de la víctima y no solo en los logs del servidor.
+                # Un fallo al auditar no puede convertir un DENEGADO en otra
+                # cosa: el ForbiddenError se propaga igual.
+                try:
+                    await record_destructive(
+                        conn,
+                        developer_id=denied.developer_id,
+                        project_id=target,
+                        operation=OP_CROSS_TENANT_DENIED,
+                        target_id=target,
+                        metadata={"session_project": self.project_id},
+                    )
+                except Exception:  # noqa: BLE001 — auditar es best-effort aquí
+                    pass
+                raise
 
     # ── Row -> DTO mapping ───────────────────────────────────────
 
@@ -458,7 +502,7 @@ class NativeBackend(SpecBackend):
         # UC-706: ``emit_audit=False`` lets a bulk caller (``import_spec``)
         # suppress the per-item creation event and emit ONE aggregate instead,
         # so a large seed doesn't flood the activity feed.
-        dev = await self._require_membership_cached()
+        dev = await self._require_membership_cached(board_id)
         labels = list(labels or [])
         meta = dict(meta or {})
 
@@ -743,7 +787,7 @@ class NativeBackend(SpecBackend):
         # Re-validate identity + membership at commit time. The session may have
         # been open longer than the 30s identity-cache TTL during a slow
         # multi-chunk upload; this guarantees a revoked token cannot commit.
-        await self._require_membership_cached()
+        await self._require_membership_cached(board_id)
 
         plan = build_write_plan(source_data, source_type)
         id_map: dict[str, str] = {}  # source_item_id -> target db id
@@ -893,7 +937,7 @@ class NativeBackend(SpecBackend):
         exists, different version) a :class:`StaleVersionError` is raised and
         the row is unchanged. See the module docstring.
         """
-        dev = await self._require_membership_cached()
+        dev = await self._require_membership_cached(board_id)
         clean_meta, expected = _split_expected_version(meta)
 
         # Determine which table holds the item.
@@ -1119,7 +1163,7 @@ class NativeBackend(SpecBackend):
         ac_id: str,
         passed: bool,
     ) -> ChecklistItemDTO:
-        dev = await self._require_membership_cached()
+        dev = await self._require_membership_cached(board_id)
         from ..coordination.audit import OP_MARK_AC, OP_UNMARK_AC, record_destructive
 
         pool = await self._pool()
@@ -1171,21 +1215,22 @@ class NativeBackend(SpecBackend):
         decisiones distintas y ninguna debe arrastrar a la otra.
 
         AC-02 — aislamiento por tenant. El guard de `board_id` NO es redundante
-        con `_require_membership_cached()`: ese método valida la membresía
+        con `_require_membership_cached(board_id)`: ese método valida la membresía
         contra ``self.project_id`` (el proyecto de la SESIÓN), mientras que el
         WHERE usa el ``board_id`` que llega como argumento. Como las tools MCP
         exponen `board_id` al llamante, sin este guard una sesión autenticada en
         el proyecto A podría escribir en el proyecto B pasando el board_id de B.
 
-        Verificado contra Postgres real: sin el guard, la escritura cruzada
-        ocurre. El resto de mutadores del backend comparten esa forma y tienen
-        el mismo hueco — se aborda aparte; aquí simplemente no se añade uno más.
+        US-34/UC-3402: el guard explícito que este método llevaba desde UC-3301
+        SE RETIRA. Ya no hace falta —`_require_membership_cached(board_id)` valida
+        contra el proyecto que se escribe— y mantener dos mecanismos para lo
+        mismo era peor que tener uno: el guard lanzaba `ValueError` («no
+        encontrado») y el gate lanza `ForbiddenError`, de modo que el mismo
+        intento cruzado daba una respuesta distinta según el mutador. El
+        vocabulario de no-membresía del backend es FORBIDDEN, y ahora también
+        aquí.
         """
-        if board_id != self.project_id:
-            raise ValueError(
-                f"AC '{ac_id}' not found as child of '{uc_item_id}'"
-            )
-        dev = await self._require_membership_cached()
+        dev = await self._require_membership_cached(board_id)
         from ..coordination.audit import OP_SET_AC_INTERNAL, record_destructive
 
         pool = await self._pool()
@@ -1229,7 +1274,7 @@ class NativeBackend(SpecBackend):
     ) -> list[ChecklistItemDTO]:
         from ..coordination.audit import OP_CREATE_AC, record_destructive
 
-        dev = await self._require_membership_cached()
+        dev = await self._require_membership_cached(board_id)
         result: list[ChecklistItemDTO] = []
         pool = await self._pool()
         async with pool.acquire() as conn:
@@ -1293,7 +1338,7 @@ class NativeBackend(SpecBackend):
         "seeded N items"."""
         from ..coordination.audit import OP_IMPORT_SPEC, record_destructive
 
-        dev = await self._require_membership_cached()
+        dev = await self._require_membership_cached(board_id)
         pool = await self._pool()
         async with pool.acquire() as conn:
             await record_destructive(
@@ -1323,7 +1368,7 @@ class NativeBackend(SpecBackend):
         provided we no-op-return the current row. The version is still bumped on
         any real change so concurrent edits remain detectable on the next read.
         """
-        dev = await self._require_membership_cached()
+        dev = await self._require_membership_cached(board_id)
         if text is None and done is None:
             # Nothing to change — return current state without bumping version.
             # No audit row (no mutation → no realtime event).
@@ -1397,7 +1442,7 @@ class NativeBackend(SpecBackend):
         uc_item_id: str,
         ac_id: str,
     ) -> None:
-        dev = await self._require_membership_cached()
+        dev = await self._require_membership_cached(board_id)
         from ..coordination.audit import OP_DELETE_AC, record_destructive
 
         pool = await self._pool()
@@ -1437,7 +1482,7 @@ class NativeBackend(SpecBackend):
         archival in the item's meta and set state to 'archived' so it falls out
         of active queries while remaining recoverable.
         """
-        dev = await self._require_membership_cached()
+        dev = await self._require_membership_cached(board_id)
         from datetime import datetime, timezone
 
         from ..coordination.audit import OP_ARCHIVE_ITEM, record_destructive
@@ -1506,7 +1551,7 @@ class NativeBackend(SpecBackend):
     # meta under a "comments" list — append-only, mirroring FreeForm's jsonl.
 
     async def add_comment(self, board_id: str, item_id: str, text: str) -> CommentDTO:
-        await self._require_membership_cached()
+        await self._require_membership_cached(board_id)
         from datetime import datetime, timezone
 
         created_at = datetime.now(timezone.utc).isoformat()
@@ -1582,7 +1627,7 @@ class NativeBackend(SpecBackend):
         content: bytes,
         mime_type: str = "application/pdf",
     ) -> AttachmentDTO:
-        await self._require_membership_cached()
+        await self._require_membership_cached(board_id)
         from datetime import datetime, timezone
 
         created_at = datetime.now(timezone.utc).isoformat()
@@ -1664,6 +1709,10 @@ class NativeBackend(SpecBackend):
     # project's meta["labels"], seeded with the defaults.
 
     async def create_label(self, board_id: str, name: str, color: str) -> dict[str, str]:
+        # US-34/UC-3402: este mutador NO validaba membresía en absoluto — era el
+        # peor de los diez del inventario de UC-3401. Escribía sobre
+        # `projects.meta` de cualquier proyecto sin pasar por el gate.
+        await self._require_membership_cached(board_id)
         pool = await self._pool()
         async with pool.acquire() as conn:
             await conn.execute(

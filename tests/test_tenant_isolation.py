@@ -148,36 +148,24 @@ MUTATORS = [
 STUB_METHODS = ["create_module", "add_items_to_module"]
 
 # ═══════════════════════════════════════════════════════════════════════
-# EL INVENTARIO — estado medido el 2026-08-24 (UC-3401)
+# EL INVENTARIO — cerrado por UC-3402 el 2026-08-24
 # ═══════════════════════════════════════════════════════════════════════
 #
-#   VULNERABLES: 10  ·  PROTEGIDOS: 1  ·  STUBS: 2  ·  sin clasificar: 0
+#   VULNERABLES: 0  ·  PROTEGIDOS: 11  ·  STUBS: 2  ·  sin clasificar: 0
 #
-# Medido EJECUTANDO cada mutador desde una sesión de otro tenant contra
-# Postgres real. Los vulnerables COMPLETAN la escritura sobre el proyecto
-# ajeno sin error.
+# Estado medido por UC-3401 (2026-08-24): 10 vulnerables de 11 mutadores. Los
+# diez completaban la escritura sobre un proyecto ajeno sin error.
 #
-# `set_ac_internal` es el único protegido, por el guard explícito que puso
-# UC-3301. Sirve de control positivo: si apareciera como vulnerable, el
-# inventario estaría mal construido.
+# UC-3402 los cerró de una vez llevando la validación al punto donde se cruzan
+# las dos piezas: `_require_membership_cached(board_id)` valida contra el
+# proyecto QUE SE VA A ESCRIBIR, no contra el de la sesión.
 #
-# POR QUÉ `strict=True` Y NO UN SKIP: en cuanto UC-3402 cierre el hueco, estos
-# tests pasarán a XPASS y la suite se pondrá ROJA. Eso obliga a sacar el mutador
-# de esta lista en el mismo PR que lo arregla. Un `skip` habría dejado el
-# inventario envejeciendo en silencio — que es exactamente cómo nació el
-# problema que estamos midiendo.
-VULNERABLE = {
-    "create_item",
-    "update_item",
-    "mark_acceptance_criterion",
-    "create_acceptance_criteria",
-    "update_acceptance_criterion",
-    "delete_acceptance_criterion",
-    "archive_item",
-    "add_comment",
-    "add_attachment",
-    "create_label",  # además, ni siquiera llama a _require_membership_cached
-}
+# El `strict=True` hizo su trabajo: al aplicar el arreglo, los diez pasaron a
+# XPASS y la suite se puso ROJA, obligando a vaciar esta lista en el mismo PR.
+# Se conserva el mecanismo —no la lista— porque un mutador nuevo mal escrito
+# volverá a aparecer aquí, y `test_catalog_covers_every_mutator` obliga a
+# clasificarlo.
+VULNERABLE: set[str] = set()
 
 
 def _caso(nombre, operacion):

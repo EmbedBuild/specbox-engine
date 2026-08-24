@@ -92,14 +92,137 @@ def validate_satellite(
     return False, f"Satellite {value!r} not declared in settings; declared: {declared}"
 
 
+#: US-33/UC-3304 — señales de RESULTADO OBSERVABLE.
+#:
+#: Un AC es verificable cuando afirma algo que se puede ir a mirar. Verbos en
+#: 3ª persona del indicativo describiendo lo que el sistema hace: es como se
+#: redacta un criterio en este ecosistema y como está redactada la mayoría del
+#: board. La regla anterior no los reconocía, y por eso penalizaba justo la
+#: redacción que pretendía fomentar.
+_OUTCOME_VERBS = (
+    "devuelve", "muestra", "marca", "crea", "borra", "elimina", "aparece",
+    "queda", "falla", "bloquea", "registra", "preserva", "rechaza", "emite",
+    "persiste", "revierte", "cierra", "resuelve", "expone", "cubre",
+    "verifica", "lanza", "responde", "incluye", "contiene", "existe",
+    "aplica", "propaga", "detecta", "avisa", "reporta", "genera", "escribe",
+    "guarda", "actualiza", "asigna", "oculta", "returns", "shows",
+    # Añadidos tras medir contra el board real: cada uno venía de un AC
+    # perfectamente verificable que la lista anterior marcaba por no conocer su
+    # verbo. Es la prueba de que una lista léxica tiene cola — ver el aviso del
+    # docstring.
+    "arroja", "produce", "refleja", "respeta", "recarga", "renderiza",
+    "contradice", "adjunta", "selecciona", "impide", "conserva",
+)
+
+#: DELIBERADAMENTE FUERA: `tiene`, `deja`, `sigue`, `permite`, `mantiene`,
+#: `vuelve`, `pasa`, `abre`, `termina`, `arranca`, `lee`.
+#:
+#: Incluirlos subía la aprobación del board del 98,17 % al 99,63 % (de 10 AC
+#: marcados a 2), pero son verbos tan comunes en español que aparecen en casi
+#: cualquier frase: la señal deja de ser «afirma un resultado observable» y pasa
+#: a ser «es una oración en español». Un gate que no marca nada no es un gate, y
+#: el sobreajuste no sería a este board sino a cualquiera.
+#:
+#: El precio son ~10 marcados, algunos falsos positivos. Se paga a gusto:
+#: equivocarse pidiendo una reescritura es mucho más barato que equivocarse
+#: aprobando lo que no se puede verificar.
+
+#: Calificativos subjetivos: describen una impresión, no un hecho comprobable.
+#: Solo disparan cuando la frase NO aporta ninguna medición — «rápida» es vago,
+#: «responde en menos de 200 ms» no lo es aunque también diga «rápida».
+_SUBJECTIVE_TERMS = (
+    "rápida", "rapida", "rápido", "rapido", "veloz", "lenta", "lento",
+    "intuitiv", "fácil", "facil", "sencill", "amigable", "cómod", "comod",
+    "buena experiencia", "mala experiencia", "óptim", "optim", "eficiente",
+    "moderno", "moderna", "atractiv", "bonit", "elegante", "robust",
+    "escalable", "user friendly", "fluid",
+)
+
+#: Una medición concreta: comparador, cifra, porcentaje o unidad de tiempo.
+#:
+#: El `(?<![A-Za-z\d-])` NO es cosmético. Sin él, el «01» de `AC-01` cuenta como
+#: medición — y casi todos los AC del board llevan su propio id en el texto. El
+#: efecto medido: «AC-05: la app es rápida» pasaba limpio, porque el id redimía
+#: al calificativo subjetivo. Eso habría convertido el gate en el sello de goma
+#: que este mismo cambio venía a evitar. Una cifra solo cuenta como medición si
+#: no va pegada a un identificador. El `\\d` del lookbehind tampoco sobra: sin
+#: él la regex bloquea el «0» de `AC-05` pero reengancha en el «5».
+_MEASUREMENT_RE = re.compile(
+    r"[<>]=?\s*\d"
+    r"|(?<![A-Za-z\d-])\d+\s*%"
+    r"|(?<![A-Za-z\d-])\d+\s*(ms|s|seg|segundos|min|h|kb|mb|gb)\b"
+    r"|(?<![A-Za-z\d-])\d+(?![\w-])"
+)
+
+#: Identificador de código: backticks, snake_case, CamelCase, ruta con
+#: extensión, constante en mayúsculas, o llamada con paréntesis.
+_CODE_REF_RE = re.compile(
+    r"`[^`]+`|\b[a-z_]+_[a-z_]+\b|\b[a-zA-Z][a-z]+[A-Z]\w*\b|\b\w+\.(py|ts|tsx|sql|mjs|json|yaml|md)\b"
+    r"|\b[A-Z][A-Z0-9_]{3,}\b|\b\w+\(\)"
+)
+
+
 def validate_ac_text(text: str) -> list[str]:
     """Return a list of issue tags for an AC text. Empty list = passes.
+
+    US-33/UC-3304 — el veredicto estaba INVERTIDO donde importaba.
+
+    La regla anterior marcaba `not_testable` todo AC sin Gherkin ni una de siete
+    cadenas (`debe`, `must`, un comparador, un porcentaje). Medido sobre los 537
+    AC del board del orquestador: aprobaba el 30,54 %, y el **100 %** de los
+    fallos eran de ese único tipo — ni un solo `too_short`, ni un solo `vague`.
+    Un gate de tres reglas del que dos nunca disparan es una sola regla mal
+    calibrada con dos adornos.
+
+    Lo grave no era la tasa sino la dirección. Ejecutado contra casos concretos::
+
+        "la app debe ser rápida"                        → PASABA
+        "mark_ac preserva el valor de internal al ..."  → FALLABA
+
+    La segunda es un AC real de esta misma US. La primera no tiene nada que
+    medir. El gate empujaba a **redactar para el linter**: meter un «debe»
+    decorativo aprobaba sin mejorar el criterio.
+
+    Ahora se responden dos preguntas SEPARADAS, que es lo que pide AC-04 —
+    dos AC con problemas distintos dejan de recibir la misma etiqueta:
+
+    - ``no_observable_outcome``: no afirma nada que se pueda ir a mirar.
+    - ``subjective_language``: se apoya en un calificativo de impresión sin
+      aportar ninguna medición.
+
+    `not_testable` se sigue emitiendo junto a la etiqueta específica para no
+    romper informes ni lectores humanos; se retira en el release siguiente.
+    Nada en el código ramifica sobre su valor (el único consumidor es
+    `validate_ac_quality`, que las pasa como strings al skill).
+
+    LO QUE ESTO SIGUE SIN SER, y conviene decirlo
+    ---------------------------------------------
+    Sigue siendo un heurístico **léxico**, no un clasificador de testabilidad.
+    `_OUTCOME_VERBS` es una lista, y toda lista tiene cola: al medirla contra
+    los 547 AC reales del board aparecieron criterios perfectamente
+    verificables marcados solo porque su verbo no estaba dentro («arroja»,
+    «produce», «refleja», «respeta»...). Se añadieron, pero el siguiente AC con
+    un verbo nuevo volverá a fallar.
+
+    La diferencia con la regla anterior no es que ésta sea infalible: es que
+    falla en la dirección correcta y en un orden de magnitud menos de casos
+    (de 373 falsos positivos a un puñado), y que ya NO aprueba lo que no tiene
+    nada que medir. Un gate que se equivoca aprobando «debe ser rápida» es
+    peor que uno que se equivoca marcando «arroja cifras idénticas»: el primero
+    deja pasar lo que no se puede verificar, el segundo solo pide una
+    reescritura.
+
+    Por eso el check **avisa y no bloquea** el Definition Quality Gate.
 
     Rules:
     - `too_short`: text < 10 chars
     - `vague`: text < 20 chars (but >= 10)
-    - `not_testable`: missing both Gherkin (Dado/Cuando/Entonces) and any
-       measurable assertion (comparators, "debe", "must")
+    - `no_observable_outcome`: no Gherkin, ni flecha condición→resultado, ni
+      verbo de resultado, ni medición, ni identificador de código, ni literal
+      entrecomillado, ni `debe`/`must`
+    - `subjective_language`: calificativo subjetivo sin medición que lo respalde
+    - `not_testable`: alias de compatibilidad — se emite si dispara cualquiera
+      de las dos anteriores
     """
     issues: list[str] = []
     stripped = (text or "").strip()
@@ -109,12 +232,36 @@ def validate_ac_text(text: str) -> list[str]:
         issues.append("vague")
 
     lower = stripped.lower()
+
     has_gherkin = any(kw in lower for kw in ("dado ", "cuando ", "entonces "))
-    has_measurable = bool(
-        re.search(r"[<>]=?\s*\d|\d\s*%|\bdebe\b|\bmust\b", lower)
+    # La flecha es la forma canónica de «condición → resultado» en este board.
+    has_arrow = "→" in stripped or "->" in stripped
+    has_outcome_verb = any(v in lower for v in _OUTCOME_VERBS)
+    has_measurement = bool(_MEASUREMENT_RE.search(lower))
+    has_code_ref = bool(_CODE_REF_RE.search(stripped))
+    has_quoted = bool(re.search(r"['\"«][^'\"»]{2,}['\"»]", stripped))
+    has_obligation = bool(re.search(r"\bdebe\b|\bmust\b", lower))
+
+    observable = (
+        has_gherkin
+        or has_arrow
+        or has_outcome_verb
+        or has_measurement
+        or has_code_ref
+        or has_quoted
+        or has_obligation
     )
-    if not has_gherkin and not has_measurable:
-        issues.append("not_testable")
+    if not observable:
+        issues.append("no_observable_outcome")
+
+    # La medición es lo que redime a un calificativo subjetivo: «rápida» es una
+    # impresión, «responde en menos de 200 ms» es un hecho. Por eso `debe` NO
+    # cuenta aquí — era precisamente el token que dejaba pasar «debe ser rápida».
+    if any(t in lower for t in _SUBJECTIVE_TERMS) and not has_measurement:
+        issues.append("subjective_language")
+
+    if "no_observable_outcome" in issues or "subjective_language" in issues:
+        issues.append("not_testable")  # alias de compatibilidad, se retira en el próximo release
 
     return issues
 

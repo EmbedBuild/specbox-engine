@@ -71,6 +71,14 @@ OP_UPDATE_AC: str = "update_ac"
 OP_UPDATE_UC: str = "update_uc"
 OP_UPDATE_US: str = "update_us"
 
+#: US-33 / UC-3301. Marcar un AC como interno lo RETIRA de lo que ve el
+#: stakeholder en el portal de negocio, así que deja rastro con actor y
+#: timestamp: si un criterio desaparece de una reunión, tiene que poder
+#: responderse quién lo ocultó y cuándo. ``metadata.internal`` guarda el
+#: valor aplicado, de modo que marcar y desmarcar se distinguen sin
+#: necesidad de dos operaciones.
+OP_SET_AC_INTERNAL: str = "set_ac_internal"
+
 #: Creation events (US-05 / UC-706). Same gap as the progress mutations above,
 #: but for *creation*: ``create_item`` (US/UC) and ``create_acceptance_criteria``
 #: (AC) and ``import_spec`` wrote NO audit row, so seeding a US/UC/AC did not

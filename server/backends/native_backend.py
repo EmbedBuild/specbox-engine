@@ -1107,6 +1107,7 @@ class NativeBackend(SpecBackend):
                 text=r["text"],
                 done=r["done"],
                 backend_id=r["id"],
+                internal=r["internal"],
             )
             for r in rows
         ]
@@ -1152,6 +1153,71 @@ class NativeBackend(SpecBackend):
             text=row["text"],
             done=row["done"],
             backend_id=row["id"],
+            internal=row["internal"],
+        )
+
+    async def set_ac_internal(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+        internal: bool,
+    ) -> ChecklistItemDTO:
+        """Mark/unmark an AC as internal (US-33/UC-3301).
+
+        The UPDATE names `internal` and nothing else: it must never move
+        `done`, the same way `mark_acceptance_criterion` must never move
+        `internal` (AC-03). Ocultar un AC y darlo por cumplido son dos
+        decisiones distintas y ninguna debe arrastrar a la otra.
+
+        AC-02 — aislamiento por tenant. El guard de `board_id` NO es redundante
+        con `_require_membership_cached()`: ese método valida la membresía
+        contra ``self.project_id`` (el proyecto de la SESIÓN), mientras que el
+        WHERE usa el ``board_id`` que llega como argumento. Como las tools MCP
+        exponen `board_id` al llamante, sin este guard una sesión autenticada en
+        el proyecto A podría escribir en el proyecto B pasando el board_id de B.
+
+        Verificado contra Postgres real: sin el guard, la escritura cruzada
+        ocurre. El resto de mutadores del backend comparten esa forma y tienen
+        el mismo hueco — se aborda aparte; aquí simplemente no se añade uno más.
+        """
+        if board_id != self.project_id:
+            raise ValueError(
+                f"AC '{ac_id}' not found as child of '{uc_item_id}'"
+            )
+        dev = await self._require_membership_cached()
+        from ..coordination.audit import OP_SET_AC_INTERNAL, record_destructive
+
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE acceptance_criteria
+                SET internal = $4, version = version + 1, updated_at = now()
+                WHERE project_id = $1 AND uc_id = $2 AND ac_id = $3
+                RETURNING *
+                """,
+                board_id,
+                uc_item_id,
+                ac_id,
+                internal,
+            )
+            if row is None:
+                raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
+            await record_destructive(
+                conn,
+                developer_id=dev.developer_id,
+                project_id=board_id,
+                operation=OP_SET_AC_INTERNAL,
+                target_id=ac_id,
+                metadata={"internal": internal},
+            )
+        return ChecklistItemDTO(
+            id=ac_id,
+            text=row["text"],
+            done=row["done"],
+            backend_id=row["id"],
+            internal=row["internal"],
         )
 
     async def create_acceptance_criteria(
@@ -1190,6 +1256,7 @@ class NativeBackend(SpecBackend):
                             text=text,
                             done=False,
                             backend_id=row["id"],
+                            internal=False,
                         )
                     )
                 # UC-706: one audit event for the create. A single AC targets
@@ -1270,7 +1337,13 @@ class NativeBackend(SpecBackend):
                 )
             if row is None:
                 raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
-            return ChecklistItemDTO(id=ac_id, text=row["text"], done=row["done"], backend_id=row["id"])
+            return ChecklistItemDTO(
+                id=ac_id,
+                text=row["text"],
+                done=row["done"],
+                backend_id=row["id"],
+                internal=row["internal"],
+            )
 
         set_clauses: list[str] = []
         params: list[Any] = []
@@ -1310,7 +1383,13 @@ class NativeBackend(SpecBackend):
                 operation=OP_UPDATE_AC,
                 target_id=ac_id,
             )
-        return ChecklistItemDTO(id=ac_id, text=row["text"], done=row["done"], backend_id=row["id"])
+        return ChecklistItemDTO(
+            id=ac_id,
+            text=row["text"],
+            done=row["done"],
+            backend_id=row["id"],
+            internal=row["internal"],
+        )
 
     async def delete_acceptance_criterion(
         self,

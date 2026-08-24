@@ -97,6 +97,50 @@ async def _seed_tenant(pool, tag: str):
     return project_id, developer_id, token
 
 
+async def _snapshot(pool, project_id: str) -> dict:
+    """Huella del estado escribible del tenant, para comparar antes/después.
+
+    No basta con mirar la fila que el mutador diría tocar: se comparan TODAS las
+    superficies escribibles del tenant, porque un mutador que lanza tras haber
+    escrito en OTRO sitio seguiría siendo una fuga.
+
+    El `meta` de US y UC va incluido a propósito: en Native los comentarios y los
+    adjuntos NO tienen tabla propia — viven dentro del JSONB del propio ítem. Sin
+    capturarlo, `add_comment` y `add_attachment` podrían escribir en el tenant
+    ajeno sin que este snapshot lo notara.
+    """
+    async with pool.acquire() as conn:
+        return {
+            "us": [
+                dict(r)
+                for r in await conn.fetch(
+                    "SELECT id, name, state, version, meta::text FROM user_stories "
+                    "WHERE project_id=$1 ORDER BY id",
+                    project_id,
+                )
+            ],
+            "uc": [
+                dict(r)
+                for r in await conn.fetch(
+                    "SELECT id, name, state, version, meta::text FROM use_cases "
+                    "WHERE project_id=$1 ORDER BY id",
+                    project_id,
+                )
+            ],
+            "ac": [
+                dict(r)
+                for r in await conn.fetch(
+                    "SELECT ac_id, text, done, internal, version FROM acceptance_criteria "
+                    "WHERE project_id=$1 ORDER BY ac_id",
+                    project_id,
+                )
+            ],
+            "proyecto_meta": await conn.fetchval(
+                "SELECT meta::text FROM projects WHERE project_id=$1", project_id
+            ),
+        }
+
+
 async def _cleanup(pool, *tenants):
     async with pool.acquire() as conn:
         for project_id, developer_id, _tok in tenants:
@@ -194,23 +238,54 @@ class TestMutatorInventory:
     async def test_mutator_rejects_cross_tenant_write(self, nombre, operacion):
         """Un mutador NO debe completar una escritura sobre un proyecto ajeno.
 
-        Este test es el inventario ejecutable de AC-01: se parametriza sobre
-        todos los mutadores y cada uno queda clasificado como `protegido` (lanza)
-        o `vulnerable` (completa la escritura). Ninguno queda sin clasificar,
-        porque un mutador ausente del catálogo hace fallar
-        `test_catalog_covers_every_mutator`.
+        US-34/UC-3403 endurece el aserto. Hasta UC-3402 bastaba con `raises
+        (Exception)`, porque lo que se medía era *si* la escritura se completaba.
+        Como red permanente eso es débil: un `TypeError` por refactor, un fallo
+        de conexión o una validación de nombre —el caso real que estuvo a punto
+        de colar un falso negativo en el inventario— darían el test por bueno sin
+        que exista aislamiento alguno.
 
-        Mientras UC-3402 no cierre el hueco, los vulnerables fallan aquí. Ese
-        fallo ES el inventario: la lista de xfail de abajo es el estado medido,
-        no una excusa.
+        Ahora se exigen las tres cosas que definen "rechazar":
+
+        1. la excepción es **`ForbiddenError`**, el vocabulario de no-membresía;
+        2. la fila de la víctima queda **sin tocar**;
+        3. el intento queda **registrado** en `audit_log` contra la víctima.
+
+        La 2 es la que de verdad importa: una excepción con la escritura ya
+        aplicada sería el peor de los mundos, y sin comprobarla el test no
+        distingue ese caso.
         """
+        from server.coordination.audit import OP_CROSS_TENANT_DENIED
+        from server.coordination.identity import ForbiddenError
+
         pool = await _pool()
         atacante = await _seed_tenant(pool, "a")
         victima = await _seed_tenant(pool, "b")
         backend = _backend(atacante[0], atacante[2])
         try:
-            with pytest.raises(Exception):
+            antes = await _snapshot(pool, victima[0])
+
+            with pytest.raises(ForbiddenError):
                 await operacion(backend, victima[0])
+
+            despues = await _snapshot(pool, victima[0])
+            assert antes == despues, (
+                f"{nombre} lanzó, pero la escritura sobre el tenant ajeno se aplicó igual. "
+                f"antes={antes} después={despues}"
+            )
+
+            async with pool.acquire() as conn:
+                registrado = await conn.fetchval(
+                    "SELECT count(*) FROM audit_log "
+                    "WHERE project_id = $1 AND operation = $2 AND developer_id = $3",
+                    victima[0],
+                    OP_CROSS_TENANT_DENIED,
+                    atacante[1],
+                )
+            assert registrado >= 1, (
+                f"{nombre} rechazó el intento pero no dejó rastro en audit_log: "
+                "la víctima no tiene forma de saber que alguien lo intentó."
+            )
         finally:
             await backend.close()
             await _cleanup(pool, atacante, victima)

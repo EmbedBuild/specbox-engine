@@ -385,6 +385,39 @@ Generar plan sin referencias a agentes (tareas genéricas)
 
 ## Paso 4: Generar Plan de Implementación
 
+### Regla de redaccion cara-al-cliente (US-33 / UC-3302) — OBLIGATORIA
+
+> Aplica a **todo AC que este skill derive o reescriba**, no solo a los del
+> `/prd`. Un AC generado aquí acaba en el mismo board y en la misma pantalla
+> delante del cliente.
+
+La regla completa, con los ejemplos reales antes → despues, vive en
+`.claude/skills/prd/SKILL.md` → «Regla de redaccion cara-al-cliente». No se
+duplica aquí para que no puedan divergir. Resumen operativo:
+
+| No | En su lugar |
+|----|-------------|
+| Credenciales (usuario, contrasena, api key, secret, token con valor) | Nombrar el mecanismo, no el secreto |
+| **Rutas de fichero internas** (`web/src/lib/x.ts`, `server/y.py`) | Nombrar el **comportamiento observable**, no su ubicacion |
+| Lenguaje despectivo o jerga interna («roto», «chapuza», «hardcoded») | Terminos neutros y verificables |
+
+**Un AC generado por este skill que cite una ruta de fichero es un fallo de la
+UC**, no un detalle de estilo. Es la trampa mas facil de pisar desde `/plan`,
+porque el plan tecnico SI habla de ficheros: el plan puede nombrarlos, el AC no.
+
+Distinguir las dos cosas:
+
+- **Plan** → «Fase 2: modificar `server/tools/_mutation_helpers.py`». Correcto,
+  el plan es interno.
+- **AC** → «El gate deja de marcar como no verificables los criterios escritos
+  en indicativo». Correcto, describe el comportamiento observable.
+- **AC** → ❌ «`validate_ac_text` deja de anadir `not_testable`». Cita la
+  implementacion: si manana la funcion cambia de nombre, el AC miente.
+
+Antes de cerrar el plan, pasar `validate_ac_quality` y revisar **las dos
+listas** que devuelve: `failed` (calidad, bloquea) y `warnings` (exposicion,
+solo avisa).
+
 ### Template de Plan
 
 ```markdown

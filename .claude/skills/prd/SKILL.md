@@ -171,6 +171,10 @@ Usar **Template: PRD Spec-Driven** (ver abajo).
 Ejecutar el Definition Quality Gate sobre los AC-XX que vienen de Trello.
 Si algun criterio no pasa → proponer mejoras al usuario ANTES de continuar.
 
+Aplicar tambien la **Regla de redaccion cara-al-cliente** (ver abajo). El gate
+devuelve ahora dos listas separadas: `failed` (calidad, bloquea) y `warnings`
+(exposicion, solo avisa). Revisar las dos.
+
 ### S5: Adjuntar evidencia a Trello
 
 ```
@@ -260,6 +264,91 @@ Para cada Use Case, determinar:
 
 ### UC-XXX: [Nombre]
 ...
+
+---
+
+## Regla de redaccion cara-al-cliente (US-33 / UC-3302)
+
+> **Un AC puede acabar proyectado en una pantalla, en una reunion, delante del
+> cliente.** Desde la decision D7 los criterios de aceptacion dejaron de ser
+> notas internas del equipo y pasaron a ser **entregable**: el portal de negocio
+> `projects.embed.build` los muestra al stakeholder que paga el proyecto.
+>
+> Eso cambia como se escriben. No como se verifican — un AC sigue teniendo que
+> ser comprobable — sino **que puede contener**.
+
+### Las tres prohibiciones
+
+| No | Por que | En su lugar |
+|----|---------|-------------|
+| **Credenciales** — usuario, contrasena, api key, token con valor, secret | Un AC proyectado con una credencial dentro es una filtracion, y queda en el historico del board para siempre | Nombrar el mecanismo, no el secreto: «se autentica con la cuenta de revision de la tienda» |
+| **Rutas de fichero internas** — `web/src/lib/x.ts`, `server/backends/y.py` | Quien paga el proyecto no necesita saber en que fichero vive la implementacion; ademas la ruta caduca en el primer refactor y el AC queda mintiendo | Nombrar el **comportamiento observable**, no su ubicacion |
+| **Lenguaje despectivo o jerga interna** — «esta roto», «chapuza», «hardcoded», «parche», «deuda tecnica» | Un defecto descrito con desprecio delante del cliente destruye confianza en el equipo, no en el bug | Describir el estado en terminos neutros y verificables |
+
+### Lo que NO cambia
+
+- El AC **sigue teniendo que ser verificable**. Esta regla no autoriza a
+  redactar vaguedades bonitas: «la app es rapida» sigue siendo un mal criterio.
+- Se pueden nombrar **conceptos de dominio** aunque suenen tecnicos
+  (`dev_token`, `mcp_tokens`, `audit_log`) cuando son parte del producto y no
+  un secreto ni una ruta.
+- Un AC interno legitimo —migracion de datos, detalle de infraestructura— no se
+  reescribe: se **marca** con `set_ac_internal` y el portal deja de mostrarlo.
+
+### Ejemplos reales, antes → despues
+
+Los cuatro salen del board del orquestador. No son inventados.
+
+**1. Ruta interna + tabla interna** (`UC-3206/AC-03`)
+
+> ❌ Se eliminan `epic_progress_cache` y `web/src/lib/trelloProgress.ts`; el build
+> de web termina sin errores y sin ninguna referencia a Trello en `src`
+>
+> ✅ El portal deja de depender de Trello: el avance de las epicas se calcula sin
+> la integracion, y una busqueda de «Trello» en el codigo del portal no devuelve
+> ningun resultado
+
+**2. Ficheros de componente** (`UC-202/AC-04`)
+
+> ❌ Dado el StatusBadge (`Badge.tsx`), Cuando renderiza un estado, Entonces usa
+> las CSS vars `--status-*` (mismo patron que `SpecTree.tsx`), no hex inline
+>
+> ✅ Dado un indicador de estado, Cuando se muestra, Entonces toma su color del
+> sistema de diseno compartido, de modo que un cambio de marca se propaga sin
+> tocar la pantalla
+
+**3. Jerga interna** (`UC-1701/AC-02`) — *esta la revisa una persona, no el check*
+
+> ❌ La anon key y la URL se leen de variables de entorno (`PUBLIC_*`), no estan
+> hardcodeadas en el codigo fuente versionado
+>
+> ✅ Las claves de acceso publicas se inyectan al construir la aplicacion y no
+> viajan en el repositorio; cambiarlas no exige tocar el codigo
+
+> **Ojo con este:** «anon key» NO es una filtracion —esa clave es publica por
+> diseno y viaja en el bundle del navegador— y por eso el check **no lo marca,
+> con razon**. Lo que sobra aqui es «hardcodeadas» y «codigo fuente
+> versionado»: jerga que al cliente no le dice nada. La tercera prohibicion es
+> la unica **sin verificacion automatica**; depende de quien redacta.
+
+**4. Jerga interna** (`UC-901/AC-04`)
+
+> ❌ El campo `metadata` del response deja de ser null hardcoded y devuelve el
+> jsonb real de `audit_log.metadata`
+>
+> ✅ El detalle de cada evento incluye su informacion asociada en lugar de
+> aparecer vacio
+
+### Como se comprueba
+
+`validate_ac_quality` devuelve dos listas **separadas**:
+
+- `failed` → calidad de definicion. **Bloquea** el gate.
+- `warnings` → exposicion (`exposure_credentials`, `exposure_internal_path`).
+  **Avisa, no bloquea**: el objetivo es visibilidad, no fricción.
+
+Un AC puede exponer credenciales y ser impecable como criterio: son dos ejes
+distintos y se reportan por separado.
 
 ---
 

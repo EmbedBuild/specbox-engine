@@ -72,6 +72,11 @@ class ChecklistItemDTO:
     done: bool = False
     # In Plane, this is the work item ID; in Trello, the checkItem ID
     backend_id: str = ""
+    # US-33/UC-3301: when true, this AC is internal — the business portal does
+    # not show it to the stakeholder. Additive with a `False` default, so the
+    # backends that have no such concept (Trello / Plane / FreeForm) keep
+    # behaving exactly as before: every AC they return is client-facing.
+    internal: bool = False
 
 
 @dataclass
@@ -272,6 +277,29 @@ class SpecBackend(ABC):
         In Trello: updates checklist item state.
         In Plane: moves AC sub-item to Done/Backlog state.
         """
+
+    async def set_ac_internal(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+        internal: bool,
+    ) -> ChecklistItemDTO:
+        """Mark/unmark an AC as internal (US-33/UC-3301).
+
+        Deliberately **not** abstract: `internal` is a property of the Native
+        board, which is what the business portal reads. Trello, Plane and
+        FreeForm have no equivalent, and forcing them to grow a stub would be
+        pretending they support something they don't.
+
+        The default raises so a caller on those backends gets a precise reason
+        instead of a silent no-op — the failure mode this whole US exists to
+        avoid.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not support internal ACs; "
+            "this is a Native-board feature (US-33/UC-3301)."
+        )
 
     @abstractmethod
     async def create_acceptance_criteria(

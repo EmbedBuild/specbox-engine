@@ -447,11 +447,75 @@ async def get_board_diff(
         return _mk_error("BACKEND_ERROR", str(e))
 
 
+# ── 3.6 set_ac_internal ──────────────────────────────────────────────
+
+
+async def set_ac_internal(
+    board_id: str,
+    uc_id: str,
+    ac_id: str,
+    internal: bool,
+    ctx: Context,
+) -> dict[str, Any]:
+    """Mark or unmark an acceptance criterion as **internal** (US-33/UC-3301).
+
+    An internal AC is not shown to the stakeholder in the business portal
+    (`projects.embed.build`). Use it for criteria that are real work but noise
+    for whoever is paying: data migrations, infrastructure details, refactors.
+
+    Deliberately separate from `set_ac_metadata` (which stores *evidence*) and
+    from `mark_ac` (which stores *progress*). Hiding a criterion, proving it
+    was met and declaring it done are three different decisions, and mixing
+    them into one tool would make all three ambiguous.
+
+    Only the **Native** board supports this; the other backends have no such
+    concept and return `BACKEND_UNSUPPORTED` rather than silently doing
+    nothing.
+
+    Args:
+        internal: True hides it from the portal, False makes it visible again.
+
+    Returns:
+        {uc_id, ac_id, internal, text, updated_at}
+    """
+    backend = await get_session_backend(ctx)
+    try:
+        uc_item = await mh.find_uc(backend, board_id, uc_id)
+        if not uc_item:
+            return _mk_error("UC_NOT_FOUND", f"UC {uc_id} not found")
+
+        try:
+            ac = await backend.set_ac_internal(board_id, uc_item.id, ac_id, internal)
+        except NotImplementedError as e:
+            return _mk_error("BACKEND_UNSUPPORTED", str(e))
+        except ValueError:
+            # AC-02: an AC of another tenant is, from this session, not found.
+            return _mk_error("AC_NOT_FOUND", f"AC {ac_id} not found in {uc_id}")
+
+        return {
+            "uc_id": uc_id,
+            "ac_id": ac.id,
+            "internal": ac.internal,
+            "text": ac.text,
+            "updated_at": mh.utc_now_iso(),
+        }
+    except Exception as e:
+        if "error" in str(type(e)):
+            raise
+        return _mk_error("BACKEND_ERROR", str(e))
+    finally:
+        await backend.close()
+
+
 # ── Registration ─────────────────────────────────────────────────────
 
 
 def register_board_operations_tools(mcp_instance) -> None:
-    """Register the 5 Tier 3 board operation tools."""
+    """Register the 6 Tier 3 board operation tools."""
+    mcp_instance.tool(
+        description="Mark/unmark an AC as internal so the business portal does not "
+        "show it to the stakeholder (US-33). Native board only."
+    )(set_ac_internal)
     mcp_instance.tool(
         description="Validate AC quality against Definition Quality Gate rules. "
         "Flags vague, too-short, and untestable ACs. For a single UC pass uc_id."

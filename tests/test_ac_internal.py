@@ -35,6 +35,22 @@ pytestmark_pg = pytest.mark.skipif(not PG_OK, reason=PG_SKIP_REASON)
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@pytest.fixture(autouse=True)
+def _reset_shared_pool():
+    """Deja el pool global a None ANTES y DESPUÉS de cada test de este módulo.
+
+    Sin el reset posterior, este fichero era mal vecino: dejaba en el global un
+    pool atado a SU último event loop, y el siguiente módulo de tests que
+    llamara a `init_pool` recibía un pool muerto. Medido: la suite conjunta
+    pasaba de 13 fallos (línea base de `origin/main`) a 21 solo por el orden.
+    """
+    import server.db.pool as poolmod
+
+    poolmod._pool = None
+    yield
+    poolmod._pool = None
+
+
 async def _pool():
     """Pool NUEVO para cada test, ligado a su propio event loop.
 

@@ -49,12 +49,26 @@ BEGIN
         FROM projects
         WHERE organization_id IS NULL;
 
+        -- ENMENDADO 2026-08-24 — avisa en vez de abortar.
+        --
+        -- Esto era `RAISE EXCEPTION`. La 0020, la migración INMEDIATAMENTE
+        -- posterior, hace `DROP NOT NULL` sobre esta misma columna y explica por
+        -- qué: «organization» es un concepto del panel, no del engine genérico,
+        -- y sellarlo aquí fue el error de capa. Es decir, el único efecto vivo
+        -- que le quedaba a este bloque al re-aplicar el ledger era ABORTARLO
+        -- cuando existiera cualquier proyecto sin organización — que es el caso
+        -- normal en dev, en la CI y en cualquier clon del engine, donde el
+        -- backfill de la 0018 no siembra nada.
+        --
+        -- El runner documenta que `apply_migrations` es re-aplicable; con el
+        -- EXCEPTION no lo era. Se conserva la intención histórica (sellar si los
+        -- datos lo permiten) y se degrada el bloqueo a NOTICE.
         IF null_count > 0 THEN
-            RAISE EXCEPTION
-                '0019: cannot SET NOT NULL — % project(s) still have organization_id IS NULL. Re-run the 0018 backfill to assign every project to an organization first.',
+            RAISE NOTICE
+                '0019: se omite SET NOT NULL — % proyecto(s) sin organization_id. La 0020 revierte este sellado de todos modos.',
                 null_count;
+        ELSE
+            ALTER TABLE projects ALTER COLUMN organization_id SET NOT NULL;
         END IF;
-
-        ALTER TABLE projects ALTER COLUMN organization_id SET NOT NULL;
     END IF;
 END $$;

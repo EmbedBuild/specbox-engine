@@ -162,6 +162,90 @@ _CODE_REF_RE = re.compile(
 )
 
 
+# ── US-33/UC-3303 — check de exposición ──────────────────────────────
+#
+# D7 convierte los AC en entregable cara-al-cliente: pueden acabar proyectados
+# en una reunión. Un AC que cita las credenciales de una cuenta o la ruta
+# interna de un fichero deja de ser un criterio y pasa a ser una filtración.
+#
+# AVISA, NO BLOQUEA (AC-02). El objetivo es visibilidad, no fricción: un
+# `exposure_warning` no impide aprobar el Definition Quality Gate, solo aparece
+# listado para que una persona lo mire.
+
+#: Indicios de ALTA señal: nombrar esto en un AC casi nunca es inocente.
+_EXPOSURE_HIGH_RE = re.compile(
+    r"contrase[nñ]|password|passwd|api[ _-]?key|apikey|(?<![a-z_])secret|credencial|client[ _-]secret",
+    re.IGNORECASE,
+)
+
+#: Prefijos de claves reales de los proveedores que usa el ecosistema.
+_EXPOSURE_KEY_RE = re.compile(
+    r"sk_live_|sk_test_|ghp_|gho_|sbp_|spbx_|whsec_|eyJ[A-Za-z0-9_-]{20,}"
+)
+
+#: Rutas internas con extensión de código. Son la otra mitad del AC-01: quien
+#: paga el proyecto no necesita saber en qué fichero vive la implementación.
+_EXPOSURE_PATH_RE = re.compile(
+    r"[A-Za-z0-9_/.-]+\.(py|ts|tsx|jsx|sql|mjs|json|yaml|yml|sh)(?![A-Za-z])"
+)
+
+
+def detect_ac_exposure(text: str) -> list[str]:
+    """Return exposure warning tags for an AC text. Empty list = nothing to flag.
+
+    POR QUÉ NO SE MARCA TODA MENCIÓN DE «usuario» O «token»
+    --------------------------------------------------------
+    El AC-01 enumera «usuario, contraseña, token, api key, secret». Aplicado al
+    pie de la letra sobre el board del orquestador, eso marca **72 de 547** AC,
+    y 46 de esos 72 son la palabra «usuario» usada como ROL —«el usuario ve su
+    panel»—, que no expone nada. Un aviso que salta en uno de cada ocho
+    criterios no lo lee nadie, y un aviso que nadie lee no protege nada.
+
+    Así que se distingue la mención del indicio:
+
+    - `contraseña`, `password`, `api key`, `secret`, `credencial` → siempre.
+      Nombrarlos en un criterio casi nunca es inocente.
+    - `usuario` → solo si va acompañado de contraseña/credencial, o seguido de
+      un valor (`usuario: ...`). Como rol no cuenta.
+    - `token` → solo si va seguido de un valor. En este ecosistema `dev_token`
+      y `mcp_tokens` son conceptos de dominio con su propia US, no secretos.
+    - Prefijos de clave real (`sk_live_`, `ghp_`, `sbp_`, JWT…) → siempre, sin
+      importar el contexto.
+
+    Medido con esta regla: 12 avisos de credencial en el manager (de 72), y el
+    AC-04 de UC-083 de `potencial_digital_2026` —que cita usuario y contraseña
+    de la cuenta de revisión de App Store— se sigue marcando, que es el AC-03.
+
+    Returns:
+        Lista con `exposure_warning` más la categoría concreta, para que el
+        informe pueda decir POR QUÉ y no solo QUE.
+    """
+    stripped = (text or "").strip()
+    if not stripped:
+        return []
+
+    lower = stripped.lower()
+    tags: list[str] = []
+
+    credential = bool(_EXPOSURE_HIGH_RE.search(stripped)) or bool(_EXPOSURE_KEY_RE.search(stripped))
+    if not credential and "usuario" in lower:
+        credential = bool(
+            re.search(r"contrase[nñ]|password|credencial", lower)
+            or re.search(r"usuario\s*[:=]", lower)
+        )
+    if not credential:
+        credential = bool(re.search(r"token\s*[:=]\s*\S", lower))
+
+    if credential:
+        tags.append("exposure_credentials")
+    if _EXPOSURE_PATH_RE.search(stripped):
+        tags.append("exposure_internal_path")
+
+    if tags:
+        tags.insert(0, "exposure_warning")
+    return tags
+
+
 def validate_ac_text(text: str) -> list[str]:
     """Return a list of issue tags for an AC text. Empty list = passes.
 

@@ -1,6 +1,6 @@
 [project]
 name = "specbox-engine"
-version = "6.12.0"
+version = "6.13.0"
 description = "SpecBox Engine v6.12.0 — Claude Design Native: the VEG gains Claude Design (US-29) as a second visual provider via the harness DesignSync tool, selectable per project (veg.providers), preferred when a compiled design-system exists, with Stitch as the default fallback — no token held, consumption billed to the session's claude.ai subscription."
 requires-python = ">=3.12"
 dependencies = [

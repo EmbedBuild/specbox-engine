@@ -2,6 +2,56 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.13.0] - 2026-08-25 — "Tenant Guard"
+
+Dos historias que se cruzan en el mismo sitio: qué se le enseña al cliente y quién puede
+tocarlo. US-34 cerró una escritura cruzada entre clientes en los mutadores del backend
+native; US-33 convirtió los criterios de aceptación en algo que se le puede enseñar a
+quien paga, en vez de notas internas.
+
+### Added
+
+- **`internal` en los criterios de aceptación** — marca lo que no se le enseña al cliente.
+  Se oculta al mostrar, pero **sigue contando** en el avance: ocultar no descuenta.
+- **Check de exposición** — avisa de criterios que citan credenciales o rutas internas.
+  Solo avisa, no bloquea: la señal es útil, el bloqueo sería ruido.
+- **Guía de redacción cara-al-cliente** en `/prd`, referenciada desde `/plan`. Vive en un
+  solo sitio a propósito; duplicarla garantizaría que divergen, y hay un test que lo impide.
+- **Batería permanente de aislamiento por tenant** sobre todos los mutadores native.
+
+### Changed
+
+- **La membresía se valida contra el proyecto que se escribe**, no contra el de la sesión.
+  Éste es el cambio importante de la release: el guard vive en un único punto, de modo que
+  el mutador número catorce lo hereda sin que nadie se acuerde de añadirlo.
+- **El gate de testabilidad de criterios** pasa del 30,54 % al 98,17 % de aprobación.
+  Aprobaba lo vago ("debe ser rápida") y rechazaba lo verificable por tests.
+- Las migraciones `0018` y `0019` abortaban el ledger completo sobre una base limpia, lo
+  que impedía montar el engine desde cero. Se enmiendan en sitio: como abortan, ninguna
+  migración posterior corre y no había forma de arreglarlas desde delante.
+
+### Decisions
+
+- **No se maximiza la tasa del gate de criterios.** Aceptar verbos genéricos la subía del
+  98,17 % al 99,63 %, pero la señal pasaba de "afirma un resultado observable" a "es una
+  oración en español". Se descartó con datos.
+- **El check de exposición no aplica su criterio al pie de la letra**: marcar toda mención
+  de "usuario" o "token" señalaba 72 de 547 criterios, y 46 eran "usuario" como rol.
+
+### Compatibility
+
+- 100 % retrocompatible. `internal` nace en `false`, así que ningún criterio existente
+  cambia de visibilidad. El gate más estricto solo afecta a criterios nuevos.
+
+### Tests
+
+- Batería de aislamiento por tenant validada **por mutación en dos direcciones**: quitar el
+  guard reabre el agujero, y el inventario de mutadores vulnerables pasa a XPASS al arreglar.
+- Los tests del publicador del site dejan de congelar valores del repo (la versión y el
+  número de tools) y verifican el contrato: leen lo que el fichero dice. Llevaban en rojo
+  desde v6.12.0 sin que nadie lo notara — y uno de ellos es ahora la red que caza liberar
+  una versión sin escribir su entrada en este changelog.
+
 ## [6.12.0] - 2026-06-25 — "Claude Design Native"
 
 Adds **Claude Design** as a second visual provider of the VEG, alongside Stitch. Claude Design (`claude.ai/design`, operated through the harness `DesignSync` tool) designs with the **real compiled components** of the project's design-system — a 1:1 mapping to code — whereas Stitch is text-to-mockup. SpecBox is an agentic system *for Claude*, so the design platform now matches the execution platform. One US from the orchestrator board `EmbedBuild/specbox-manager` (engine satellite), discovery `disc-52cbe4033fae`.

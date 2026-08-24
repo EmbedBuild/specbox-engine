@@ -10,6 +10,8 @@ sobre las fuentes canónicas de hoy (13 agentes, 120 tools, 25 skills, ext v6.11
 
 from pathlib import Path
 
+import re
+
 import pytest
 
 from server.site_publish.inventory import (
@@ -134,9 +136,23 @@ def test_parse_tools_ignores_comments_and_tests(fake_engine):
 
 
 def test_parse_tools_real_repo_count_matches_grep():
-    """El conteo del parser coincide con los decoradores reales del repo (120, no 125 crudo)."""
+    """El conteo del parser coincide con los decoradores reales del repo.
+
+    Antes el número estaba congelado (120) y se rompía cada vez que se añadía una
+    tool — de hecho llevaba roto desde que US-33 y US-34 añadieron cinco. Ahora se
+    cuenta igual que promete el nombre del test: con una búsqueda independiente,
+    que no comparte código con el parser que verifica.
+    """
+    decoradores = re.compile(r"^\s*@(?:mcp|app|server)\.tool")
+    esperado = 0
+    for py in (ENGINE_ROOT / "server").rglob("*.py"):
+        if "tests" in py.parts or "__pycache__" in py.parts:
+            continue
+        esperado += sum(1 for l in py.read_text(encoding="utf-8").splitlines() if decoradores.match(l))
+
     tools = parse_tools(ENGINE_ROOT / "server")
-    assert len(tools) == 120
+    assert esperado > 0, "la búsqueda de control no encontró ninguna tool"
+    assert len(tools) == esperado
     assert all(t.tool_name for t in tools)
 
 

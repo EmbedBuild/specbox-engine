@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.12.0 — "Claude Design Native" (sobre v6.11.1 "Living Funnel")<br/>
+  v 6.13.0 — "Tenant Guard" (sobre v6.12.0 "Claude Design Native")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,19 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v6.13
+
+**v6.13.0 — "Tenant Guard"** cruza dos historias en el mismo punto: qué se le enseña al cliente y quién puede tocarlo.
+
+- **La membresía se valida contra el proyecto que se escribe** — no contra el de la sesión. Cierra una escritura cruzada entre clientes en los mutadores del backend native. El guard vive en un único punto, así que el mutador número catorce lo hereda sin que nadie se acuerde.
+- **Criterios de aceptación como entregable** — el campo `internal` oculta lo que no se le enseña al cliente, pero **sigue contando** en el avance: ocultar no descuenta.
+- **El gate de testabilidad pasa del 30,54 % al 98,17 %** — aprobaba lo vago ("debe ser rápida") y rechazaba lo verificable por tests.
+- **Check de exposición** — avisa de criterios que citan credenciales o rutas internas. Avisa, no bloquea.
+
+100% backwards-compatible. `internal` nace en `false`: ningún criterio existente cambia de visibilidad.
 
 ---
 
@@ -500,7 +513,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.12.0 — "Claude Design Native" (over v6.11.1 "Living Funnel")
+> v 6.13.0 — "Tenant Guard" (over v6.12.0 "Claude Design Native")
 
 ## What is this?
 
@@ -512,6 +525,19 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v6.13
+
+**v6.13.0 — "Tenant Guard"** brings together two stories that meet at the same place: what the client is shown, and who may change it.
+
+- **Membership is validated against the project being written** — not the session's. Closes a cross-tenant write in the native backend mutators. The guard lives in a single place, so mutator number fourteen inherits it without anyone remembering to add it.
+- **Acceptance criteria as a deliverable** — the `internal` flag hides what the client shouldn't see, while it **still counts** towards progress: hiding does not discount.
+- **The testability gate goes from 30.54% to 98.17%** — it used to approve vague statements ("must be fast") and reject test-verified ones.
+- **Exposure check** — warns about criteria quoting credentials or internal paths. Warns, never blocks.
+
+100% backwards-compatible. `internal` defaults to `false`: no existing criterion changes visibility.
+
+---
 
 ## What's new in v6.12
 

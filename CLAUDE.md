@@ -2165,6 +2165,26 @@ dos historias seguían abiertas con todas sus UC hechas.
   HTTP: `initialize` rechazado sin token o con token falso, identidad y atribución durante la sesión,
   aviso de gracia en la respuesta) y `tests/test_engine_version_contract.py`.
 
+### UC-3903 — el servidor no corre con privilegios y limita el abuso
+
+- **Sin root** (AC-01): la imagen crea el usuario `specbox` (uid 10001, home `/home/specbox`);
+  `docker-entrypoint.sh` arranca como root solo para hacer `chown -R` del volumen de estado (lo
+  escribieron contenedores anteriores como root), exporta `HOME` y cede privilegios con `setpriv`
+  antes de ejecutar el servidor: PID 1 es `python -m server` como `specbox`. `/app` sigue siendo de
+  root y de solo lectura. `docker exec` sigue entrando como root (operaciones de mantenimiento).
+  Prueba del despliegue: `scripts/verify-nonroot.sh <contenedor>` (falla si PID 1 es root o no puede
+  escribir su estado) y el workflow `.github/workflows/container-nonroot.yml`, que construye la
+  imagen y la arranca sobre un volumen de estado propiedad de root, como el de producción.
+- **Límites** (AC-02): `server/coordination/abuse_guard.py::AbuseGuardMiddleware`, justo detrás de
+  la autenticación de transporte. Cuerpo > `SPECBOX_MAX_REQUEST_BYTES` (2 MB) → `413
+  request_too_large` (por `Content-Length` o contando los bytes); más de
+  `SPECBOX_RATE_LIMIT_PER_MINUTE` (60) `tools/call` en un minuto deslizante desde la misma identidad
+  → `429 rate_limited` + `Retry-After`. Identidad = developer del transporte o, sin token, la IP del
+  cliente que añade el proxy (el último elemento de `X-Forwarded-For`, que el cliente no puede
+  falsificar). Cada identidad tiene su cupo; los mensajes del protocolo no gastan cupo; `/health`,
+  GET y preflights no se limitan. Cupos en memoria (un proceso).
+- Tests: `tests/test_abuse_guard.py`.
+
 ## Engine Version
 
 Current: v6.13.0 "Tenant Guard"

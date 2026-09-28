@@ -593,6 +593,27 @@ from server.auth_gateway import (  # noqa: E402
 )
 from server.backends.native_backend import NativeBackend  # noqa: E402
 from server.backends.trello_backend import TrelloBackend  # noqa: E402
+from server.coordination.scope import CallerScope  # noqa: E402
+
+
+class _EveryProject(frozenset):
+    """Membership set that contains every id — the mirror tests predate UC-3802
+    and seed ``projects.json`` entries without an owner."""
+
+    def __contains__(self, item: object) -> bool:  # noqa: D401
+        return True
+
+
+@pytest.fixture(autouse=True)
+def _all_seeing_caller(monkeypatch: pytest.MonkeyPatch) -> None:
+    """UC-3802: enable/disable_mirror now identify the caller against the shared
+    switch registry. These tests exercise the mirror mechanics, not the identity
+    rule (covered in test_registry_scope.py), so the caller sees everything."""
+
+    async def fake_scope(ctx, *, token=""):
+        return CallerScope("tester", "Tester", _EveryProject())
+
+    monkeypatch.setattr(migration_tools, "resolve_caller_scope", fake_scope)
 
 
 def _ctx_with(config: dict[str, Any] | None) -> AsyncMock:

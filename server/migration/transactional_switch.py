@@ -344,6 +344,7 @@ def _write_registry_mirror(
     state_path: str | None,
     primary_backend: str = "",
     primary_board_id: str = "",
+    registered_by: str = "",
 ) -> None:
     """Set (or remove, when None) the project's ``mirror`` registry block.
 
@@ -376,10 +377,14 @@ def _write_registry_mirror(
         if mirror_project_id is None:
             return  # disable with no entry — no-op
         # Auto-seed from the primary (never invents a primary it wasn't given).
+        # UC-3802: a seeded entry is attributed to the developer who enabled the
+        # mirror, so it stays visible to them and invisible to everyone else.
         projects[project_slug] = {
             "spec_backend": primary_backend,
             "board_id": primary_board_id,
         }
+        if registered_by:
+            projects[project_slug]["registered_by"] = registered_by
 
     project = projects[project_slug]
     if mirror_project_id is None:
@@ -454,6 +459,7 @@ def apply_mirror_transactional(
     *,
     primary_backend: str = "",
     primary_board_id: str = "",
+    registered_by: str = "",
     settings_writer: Callable[[], None] | None = None,
     registry_writer: Callable[[], None] | None = None,
     app_spec_writer: Callable[[], None] | None = None,
@@ -488,6 +494,7 @@ def apply_mirror_transactional(
                 state_path,
                 primary_backend,
                 primary_board_id,
+                registered_by,
             )
         ),
         PLACE_APP_SPEC: app_spec_writer

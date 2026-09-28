@@ -14,9 +14,12 @@ import asyncio
 import json
 from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastmcp import FastMCP
+
+from server.coordination.scope import CallerScope
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -121,15 +124,28 @@ class TestDetectProjectStack:
 
 
 class TestGetOnboardingStatus:
+    """UC-3802: the registry lookup is scoped to the identified caller, so
+    every call runs under an injected scope (no Postgres needed)."""
+
+    SCOPE = CallerScope("tester", "Tester", frozenset())
+
+    def _status(self, onboarding_tools, **kwargs):
+        with patch(
+            "server.tools.onboarding.resolve_caller_scope",
+            new=AsyncMock(return_value=self.SCOPE),
+        ):
+            return asyncio.run(onboarding_tools["get_onboarding_status"](ctx=None, **kwargs))
+
     def test_empty_presence_reports_all_missing(self, onboarding_tools):
-        result = onboarding_tools["get_onboarding_status"](project_name="ghost")
+        result = self._status(onboarding_tools, project_name="ghost")
         assert result["fully_onboarded"] is False
         assert result["registered_in_engine"] is False
         assert "CLAUDE.md" in result["missing"]
         assert result["present"] == []
 
     def test_partial_presence(self, onboarding_tools):
-        result = onboarding_tools["get_onboarding_status"](
+        result = self._status(
+            onboarding_tools,
             project_name="midway",
             artifact_presence={
                 "CLAUDE.md": True,
@@ -143,12 +159,14 @@ class TestGetOnboardingStatus:
         assert ".quality/baselines/" in result["missing"]
 
     def test_fully_onboarded_with_registry(self, onboarding_tools, tmp_path):
-        # Seed the state registry on the MCP host
+        # Seed the state registry on the MCP host — attributed to the caller
+        # (UC-3802: an entry registered by someone else reads as not registered).
         (tmp_path / "registry.json").write_text(
-            json.dumps({"projects": {"reg_proj": {"name": "reg_proj"}}}),
+            json.dumps({"projects": {"reg_proj": {"name": "reg_proj", "registered_by": "tester"}}}),
             encoding="utf-8",
         )
-        result = onboarding_tools["get_onboarding_status"](
+        result = self._status(
+            onboarding_tools,
             project_name="reg_proj",
             artifact_presence={
                 "CLAUDE.md": True,
@@ -164,6 +182,17 @@ class TestGetOnboardingStatus:
         assert result["fully_onboarded"] is True
         assert result["registered_in_engine"] is True
         assert result["missing"] == []
+
+    def test_unidentified_caller_gets_no_registry_answer(self, onboarding_tools):
+        from server.coordination.identity import UnauthenticatedError
+
+        with patch(
+            "server.tools.onboarding.resolve_caller_scope",
+            new=AsyncMock(side_effect=UnauthenticatedError("no token")),
+        ):
+            result = asyncio.run(onboarding_tools["get_onboarding_status"](project_name="ghost", ctx=None))
+        assert result["code"] == "UNAUTHENTICATED"
+        assert "registered_in_engine" not in result
 
 
 # ─── get_visual_gap_report ───────────────────────────────────────────

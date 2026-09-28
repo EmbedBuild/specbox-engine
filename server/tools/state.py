@@ -27,11 +27,24 @@ State layout on disk:
 
 import json
 import shutil
-import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
+
+from ..coordination.identity import UnauthenticatedError
+from ..coordination.project_id import InvalidProjectIdError, validate_project_id
+from ..coordination.scope import (
+    NATIVE_PROJECT_ID_FIELD,
+    REGISTERED_BY_FIELD,
+    CallerScope,
+    name_taken_envelope,
+    not_visible_envelope,
+    resolve_caller_scope,
+    stamp_owner,
+    strip_sensitive_fields,
+    unauthenticated_envelope,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -115,23 +128,34 @@ def _invalidate_cache(state_path: Path) -> None:
 
 
 def _auto_register(state_path: Path, project: str) -> None:
-    """Register a project in registry.json if not already present."""
+    """Register a project in registry.json if not already present.
+
+    Telemetry tools carry no identity, so an auto-registered entry has no
+    ``registered_by`` and stays invisible to every caller until its owner
+    registers it explicitly or the operator claims it (UC-3802). It never
+    carries a description or a local path (AC-04).
+    """
     registry = _read_registry(state_path)
     if project not in registry.get("projects", {}):
         registry.setdefault("projects", {})[project] = {
             "stack": "unknown",
             "infra": [],
             "repo_url": "",
-            "description": "",
             "registered_at": datetime.now(timezone.utc).isoformat(),
         }
         _write_registry(state_path, registry)
 
 
-def _available_projects(state_path: Path) -> list[str]:
-    """List all known project names from registry."""
+def _available_projects(state_path: Path, scope: CallerScope | None = None) -> list[str]:
+    """List the project names the caller may see (all of them without a scope).
+
+    Every tool that answers a caller passes its scope (UC-3802): a reply must
+    never list projects that belong to someone else, not even by name.
+    """
     registry = _read_registry(state_path)
-    return sorted(registry.get("projects", {}).keys())
+    if scope is None:
+        return sorted(registry.get("projects", {}).keys())
+    return scope.visible_names(registry.get("projects"))
 
 
 def _filter_by_days(records: list[dict], days: int, ts_key: str = "timestamp") -> list[dict]:
@@ -746,88 +770,137 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
         }
 
     @mcp.tool
-    def register_project(
+    async def register_project(
         project: str,
         stack: str = "",
         infra: str = "",
         repo_url: str = "",
         description: str = "",
+        native_project_id: str = "",
+        dev_token: str = "",
+        ctx: Context | None = None,
     ) -> dict:
-        """Register a project in the central state registry.
+        """Register a project in the central state registry, attributed to you.
 
         Args:
             project: Project name (e.g. 'escandallo-app').
             stack: Technology stack (flutter, react, go, python, google-apps-script).
             infra: Comma-separated infra services (supabase, stripe, etc.).
             repo_url: Git repository URL.
-            description: Short project description.
+            description: Accepted for compatibility and IGNORED — the shared registry
+                no longer stores free text about a project (UC-3802 AC-04).
+            native_project_id: Optional canonical ``owner/repo`` of the native tenant
+                this project tracks in; its members then see the entry too.
+            dev_token: Developer token when the current session is not native.
+
+        The registry is shared by every session of this server, so the call
+        must be identified (native session or ``dev_token``); without an
+        identity it answers UNAUTHENTICATED. The entry records ``registered_by``
+        and is visible only to you and to the members of its native project. A
+        name already registered under another identity is refused.
 
         Creates the project entry in registry.json and initializes meta.json.
         This is NOT the same as onboard_project (which generates config files).
         Use this to register a project in the central index for tracking."""
-        _ensure_project_dir(state_path, project)
+        try:
+            scope = await resolve_caller_scope(ctx, token=dev_token)
+        except UnauthenticatedError:
+            return unauthenticated_envelope(ctx)
 
-        infra_list = [s.strip() for s in infra.split(",") if s.strip()] if infra else []
+        native_pid = (native_project_id or "").strip()
+        if native_pid:
+            try:
+                native_pid = validate_project_id(native_pid)
+            except InvalidProjectIdError as e:
+                return {"error": str(e), "code": "INVALID_PROJECT_ID"}
 
         registry = _read_registry(state_path)
-        already_exists = project in registry.get("projects", {})
+        existing = registry.get("projects", {}).get(project)
+        already_exists = existing is not None
+        if already_exists and not scope.can_see(project, existing):
+            return name_taken_envelope(project)
 
-        registry.setdefault("projects", {})[project] = {
+        _ensure_project_dir(state_path, project)
+        infra_list = [s.strip() for s in infra.split(",") if s.strip()] if infra else []
+
+        entry: dict = {
             "stack": stack or "unknown",
             "infra": infra_list,
             "repo_url": repo_url,
-            "description": description,
             "registered_at": datetime.now(timezone.utc).isoformat(),
         }
+        if existing:
+            if existing.get(REGISTERED_BY_FIELD):
+                entry[REGISTERED_BY_FIELD] = existing[REGISTERED_BY_FIELD]
+            if existing.get(NATIVE_PROJECT_ID_FIELD) and not native_pid:
+                entry[NATIVE_PROJECT_ID_FIELD] = existing[NATIVE_PROJECT_ID_FIELD]
+        stamp_owner(entry, scope, native_pid)
+        registry.setdefault("projects", {})[project] = entry
         _write_registry(state_path, registry)
 
-        # Initialize meta.json
+        # Initialize meta.json — never with a description (AC-04)
         project_dir = state_path / "projects" / project
-        meta = _read_meta(project_dir)
+        meta = strip_sensitive_fields(_read_meta(project_dir))
         meta.update({
             "stack": stack or meta.get("stack", "unknown"),
             "infra": infra_list or meta.get("infra", []),
             "repo_url": repo_url or meta.get("repo_url", ""),
-            "description": description or meta.get("description", ""),
-            "registered_at": registry["projects"][project]["registered_at"],
+            "registered_at": entry["registered_at"],
+            REGISTERED_BY_FIELD: entry[REGISTERED_BY_FIELD],
         })
         _write_meta(project_dir, meta)
 
         _invalidate_cache(state_path)
 
-        return {
+        result = {
             "status": "ok",
             "project": project,
             "action": "updated" if already_exists else "registered",
+            REGISTERED_BY_FIELD: entry[REGISTERED_BY_FIELD],
         }
+        if description:
+            result["ignored"] = {
+                "description": "not stored: the shared registry keeps no free text about projects (UC-3802)"
+            }
+        return result
 
     @mcp.tool
-    def update_project_meta(
+    async def update_project_meta(
         project: str,
         stack: str = "",
         infra: str = "",
         repo_url: str = "",
         description: str = "",
+        dev_token: str = "",
+        ctx: Context | None = None,
     ) -> dict:
-        """Update metadata for a registered project.
+        """Update metadata for a project registered under your identity.
 
         Args:
-            project: Project name.
+            project: Project name (registered by you, or bound to a native project
+                you belong to — UC-3802).
             stack: New stack value (leave empty to keep current).
             infra: New comma-separated infra (leave empty to keep current).
             repo_url: New repo URL (leave empty to keep current).
-            description: New description (leave empty to keep current).
+            description: Accepted for compatibility and IGNORED (no free text is
+                stored in the shared registry — UC-3802 AC-04).
+            dev_token: Developer token when the current session is not native.
 
-        Updates both meta.json and registry.json. Only provided fields are changed."""
+        Updates both meta.json and registry.json. Only provided fields are changed.
+        Without an identity the tool answers UNAUTHENTICATED; a project that is
+        not yours is reported as not registered."""
+        try:
+            scope = await resolve_caller_scope(ctx, token=dev_token)
+        except UnauthenticatedError:
+            return unauthenticated_envelope(ctx)
+
         registry = _read_registry(state_path)
-        if project not in registry.get("projects", {}):
-            return {
-                "error": "Project not registered",
-                "available": _available_projects(state_path),
-            }
+        entry = registry.get("projects", {}).get(project)
+        if entry is None or not scope.can_see(project, entry):
+            return not_visible_envelope(project, scope, registry.get("projects"))
 
         project_dir = state_path / "projects" / project
-        meta = _read_meta(project_dir)
+        meta = strip_sensitive_fields(_read_meta(project_dir))
         infra_list = [s.strip() for s in infra.split(",") if s.strip()] if infra else None
 
         # Update only provided fields
@@ -840,15 +913,18 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
         if repo_url:
             meta["repo_url"] = repo_url
             registry["projects"][project]["repo_url"] = repo_url
-        if description:
-            meta["description"] = description
-            registry["projects"][project]["description"] = description
+        registry["projects"][project] = strip_sensitive_fields(registry["projects"][project])
 
         _write_meta(project_dir, meta)
         _write_registry(state_path, registry)
         _invalidate_cache(state_path)
 
-        return {"status": "ok", "project": project, "meta": meta}
+        result = {"status": "ok", "project": project, "meta": meta}
+        if description:
+            result["ignored"] = {
+                "description": "not stored: the shared registry keeps no free text about projects (UC-3802)"
+            }
+        return result
 
     # ===================================================================
     # QUERY TOOLS — Per-project activity (cross-project aggregation

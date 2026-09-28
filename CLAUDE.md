@@ -1998,6 +1998,35 @@ descripciones de clientes, importes, NDA, URLs de repos y rutas locales) a cualq
 - Tests: `tests/test_registry_scope.py` (una prueba por tool + unidad del scope) y
   `tests/test_registry_hygiene.py`.
 
+### UC-3803 — cada llamada a una tool queda registrada con quién, qué y cuándo
+
+- **Middleware** `server/coordination/access_log.py::ToolAccessLogMiddleware` (registrado en
+  `server.py` con `mcp.add_middleware`): por cada `tools/call`, en cualquier transporte, un
+  `AccessRecord` con fecha/hora, tool, identidad (`developer_id` o el motivo de no tenerla:
+  `anonymous` / `invalid_token` / `unresolved` → etiqueta "anónimo"), resultado
+  (`ok` / `error` / `exception`) con `error_code` corto, duración, transporte, cliente MCP, IP,
+  `session_id` y **solo los nombres** de los argumentos (`arg_keys`). Nunca el token, ni valores
+  de argumentos, ni el payload devuelto, ni mensajes (AC-03). La identidad se resuelve una vez
+  por token cada 30 s (caché en memoria por hash, que tampoco se persiste). La escritura es
+  fire-and-forget: el log jamás rompe ni retrasa una tool.
+- **Almacén append-only** (AC-01): migración `0022_tool_access_log.sql` (+ espejo Supabase
+  `20260928000022`): tabla `tool_access_log` con trigger de sentencia que rechaza UPDATE /
+  DELETE / TRUNCATE para cualquier rol (42501), privilegios revocados a PUBLIC / anon /
+  authenticated y RLS activo sin políticas (PostgREST no la ve; el engine conecta como dueño).
+  `PostgresStore` inserta y, si la BD no responde, encola en `STATE_PATH/tool_access_log.spool.jsonl`
+  y reproduce en la siguiente escritura correcta. Sin `SPECBOX_NATIVE_DSN` → `JsonlStore`
+  (`STATE_PATH/tool_access_log.jsonl`).
+- **Consulta reservada al operador** (AC-02): tool `get_tool_access_log(developer_id, date_from,
+  date_to, tool, limit, dev_token)` en `server/tools/access_log.py`. Operador = SuperAdmin del
+  panel (`panel.profiles.role='superadmin'` enlazado por `developer_id`) o un id listado en
+  `SPECBOX_OPERATOR_DEVELOPER_IDS` (override explícito de bootstrap/dev). Cualquier otra
+  identidad → `FORBIDDEN` y `entries: []`; sin identidad → `UNAUTHENTICATED`. Filtro
+  `developer_id="anónimo"` selecciona las llamadas sin identidad. Runbook:
+  [doc/runbooks/tool-access-log.md](doc/runbooks/tool-access-log.md).
+- Tests: `tests/test_tool_access_log.py` (middleware, almacenes, tool; los casos Postgres
+  —trigger, store, spool/replay, rol de operador— corren cuando `SPECBOX_NATIVE_DSN` apunta a
+  una BD de pruebas).
+
 ## Engine Version
 
 Current: v6.13.0 "Tenant Guard"

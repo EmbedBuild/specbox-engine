@@ -214,15 +214,18 @@ async def resolve_caller_scope(ctx: Any, *, token: str = "") -> CallerScope:
 
     try:
         pool = await get_pool()
-    except RuntimeError as exc:
-        # Misconfigured server (no SPECBOX_NATIVE_DSN): identity cannot be
-        # resolved, so nobody is identified. The reason stays in the server
-        # log; the caller only learns that they are not authenticated.
+        developer = await resolve_developer(pool, tok)
+        memberships = await list_memberships(pool, developer.developer_id)
+    except UnauthenticatedError:
+        raise
+    except Exception as exc:  # noqa: BLE001 — no DSN, DB down, loop closed…: nobody is identified
+        # A server that cannot reach its identity database cannot vouch for
+        # anyone. The reason stays in the server log (type only, never the
+        # DSN or the token); the caller only learns that they are not
+        # authenticated — the same envelope, no stack trace (UC-3802 AC-01).
         logger.warning("caller_scope_identity_unavailable", reason=type(exc).__name__)
         raise UnauthenticatedError("Identity service unavailable on this server.") from exc
 
-    developer = await resolve_developer(pool, tok)
-    memberships = await list_memberships(pool, developer.developer_id)
     return CallerScope(
         developer_id=developer.developer_id,
         display_name=developer.display_name,

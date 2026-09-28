@@ -195,6 +195,21 @@ async def test_resolve_caller_scope_without_identity_db_is_unauthenticated():
             await resolve_caller_scope(ctx)
 
 
+async def test_resolve_caller_scope_db_outage_is_unauthenticated_not_a_crash():
+    """A DB that is configured but unreachable (or a pool bound to a dead loop)
+    must yield the same clean UNAUTHENTICATED answer, never a raw exception."""
+    ctx = MagicMock()
+    ctx.get_state = AsyncMock(return_value={"backend_type": "native", "project_id": "a/b", "dev_token": "spbx_x"})
+    with patch("server.db.pool.get_pool", new=AsyncMock(side_effect=OSError("connection refused"))):
+        with pytest.raises(UnauthenticatedError):
+            await resolve_caller_scope(ctx)
+    with patch("server.db.pool.get_pool", new=AsyncMock(return_value=object())), patch(
+        "server.coordination.scope.resolve_developer", new=AsyncMock(side_effect=ConnectionResetError("db went away"))
+    ):
+        with pytest.raises(UnauthenticatedError):
+            await resolve_caller_scope(None, token="spbx_x")
+
+
 async def test_resolve_caller_scope_uses_explicit_token_and_memberships():
     dev = MagicMock(developer_id="alice", display_name="Alice")
     with patch("server.db.pool.get_pool", new=AsyncMock(return_value=object())), patch(

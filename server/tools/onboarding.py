@@ -19,6 +19,19 @@ import yaml
 from fastmcp import Context, FastMCP
 
 from .. import __version__ as MCP_VERSION
+from ..coordination.identity import UnauthenticatedError
+from ..coordination.project_id import InvalidProjectIdError, validate_project_id
+from ..coordination.scope import (
+    NATIVE_PROJECT_ID_FIELD,
+    REGISTERED_BY_FIELD,
+    CallerScope,
+    name_taken_envelope,
+    not_visible_envelope,
+    public_entry,
+    resolve_caller_scope,
+    stamp_owner,
+    unauthenticated_envelope,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -378,7 +391,7 @@ def _detect_infra(project_path: Path) -> list[str]:
     return sorted(infra)
 
 
-import re as _re
+import re as _re  # noqa: E402 — helper section, kept next to its users
 
 # Matches UPPERCASE placeholder tokens like {PROJECT_NAME}, {ENGINE_VERSION}.
 # Requires a non-$ preceding char (or start-of-string) to skip shell-style
@@ -626,9 +639,11 @@ def register_onboarding_tools(
         }
 
     @mcp.tool
-    def get_onboarding_status(
+    async def get_onboarding_status(
         project_name: str,
         artifact_presence: dict[str, bool] | None = None,
+        ctx: Context | None = None,
+        dev_token: str = "",
     ) -> dict:
         """Check whether a project is already onboarded into the SpecBox Engine.
 
@@ -648,7 +663,19 @@ def register_onboarding_tools(
         Returns which onboarding artifacts exist and which are missing,
         plus whether the project is registered in the engine's internal
         state registry (which is on the MCP host, not the client).
+
+        **Identity (UC-3802)**: the registry is shared by every session of
+        this server, so the lookup needs to know who is asking — the native
+        session's token or ``dev_token``. Without it the tool answers
+        UNAUTHENTICATED and nothing else; with it, ``registered_in_engine``
+        is true only for a project registered by you or bound to a native
+        project you belong to.
         """
+        try:
+            scope = await resolve_caller_scope(ctx, token=dev_token)
+        except UnauthenticatedError:
+            return unauthenticated_envelope(ctx)
+
         checks_keys = (
             "CLAUDE.md",
             ".claude/settings.json",
@@ -663,27 +690,17 @@ def register_onboarding_tools(
         present = [k for k in checks_keys if presence.get(k, False)]
         missing = [k for k in checks_keys if not presence.get(k, False)]
 
-        # Registry lookups run on the MCP host — those paths are server-side.
+        # The registry lookup runs on the MCP host and is scoped to the caller:
+        # an entry the caller cannot see counts as "not registered" (UC-3802
+        # AC-02/AC-03). The engine's own legacy `.quality/registry.json` is no
+        # longer consulted — it describes the operator's machine, not a shared
+        # index, and must never answer for another developer's project.
         registered = False
-        engine_registry_file = engine_path / ".quality" / "registry.json"
-        if engine_registry_file.exists():
-            try:
-                registry = json.loads(engine_registry_file.read_text(encoding="utf-8"))
-                registered = any(
-                    p.get("name") == project_name
-                    for p in registry.get("projects", [])
-                )
-            except (json.JSONDecodeError, OSError):
-                pass
+        if state_path:
+            from .state import _read_registry
 
-        if not registered and state_path:
-            state_registry_file = state_path / "registry.json"
-            if state_registry_file.exists():
-                try:
-                    registry = json.loads(state_registry_file.read_text(encoding="utf-8"))
-                    registered = project_name in registry.get("projects", {})
-                except (json.JSONDecodeError, OSError):
-                    pass
+            entry = _read_registry(state_path).get("projects", {}).get(project_name)
+            registered = entry is not None and scope.can_see(project_name, entry)
 
         fully_onboarded = len(missing) == 0 and registered
 
@@ -693,60 +710,45 @@ def register_onboarding_tools(
             "registered_in_engine": registered,
             "present": present,
             "missing": missing,
+            "developer_id": scope.developer_id,
         }
 
     @mcp.tool
-    def list_onboarded_projects() -> list[dict]:
-        """List all projects registered in the SpecBox Engine ecosystem.
-        Merges entries from the legacy engine registry and the central state registry.
-        Returns project name, stack, infra, onboarding date, and status.
-        Use to see which projects have been onboarded and their configuration."""
-        projects: dict[str, dict] = {}
+    async def list_onboarded_projects(ctx: Context | None = None, dev_token: str = "") -> dict:
+        """List the projects registered in the SpecBox Engine ecosystem that are yours.
 
-        # 1. Legacy engine registry (list format)
-        engine_registry_file = engine_path / ".quality" / "registry.json"
-        if engine_registry_file.exists():
-            try:
-                registry = json.loads(engine_registry_file.read_text(encoding="utf-8"))
-                for p in registry.get("projects", []):
-                    name = p.get("name", "")
-                    if name:
-                        pp = Path(p.get("path", ""))
-                        projects[name] = {
-                            "name": name,
-                            "path": p.get("path", ""),
-                            "stack": p.get("stack", "unknown"),
-                            "infra": p.get("infra", []),
-                            "roles": p.get("roles", []),
-                            "onboarded_at": p.get("onboarded_at", ""),
-                            "developer": p.get("developer", ""),
-                            "source": "engine",
-                            "path_exists": pp.exists() if p.get("path") else False,
-                        }
-            except (json.JSONDecodeError, OSError):
-                pass
+        The registry is shared by every session of this server, so the tool
+        first resolves who is asking (UC-3802): the native session's token, or
+        ``dev_token`` when the session is not native. Without an identity it
+        answers UNAUTHENTICATED and returns no project at all (AC-01). With
+        one, it returns only the projects you registered or that are bound to
+        a native project you belong to, and only their public fields — never
+        a description, a local path or another developer's repository (AC-02).
 
-        # 2. State registry (dict format) — overrides engine entries
+        Returns ``{developer_id, total, projects: [{name, stack, infra,
+        registered_at, engine_version, ...}]}``.
+        """
+        try:
+            scope = await resolve_caller_scope(ctx, token=dev_token)
+        except UnauthenticatedError:
+            return unauthenticated_envelope(ctx)
+
+        visible: dict[str, dict] = {}
         if state_path:
-            state_registry_file = state_path / "registry.json"
-            if state_registry_file.exists():
-                try:
-                    registry = json.loads(state_registry_file.read_text(encoding="utf-8"))
-                    for name, info in registry.get("projects", {}).items():
-                        projects[name] = {
-                            "name": name,
-                            "stack": info.get("stack", "unknown"),
-                            "infra": info.get("infra", []),
-                            "repo_url": info.get("repo_url", ""),
-                            "description": info.get("description", ""),
-                            "registered_at": info.get("registered_at", ""),
-                            "engine_version": info.get("engine_version", "unknown"),
-                            "source": "state",
-                        }
-                except (json.JSONDecodeError, OSError):
-                    pass
+            from .state import _read_registry
 
-        return sorted(projects.values(), key=lambda p: p.get("name", ""))
+            visible = scope.visible(_read_registry(state_path).get("projects"))
+
+        projects = [public_entry(name, entry) for name, entry in sorted(visible.items())]
+        return {
+            "developer_id": scope.developer_id,
+            "total": len(projects),
+            "projects": projects,
+            "scope": (
+                "Only projects registered by you or bound to a native project you are a "
+                "member of are listed. Others are not visible from this identity."
+            ),
+        }
 
     @mcp.tool
     async def onboard_project(
@@ -760,12 +762,24 @@ def register_onboarding_tools(
         freeform_root_absolute: str = "",
         multirepo_role: str = "",
         orchestrator_project: str = "",
+        native_project_id: str = "",
+        dev_token: str = "",
         ctx: Context | None = None,
     ) -> dict:
         """Generate onboarding files for a new project and register it in the central index.
 
+        **Identity (UC-3802)**: registering writes to the registry shared by every
+        session of this server, so the call must be identified — through the
+        native session's token or ``dev_token``. The entry is attributed to you
+        (``registered_by``) and only you, or the members of its native project,
+        will see it. A name already registered under another identity is refused.
+        No free-text description or local path is stored.
+
         Args:
             project: Project name (e.g. 'escandallo-app').
+            native_project_id: Optional canonical ``owner/repo`` of the native tenant this
+                project tracks in. Members of that tenant then see the entry too.
+            dev_token: Developer token when the current session is not native.
             stack: Technology stack (flutter, react, go, python, google-apps-script). Leave empty if unknown.
             infra: Comma-separated infra services (supabase, neon, stripe, etc.).
             repo_url: Git repository URL for reference.
@@ -797,6 +811,26 @@ def register_onboarding_tools(
                          f"Must be one of: {', '.join(sorted(VALID_BACKEND_TYPES))}.",
                 "code": "INVALID_BACKEND_TYPE",
             }
+
+        # UC-3802 AC-03: who is registering? No identity → no registration, no files.
+        try:
+            scope = await resolve_caller_scope(ctx, token=dev_token)
+        except UnauthenticatedError:
+            return unauthenticated_envelope(ctx)
+        native_pid = (native_project_id or "").strip()
+        if native_pid:
+            try:
+                native_pid = validate_project_id(native_pid)
+            except InvalidProjectIdError as e:
+                return {"error": str(e), "code": "INVALID_PROJECT_ID"}
+        existing_entry: dict | None = None
+        if state_path:
+            from .state import _read_registry as _read_state_registry
+
+            existing_entry = _read_state_registry(state_path).get("projects", {}).get(project)
+            if existing_entry is not None and not scope.can_see(project, existing_entry):
+                return name_taken_envelope(project)
+
         detected_stack = stack or "unknown"
         infra_list = [s.strip() for s in infra.split(",") if s.strip()] if infra else []
         roles = _STACK_ROLES.get(detected_stack, _STACK_ROLES.get("python", []))
@@ -943,7 +977,6 @@ def register_onboarding_tools(
                     "stack": detected_stack,
                     "infra": infra_list,
                     "repo_url": repo_url,
-                    "description": "",
                     "registered_at": datetime.now(timezone.utc).isoformat(),
                     "engine_version": current_engine_version,
                 }
@@ -953,6 +986,14 @@ def register_onboarding_tools(
                     registry_entry["multirepo_role"] = multirepo_role
                 if orchestrator_project:
                     registry_entry["multirepo_group"] = orchestrator_project
+                # UC-3802: re-onboarding your own project keeps its original
+                # attribution and tenant binding; a fresh entry is yours.
+                if existing_entry:
+                    if existing_entry.get(REGISTERED_BY_FIELD):
+                        registry_entry[REGISTERED_BY_FIELD] = existing_entry[REGISTERED_BY_FIELD]
+                    if existing_entry.get(NATIVE_PROJECT_ID_FIELD) and not native_pid:
+                        registry_entry[NATIVE_PROJECT_ID_FIELD] = existing_entry[NATIVE_PROJECT_ID_FIELD]
+                stamp_owner(registry_entry, scope, native_pid)
                 registry.setdefault("projects", {})[project] = registry_entry
                 _write_registry(state_path, registry)
 
@@ -1033,21 +1074,13 @@ def register_onboarding_tools(
             )
         return result
 
-    @mcp.tool
-    def upgrade_project(project: str) -> dict:
-        """Regenerate onboarding files for an existing project using current engine templates.
+    def _upgrade_project_impl(project: str, scope: CallerScope) -> dict:
+        """Body of ``upgrade_project`` once the caller is identified (UC-3802).
 
-        Args:
-            project: Project name (must be already registered).
-
-        Reads existing meta (stack, infra, repo_url, developer_name) from
-        the state registry, then regenerates all onboarding files (CLAUDE.md,
-        settings.json, team-config.json, quality-baseline.json) with the
-        current engine templates. Records the engine and MCP version used.
-        Does NOT re-register the project.
-
-        Use when the engine has been updated with new templates and you need
-        to refresh a project's configuration files."""
+        Shared with ``upgrade_all_projects`` so a sweep resolves the identity
+        once. A project the caller cannot see is answered exactly like a
+        project that is not registered, listing only the caller's own names.
+        """
         if not state_path:
             return {"error": "State path not configured — cannot upgrade."}
 
@@ -1057,15 +1090,12 @@ def register_onboarding_tools(
             _write_meta,
             _write_registry,
             _invalidate_cache,
-            _available_projects,
         )
 
         registry = _read_registry(state_path)
-        if project not in registry.get("projects", {}):
-            return {
-                "error": f"Project '{project}' not registered.",
-                "available": _available_projects(state_path),
-            }
+        entry = registry.get("projects", {}).get(project)
+        if entry is None or not scope.can_see(project, entry):
+            return not_visible_envelope(project, scope, registry.get("projects"))
 
         # Read existing meta to preserve project config
         project_dir = state_path / "projects" / project
@@ -1073,7 +1103,6 @@ def register_onboarding_tools(
         proj_info = registry["projects"][project]
         detected_stack = meta.get("stack", proj_info.get("stack", "unknown"))
         infra_list = meta.get("infra", proj_info.get("infra", []))
-        repo_url = meta.get("repo_url", proj_info.get("repo_url", ""))
         developer_name = meta.get("onboarded_by", "Jesús Pérez")
         roles = _STACK_ROLES.get(detected_stack, _STACK_ROLES.get("python", []))
 
@@ -1245,31 +1274,61 @@ def register_onboarding_tools(
         }
 
     @mcp.tool
-    def upgrade_all_projects() -> dict:
-        """Upgrade all registered projects to the current engine templates in one call.
+    async def upgrade_project(project: str, ctx: Context | None = None, dev_token: str = "") -> dict:
+        """Regenerate onboarding files for an existing project using current engine templates.
+
+        Args:
+            project: Project name (must be already registered — by you, or bound
+                to a native project you belong to; UC-3802).
+            dev_token: Developer token when the current session is not native.
+
+        Reads existing meta (stack, infra, repo_url, developer_name) from
+        the state registry, then regenerates all onboarding files (CLAUDE.md,
+        settings.json, team-config.json, quality-baseline.json) with the
+        current engine templates. Records the engine and MCP version used.
+        Does NOT re-register the project. Without an identity the tool answers
+        UNAUTHENTICATED; a project that is not yours is reported as not registered.
+
+        Use when the engine has been updated with new templates and you need
+        to refresh a project's configuration files."""
+        try:
+            scope = await resolve_caller_scope(ctx, token=dev_token)
+        except UnauthenticatedError:
+            return unauthenticated_envelope(ctx)
+        return _upgrade_project_impl(project, scope)
+
+    @mcp.tool
+    async def upgrade_all_projects(ctx: Context | None = None, dev_token: str = "") -> dict:
+        """Upgrade all YOUR registered projects to the current engine templates in one call.
 
         Regenerates onboarding files for every project in the central registry
-        using current engine templates. Records engine and MCP version for each.
-        Returns per-project results so the user can copy files for each project.
+        that is visible to your identity (UC-3802) using current engine
+        templates. Records engine and MCP version for each. Returns per-project
+        results so the user can copy files for each project.
 
         Use when the engine has been updated and you want to refresh ALL projects at once."""
         if not state_path:
             return {"error": "State path not configured — cannot upgrade."}
 
+        try:
+            scope = await resolve_caller_scope(ctx, token=dev_token)
+        except UnauthenticatedError:
+            return unauthenticated_envelope(ctx)
+
         from .state import _read_registry
 
         registry = _read_registry(state_path)
-        project_names = sorted(registry.get("projects", {}).keys())
+        project_names = scope.visible_names(registry.get("projects"))
 
         if not project_names:
-            return {"error": "No projects registered.", "projects": []}
+            return {"error": "No projects registered for your identity.", "projects": []}
 
         results: list[dict] = []
         succeeded = 0
         failed = 0
 
         for proj in project_names:
-            result = upgrade_project(proj)
+            result = _upgrade_project_impl(proj, scope)
             if "error" in result:
                 failed += 1
             else:
@@ -1286,16 +1345,23 @@ def register_onboarding_tools(
         }
 
     @mcp.tool
-    def get_version_matrix() -> dict:
-        """Show all projects vs current engine version to identify which need upgrading.
+    async def get_version_matrix(ctx: Context | None = None, dev_token: str = "") -> dict:
+        """Show YOUR projects vs current engine version to identify which need upgrading.
 
         Returns a matrix of project name, current engine_version, current mcp_version,
         last_upgraded_at, and whether the project needs an upgrade (its recorded version
-        differs from the running engine version).
+        differs from the running engine version). Only projects visible to your
+        identity are listed (UC-3802); without an identity the tool answers
+        UNAUTHENTICATED.
 
         Use to quickly see which projects are outdated and need upgrade_project."""
         if not state_path:
             return {"error": "State path not configured."}
+
+        try:
+            scope = await resolve_caller_scope(ctx, token=dev_token)
+        except UnauthenticatedError:
+            return unauthenticated_envelope(ctx)
 
         from .state import _read_registry, _read_meta
 
@@ -1307,7 +1373,7 @@ def register_onboarding_tools(
         needs_upgrade_count = 0
 
         stitch_contract_counts: dict[str, int] = {}
-        for proj_name in sorted(registry.get("projects", {}).keys()):
+        for proj_name in scope.visible_names(registry.get("projects")):
             project_dir = state_path / "projects" / proj_name
             meta = _read_meta(project_dir)
 
@@ -1647,20 +1713,28 @@ def register_onboarding_tools(
         }
 
     @mcp.tool
-    def archive_project(project: str) -> dict:
+    async def archive_project(project: str, ctx: Context | None = None, dev_token: str = "") -> dict:
         """Archive a project by setting its status to 'archived' in the state registry.
 
         Args:
-            project: Project name (must be already registered).
+            project: Project name (must be already registered — by you, or bound
+                to a native project you belong to; UC-3802).
+            dev_token: Developer token when the current session is not native.
 
         Reads the project meta, sets status to 'archived' and records
         the archived_at timestamp. The project remains in the registry
-        but is marked as inactive.
+        but is marked as inactive. Without an identity the tool answers
+        UNAUTHENTICATED; a project that is not yours is reported as not registered.
 
         Use when a project is no longer actively developed and should
         be excluded from upgrade sweeps and dashboards."""
         if not state_path:
             return {"error": "State path not configured — cannot archive."}
+
+        try:
+            scope = await resolve_caller_scope(ctx, token=dev_token)
+        except UnauthenticatedError:
+            return unauthenticated_envelope(ctx)
 
         from .state import (
             _read_registry,
@@ -1668,15 +1742,12 @@ def register_onboarding_tools(
             _read_meta,
             _write_meta,
             _invalidate_cache,
-            _available_projects,
         )
 
         registry = _read_registry(state_path)
-        if project not in registry.get("projects", {}):
-            return {
-                "error": f"Project '{project}' not registered.",
-                "available": _available_projects(state_path),
-            }
+        entry = registry.get("projects", {}).get(project)
+        if entry is None or not scope.can_see(project, entry):
+            return not_visible_envelope(project, scope, registry.get("projects"))
 
         now = datetime.now(timezone.utc).isoformat()
 

@@ -565,16 +565,25 @@ async def test_onboard_native_documents_empty_db(tmp_path) -> None:
 
     from server.tools.onboarding import register_onboarding_tools
 
+    from unittest.mock import AsyncMock, patch
+
+    from server.coordination.scope import CallerScope
+
     repo_root = Path(__file__).resolve().parent.parent
     mcp = FastMCP(name="test-onboard-native")
     register_onboarding_tools(mcp, engine_path=repo_root, state_path=tmp_path)
     tool = await mcp.get_tool("onboard_project")
 
-    result = await tool.fn(
-        project="acme-native",
-        stack="python",
-        backend_type="native",
-    )
+    # UC-3802: registering is an identified operation — inject the caller.
+    with patch(
+        "server.tools.onboarding.resolve_caller_scope",
+        new=AsyncMock(return_value=CallerScope("tester", "Tester", frozenset())),
+    ):
+        result = await tool.fn(
+            project="acme-native",
+            stack="python",
+            backend_type="native",
+        )
     assert result.get("native_db_state") == "empty"
     assert "native DB empty" in result.get("next_action", "")
     assert "populate" in result.get("next_action", "")

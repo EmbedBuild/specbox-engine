@@ -16,6 +16,13 @@ import structlog
 from fastmcp import Context
 
 from ..auth_gateway import get_session_backend
+from ..coordination.identity import UnauthenticatedError
+from ..coordination.scope import (
+    CallerScope,
+    not_visible_envelope,
+    resolve_caller_scope,
+    unauthenticated_envelope,
+)
 from ..spec_backend import SpecBackend, ItemDTO, parse_item_id
 
 logger = structlog.get_logger(__name__)
@@ -801,6 +808,7 @@ async def switch_backend(
     ctx: Context,
     project_path: str = ".",
     freeform_root_absolute: str | None = None,
+    dev_token: str = "",
 ) -> dict[str, Any]:
     """Switch the active backend for an onboarded project (any of the four).
 
@@ -813,8 +821,13 @@ async def switch_backend(
 
     Does NOT migrate data — use ``migrate_backend`` first.
 
+    The registry is shared by every session of this host, so the call must be
+    identified (native session or ``dev_token``) and the project must be yours
+    (UC-3802); otherwise UNAUTHENTICATED / not registered.
+
     Args:
         project_slug: Project slug in the engine registry.
+        dev_token: Developer token when the current session is not native.
         backend_type: Target backend (freeform / trello / plane / native).
         board_id: Board/project ID in the new backend.
         project_path: Filesystem root of the project (for app_spec + settings).
@@ -838,6 +851,10 @@ async def switch_backend(
             "error": f"Invalid backend_type: {backend_type}. "
             f"Must be one of: {', '.join(VALID_BACKENDS)}."
         }
+
+    _scope, denied = await _scoped_registry_gate(ctx, project_slug, dev_token)
+    if denied is not None:
+        return denied
 
     # Surface previous backend info before mutating (registry is the source).
     snapshot = _read_registry_snapshot(project_slug, None)
@@ -991,6 +1008,13 @@ async def switch_project_backend(
                 "OR commit_migration_session(session_id, confirmed_count, dev_token)",
             ],
         }
+
+    # ── UC-3802 AC-03: the switch registry is shared — identify the caller
+    # (native session or the dev_token argument) and refuse a slug that is
+    # already registered under someone else's identity.
+    _scope, denied = await _scoped_registry_gate(ctx, project_slug, dev_token)
+    if denied is not None:
+        return denied
 
     # ── Step: fail-fast dev_token for a native target (AC-09) ──────────
     def _require_dev_token() -> None:
@@ -1490,6 +1514,44 @@ async def _commit_batch_session(
     return {"status": "committed", "migrated": result["migrated"], "skipped": result["skipped"]}
 
 
+def _switch_registry_projects() -> dict[str, Any]:
+    """Every entry of the backend-switch registry (``projects.json``) on this host."""
+    import json
+
+    from ..migration.transactional_switch import _registry_path
+
+    path = _registry_path(None)
+    if not path.exists():
+        return {}
+    try:
+        projects = json.loads(path.read_text(encoding="utf-8")).get("projects")
+    except (json.JSONDecodeError, OSError, AttributeError):
+        return {}
+    return projects if isinstance(projects, dict) else {}
+
+
+async def _scoped_registry_gate(
+    ctx: Context, project_slug: str, dev_token: str = ""
+) -> tuple[CallerScope | None, dict[str, Any] | None]:
+    """UC-3802 AC-03 gate for the tools that touch the shared switch registry.
+
+    Resolves the caller (native session or explicit ``dev_token``) and checks
+    that ``project_slug``, when it already exists on this host, is theirs.
+    Returns ``(scope, None)`` to proceed, or ``(None, envelope)`` to answer
+    with: UNAUTHENTICATED (no identity, no data) or the same "not registered"
+    reply a missing project gets (no enumeration of other people's names).
+    """
+    try:
+        scope = await resolve_caller_scope(ctx, token=dev_token)
+    except UnauthenticatedError:
+        return None, unauthenticated_envelope(ctx)
+    projects = _switch_registry_projects()
+    entry = projects.get(project_slug)
+    if entry is not None and not scope.can_see(project_slug, entry):
+        return None, not_visible_envelope(project_slug, scope, projects)
+    return scope, None
+
+
 def _unauthenticated(ctx: Context) -> dict[str, Any]:
     """Build the canonical UNAUTHENTICATED payload, locale-aware from ctx."""
     from ..coordination.i18n_messages import (
@@ -1739,6 +1801,12 @@ async def enable_mirror(
     except ForbiddenError as e:
         return {"error": str(e), "code": "FORBIDDEN", "status": "forbidden"}
 
+    # UC-3802 AC-03: the switch registry entry (when it exists) must be the
+    # caller's; a new entry is attributed to them below.
+    scope, denied = await _scoped_registry_gate(ctx, project_slug, dev_token)
+    if denied is not None:
+        return denied
+
     # ── 3. Read the primary (source of the backfill) ────────────────
     try:
         source_backend = await resolve_source_backend(
@@ -1825,6 +1893,7 @@ async def enable_mirror(
             project_path,
             primary_backend=primary_type,
             primary_board_id=primary_board_id,
+            registered_by=scope.developer_id if scope else "",
         )
     except TransactionalSwitchError as exc:
         return {
@@ -1854,19 +1923,25 @@ async def disable_mirror(
     project_slug: str,
     ctx: Context,
     project_path: str = ".",
+    dev_token: str = "",
 ) -> dict[str, Any]:
     """Detach the native mirror, reverting to single-backend (UC-1104 AC-04).
 
     Removes the ``mirror`` block from the 3 config places (atomic, rollback)
     and from the live session. The primary is untouched and the mirror's
     DATA is left intact in Postgres (additive philosophy — re-enabling is an
-    idempotent re-backfill).
+    idempotent re-backfill). The caller must be identified (native session or
+    ``dev_token``) and the project must be theirs (UC-3802).
     """
     from ..auth_gateway import clear_mirror_credentials
     from ..migration.transactional_switch import (
         TransactionalSwitchError,
         apply_mirror_transactional,
     )
+
+    _scope, denied = await _scoped_registry_gate(ctx, project_slug, dev_token)
+    if denied is not None:
+        return denied
 
     try:
         outcome = apply_mirror_transactional(project_slug, None, project_path)

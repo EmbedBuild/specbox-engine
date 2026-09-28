@@ -1945,6 +1945,59 @@ Tests: `vscode-extension/tests/updater-remote.test.mjs` — 16 casos `node:test`
 - PR: [#125](https://github.com/EmbedBuild/specbox-engine/pull/125)
 - PRD/Plan: `doc/prd/vscode-engine-autoupdate/` + `doc/plans/vscode-engine-autoupdate_plan.md` en `EmbedBuild/specbox-manager`
 
+## El MCP remoto solo enseña a cada usuario lo suyo (US-38)
+
+US-38 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) responde al
+reporte de un tester externo (2026-09-24): con el MCP hospedado, una sesión FreeForm leía el
+backlog del propio engine desde `/app/doc/tracking` con cualquier `board_id`, y
+`list_onboarded_projects` devolvía el registro compartido entero (~100 proyectos con
+descripciones de clientes, importes, NDA, URLs de repos y rutas locales) a cualquier sesión.
+
+### UC-3801 — el backend FreeForm remoto no toca el disco del servidor (PR #138)
+
+- `server/transport.py`: `is_remote_transport()` decide por el **transporte del servidor**
+  (`MCP_TRANSPORT` = http / streamable-http / sse), no por `SPECBOX_ENGINE_MCP_URL` (un
+  ajuste de cliente que nadie pone en el VPS — esa era la causa raíz).
+- En remoto, `set_auth_token(backend_type='freeform', root_path=…)` se rechaza con
+  `FREEFORM_REMOTE_DISK_MODE_REJECTED` + `how_to`; sin `root_path` abre una sesión
+  `content_only`. Cada lectura/mutación recibe `items_content` del cliente y las mutaciones
+  devuelven el contenido actualizado (`server/tools/_content_passing.py`); sin contenido, el
+  chokepoint `get_session_backend` responde `FREEFORM_CONTENT_REQUIRED` — también para
+  sesiones legacy con `root_path`.
+- `.dockerignore` excluye `doc/tracking/`; el hook `freeform-path-guard` elimina `root_path`
+  cuando el MCP es remoto; la extensión escribe `env.SPECBOX_ENGINE_MCP_URL` al elegir FreeForm.
+
+### UC-3802 — el registro de proyectos solo muestra los proyectos del usuario identificado
+
+- **Chokepoint** `server/coordination/scope.py`: `resolve_caller_scope(ctx, token=…)` convierte
+  el token de la sesión native (o el parámetro `dev_token`) en un `CallerScope` = developer +
+  proyectos native de los que es miembro (`project_members`). Sin token, token inválido o
+  servidor sin `SPECBOX_NATIVE_DSN` → `UnauthenticatedError` → payload uniforme
+  `UNAUTHENTICATED` (UC-648) y **ningún dato**.
+- **Regla de visibilidad** `CallerScope.can_see`: una entrada es tuya si la registraste
+  (`registered_by`) o si está ligada a un proyecto native del que eres miembro
+  (`native_project_id`, `board_id` native, tenant del `mirror`, o el propio nombre canónico).
+  Lo que no es tuyo se responde **igual que lo inexistente** (`PROJECT_NOT_VISIBLE`, con
+  `available` = solo tus nombres): no hay enumeración.
+- **Tools con la regla** (todas aceptan `dev_token` opcional para sesiones no native):
+  `list_onboarded_projects` (devuelve `{developer_id, total, projects}` con campos
+  whitelisted — `public_entry`), `get_onboarding_status`, `onboard_project`, `upgrade_project`,
+  `upgrade_all_projects`, `get_version_matrix`, `archive_project`, `register_project`,
+  `update_project_meta`, y sobre el registro de switch (`projects.json`): `switch_backend`,
+  `switch_project_backend`, `enable_mirror` (la entrada auto-sembrada queda atribuida),
+  `disable_mirror`. Un nombre ya registrado por otra identidad → `PROJECT_NAME_TAKEN`.
+- **Sin descripción ni rutas** (AC-04): los escritores dejan de guardar `description` y rutas
+  locales (`SENSITIVE_REGISTRY_FIELDS`); `description` se acepta por compatibilidad y se
+  reporta como `ignored`. El auto-registro de la telemetría crea entradas sin dueño, invisibles
+  hasta que se reclaman.
+- **Purga del registro existente**: `python -m server.registry_hygiene --state-path /data/state
+  [--dry-run] --backup-to <fichero.enc> [--claim <developer_id> --all|nombres]` — copia cifrada
+  primero (PBKDF2-SHA256 → Fernet, passphrase en `SPECBOX_REGISTRY_BACKUP_PASSPHRASE`), luego
+  limpia `registry.json`, `projects.json` y cada `meta.json`. Runbook:
+  [doc/runbooks/registry-hygiene.md](doc/runbooks/registry-hygiene.md).
+- Tests: `tests/test_registry_scope.py` (una prueba por tool + unidad del scope) y
+  `tests/test_registry_hygiene.py`.
+
 ## Engine Version
 
 Current: v6.13.0 "Tenant Guard"

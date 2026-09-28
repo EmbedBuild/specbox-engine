@@ -116,6 +116,9 @@ ejecutar manualmente cada paso del pipeline:
 
 **IMPORTANTE**: `complete_uc` (mover a Done) lo hace el HUMANO tras revisar la PR.
 El agente NUNCA mueve a Done directamente — solo a Review.
+La US sigue sola a sus UCs (UC-4305): `start_uc` la pone In Progress, pasa a Review cuando
+todos sus UCs estan en Review/Done y a Done cuando se completa el ultimo. No llamar a `move_us`
+salvo para corregir a mano.
 
 ### Enforcement automatico (hooks)
 

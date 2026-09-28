@@ -2072,6 +2072,27 @@ tenants por PostgREST.
   `authenticated` es un error de permisos, que los roles del servidor conservan su acceso y que
   los triggers de lifecycle siguen registrando transiciones sin EXECUTE.
 
+## La historia sigue a sus UC (UC-4305)
+
+UC-4305 (US-02 del board del orquestador, satélite engine) hace que el board diga en todo momento
+qué está en progreso, en revisión y hecho sin mover la historia a mano. Origen (2026-09-28):
+`start_uc` dejaba la historia en su columna inicial y `complete_uc` solo comentaba en ella, así que
+dos historias seguían abiertas con todas sus UC hechas.
+
+- `derive_us_state(uc_states)` (`server/tools/spec_driven.py`, puro): todas hechas → `done`; alguna
+  en progreso → `in_progress`; todas en revisión o hechas → `review`; avance parcial con UC
+  pendientes → `in_progress`; nada empezado → `None` (la historia nunca vuelve sola a las columnas
+  pendientes). Las UC archivadas (estados fuera del workflow) no cuentan.
+- `_sync_parent_us_state` se ejecuta en `start_uc` (native y el resto de backends), `move_uc` y
+  `complete_uc` justo después de mover la UC: cambia **solo la historia** (a diferencia de
+  `move_us`, que arrastra a las UC) y es best-effort — si mover la historia falla, la operación de
+  la UC no falla y la respuesta lo dice. Cuando la historia cambia, la respuesta incluye
+  `us_state_change = {us_id, from, to}`.
+- `move_us` queda para correcciones manuales; `/implement` y `GLOBAL_RULES.md` lo reflejan.
+- Tests: `tests/test_us_follows_ucs.py` — tabla del derivador, FreeForm por contenido (inicio,
+  reapertura, revisión, cierre de la última UC, UC archivada, fallo al mover la historia) y un ciclo
+  native PG-gated completo (inicio → revisión → cierre → reapertura).
+
 ## Engine Version
 
 Current: v6.13.0 "Tenant Guard"

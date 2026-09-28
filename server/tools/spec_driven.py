@@ -227,7 +227,8 @@ async def set_auth_token(
         api_key: API key (Trello: 32-char key; Plane: API token; FreeForm/Native: ignored)
         token: API token (Trello: 64-char OAuth token; Plane/FreeForm: ignored, pass "";
             Native: the per-developer identity token — authenticates the caller against the
-            developers table. Pass "" for an unauthenticated read-only session.)
+            developers table. Pass "" to use the token the connection was opened with
+            (UC-3901): a client that authenticates the transport never repeats it here.)
         backend_type: "trello" (default), "plane", "freeform", or "native"
         base_url: Plane base URL (e.g., "https://plane.example.com"); required for Plane
         workspace_slug: Plane workspace slug; required for Plane
@@ -256,6 +257,12 @@ async def set_auth_token(
                 "error": "project_id is required for Native backend",
                 "code": "MISSING_PROJECT_ID",
             }
+        if not token:
+            # UC-3901 AC-02: the connection's token (validated by the transport)
+            # identifies the caller; nobody has to pass it again.
+            from ..coordination.transport_auth import transport_token
+
+            token = transport_token(ctx)
         if not token:
             return {
                 "error": (

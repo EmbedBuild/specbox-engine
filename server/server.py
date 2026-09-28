@@ -33,6 +33,7 @@ from .tools.spec_driven import register_spec_driven_tools
 from .tools.coordination import register_coordination_tools
 from .tools.access_log import register_access_log_tools  # UC-3803
 from .coordination.access_log import ToolAccessLogMiddleware, build_default_store, configure_store
+from .coordination.transport_auth import TransportAuthMiddleware, TransportNoticeMiddleware  # UC-3901
 from .tools.spec_mutations import register_spec_mutations_tools
 from .tools.milestone_management import register_milestone_management_tools
 from .tools.board_operations import register_board_operations_tools
@@ -114,8 +115,12 @@ def _load_engine_version() -> str:
 
 _ENGINE_VERSION = _load_engine_version()
 
+# UC-3901 AC-04: the version announced in the MCP handshake (serverInfo.version)
+# is exactly the published engine version; tests/test_engine_version_contract.py
+# compares it with ENGINE_VERSION.yaml and the top entry of CHANGELOG.md.
 mcp = FastMCP(
     "specbox-engine",
+    version=_ENGINE_VERSION,
     instructions=f"""
     MCP server for the SpecBox Engine v{_ENGINE_VERSION} — an agentic programming system for Claude Code.
 
@@ -195,6 +200,11 @@ register_coordination_tools(mcp)
 configure_store(build_default_store(STATE_PATH))
 mcp.add_middleware(ToolAccessLogMiddleware())
 register_access_log_tools(mcp)
+
+# UC-3901 — the transport authenticates every HTTP request (see main()); while
+# connections without a token are tolerated (grace period), every tool response
+# carries the notice with the deadline and the two ways to connect.
+mcp.add_middleware(TransportNoticeMiddleware())
 
 # Register Tier 1 mutation tools (v5.23.0 Full Mutations — 8 tools:
 # update_uc, update_uc_batch, update_us, update_ac, update_ac_batch,
@@ -348,14 +358,21 @@ def main():
     host = os.getenv("MCP_HOST", "0.0.0.0")
 
     logger = structlog.get_logger(__name__)
-    logger.info("server_starting", transport=transport, host=host, port=port, version="5.23.0")
+    logger.info("server_starting", transport=transport, host=host, port=port, version=_ENGINE_VERSION)
 
     uvicorn_opts = {"timeout_graceful_shutdown": 5}
+    # UC-3901: every HTTP request is authenticated before the MCP app sees it
+    # (policy from SPECBOX_TRANSPORT_AUTH; /health stays public).
+    from starlette.middleware import Middleware as ASGIMiddleware
+
+    http_middleware = [ASGIMiddleware(TransportAuthMiddleware)]
 
     if transport in ("http", "streamable-http"):
-        mcp.run(transport="streamable-http", host=host, port=port, uvicorn_config=uvicorn_opts)
+        mcp.run(
+            transport="streamable-http", host=host, port=port, uvicorn_config=uvicorn_opts, middleware=http_middleware
+        )
     elif transport == "sse":
-        mcp.run(transport="sse", host=host, port=port, uvicorn_config=uvicorn_opts)
+        mcp.run(transport="sse", host=host, port=port, uvicorn_config=uvicorn_opts, middleware=http_middleware)
     else:
         mcp.run(transport="stdio")
 

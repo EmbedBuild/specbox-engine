@@ -40,6 +40,7 @@ import structlog
 
 from .i18n_messages import extract_locale_from_ctx, unauthenticated_payload
 from .identity import UnauthenticatedError, resolve_developer
+from .transport_auth import transport_token
 
 logger = structlog.get_logger(__name__)
 
@@ -201,14 +202,21 @@ async def resolve_caller_scope(ctx: Any, *, token: str = "") -> CallerScope:
     if not tok:
         if ctx is None:
             raise UnauthenticatedError("No MCP context and no dev_token: nobody is identified.")
+        session_error: RuntimeError | None = None
         try:
             session = await get_native_session(ctx)
+            tok = (session.get("dev_token") or "").strip()
         except RuntimeError as exc:
+            session_error = exc
+        if not tok:
+            # UC-3901 AC-02: a connection authenticated at the transport
+            # identifies its caller without passing the token again.
+            tok = transport_token(ctx)
+        if not tok and session_error is not None:
             raise UnauthenticatedError(
                 "No identified session: open one with set_auth_token(backend_type='native', "
                 "token=<dev_token>, project_id=...) or pass dev_token."
-            ) from exc
-        tok = (session.get("dev_token") or "").strip()
+            ) from session_error
     if not tok:
         raise UnauthenticatedError()
 

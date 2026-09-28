@@ -2139,6 +2139,32 @@ dos historias seguían abiertas con todas sus UC hechas.
   reapertura, revisión, cierre de la última UC, UC archivada, fallo al mover la historia) y un ciclo
   native PG-gated completo (inicio → revisión → cierre → reapertura).
 
+## Nadie habla con el MCP remoto sin identificarse (US-39)
+
+### UC-3901 — el servidor remoto exige un token válido en cada conexión
+
+- `server/coordination/transport_auth.py::TransportAuthMiddleware` (ASGI puro, montado por
+  `server.main()` en `streamable-http` y `sse`, no en stdio) lee `Authorization: Bearer` en **cada**
+  petición HTTP salvo `/health`, antes de que el MCP la vea (inicialización incluida):
+  token presente e inválido / caducado / revocado → `401 invalid_token` en cualquier modo; identidad
+  caída → `503 auth_unavailable`; token válido → `TransportIdentity` en `scope["state"]`.
+  Resolución token→developer cacheada 30 s por SHA-256 (el token nunca se registra).
+- Conexión **sin** token según `SPECBOX_TRANSPORT_AUTH`: `off` (por defecto — desplegar no cambia
+  nada), `grace` (hasta `SPECBOX_TRANSPORT_AUTH_GRACE_UNTIL`, con aviso en cada respuesta de tool
+  vía `TransportNoticeMiddleware`; desde esa fecha, `401 token_required` con el mismo mensaje) y
+  `enforce`. Configuración mala → falla cerrada (`enforce`). Mensajes ES/EN por `Accept-Language`.
+  Activar la gracia es decisión del operador: runbook [doc/runbooks/transport-auth.md](doc/runbooks/transport-auth.md).
+- Identidad de la conexión en las tools (AC-02), siempre detrás del token explícito y del de la
+  sesión native: `transport_token(ctx)` / `transport_identity(ctx)` alimentan
+  `identity_for_log` (el registro de accesos atribuye la llamada), `resolve_caller_scope` (UC-3802)
+  y `set_auth_token(backend_type="native", token="")`. La especificación MCP exige el token en cada
+  petición HTTP; lo que no se repite es pasarlo a las tools.
+- AC-04: `FastMCP(version=_ENGINE_VERSION)` — el handshake anuncia `ENGINE_VERSION.yaml`, y
+  `tests/test_engine_version_contract.py` falla si difiere de la última entrada de `CHANGELOG.md`.
+- Tests: `tests/test_transport_auth.py` (política, parseo, middleware y un servidor FastMCP real por
+  HTTP: `initialize` rechazado sin token o con token falso, identidad y atribución durante la sesión,
+  aviso de gracia en la respuesta) y `tests/test_engine_version_contract.py`.
+
 ## Engine Version
 
 Current: v6.13.0 "Tenant Guard"

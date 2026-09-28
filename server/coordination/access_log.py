@@ -54,6 +54,7 @@ import structlog
 from fastmcp.server.middleware import CallNext, Middleware, MiddlewareContext
 
 from .identity import UnauthenticatedError, resolve_developer
+from .transport_auth import transport_identity
 
 logger = structlog.get_logger(__name__)
 
@@ -132,13 +133,17 @@ async def identity_for_log(ctx: Any) -> tuple[str | None, str, str | None]:
         from ..auth_gateway import BACKEND_STATE_KEY
 
         config = await ctx.get_state(BACKEND_STATE_KEY)
-    except Exception:  # noqa: BLE001 — a broken context is an anonymous call
-        return None, KIND_ANONYMOUS, None
-    if not isinstance(config, Mapping) or config.get("backend_type") != "native":
-        return None, KIND_ANONYMOUS, None
-    project_id = config.get("project_id") or None
-    token = str(config.get("dev_token") or "").strip()
+    except Exception:  # noqa: BLE001 — a broken context has no session identity
+        config = None
+    native = isinstance(config, Mapping) and config.get("backend_type") == "native"
+    project_id = (config.get("project_id") or None) if native else None
+    token = str(config.get("dev_token") or "").strip() if native else ""
     if not token:
+        # UC-3901 AC-02: a connection authenticated at the transport identifies
+        # its caller for the whole session, without passing the token again.
+        transport = transport_identity(ctx)
+        if transport is not None and transport.developer_id:
+            return transport.developer_id, KIND_DEVELOPER, project_id
         return None, KIND_ANONYMOUS, project_id
 
     key = hashlib.sha256(token.encode("utf-8")).hexdigest()

@@ -127,6 +127,16 @@ async def test_ac02_health_is_public_even_when_enforcing():
     assert resp.status_code == 200 and len(app.calls) == 1
 
 
+async def test_cors_preflights_pass_even_when_enforcing():
+    """Un preflight nunca lleva credenciales: rechazarlo rompería a los clientes de navegador."""
+    client, app = _client(ENFORCE)
+    async with client:
+        resp = await client.options(
+            "/mcp", headers={"origin": "https://claude.ai", "access-control-request-method": "POST"}
+        )
+    assert resp.status_code == 200 and len(app.calls) == 1
+
+
 async def test_ac01_no_token_is_rejected_when_enforcing_before_the_app_runs():
     client, app = _client(ENFORCE)
     async with client:

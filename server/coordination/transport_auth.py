@@ -295,7 +295,9 @@ class TransportAuthMiddleware:
         )
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
-        if scope.get("type") != "http" or scope.get("path") in PUBLIC_PATHS:
+        # CORS preflights never carry credentials: rejecting them would break
+        # browser clients even when they hold a valid token. They run no tool.
+        if scope.get("type") != "http" or scope.get("path") in PUBLIC_PATHS or scope.get("method") == "OPTIONS":
             await self.app(scope, receive, send)
             return
 

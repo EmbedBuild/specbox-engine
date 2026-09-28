@@ -178,3 +178,51 @@ def test_cli_purge_then_decrypt(tmp_path, monkeypatch, capsys):
     assert set(bundle["files"]) == {"registry.json", "projects.json", "projects/acme-api/meta.json"}
     assert rh.main(["--state-path", str(tmp_path), "--dry-run"]) == 0
     assert json.loads(capsys.readouterr().out)["files"]["registry.json"]["changed"] is False
+
+
+def test_purge_never_overwrites_an_existing_backup(tmp_path):
+    """A second run with the same file name must not destroy the earlier copy —
+    it may be the only one that still holds the original content."""
+    _seed(tmp_path)
+    backup = tmp_path / "out" / "registry.enc"
+    backup.parent.mkdir()
+    backup.write_bytes(b"previous copy")
+    with pytest.raises(ValueError, match="never overwritten"):
+        rh.run(tmp_path, dry_run=False, backup_to=backup, passphrase="correct horse battery")
+    assert backup.read_bytes() == b"previous copy"
+    assert "secreto" in (tmp_path / "projects" / "acme-api" / "meta.json").read_text()  # nothing purged
+
+
+def test_unclaim_entries_only_named_and_only_that_owner():
+    reg = json.loads(json.dumps(REGISTRY))
+    rh.claim_entries(reg, "alice", ["acme-api", "clean"])
+    # bob's entry is not alice's → untouched; unknown names ignored; no --all.
+    assert rh.unclaim_entries(reg, "alice", ["acme-api", "win-proj", "ghost"]) == ["acme-api"]
+    assert REGISTERED_BY_FIELD not in reg["projects"]["acme-api"]
+    assert reg["projects"]["win-proj"][REGISTERED_BY_FIELD] == "bob"
+    assert reg["projects"]["clean"][REGISTERED_BY_FIELD] == "alice"
+
+
+def test_cli_unclaim_releases_a_project_after_an_overreaching_claim(tmp_path, monkeypatch, capsys):
+    _seed(tmp_path)
+    monkeypatch.setenv(rh.PASSPHRASE_ENV, "correct horse battery")
+    assert rh.main(["--state-path", str(tmp_path), "--backup-to", str(tmp_path / "b1.enc"), "--claim", "alice", "--all"]) == 0
+    capsys.readouterr()
+    # Guards: names required, and never together with --claim.
+    assert rh.main(["--state-path", str(tmp_path), "--dry-run", "--unclaim", "alice"]) == 2
+    assert rh.main(["--state-path", str(tmp_path), "--dry-run", "--claim", "alice", "--unclaim", "alice", "x"]) == 2
+    capsys.readouterr()
+    assert rh.main(["--state-path", str(tmp_path), "--backup-to", str(tmp_path / "b2.enc"), "--unclaim", "alice", "clean"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["unclaimed"] == ["registry.json:clean"]
+    assert "1 released" in out["summary"]
+    registry = json.loads((tmp_path / "registry.json").read_text())
+    assert REGISTERED_BY_FIELD not in registry["projects"]["clean"]
+    assert registry["projects"]["acme-api"][REGISTERED_BY_FIELD] == "alice"
+
+
+def test_summary_says_when_nothing_sensitive_was_found(tmp_path):
+    (tmp_path / "registry.json").write_text(json.dumps({"projects": {"clean": {"stack": "go"}}}), encoding="utf-8")
+    report = rh.run(tmp_path, dry_run=True)
+    assert report["summary"].startswith("0 sensitive field(s) removed, 0 local path(s) blanked")
+    assert "No sensitive content found" in report["summary"]

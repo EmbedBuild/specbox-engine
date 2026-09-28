@@ -48,13 +48,19 @@ guárdala en tu gestor de contraseñas: sin ella la copia no se puede abrir.
 ```bash
 export SPECBOX_REGISTRY_BACKUP_PASSPHRASE='<passphrase larga>'
 python -m server.registry_hygiene --state-path /data/state \
-  --backup-to /data/state/backup/registry-$(date +%F).enc
+  --backup-to /data/state/backup/registry-$(date +%FT%H%M%S).enc
 unset SPECBOX_REGISTRY_BACKUP_PASSPHRASE
 ```
 
 Orden interno del comando: primero escribe la copia cifrada (PBKDF2-SHA256 →
 Fernet), y solo cuando está en disco reescribe los ficheros limpios. Si la copia
-falla, no se purga nada.
+falla, no se purga nada. **Una copia existente nunca se sobrescribe**: cada
+ejecución necesita un nombre nuevo (de ahí la hora en el nombre), porque la
+primera copia puede ser la única que conserve el contenido original.
+
+El resumen final (`summary`) dice cuántos campos se quitaron. Si dice
+`No sensitive content found`, los ficheros ya estaban limpios: anota quién los
+limpió y cuándo, porque la copia de esa ejecución ya no contiene el original.
 
 ### 3. Sacar la copia del servidor y borrarla del host
 
@@ -95,6 +101,15 @@ otra persona (por ejemplo, los del tester) no debe reclamarse: esa persona lo
 recupera registrándolo de nuevo con su identidad (`register_project` /
 `onboard_project`), que respeta las entradas ajenas y rechaza el nombre si ya
 pertenece a otro.
+
+Si un `--claim --all` se llevó por delante un proyecto ajeno, se devuelve con
+`--unclaim`, que solo actúa sobre los nombres indicados y solo si el dueño
+actual es ese developer (no existe `--unclaim --all`):
+
+```bash
+python -m server.registry_hygiene --state-path /data/state --backup-to ... \
+  --unclaim <developer_id> agency-ops-platform ppc-gestion
+```
 
 ### 5. Verificar desde fuera
 

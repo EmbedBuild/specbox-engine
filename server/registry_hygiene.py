@@ -22,6 +22,12 @@ on the host. ``--decrypt FILE`` restores the bundle locally for the audit.
 ``--claim DEVELOPER_ID [NAME ...|--all]`` attributes legacy entries (which
 predate ``registered_by``) to a developer so they become visible to that
 developer's identity again. Unclaimed entries stay invisible to everyone.
+``--unclaim DEVELOPER_ID NAME ...`` reverses a claim for the named entries
+(only where that developer is the current owner), e.g. to give a project
+back to the developer who actually created it.
+
+A backup file is never overwritten: a second run must use a new name, so an
+earlier copy — the one that may still hold the original content — survives.
 """
 
 from __future__ import annotations
@@ -146,6 +152,23 @@ def claim_entries(
     return sorted(claimed)
 
 
+def unclaim_entries(registry: Any, developer_id: str, names: Iterable[str]) -> list[str]:
+    """Drop ``registered_by`` from the named entries currently owned by ``developer_id``.
+
+    Explicit names only — there is no "unclaim everything". An entry owned by
+    somebody else, or unowned, is left untouched. Returns the released names.
+    """
+    if not isinstance(registry, dict) or not isinstance(registry.get("projects"), dict):
+        return []
+    released: list[str] = []
+    for name in names:
+        entry = registry["projects"].get(name)
+        if isinstance(entry, dict) and entry.get(REGISTERED_BY_FIELD) == developer_id:
+            del entry[REGISTERED_BY_FIELD]
+            released.append(name)
+    return sorted(released)
+
+
 # ── Encrypted backup ────────────────────────────────────────────────
 
 
@@ -226,12 +249,15 @@ def run(
     passphrase: str | None = None,
     claim_developer: str | None = None,
     claim_names: Iterable[str] | None = None,
+    unclaim_developer: str | None = None,
+    unclaim_names: Iterable[str] | None = None,
 ) -> dict[str, Any]:
     """Purge the registries and meta files under ``state_path``.
 
     With ``dry_run`` nothing is written; the report says what would change.
     Otherwise a backup is mandatory: ``backup_to`` + ``passphrase`` produce the
-    encrypted bundle first, and the purge only proceeds once it is on disk.
+    encrypted bundle first, and the purge only proceeds once it is on disk. An
+    existing ``backup_to`` is never overwritten.
     """
     report: dict[str, Any] = {
         "state_path": str(state_path),
@@ -239,6 +265,7 @@ def run(
         "backup": None,
         "files": {},
         "claimed": [],
+        "unclaimed": [],
     }
     bundle = collect_bundle(state_path)
     if not bundle["files"]:
@@ -248,25 +275,47 @@ def run(
     if not dry_run:
         if backup_to is None or not passphrase:
             raise ValueError("A purge requires --backup-to and the passphrase env var; use --dry-run to preview.")
+        if backup_to.exists():
+            raise ValueError(
+                f"{backup_to} already exists and a previous copy is never overwritten — "
+                "choose a new file name (the runbook suggests a timestamp)."
+            )
         backup_to.parent.mkdir(parents=True, exist_ok=True)
         payload = json.dumps(bundle, ensure_ascii=False, indent=2).encode("utf-8")
         backup_to.write_bytes(encrypt_bytes(payload, passphrase))
         report["backup"] = {"path": str(backup_to), "bytes": backup_to.stat().st_size, "files": len(bundle["files"])}
 
+    removed_total = 0
+    blanked_total = 0
     for rel, doc in bundle["files"].items():
         is_registry = rel in REGISTRY_FILES
         cleaned, totals = scrub_registry(doc) if is_registry else scrub_entry(doc)
         claimed: list[str] = []
+        released: list[str] = []
         if is_registry and claim_developer:
             claimed = claim_entries(cleaned, claim_developer, claim_names)
             report["claimed"].extend(f"{rel}:{n}" for n in claimed)
+        if is_registry and unclaim_developer and unclaim_names:
+            released = unclaim_entries(cleaned, unclaim_developer, unclaim_names)
+            report["unclaimed"].extend(f"{rel}:{n}" for n in released)
         file_report = dict(totals) if is_registry else {"removed_fields": totals["removed_fields"], "blanked_paths": totals["blanked_paths"]}
         file_report["claimed"] = len(claimed)
+        file_report["unclaimed"] = len(released)
         changed = cleaned != doc
         file_report["changed"] = changed
         report["files"][rel] = file_report
+        removed_total += file_report["removed_fields"]
+        blanked_total += file_report["blanked_paths"]
         if changed and not dry_run:
             (state_path / rel).write_text(json.dumps(cleaned, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    report["summary"] = (
+        f"{removed_total} sensitive field(s) removed, {blanked_total} local path(s) blanked, "
+        f"{len(report['claimed'])} entry(ies) claimed, {len(report['unclaimed'])} released"
+        + (" — preview only, nothing written" if dry_run else "")
+    )
+    if removed_total == 0 and blanked_total == 0:
+        report["summary"] += ". No sensitive content found: the files already carried none."
     return report
 
 
@@ -283,7 +332,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--backup-to", type=Path, help="Encrypted backup file written before the purge (required unless --dry-run)")
     p.add_argument("--claim", metavar="DEVELOPER_ID", help="Attribute unowned entries to this developer")
     p.add_argument("--all", action="store_true", help="With --claim: claim every unowned entry")
-    p.add_argument("names", nargs="*", help="With --claim: only these project names")
+    p.add_argument("--unclaim", metavar="DEVELOPER_ID", help="Release the named entries currently owned by this developer")
+    p.add_argument("names", nargs="*", help="With --claim / --unclaim: the project names")
     p.add_argument("--decrypt", type=Path, metavar="FILE", help="Print the decrypted backup bundle and exit")
     return p
 
@@ -303,8 +353,14 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         return 0
 
+    if args.claim and args.unclaim:
+        print("error: use --claim or --unclaim, not both in one run", file=sys.stderr)
+        return 2
     if args.claim and not args.all and not args.names:
         print("error: --claim needs --all or a list of project names", file=sys.stderr)
+        return 2
+    if args.unclaim and not args.names:
+        print("error: --unclaim needs the project names to release (there is no --all)", file=sys.stderr)
         return 2
     if not args.dry_run and (args.backup_to is None or not passphrase):
         print(f"error: a purge needs --backup-to and {PASSPHRASE_ENV}; use --dry-run to preview", file=sys.stderr)
@@ -318,11 +374,14 @@ def main(argv: list[str] | None = None) -> int:
             passphrase=passphrase,
             claim_developer=args.claim,
             claim_names=None if args.all else (args.names or None),
+            unclaim_developer=args.unclaim,
+            unclaim_names=args.names if args.unclaim else None,
         )
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(report, indent=2, ensure_ascii=False))
+    print(f"\n{report.get('summary', '')}", file=sys.stderr)
     if report.get("backup"):
         print(
             f"\nBackup written to {report['backup']['path']}. Move it OFF this server now "

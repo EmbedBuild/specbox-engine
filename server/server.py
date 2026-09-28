@@ -31,6 +31,8 @@ from .tools.onboarding import register_onboarding_tools
 from .tools.state import register_state_tools
 from .tools.spec_driven import register_spec_driven_tools
 from .tools.coordination import register_coordination_tools
+from .tools.access_log import register_access_log_tools  # UC-3803
+from .coordination.access_log import ToolAccessLogMiddleware, build_default_store, configure_store
 from .tools.spec_mutations import register_spec_mutations_tools
 from .tools.milestone_management import register_milestone_management_tools
 from .tools.board_operations import register_board_operations_tools
@@ -185,6 +187,14 @@ register_spec_driven_tools(mcp)
 # renamed the H3 tool from claim_uc to reserve_uc; UC-604 reintroduces
 # claim_uc as a deprecated alias for v5.35-v5.36.
 register_coordination_tools(mcp)
+
+# UC-3803 — every tool call leaves a trail (who, what, when, outcome) in an
+# append-only store: tool_access_log in the native DB when SPECBOX_NATIVE_DSN
+# is set (with a local spool if the DB blinks), a local JSONL file otherwise.
+# The query tool is reserved to the ecosystem operator.
+configure_store(build_default_store(STATE_PATH))
+mcp.add_middleware(ToolAccessLogMiddleware())
+register_access_log_tools(mcp)
 
 # Register Tier 1 mutation tools (v5.23.0 Full Mutations — 8 tools:
 # update_uc, update_uc_batch, update_us, update_ac, update_ac_batch,

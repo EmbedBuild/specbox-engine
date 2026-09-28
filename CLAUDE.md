@@ -2027,6 +2027,19 @@ descripciones de clientes, importes, NDA, URLs de repos y rutas locales) a cualq
   —trigger, store, spool/replay, rol de operador— corren cuando `SPECBOX_NATIVE_DSN` apunta a
   una BD de pruebas).
 
+### UC-3804 — las operaciones de borrado de estado exigen identidad de operador
+
+- `reset_all_state(confirm, dev_token)` y `reset_project(project, confirm, dev_token)`
+  (`server/tools/state.py`) pasan por `_operator_gate`: identidad resuelta con
+  `resolve_caller_scope` + `is_operator` (SuperAdmin del panel o `SPECBOX_OPERATOR_DEVELOPER_IDS`).
+  Sin identidad → `UNAUTHENTICATED`; cualquier otra identidad → `FORBIDDEN`; en ambos casos no se
+  borra nada. La palabra `confirm='yes'` sigue siendo obligatoria además de la identidad.
+- AC-02: cada reinicio ejecutado escribe en el registro de accesos un evento `state_reset` con el
+  `developer_id` del operador y el proyecto afectado en `project_id` (`*` en el reinicio global),
+  además de la entrada de la llamada que ya anota el middleware (intentos denegados incluidos). El
+  spool del registro de accesos no es "estado" y sobrevive al reinicio global.
+- Tests: `tests/test_state_reset_operator.py`.
+
 ## Engine Version
 
 Current: v6.13.0 "Tenant Guard"

@@ -30,8 +30,16 @@ import shutil
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+import structlog
 from fastmcp import Context, FastMCP
 
+from ..coordination.access_log import (
+    KIND_DEVELOPER,
+    OUTCOME_OK,
+    AccessRecord,
+    get_store,
+    is_operator,
+)
 from ..coordination.identity import UnauthenticatedError
 from ..coordination.project_id import InvalidProjectIdError, validate_project_id
 from ..coordination.scope import (
@@ -45,6 +53,17 @@ from ..coordination.scope import (
     strip_sensitive_fields,
     unauthenticated_envelope,
 )
+from ..transport import transport_name
+
+logger = structlog.get_logger(__name__)
+
+#: Access-log event written by an executed state reset (UC-3804 AC-02). The
+#: middleware records the tool CALL (attempts included, denied ones too); this
+#: event records the EXECUTION, with the affected project in ``project_id``.
+STATE_RESET_EVENT = "state_reset"
+
+#: ``project_id`` of a full reset event: every project.
+STATE_RESET_ALL = "*"
 
 
 # ---------------------------------------------------------------------------
@@ -1116,16 +1135,60 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
     # MAINTENANCE TOOLS — state reset
     # ===================================================================
 
+    async def _operator_gate(ctx: Context | None, dev_token: str) -> tuple[CallerScope | None, dict | None]:
+        """UC-3804 AC-01: resets need an identified caller who is the ecosystem operator.
+
+        Returns ``(scope, None)`` to proceed, or ``(None, envelope)``: the uniform
+        UNAUTHENTICATED payload when nobody is identified, FORBIDDEN for any other
+        identity. Nothing is deleted on either path.
+        """
+        try:
+            scope = await resolve_caller_scope(ctx, token=dev_token)
+        except UnauthenticatedError:
+            return None, unauthenticated_envelope(ctx)
+        if not await is_operator(scope.developer_id):
+            return None, {
+                "error": "Only the ecosystem operator may reset state.",
+                "code": "FORBIDDEN",
+                "status": "forbidden",
+            }
+        return scope, None
+
+    async def _record_state_reset(scope: CallerScope, target: str) -> None:
+        """UC-3804 AC-02: an executed reset leaves its own access-log event."""
+        record = AccessRecord(
+            occurred_at=datetime.now(timezone.utc).isoformat(),
+            tool=STATE_RESET_EVENT,
+            identity_kind=KIND_DEVELOPER,
+            developer_id=scope.developer_id,
+            outcome=OUTCOME_OK,
+            project_id=target,
+            transport=transport_name(),
+        )
+        try:
+            await get_store().write(record)
+        except Exception as exc:  # noqa: BLE001 — the trail must not hide a reset that already happened
+            logger.error("state_reset_audit_failed", target=target, reason=type(exc).__name__)
+
     @mcp.tool
-    def reset_all_state(confirm: str) -> dict:
-        """Reset ALL state data — registry, cache, and all project data.
+    async def reset_all_state(confirm: str, dev_token: str = "", ctx: Context | None = None) -> dict:
+        """Reset ALL state data — registry, cache, and all project data (operator only).
 
         Args:
             confirm: Must be exactly "yes" to proceed (safety guard).
+            dev_token: Developer token when the current session is not native.
+
+        Only the ecosystem operator (the cloud panel SuperAdmin) may run this:
+        any other identity receives FORBIDDEN, no identity receives
+        UNAUTHENTICATED, and in both cases nothing is deleted (UC-3804). The
+        execution is written to the access log with the operator's identity.
 
         Deletes registry.json, dashboard_cache.json, and the entire projects/
         directory. Recreates projects/ empty. USE WITH CAUTION — this is
         irreversible and removes all tracked sessions, checkpoints, and healing."""
+        scope, denied = await _operator_gate(ctx, dev_token)
+        if denied is not None:
+            return denied
         if confirm != "yes":
             return {
                 "error": "Safety guard: pass confirm='yes' to proceed with full state reset.",
@@ -1149,23 +1212,35 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
             shutil.rmtree(projects_dir)
         projects_dir.mkdir(parents=True, exist_ok=True)
 
+        await _record_state_reset(scope, STATE_RESET_ALL)
         return {
             "status": "ok",
             "action": "full_reset",
             "deleted_projects": deleted_projects,
+            "operator": scope.developer_id,
         }
 
     @mcp.tool
-    def reset_project(project: str, confirm: str) -> dict:
-        """Reset state data for a single project.
+    async def reset_project(project: str, confirm: str, dev_token: str = "", ctx: Context | None = None) -> dict:
+        """Reset state data for a single project (operator only).
 
         Args:
             project: Project name to reset.
             confirm: Must be exactly "yes" to proceed (safety guard).
+            dev_token: Developer token when the current session is not native.
+
+        Only the ecosystem operator (the cloud panel SuperAdmin) may run this:
+        any other identity receives FORBIDDEN, no identity receives
+        UNAUTHENTICATED, and in both cases nothing is deleted (UC-3804). The
+        execution is written to the access log with the operator's identity and
+        the affected project.
 
         Deletes the project's directory (sessions, checkpoints, healing, meta)
         and removes its entry from registry.json. Invalidates dashboard cache.
         USE WITH CAUTION — this is irreversible for the target project."""
+        scope, denied = await _operator_gate(ctx, dev_token)
+        if denied is not None:
+            return denied
         if confirm != "yes":
             return {
                 "error": "Safety guard: pass confirm='yes' to proceed with project reset.",
@@ -1191,11 +1266,13 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
 
         _invalidate_cache(state_path)
 
+        await _record_state_reset(scope, project)
         return {
             "status": "ok",
             "action": "project_reset",
             "project": project,
             "files_deleted": files_deleted,
+            "operator": scope.developer_id,
         }
 
     # ===================================================================

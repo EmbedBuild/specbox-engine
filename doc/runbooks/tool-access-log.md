@@ -44,6 +44,19 @@ get_tool_access_log(date_from="2026-09-28T16:00:00Z", limit=500)
 
 Quien no sea operador recibe `FORBIDDEN` y `entries: []`; sin identidad, `UNAUTHENTICATED`.
 
+## Reinicios de estado (UC-3804)
+
+`reset_project` y `reset_all_state` solo los ejecuta el operador, y cada ejecución deja su
+propio evento en el registro: `tool = state_reset`, `developer_id` = quien lo ejecutó,
+`project_id` = el proyecto reiniciado (`*` en el reinicio global). La llamada en sí también
+queda registrada por el middleware, denegada o no, así que un intento de reinicio por parte de
+otra identidad aparece como `reset_project` con `outcome = error` y `error_code = FORBIDDEN`.
+
+```
+get_tool_access_log(tool="state_reset", date_from="2026-09-01")
+get_tool_access_log(tool="reset_project", date_from="2026-09-01")   # intentos, incluidos los denegados
+```
+
 ## Quién es operador
 
 - El SuperAdmin del panel: `panel.profiles.role = 'superadmin'` en la fila cuyo `developer_id`

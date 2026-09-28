@@ -7,7 +7,6 @@ See doc/design/v5.23.0-full-mutations.md section "Tier 4".
 
 from __future__ import annotations
 
-import math
 import re
 from typing import Any
 
@@ -15,6 +14,7 @@ import structlog
 from fastmcp import Context
 
 from ..auth_gateway import get_session_backend
+from ._content_passing import returns_items_content
 from ..spec_backend import ItemDTO, parse_item_id
 from . import _mutation_helpers as mh
 
@@ -55,11 +55,13 @@ def _parse_hours_from_text(text: str) -> float | None:
 # ── 4.1 bulk_update_hours_from_description ───────────────────────────
 
 
+@returns_items_content
 async def bulk_update_hours_from_description(
     board_id: str,
     ctx: Context,
     *,
     dry_run: bool = True,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Parse hours from UC descriptions and sync to the structured field.
 
@@ -81,7 +83,7 @@ async def bulk_update_hours_from_description(
     Returns:
         {dry_run, parsed_ucs:[{uc_id, hours_from_text, hours_from_field, action}], applied_changes}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
         ucs = [i for i in items if "UC" in i.labels]
@@ -177,6 +179,7 @@ async def estimate_from_ac(
     ctx: Context,
     *,
     strategy: str = "specbox_heuristic",
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Estimate hours for a UC based on the number and type of its ACs.
 
@@ -192,7 +195,7 @@ async def estimate_from_ac(
     Returns:
         {uc_id, total_acs, classified, estimated_hours, strategy, confidence}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await mh.find_uc(backend, board_id, uc_id)
         if not uc_item:
@@ -235,13 +238,13 @@ async def estimate_from_ac(
                 for cat, count in classified.items()
             )
             if weight <= 4:
-                size, hours = "S", 2.0
+                hours = 2.0  # S
             elif weight <= 12:
-                size, hours = "M", 4.0
+                hours = 4.0  # M
             elif weight <= 24:
-                size, hours = "L", 8.0
+                hours = 8.0  # L
             else:
-                size, hours = "XL", 16.0
+                hours = 16.0  # XL
             confidence = 0.5
         else:
             return _mk_error(
@@ -270,6 +273,7 @@ async def milestone_acceptance_check(
     ctx: Context,
     *,
     run_ag09b: bool = True,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Run consolidated acceptance validation for all UCs of a milestone.
 
@@ -285,7 +289,7 @@ async def milestone_acceptance_check(
         {milestone, verdict, ucs_validated, total_acs, passed_acs, pass_rate,
          recommended_action}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         ok, err = mh.validate_milestone(milestone)
         if not ok:

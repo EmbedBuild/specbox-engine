@@ -170,7 +170,7 @@ def backend():
 
 @pytest.fixture
 def ctx(backend, monkeypatch):
-    async def _fake(c):
+    async def _fake(c, items_content=None):
         return backend
     monkeypatch.setattr(mm, "get_session_backend", _fake)
     return AsyncMock()

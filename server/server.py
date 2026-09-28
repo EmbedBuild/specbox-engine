@@ -328,7 +328,12 @@ async def _health(_request):
 
 
 def main():
-    transport = os.getenv("MCP_TRANSPORT", "stdio")
+    # UC-3801: the transport name is the single source of truth for "is this
+    # server remote?" (see server.transport). Reading it here and in the
+    # FreeForm guard from the same helper keeps the two from ever disagreeing.
+    from .transport import transport_name
+
+    transport = transport_name()
     port = int(os.getenv("MCP_PORT", "8000"))
     host = os.getenv("MCP_HOST", "0.0.0.0")
 

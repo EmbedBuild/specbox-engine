@@ -21,7 +21,8 @@ import structlog
 from fastmcp import Context
 
 from ..auth_gateway import get_session_backend
-from ..spec_backend import ItemDTO, SpecBackend, parse_item_id
+from ._content_passing import returns_items_content
+from ..spec_backend import ItemDTO, parse_item_id
 from . import _mutation_helpers as mh
 
 logger = structlog.get_logger(__name__)
@@ -180,12 +181,14 @@ async def update_uc(
 # ── 1.2 update_uc_batch ──────────────────────────────────────────────
 
 
+@returns_items_content
 async def update_uc_batch(
     board_id: str,
     updates: list[dict[str, Any]],
     ctx: Context,
     *,
     stop_on_error: bool = False,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Update metadata of many Use Cases in a single MCP call.
 
@@ -204,7 +207,7 @@ async def update_uc_batch(
     Returns:
         {total, succeeded:[{uc_id, updated_fields}], failed:[{uc_id, error, code}], backend_item_urls}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
         by_uc: dict[str, ItemDTO] = {}
@@ -308,6 +311,7 @@ async def update_uc_batch(
 # ── 1.3 update_us ────────────────────────────────────────────────────
 
 
+@returns_items_content
 async def update_us(
     board_id: str,
     us_id: str,
@@ -319,6 +323,7 @@ async def update_us(
     screens: list[str] | None = None,
     milestone: str | None = None,
     propagate_milestone: bool = True,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Update metadata of a User Story.
 
@@ -333,7 +338,7 @@ async def update_us(
     Returns:
         {us_id, updated_fields, propagated_to_ucs, backend_item_url, updated_at}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         if milestone is not None:
             ok, err = mh.validate_milestone(milestone)
@@ -416,6 +421,7 @@ async def update_us(
 # ── 1.4 update_ac ────────────────────────────────────────────────────
 
 
+@returns_items_content
 async def update_ac(
     board_id: str,
     uc_id: str,
@@ -424,6 +430,7 @@ async def update_ac(
     *,
     text: str | None = None,
     done: bool | None = None,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Rewrite an AC's text and/or change its done state.
 
@@ -441,7 +448,7 @@ async def update_ac(
     Returns:
         {uc_id, ac_id, updated_fields, updated_at, reason?}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await mh.find_uc(backend, board_id, uc_id)
         if not uc_item:
@@ -497,12 +504,14 @@ async def update_ac(
 # ── 1.5 update_ac_batch ──────────────────────────────────────────────
 
 
+@returns_items_content
 async def update_ac_batch(
     board_id: str,
     updates: list[dict[str, Any]],
     ctx: Context,
     *,
     stop_on_error: bool = False,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Update many ACs across multiple UCs in a single MCP call.
 
@@ -516,7 +525,7 @@ async def update_ac_batch(
     Returns:
         {total, succeeded:[{uc_id, ac_id, updated_fields}], failed:[{uc_id, ac_id, error, code}]}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         # Cache UC lookups across the batch — list_items once, find per uc_id.
         items = await backend.list_items(board_id)
@@ -694,6 +703,7 @@ async def add_ac(
 # ── 1.7 delete_ac ────────────────────────────────────────────────────
 
 
+@returns_items_content
 async def delete_ac(
     board_id: str,
     uc_id: str,
@@ -701,6 +711,7 @@ async def delete_ac(
     ctx: Context,
     *,
     reason: str | None = None,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Remove an AC from a UC and renumber subsequent ACs.
 
@@ -713,7 +724,7 @@ async def delete_ac(
     Returns:
         {uc_id, deleted_ac_id, renumbered_acs, deleted_at, reason?}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await mh.find_uc(backend, board_id, uc_id)
         if not uc_item:

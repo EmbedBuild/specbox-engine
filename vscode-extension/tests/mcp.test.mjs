@@ -88,3 +88,25 @@ test('UC-662 AC-06: FreeForm reuses the SAME hosted MCP endpoint (no local mode)
 	assert.ok(cfg.args.includes(REMOTE_MCP_URL));
 	assert.ok(!JSON.stringify(cfg).toLowerCase().includes('python'));
 });
+
+// UC-3801 AC-05 — FreeForm on the hosted MCP works in content-passing mode.
+// The server never receives a directory: the settings the extension writes
+// export SPECBOX_ENGINE_MCP_URL so hooks and skills pass the local items.json
+// as `items_content` and write back what the tools return.
+
+test('UC-3801 AC-05: FreeForm settings export SPECBOX_ENGINE_MCP_URL so the client passes content, not paths', () => {
+	const s = buildFreeformProjectSettings('/abs/proj');
+	assert.equal(s.env.SPECBOX_ENGINE_MCP_URL, REMOTE_MCP_URL);
+});
+
+test('UC-3801 AC-05: the hosted MCP server config never carries a tracking directory', () => {
+	const json = JSON.stringify(buildRemoteServerConfig());
+	assert.ok(!json.includes('root_path'));
+	assert.ok(!json.includes('doc/tracking'));
+});
+
+test('UC-3801 AC-05: FreeForm settings keep the absolute root for CLIENT-side hooks only (not for the server)', () => {
+	const s = buildFreeformProjectSettings('/abs/proj');
+	assert.equal(s.specbox.freeform_root_absolute, `/abs/proj/${FREEFORM_ROOT_RELATIVE}`);
+	assert.ok(!('root_path' in s.specbox));
+});

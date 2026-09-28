@@ -2072,6 +2072,32 @@ tenants por PostgREST.
   `authenticated` es un error de permisos, que los roles del servidor conservan su acceso y que
   los triggers de lifecycle siguen registrando transiciones sin EXECUTE.
 
+### UC-4002 — los roles públicos pierden los permisos de escritura por defecto
+
+- Migración `0024_public_roles_without_writes.sql` (+ espejo `20260928000024`). Los privilegios por
+  defecto de Supabase dan a `anon`/`authenticated` todo (`arwdDxtm`) en cada tabla nueva de
+  `public`; solo la RLS los frenaba, y en cinco tablas sensibles (`audit_log`, `github_identities`,
+  `mcp_tokens`, `organizations`, `organization_members`) la denegación era **permisiva**.
+- Las 15 tablas del board: ningún privilegio para PUBLIC/`anon`/`authenticated`, RLS activa y una
+  política `specbox_deny_anon_<tabla>` **RESTRICTIVE** `FOR ALL TO anon, authenticated USING (false)
+  WITH CHECK (false)` (el nombre que ya usa producción; se reemplaza la permisiva). Nada legítimo
+  lee el board con la clave pública: el engine es el dueño, la API cloud usa `service_role` y el
+  portal su puerta de lectura `SECURITY DEFINER`.
+- El resto de tablas de `public` (inventario y eventos del site): conservan SELECT (lo gobierna su
+  RLS) y pierden toda escritura; el site escribe por la RPC `ingest_site_event` (`SECURITY
+  DEFINER`) y el publicador con `service_role`. Secuencias de `public`: nada para los roles públicos.
+- Privilegios por defecto del rol que ejecuta las migraciones (`postgres` en Supabase): las tablas
+  nuevas nacen con solo SELECT para `anon`/`authenticated` y las secuencias sin nada.
+- Tests: `tests/test_db_surface_tables.py` (PG-gated): recrea los privilegios por defecto de
+  Supabase, reaplica las migraciones y comprueba que ningún rol público puede escribir en ninguna
+  tabla de `public`, que las del board no les conceden nada, que escribir como ellos es `42501`,
+  que una tabla nueva nace de solo lectura, que toda tabla del board tiene RLS y denegación
+  restrictiva, y que una política permisiva `USING (true)` más SELECT devuelto no abre ninguna
+  tabla sensible.
+- Efecto conocido en el panel: su suscripción Realtime a `mcp_tokens` (aviso de token revocado)
+  ya no recibía filas antes de este cambio, porque la denegación cubría también a `authenticated`.
+  Ese aviso necesita un canal broadcast (como el de proyecto), no `postgres_changes`.
+
 ## La historia sigue a sus UC (UC-4305)
 
 UC-4305 (US-02 del board del orquestador, satélite engine) hace que el board diga en todo momento

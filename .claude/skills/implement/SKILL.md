@@ -1986,8 +1986,9 @@ git pull origin main
 > **IMPORTANTE**: El agente NUNCA mueve a Done. Solo a Review.
 > El humano revisa la PR, ejecuta flujos manuales, verifica E2E,
 > y SOLO ENTONCES mueve a Done (manualmente o via complete_uc).
-> Si todos los UCs de la US estan en Review/Done, la US se queda
-> en su estado actual — el humano decide cuando mover la US a Done.
+> La US sigue sola a sus UCs (UC-4305): pasa a Review cuando todos sus
+> UCs estan en Review/Done y a Done cuando se completa el ultimo. No hace
+> falta llamar a `move_us`; la decision humana sigue siendo completar cada UC.
 
 ### 8.5.5 Siguiente UC/card
 
@@ -1995,13 +1996,14 @@ git pull origin main
 ```
 → Llamar find_next_uc(board_id) para obtener siguiente UC en Backlog
 → Si hay UC disponible:
-  → start_uc(board_id, uc_id) — mueve a In Progress
+  → start_uc(board_id, uc_id) — mueve el UC (y su US, si hace falta) a In Progress
   → Volver a Paso 0.1a con el nuevo UC
   → El nuevo feature branch parte del main actualizado (post-merge)
   → CERO conflictos garantizados
 → Si no hay mas UCs en Backlog:
   → Verificar si todos los UCs de la US estan en Review o Done
-  → NO mover US a Done — el humano decide tras revisar todas las PRs
+  → La US ya esta en Review sola (UC-4305); pasara a Done cuando el humano
+    complete el ultimo UC — no llamar a move_us
   → Finalizar pipeline con resumen global
 ```
 
@@ -2211,9 +2213,9 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 | `list_uc(board_id, us_id)` | Paso 0: listar UCs hijos |
 | `get_uc(board_id, uc_id)` | Paso 0: detalle completo del UC (ACs, pantallas) |
 | `find_next_uc(board_id)` | Paso 0/8.5: determinar siguiente UC a implementar |
-| `start_uc(board_id, uc_id)` | Paso 0: mover UC a In Progress + timestamp |
-| `complete_uc(board_id, uc_id, evidence)` | Paso 8.5: mover UC a Done + actualizar US checklist |
-| `move_us(board_id, us_id, target)` | Paso 8.5: mover US cuando todos UCs Done |
+| `start_uc(board_id, uc_id)` | Paso 0: mover UC (y su US) a In Progress + timestamp |
+| `complete_uc(board_id, uc_id, evidence)` | Paso 8.5: mover UC a Done + actualizar US (a Done si era el ultimo UC) |
+| `move_us(board_id, us_id, target)` | Solo correcciones manuales: start_uc / move_uc / complete_uc ya mueven la US (UC-4305) |
 | `mark_ac_batch(board_id, uc_id, results)` | Paso 8.5: reportar resultados de ACs a Trello |
 | `attach_evidence(board_id, id, type, kind, md)` | Paso 8.5: adjuntar delivery report como PDF |
 | `get_evidence(board_id, id, type)` | Paso 0: buscar plan/PRD adjunto |

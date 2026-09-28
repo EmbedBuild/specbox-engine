@@ -1266,6 +1266,8 @@ async def move_uc(
     """Move a Use Case to a workflow state.
 
     When moving to 'done', automatically updates the parent US module/checklist.
+    The story always follows its UCs (UC-4305): In Progress while one is being
+    worked on, Review when all are in review or done, Done when all are done.
 
     Args:
         board_id: Board/project ID
@@ -1315,13 +1317,19 @@ async def move_uc(
         if target == "done" and item_us_id:
             us_checklist_updated, us_all_done = await _handle_uc_completion(backend, board_id, items, item_us_id, uc_id)
 
-        return {
+        # UC-4305: the story follows its UCs (in progress / review / done).
+        us_state_change = await _sync_parent_us_state(backend, board_id, uc_item, target, items)
+
+        result = {
             "uc_id": uc_id,
             "new_status": target,
             "us_checklist_updated": us_checklist_updated,
             "us_all_done": us_all_done,
             "summary": f"{uc_id} movido de {original_state} a {target}",
         }
+        if us_state_change:
+            result["us_state_change"] = us_state_change
+        return result
     finally:
         await backend.close()
 
@@ -1331,8 +1339,9 @@ async def start_uc(
 ) -> dict[str, Any]:
     """Start working on a Use Case.
 
-    Shortcut that moves the UC to In Progress, adds a timestamp comment,
-    and returns the full UC detail for the LLM to work with.
+    Shortcut that moves the UC to In Progress, moves its story to In Progress
+    when it was not there yet (UC-4305), adds a timestamp comment, and returns
+    the full UC detail for the LLM to work with.
 
     Args:
         board_id: Board/project ID
@@ -1343,7 +1352,8 @@ async def start_uc(
 
     Returns:
         Full UC detail (same as get_uc) for immediate use, plus `items_content`
-        (mutated items.json string) when `items_content` was provided.
+        (mutated items.json string) when `items_content` was provided, and
+        `us_state_change` when the story moved.
     """
     # Native sessions go through the reservation-aware path: reserve + in_progress
     # in one transaction (no orphan reservation) [AC-18], conflict carries owner /
@@ -1353,8 +1363,20 @@ async def start_uc(
         reservation_result = await _start_uc_native(native_session, board_id, uc_id, ctx)
         if reservation_result.get("error"):
             return reservation_result
+        # UC-4305: the story follows its UCs.
+        backend = await get_session_backend(ctx)
+        try:
+            uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
+            us_state_change = (
+                await _sync_parent_us_state(backend, board_id, uc_item, "in_progress") if uc_item else None
+            )
+        finally:
+            await backend.close()
         # Fall through to return the full UC detail.
-        return await get_uc(board_id, uc_id, ctx)
+        detail = await get_uc(board_id, uc_id, ctx)
+        if us_state_change and "error" not in detail:
+            detail["us_state_change"] = us_state_change
+        return detail
 
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
@@ -1364,6 +1386,9 @@ async def start_uc(
 
         # Move to in_progress
         await backend.update_item(board_id, uc_item.id, state="in_progress")
+
+        # UC-4305: the story follows its UCs.
+        us_state_change = await _sync_parent_us_state(backend, board_id, uc_item, "in_progress")
 
         # Add timestamp comment
         now = datetime.now(timezone.utc).isoformat()
@@ -1388,10 +1413,15 @@ async def start_uc(
         detail = await get_uc(board_id, uc_id, ctx, items_content=mutated)
         if "error" not in detail:
             detail["items_content"] = mutated
+            if us_state_change:
+                detail["us_state_change"] = us_state_change
         return detail
 
     # Disk mode: return full UC detail (creates a new backend session)
-    return await get_uc(board_id, uc_id, ctx)
+    detail = await get_uc(board_id, uc_id, ctx)
+    if us_state_change and "error" not in detail:
+        detail["us_state_change"] = us_state_change
+    return detail
 
 
 async def _get_native_session_config(ctx: Context) -> dict[str, str] | None:
@@ -1637,7 +1667,8 @@ async def complete_uc(
 ) -> dict[str, Any]:
     """Mark a Use Case as complete.
 
-    Moves to Done, updates the parent US module/checklist,
+    Moves to Done, updates the parent US module/checklist, moves the story to
+    the state its UCs imply — Done when this was its last pending UC (UC-4305) —
     and optionally adds evidence as a comment.
 
     Args:
@@ -1689,6 +1720,9 @@ async def complete_uc(
         if item_us_id:
             us_checklist_updated, us_all_done = await _handle_uc_completion(backend, board_id, items, item_us_id, uc_id)
 
+        # UC-4305: the story follows its UCs (Done when this was the last one).
+        us_state_change = await _sync_parent_us_state(backend, board_id, uc_item, "done", items)
+
         # Clear active UC marker — next UC must call start_uc again.
         # In content-passing mode the marker is the client's responsibility.
         if items_content is None:
@@ -1702,6 +1736,8 @@ async def complete_uc(
             "us_all_done": us_all_done,
             "us_id": item_us_id,
         }
+        if us_state_change:
+            result["us_state_change"] = us_state_change
         if items_content is not None:
             result["items_content"] = backend.get_items_content()
         return result
@@ -2320,6 +2356,71 @@ async def find_next_uc(
 # ═══════════════════════════════════════════════════════════════════════
 
 
+def derive_us_state(uc_states: list[str]) -> str | None:
+    """Return the state a US should show given its UCs' states, or None.
+
+    UC-4305: the board says at every moment what is in progress, in review and
+    done without anyone moving the story by hand. Archived UCs (any state
+    outside the workflow) do not count. A story never goes back to the pending
+    columns on its own: while none of its UCs has started this returns None and
+    the story stays where it is.
+    """
+    states = [s for s in uc_states if s in WORKFLOW_LIST_NAMES]
+    if not states:
+        return None
+    if all(s == "done" for s in states):
+        return "done"
+    if "in_progress" in states:
+        return "in_progress"
+    if all(s in ("review", "done") for s in states):
+        return "review"
+    if any(s in ("review", "done") for s in states):
+        return "in_progress"
+    return None
+
+
+async def _sync_parent_us_state(
+    backend: SpecBackend,
+    board_id: str,
+    uc_item: ItemDTO,
+    new_state: str,
+    items: list[ItemDTO] | None = None,
+) -> dict[str, Any] | None:
+    """Move ``uc_item``'s story to the state its UCs imply after the UC moved.
+
+    ``items`` may predate the move: the moved UC counts with ``new_state``
+    either way. Only the story changes — sibling UCs keep their state, unlike
+    ``move_us``, which cascades. Best-effort: the UC has already moved when this
+    runs, so a failure is logged and reported, never raised.
+
+    Returns ``{"us_id", "from", "to"}`` when the story moved, ``{"us_id",
+    "error"}`` when moving it failed and ``None`` when nothing had to change.
+    """
+    us_id = ""
+    try:
+        if items is None:
+            items = await backend.list_items(board_id)
+        us_id = _extract_meta_str(uc_item, "us_id")
+        if not us_id and uc_item.parent_id:
+            parent = next((i for i in items if i.id == uc_item.parent_id), None)
+            if parent:
+                us_id = _get_us_id(parent)
+        us_item = _find_us_item(items, us_id) if us_id else None
+        if us_item is None:
+            return None
+        states = [
+            new_state if child.id == uc_item.id else (child.state or "") for child in _get_uc_children(items, us_id)
+        ]
+        target = derive_us_state(states)
+        if target is None or target == us_item.state:
+            return None
+        await backend.update_item(board_id, us_item.id, state=target)
+        return {"us_id": us_id, "from": us_item.state, "to": target}
+    except Exception as exc:  # noqa: BLE001 — the UC move already succeeded
+        logger.warning("parent_us_sync_failed", board_id=board_id, uc_id=_get_uc_id(uc_item), error=str(exc))
+        return {"us_id": us_id, "error": str(exc)}
+
+
 async def _handle_uc_completion(
     backend: SpecBackend,
     board_id: str,
@@ -2401,11 +2502,17 @@ def register_spec_driven_tools(mcp_instance) -> None:
     mcp_instance.tool(description="Get full UC detail optimized for LLM: acceptance criteria, context, screens.")(
         get_uc
     )
-    mcp_instance.tool(description="Move a UC to a workflow state. Auto-updates parent US module/checklist.")(move_uc)
-    mcp_instance.tool(description="Start working on a UC: moves to In Progress, adds timestamp, returns full detail.")(
-        start_uc
-    )
-    mcp_instance.tool(description="Complete a UC: moves to Done, updates parent US, adds evidence.")(complete_uc)
+    mcp_instance.tool(
+        description="Move a UC to a workflow state. Auto-updates parent US module/checklist; "
+        "the parent US follows its UCs (In Progress / Review / Done)."
+    )(move_uc)
+    mcp_instance.tool(
+        description="Start working on a UC: moves it and its parent US to In Progress, adds timestamp, "
+        "returns full detail."
+    )(start_uc)
+    mcp_instance.tool(
+        description="Complete a UC: moves to Done, updates parent US (Done when it was the last UC), adds evidence."
+    )(complete_uc)
 
     # Acceptance Criteria (3)
     mcp_instance.tool(description="Mark a single AC as passed/failed with optional evidence.")(mark_ac)

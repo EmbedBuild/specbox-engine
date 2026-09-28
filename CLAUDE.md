@@ -2098,6 +2098,26 @@ tenants por PostgREST.
   ya no recibía filas antes de este cambio, porque la denegación cubría también a `authenticated`.
   Ese aviso necesita un canal broadcast (como el de proyecto), no `postgres_changes`.
 
+### UC-4003 — la superficie expuesta de la base de datos se vigila en integración continua
+
+- `server/db/surface_check.py` (`python -m server.db.surface_check [--dsn] [--schemas] [--allowlist]`):
+  falla con `view_bypasses_rls`, `table_without_rls`, `function_executable_by_anon` (sin triggers
+  ni funciones de extensiones) o `table_writable_by_public_role` (solo en `public`) salvo que
+  `server/db/surface_allowlist.yaml` lo apruebe con un motivo; una entrada sin motivo hace fallar
+  la comprobación. Salida 0/1/2; el DSN nunca se imprime.
+- Lista aprobada (5): `public.ingest_site_event` y `public.site_funnel` (RPC del site), vistas
+  `public.site_activity` y `public.site_stats` (solo recuentos) y `business.project_specs`
+  (puerta de lectura del portal, filtra por `business.is_project_member`). Las entradas que no
+  encuentran nada se informan como `unused` sin fallar.
+- CI: `.github/workflows/db-surface-check.yml` monta Postgres 16 como Supabase (roles y
+  privilegios por defecto), aplica las migraciones y ejecuta la comprobación y
+  `tests/test_db_surface_*.py`. Con las migraciones hasta la 0022 falla con 36 hallazgos (las 6
+  vistas, 13 tablas sin RLS, 3 funciones, 14 tablas escribibles); con la 0023 y la 0024, limpia.
+- Producción se comprueba desde dentro del contenedor del MCP (el DSN no sale del servidor) con
+  `--schemas public,panel,business`. Runbook: [doc/runbooks/db-surface.md](doc/runbooks/db-surface.md).
+- Tests: `tests/test_db_surface_check.py` (lista, reparto hallazgo/aprobado/sin uso, CLI y los
+  cuatro tipos de hallazgo contra Postgres).
+
 ## La historia sigue a sus UC (UC-4305)
 
 UC-4305 (US-02 del board del orquestador, satélite engine) hace que el board diga en todo momento

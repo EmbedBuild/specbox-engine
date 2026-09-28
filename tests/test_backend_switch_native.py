@@ -204,7 +204,7 @@ async def test_preview_trello_uses_session_api(monkeypatch: pytest.MonkeyPatch) 
     ]
     stub = _StubSessionBackend(items)
 
-    async def _fake_session(_ctx):  # noqa: ANN001, ANN202
+    async def _fake_session(_ctx, items_content=None):  # noqa: ANN001, ANN202
         return stub
 
     monkeypatch.setattr(migration_mod, "get_session_backend", _fake_session)
@@ -502,7 +502,7 @@ async def test_native_source_read_via_session_backend(monkeypatch: pytest.Monkey
     ]
     stub = _StubSessionBackend(items)
 
-    async def _fake_session(_ctx):  # noqa: ANN001, ANN202
+    async def _fake_session(_ctx, items_content=None):  # noqa: ANN001, ANN202
         return stub
 
     monkeypatch.setattr(migration_mod, "get_session_backend", _fake_session)

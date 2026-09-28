@@ -76,6 +76,37 @@ if (effectiveBackend !== 'freeform') {
 const argName = ROOT_ARG_BY_TOOL[toolName];
 const rawRoot = (toolInput?.[argName] || '').toString().trim();
 
+// UC-3801: with a REMOTE MCP the server must never receive a directory at all
+// — it rejects any root_path (FREEFORM_REMOTE_DISK_MODE_REJECTED) because that
+// path lives on this machine, not on the server. The session is opened without
+// root_path (content-only) and the board travels as `items_content` in each
+// call. Only set_auth_token is affected: onboard_project keeps the absolute
+// path because it describes the CLIENT project.
+if (toolName === 'mcp__SpecBox-MCP__set_auth_token' && isRemoteMcp()) {
+  const { [argName]: droppedRoot, ...updatedInput } = toolInput;
+  try {
+    appendLine(LOG_PATH, JSON.stringify({
+      ts: now(),
+      tool: toolName,
+      arg: argName,
+      from: droppedRoot || DEFAULT_ROOT,
+      to: null,
+      is_remote_mcp: true,
+      reason: 'remote_content_only',
+    }));
+  } catch {
+    // Logging failures must never block the user.
+  }
+  process.stdout.write(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      permissionDecision: 'allow',
+      updatedInput,
+    },
+  }));
+  process.exit(0);
+}
+
 // If no value provided, fall back to the canonical default before resolving.
 // This covers set_auth_token() with no root_path: server default is the
 // relative string "doc/tracking", which would hit the same bug.

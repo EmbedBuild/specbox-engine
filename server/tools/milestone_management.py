@@ -17,6 +17,7 @@ import structlog
 from fastmcp import Context
 
 from ..auth_gateway import get_session_backend
+from ._content_passing import returns_items_content
 from ..spec_backend import ItemDTO, parse_item_id
 from . import _mutation_helpers as mh
 
@@ -95,11 +96,13 @@ def _read_multirepo_settings(path: str | Path | None) -> dict[str, Any]:
 # ── 2.1 set_uc_milestone ─────────────────────────────────────────────
 
 
+@returns_items_content
 async def set_uc_milestone(
     board_id: str,
     uc_id: str,
     milestone: str,
     ctx: Context,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Assign a milestone (H1|H2|H3|H4) to a UC and report new distribution.
 
@@ -110,7 +113,7 @@ async def set_uc_milestone(
     Returns:
         {uc_id, milestone, previous_milestone, distribution, total_acs}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         ok, err = mh.validate_milestone(milestone)
         if not ok:
@@ -149,10 +152,12 @@ async def set_uc_milestone(
 # ── 2.2 set_uc_milestone_batch ────────────────────────────────────────
 
 
+@returns_items_content
 async def set_uc_milestone_batch(
     board_id: str,
     assignments: list[dict[str, Any]],
     ctx: Context,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Assign milestones to many UCs in a single MCP call.
 
@@ -165,7 +170,7 @@ async def set_uc_milestone_batch(
     Returns:
         {total, succeeded:[{uc_id, milestone, previous}], failed:[...], final_distribution}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
         by_uc: dict[str, ItemDTO] = {}
@@ -223,11 +228,13 @@ async def set_uc_milestone_batch(
 # ── 2.3 set_uc_satellite ─────────────────────────────────────────────
 
 
+@returns_items_content
 async def set_uc_satellite(
     board_id: str,
     uc_id: str,
     satellite: str,
     ctx: Context,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Assign a UC to a satellite repo.
 
@@ -241,7 +248,7 @@ async def set_uc_satellite(
     Returns:
         {uc_id, satellite, previous_satellite, updated_at}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         ok, err = mh.validate_satellite(satellite, mh.settings_path_from_env())
         if not ok:
@@ -280,6 +287,7 @@ async def get_milestone_status(
     board_id: str,
     milestone: str,
     ctx: Context,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Sprint status filtered by milestone.
 
@@ -290,7 +298,7 @@ async def get_milestone_status(
         {milestone, total_ucs, done_ucs, in_progress_ucs, review_ucs,
          backlog_ucs, total_acs, passed_acs, ac_pass_rate, blocked}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         ok, err = mh.validate_milestone(milestone)
         if not ok:
@@ -314,7 +322,7 @@ async def get_milestone_status(
             else:
                 backlog += 1
 
-            if "Bloqueado" in uc.labels or "bloqueado" in [l.lower() for l in uc.labels]:
+            if "Bloqueado" in uc.labels or "bloqueado" in [label.lower() for label in uc.labels]:
                 blocked.append({"uc_id": _get_uc_id(uc), "reason": "Bloqueado label"})
 
             try:
@@ -345,12 +353,14 @@ async def get_milestone_status(
 # ── 2.5 rebalance_milestones ─────────────────────────────────────────
 
 
+@returns_items_content
 async def rebalance_milestones(
     board_id: str,
     ctx: Context,
     *,
     target_distribution: dict[str, float] | None = None,
     dry_run: bool = True,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Suggest UC moves to align real AC distribution with targets.
 
@@ -366,7 +376,7 @@ async def rebalance_milestones(
         {current_distribution, target_distribution, suggested_moves,
          projected_distribution, deviations_pct}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         targets = target_distribution or dict(mh.DEFAULT_MILESTONE_TARGETS)
 
@@ -465,6 +475,7 @@ async def get_satellite_queue(
     ctx: Context,
     *,
     milestone: str | None = None,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """List UCs assigned to a satellite, in Backlog, optionally filtered by milestone.
 
@@ -475,7 +486,7 @@ async def get_satellite_queue(
     Returns:
         {satellite, milestone, queue:[{uc_id, name, ac_count, hours, dependencies}]}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         if milestone is not None:
             ok, err = mh.validate_milestone(milestone)
@@ -522,9 +533,11 @@ async def get_satellite_queue(
 # ── 2.7 sync_multirepo_state ─────────────────────────────────────────
 
 
+@returns_items_content
 async def sync_multirepo_state(
     orchestrator_path: str,
     ctx: Context,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Propagate satellite labels from orchestrator settings to board cards.
 
@@ -538,7 +551,7 @@ async def sync_multirepo_state(
     Returns:
         {updated_ucs, skipped_ucs, board_id}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         mr_config = _read_multirepo_settings(orchestrator_path)
         satellites = mr_config.get("satellites", {})
@@ -616,6 +629,7 @@ _UC_REF_RE = re.compile(r"UC-\d{3}")
 async def get_cross_repo_dependencies(
     board_id: str,
     ctx: Context,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Detect UCs that reference UCs in a different satellite.
 
@@ -627,7 +641,7 @@ async def get_cross_repo_dependencies(
         {dependencies: [{uc_id, depends_on, satellite_from, satellite_to,
           dependency_type, blocks_milestone}]}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         ucs = await _all_ucs(backend, board_id)
         sat_map: dict[str, str] = {}

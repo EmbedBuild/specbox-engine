@@ -23,9 +23,12 @@ Service proxies:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import contextvars
+from typing import TYPE_CHECKING, Any
 
 from fastmcp import Context
+
+from .transport import is_remote_transport
 
 if TYPE_CHECKING:
     from .spec_backend import SpecBackend
@@ -37,6 +40,39 @@ AUTH_STATE_KEY = "trello_credentials"
 BACKEND_STATE_KEY = "spec_backend_config"
 # Stitch credentials keyed per project: stitch_config_{project}
 STITCH_STATE_PREFIX = "stitch_config_"
+
+# UC-3801 — a FreeForm session on a remote server never has a directory: it
+# only exists in content-passing mode. The error code is stable so clients and
+# skills can branch on it.
+FREEFORM_CONTENT_REQUIRED_CODE = "FREEFORM_CONTENT_REQUIRED"
+FREEFORM_CONTENT_REQUIRED_MESSAGE = (
+    f"{FREEFORM_CONTENT_REQUIRED_CODE}: this MCP server is remote, so the FreeForm "
+    "backend cannot read or write a directory on the server. Pass the contents of "
+    "your local doc/tracking/items.json in the `items_content` argument of every "
+    "tool call and write back the `items_content` the tool returns. Export "
+    "SPECBOX_ENGINE_MCP_URL on the client so SpecBox hooks and skills do this for "
+    "you automatically."
+)
+
+# The memory-mode FreeForm backend built for the *current* tool call. Scoped to
+# the running task (ContextVar), so concurrent sessions never see each other's
+# board. Read by `server.tools._content_passing.returns_items_content` to add the
+# mutated board to the tool result.
+_MEMORY_BACKEND: contextvars.ContextVar[Any] = contextvars.ContextVar(
+    "specbox_freeform_memory_backend", default=None
+)
+
+
+def reset_memory_backend() -> None:
+    """Forget the memory-mode backend of the current task (call before a tool runs)."""
+    _MEMORY_BACKEND.set(None)
+
+
+def consume_memory_backend() -> Any:
+    """Return and forget the memory-mode backend built during the current tool call."""
+    backend = _MEMORY_BACKEND.get()
+    _MEMORY_BACKEND.set(None)
+    return backend
 
 
 async def get_session_backend(
@@ -78,6 +114,13 @@ async def get_session_backend(
                 # items.json string. No filesystem access — works with a remote
                 # MCP server where root_path would point at the wrong machine.
                 primary = FreeformBackend(items_content=items_content)
+                _MEMORY_BACKEND.set(primary)
+            elif config.get("content_only") or is_remote_transport():
+                # UC-3801 (AC-02/AC-03): on a remote server there is no disk
+                # mode at all. A session opened without content, or a legacy
+                # session that still carries a root_path, gets a clear error —
+                # never the server's own doc/tracking.
+                raise RuntimeError(FREEFORM_CONTENT_REQUIRED_MESSAGE)
             else:
                 primary = FreeformBackend(root=config["root_path"])
         elif backend_type == "native":
@@ -177,13 +220,24 @@ async def store_plane_credentials(ctx: Context, api_key: str, base_url: str, wor
     )
 
 
-async def store_freeform_credentials(ctx: Context, root_path: str) -> None:
-    """Store FreeForm credentials in the session state."""
+async def store_freeform_credentials(
+    ctx: Context, root_path: str | None, *, content_only: bool = False
+) -> None:
+    """Store FreeForm session config.
+
+    Disk mode (local server): ``root_path`` is the absolute tracking directory.
+    Content-only mode (remote server, UC-3801): ``root_path`` is ``None`` and
+    every tool call must carry ``items_content``; ``get_session_backend`` refuses
+    to touch the server's disk for such a session.
+    """
+    if not content_only and not root_path:
+        raise ValueError("root_path is required for a disk-mode FreeForm session")
     await ctx.set_state(
         BACKEND_STATE_KEY,
         {
             "backend_type": "freeform",
-            "root_path": root_path,
+            "root_path": None if content_only else root_path,
+            "content_only": content_only,
         },
     )
 

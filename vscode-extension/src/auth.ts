@@ -202,6 +202,10 @@ function configureFreeformBackend(): void {
 		const fragment = buildFreeformProjectSettings(root);
 		const specbox = (settings.specbox as Record<string, unknown>) ?? {};
 		settings.specbox = { ...specbox, ...fragment.specbox };
+		// UC-3801 AC-05: activate content-passing for the hosted MCP. Merged, so
+		// any other env var the user keeps in settings.local.json survives.
+		const env = (settings.env as Record<string, unknown>) ?? {};
+		settings.env = { ...env, ...fragment.env };
 		fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
 	} catch (err) {
 		console.warn('[specbox] failed to write freeform config:', err);

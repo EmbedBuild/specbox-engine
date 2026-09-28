@@ -115,7 +115,7 @@ def wired(monkeypatch: pytest.MonkeyPatch):
     _seed_source(source)
     target = _ConfiguredTargetBackend()
 
-    async def _fake_session_backend(ctx):  # noqa: ANN001
+    async def _fake_session_backend(ctx, items_content=None):  # noqa: ANN001
         return source
 
     monkeypatch.setattr(migration_mod, "get_session_backend", _fake_session_backend)

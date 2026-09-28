@@ -43,10 +43,18 @@ export interface EngramInstallPlan {
 /** Default relative location of the FreeForm tracking dir, mirrored from the engine. */
 export const FREEFORM_ROOT_RELATIVE = 'doc/tracking';
 
+// UC-3801 AC-05: the client-side signal that the MCP server is remote. SpecBox
+// hooks (freeform-path-guard) and skills read it to pass the local items.json
+// as `items_content` instead of naming a directory the server cannot reach.
+export const REMOTE_MCP_URL_ENV = 'SPECBOX_ENGINE_MCP_URL';
+
 export interface FreeformProjectSettings {
 	specbox: {
 		backend_type: 'freeform';
 		freeform_root_absolute: string;
+	};
+	env: {
+		[REMOTE_MCP_URL_ENV]: string;
 	};
 }
 
@@ -55,6 +63,11 @@ export interface FreeformProjectSettings {
  * FreeForm. `freeform_root_absolute` MUST be absolute (the v5.29 BLOCKER: a
  * relative path would resolve against the remote server CWD). The caller passes
  * the workspace root; we join the canonical doc/tracking under it.
+ *
+ * The `env` block activates content-passing (UC-3801 AC-05): with the hosted
+ * MCP the server never touches a directory, so the tracking file stays on this
+ * machine and travels inside each tool call. Claude Code applies `env` from
+ * settings.local.json to the session, so hooks and skills see the variable.
  *
  * Deliberately contains NO python/uv/local-mode keys — AC-06 asserts the output
  * is clean of any runtime reference.
@@ -69,6 +82,9 @@ export function buildFreeformProjectSettings(workspaceRootAbsolute: string): Fre
 		specbox: {
 			backend_type: 'freeform',
 			freeform_root_absolute: path.join(workspaceRootAbsolute, FREEFORM_ROOT_RELATIVE),
+		},
+		env: {
+			[REMOTE_MCP_URL_ENV]: REMOTE_MCP_URL,
 		},
 	};
 }

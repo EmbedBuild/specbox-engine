@@ -15,6 +15,7 @@ import structlog
 from fastmcp import Context
 
 from ..auth_gateway import get_session_backend
+from ._content_passing import returns_items_content
 from ..spec_backend import ItemDTO, parse_item_id
 from . import _mutation_helpers as mh
 
@@ -39,6 +40,7 @@ async def validate_ac_quality(
     ctx: Context,
     *,
     uc_id: str | None = None,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Validate AC quality against the Definition Quality Gate rules.
 
@@ -64,7 +66,7 @@ async def validate_ac_quality(
         {total_acs, passed, failed:[{uc_id, ac_id, text, issues}],
          warnings:[{uc_id, ac_id, text, warnings}], exposure_warnings, pass_rate}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
         ucs = [i for i in items if "UC" in i.labels]
@@ -129,6 +131,7 @@ async def validate_ac_quality(
 # ── 3.2 set_ac_metadata ──────────────────────────────────────────────
 
 
+@returns_items_content
 async def set_ac_metadata(
     board_id: str,
     uc_id: str,
@@ -138,6 +141,7 @@ async def set_ac_metadata(
     evidence_url: str | None = None,
     screenshot: str | None = None,
     verdict: str | None = None,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Attach structured evidence metadata to a single AC.
 
@@ -151,7 +155,7 @@ async def set_ac_metadata(
     Returns:
         {uc_id, ac_id, metadata, updated_at}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         if verdict is not None and verdict not in mh.VERDICT_TYPES:
             return _mk_error(
@@ -221,12 +225,14 @@ async def set_ac_metadata(
 # ── 3.3 link_uc_parent ───────────────────────────────────────────────
 
 
+@returns_items_content
 async def link_uc_parent(
     board_id: str,
     uc_id: str,
     parent_uc_id: str,
     link_type: str,
     ctx: Context,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Formalize a relationship between two UCs.
 
@@ -237,7 +243,7 @@ async def link_uc_parent(
     Returns:
         {uc_id, parent_uc_id, link_type, created_at}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         ok, err = mh.validate_link_type(link_type)
         if not ok:
@@ -260,7 +266,7 @@ async def link_uc_parent(
 
         # Idempotency: don't duplicate
         existing = next(
-            (l for l in links if l.get("target_uc_id") == parent_uc_id and l.get("type") == link_type),
+            (lnk for lnk in links if lnk.get("target_uc_id") == parent_uc_id and lnk.get("type") == link_type),
             None,
         )
         if existing:
@@ -302,6 +308,7 @@ async def link_uc_parent(
 # ── 3.4 delete_uc ────────────────────────────────────────────────────
 
 
+@returns_items_content
 async def delete_uc(
     board_id: str,
     uc_id: str,
@@ -309,6 +316,7 @@ async def delete_uc(
     ctx: Context,
     *,
     absorbed_by: str | None = None,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Archive a UC (does NOT physically delete — moves to archive location).
 
@@ -321,7 +329,7 @@ async def delete_uc(
     Returns:
         {uc_id, deleted_at, reason, absorbed_by, archive_location}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await mh.find_uc(backend, board_id, uc_id)
         if not uc_item:
@@ -481,12 +489,14 @@ async def get_board_diff(
 # ── 3.6 set_ac_internal ──────────────────────────────────────────────
 
 
+@returns_items_content
 async def set_ac_internal(
     board_id: str,
     uc_id: str,
     ac_id: str,
     internal: bool,
     ctx: Context,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Mark or unmark an acceptance criterion as **internal** (US-33/UC-3301).
 
@@ -509,7 +519,7 @@ async def set_ac_internal(
     Returns:
         {uc_id, ac_id, internal, text, updated_at}
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await mh.find_uc(backend, board_id, uc_id)
         if not uc_item:

@@ -30,6 +30,7 @@ from ..auth_gateway import (
     store_plane_credentials,
     store_session_credentials,
 )
+from ._content_passing import returns_items_content
 from ..models import (
     ImportSpec,
     WORKFLOW_LIST_NAMES,
@@ -309,36 +310,69 @@ async def set_auth_token(
 
     if backend_type == "freeform":
         # FreeForm authentication (local filesystem, no API)
-        import os
-        from pathlib import Path
-
         from ..backends.freeform_backend import FreeformBackend, FreeformPathError
+        from ..transport import is_remote_transport
 
-        raw_root = root_path.strip() if root_path else "doc/tracking"
-        is_remote_mcp = bool(os.environ.get("SPECBOX_ENGINE_MCP_URL", "").strip())
+        raw_root = root_path.strip() if root_path else ""
 
-        # Resolve relative paths against the MCP process CWD ONLY when running
-        # locally. With a remote MCP, the server CWD ≠ client CWD, so a
-        # relative path silently writes to the wrong filesystem (the BLOCKER
-        # we're fixing in v5.29.0).
-        if not Path(raw_root).is_absolute():
-            if is_remote_mcp:
+        if is_remote_transport():
+            # UC-3801 (AC-01/AC-04): the decision keys off the SERVER transport
+            # (MCP_TRANSPORT, the same variable that started this process), never
+            # off a client-side env var. A remote server has no disk mode: the
+            # only FreeForm it can serve is content-passing.
+            if raw_root:
                 return {
                     "error": (
-                        "FreeForm backend requires an absolute root_path when "
-                        "the MCP server is remote (SPECBOX_ENGINE_MCP_URL is set). "
-                        "Relative paths are resolved against the server CWD, not "
-                        "your repo, so data would be written on the VPS. "
-                        f"Got: {raw_root!r}. "
-                        "Pass an absolute path (e.g. /Users/me/myproject/doc/tracking) "
-                        "or use the /app-init skill which auto-detects it."
+                        "FREEFORM_REMOTE_DISK_MODE_REJECTED: this MCP server is remote, "
+                        f"so it cannot use a directory ({raw_root!r}) as the FreeForm "
+                        "board — that path lives on your machine, not on the server. "
+                        "Open the session WITHOUT root_path and pass the contents of "
+                        "your local doc/tracking/items.json as `items_content` in each "
+                        "tool call; every tool returns the updated `items_content` for "
+                        "you to write back. With SPECBOX_ENGINE_MCP_URL exported on the "
+                        "client, SpecBox hooks and skills do this automatically."
                     ),
-                    "code": "FREEFORM_PATH_MUST_BE_ABSOLUTE",
+                    "code": "FREEFORM_REMOTE_DISK_MODE_REJECTED",
+                    "how_to": {
+                        "session": (
+                            "set_auth_token(api_key='freeform', token='', "
+                            "backend_type='freeform')  # no root_path"
+                        ),
+                        "calls": (
+                            "pass items_content=<contents of doc/tracking/items.json> "
+                            "and persist the items_content each tool returns"
+                        ),
+                        "client": "export SPECBOX_ENGINE_MCP_URL=<this server's URL>",
+                    },
                 }
-            # Local MCP: resolve relative against the server CWD (== client CWD).
-            root = str(Path(raw_root).resolve())
-        else:
-            root = raw_root
+
+            user = await FreeformBackend(items_content="[]").validate_auth()
+            await store_freeform_credentials(ctx, None, content_only=True)
+            logger.info("auth_token_set", backend="freeform", mode="content_only", remote=True)
+            return {
+                "success": True,
+                "backend": "freeform",
+                "mode": "content_only",
+                "message": (
+                    "FreeForm backend initialized in content-passing mode: the server "
+                    "keeps no files. Pass `items_content` in every tool call and write "
+                    "back the `items_content` each tool returns."
+                ),
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "fullName": user.display_name,
+                },
+                "summary": (
+                    "Backend FreeForm en modo contenido: el servidor remoto no guarda "
+                    "archivos; el board viaja en cada llamada como items_content."
+                ),
+            }
+
+        # Local server (stdio): disk mode. Relative paths resolve against the
+        # process CWD, which IS the client repo when the server runs locally.
+        raw_root = raw_root or "doc/tracking"
+        root = raw_root if Path(raw_root).is_absolute() else str(Path(raw_root).resolve())
 
         try:
             backend = FreeformBackend(root=root)
@@ -352,11 +386,12 @@ async def set_auth_token(
             return {"error": f"FreeForm init failed: {str(e)}", "code": "FREEFORM_ERROR"}
 
         await store_freeform_credentials(ctx, root)
-        logger.info("auth_token_set", backend="freeform", root=root, is_remote_mcp=is_remote_mcp)
+        logger.info("auth_token_set", backend="freeform", root=root, remote=False)
 
         return {
             "success": True,
             "backend": "freeform",
+            "mode": "disk",
             "message": f"FreeForm backend initialized at {root}/",
             "user": {
                 "id": user.id,
@@ -442,7 +477,12 @@ async def set_auth_token(
 # ═══════════════════════════════════════════════════════════════════════
 
 
-async def setup_board(board_name: str, ctx: Context) -> dict[str, Any]:
+@returns_items_content
+async def setup_board(
+    board_name: str,
+    ctx: Context,
+    items_content: str | None = None,
+) -> dict[str, Any]:
     """Create a new board/project with the SpecBox Engine structure.
 
     Creates the board with 5 workflow states (User Stories, Backlog,
@@ -455,7 +495,7 @@ async def setup_board(board_name: str, ctx: Context) -> dict[str, Any]:
     Returns:
         Board configuration with IDs for states, custom fields, and labels.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         config = await backend.setup_board(board_name)
         return {
@@ -469,7 +509,11 @@ async def setup_board(board_name: str, ctx: Context) -> dict[str, Any]:
         await backend.close()
 
 
-async def get_board_status(board_id: str, ctx: Context) -> dict[str, Any]:
+async def get_board_status(
+    board_id: str,
+    ctx: Context,
+    items_content: str | None = None,
+) -> dict[str, Any]:
     """Get comprehensive status of a SpecBox Engine board/project.
 
     Reads all items, counts US vs UC per state, and calculates
@@ -481,7 +525,7 @@ async def get_board_status(board_id: str, ctx: Context) -> dict[str, Any]:
     Returns:
         Board status with state counts, progress percentages, and US summary.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
 
@@ -767,7 +811,12 @@ async def import_spec(
 # ═══════════════════════════════════════════════════════════════════════
 
 
-async def list_us(board_id: str, ctx: Context, status: str | None = None) -> list[dict[str, Any]]:
+async def list_us(
+    board_id: str,
+    ctx: Context,
+    status: str | None = None,
+    items_content: str | None = None,
+) -> list[dict[str, Any]]:
     """List all User Stories on the board/project.
 
     Filters items with label US. Optionally filter by workflow
@@ -780,7 +829,7 @@ async def list_us(board_id: str, ctx: Context, status: str | None = None) -> lis
     Returns:
         List of US summaries with progress metrics.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
 
@@ -825,7 +874,12 @@ async def list_us(board_id: str, ctx: Context, status: str | None = None) -> lis
         await backend.close()
 
 
-async def get_us(board_id: str, us_id: str, ctx: Context) -> dict[str, Any]:
+async def get_us(
+    board_id: str,
+    us_id: str,
+    ctx: Context,
+    items_content: str | None = None,
+) -> dict[str, Any]:
     """Get detailed information about a User Story and its Use Cases.
 
     Reads the US item and all child UC items.
@@ -837,7 +891,7 @@ async def get_us(board_id: str, us_id: str, ctx: Context) -> dict[str, Any]:
     Returns:
         Full US detail with child UCs, attachments, and progress.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
 
@@ -885,7 +939,14 @@ async def get_us(board_id: str, us_id: str, ctx: Context) -> dict[str, Any]:
         await backend.close()
 
 
-async def move_us(board_id: str, us_id: str, target: str, ctx: Context) -> dict[str, Any]:
+@returns_items_content
+async def move_us(
+    board_id: str,
+    us_id: str,
+    target: str,
+    ctx: Context,
+    items_content: str | None = None,
+) -> dict[str, Any]:
     """Move a User Story and its Use Cases through the workflow.
 
     Movement rules:
@@ -909,7 +970,7 @@ async def move_us(board_id: str, us_id: str, target: str, ctx: Context) -> dict[
             "code": "INVALID_TARGET",
         }
 
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
 
@@ -972,7 +1033,12 @@ async def move_us(board_id: str, us_id: str, target: str, ctx: Context) -> dict[
         await backend.close()
 
 
-async def get_us_progress(board_id: str, us_id: str, ctx: Context) -> dict[str, Any]:
+async def get_us_progress(
+    board_id: str,
+    us_id: str,
+    ctx: Context,
+    items_content: str | None = None,
+) -> dict[str, Any]:
     """Get detailed progress for a User Story.
 
     Reads all child UCs and their acceptance criteria to calculate
@@ -985,7 +1051,7 @@ async def get_us_progress(board_id: str, us_id: str, ctx: Context) -> dict[str, 
     Returns:
         Progress detail with UC-level and AC-level completion stats.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
 
@@ -1051,6 +1117,7 @@ async def list_uc(
     ctx: Context,
     us_id: str | None = None,
     status: str | None = None,
+    items_content: str | None = None,
 ) -> list[dict[str, Any]]:
     """List Use Cases on the board/project, optionally filtered by parent US or status.
 
@@ -1062,7 +1129,7 @@ async def list_uc(
     Returns:
         List of UC summaries with AC progress.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
 
@@ -1188,7 +1255,14 @@ async def get_uc(
         await backend.close()
 
 
-async def move_uc(board_id: str, uc_id: str, target: str, ctx: Context) -> dict[str, Any]:
+@returns_items_content
+async def move_uc(
+    board_id: str,
+    uc_id: str,
+    target: str,
+    ctx: Context,
+    items_content: str | None = None,
+) -> dict[str, Any]:
     """Move a Use Case to a workflow state.
 
     When moving to 'done', automatically updates the parent US module/checklist.
@@ -1204,7 +1278,7 @@ async def move_uc(board_id: str, uc_id: str, target: str, ctx: Context) -> dict[
     if target not in WORKFLOW_LIST_NAMES:
         return {"error": f"Invalid target: {target}", "code": "INVALID_TARGET"}
 
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_items(board_id)
 
@@ -1710,7 +1784,14 @@ async def mark_ac(
         await backend.close()
 
 
-async def mark_ac_batch(board_id: str, uc_id: str, results: list[dict], ctx: Context) -> dict[str, Any]:
+@returns_items_content
+async def mark_ac_batch(
+    board_id: str,
+    uc_id: str,
+    results: list[dict],
+    ctx: Context,
+    items_content: str | None = None,
+) -> dict[str, Any]:
     """Mark multiple Acceptance Criteria at once.
 
     Processes all AC results in a single operation and adds a consolidated comment.
@@ -1723,7 +1804,7 @@ async def mark_ac_batch(board_id: str, uc_id: str, results: list[dict], ctx: Con
     Returns:
         Batch result with total/passed/failed counts.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
         if not uc_item:
@@ -1776,7 +1857,12 @@ async def mark_ac_batch(board_id: str, uc_id: str, results: list[dict], ctx: Con
         await backend.close()
 
 
-async def get_ac_status(board_id: str, uc_id: str, ctx: Context) -> dict[str, Any]:
+async def get_ac_status(
+    board_id: str,
+    uc_id: str,
+    ctx: Context,
+    items_content: str | None = None,
+) -> dict[str, Any]:
     """Get the status of all Acceptance Criteria for a Use Case.
 
     Args:
@@ -1786,7 +1872,7 @@ async def get_ac_status(board_id: str, uc_id: str, ctx: Context) -> dict[str, An
     Returns:
         AC status with total, done, pending counts and individual criteria.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
         if not uc_item:
@@ -1811,6 +1897,7 @@ async def get_ac_status(board_id: str, uc_id: str, ctx: Context) -> dict[str, An
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@returns_items_content
 async def attach_evidence(
     board_id: str,
     target_id: str,
@@ -1819,6 +1906,7 @@ async def attach_evidence(
     markdown_content: str,
     ctx: Context,
     summary: str | None = None,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Convert markdown to PDF and attach it to a US or UC item.
 
@@ -1844,7 +1932,7 @@ async def attach_evidence(
     if evidence_type not in ("prd", "plan", "ag09", "delivery", "feedback"):
         return {"error": "Invalid evidence_type", "code": "INVALID_EVIDENCE_TYPE"}
 
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         field_name = "us_id" if target_type == "us" else "uc_id"
         item = await backend.find_item_by_field(board_id, field_name, target_id)
@@ -1886,6 +1974,7 @@ async def get_evidence(
     target_type: str,
     ctx: Context,
     evidence_type: str | None = None,
+    items_content: str | None = None,
 ) -> dict[str, Any]:
     """Get evidence attachments and activity for a US or UC item.
 
@@ -1904,7 +1993,7 @@ async def get_evidence(
             "code": "INVALID_TARGET_TYPE",
         }
 
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         field_name = "us_id" if target_type == "us" else "uc_id"
         item = await backend.find_item_by_field(board_id, field_name, target_id)
@@ -1947,7 +2036,11 @@ async def get_evidence(
 # ═══════════════════════════════════════════════════════════════════════
 
 
-async def get_sprint_status(board_id: str, ctx: Context) -> dict[str, Any]:
+async def get_sprint_status(
+    board_id: str,
+    ctx: Context,
+    items_content: str | None = None,
+) -> dict[str, Any]:
     """Get executive summary of the entire board/project.
 
     Provides counts by status, hours progress, AC pass rates, and blocked items.
@@ -1958,7 +2051,7 @@ async def get_sprint_status(board_id: str, ctx: Context) -> dict[str, Any]:
     Returns:
         Sprint status dashboard with comprehensive metrics.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         board_name = await backend.get_board_name(board_id)
         items = await backend.list_items(board_id)
@@ -2051,7 +2144,11 @@ async def get_sprint_status(board_id: str, ctx: Context) -> dict[str, Any]:
         await backend.close()
 
 
-async def get_delivery_report(board_id: str, ctx: Context) -> dict[str, Any]:
+async def get_delivery_report(
+    board_id: str,
+    ctx: Context,
+    items_content: str | None = None,
+) -> dict[str, Any]:
     """Generate a client-oriented delivery report.
 
     Summarizes progress per User Story with completion percentages.
@@ -2062,7 +2159,7 @@ async def get_delivery_report(board_id: str, ctx: Context) -> dict[str, Any]:
     Returns:
         Delivery report with per-US progress and overall summary.
     """
-    backend = await get_session_backend(ctx)
+    backend = await get_session_backend(ctx, items_content=items_content)
     try:
         board_name = await backend.get_board_name(board_id)
         items = await backend.list_items(board_id)

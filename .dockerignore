@@ -21,6 +21,11 @@ dist/
 # Tests (not needed in production image)
 tests/
 
+# The engine's own backlog must never travel in the remote MCP image (UC-3801):
+# a remote FreeForm session has no disk mode, and nothing on the server may be
+# served as "a board" to a client.
+doc/tracking/
+
 # Research and internal prompts
 doc/research/
 doc/plans/

@@ -46,6 +46,11 @@ DEFAULT_MAX_BODY_BYTES = 2 * 1024 * 1024
 DEFAULT_RATE_PER_MINUTE = 60
 WINDOW_SECONDS = 60.0
 
+#: An oversized body is read and discarded up to this multiple of the limit
+#: before answering 413, so clients that only read the response once they have
+#: finished sending still get the explicit error (see :func:`_drain`).
+DRAIN_FACTOR = 4
+
 _MESSAGES: dict[str, dict[str, str]] = {
     "request_too_large": {
         "es": "La petición supera el máximo de {limit_mb} MB y no se ha procesado.",
@@ -156,8 +161,11 @@ class AbuseGuardMiddleware:
 
         locale = normalize_locale(_header(scope, "accept-language"))
         too_large = _message("request_too_large", locale, limit_mb=f"{self.max_body_bytes / (1024 * 1024):g}")
+        drain_limit = self.max_body_bytes * DRAIN_FACTOR
         declared = _header(scope, "content-length")
         if declared and declared.strip().isdigit() and int(declared) > self.max_body_bytes:
+            if int(declared) <= drain_limit:
+                await _drain(receive, drain_limit)
             await _reject(send, 413, "request_too_large", too_large)
             return
 
@@ -170,6 +178,8 @@ class AbuseGuardMiddleware:
             chunk = message.get("body", b"")
             size += len(chunk)
             if size > self.max_body_bytes:
+                if message.get("more_body", False):
+                    await _drain(receive, drain_limit - size)
                 await _reject(send, 413, "request_too_large", too_large)
                 return
             chunks.append(chunk)
@@ -203,6 +213,24 @@ class AbuseGuardMiddleware:
             return await receive()
 
         await self.app(scope, replay, send)
+
+
+async def _drain(receive: Any, limit: int) -> None:
+    """Read and discard the rest of an oversized body, up to ``limit`` bytes.
+
+    Answering before the client has finished sending makes many HTTP clients
+    (httpx, Node's undici) report a dropped connection instead of the 413; once
+    the body is consumed they read the explicit error. Nothing is kept in
+    memory, and past ``limit`` the guard stops reading and answers anyway.
+    """
+    consumed = 0
+    while consumed <= limit:
+        message = await receive()
+        if message["type"] != "http.request":
+            return
+        consumed += len(message.get("body", b""))
+        if not message.get("more_body", False):
+            return
 
 
 async def _reject(

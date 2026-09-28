@@ -130,6 +130,43 @@ async def test_a_body_under_the_limit_reaches_the_app_intact():
     assert resp.status_code == 200 and app.bodies == [body]
 
 
+async def _drive(chunks: list[bytes], declared: int | None = None) -> tuple[list[dict], list[int], list[dict]]:
+    """Run the guard directly: which body messages it consumed and what it sent."""
+    queue = [{"type": "http.request", "body": c, "more_body": i < len(chunks) - 1} for i, c in enumerate(chunks)]
+    consumed: list[int] = []
+    sent: list[dict] = []
+
+    async def receive():
+        if queue:
+            message = queue.pop(0)
+            consumed.append(len(message["body"]))
+            return message
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        sent.append(message)
+
+    headers = [(b"content-length", str(declared).encode())] if declared is not None else []
+    guard = ag.AbuseGuardMiddleware(Recorder(), max_body_bytes=TWO_MB, limiter=ag.RateLimiter(60))
+    await guard({"type": "http", "method": "POST", "path": "/mcp", "headers": headers}, receive, send)
+    return sent, consumed, queue
+
+
+async def test_an_oversized_body_is_read_to_the_end_before_the_413():
+    """Si se contesta a mitad de subida, muchos clientes ven un corte en vez del error explícito."""
+    chunk = b"x" * (1024 * 1024)
+    sent, consumed, left = await _drive([chunk] * 3, declared=3 * len(chunk))
+    assert sent[0]["status"] == 413 and left == [] and sum(consumed) == 3 * len(chunk)
+
+    sent, consumed, left = await _drive([chunk] * 3)  # sin Content-Length
+    assert sent[0]["status"] == 413 and left == []
+
+
+async def test_a_huge_body_is_not_read_at_all():
+    sent, consumed, left = await _drive([b"x" * 1024], declared=100 * 1024 * 1024)
+    assert sent[0]["status"] == 413 and consumed == [] and len(left) == 1
+
+
 # ── Tasa por identidad ────────────────────────────────────────────────
 
 

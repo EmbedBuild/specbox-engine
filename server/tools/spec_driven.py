@@ -53,6 +53,18 @@ logger = structlog.get_logger(__name__)
 ACTIVE_UC_FILENAME = ".quality/active_uc.json"
 
 
+def _marker_is_local() -> bool:
+    """The marker only means something when the server shares the client's disk.
+
+    The spec-guard hook reads it on the client's machine. A remote server
+    (http/sse) would write it next to its own code — invisible to the client —
+    and, since UC-3903, it runs unprivileged and may not write there at all.
+    """
+    from ..transport import is_remote_transport
+
+    return not is_remote_transport()
+
+
 def _write_active_uc_marker(
     uc_id: str,
     board_id: str,
@@ -72,8 +84,9 @@ def _write_active_uc_marker(
     and falls back to the legacy ``payload.claim`` key for cache files
     written by older versions; the fallback is removed in v5.37.0 (UC-612).
     """
+    if not _marker_is_local():
+        return
     marker_path = Path(ACTIVE_UC_FILENAME)
-    marker_path.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, Any] = {
         "uc_id": uc_id,
         "board_id": board_id,
@@ -95,16 +108,27 @@ def _write_active_uc_marker(
             "reserved_at": reserved_at,
             "backend": "native",
         }
-    marker_path.write_text(json.dumps(payload, indent=2) + "\n")
+    try:
+        marker_path.parent.mkdir(parents=True, exist_ok=True)
+        marker_path.write_text(json.dumps(payload, indent=2) + "\n")
+    except OSError as exc:
+        # A local convenience for the hook: never the reason a UC fails to start.
+        logger.warning("active_uc_marker_not_written", uc_id=uc_id, reason=type(exc).__name__)
+        return
     logger.info("active_uc_marker_written", uc_id=uc_id, path=str(marker_path))
 
 
 def _clear_active_uc_marker() -> None:
     """Remove the active UC marker after UC completion."""
+    if not _marker_is_local():
+        return
     marker_path = Path(ACTIVE_UC_FILENAME)
-    if marker_path.exists():
-        marker_path.unlink()
-        logger.info("active_uc_marker_cleared", path=str(marker_path))
+    try:
+        if marker_path.exists():
+            marker_path.unlink()
+            logger.info("active_uc_marker_cleared", path=str(marker_path))
+    except OSError as exc:
+        logger.warning("active_uc_marker_not_cleared", reason=type(exc).__name__)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────

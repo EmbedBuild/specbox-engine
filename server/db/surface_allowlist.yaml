@@ -1,0 +1,52 @@
+# Approved exceptions to the database surface check (UC-4003, US-40).
+#
+# server/db/surface_check.py fails on any view without security_invoker, table
+# without row-level security, function executable by anon, or table of public
+# writable by anon/authenticated that is NOT listed here. Every entry needs:
+#   kind:   view | table | function
+#   name:   schema.object — functions as schema.name(argument types), the form
+#           the check prints (blanks and case are ignored when matching)
+#   reason: why exposing it is intended and what keeps it safe. An entry
+#           without a reason fails the check on its own.
+#
+# Adding an entry is a security decision: review it like code, and write in the
+# reason what the object checks or returns. Entries that match nothing (the
+# site and portal objects do not exist in the engine's CI database) are
+# reported as unused and do not fail. Runbook: doc/runbooks/db-surface.md.
+
+exceptions:
+  - kind: function
+    name: public.ingest_site_event(text, text, text, text, text, jsonb)
+    reason: >-
+      Funnel ingestion for the public site and the VS Code extension's activation event
+      (US-24, US-26). SECURITY DEFINER with a pinned search_path; it rejects an empty
+      anon_id and any event type outside page_view, section_view, cta_click,
+      install_intent and activation, and only inserts into site_event. Size and rate
+      limits arrive with UC-4202.
+
+  - kind: function
+    name: public.site_funnel(timestamp with time zone, timestamp with time zone, text)
+    reason: >-
+      Funnel read for the cloud SuperAdmin panel (US-25). SECURITY DEFINER with a pinned
+      search_path; it raises "forbidden: superadmin only" unless panel.is_superadmin(),
+      so anon and ordinary users get an error and no data.
+
+  - kind: view
+    name: public.site_activity
+    reason: >-
+      Public activity figures for the site's /activity page (US-27). Owner's rights on
+      purpose: it returns only counts (projects, developers, stories, use cases, criteria,
+      organizations and use cases per state), never a row or an identifier.
+
+  - kind: view
+    name: public.site_stats
+    reason: >-
+      Public counters for the site (US-15). Owner's rights on purpose: it returns only
+      totals of projects, stories, use cases, criteria, organizations and developers.
+
+  - kind: view
+    name: business.project_specs
+    reason: >-
+      The portal's read gate onto the native board (US-32). Owner's rights on purpose,
+      because portal users hold no privilege on the board tables; every row is filtered
+      by business.is_project_member() for the portal project it belongs to.

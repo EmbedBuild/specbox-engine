@@ -196,34 +196,45 @@ async def test_ac02_calling_the_functions_with_a_public_role_is_a_permission_err
                 await _denied_as(conn, role, sql)
 
 
-async def test_ac02_lifecycle_triggers_still_fire_for_the_server_role(pool):
+async def test_ac02_lifecycle_triggers_fire_for_a_writer_without_execute(pool):
+    """Taking EXECUTE away does not stop the triggers: Postgres checks it only when
+    the trigger is created. The writer is a throwaway role with the table grants a
+    server role holds and no EXECUTE at all (on Supabase, service_role does get an
+    explicit EXECUTE from the default privileges, so it cannot prove this)."""
     project_id = f"uc4001/{uuid.uuid4().hex[:8]}"
+    writer = f"uc4001_writer_{uuid.uuid4().hex[:8]}"
     async with pool.acquire() as conn:
-        await conn.execute(
-            "INSERT INTO projects (project_id, name, backend_type, board_url, meta) "
-            "VALUES ($1, $1, 'native', '', '{}'::jsonb)",
-            project_id,
-        )
-        await conn.execute(
-            "INSERT INTO user_stories (id, project_id, name, state) VALUES ('US-01', $1, 'US', 'in_progress')",
-            project_id,
-        )
-        await conn.execute(
-            "INSERT INTO use_cases (id, project_id, us_id, name, state) VALUES ('UC-01', $1, 'US-01', 'UC', 'backlog')",
-            project_id,
-        )
-        await conn.execute("GRANT SELECT, UPDATE ON use_cases TO service_role")
-        await conn.execute("GRANT SELECT, INSERT ON uc_state_transitions TO service_role")
-        await conn.execute("GRANT USAGE ON SEQUENCE uc_state_transitions_id_seq TO service_role")
-        assert not await conn.fetchval(
-            "SELECT has_function_privilege('service_role', 'public.uc_record_transition()'::regprocedure, 'EXECUTE')"
-        )
+        tr = conn.transaction()
+        await tr.start()
         try:
-            async with conn.transaction():
-                await conn.execute("SET LOCAL ROLE service_role")
-                await conn.execute(
-                    "UPDATE use_cases SET state = 'in_progress' WHERE project_id = $1 AND id = 'UC-01'", project_id
-                )
+            await conn.execute(f"CREATE ROLE {writer} NOLOGIN BYPASSRLS")
+            await conn.execute(f"GRANT USAGE ON SCHEMA public TO {writer}")
+            await conn.execute(f"GRANT SELECT, UPDATE ON use_cases TO {writer}")
+            await conn.execute(f"GRANT SELECT, INSERT ON uc_state_transitions TO {writer}")
+            await conn.execute(f"GRANT USAGE ON SEQUENCE uc_state_transitions_id_seq TO {writer}")
+            for fn in TRIGGER_FUNCTIONS:
+                assert not await conn.fetchval(
+                    "SELECT has_function_privilege($1, $2::regprocedure, 'EXECUTE')", writer, f"public.{fn}"
+                ), fn
+            await conn.execute(
+                "INSERT INTO projects (project_id, name, backend_type, board_url, meta) "
+                "VALUES ($1, $1, 'native', '', '{}'::jsonb)",
+                project_id,
+            )
+            await conn.execute(
+                "INSERT INTO user_stories (id, project_id, name, state) VALUES ('US-01', $1, 'US', 'in_progress')",
+                project_id,
+            )
+            await conn.execute(
+                "INSERT INTO use_cases (id, project_id, us_id, name, state) "
+                "VALUES ('UC-01', $1, 'US-01', 'UC', 'backlog')",
+                project_id,
+            )
+            await conn.execute(f"SET LOCAL ROLE {writer}")
+            await conn.execute(
+                "UPDATE use_cases SET state = 'in_progress' WHERE project_id = $1 AND id = 'UC-01'", project_id
+            )
+            await conn.execute("RESET ROLE")
             moves = await conn.fetch(
                 "SELECT from_state, to_state FROM uc_state_transitions WHERE project_id = $1 AND uc_id = 'UC-01'",
                 project_id,
@@ -233,7 +244,4 @@ async def test_ac02_lifecycle_triggers_still_fire_for_the_server_role(pool):
                 "SELECT started_at IS NOT NULL FROM use_cases WHERE project_id = $1 AND id = 'UC-01'", project_id
             )
         finally:
-            await conn.execute("DELETE FROM uc_state_transitions WHERE project_id = $1", project_id)
-            await conn.execute("DELETE FROM use_cases WHERE project_id = $1", project_id)
-            await conn.execute("DELETE FROM user_stories WHERE project_id = $1", project_id)
-            await conn.execute("DELETE FROM projects WHERE project_id = $1", project_id)
+            await tr.rollback()

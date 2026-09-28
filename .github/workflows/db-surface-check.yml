@@ -1,0 +1,109 @@
+name: DB surface check
+
+# UC-4003 (US-40) — every change to the engine's schema runs the surface check
+# against a database set up the way Supabase ships it: the anon, authenticated
+# and service_role roles, and default privileges that hand them ALL on every new
+# table, sequence and function of public. The check fails on any view without
+# security_invoker, table without row-level security, function executable by
+# anon, or table of public writable by a public role that
+# server/db/surface_allowlist.yaml does not approve with a reason.
+#
+# Production (board + site + panel + portal) is checked from inside the MCP
+# container, where its DSN already lives — doc/runbooks/db-surface.md. No
+# production credential is stored in this public repository.
+
+on:
+  pull_request:
+    paths:
+      - "server/db/**"
+      - "supabase/migrations/**"
+      - "tests/test_db_surface_*.py"
+      - ".github/workflows/db-surface-check.yml"
+  push:
+    branches: [main]
+    paths:
+      - "server/db/**"
+      - "supabase/migrations/**"
+      - "tests/test_db_surface_*.py"
+      - ".github/workflows/db-surface-check.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-surface-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  surface:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: specbox_native
+          POSTGRES_USER: specbox
+          POSTGRES_PASSWORD: specbox_dev_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U specbox -d specbox_native"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      SPECBOX_NATIVE_DSN: postgresql://specbox:specbox_dev_only@localhost:5432/specbox_native
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade uv
+          uv sync --extra dev
+
+      - name: Database as Supabase ships it, then the engine migrations
+        run: |
+          uv run python - <<'EOF'
+          import asyncio
+          import os
+
+          import asyncpg
+
+          from server.db.migrate import apply_migrations
+
+          SUPABASE_DEFAULTS = """
+          DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN CREATE ROLE service_role NOLOGIN BYPASSRLS; END IF;
+          END $$;
+          GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+          ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role;
+          """
+
+
+          async def main() -> None:
+              conn = await asyncpg.connect(os.environ["SPECBOX_NATIVE_DSN"])
+              try:
+                  await conn.execute(SUPABASE_DEFAULTS)
+                  applied = await apply_migrations(conn)
+                  print(f"{len(applied)} migrations applied, last {applied[-1]}")
+              finally:
+                  await conn.close()
+
+
+          asyncio.run(main())
+          EOF
+
+      - name: Surface check
+        run: uv run python -m server.db.surface_check --schemas public
+
+      - name: Surface tests
+        run: uv run pytest -q tests/test_db_surface_views.py tests/test_db_surface_tables.py tests/test_db_surface_check.py

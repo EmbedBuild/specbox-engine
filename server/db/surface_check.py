@@ -219,7 +219,9 @@ def render_report(
 async def run_check(dsn: str, schemas: list[str], allowlist: list[AllowedException]) -> tuple[int, str]:
     from .pool import _resolve_ssl
 
-    conn = await asyncpg.connect(dsn, ssl=_resolve_ssl(dsn))
+    # Same as the engine pool: the Supabase pooler (transaction mode) rejects
+    # asyncpg's named prepared statements with DuplicatePreparedStatementError.
+    conn = await asyncpg.connect(dsn, ssl=_resolve_ssl(dsn), statement_cache_size=0)
     try:
         findings = await collect_findings(conn, schemas)
     finally:

@@ -113,6 +113,31 @@ def test_cli_needs_a_dsn(monkeypatch, capsys):
     assert sc.main(["--dsn", ""]) == 2
 
 
+def test_the_check_connects_without_a_statement_cache(monkeypatch):
+    """Production goes through the Supabase pooler in transaction mode, which rejects
+    asyncpg's named prepared statements (DuplicatePreparedStatementError on the first
+    run of 2026-09-28): the check connects like the engine pool, with no cache."""
+    seen: dict = {}
+
+    class _Conn:
+        async def close(self) -> None:
+            seen["closed"] = True
+
+    async def fake_connect(dsn, **kwargs):
+        seen.update(kwargs)
+        return _Conn()
+
+    async def no_findings(conn, schemas):
+        return []
+
+    monkeypatch.delenv("SPECBOX_NATIVE_SSL", raising=False)
+    monkeypatch.setattr(sc.asyncpg, "connect", fake_connect)
+    monkeypatch.setattr(sc, "collect_findings", no_findings)
+    code, report = asyncio.run(sc.run_check("postgresql://u@db.example.supabase.co:6543/postgres", ["public"], []))
+    assert code == 0 and "result: clean" in report
+    assert seen["statement_cache_size"] == 0 and seen["ssl"] == "require" and seen["closed"]
+
+
 # ── Against Postgres (AC-01) ─────────────────────────────────────────
 
 _PG_OK, _PG_SKIP_REASON = reachable()

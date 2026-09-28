@@ -34,6 +34,7 @@ from .tools.coordination import register_coordination_tools
 from .tools.access_log import register_access_log_tools  # UC-3803
 from .coordination.access_log import ToolAccessLogMiddleware, build_default_store, configure_store
 from .coordination.transport_auth import TransportAuthMiddleware, TransportNoticeMiddleware  # UC-3901
+from .coordination.abuse_guard import AbuseGuardMiddleware  # UC-3903
 from .tools.spec_mutations import register_spec_mutations_tools
 from .tools.milestone_management import register_milestone_management_tools
 from .tools.board_operations import register_board_operations_tools
@@ -362,10 +363,12 @@ def main():
 
     uvicorn_opts = {"timeout_graceful_shutdown": 5}
     # UC-3901: every HTTP request is authenticated before the MCP app sees it
-    # (policy from SPECBOX_TRANSPORT_AUTH; /health stays public).
+    # (policy from SPECBOX_TRANSPORT_AUTH; /health stays public). UC-3903: then
+    # size (2 MB) and per-identity rate (60 tool calls/min) limits. The first
+    # middleware in the list is the outermost, so the guard knows the caller.
     from starlette.middleware import Middleware as ASGIMiddleware
 
-    http_middleware = [ASGIMiddleware(TransportAuthMiddleware)]
+    http_middleware = [ASGIMiddleware(TransportAuthMiddleware), ASGIMiddleware(AbuseGuardMiddleware)]
 
     if transport in ("http", "streamable-http"):
         mcp.run(

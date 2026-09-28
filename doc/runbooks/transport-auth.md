@@ -60,6 +60,18 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$URL/mcp" -H 'Authorization: B
 Volver atrás: `SPECBOX_TRANSPORT_AUTH=off` y redesplegar. Pasar a `enforce` al terminar la gracia
 no es necesario (desde la fecha límite `grace` ya rechaza), pero deja la configuración explícita.
 
+## Límites y usuario del proceso (UC-3903)
+
+- Una petición de más de 2 MB (`SPECBOX_MAX_REQUEST_BYTES`) se rechaza con `413 request_too_large`.
+- Más de 60 llamadas a tools por minuto (`SPECBOX_RATE_LIMIT_PER_MINUTE`) desde la misma identidad se
+  rechazan con `429 rate_limited` y `Retry-After`; cada identidad (developer del token, o IP del
+  cliente si no hay token) tiene su propio cupo.
+- El servidor corre como el usuario `specbox`, no como root. Comprobarlo tras un despliegue:
+
+```bash
+ssh specbox-vps 'sh -s -- "$(docker ps -q -f name=mcp_mcp-specbox-engine | head -1)"' < scripts/verify-nonroot.sh
+```
+
 ## Conectar un cliente con token
 
 El token viaja en la cabecera `Authorization: Bearer <token>` de **cada** petición HTTP (así lo

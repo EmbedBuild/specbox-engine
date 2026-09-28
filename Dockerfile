@@ -40,6 +40,15 @@ ENV STATE_PATH=/data/state
 ENV MCP_TRANSPORT=http
 ENV MCP_PORT=8000
 
+# UC-3903: the server runs as an unprivileged user. The entrypoint starts as
+# root only to hand the state volume to that user, then drops privileges
+# (setpriv) before exec'ing the server; /app stays root-owned and read-only.
+RUN groupadd --system --gid 10001 specbox \
+    && useradd --system --uid 10001 --gid specbox --home-dir /home/specbox --create-home \
+       --shell /usr/sbin/nologin specbox
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh
+
 VOLUME /data/state
 
 EXPOSE 8000
@@ -47,4 +56,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -sf http://localhost:8000/health || exit 1
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["python", "-m", "server"]

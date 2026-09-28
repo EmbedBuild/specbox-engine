@@ -1,0 +1,57 @@
+name: Contenedor sin privilegios
+
+# UC-3903 AC-01 — construye la imagen del servidor, la arranca con un volumen de
+# estado que pertenece a root (como el de producción, escrito por contenedores
+# anteriores) y falla si el proceso del servidor corre como root o no puede
+# escribir su estado.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Dockerfile"
+      - "docker-entrypoint.sh"
+      - "pyproject.toml"
+      - "server/**"
+      - "scripts/verify-nonroot.sh"
+      - ".github/workflows/container-nonroot.yml"
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - "docker-entrypoint.sh"
+      - "pyproject.toml"
+      - "server/**"
+      - "scripts/verify-nonroot.sh"
+      - ".github/workflows/container-nonroot.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  nonroot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the server image
+        run: docker build -t specbox-engine:ci .
+
+      - name: Start it on a root-owned state volume
+        run: |
+          docker volume create engine-state-ci
+          docker run --rm -v engine-state-ci:/data/state --entrypoint sh specbox-engine:ci \
+            -c 'mkdir -p /data/state/projects && echo "{}" > /data/state/registry.json && chown -R root:root /data/state'
+          docker run -d --name engine -v engine-state-ci:/data/state specbox-engine:ci
+
+      - name: Wait until it is healthy
+        run: |
+          for i in $(seq 1 30); do
+            if docker exec engine curl -sf http://localhost:8000/health; then exit 0; fi
+            sleep 2
+          done
+          docker logs engine
+          exit 1
+
+      - name: The server process is not root
+        run: sh scripts/verify-nonroot.sh engine

@@ -2040,6 +2040,38 @@ descripciones de clientes, importes, NDA, URLs de repos y rutas locales) a cualq
   spool del registro de accesos no es "estado" y sobrevive al reinicio global.
 - Tests: `tests/test_state_reset_operator.py`.
 
+## El esquema del board solo es legible por quien tiene permiso (US-40)
+
+US-40 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) versiona y completa
+el hotfix aplicado en producción el 2026-09-28 (`hotfix_p0_*`): hasta entonces las seis vistas del
+board se evaluaban con los privilegios de su dueño y conservaban el SELECT que Supabase regala a
+`anon`/`authenticated`, así que la clave pública del proyecto podía leer el board de todos los
+tenants por PostgREST.
+
+### UC-4001 — las vistas y funciones del board respetan la seguridad por filas
+
+- Migración `0023_board_views_security_invoker.sql` (+ espejo Supabase `20260928000023`):
+  `security_invoker = on` en `project_kpis`, `v_uc_lifecycle`, `v_lifecycle_kpis`,
+  `v_us_progress`, `v_weekly_throughput` y `v_active_time_estimate`; `REVOKE ALL` a PUBLIC /
+  `anon` / `authenticated`; `service_role` conserva SELECT (la API cloud lee `project_kpis`).
+- Funciones de indicadores y ciclo de vida (`fn_lifecycle_kpis`, `fn_backfill_lifecycle`,
+  `fn_recompute_lifecycle_columns`) y los triggers `uc_lifecycle_columns`, `uc_record_transition`
+  y `tool_access_log_append_only`: `search_path = public, pg_temp` fijado y EXECUTE retirado a
+  PUBLIC / `anon` / `authenticated`; las tres `fn_*` quedan para `service_role` (y
+  `fn_lifecycle_kpis` para `specbox_analytics_ro`, como en 0014). Un trigger se ejecuta aunque
+  quien escribe no tenga EXECUTE sobre su función (Postgres lo comprueba solo al crearlo).
+- `specbox_analytics_ro` conserva sus grants sobre las vistas, pero con `security_invoker` ya no
+  hereda los privilegios del dueño: un usuario LOGIN colgado de ese rol no lee nada hasta que se le
+  concedan las tablas base y la RLS lo permita. Hoy no existe ninguno.
+- **Regla para migraciones futuras**: `CREATE OR REPLACE VIEW` borra las opciones de la vista y
+  `CREATE OR REPLACE FUNCTION` borra sus `SET` (verificado en Postgres 16). Quien redefina una de
+  estas vistas o funciones debe repetir `WITH (security_invoker = on)` / `SET search_path`.
+- Tests: `tests/test_db_surface_views.py` (PG-gated): recrea los privilegios por defecto de
+  Supabase sobre estos objetos, reaplica las migraciones y comprueba que toda vista de `public`
+  corre con los derechos de quien consulta, que leerla o llamar a las funciones como `anon` o
+  `authenticated` es un error de permisos, que los roles del servidor conservan su acceso y que
+  los triggers de lifecycle siguen registrando transiciones sin EXECUTE.
+
 ## Engine Version
 
 Current: v6.13.0 "Tenant Guard"

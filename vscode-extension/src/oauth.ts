@@ -190,9 +190,23 @@ function escapeHtml(s: string): string {
  *   GET https://cloud.specbox.build/vscode/issue-token
  *     ?return_to=<URI-encoded loopback>
  *     &state=<csrf>
+ *     [&device_id=<sha256>&host=<computer>&client=claude-code]   (UC-3904)
+ *
+ * With the device data the cloud issues a DEVICE token (automatic name, it
+ * replaces the previous token of this computer instead of adding one).
  */
-export function buildSignInUrl(loopbackPort: number, state: string, baseUrl?: string): string {
+export function buildSignInUrl(
+	loopbackPort: number,
+	state: string,
+	baseUrl?: string,
+	device?: { device_id: string; host: string; client: string },
+): string {
 	const base = baseUrl ?? 'https://cloud.specbox.build/vscode/issue-token';
 	const returnTo = encodeURIComponent(`http://127.0.0.1:${loopbackPort}/callback`);
-	return `${base}?return_to=${returnTo}&state=${state}`;
+	const url = `${base}?return_to=${returnTo}&state=${state}`;
+	if (!device) { return url; }
+	return (
+		`${url}&device_id=${encodeURIComponent(device.device_id)}` +
+		`&host=${encodeURIComponent(device.host)}&client=${encodeURIComponent(device.client)}`
+	);
 }

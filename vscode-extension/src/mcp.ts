@@ -1,12 +1,9 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import * as path from 'path';
-import { CLAUDE_DIR } from './constants';
+import { CLAUDE_DIR, CLAUDE_SETTINGS_LOCAL } from './constants';
 import { readJson, writeJson, commandExists } from './util';
-
-// UC-646: the MCP server config references this env var; the wrapper launcher
-// (vscode-extension/bin/mcp-launcher.mjs) resolves the value from SecretStorage
-// at spawn time so the plaintext token never lands in settings.json.
-export const SPECBOX_NATIVE_MCP_TOKEN_ENV = 'SPECBOX_NATIVE_MCP_TOKEN';
+import type { ClaudeConfigResult, SpecboxCli } from './specbox-cli';
 
 // US-VSCODE-ZERO-PY (zero-runtime onboarding): the SpecBox MCP server is consumed
 // exclusively through the free hosted endpoint. The legacy local mode was removed
@@ -21,9 +18,70 @@ interface McpServerConfig {
 
 // --- Pure, vscode-free helpers (testable with node:test) ---
 
-/** The MCP server config that points at the free hosted SpecBox endpoint. */
-export function buildRemoteServerConfig(): McpServerConfig {
-	return { command: 'npx', args: ['mcp-remote', REMOTE_MCP_URL] };
+/**
+ * UC-3901 AC-03 — what the old extension wrote for SpecBox-MCP in
+ * ~/.claude/settings.local.json and never worked: Claude Code does not read MCP
+ * servers from settings files, and the launcher expected a
+ * `${secretStorage:…}` value nobody resolves (plus a path inside the installed
+ * extension, which changes with every version). Removes only those shapes —
+ * the launcher, the `npx mcp-remote <SpecBox URL>` bridge or the placeholder —
+ * and leaves any other SpecBox-MCP entry (and every other key) untouched.
+ */
+export function stripLegacySpecboxEntry(settings: Record<string, unknown>): {
+	changed: boolean;
+	settings: Record<string, unknown>;
+} {
+	const servers = (settings?.mcpServers ?? {}) as Record<string, McpServerConfig>;
+	const entry = servers['SpecBox-MCP'];
+	if (!entry) { return { changed: false, settings }; }
+	const args = Array.isArray(entry.args) ? entry.args.map(String) : [];
+	const launcher = entry.command === 'node' && args.some((a) => a.endsWith('mcp-launcher.mjs'));
+	const bridge = entry.command === 'npx' && args.includes('mcp-remote') && args.includes(REMOTE_MCP_URL);
+	const placeholder = JSON.stringify(entry.env ?? {}).includes('${secretStorage:');
+	if (!launcher && !bridge && !placeholder) { return { changed: false, settings }; }
+	const remaining = { ...servers };
+	delete remaining['SpecBox-MCP'];
+	const next: Record<string, unknown> = { ...settings };
+	if (Object.keys(remaining).length > 0) {
+		next.mcpServers = remaining;
+	} else {
+		delete next.mcpServers;
+	}
+	return { changed: true, settings: next };
+}
+
+/**
+ * Remove that dead entry from ~/.claude/settings.local.json, keeping a backup
+ * next to it. Called only after Claude Code has the working entry (http +
+ * headers helper) in ~/.claude.json.
+ */
+export function removeLegacyLauncherEntry(settingsPath: string = CLAUDE_SETTINGS_LOCAL, now: Date = new Date()): boolean {
+	const settings = readJson<Record<string, unknown>>(settingsPath);
+	if (!settings) { return false; }
+	const { changed, settings: next } = stripLegacySpecboxEntry(settings);
+	if (!changed) { return false; }
+	try {
+		const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
+		fs.copyFileSync(settingsPath, `${settingsPath}.bak-uc3904-${stamp}`);
+		writeJson(settingsPath, next);
+		return true;
+	} catch (err) {
+		console.warn('[specbox] could not clean the legacy SpecBox-MCP entry:', err);
+		return false;
+	}
+}
+
+/** Offer the exact command when Claude Code could not be configured automatically. */
+export async function showManualClaudeCommand(manual: string | undefined): Promise<void> {
+	if (!manual) { return; }
+	const copy = vscode.l10n.t('Copy command');
+	const choice = await vscode.window.showWarningMessage(
+		vscode.l10n.t('Claude Code could not be configured automatically. Run this command in a terminal: {0}', manual),
+		copy,
+	);
+	if (choice === copy) {
+		await vscode.env.clipboard.writeText(manual);
+	}
 }
 
 export interface EngramInstallPlan {
@@ -109,6 +167,9 @@ interface ClaudeSettings {
 
 export class McpConfigurator {
 
+	/** The bundled `specbox` CLI (UC-3904); without it SpecBox-MCP cannot be configured. */
+	constructor(private readonly cli?: SpecboxCli) {}
+
 	async configureAll(): Promise<void> {
 		const actions: string[] = [];
 
@@ -174,10 +235,26 @@ export class McpConfigurator {
 		return true;
 	}
 
+	/**
+	 * UC-3901 AC-03 — SpecBox-MCP in Claude Code (~/.claude.json, user scope) as
+	 * `{type: "http", url, headersHelper}`: the helper sends the token of this
+	 * device on every connection (or nothing, before signing in). Written by the
+	 * bundled CLI through `claude mcp add-json`, the same way `specbox login` does.
+	 */
 	async configureSpecbox(): Promise<boolean> {
-		// The SpecBox MCP server is consumed through the free hosted endpoint.
-		// No local mode — keeps the client onboarding path free of extra runtimes.
-		this.addMcpServer('SpecBox-MCP', buildRemoteServerConfig());
+		if (!this.cli) { return false; }
+		const res = await this.cli.call<{ ok: boolean; claude?: ClaudeConfigResult }>('_configure');
+		if (!res) {
+			vscode.window.showWarningMessage(
+				vscode.l10n.t('Node.js is needed to configure the SpecBox MCP server in Claude Code. Install Node.js 18 or newer and try again.')
+			);
+			return false;
+		}
+		if (!res.claude?.ok) {
+			await showManualClaudeCommand(res.claude?.manual);
+			return false;
+		}
+		removeLegacyLauncherEntry();
 		return true;
 	}
 
@@ -228,84 +305,10 @@ export class McpConfigurator {
 }
 
 // ---------------------------------------------------------------------------
-// UC-646 — MCP handshake helpers (SecretStorage-backed launcher)
+// UC-646 → UC-3904: the SecretStorage launcher (bin/mcp-launcher.mjs) is gone.
+// Claude Code gets the token from the headers helper the bundled `specbox` CLI
+// installs; see configureSpecbox() and stripLegacySpecboxEntry().
 // ---------------------------------------------------------------------------
-
-interface ClaudeMcpServer {
-	command: string;
-	args?: string[];
-	env?: Record<string, string>;
-	[key: string]: unknown;
-}
-
-interface ClaudeMcpSettings {
-	mcpServers?: Record<string, ClaudeMcpServer>;
-	[key: string]: unknown;
-}
-
-function readClaudeSettings(): { settingsPath: string; settings: ClaudeMcpSettings } {
-	const settingsPath = path.join(CLAUDE_DIR, 'settings.local.json');
-	const settings = readJson<ClaudeMcpSettings>(settingsPath) ?? {};
-	if (!settings.mcpServers) { settings.mcpServers = {}; }
-	return { settingsPath, settings };
-}
-
-function resolveLauncherPath(): string | null {
-	const ext = vscode.extensions.getExtension('EmbedBuild.specbox-engine');
-	const base = ext?.extensionPath;
-	if (!base) { return null; }
-	return path.join(base, 'bin', 'mcp-launcher.mjs');
-}
-
-/**
- * Update the SpecBox-MCP server entry so it launches through the wrapper that
- * reads the token from VSCode SecretStorage. Does NOT write the token to disk
- * — only a placeholder env var name that the launcher resolves at spawn time.
- */
-export function updateMcpServerConfigWithToken(): void {
-	const { settingsPath, settings } = readClaudeSettings();
-	const launcher = resolveLauncherPath();
-	if (!launcher) { return; }
-
-	const existing = settings.mcpServers!['SpecBox-MCP'] ?? { command: '', args: [] };
-	// Preserve the underlying command/args so the launcher can forward them.
-	const inner = {
-		command: existing.command,
-		args: existing.args ?? [],
-	};
-	settings.mcpServers!['SpecBox-MCP'] = {
-		command: 'node',
-		args: [launcher, JSON.stringify(inner)],
-		env: { [SPECBOX_NATIVE_MCP_TOKEN_ENV]: '${secretStorage:specbox.mcpToken}' },
-	};
-	writeJson(settingsPath, settings);
-}
-
-/**
- * Strip the wrapper launcher from the SpecBox-MCP entry and restore the
- * underlying server command. Idempotent: safe to call when not configured.
- */
-export function clearMcpServerConfig(): void {
-	const { settingsPath, settings } = readClaudeSettings();
-	const entry = settings.mcpServers!['SpecBox-MCP'];
-	if (!entry) { return; }
-	const launcher = resolveLauncherPath();
-	if (!launcher) { return; }
-	// If the entry currently points at the launcher, restore the inner command.
-	if (entry.command === 'node' && Array.isArray(entry.args) && entry.args[0] === launcher) {
-		try {
-			const inner = JSON.parse(String(entry.args[1] ?? '{}')) as { command: string; args?: string[] };
-			settings.mcpServers!['SpecBox-MCP'] = { command: inner.command, args: inner.args ?? [] };
-		} catch {
-			delete settings.mcpServers!['SpecBox-MCP'];
-		}
-	} else if (entry.env && SPECBOX_NATIVE_MCP_TOKEN_ENV in (entry.env ?? {})) {
-		const newEnv = { ...entry.env };
-		delete newEnv[SPECBOX_NATIVE_MCP_TOKEN_ENV];
-		settings.mcpServers!['SpecBox-MCP'] = { ...entry, env: newEnv };
-	}
-	writeJson(settingsPath, settings);
-}
 
 /**
  * Restart the MCP server so the new handshake takes effect. The Claude Code

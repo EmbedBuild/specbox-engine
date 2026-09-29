@@ -40,5 +40,19 @@
   "Signed in as @{0}. Welcome!": "Conectado como @{0}. ¡Bienvenido!",
   "the cloud could not confirm your identity. Sign out of cloud.specbox.build in your browser and try again": "la nube no pudo confirmar tu identidad. Cierra sesión en cloud.specbox.build en tu navegador e inténtalo de nuevo",
   "the sign-in took too long and timed out. Run \"SpecBox: Sign in with GitHub\" again and complete it without long pauses": "el inicio de sesión tardó demasiado y caducó. Ejecuta \"SpecBox: Sign in with GitHub\" de nuevo y complétalo sin pausas largas",
-  "the browser could not be opened. Allow VS Code to open external links and try again": "no se pudo abrir el navegador. Permite que VS Code abra enlaces externos e inténtalo de nuevo"
+  "the browser could not be opened. Allow VS Code to open external links and try again": "no se pudo abrir el navegador. Permite que VS Code abra enlaces externos e inténtalo de nuevo",
+  "Copy command": "Copiar la orden",
+  "Claude Code could not be configured automatically. Run this command in a terminal: {0}": "No se pudo configurar Claude Code automáticamente. Ejecuta esta orden en una terminal: {0}",
+  "Node.js is needed to configure the SpecBox MCP server in Claude Code. Install Node.js 18 or newer and try again.": "Hace falta Node.js para configurar el servidor MCP de SpecBox en Claude Code. Instala Node.js 18 o posterior y vuelve a intentarlo.",
+  "Signed in, but Claude Code cannot send your token yet: Node.js is missing. Install Node.js 18 or newer and sign in again.": "Sesión iniciada, pero Claude Code aún no puede enviar tu token: falta Node.js. Instala Node.js 18 o posterior y vuelve a iniciar sesión.",
+  "Signed in, but Claude Code could not be configured automatically. Run this command in a terminal: {0}": "Sesión iniciada, pero no se pudo configurar Claude Code automáticamente. Ejecuta esta orden en una terminal: {0}",
+  "This computer now connects to SpecBox with your account. New Claude Code sessions use it automatically.": "Este ordenador ya se conecta a SpecBox con tu cuenta. Las sesiones nuevas de Claude Code lo usan solas.",
+  "How SpecBox connects": "Cómo se conecta SpecBox",
+  "The connection from this device has ended: its token expired or was revoked. Reconnect with \"SpecBox: Sign in with GitHub\" or by running `specbox login` in a terminal.": "La conexión desde este dispositivo ha terminado: su token caducó o fue revocado. Vuelve a conectarte con «SpecBox: Iniciar sesión con GitHub» o ejecutando `specbox login` en una terminal.",
+  "Connected as @{0}": "Conectado como @{0}",
+  "Device: {0}": "Dispositivo: {0}",
+  "Token expires on {0} — it renews itself": "El token caduca el {0} — se renueva solo",
+  "Token expires on {0}": "El token caduca el {0}",
+  "Token without expiry (issued before devices existed)": "Token sin caducidad (emitido antes de que existieran los dispositivos)",
+  "Not connected with an account": "Sin conectar con una cuenta"
 }

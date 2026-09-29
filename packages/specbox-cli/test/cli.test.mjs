@@ -123,3 +123,95 @@ test("el binario responde a --version y --help", () => {
   assert.match(execFileSync(process.execPath, [bin, "--version"], { encoding: "utf8" }), /^\d+\.\d+\.\d+/);
   assert.match(execFileSync(process.execPath, [bin, "--help"], { encoding: "utf8", env: { ...process.env, LANG: "en_US" } }), /Usage: specbox/);
 });
+
+// ── Órdenes internas para la extensión de VSCode (JSON por stdin/stdout) ──
+
+function internal(h, command, input = {}) {
+  return run([command], { ...h.deps, readInput: async () => input });
+}
+
+test("_device da el mismo dispositivo que specbox login", async () => {
+  const h = harness(() => [200, {}]);
+  assert.equal(await internal(h, "_device"), 0);
+  assert.deepEqual(JSON.parse(h.out.at(-1)), { device_id: "d".repeat(64), host: "Mac", client: "claude-code" });
+});
+
+test("_connect guarda la credencial de la extensión y configura Claude Code; _status nunca devuelve el token", async () => {
+  const h = harness(() => [200, {}]);
+  const credential = {
+    token: "spbx_delaextension",
+    token_id: "t9",
+    expires_at: "2026-12-28T10:00:00.000Z",
+    renew_after: "2026-12-14T10:00:00.000Z",
+    device_id: "d".repeat(64),
+    device_name: "Jesús · Mac · Claude Code",
+    client: "claude-code",
+    developer: { developer_id: "jesus", display_name: "jesusperezdeveloper", handle: "jesusperezdeveloper" },
+  };
+  assert.equal(await internal(h, "_connect", { credential }), 0);
+  const connected = JSON.parse(h.out.at(-1));
+  assert.equal(connected.ok, true);
+  assert.equal(connected.claude.ok, true);
+  assert.ok(!h.out.at(-1).includes("spbx_delaextension"));
+  assert.equal(h.store.read(accountFor(MCP)).token, "spbx_delaextension");
+
+  assert.equal(await internal(h, "_status"), 0);
+  const status = JSON.parse(h.out.at(-1));
+  assert.equal(status.connected, true);
+  assert.equal(status.device_name, "Jesús · Mac · Claude Code");
+  assert.match(status.token_sha, /^[0-9a-f]{16}$/);
+  assert.ok(!h.out.at(-1).includes("spbx_delaextension"));
+});
+
+test("_adopt obtiene un token de dispositivo con el que ya tenía la extensión (sin revocarlo) y lo conecta", async () => {
+  let sent;
+  const h = harness((url, init) => {
+    sent = { url, auth: init.headers.authorization, body: JSON.parse(init.body) };
+    return [200, TOKEN_BODY];
+  });
+  assert.equal(await internal(h, "_adopt", { token: "spbx_anterior", issued_via: "vscode" }), 0);
+  const res = JSON.parse(h.out.at(-1));
+  assert.equal(res.ok, true);
+  assert.equal(res.token, "spbx_deldispositivo"); // la extensión lo guarda en su SecretStorage
+  assert.equal(sent.url, "https://api-cloud.specbox.build/api/devices/adopt");
+  assert.equal(sent.auth, "Bearer spbx_anterior");
+  assert.deepEqual(sent.body, { device_id: "d".repeat(64), host: "Mac", client: "claude-code", issued_via: "vscode" });
+  assert.equal(h.store.read(accountFor(MCP)).token, "spbx_deldispositivo");
+
+  const bad = harness(() => [401, {}]);
+  assert.equal(await internal(bad, "_adopt", { token: "spbx_revocado" }), 1);
+  assert.equal(JSON.parse(bad.out.at(-1)).reason, "invalid_token");
+  assert.equal(bad.store.read(accountFor(MCP)), null);
+});
+
+test("_renew devuelve el token vigente y renueva cuando toca", async () => {
+  const idle = harness(() => [200, {}]);
+  assert.equal(await internal(idle, "_renew"), 0);
+  assert.deepEqual(JSON.parse(idle.out.at(-1)), { connected: false });
+
+  const h = harness(() => [200, TOKEN_BODY]);
+  h.store.write(accountFor(MCP), {
+    token: "spbx_viejo",
+    expires_at: "2020-01-10T00:00:00Z",
+    renew_after: "2020-01-01T00:00:00Z",
+    cloud_api: "https://api.example/api",
+  });
+  assert.equal(await internal(h, "_renew"), 0);
+  const res = JSON.parse(h.out.at(-1));
+  assert.equal(res.renewed, true);
+  assert.equal(res.token, "spbx_deldispositivo");
+});
+
+test("_disconnect desconecta en el panel y borra la credencial", async () => {
+  const h = harness((url) => (url.endsWith("/devices/logout") ? [200, {}] : [404, {}]));
+  h.store.write(accountFor(MCP), { token: "spbx_x", cloud_api: "https://api.example/api" });
+  assert.equal(await internal(h, "_disconnect"), 0);
+  assert.deepEqual(JSON.parse(h.out.at(-1)), { ok: true, remote: true, had_credential: true });
+  assert.equal(h.store.read(accountFor(MCP)), null);
+});
+
+test("una orden interna desconocida falla con JSON", async () => {
+  const h = harness(() => [200, {}]);
+  assert.equal(await internal(h, "_nope"), 1);
+  assert.deepEqual(JSON.parse(h.out.at(-1)), { ok: false, reason: "unknown_command" });
+});

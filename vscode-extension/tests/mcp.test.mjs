@@ -27,25 +27,68 @@ Module._resolveFilename = function (req, ...rest) {
 require.cache['vscode-stub'] = { id: 'vscode-stub', filename: 'vscode-stub', loaded: true, exports: vscodeStub };
 
 const {
-	buildRemoteServerConfig,
 	buildEngramInstallPlan,
 	buildFreeformProjectSettings,
+	stripLegacySpecboxEntry,
 	FREEFORM_ROOT_RELATIVE,
 	REMOTE_MCP_URL,
 } = require(path.join(outDir, 'mcp.js'));
 
-test('AC-01: SpecBox MCP config points at the free hosted remote endpoint via npx mcp-remote', () => {
-	const cfg = buildRemoteServerConfig();
-	assert.equal(cfg.command, 'npx');
-	assert.deepEqual(cfg.args, ['mcp-remote', 'https://mcp-specbox-engine.jpsdeveloper.com/mcp']);
+// UC-3901 AC-03 — SpecBox-MCP is written by the `specbox` CLI bundled in the
+// extension (specbox-cli/, copied at compile time): Claude Code gets an http
+// entry whose headers helper sends the token of this device.
+async function specboxEntry() {
+	const { configureClaudeCode, helperCommand } = await import('../specbox-cli/lib/claude.mjs');
+	const calls = [];
+	const run = (cmd, args) => {
+		calls.push(args);
+		return { status: 0, stdout: '', stderr: '', error: null };
+	};
+	const helper = helperCommand('/home/me/.specbox/bin/mcp-headers.mjs', '/usr/bin/node');
+	configureClaudeCode({ mcpUrl: REMOTE_MCP_URL, helperCmd: helper, run, readFile: () => '{}' });
+	const add = calls.find((a) => a[1] === 'add-json');
+	return JSON.parse(add[3]);
+}
+
+test('AC-01: SpecBox MCP config points at the free hosted endpoint over http, with the headers helper', async () => {
 	assert.equal(REMOTE_MCP_URL, 'https://mcp-specbox-engine.jpsdeveloper.com/mcp');
+	assert.deepEqual(await specboxEntry(), {
+		type: 'http',
+		url: REMOTE_MCP_URL,
+		headersHelper: '"/usr/bin/node" "/home/me/.specbox/bin/mcp-headers.mjs"',
+	});
 });
 
-test('AC-02: remote config carries no local runtime (no python, uv, server.server)', () => {
-	const serialized = JSON.stringify(buildRemoteServerConfig()).toLowerCase();
+test('AC-02: remote config carries no local runtime (no python, uv, server.server)', async () => {
+	const serialized = JSON.stringify(await specboxEntry()).toLowerCase();
 	assert.ok(!serialized.includes('python'));
-	assert.ok(!serialized.includes('uv'));
+	assert.ok(!serialized.includes('"uv'));
 	assert.ok(!serialized.includes('server.server'));
+});
+
+test('UC-3901 AC-03: the dead entries of older versions are removed from settings.local.json, nothing else', () => {
+	const launcher = {
+		mcpServers: {
+			'SpecBox-MCP': {
+				command: 'node',
+				args: ['/Users/me/.vscode/extensions/embedbuild.specbox-engine-6.12.0/bin/mcp-launcher.mjs', '{}'],
+				env: { SPECBOX_NATIVE_MCP_TOKEN: '${secretStorage:specbox.mcpToken}' },
+			},
+			engram: { command: 'engram', args: ['mcp'] },
+		},
+		specbox: { backend_type: 'freeform' },
+	};
+	const cleaned = stripLegacySpecboxEntry(launcher);
+	assert.equal(cleaned.changed, true);
+	assert.deepEqual(cleaned.settings, { mcpServers: { engram: { command: 'engram', args: ['mcp'] } }, specbox: { backend_type: 'freeform' } });
+
+	const bridge = stripLegacySpecboxEntry({ mcpServers: { 'SpecBox-MCP': { command: 'npx', args: ['mcp-remote', REMOTE_MCP_URL] } } });
+	assert.equal(bridge.changed, true);
+	assert.deepEqual(bridge.settings, {});
+
+	const custom = { mcpServers: { 'SpecBox-MCP': { command: 'my-own-wrapper', args: ['x'] } } };
+	assert.deepEqual(stripLegacySpecboxEntry(custom), { changed: false, settings: custom });
+	assert.equal(stripLegacySpecboxEntry({}).changed, false);
 });
 
 test('AC-03: Engram install uses Homebrew when brew is present, not pip/pipx', () => {
@@ -83,10 +126,11 @@ test('UC-662 AC-06: buildFreeformProjectSettings rejects a relative root (v5.29 
 	assert.throws(() => buildFreeformProjectSettings('relative/proj'), /must be absolute/);
 });
 
-test('UC-662 AC-06: FreeForm reuses the SAME hosted MCP endpoint (no local mode)', () => {
-	const cfg = buildRemoteServerConfig();
-	assert.ok(cfg.args.includes(REMOTE_MCP_URL));
-	assert.ok(!JSON.stringify(cfg).toLowerCase().includes('python'));
+test('UC-662 AC-06: FreeForm reuses the SAME hosted MCP endpoint (no local mode)', async () => {
+	const entry = await specboxEntry();
+	assert.equal(entry.url, REMOTE_MCP_URL);
+	assert.equal(buildFreeformProjectSettings('/abs/proj').env.SPECBOX_ENGINE_MCP_URL, entry.url);
+	assert.ok(!JSON.stringify(entry).toLowerCase().includes('python'));
 });
 
 // UC-3801 AC-05 — FreeForm on the hosted MCP works in content-passing mode.
@@ -99,8 +143,8 @@ test('UC-3801 AC-05: FreeForm settings export SPECBOX_ENGINE_MCP_URL so the clie
 	assert.equal(s.env.SPECBOX_ENGINE_MCP_URL, REMOTE_MCP_URL);
 });
 
-test('UC-3801 AC-05: the hosted MCP server config never carries a tracking directory', () => {
-	const json = JSON.stringify(buildRemoteServerConfig());
+test('UC-3801 AC-05: the hosted MCP server config never carries a tracking directory', async () => {
+	const json = JSON.stringify(await specboxEntry());
 	assert.ok(!json.includes('root_path'));
 	assert.ok(!json.includes('doc/tracking'));
 });

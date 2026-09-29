@@ -3,8 +3,26 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { startLoopbackServer, buildSignInUrl } from './oauth';
 import { SecretsManager } from './secret-storage';
-import { updateMcpServerConfigWithToken, clearMcpServerConfig, respawnMcpServer, buildFreeformProjectSettings } from './mcp';
+import { removeLegacyLauncherEntry, respawnMcpServer, buildFreeformProjectSettings } from './mcp';
 import { fetchWhoami } from './cloud-api';
+import { credentialFromWhoami, type ConnectResult, type DeviceInfo, type SpecboxCli } from './specbox-cli';
+
+/**
+ * How the device ended up after signing in (UC-3901 AC-03):
+ *   - `connected`: token in the system secure store and Claude Code sends it;
+ *   - `claude_manual`: token stored, but Claude Code must be configured by hand
+ *     (`manual` carries the exact command);
+ *   - `no_node`: Node.js is missing, so Claude Code cannot send the token yet.
+ */
+export type ConnectionOutcome = 'connected' | 'claude_manual' | 'no_node';
+
+export interface SignInResult {
+	ok: boolean;
+	error?: string;
+	handle?: string;
+	connection?: ConnectionOutcome;
+	manual?: string;
+}
 
 const ONBOARDING_DECISION_KEY = 'specbox.onboardingDecision';
 const SIGN_IN_BASE_URL_CONFIG = 'specbox.signInBaseUrl';
@@ -34,23 +52,27 @@ export function describeSignInError(error?: string): string {
 }
 
 /**
- * UC-644 + UC-645 + UC-646 + UC-652 — runs the full sign-in flow:
- *   1. start loopback HTTP server (one-shot)
- *   2. open cloud sign-in URL in default browser
+ * UC-644 + UC-645 + UC-646 + UC-652 + UC-3904 — runs the full sign-in flow:
+ *   1. ask the bundled CLI for this computer's device (same id `specbox login` uses)
+ *   2. start loopback HTTP server (one-shot) and open the cloud sign-in URL with
+ *      the device, so the cloud issues a DEVICE token that replaces the previous one
  *   3. arm the loopback timeout (10 min) only after the browser opened
  *   4. await callback, then verify identity via whoami before trusting it
- *   5. persist to SecretStorage + update MCP config + respawn
+ *   5. persist to SecretStorage and, through the CLI, to the system secure store;
+ *      install the headers helper and configure Claude Code (UC-3901 AC-03)
  */
 export async function runSignIn(
 	context: vscode.ExtensionContext,
-	secrets: SecretsManager
-): Promise<{ ok: boolean; error?: string; handle?: string }> {
+	secrets: SecretsManager,
+	cli?: SpecboxCli,
+): Promise<SignInResult> {
 	const cfg = vscode.workspace.getConfiguration();
 	const baseUrl = cfg.get<string>(SIGN_IN_BASE_URL_CONFIG) || undefined;
+	const device = cli ? await cli.call<DeviceInfo>('_device', undefined, 15_000) : null;
 
 	const server = await startLoopbackServer();
 	try {
-		const url = buildSignInUrl(server.port, server.state, baseUrl);
+		const url = buildSignInUrl(server.port, server.state, baseUrl, device ?? undefined);
 		const opened = await vscode.env.openExternal(vscode.Uri.parse(url));
 		if (!opened) {
 			server.close();
@@ -82,14 +104,32 @@ export async function runSignIn(
 		}
 
 		await secrets.storeToken(result.token);
+
+		// UC-3901 AC-03: Claude Code must send this token on every connection.
+		// The bundled CLI stores it in the system secure store, installs the
+		// headers helper and configures SpecBox-MCP (the same code `specbox
+		// login` runs). Failures here keep the sign-in: the caller tells the
+		// person what is missing.
+		let connection: ConnectionOutcome = 'no_node';
+		let manual: string | undefined;
+		if (cli) {
+			const res = await cli.call<ConnectResult>('_connect', {
+				credential: credentialFromWhoami(result.token, identity, device, cli.cloudApi),
+			});
+			if (res?.ok && res.claude?.ok) {
+				connection = 'connected';
+				removeLegacyLauncherEntry();
+			} else if (res?.ok) {
+				connection = 'claude_manual';
+				manual = res.claude?.manual;
+			}
+		}
 		try {
-			updateMcpServerConfigWithToken();
 			await respawnMcpServer();
 		} catch (err) {
-			// Token is stored; config update failure is recoverable on next reload.
-			console.warn('[specbox.signIn] MCP config update failed:', err);
+			console.warn('[specbox.signIn] MCP restart failed:', err);
 		}
-		return { ok: true, handle: identity.handle };
+		return { ok: true, handle: identity.handle, connection, manual };
 	} catch (err) {
 		server.close();
 		return { ok: false, error: (err instanceof Error ? err.message : String(err)) };
@@ -97,15 +137,38 @@ export async function runSignIn(
 }
 
 /**
- * UC-646 — sign out: delete secret, clear MCP wrapper config, respawn.
+ * UC-646 + UC-3904 — sign out: disconnect this device in the cloud
+ * (/devices/logout) and remove its credential from the secure store, then the
+ * SecretStorage copy. Claude Code stays configured: the helper sends nothing
+ * until the next sign-in.
  */
-export async function runSignOut(secrets: SecretsManager): Promise<void> {
+export async function runSignOut(secrets: SecretsManager, cli?: SpecboxCli): Promise<void> {
+	if (cli) {
+		await cli.call('_disconnect', undefined, 20_000);
+	}
 	await secrets.deleteToken();
 	try {
-		clearMcpServerConfig();
 		await respawnMcpServer();
 	} catch (err) {
-		console.warn('[specbox.signOut] MCP config clear failed:', err);
+		console.warn('[specbox.signOut] MCP restart failed:', err);
+	}
+}
+
+/** Tell the person what the sign-in could not finish (Node missing, manual Claude Code step). */
+export async function reportConnection(result: SignInResult): Promise<void> {
+	if (result.connection === 'no_node') {
+		vscode.window.showWarningMessage(
+			vscode.l10n.t('Signed in, but Claude Code cannot send your token yet: Node.js is missing. Install Node.js 18 or newer and sign in again.')
+		);
+	} else if (result.connection === 'claude_manual' && result.manual) {
+		const copy = vscode.l10n.t('Copy command');
+		const choice = await vscode.window.showWarningMessage(
+			vscode.l10n.t('Signed in, but Claude Code could not be configured automatically. Run this command in a terminal: {0}', result.manual),
+			copy
+		);
+		if (choice === copy) {
+			await vscode.env.clipboard.writeText(result.manual);
+		}
 	}
 }
 
@@ -116,7 +179,8 @@ export async function runSignOut(secrets: SecretsManager): Promise<void> {
 export async function maybeShowOnboarding(
 	context: vscode.ExtensionContext,
 	secrets: SecretsManager,
-	options?: { skipLog?: boolean }
+	options?: { skipLog?: boolean },
+	cli?: SpecboxCli,
 ): Promise<OnboardingDecision | null> {
 	const existing = context.workspaceState.get<OnboardingDecision>(ONBOARDING_DECISION_KEY);
 	if (existing) { return existing; }
@@ -146,8 +210,9 @@ export async function maybeShowOnboarding(
 	}
 
 	if (choice === signInLabel) {
-		const result = await runSignIn(context, secrets);
+		const result = await runSignIn(context, secrets, cli);
 		if (result.ok) {
+			void reportConnection(result);
 			const decision: OnboardingDecision = {
 				mode: 'native',
 				timestamp: new Date().toISOString(),

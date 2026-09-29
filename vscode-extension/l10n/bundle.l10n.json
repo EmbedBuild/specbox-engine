@@ -40,5 +40,19 @@
   "Signed in as @{0}. Welcome!": "Signed in as @{0}. Welcome!",
   "the cloud could not confirm your identity. Sign out of cloud.specbox.build in your browser and try again": "the cloud could not confirm your identity. Sign out of cloud.specbox.build in your browser and try again",
   "the sign-in took too long and timed out. Run \"SpecBox: Sign in with GitHub\" again and complete it without long pauses": "the sign-in took too long and timed out. Run \"SpecBox: Sign in with GitHub\" again and complete it without long pauses",
-  "the browser could not be opened. Allow VS Code to open external links and try again": "the browser could not be opened. Allow VS Code to open external links and try again"
+  "the browser could not be opened. Allow VS Code to open external links and try again": "the browser could not be opened. Allow VS Code to open external links and try again",
+  "Copy command": "Copy command",
+  "Claude Code could not be configured automatically. Run this command in a terminal: {0}": "Claude Code could not be configured automatically. Run this command in a terminal: {0}",
+  "Node.js is needed to configure the SpecBox MCP server in Claude Code. Install Node.js 18 or newer and try again.": "Node.js is needed to configure the SpecBox MCP server in Claude Code. Install Node.js 18 or newer and try again.",
+  "Signed in, but Claude Code cannot send your token yet: Node.js is missing. Install Node.js 18 or newer and sign in again.": "Signed in, but Claude Code cannot send your token yet: Node.js is missing. Install Node.js 18 or newer and sign in again.",
+  "Signed in, but Claude Code could not be configured automatically. Run this command in a terminal: {0}": "Signed in, but Claude Code could not be configured automatically. Run this command in a terminal: {0}",
+  "This computer now connects to SpecBox with your account. New Claude Code sessions use it automatically.": "This computer now connects to SpecBox with your account. New Claude Code sessions use it automatically.",
+  "How SpecBox connects": "How SpecBox connects",
+  "The connection from this device has ended: its token expired or was revoked. Reconnect with \"SpecBox: Sign in with GitHub\" or by running `specbox login` in a terminal.": "The connection from this device has ended: its token expired or was revoked. Reconnect with \"SpecBox: Sign in with GitHub\" or by running `specbox login` in a terminal.",
+  "Connected as @{0}": "Connected as @{0}",
+  "Device: {0}": "Device: {0}",
+  "Token expires on {0} — it renews itself": "Token expires on {0} — it renews itself",
+  "Token expires on {0}": "Token expires on {0}",
+  "Token without expiry (issued before devices existed)": "Token without expiry (issued before devices existed)",
+  "Not connected with an account": "Not connected with an account"
 }

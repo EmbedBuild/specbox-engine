@@ -88,10 +88,20 @@ def test_publish_runs_all_steps_ok():
     assert result.ok
     assert result.steps == len(client.calls)
     # Targets esperados.
-    paths = {c["url"].rsplit("/rest/v1/", 1)[-1].split("?")[0] for c in client.calls}
     assert {"engine_release", "engine_feature", "engine_changelog_entry"} <= {
         c["url"].split("/rest/v1/")[-1] for c in client.calls
     }
+
+
+def test_changelog_rows_carry_the_security_section_when_the_version_has_one():
+    """UC-4302 (US-43): la sección Security del changelog viaja a engine_changelog_entry."""
+    state = _state()
+    state.changelog[0].sections = {"Added": ["x"], "Security": ["Nadie sin token", "Tokens con fecha"]}
+    reqs = build_publish_requests(state)
+    rows = next(r.json for r in reqs if r.method == "POST" and r.path.endswith("/engine_changelog_entry"))
+    by_version = {row["version"]: row for row in rows}
+    assert by_version["6.11.0"]["security_notes"] == ["Nadie sin token", "Tokens con fecha"]
+    assert by_version["6.10.2"]["security_notes"] == []
 
 
 # ---------------------------------------------------------------------------

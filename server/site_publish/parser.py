@@ -210,10 +210,15 @@ def parse_changelog_md(md_text: str) -> list[ChangelogEntry]:
 
     Cada entry lleva sus secciones (Added/Changed/Fixed/...) con la lista de ítems. El
     orden de salida respeta el del documento (descendente por versión, como el fichero).
+
+    Un ítem envuelto en varias líneas (Keep a Changelog parte a ~80 columnas) se une en un
+    solo texto: las líneas indentadas que siguen a un ítem, hasta la siguiente línea en
+    blanco, cabecera o ítem, son su continuación (UC-4302: la sección Security viaja entera).
     """
     entries: list[ChangelogEntry] = []
     current: ChangelogEntry | None = None
     current_section: str | None = None
+    item_open = False  # la última línea vista pertenece a un ítem que puede continuar
 
     for raw_line in md_text.splitlines():
         header = _VERSION_HEADER.match(raw_line)
@@ -227,6 +232,7 @@ def parse_changelog_md(md_text: str) -> list[ChangelogEntry]:
                 sections={},
             )
             current_section = None
+            item_open = False
             continue
 
         if current is None:
@@ -236,12 +242,19 @@ def parse_changelog_md(md_text: str) -> list[ChangelogEntry]:
         if section:
             current_section = section.group("name").strip()
             current.sections.setdefault(current_section, [])
+            item_open = False
             continue
 
         if current_section is not None:
             item = _LIST_ITEM.match(raw_line)
             if item:
                 current.sections[current_section].append(_strip_markdown(item.group("text")))
+                item_open = True
+            elif item_open and raw_line.strip() and raw_line[0] in " \t":
+                items = current.sections[current_section]
+                items[-1] = f"{items[-1]} {_strip_markdown(raw_line.strip())}".strip()
+            else:
+                item_open = False
 
     if current is not None:
         entries.append(current)

@@ -129,6 +129,40 @@ def test_changelog_items_are_plain_text(changelog_text):
         assert "**" not in item
 
 
+def test_wrapped_bullets_are_joined_and_the_security_section_travels_whole():
+    """UC-4302: un ítem partido en varias líneas es UN texto; la sección Security se conserva."""
+    md = (
+        "# Changelog\n\n"
+        '## [6.14.1] - 2026-09-29 — "Forward Only"\n\n'
+        "### Added\n\n"
+        "- **Una cosa** (US-43/UC-4302) — primera línea\n"
+        "  y su continuación.\n\n"
+        "### Security\n\n"
+        "- **Solo la versión que toca**: un paquete antiguo ya no puede\n"
+        "  sustituir la versión en ejecución.\n"
+        "- Segundo aviso.\n\n"
+        "### Tests\n\n"
+        "- 8 pruebas.\n"
+    )
+    entry = parse_changelog_md(md)[0]
+    assert entry.sections["Added"] == ["Una cosa — primera línea y su continuación."]
+    assert entry.sections["Security"] == [
+        "Solo la versión que toca: un paquete antiguo ya no puede sustituir la versión en ejecución.",
+        "Segundo aviso.",
+    ]
+    assert entry.sections["Tests"] == ["8 pruebas."]
+
+
+def test_the_published_changelog_keeps_its_security_sections(changelog_text):
+    """Las versiones con `### Security` en el CHANGELOG.md real llegan con esa sección entera."""
+    entries = parse_changelog_md(changelog_text)
+    with_security = [e for e in entries if e.sections.get("Security")]
+    assert with_security, "el changelog real tiene al menos una versión con sección Security"
+    for entry in with_security:
+        for note in entry.sections["Security"]:
+            assert note and "**" not in note and not note.endswith((",", ":", "y", "o", "de", "la", "el"))
+
+
 # ---------------------------------------------------------------------------
 # AC-03 — public_highlights deterministas
 # ---------------------------------------------------------------------------

@@ -2259,6 +2259,17 @@ dos historias seguían abiertas con todas sus UC hechas.
   caducan el 2026-12-28.
 - **UC-4301 (US-43)** — `SECURITY.md` (ES/EN): cómo avisar de un problema de seguridad, canal
   privado y plazos de respuesta.
+- **UC-4302 AC-02 (US-43) — la sección Security llega al site.** El parser del changelog une
+  los ítems envueltos en varias líneas (antes solo viajaba la primera) y el publicador envía la
+  sección `### Security` de cada versión en `engine_changelog_entry.security_notes` (migración
+  `supabase/migrations/20260929000027`, que además versiona `engine_release`, `engine_feature` y
+  `engine_changelog_entry`, creadas en su día sin `.sql`). El site la pinta como «Seguridad —
+  qué evita esta versión».
+- **UC-4303 AC-02 (US-43) — modelo de amenazas del MCP remoto.**
+  [doc/security/threat-model.md](doc/security/threat-model.md): quién puede llamar a qué, con
+  qué identidad y qué datos se comparten entre clientes. **Referencia obligatoria para toda tool
+  nueva**: su sección 8 es la lista que hay que pasar antes de registrar una tool, y la tabla de
+  la sección 4 se actualiza en la misma PR.
 
 ## Engine Version
 

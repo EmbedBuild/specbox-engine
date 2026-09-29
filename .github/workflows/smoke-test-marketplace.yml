@@ -6,12 +6,17 @@ name: Smoke Test Marketplace Install
 # Trigger:
 #   - workflow_run after Publish VSCode Extension finishes (success only)
 #   - workflow_dispatch for manual re-run
+#
+# No `branches` filter: the publish runs on a tag push, so its head_branch is the
+# tag (v6.14.0), never main — with `branches: [main]` this never ran.
+#
+# The Marketplace and `code --list-extensions` report the id in lowercase
+# (embedbuild.specbox-engine), and so is the install folder: match without case.
 
 on:
   workflow_run:
     workflows: ["Publish VSCode Extension"]
     types: [completed]
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -55,7 +60,7 @@ jobs:
       - name: Install extension from Marketplace
         run: |
           xvfb-run -a code --install-extension EmbedBuild.specbox-engine --force 2>&1 | tee install.log
-          if ! code --list-extensions --show-versions | grep -q '^EmbedBuild.specbox-engine@'; then
+          if ! code --list-extensions --show-versions | grep -qi '^embedbuild\.specbox-engine@'; then
             echo "::error::Extension not present in --list-extensions after install"
             cat install.log
             exit 1
@@ -63,7 +68,7 @@ jobs:
 
       - name: Verify installed version matches engine
         run: |
-          INSTALLED=$(code --list-extensions --show-versions | grep '^EmbedBuild.specbox-engine@' | cut -d@ -f2)
+          INSTALLED=$(code --list-extensions --show-versions | grep -i '^embedbuild\.specbox-engine@' | cut -d@ -f2)
           EXPECTED="${{ steps.version.outputs.expected }}"
           echo "installed=$INSTALLED expected=$EXPECTED"
           if [ "$INSTALLED" != "$EXPECTED" ]; then
@@ -91,7 +96,7 @@ jobs:
           fi
 
           # Find the installed extension package.json in the user's extension dir
-          EXT_DIR=$(find "$HOME/.vscode/extensions" -maxdepth 1 -name 'EmbedBuild.specbox-engine-*' -type d | head -1)
+          EXT_DIR=$(find "$HOME/.vscode/extensions" -maxdepth 1 -iname 'embedbuild.specbox-engine-*' -type d | head -1)
           if [ -z "$EXT_DIR" ]; then
             echo "::error::Could not locate installed extension dir under ~/.vscode/extensions"
             ls -la "$HOME/.vscode/extensions" || true

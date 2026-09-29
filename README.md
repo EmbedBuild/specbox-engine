@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.13.0 — "Tenant Guard" (sobre v6.12.0 "Claude Design Native")<br/>
+  v 6.14.0 — "Front Door" (sobre v6.13.0 "Tenant Guard")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,20 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > SpecBox provides speed. The LLM provides quality.
+
+---
+
+## Lo nuevo en v6.14
+
+**v6.14.0 — "Front Door"** hace que nadie hable con el MCP remoto sin identificarse, y que conectarse no obligue a copiar tokens.
+
+- **Autenticación en el transporte** — el servidor remoto comprueba el token en cada petición HTTP; el operador decide cuándo exigirlo (modos `off`, `grace` con aviso y fecha, `enforce`).
+- **Un token por dispositivo, con caducidad** — iniciar sesión otra vez desde el mismo ordenador reemplaza el token en vez de sumar otro; caduca a los 90 días y se renueva solo.
+- **`npx specbox login`** — un código de un solo uso que se confirma en el panel con GitHub; el token va al almacén seguro del sistema (Llavero, Secret Service, DPAPI) y Claude Code lo envía con un ayudante de cabeceras.
+- **La extensión de VSCode hace lo mismo al iniciar sesión** — y, al actualizarse, conecta el ordenador sin pasos manuales. La barra de estado enseña con qué cuenta y dispositivo, y cuándo caduca.
+- **Aislamiento por usuario** — el backend FreeForm remoto trabaja solo con el contenido que envía el cliente, el registro de proyectos solo enseña los de quien llama, cada llamada a una tool queda en un registro de accesos y la base de datos del board solo es legible por quien tiene permiso.
+
+100% backwards-compatible: la autenticación del transporte nace en `off` y los tokens existentes siguen funcionando.
 
 ---
 
@@ -513,7 +527,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.13.0 — "Tenant Guard" (over v6.12.0 "Claude Design Native")
+> v 6.14.0 — "Front Door" (over v6.13.0 "Tenant Guard")
 
 ## What is this?
 
@@ -525,6 +539,20 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > SpecBox provides speed. The LLM provides quality.
+
+## What's new in v6.14
+
+**v6.14.0 — "Front Door"** makes sure nobody talks to the remote MCP without identifying themselves, and that connecting never means copying tokens.
+
+- **Transport authentication** — the remote server checks the token on every HTTP request; the operator decides when to require it (`off`, `grace` with a notice and a deadline, `enforce`).
+- **One token per device, with expiry** — signing in again from the same computer replaces the token instead of adding one; it expires after 90 days and renews itself.
+- **`npx specbox login`** — a one-time code confirmed in the panel with GitHub; the token goes into the system secure store (Keychain, Secret Service, DPAPI) and Claude Code sends it through a headers helper.
+- **The VS Code extension does the same on sign-in** — and, when it updates, connects the computer with no manual steps. The status bar shows the account, the device and when the token expires.
+- **Per-user isolation** — remote FreeForm works only with the content the client sends, the project registry only shows the caller's projects, every tool call lands in an access log and the board database is readable only by those allowed.
+
+100% backwards-compatible: transport authentication starts in `off` and existing tokens keep working.
+
+---
 
 ## What's new in v6.13
 

@@ -3,27 +3,42 @@ import { InstallManager } from './install';
 import { HealthChecker } from './health';
 import { StatusBarManager } from './statusbar';
 import { OnboardWizard } from './onboard';
-import { McpConfigurator } from './mcp';
+import { McpConfigurator, REMOTE_MCP_URL, removeLegacyLauncherEntry } from './mcp';
 import { ExtensionUpdater } from './updater';
-import { StatusTreeProvider, IdentityState } from './views/status-tree';
+import { StatusTreeProvider } from './views/status-tree';
 import { SkillsTreeProvider } from './views/skills-tree';
 import { showSkillCard } from './views/skill-card';
 import { SkillInfo } from './views/skill-loader';
 import { SecretsManager } from './secret-storage';
-import { runSignIn, runSignOut, maybeShowOnboarding, describeSignInError } from './auth';
-import { fetchWhoami } from './cloud-api';
+import { runSignIn, runSignOut, maybeShowOnboarding, describeSignInError, reportConnection } from './auth';
+import { whoamiStatus } from './cloud-api';
 import { showPrereqGate } from './prerequisites';
 import { registerRevertCommand } from './migration';
 import { registerActivationUriHandler, maybeEmitActivation } from './activation';
+import { SpecboxCli, cloudApiBase } from './specbox-cli';
+import { ensureDeviceConnection, syncRenewal } from './device-connection';
+import { howToConnectUrl } from './constants';
 
 let statusBar: StatusBarManager | undefined;
 let identityPollingHandle: NodeJS.Timeout | undefined;
+let renewalHandle: NodeJS.Timeout | undefined;
 const IDENTITY_POLL_INTERVAL_MS = 60_000;
+/** UC-3904 AC-03 — once a day the token is renewed if due (the helper also does it on connect). */
+const RENEWAL_INTERVAL_MS = 24 * 60 * 60 * 1000;
+/** UC-3904 AC-07 — the "connection ended" notice is shown once per session. */
+let connectionEndedNotified = false;
+/** UC-3904 — the bundled CLI, reachable from refreshIdentity (polling). */
+let activeCli: SpecboxCli | undefined;
 
 export async function activate(context: vscode.ExtensionContext) {
 	const installer = new InstallManager(context);
 	const health = new HealthChecker();
-	const mcpConfig = new McpConfigurator();
+	// UC-3904 — the bundled `specbox` CLI does the secure store, the headers
+	// helper and the Claude Code configuration, exactly as `specbox login`.
+	const signInBaseUrl = vscode.workspace.getConfiguration().get<string>('specbox.signInBaseUrl') || undefined;
+	const cli = new SpecboxCli(context.extensionPath, { cloudApi: cloudApiBase(signInBaseUrl), mcpUrl: REMOTE_MCP_URL });
+	activeCli = cli;
+	const mcpConfig = new McpConfigurator(cli);
 	const secrets = new SecretsManager(context);
 	const workspaceFolders = (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath);
 
@@ -78,13 +93,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		}),
 
 		vscode.commands.registerCommand('specbox.signIn', async () => {
-			const result = await runSignIn(context, secrets);
+			const result = await runSignIn(context, secrets, cli);
 			if (result.ok) {
+				connectionEndedNotified = false;
 				vscode.window.showInformationMessage(
 					result.handle
 						? vscode.l10n.t('Signed in as @{0}. Welcome!', result.handle)
 						: vscode.l10n.t('Signed in. Welcome!')
 				);
+				void reportConnection(result);
 				await refreshIdentity(statusTree, secrets);
 			} else {
 				vscode.window.showWarningMessage(
@@ -94,7 +111,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		}),
 
 		vscode.commands.registerCommand('specbox.signOut', async () => {
-			await runSignOut(secrets);
+			await runSignOut(secrets, cli);
 			vscode.window.showInformationMessage(vscode.l10n.t('Signed out.'));
 			await refreshIdentity(statusTree, secrets);
 		}),
@@ -147,9 +164,16 @@ export async function activate(context: vscode.ExtensionContext) {
 	identityPollingHandle = setInterval(() => {
 		refreshIdentity(statusTree, secrets).catch(() => { /* ignore */ });
 	}, IDENTITY_POLL_INTERVAL_MS);
+	// UC-3904 AC-03 — daily renewal; the SecretStorage copy follows the token.
+	renewalHandle = setInterval(() => {
+		syncRenewal(cli, secrets)
+			.then((changed) => (changed ? refreshIdentity(statusTree, secrets) : undefined))
+			.catch(() => { /* ignore */ });
+	}, RENEWAL_INTERVAL_MS);
 	context.subscriptions.push({
 		dispose: () => {
 			if (identityPollingHandle) { clearInterval(identityPollingHandle); identityPollingHandle = undefined; }
+			if (renewalHandle) { clearInterval(renewalHandle); renewalHandle = undefined; }
 		},
 	});
 
@@ -161,7 +185,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// version bump (the updater's "Update extension?" prompt blocked startup).
 	// We fire them in the background and never await; failures are swallowed so
 	// they can never wedge activation.
-	void runStartupTasks(context, { health, statusBar: statusBar!, statusTree, skillsTree, secrets });
+	void runStartupTasks(context, { health, statusBar: statusBar!, statusTree, skillsTree, secrets, cli });
 }
 
 interface StartupDeps {
@@ -170,6 +194,7 @@ interface StartupDeps {
 	statusTree: StatusTreeProvider;
 	skillsTree: SkillsTreeProvider;
 	secrets: SecretsManager;
+	cli: SpecboxCli;
 }
 
 /**
@@ -178,7 +203,7 @@ interface StartupDeps {
  * — each step guards itself and logs on failure.
  */
 async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDeps): Promise<void> {
-	const { health, statusBar: bar, statusTree, skillsTree, secrets } = deps;
+	const { health, statusBar: bar, statusTree, skillsTree, secrets, cli } = deps;
 
 	const config = vscode.workspace.getConfiguration('specbox');
 	if (config.get<boolean>('autoHealthCheck', true)) {
@@ -228,9 +253,23 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 	}
 
 	// UC-647 — onboarding gate (only when no decision yet).
-	await maybeShowOnboarding(context, secrets).catch((err) => {
+	await maybeShowOnboarding(context, secrets, undefined, cli).catch((err) => {
 		console.warn('[specbox] onboarding gate failed:', err);
 	});
+
+	// UC-3901 AC-03 / UC-3904 — keep this computer connected without manual
+	// steps: adopt a token kept from an older version as a device token, renew
+	// it when due, restore the Claude Code helper config, drop the dead entry.
+	try {
+		const report = await ensureDeviceConnection(cli, secrets, () => { removeLegacyLauncherEntry(); });
+		if (report.state === 'adopted') {
+			vscode.window.showInformationMessage(
+				vscode.l10n.t('This computer now connects to SpecBox with your account. New Claude Code sessions use it automatically.')
+			);
+		}
+	} catch (err) {
+		console.warn('[specbox] device connection check failed:', err);
+	}
 
 	// Skills context bootstrapping (drives viewsWelcome for specbox.skills).
 	await updateSkillsContext(skillsTree).catch((err) => {
@@ -248,10 +287,11 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 	void maybeEmitActivation(context);
 }
 
-async function refreshIdentity(tree: StatusTreeProvider, secrets: SecretsManager): Promise<void> {
+async function refreshIdentity(tree: StatusTreeProvider, secrets: SecretsManager, retried = false): Promise<void> {
 	const token = await secrets.getToken();
 	if (!token) {
 		tree.updateIdentity({ signedIn: false });
+		statusBar?.setIdentity(null);
 		await vscode.commands.executeCommand('setContext', 'specbox.signedIn', false);
 		return;
 	}
@@ -263,9 +303,51 @@ async function refreshIdentity(tree: StatusTreeProvider, secrets: SecretsManager
 	tree.updateIdentity({ signedIn: true, handle: initialHandle });
 	await vscode.commands.executeCommand('setContext', 'specbox.signedIn', true);
 
-	const me = await fetchWhoami(token);
-	if (me && me.handle && me.handle !== initialHandle) {
-		tree.updateIdentity({ signedIn: true, handle: me.handle });
+	const res = await whoamiStatus(token);
+	if (res.status === 'ok') {
+		tree.updateIdentity({ signedIn: true, handle: res.me.handle });
+		// UC-3904 AC-06 — person, device, expiry and automatic renewal.
+		statusBar?.setIdentity({
+			handle: res.me.handle,
+			deviceName: res.me.device?.device_name ?? null,
+			expiresAt: res.me.device?.expires_at ?? null,
+			renews: Boolean(res.me.device?.expires_at),
+		});
+		return;
+	}
+	if (res.status === 'unauthorized') {
+		// The headers helper may have renewed the token on its own (which revokes
+		// the previous one): take the current token from the secure store before
+		// deciding that the connection has ended.
+		if (!retried && activeCli && (await syncRenewal(activeCli, secrets))) {
+			return refreshIdentity(tree, secrets, true);
+		}
+		// UC-3904 AC-07 — expired or revoked: the connection from this device
+		// has ended. Forget the dead token and say how to reconnect (never
+		// asking to paste a token).
+		await secrets.deleteToken();
+		tree.updateIdentity({ signedIn: false });
+		statusBar?.setIdentity(null);
+		await vscode.commands.executeCommand('setContext', 'specbox.signedIn', false);
+		if (!connectionEndedNotified) {
+			connectionEndedNotified = true;
+			void notifyConnectionEnded();
+		}
+	}
+}
+
+async function notifyConnectionEnded(): Promise<void> {
+	const signIn = vscode.l10n.t('Sign in with GitHub');
+	const howItWorks = vscode.l10n.t('How SpecBox connects');
+	const choice = await vscode.window.showWarningMessage(
+		vscode.l10n.t('The connection from this device has ended: its token expired or was revoked. Reconnect with "SpecBox: Sign in with GitHub" or by running `specbox login` in a terminal.'),
+		signIn,
+		howItWorks
+	);
+	if (choice === signIn) {
+		await vscode.commands.executeCommand('specbox.signIn');
+	} else if (choice === howItWorks) {
+		await vscode.env.openExternal(vscode.Uri.parse(howToConnectUrl(vscode.env.language)));
 	}
 }
 
@@ -282,5 +364,6 @@ function maskHandle(token: string): string {
 
 export function deactivate() {
 	if (identityPollingHandle) { clearInterval(identityPollingHandle); identityPollingHandle = undefined; }
+	if (renewalHandle) { clearInterval(renewalHandle); renewalHandle = undefined; }
 	statusBar = undefined;
 }

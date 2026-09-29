@@ -1,4 +1,4 @@
-# SpecBox Engine v6.13.0
+# SpecBox Engine v6.14.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2207,9 +2207,42 @@ dos historias seguían abiertas con todas sus UC hechas.
 - Tests: `tests/test_device_tokens.py` (PG-gated). Plan completo de clientes (panel, CLI `specbox`,
   extensión): `doc/plans/US-39-conexion-dispositivos_plan.md` del orquestador.
 
+### UC-3904 / UC-3901 AC-03 (clientes) — `specbox login` y la extensión envían el token solos
+
+- **`packages/specbox-cli`** (npm `specbox`, Node ≥ 18.17, sin dependencias):
+  - `specbox login`: código de un solo uso del panel (`/api/device/code` → la persona confirma en
+    `/device` con GitHub → `/api/device/token`). El token va al almacén seguro (`lib/store.mjs`:
+    Llavero por stdin con `security -i`, Secret Service, DPAPI; fichero 0600 como último recurso)
+    y nunca se imprime.
+  - `lib/install.mjs` copia el ayudante `lib/mcp-headers.mjs` (y los módulos que importa) a
+    `~/.specbox/bin`. `lib/claude.mjs` configura Claude Code con
+    `claude mcp add-json SpecBox-MCP {type:http,url,headersHelper} --scope user` (nunca edita
+    `~/.claude.json` a mano) y añade el ayudante a las entradas locales que apuntan al mismo servidor.
+  - El ayudante imprime `{"Authorization": "Bearer …"}` para la URL de
+    `CLAUDE_CODE_MCP_SERVER_URL`; desde 14 días antes de caducar renueva (`/api/devices/renew`) con
+    cerrojo en `~/.specbox/renew.lock` y relee tras 409; sin credencial imprime `{}`.
+  - `device_id` = sha256(id de máquina : cliente), el mismo para la extensión y la CLI: un ordenador,
+    un dispositivo, un token.
+  - Órdenes internas para la extensión (`lib/internal.mjs`, JSON por stdin/stdout): `_device`,
+    `_status`, `_connect`, `_configure`, `_adopt` (`/api/devices/adopt`, NO revoca el token anterior),
+    `_renew`, `_disconnect`.
+  - Tests: `packages/specbox-cli/test/*.test.mjs`; workflow `specbox-cli.yml` (macOS, Linux, Windows ×
+    Node 18/22). Publicación en npm: manual (`npm publish` en `packages/specbox-cli`).
+- **Extensión de VSCode**: `copy-cli.mjs` empaqueta `packages/specbox-cli` en `specbox-cli/` al
+  compilar (generado, en `.gitignore`); `src/specbox-cli.ts` lo ejecuta con el Node del sistema.
+  - Iniciar sesión añade el dispositivo a `/vscode/issue-token` y llama a `_connect`.
+  - Al arrancar, `device-connection.ts` adopta el token de versiones anteriores, renueva y restaura
+    el ayudante; `mcp.ts` retira la entrada muerta `SpecBox-MCP` de `~/.claude/settings.local.json`
+    (con copia `.bak-uc3904-*`). El lanzador `bin/mcp-launcher.mjs` desaparece.
+  - La barra de estado enseña cuenta, dispositivo y caducidad; un 401 de `/api/whoami` (tras mirar
+    si el ayudante ya renovó) avisa de que la conexión terminó y de las dos formas de reconectar.
+  - Tests: `vscode-extension/tests/device-connection.test.mjs` y `mcp.test.mjs`.
+- `transport_auth`: los rechazos enlazan `https://cloud.specbox.build/como-se-conecta` (ES) o
+  `/how-to-connect` (EN) según `Accept-Language`.
+
 ## Engine Version
 
-Current: v6.13.0 "Tenant Guard"
+Current: v6.14.0 "Front Door"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

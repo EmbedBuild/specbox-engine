@@ -1,8 +1,50 @@
 import * as vscode from 'vscode';
 import { HealthResult } from './health';
+import { howToConnectUrl } from './constants';
+
+/**
+ * UC-3904 AC-06 — who this computer is connected as: the person, the device,
+ * when its token expires and that it renews itself.
+ */
+export interface StatusIdentity {
+	handle: string;
+	deviceName?: string | null;
+	expiresAt?: string | null;
+	/** Device tokens held by the extension / `specbox login` renew themselves. */
+	renews: boolean;
+}
+
+function formatDate(iso: string, language: string | undefined): string {
+	try {
+		return new Date(iso).toLocaleDateString(language || undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+	} catch {
+		return iso.slice(0, 10);
+	}
+}
+
+/** Tooltip lines for the connected identity. Pure apart from l10n (stubbed in tests). */
+export function identityTooltipLines(identity: StatusIdentity, language?: string): string[] {
+	const lines = [vscode.l10n.t('Connected as @{0}', identity.handle)];
+	if (identity.deviceName) {
+		lines.push(vscode.l10n.t('Device: {0}', identity.deviceName));
+	}
+	if (identity.expiresAt) {
+		const when = formatDate(identity.expiresAt, language);
+		lines.push(
+			identity.renews
+				? vscode.l10n.t('Token expires on {0} — it renews itself', when)
+				: vscode.l10n.t('Token expires on {0}', when)
+		);
+	} else {
+		lines.push(vscode.l10n.t('Token without expiry (issued before devices existed)'));
+	}
+	return lines;
+}
 
 export class StatusBarManager {
 	readonly item: vscode.StatusBarItem;
+	private health: HealthResult | null = null;
+	private identity: StatusIdentity | null = null;
 
 	constructor() {
 		this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
@@ -13,27 +55,51 @@ export class StatusBarManager {
 	}
 
 	update(health: HealthResult): void {
-		if (!health.engineInstalled) {
-			this.item.text = '$(warning) SpecBox';
-			this.item.tooltip = 'SpecBox Engine — not installed. Click to run setup.';
+		this.health = health;
+		this.render();
+	}
+
+	/** UC-3904 AC-06 — null when this computer is not connected with an account. */
+	setIdentity(identity: StatusIdentity | null): void {
+		this.identity = identity;
+		this.render();
+	}
+
+	private render(): void {
+		const health = this.health;
+		const who = this.identity ? ` · @${this.identity.handle}` : '';
+		const lines: string[] = [];
+
+		if (!health) {
+			this.item.text = `$(loading~spin) SpecBox${who}`;
+			lines.push('SpecBox Engine — checking...');
+		} else if (!health.engineInstalled) {
+			this.item.text = `$(warning) SpecBox${who}`;
 			this.item.command = 'specbox.onboard';
-			return;
-		}
-
-		const issues: string[] = [];
-		if (!health.engram.ok) { issues.push('Engram missing'); }
-		if (!health.mcpSpecbox.configured) { issues.push('MCP not configured'); }
-		if (!health.mcpEngram.configured) { issues.push('Engram MCP not configured'); }
-
-		if (issues.length > 0) {
-			this.item.text = `$(alert) SpecBox v${health.engineVersion}`;
-			this.item.tooltip = `SpecBox Engine — Issues: ${issues.join(', ')}`;
-			this.item.command = 'specbox.showStatus';
+			lines.push('SpecBox Engine — not installed. Click to run setup.');
 		} else {
-			this.item.text = `$(check) SpecBox v${health.engineVersion}`;
-			this.item.tooltip = 'SpecBox Engine — all systems operational';
+			const issues: string[] = [];
+			if (!health.engram.ok) { issues.push('Engram missing'); }
+			if (!health.mcpSpecbox.configured) { issues.push('MCP not configured'); }
+			if (!health.mcpEngram.configured) { issues.push('Engram MCP not configured'); }
 			this.item.command = 'specbox.showStatus';
+			if (issues.length > 0) {
+				this.item.text = `$(alert) SpecBox v${health.engineVersion}${who}`;
+				lines.push(`SpecBox Engine — Issues: ${issues.join(', ')}`);
+			} else {
+				this.item.text = `$(check) SpecBox v${health.engineVersion}${who}`;
+				lines.push('SpecBox Engine — all systems operational');
+			}
 		}
+
+		if (this.identity) {
+			lines.push('', ...identityTooltipLines(this.identity, vscode.env.language));
+		} else {
+			lines.push('', vscode.l10n.t('Not connected with an account'));
+		}
+		const tooltip = new vscode.MarkdownString(lines.join('  \n'));
+		tooltip.appendMarkdown(`  \n\n[${vscode.l10n.t('How SpecBox connects')}](${howToConnectUrl(vscode.env.language)})`);
+		this.item.tooltip = tooltip;
 	}
 
 	dispose(): void {

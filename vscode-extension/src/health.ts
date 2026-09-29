@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as os from 'os';
 import {
 	CLAUDE_DIR, CLAUDE_SKILLS_DIR, CLAUDE_HOOKS_DIR,
-	CLAUDE_SETTINGS, KNOWN_SKILLS, REQUIRED_NODE_VERSION
+	CLAUDE_SETTINGS, CLAUDE_JSON, KNOWN_SKILLS, REQUIRED_NODE_VERSION
 } from './constants';
 import { exec, commandExists } from './util';
 
@@ -191,6 +191,18 @@ export class HealthChecker {
 			'engram': ['engram', 'plugin:engram:engram'],
 		};
 		const names = aliases[serverName] ?? [serverName];
+
+		// 0. UC-3904 — where Claude Code really keeps MCP servers: ~/.claude.json
+		//    (user scope, and local scope per project).
+		try {
+			const data = JSON.parse(fs.readFileSync(CLAUDE_JSON, 'utf-8'));
+			const scopes = [data?.mcpServers, ...Object.values(data?.projects ?? {}).map((p) => (p as { mcpServers?: unknown })?.mcpServers)];
+			for (const servers of scopes) {
+				if (servers && typeof servers === 'object' && names.some((name) => (servers as Record<string, unknown>)[name])) {
+					return { configured: true };
+				}
+			}
+		} catch { /* no ~/.claude.json */ }
 
 		// 1. Check MCP server configs in JSON files
 		for (const file of [

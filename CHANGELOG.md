@@ -2,6 +2,81 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.14.0] - 2026-09-29 — "Front Door"
+
+Nadie habla con el MCP remoto sin identificarse, y conectarse ya no obliga a
+copiar tokens. Cada ordenador es un dispositivo con su propio token, que caduca
+y se renueva solo; `specbox login` y la extensión de VSCode lo guardan en el
+almacén seguro del sistema y Claude Code lo envía en cada conexión. El
+servidor, por su parte, separa a cada usuario y deja rastro de cada llamada.
+
+### Added
+
+- **Autenticación en el transporte** (US-39) — el servidor remoto comprueba
+  `Authorization: Bearer` en cada petición HTTP, inicialización incluida. Un
+  token inválido, caducado o revocado se rechaza siempre; qué pasa con una
+  conexión sin token lo decide el operador (`SPECBOX_TRANSPORT_AUTH`: `off` por
+  defecto, `grace` con aviso y fecha límite, `enforce`). Los rechazos enlazan
+  "Cómo se conecta SpecBox" en el idioma de quien se conecta.
+- **Tokens por dispositivo** (US-39) — migración 0025: un token activo por
+  persona y dispositivo (ordenador + cliente MCP), con nombre automático,
+  caducidad (90 días) y motivo de revocación. Iniciar sesión otra vez desde el
+  mismo ordenador reemplaza el token en lugar de sumar otro.
+- **`specbox`, paquete npm** (`packages/specbox-cli`) — `npx specbox login`
+  muestra un código de un solo uso que se confirma en el panel con GitHub; el
+  token va al almacén seguro (Llavero, Secret Service, DPAPI) sin que nadie lo
+  vea, y Claude Code queda configurado con un ayudante de cabeceras que además
+  lo renueva. `specbox status` y `specbox logout`.
+- **Registro de accesos por tool** (US-38) — cada llamada queda en una tabla de
+  solo inserción (quién, qué tool, cuándo, resultado), consultable solo por el
+  operador.
+- **Comprobación de la superficie de la base de datos en CI** (US-40) — falla
+  si una vista ignora la seguridad por filas, una tabla no la tiene, una
+  función es ejecutable por el rol anónimo o una tabla es escribible por los
+  roles públicos, salvo excepciones aprobadas con motivo.
+- **La historia sigue a sus casos de uso** (US-02) — `start_uc`, `move_uc` y
+  `complete_uc` mueven también la historia.
+
+### Changed
+
+- **Extensión de VSCode** — al iniciar sesión envía los datos del dispositivo,
+  guarda el token en el almacén del sistema y configura Claude Code con el
+  ayudante (la configuración anterior no llegaba a usarse). Al actualizarse,
+  conecta el ordenador sin pasos manuales y retira la entrada antigua. La
+  barra de estado enseña la cuenta, el dispositivo, la caducidad y que se
+  renueva sola; si la conexión termina, explica cómo reconectar.
+- **Servidor remoto** — corre con un usuario sin privilegios y rechaza
+  peticiones de más de 2 MB o más de 60 llamadas por minuto de una misma
+  identidad.
+- **`last_used_at`** refleja el uso real del MCP (el servidor lo anota al
+  validar el token, como mucho una vez por hora).
+
+### Security
+
+- **Aislamiento por usuario en el servidor remoto**: el backend FreeForm remoto
+  trabaja solo con el contenido que envía el cliente y el registro de proyectos
+  solo muestra los proyectos de quien llama.
+- **Base de datos del board**: las vistas se evalúan con los derechos de quien
+  consulta y los roles públicos no pueden escribir en ninguna tabla.
+- **Operaciones de borrado de estado** reservadas al operador.
+- **Identidad en cada conexión** y tokens que caducan (ver Added).
+
+### Compatibility
+
+- 100 % retrocompatible. La autenticación del transporte nace en `off`: nada
+  cambia para quien se conecta hasta que el operador active la gracia. Los
+  tokens existentes siguen funcionando, sin caducidad, hasta que se decida su
+  política.
+- La extensión necesita Node.js (ya era prerequisito desde v6.7.0) para que
+  Claude Code envíe el token.
+
+### Tests
+
+- Engine: 1830 passed (Postgres de pruebas: `test_device_tokens.py`,
+  `test_db_surface_*`, `test_tool_access_log.py`, `test_registry_scope.py`).
+- `packages/specbox-cli`: 38 (node:test) en macOS, Linux y Windows.
+- Extensión: 131 (node:test).
+
 ## [6.13.0] - 2026-08-25 — "Tenant Guard"
 
 Dos historias que se cruzan en el mismo sitio: qué se le enseña al cliente y quién puede

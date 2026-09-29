@@ -19,7 +19,26 @@ export interface WhoamiResponse {
 	developer_id: string;
 	github_user_id?: number;
 	avatar_url?: string;
+	/**
+	 * UC-3904 AC-06 — the device this token belongs to (cloud ≥ 0.6.0): name,
+	 * client, expiry and from when it renews itself. Null fields for tokens
+	 * issued before devices existed.
+	 */
+	device?: {
+		token_id: string;
+		device_name: string | null;
+		client: string | null;
+		client_label: string;
+		expires_at: string | null;
+		renew_after: string | null;
+	};
 }
+
+/** `ok` with the identity, `unauthorized` (expired / revoked) or `unavailable` (network, not deployed). */
+export type WhoamiStatus =
+	| { status: 'ok'; me: WhoamiResponse }
+	| { status: 'unauthorized' }
+	| { status: 'unavailable' };
 
 interface CacheEntry {
 	value: WhoamiResponse;
@@ -69,10 +88,20 @@ function getCloudBaseUrl(): string {
  * sidebar refresh path can never crash because of cloud unavailability.
  */
 export async function fetchWhoami(token: string): Promise<WhoamiResponse | null> {
+	const result = await whoamiStatus(token);
+	return result.status === 'ok' ? result.me : null;
+}
+
+/**
+ * Same request as `fetchWhoami`, but tells a rejected token (401: expired or
+ * revoked — the connection from this device has ended, UC-3904 AC-07) apart
+ * from a cloud that cannot be reached right now.
+ */
+export async function whoamiStatus(token: string): Promise<WhoamiStatus> {
 	const cached = cache.get(token);
 	const now = Date.now();
 	if (cached && cached.expiresAt > now) {
-		return cached.value;
+		return { status: 'ok', me: cached.value };
 	}
 
 	const base = getCloudBaseUrl();
@@ -89,23 +118,23 @@ export async function fetchWhoami(token: string): Promise<WhoamiResponse | null>
 		body = res.body;
 	} catch (err) {
 		console.warn('[specbox] whoami network error:', err instanceof Error ? err.message : err);
-		return null;
+		return { status: 'unavailable' };
 	}
 
 	// Endpoint not yet deployed: SPA fallback returns the HTML index.
 	// Treat as unavailable, not as auth failure.
 	if (!contentType.includes('application/json')) {
-		return null;
+		return { status: 'unavailable' };
 	}
 
 	if (status === 401) {
 		// Token rejected by cloud — don't cache, don't surface as handle.
-		return null;
+		return { status: 'unauthorized' };
 	}
 
 	if (status < 200 || status >= 300) {
 		console.warn(`[specbox] whoami status ${status}: ${body.slice(0, 200)}`);
-		return null;
+		return { status: 'unavailable' };
 	}
 
 	let parsed: WhoamiResponse;
@@ -113,16 +142,16 @@ export async function fetchWhoami(token: string): Promise<WhoamiResponse | null>
 		parsed = JSON.parse(body) as WhoamiResponse;
 	} catch (err) {
 		console.warn('[specbox] whoami JSON parse error:', err);
-		return null;
+		return { status: 'unavailable' };
 	}
 
 	if (!parsed || typeof parsed.handle !== 'string' || !parsed.handle.trim()) {
 		console.warn('[specbox] whoami response missing handle field');
-		return null;
+		return { status: 'unavailable' };
 	}
 
 	cache.set(token, { value: parsed, expiresAt: now + CACHE_TTL_MS });
-	return parsed;
+	return { status: 'ok', me: parsed };
 }
 
 interface HttpsGetResult {

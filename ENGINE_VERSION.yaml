@@ -1,8 +1,8 @@
-version: 6.13.0
-codename: "Tenant Guard"
+version: 6.14.0
+codename: "Front Door"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-08-25
+release_date: 2026-09-29
 min_claude_code: "1.0.0"
 
 stacks:
@@ -435,7 +435,28 @@ features:
   - design-system-topology-gate
   - claude-design-sync-engine
 
+  # New (v6.14.0) — Front Door
+  - transport-auth-modes
+  - device-tokens-with-expiry
+  - specbox-cli-login
+  - extension-headers-helper
+  - tool-access-log
+  - registry-caller-scope
+  - db-surface-check
+  - us-follows-ucs
+
 changelog:
+  6.14.0:
+    date: 2026-09-29
+    codename: "Front Door"
+    changes:
+      - "feat: the remote MCP checks the token on every HTTP request (off / grace / enforce)"
+      - "feat: one token per device, with expiry; `specbox login` (npm) and the VS Code extension send it through a Claude Code headers helper"
+      - "fix: remote FreeForm works only with the content the client sends; the project registry shows only the caller's projects"
+      - "feat: append-only per-tool access log; state resets require an operator"
+      - "fix: board views run with the caller's rights and public roles lose write privileges; database surface check in CI"
+      - "feat: the story follows its use cases (start_uc / move_uc / complete_uc)"
+      - "fix: the remote server runs as a non-root user, with size and rate limits"
   6.13.0:
     date: 2026-08-25
     changes:

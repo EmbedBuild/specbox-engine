@@ -16,6 +16,7 @@ import { claudeUsesHelper, configureClaudeCode, helperCommand } from "../lib/cla
 import { CLIENT, HOW_TO_CONNECT_URL, accountFor, resolveConfig, specboxHome } from "../lib/config.mjs";
 import { deviceId, hostLabel } from "../lib/device.mjs";
 import { installHelper, packageVersion } from "../lib/install.mjs";
+import { readStdinJson, runInternal } from "../lib/internal.mjs";
 import { LoginError, deviceLogin } from "../lib/login.mjs";
 import { messages, pickLang } from "../lib/messages.mjs";
 import { createStore } from "../lib/store.mjs";
@@ -59,6 +60,20 @@ export async function run(argv, deps = {}) {
   const home = specboxHome(env);
   const store = deps.store ?? createStore({ home });
   const account = accountFor(config.mcpUrl);
+
+  // Órdenes internas de la extensión de VSCode (JSON por stdin/stdout).
+  if (typeof opts.command === "string" && opts.command.startsWith("_")) {
+    return runInternal(opts.command, {
+      config,
+      store,
+      account,
+      home,
+      fetchImpl,
+      readInput: deps.readInput ?? readStdinJson,
+      out: (value) => print(JSON.stringify(value)),
+      deps,
+    });
+  }
 
   switch (opts.command) {
     case "version":

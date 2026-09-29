@@ -8,6 +8,15 @@ export const CLAUDE_HOOKS_LIB_DIR = path.join(CLAUDE_HOOKS_DIR, 'lib');
 export const CLAUDE_COMMANDS_DIR = path.join(CLAUDE_DIR, 'commands');
 export const CLAUDE_SETTINGS = path.join(CLAUDE_DIR, 'settings.json');
 export const CLAUDE_SETTINGS_LOCAL = path.join(CLAUDE_DIR, 'settings.local.json');
+/** Where Claude Code keeps MCP servers (user and local scope) — not the settings files. */
+export const CLAUDE_JSON = path.join(os.homedir(), '.claude.json');
+
+/** UC-3904 AC-06 — "How SpecBox connects", public page of the panel (ES / EN). */
+export function howToConnectUrl(language: string | undefined): string {
+	return (language ?? '').toLowerCase().startsWith('es')
+		? 'https://cloud.specbox.build/como-se-conecta'
+		: 'https://cloud.specbox.build/how-to-connect';
+}
 
 // Canonical list of SpecBox engine skills. Used as the categorization source
 // of truth (every entry here must be mapped in skill-categories.ts) and as a

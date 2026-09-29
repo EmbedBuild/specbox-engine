@@ -1,5 +1,5 @@
-version: 6.14.0
-codename: "Front Door"
+version: 6.14.1
+codename: "Forward Only"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-09-29
@@ -445,7 +445,20 @@ features:
   - db-surface-check
   - us-follows-ucs
 
+  # New (v6.14.1)
+  - extension-never-downgrades
+  - changelog-security-check
+
 changelog:
+  6.14.1:
+    date: 2026-09-29
+    codename: "Forward Only"
+    changes:
+      - "fix: the VS Code extension never downgrades when it updates — only the expected package, never a version lower than the running one, and the notice shows what was actually installed"
+      - "feat: tokens issued before expiry existed expire on 2026-12-28 (migration 0026)"
+      - "docs: SECURITY.md (ES/EN) — how to report a security problem, private channel and response deadlines"
+      - "feat: release check — a version with security changes must carry a Security section that says what it prevents, with no severities, reports or incidents"
+      - "fix: the Marketplace smoke test runs and recognises the published extension"
   6.14.0:
     date: 2026-09-29
     codename: "Front Door"

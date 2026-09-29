@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.14.0 — "Front Door" (sobre v6.13.0 "Tenant Guard")<br/>
+  v 6.14.1 — "Forward Only" (sobre v6.14.0 "Front Door")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -36,6 +36,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Aislamiento por usuario** — el backend FreeForm remoto trabaja solo con el contenido que envía el cliente, el registro de proyectos solo enseña los de quien llama, cada llamada a una tool queda en un registro de accesos y la base de datos del board solo es legible por quien tiene permiso.
 
 100% backwards-compatible: la autenticación del transporte nace en `off` y los tokens existentes siguen funcionando.
+
+**v6.14.1 — "Forward Only"** — la extensión nunca se degrada al actualizarse, los tokens anteriores a la caducidad caducan el 2026-12-28, `SECURITY.md` explica cómo avisar de un problema de seguridad y el release exige que cada versión con cambios de seguridad cuente qué evita.
 
 ---
 
@@ -527,7 +529,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.14.0 — "Front Door" (over v6.13.0 "Tenant Guard")
+> v 6.14.1 — "Forward Only" (over v6.14.0 "Front Door")
 
 ## What is this?
 
@@ -551,6 +553,8 @@ A system that turns Claude Code into a serious teammate:
 - **Per-user isolation** — remote FreeForm works only with the content the client sends, the project registry only shows the caller's projects, every tool call lands in an access log and the board database is readable only by those allowed.
 
 100% backwards-compatible: transport authentication starts in `off` and existing tokens keep working.
+
+**v6.14.1 — "Forward Only"** — the extension never downgrades when it updates, tokens issued before expiry existed expire on 2026-12-28, `SECURITY.md` explains how to report a security problem, and the release now requires every version with security changes to say what it prevents.
 
 ---
 

@@ -517,11 +517,20 @@ Añadir una línea al bloque "Release completado" del Paso 6.4:
 > que verifica que los 5 archivos de version estan alineados. Si falla,
 > abortar la release y reportar al usuario los archivos desincronizados.
 
-### 7.1 Ejecutar validador
+### 7.1 Ejecutar validadores
 
 ```bash
 node .quality/scripts/version-consistency-check.mjs
+node .quality/scripts/changelog-security-check.mjs
 ```
+
+El segundo (US-43/UC-4302, v6.14.1) lista los commits desde la etiqueta de la
+versión anterior y los clasifica como de seguridad por su mensaje o por los
+ficheros sensibles que tocan. Si hay alguno, la entrada nueva del CHANGELOG.md
+tiene que llevar una sección `### Security` con contenido que cuente **qué evita
+la versión a partir de ahora**, sin severidades, incidentes, reportes, testers
+ni identificadores de vulnerabilidad (decisión del 2026-09-29). Exit 0 conforme,
+1 falta o sobra algo, 2 error de uso (p. ej. falta la etiqueta anterior).
 
 El script lee la version canonica de `ENGINE_VERSION.yaml` y verifica que
 aparezca en:

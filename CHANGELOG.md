@@ -2,6 +2,70 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.14.1] - 2026-09-29 — "Forward Only"
+
+La extensión de VSCode solo avanza: un paquete antiguo olvidado en su carpeta ya
+no puede devolverla a una versión anterior. Los tokens emitidos antes de que
+existiera la caducidad reciben fecha, el proyecto publica cómo avisar de un
+problema de seguridad, y cada versión con cambios de seguridad tiene que contar
+qué evita.
+
+### Added
+
+- **Política de divulgación responsable** (US-43/UC-4301) — `SECURITY.md` (ES y
+  EN) explica cómo avisar de un problema de seguridad, el canal privado de GitHub
+  y los plazos de respuesta.
+- **Comprobación de seguridad del release** (US-43/UC-4302) —
+  `node .quality/scripts/changelog-security-check.mjs` lista los commits desde la
+  etiqueta de la versión anterior, los clasifica como de seguridad por su mensaje
+  (ES/EN) o por los ficheros sensibles que tocan, y falla si la entrada superior
+  del changelog no tiene una sección `### Security` con contenido, o si esa
+  sección habla de severidades, incidentes o reportes en lugar de contar qué
+  evita la versión. `/release` la ejecuta en el paso 7;
+  `tests/test_changelog_security_check.py` la cubre, con un caso vivo sobre el
+  propio repositorio.
+
+### Changed
+
+- **La extensión nunca se degrada al actualizarse** (US-14/UC-4307) — al
+  reconstruirse solo instala el paquete cuya versión es la esperada, nunca una
+  inferior a la que está en ejecución; si el engine local está por detrás, no
+  hace nada; el aviso muestra la versión que quedó instalada y, si no coincide,
+  lo dice como error en vez de declarar éxito.
+- **Tokens anteriores a la caducidad** (US-39/UC-3902) — migración 0026: los
+  tokens emitidos sin fecha de caducidad caducan el 2026-12-28. Iniciar sesión
+  desde la extensión o con `specbox login` emite uno nuevo, con caducidad y
+  renovación automática.
+- El smoke test del Marketplace vuelve a ejecutarse en CI y reconoce la
+  extensión publicada.
+- La excepción de `ingest_site_event` en la lista aprobada de la comprobación de
+  superficie describe sus límites.
+- Dependencias de desarrollo de la extensión al día (js-yaml, undici, fast-uri).
+
+### Security
+
+- **La actualización automática solo instala la versión que toca**: un paquete
+  antiguo en la carpeta de la extensión ya no puede sustituir la versión en
+  ejecución por una anterior.
+- **Los tokens sin caducidad tienen fecha**: los emitidos antes de esta versión
+  dejan de valer el 2026-12-28; desde entonces solo conectan los tokens de
+  dispositivo, que caducan y se renuevan solos.
+- **Cómo avisar de un problema de seguridad** queda publicado en `SECURITY.md`,
+  con un canal privado y plazos de respuesta.
+- **Cada versión cuenta qué evita**: la comprobación del release exige esta
+  sección siempre que haya cambios de seguridad.
+
+### Compatibility
+
+- 100 % retrocompatible. La caducidad de los tokens antiguos queda a 90 días
+  vista; quien vuelva a iniciar sesión desde la extensión o con `specbox login`
+  no nota el cambio.
+
+### Tests
+
+- Engine: 1838 passed (8 nuevos en `tests/test_changelog_security_check.py`).
+- Extensión: 137 (node:test), con `tests/extension-no-downgrade.test.mjs`.
+
 ## [6.14.0] - 2026-09-29 — "Front Door"
 
 Nadie habla con el MCP remoto sin identificarse, y conectarse ya no obliga a

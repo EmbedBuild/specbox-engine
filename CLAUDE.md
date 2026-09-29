@@ -1,4 +1,4 @@
-# SpecBox Engine v6.14.0
+# SpecBox Engine v6.14.1
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2240,9 +2240,29 @@ dos historias seguían abiertas con todas sus UC hechas.
 - `transport_auth`: los rechazos enlazan `https://cloud.specbox.build/como-se-conecta` (ES) o
   `/how-to-connect` (EN) según `Accept-Language`.
 
+## La extensión solo avanza y cada versión cuenta qué evita (v6.14.1)
+
+- **UC-4307 (US-14) — la extensión nunca se degrada al actualizarse.**
+  `vscode-extension/install-ext.mjs` solo instala el `.vsix` cuya versión es la esperada;
+  `updater.ts` no reconstruye la extensión cuando el engine local está por detrás de la versión
+  en ejecución, y el aviso muestra la versión que quedó instalada (error si no coincide con la
+  esperada). Origen: un `.vsix` antiguo olvidado en la carpeta de la extensión la devolvía a una
+  versión anterior en cada arranque. Tests: `vscode-extension/tests/extension-no-downgrade.test.mjs`.
+- **UC-4302 (US-43) — comprobación de seguridad del release.**
+  `.quality/scripts/changelog-security-check.mjs` lista los commits desde la etiqueta de la
+  versión anterior, los clasifica como de seguridad por su mensaje (ES/EN) o por los ficheros
+  sensibles que tocan, y exige que la entrada superior de `CHANGELOG.md` tenga `### Security`
+  con contenido que cuente qué evita la versión, sin severidades, incidentes, reportes ni
+  identificadores de vulnerabilidad. `/release` la ejecuta en el paso 7;
+  `tests/test_changelog_security_check.py` la cubre, con un caso vivo sobre el propio repositorio.
+- **UC-3902 (US-39)** — migración `0026_legacy_tokens_expire.sql`: los tokens sin `expires_at`
+  caducan el 2026-12-28.
+- **UC-4301 (US-43)** — `SECURITY.md` (ES/EN): cómo avisar de un problema de seguridad, canal
+  privado y plazos de respuesta.
+
 ## Engine Version
 
-Current: v6.14.0 "Front Door"
+Current: v6.14.1 "Forward Only"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

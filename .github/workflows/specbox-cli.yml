@@ -1,0 +1,45 @@
+name: specbox CLI
+
+# UC-3904 — `specbox login` / status / logout y el ayudante de cabeceras que
+# ejecuta Claude Code. Sin dependencias: se prueba con node:test en los tres
+# sistemas (cada uno usa un almacén seguro distinto) y en la Node más antigua
+# que declara el paquete.
+
+on:
+  pull_request:
+    paths:
+      - 'packages/specbox-cli/**'
+      - '.github/workflows/specbox-cli.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packages/specbox-cli/**'
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: ['18', '22']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Tests
+        working-directory: packages/specbox-cli
+        shell: bash
+        run: node --test test/*.test.mjs
+      - name: El paquete publica solo bin, lib y README
+        working-directory: packages/specbox-cli
+        shell: bash
+        run: |
+          npm pack --dry-run --json > pack.json
+          node -e "
+            const files = require('./pack.json')[0].files.map(f => f.path);
+            const bad = files.filter(p => !/^(bin|lib)\//.test(p) && !['README.md', 'package.json'].includes(p));
+            if (bad.length) { console.error('Ficheros inesperados en el paquete:', bad); process.exit(1); }
+            console.log(files.join('\n'));
+          "

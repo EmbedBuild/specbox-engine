@@ -146,6 +146,28 @@ async def test_ac01_no_token_is_rejected_when_enforcing_before_the_app_runs():
     body = resp.json()
     assert body["error"] == "token_required" and "`specbox login`" in body["message"]
     assert "extensión de VSCode" in body["message"]
+    assert body["docs_url"] == "https://cloud.specbox.build/como-se-conecta"
+
+
+@pytest.mark.parametrize(
+    ("language", "url"),
+    [
+        ("es-ES,es;q=0.9", "https://cloud.specbox.build/como-se-conecta"),
+        ("en-US", "https://cloud.specbox.build/how-to-connect"),
+    ],
+)
+async def test_uc3904_ac07_an_ended_connection_explains_how_to_reconnect_in_the_caller_language(language, url):
+    """UC-3904 AC-06/AC-07: token caducado o revocado → las dos formas de reconectar, nunca pegar un token."""
+    client, _ = _client(OFF)
+    async with client:
+        resp = await client.post(
+            "/mcp", json={}, headers={"authorization": "Bearer caducado", "accept-language": language}
+        )
+    body = resp.json()
+    assert resp.status_code == 401 and body["error"] == "invalid_token"
+    assert body["docs_url"] == url
+    assert "`specbox login`" in body["message"]
+    assert "pega" not in body["message"].lower() and "paste" not in body["message"].lower()
 
 
 @pytest.mark.parametrize("policy", [OFF, GRACE, ENFORCE], ids=["off", "grace", "enforce"])

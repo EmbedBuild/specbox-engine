@@ -161,13 +161,16 @@ def build_publish_requests(state: EngineState) -> list[PublishRequest]:
             )
         )
 
-    # 5. Changelog con highlights.
+    # 5. Changelog con highlights y, cuando la versión los tiene, sus avisos de seguridad:
+    #    la sección `### Security` del CHANGELOG.md tal cual (UC-4302 — el site la muestra;
+    #    changelog-security-check.mjs garantiza que cuenta qué evita, sin severidades ni origen).
     changelog_rows = [
         {
             "version": e.version,
             "codename": e.codename or "",
             "release_date": e.release_date or None,
             "public_highlights": e.public_highlights,
+            "security_notes": list(e.sections.get("Security") or e.sections.get("Seguridad") or []),
         }
         for e in state.changelog
     ]

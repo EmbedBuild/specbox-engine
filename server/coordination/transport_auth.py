@@ -81,7 +81,17 @@ VERDICT_REJECT = "reject"
 KIND_DEVELOPER = "developer"
 KIND_ANONYMOUS = "anonymous"
 
-HOW_TO_CONNECT_URL = "https://github.com/EmbedBuild/specbox-engine/blob/main/doc/runbooks/transport-auth.md"
+#: UC-3904 AC-06 — "Cómo se conecta SpecBox", pública en el panel (ES y EN).
+#: Todos los rechazos de conexión la enlazan en ``docs_url``.
+HOW_TO_CONNECT_URLS: dict[str, str] = {
+    "es": "https://cloud.specbox.build/como-se-conecta",
+    "en": "https://cloud.specbox.build/how-to-connect",
+}
+HOW_TO_CONNECT_URL = HOW_TO_CONNECT_URLS["es"]
+
+
+def how_to_connect_url(locale: str) -> str:
+    return HOW_TO_CONNECT_URLS.get(locale, HOW_TO_CONNECT_URLS["en"])
 
 
 # ── Policy ──────────────────────────────────────────────────────────
@@ -306,22 +316,22 @@ class TransportAuthMiddleware:
 
         if present:
             if not token:
-                await _reject(send, 401, "invalid_token", message("invalid_token", locale))
+                await _reject(send, 401, "invalid_token", message("invalid_token", locale), locale)
                 return
             try:
                 developer_id = await _resolve_cached(token, self.resolver)
             except Exception as exc:  # noqa: BLE001 — identity DB unreachable
                 logger.warning("transport_auth_unavailable", reason=type(exc).__name__)
-                await _reject(send, 503, "auth_unavailable", message("auth_unavailable", locale))
+                await _reject(send, 503, "auth_unavailable", message("auth_unavailable", locale), locale)
                 return
             if developer_id is None:
-                await _reject(send, 401, "invalid_token", message("invalid_token", locale))
+                await _reject(send, 401, "invalid_token", message("invalid_token", locale), locale)
                 return
             identity = TransportIdentity(developer_id=developer_id, kind=KIND_DEVELOPER)
         else:
             verdict = self.policy.tokenless_verdict(self.today())
             if verdict == VERDICT_REJECT:
-                await _reject(send, 401, "token_required", token_required_message(self.policy, locale))
+                await _reject(send, 401, "token_required", token_required_message(self.policy, locale), locale)
                 return
             notice = token_required_message(self.policy, locale) if verdict == VERDICT_WARN else None
             identity = TransportIdentity(developer_id=None, kind=KIND_ANONYMOUS, grace_notice=notice)
@@ -330,10 +340,10 @@ class TransportAuthMiddleware:
         await self.app(scope, receive, send)
 
 
-async def _reject(send: Any, status: int, code: str, text: str) -> None:
-    body = json.dumps({"error": code, "message": text, "docs_url": HOW_TO_CONNECT_URL}, ensure_ascii=False).encode(
-        "utf-8"
-    )
+async def _reject(send: Any, status: int, code: str, text: str, locale: str = DEFAULT_LOCALE) -> None:
+    body = json.dumps(
+        {"error": code, "message": text, "docs_url": how_to_connect_url(locale)}, ensure_ascii=False
+    ).encode("utf-8")
     headers = [
         (b"content-type", b"application/json; charset=utf-8"),
         (b"content-length", str(len(body)).encode("latin-1")),

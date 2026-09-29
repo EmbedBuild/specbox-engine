@@ -1,0 +1,37 @@
+{
+  "name": "specbox",
+  "version": "6.14.0",
+  "description": "Conecta este ordenador a SpecBox sin copiar tokens: specbox login, status y logout.",
+  "type": "module",
+  "bin": {
+    "specbox": "bin/specbox.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "keywords": [
+    "specbox",
+    "mcp",
+    "claude-code",
+    "login"
+  ],
+  "license": "MIT",
+  "author": "EmbedBuild",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EmbedBuild/specbox-engine.git",
+    "directory": "packages/specbox-cli"
+  },
+  "homepage": "https://cloud.specbox.build/como-se-conecta",
+  "bugs": {
+    "url": "https://github.com/EmbedBuild/specbox-engine/issues"
+  }
+}

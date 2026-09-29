@@ -263,6 +263,37 @@ async def test_a_token_without_expiry_keeps_working(pool, developer):
         assert (await resolve_developer(conn, token)).developer_id == developer
 
 
+async def test_legacy_tokens_get_the_operator_deadline_and_nothing_else_moves(pool, developer):
+    """0026: active tokens without an expiry date get 2026-12-28; nothing else changes."""
+    legacy = f"legacy-{uuid.uuid4().hex}"
+    revoked = f"legacy-{uuid.uuid4().hex}"
+    async with pool.acquire() as conn:
+        await register_mcp_token(conn, developer_id=developer, token=legacy)
+        await register_mcp_token(conn, developer_id=developer, token=revoked)
+        await conn.execute(
+            "UPDATE mcp_tokens SET revoked_at = now() WHERE token_hash = $1",
+            hashlib.sha256(revoked.encode()).hexdigest(),
+        )
+        _clear, device = await _issue(conn, developer, _device("deadline"))
+        device_expiry = await conn.fetchval(
+            "SELECT expires_at FROM mcp_tokens WHERE token_id = $1", device["issued_token_id"]
+        )
+    await apply_migrations(pool)
+    async with pool.acquire() as conn:
+        rows = {
+            r["token_hash"]: r["expires_at"]
+            for r in await conn.fetch(
+                "SELECT token_hash, expires_at FROM mcp_tokens WHERE developer_id = $1", developer
+            )
+        }
+        after_device = await conn.fetchval(
+            "SELECT expires_at FROM mcp_tokens WHERE token_id = $1", device["issued_token_id"]
+        )
+    assert rows[hashlib.sha256(legacy.encode()).hexdigest()].isoformat() == "2026-12-28T00:00:00+00:00"
+    assert rows[hashlib.sha256(revoked.encode()).hexdigest()] is None
+    assert after_device == device_expiry
+
+
 # ── Real use is recorded, at most once an hour ───────────────────────
 
 

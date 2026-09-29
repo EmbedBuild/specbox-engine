@@ -10,7 +10,7 @@ import {
 import {
 	GitRunner, defaultGitRunner, isManagedPath,
 	fetchRemote, remoteEngineVersion, compareSemver, isDivergedFromRemote,
-	DEFAULT_REMOTE_BRANCH,
+	DEFAULT_REMOTE_BRANCH, shouldReinstallExtension, parseInstalledVersion,
 } from './install';
 
 /** Outcome of pulling the managed clone. `skipped` means the engine is a user clone (untouched). */
@@ -110,10 +110,11 @@ export class ExtensionUpdater {
 			}
 		}
 
-		// Phase 1 — binary: rebuild/reinstall the extension if the version drifted.
-		// On a version match this is a no-op and the rest of the flow still runs
-		// (config migration is independent of an extension rebuild).
-		if (engineVersion !== this.extensionVersion && enginePath) {
+		// Phase 1 — binary: reinstall the extension when the engine is NEWER than
+		// the running extension. Equal or older is a no-op (UC-4307: an engine
+		// behind the extension must never trigger a downgrade), and the rest of the
+		// flow still runs (config migration is independent of an extension rebuild).
+		if (enginePath && shouldReinstallExtension(engineVersion, this.extensionVersion)) {
 			try {
 				await this.rebuildExtension(enginePath, engineVersion);
 			} catch (err) {
@@ -192,20 +193,31 @@ export class ExtensionUpdater {
 				return;
 			}
 			progress.report({ message: vscode.l10n.t('Building and installing...') });
+			// UC-4307 — ask for exactly this version: the Marketplace first, then a
+			// local package of that same version, then a build. Never "whatever
+			// .vsix happens to be in the folder".
 			const result = await new Promise<string | null>((resolve) => {
-				cp.execFile('node', [scriptPath], { cwd: enginePath, timeout: 120_000 }, (err, stdout) => {
-					resolve(err ? null : stdout.trim());
-				});
+				cp.execFile(
+					'node',
+					[scriptPath, '--prefer-marketplace', '--expect', engineVersion],
+					{ cwd: enginePath, timeout: 180_000 },
+					(err, stdout) => { resolve(err ? null : stdout.trim()); },
+				);
 			});
-			if (result !== null) {
+			const installed = parseInstalledVersion(result);
+			if (result !== null && installed === engineVersion) {
 				const reload = vscode.l10n.t('Reload Now');
 				const choice = await vscode.window.showInformationMessage(
-					vscode.l10n.t('SpecBox Extension updated to v{0}. Reload to activate?', engineVersion),
+					vscode.l10n.t('SpecBox Extension updated to v{0}. Reload to activate?', installed),
 					reload,
 				);
 				if (choice === reload) {
 					await vscode.commands.executeCommand('workbench.action.reloadWindow');
 				}
+			} else if (result !== null && installed) {
+				vscode.window.showErrorMessage(
+					vscode.l10n.t('SpecBox Extension update installed v{0} instead of v{1}. Install it from the Marketplace or run: node vscode-extension/install-ext.mjs', installed, engineVersion),
+				);
 			} else {
 				vscode.window.showErrorMessage(
 					vscode.l10n.t('Extension update failed. Try manually: node vscode-extension/install-ext.mjs'),

@@ -54,5 +54,6 @@
   "Token expires on {0} — it renews itself": "Token expires on {0} — it renews itself",
   "Token expires on {0}": "Token expires on {0}",
   "Token without expiry (issued before devices existed)": "Token without expiry (issued before devices existed)",
-  "Not connected with an account": "Not connected with an account"
+  "Not connected with an account": "Not connected with an account",
+  "SpecBox Extension update installed v{0} instead of v{1}. Install it from the Marketplace or run: node vscode-extension/install-ext.mjs": "SpecBox Extension update installed v{0} instead of v{1}. Install it from the Marketplace or run: node vscode-extension/install-ext.mjs"
 }

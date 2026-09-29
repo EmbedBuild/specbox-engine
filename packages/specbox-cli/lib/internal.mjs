@@ -20,7 +20,7 @@
  *   _disconnect  /devices/logout y borra la credencial local
  */
 import { createHash } from "node:crypto";
-import { claudeUsesHelper, configureClaudeCode, helperCommand } from "./claude.mjs";
+import { claudeUsesHelper, configureClaudeCode, helperCommand, stableNodePath } from "./claude.mjs";
 import { CLIENT } from "./config.mjs";
 import { deviceId, hostLabel } from "./device.mjs";
 import { installHelper } from "./install.mjs";
@@ -68,7 +68,7 @@ export async function runInternal(command, ctx) {
   const connectClaude = () =>
     configureClaudeCode({
       mcpUrl: config.mcpUrl,
-      helperCmd: helperCommand((deps.installHelper ?? installHelper)(home), deps.nodePath ?? process.execPath),
+      helperCmd: helperCommand((deps.installHelper ?? installHelper)(home), deps.nodePath ?? stableNodePath()),
       run: deps.runCommand,
       claudeJsonPath: deps.claudeJsonPath,
     });

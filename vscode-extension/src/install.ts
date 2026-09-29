@@ -124,6 +124,24 @@ export function compareSemver(a: string, b: string): -1 | 0 | 1 {
 }
 
 /**
+ * UC-4307 — reinstall the extension only when the engine is strictly newer.
+ * A local engine that is behind (or equal) never triggers a reinstall, so the
+ * automatic update can never install an older version than the running one.
+ */
+export function shouldReinstallExtension(engineVersion: string, extensionVersion: string): boolean {
+	return compareSemver(engineVersion, extensionVersion) > 0;
+}
+
+/**
+ * UC-4307 — the version `install-ext.mjs` reports as actually installed (its
+ * `INSTALLED_VERSION=x.y.z` line), or null when it did not report one.
+ */
+export function parseInstalledVersion(stdout: string | null | undefined): string | null {
+	const m = /^INSTALLED_VERSION=(\S+)\s*$/m.exec(stdout ?? '');
+	return m ? m[1] : null;
+}
+
+/**
  * Decide whether a failed `git pull --ff-only` failed *because the history
  * diverged* (local commits / a feature branch that is not a fast-forward of the
  * remote) rather than for a transient reason. Combines the stderr text with the

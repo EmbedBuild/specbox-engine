@@ -26,7 +26,10 @@ servidor, por su parte, separa a cada usuario y deja rastro de cada llamada.
   muestra un código de un solo uso que se confirma en el panel con GitHub; el
   token va al almacén seguro (Llavero, Secret Service, DPAPI) sin que nadie lo
   vea, y Claude Code queda configurado con un ayudante de cabeceras que además
-  lo renueva. `specbox status` y `specbox logout`.
+  lo renueva. El ayudante usa la ruta de Node que mantiene el gestor de
+  paquetes (p. ej. `/opt/homebrew/bin/node`), así que sobrevive a sus
+  actualizaciones; si aun así deja de poder ejecutarse, la extensión lo
+  reconfigura al arrancar. `specbox status` y `specbox logout`.
 - **Registro de accesos por tool** (US-38) — cada llamada queda en una tabla de
   solo inserción (quién, qué tool, cuándo, resultado), consultable solo por el
   operador.

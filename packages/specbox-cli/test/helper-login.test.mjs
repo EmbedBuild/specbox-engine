@@ -5,7 +5,15 @@ import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { configureClaudeCode, findSpecboxEntries, helperCommand, withHelper } from "../lib/claude.mjs";
+import {
+  claudeUsesHelper,
+  configureClaudeCode,
+  findSpecboxEntries,
+  helperCommand,
+  helperPaths,
+  stableNodePath,
+  withHelper,
+} from "../lib/claude.mjs";
 import { accountFor } from "../lib/config.mjs";
 import { deviceId, hostLabel, machineId } from "../lib/device.mjs";
 import { RUNTIME_FILES, installHelper } from "../lib/install.mjs";
@@ -222,6 +230,40 @@ test("findSpecboxEntries solo encuentra entradas del mismo servidor; withHelper 
   const found = findSpecboxEntries({ mcpServers: { a: { url: "https://otro/mcp" }, b: { url: `${MCP}` } } }, MCP);
   assert.deepEqual(found.map((f) => f.name), ["b"]);
   assert.deepEqual(withHelper({ type: "sse", url: MCP, headers: { authorization: "x" } }, "h"), { type: "sse", url: MCP, headersHelper: "h" });
+});
+
+test("el ayudante graba la ruta de Node del PATH que sobrevive a `brew upgrade`, no la versionada", () => {
+  const cellar = "/opt/homebrew/Cellar/node/26.7.0/bin/node";
+  const links = { "/usr/bin/node": "/usr/bin/node", "/opt/homebrew/bin/node": cellar, [cellar]: cellar };
+  const realpath = (p) => {
+    if (!(p in links)) throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    return links[p];
+  };
+  const exists = (p) => p in links;
+  const base = { execPath: cellar, platform: "darwin", realpath, exists };
+  // /usr/bin/node es otro Node: no vale aunque vaya antes en el PATH
+  assert.equal(stableNodePath({ ...base, pathEnv: "/nada:/usr/bin:/opt/homebrew/bin" }), "/opt/homebrew/bin/node");
+  // si ninguna entrada del PATH apunta al Node en uso, se queda la ruta real
+  assert.equal(stableNodePath({ ...base, pathEnv: "/usr/bin" }), cellar);
+  assert.equal(stableNodePath({ ...base, pathEnv: "" }), cellar);
+  // Windows: node.exe y separador ;
+  const exe = "C:\\Program Files\\nodejs\\node.exe";
+  assert.equal(
+    stableNodePath({ execPath: exe, platform: "win32", pathEnv: "C:\\Windows;C:\\Program Files\\nodejs", realpath: (p) => p, exists: (p) => p === exe }),
+    exe,
+  );
+});
+
+test("status solo da por bueno el ayudante si su Node y su script siguen existiendo", () => {
+  const helper = helperCommand("/Users/j/.specbox/bin/mcp-headers.mjs", "/opt/homebrew/Cellar/node/26.7.0/bin/node");
+  assert.deepEqual(helperPaths(helper), { node: "/opt/homebrew/Cellar/node/26.7.0/bin/node", helper: "/Users/j/.specbox/bin/mcp-headers.mjs" });
+  assert.equal(helperPaths("node ayudante.mjs"), null);
+  const readFile = () => JSON.stringify({ mcpServers: { "SpecBox-MCP": { type: "http", url: MCP, headersHelper: helper } } });
+  assert.equal(claudeUsesHelper({ readFile, exists: () => true }), true);
+  // `brew upgrade` borró esa versión de Node: la extensión reconfigura en el siguiente arranque
+  assert.equal(claudeUsesHelper({ readFile, exists: (p) => !p.includes("/Cellar/") }), false);
+  assert.equal(claudeUsesHelper({ readFile: () => JSON.stringify({ mcpServers: { "SpecBox-MCP": { url: MCP } } }), exists: () => true }), false);
+  assert.equal(claudeUsesHelper({ readFile: () => "{no es json", exists: () => true }), false);
 });
 
 test("instala el ayudante y sus módulos en ~/.specbox/bin como ESM", () => {

@@ -12,7 +12,7 @@
 import { spawn } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { claudeUsesHelper, configureClaudeCode, helperCommand } from "../lib/claude.mjs";
+import { claudeUsesHelper, configureClaudeCode, helperCommand, stableNodePath } from "../lib/claude.mjs";
 import { CLIENT, HOW_TO_CONNECT_URL, accountFor, resolveConfig, specboxHome } from "../lib/config.mjs";
 import { deviceId, hostLabel } from "../lib/device.mjs";
 import { installHelper, packageVersion } from "../lib/install.mjs";
@@ -112,7 +112,7 @@ export async function run(argv, deps = {}) {
       const helperPath = (deps.installHelper ?? installHelper)(home);
       const result = configureClaudeCode({
         mcpUrl: config.mcpUrl,
-        helperCmd: helperCommand(helperPath, deps.nodePath ?? process.execPath),
+        helperCmd: helperCommand(helperPath, deps.nodePath ?? stableNodePath()),
         run: deps.runCommand,
         claudeJsonPath: deps.claudeJsonPath,
       });

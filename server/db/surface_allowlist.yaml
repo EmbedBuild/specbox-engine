@@ -21,8 +21,9 @@ exceptions:
       Funnel ingestion for the public site and the VS Code extension's activation event
       (US-24, US-26). SECURITY DEFINER with a pinned search_path; it rejects an empty
       anon_id and any event type outside page_view, section_view, cta_click,
-      install_intent and activation, and only inserts into site_event. Size and rate
-      limits arrive with UC-4202.
+      install_intent and activation, and only inserts into site_event. Since UC-4202 it
+      rejects anon_id, page or ref_id over 200 characters and meta over 2 KB, and drops
+      (without an error) anything beyond 60 events per minute from the same anon_id.
 
   - kind: function
     name: public.site_funnel(timestamp with time zone, timestamp with time zone, text)

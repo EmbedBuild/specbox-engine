@@ -2185,6 +2185,28 @@ dos historias seguían abiertas con todas sus UC hechas.
   GET y preflights no se limitan. Cupos en memoria (un proceso).
 - Tests: `tests/test_abuse_guard.py`.
 
+### UC-3904 (base de datos e identidad) — un token por dispositivo, con caducidad
+
+- Migración `0025_device_tokens.sql` (+ espejo `20260929000025`), aditiva: `mcp_tokens` gana
+  `expires_at`, `device_id` (SHA-256 que calcula el cliente con el id de máquina y el cliente; el
+  servidor nunca ve el id de máquina), `device_name`, `client`, `issued_via`
+  (`vscode|cli|manual|panel`) y `revoked_reason` (lista cerrada: `replaced`, `renewed`, `user`,
+  `org_admin`, `superadmin`, `banned`, `idle`, `logout`); versiona también `name`, que solo existía
+  en producción. Índice único parcial: como mucho un token activo por (developer, dispositivo),
+  escriba quien escriba.
+- `public.issue_device_token(...)`: emite un token de dispositivo en una transacción. Revoca el token
+  activo del dispositivo (`replaced`) o el que se renueva (`renewed`, que debe seguir válido:
+  `TOKEN_NOT_RENEWABLE`/28000 si no) e inserta el nuevo con caducidad (90 días por defecto, 1–365).
+  Adopta un token antiguo sin dispositivo cuando se renueva con los datos del dispositivo.
+  `SECURITY INVOKER` con `search_path` fijado; `EXECUTE` solo para `service_role` (la API del panel).
+- `identity.resolve_developer`: un token caducado no autentica (UC-3902 AC-01), y la misma sentencia
+  anota el uso real en `last_used_at` como mucho una vez por hora. Hasta ahora solo lo escribía
+  `/api/whoami` del panel, así que las fechas anteriores no reflejan el uso del MCP.
+- Orden de despliegue: la migración se aplica en producción **antes** de fusionar (el resolver
+  consulta `expires_at`).
+- Tests: `tests/test_device_tokens.py` (PG-gated). Plan completo de clientes (panel, CLI `specbox`,
+  extensión): `doc/plans/US-39-conexion-dispositivos_plan.md` del orquestador.
+
 ## Engine Version
 
 Current: v6.13.0 "Tenant Guard"

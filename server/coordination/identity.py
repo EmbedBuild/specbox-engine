@@ -27,7 +27,8 @@ Token handling [AC-10, AC-11, AC-17, AC-18]
   separately via :func:`register_mcp_token`, which is an internal helper (not
   exposed as an MCP tool) used by fixtures and the future admin panel.
 - :func:`resolve_developer` joins ``mcp_tokens`` against ``developers``
-  filtering ``revoked_at IS NULL`` (AC-17): revoked tokens map to UNAUTHENTICATED.
+  filtering ``revoked_at IS NULL`` (AC-17) and an unexpired ``expires_at``
+  (UC-3902): revoked or expired tokens map to UNAUTHENTICATED.
 - This module never logs the clear token. Callers (set_auth_token, tools) must
   likewise keep the token out of logs — only ``developer_id`` is safe to log.
 """
@@ -332,10 +333,16 @@ async def resolve_developer(
 ) -> Developer:
     """Resolve a token to a :class:`Developer`, or raise UNAUTHENTICATED [AC-17].
 
-    Joins ``mcp_tokens`` against ``developers`` filtering ``revoked_at IS NULL``:
-    a revoked token, an unknown hash, or a missing/empty token all map to
-    :class:`UnauthenticatedError` — the error never discloses whether a
+    Joins ``mcp_tokens`` against ``developers`` filtering ``revoked_at IS NULL``
+    and, since UC-3902, ``expires_at`` in the future (NULL = no expiry): a
+    revoked or expired token, an unknown hash, or a missing/empty token all map
+    to :class:`UnauthenticatedError` — the error never discloses whether a
     developer exists [AC-12, AC-15].
+
+    A successful lookup also records the use in ``last_used_at``, at most once
+    an hour per token (the same statement, so no extra round trip). Until
+    2026-09 only the cloud's ``/api/whoami`` wrote it, so it did not reflect MCP
+    use; inactivity policies (UC-3902 AC-03) rely on it from now on.
     """
     if not token or not token.strip():
         raise UnauthenticatedError()
@@ -344,11 +351,22 @@ async def resolve_developer(
     async def _run(c: asyncpg.Connection) -> asyncpg.Record | None:
         return await c.fetchrow(
             """
-            SELECT d.developer_id, d.display_name
-              FROM mcp_tokens t
-              JOIN developers d ON d.developer_id = t.developer_id
-             WHERE t.token_hash = $1
-               AND t.revoked_at IS NULL
+            WITH hit AS (
+                SELECT t.token_id, d.developer_id, d.display_name
+                  FROM mcp_tokens t
+                  JOIN developers d ON d.developer_id = t.developer_id
+                 WHERE t.token_hash = $1
+                   AND t.revoked_at IS NULL
+                   AND (t.expires_at IS NULL OR t.expires_at > now())
+            ), touched AS (
+                UPDATE mcp_tokens u
+                   SET last_used_at = now()
+                  FROM hit
+                 WHERE u.token_id = hit.token_id
+                   AND (u.last_used_at IS NULL OR u.last_used_at < now() - interval '1 hour')
+                RETURNING u.token_id
+            )
+            SELECT developer_id, display_name FROM hit
             """,
             token_hash,
         )

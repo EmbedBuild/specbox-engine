@@ -41,6 +41,39 @@ _MESSAGES: dict[str, dict[SupportedLocale, str]] = {
         "en": "Your session was revoked. Sign in again.",
         "es": "Tu sesión fue revocada. Inicia sesión de nuevo.",
     },
+    # US-49 · UC-4901 — design tools read the project's system tokens.
+    "system_tokens_missing": {
+        "en": (
+            "This project has no design system tokens, so DESIGN.md comes from the "
+            "brand kit or the archetype defaults and the visual providers can drift "
+            "from the system. To adopt them, add a design-system.tokens.json file "
+            "(Design System tokens format) to the project — in the SpecBox ecosystem "
+            "`npm run build:sync` in @specbox/tokens puts it in every app — and "
+            "generate again. Guide: {guide_url}"
+        ),
+        "es": (
+            "Este proyecto no tiene tokens del sistema de diseño: el DESIGN.md sale "
+            "del Brand Kit o de los valores por defecto del arquetipo, y los "
+            "proveedores visuales pueden alejarse del sistema. Para adoptarlos, añade "
+            "un design-system.tokens.json (formato Design System) al proyecto —en el "
+            "ecosistema SpecBox lo deja en cada app `npm run build:sync` de "
+            "@specbox/tokens— y vuelve a generar. Guía: {guide_url}"
+        ),
+    },
+    "design_candidate_note": {
+        "en": (
+            "Candidate design from {provider}: use it to decide layout, hierarchy "
+            "and flow. It is never a production source — colours, typography, radii "
+            "and states come from the project's system tokens, and the code does not "
+            "copy values from this design."
+        ),
+        "es": (
+            "Diseño candidato de {provider}: sirve para decidir disposición, "
+            "jerarquía y flujo. Nunca es fuente de producción: colores, tipografía, "
+            "radios y estados salen de los tokens del sistema del proyecto, y el "
+            "código no copia valores de este diseño."
+        ),
+    },
 }
 
 

@@ -35,10 +35,20 @@ from typing import Any
 import structlog
 from fastmcp import Context, FastMCP
 
+from ..coordination.i18n_messages import extract_locale_from_ctx
+from ..design_system import candidate_marker
 from ..veg.design_system_gate import evaluate_gate
 from ..veg.visual_provider import claude_design_config, parse_providers
 
 logger = structlog.get_logger(__name__)
+
+#: What the sync uploads to Claude Design: the system's components and tokens.
+SYSTEM_INPUT_WRITES: tuple[str, ...] = (
+    "components/**",
+    "tokens/**",
+    "_ds_bundle.js",
+    "styles.css",
+)
 
 # The exact set of DesignSync methods, in their mandatory ordering buckets.
 # Used to validate that a sync plan never writes before finalize_plan.
@@ -333,6 +343,10 @@ def register_claude_design_tools(mcp: FastMCP, state_path: Path):
         verifies the active session is writable, and returns an ordered
         DesignSync plan (read → finalize_plan → write). Marks ``pending`` —
         never raises — when there is no login or no compiled design-system.
+
+        The ``ok`` response names the ``system_input`` Claude Design receives
+        and marks what it designs from it as a candidate (``design_role``,
+        UC-4901): never a production source.
         """
         root = Path(project_root)
         settings = _read_project_settings(root)
@@ -368,7 +382,7 @@ def register_claude_design_tools(mcp: FastMCP, state_path: Path):
         plan = build_sync_plan(
             project_id=project_id or "<to-create>",
             site_path=str(site.site_path),
-            writes=["components/**", "tokens/**", "_ds_bundle.js", "styles.css"],
+            writes=list(SYSTEM_INPUT_WRITES),
         )
         validate_plan_ordering(plan["ordered_steps"])
         result: dict[str, Any] = {
@@ -378,6 +392,13 @@ def register_claude_design_tools(mcp: FastMCP, state_path: Path):
             "anchor_settings": str(site.anchor_settings_path),
             "consumes_from_orchestrator": site.consumes_from_orchestrator,
             "plan": plan,
+            # UC-4901 AC-02: what Claude Design receives is the system itself
+            # (its components and tokens); what it returns is a candidate.
+            "system_input": {
+                "kind": "design_system",
+                "includes": list(SYSTEM_INPUT_WRITES),
+            },
+            **candidate_marker("claude_design", extract_locale_from_ctx(ctx)),
         }
         if write_check.get("foreign_owner"):
             result["warning"] = (

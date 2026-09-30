@@ -875,47 +875,58 @@ Google Stitch configurado:
 ¿Todo correcto?
 ```
 
-### 3.7 Generar DESIGN.md canónico (v5.31.0)
+### 3.7 Generar DESIGN.md canónico (v5.31.0 · sistema: US-49 · UC-4901)
 
-Una vez configurado el Design System de Stitch, materializar también un
-`DESIGN.md` canónico — formato oficial de Google
-(github.com/google-labs-code/design.md) que Stitch lee como contexto
-persistente en cada generación. Sin esto, las pantallas tienden a
-derivar visualmente entre sí.
+Materializar el `DESIGN.md` canónico — formato oficial de Google
+(github.com/google-labs-code/design.md) — que Stitch recibe como sistema en
+cada generación. Sin esto, las pantallas tienden a derivar visualmente entre sí.
+
+**Si el proyecto tiene tokens del sistema** (`design-system.tokens.json`), el
+DESIGN.md sale solo de ellos: el Brand Kit y el arquetipo no se leen. Buscar el
+fichero en `doc/design/`, `src/styles/tokens/`, `apps/web/src/styles/tokens/`,
+`web/src/styles/tokens/`, `packages/tokens/dist/` o la raíz. El MCP es remoto,
+así que se envía el contenido (pasar solo lo que exista):
 
 ```
 generate_design_md_tool(
   project="{project-slug}",
-  project_root="{absolute_path_a_la_raiz_del_proyecto}",
   project_name="{Nombre Visible}",
-  archetype_override=None  # opcional: corporate|startup|creative|consumer|gen_z|gov
+  system_tokens_content=<design-system.tokens.json>,
+  system_tokens_path="<ruta relativa del fichero>",
+  brand_kit_content=<doc/brand/brand_kit.md>,
+  veg_content=<VEG si ya existe>,
+  app_prd_content=<doc/app/app_prd.md>,
+  app_spec_content=<doc/app/app_spec.md>,
+  archetype_override=None  # solo sin tokens: corporate|startup|creative|consumer|gen_z|gov
 )
 ```
 
-Esto crea `doc/design/DESIGN.md` con:
-- YAML front-matter con `colors`, `typography`, `rounded`, `spacing`, `components` (todos en hex codes o token references — nunca nombres de color)
+Escribir `design_md_content` en `suggested_relpath` (`doc/design/DESIGN.md`):
+- YAML front-matter con `colors`, `typography`, `rounded`, `spacing`, `components` (hex o referencias a token — nunca nombres de color) y la vista Material 3 que Stitch parsea
 - Body Markdown con secciones `Overview`, `Colors`, `Typography`, `Layout`, `Elevation & Depth`, `Shapes`, `Components`, `Do's and Don'ts`
 
-El generador lee el Brand Kit recién creado (`doc/brand/brand_kit.md`),
-el VEG si ya existe, y los documentos canónicos `doc/app/app_prd.md` /
-`doc/app/app_spec.md`. Si falta cualquier input, completa con el
-arquetipo VEG más cercano (default `startup`).
+Según la respuesta:
+- `system_tokens.found == true` → `values_outside_system` tiene que venir vacío
+  (si no, parar y mostrar la lista). Mostrar `warnings` si los hay.
+- `notice` (`SYSTEM_TOKENS_MISSING`) → mostrar `notice.message` al usuario: explica
+  cómo adoptar los tokens y enlaza la guía. El DESIGN.md sale del Brand Kit y, lo
+  que falte, del arquetipo VEG más cercano (default `startup`).
+- `SYSTEM_TOKENS_INVALID` → parar: los tokens existen pero están rotos; el mensaje
+  dice qué falta. No generar desde el Brand Kit.
 
-Inmediatamente después, registrar el DESIGN.md frente al proyecto Stitch:
+Inmediatamente después, dar el DESIGN.md a Stitch (contrato `native_v2`):
 
 ```
-upload_design_md_to_stitch(
-  project="{project-slug}",
-  stitch_project_id="{stitch_project_id}",
-  project_root="{absolute_path}"
-)
+stitch_upload_design_md(project, stitch_project_id, design_md_content)
+stitch_create_design_system_from_design_md(project, stitch_project_id,
+  screen_instance_id, source_screen, device_type)
 ```
 
-Hoy esto registra DESIGN.md en `meta.json` con modo `inline-prefix`:
-las herramientas de generación posteriores (Phase 4 fallback +
-batched build) anteponen el contenido al prompt automáticamente. El
-día que Google añada un endpoint nativo de attach, el comportamiento
-upgradea sin requerir cambio del skill.
+Si el proyecto Stitch ya tiene Design System, actualizarlo con
+`stitch_update_design_system(..., theme=material3.theme)`. Con Claude Design, el
+sync del Paso 2.9.3 sube los componentes y tokens del sistema. En los dos casos
+**lo que generen son candidatos** (`design_role: "candidate"`): nunca fuente de
+producción.
 
 ### 3.8 Confirmar DESIGN.md
 
@@ -923,13 +934,14 @@ upgradea sin requerir cambio del skill.
 DESIGN.md canónico generado:
 ├── Path: doc/design/DESIGN.md
 ├── Signature: {sha256_first_8}
-├── Archetype detectado: {auto|override}
+├── Fuente: {tokens del sistema <ruta> (versión N) | Brand Kit | arquetipo <id>}
+├── Valores fuera del sistema: {0 | lista}
 ├── Secciones presentes: {sections_list}
-└── Registrado en proyecto Stitch: {stitch_project_id} (modo inline-prefix)
+└── Design System en Stitch: {stitch_project_id} ({creado | actualizado})
 
 A partir de ahora, /plan y /implement leerán este DESIGN.md como fuente
-de verdad visual. Si modificas el Brand Kit, vuelve a correr este skill
-o `generate_design_md_tool` para regenerarlo (idempotente).
+de verdad visual. Si cambian los tokens (o el Brand Kit, sin tokens), vuelve a
+correr este skill o `generate_design_md_tool` para regenerarlo (idempotente).
 ```
 
 ---

@@ -19,7 +19,10 @@ import yaml
 from fastmcp import Context, FastMCP
 
 from .. import __version__ as MCP_VERSION
+from ..coordination.i18n_messages import extract_locale_from_ctx
 from ..coordination.identity import UnauthenticatedError
+from ..design_system import SystemTokensError, parse_system_tokens, system_tokens_notice
+from ..design_system.code_gaps import DesignSystemRules, design_gap_report
 from ..coordination.project_id import InvalidProjectIdError, validate_project_id
 from ..coordination.scope import (
     NATIVE_PROJECT_ID_FIELD,
@@ -1524,6 +1527,10 @@ def register_onboarding_tools(
         artifact_presence: dict[str, bool] | None = None,
         has_design_htmls: bool = False,
         has_veg_base_files: bool = False,
+        code_files: dict[str, str] | None = None,
+        system_tokens_content: str | None = None,
+        system_tokens_path: str | None = None,
+        ctx: Context | None = None,
     ) -> dict:
         """Scan a project for missing visual identity artifacts and report gaps.
 
@@ -1544,10 +1551,28 @@ def register_onboarding_tools(
           anything, ``has_veg_base_files=True`` if ``doc/veg/base/**/*.md``
           matches anything.
 
+        **US-49 · UC-4902 — design gaps in code.** Pass the UI files of an
+        implementation as ``code_files`` ({relpath: content}) and the
+        project's ``design-system.tokens.json`` as ``system_tokens_content``
+        (+ ``system_tokens_path``). The report gains ``design_gaps``: every
+        colour written directly, font outside the system, weight above the
+        system maximum and gradient, with ``file:line`` and what to do, plus
+        ``design_gate`` = ``pass`` (0 findings, no warnings) or ``block``.
+        With system tokens, the brand-kit artifacts count as present: the
+        system replaces a separate brand kit (UC-4901).
+
         Returns a structured report with coverage percentage, missing
         artifacts, and recommended actions. Projects not using Stitch at all
         get a clean ``status="not_applicable"``.
         """
+        tokens = None
+        tokens_error: str | None = None
+        if system_tokens_content is not None:
+            try:
+                tokens = parse_system_tokens(system_tokens_content, source=system_tokens_path)
+            except SystemTokensError as exc:
+                tokens_error = str(exc)
+
         settings: dict = {}
         if settings_local_json_content and settings_local_json_content.strip():
             try:
@@ -1562,6 +1587,9 @@ def register_onboarding_tools(
         presence = dict(artifact_presence or {})
 
         def _is(path_key: str) -> bool:
+            # With system tokens, the separate brand kit is not needed (UC-4901).
+            if tokens is not None and path_key.startswith("doc/brand/brand_kit/"):
+                return True
             return bool(presence.get(path_key, False))
 
         artifacts = {
@@ -1690,7 +1718,30 @@ def register_onboarding_tools(
                 summary_lines.append(f"  ...and {len(missing) - 5} more")
         summary_lines.append(f"Action: {action}")
 
-        return {
+        design: dict | None = None
+        if code_files is not None:
+            if tokens is not None:
+                design = design_gap_report(
+                    code_files, DesignSystemRules.from_tokens(tokens), system_path=system_tokens_path
+                )
+            else:
+                locale = extract_locale_from_ctx(ctx) if ctx is not None else "en"
+                design = {
+                    "status": "not_applicable",
+                    "gate": "pass",
+                    "total": 0,
+                    "findings": [],
+                    "warnings": [
+                        f"SYSTEM_TOKENS_INVALID: {tokens_error}"
+                        if tokens_error
+                        else system_tokens_notice(locale)["message"]
+                    ],
+                }
+            summary_lines.append(
+                f"Design gate: {design['gate'].upper()} ({design['total']} gap(s) in code)"
+            )
+
+        report: dict = {
             "uses_stitch": uses_stitch,
             "status": status,
             "coverage": {
@@ -1711,6 +1762,12 @@ def register_onboarding_tools(
             "action": action,
             "summary": "\n".join(summary_lines),
         }
+        if tokens is not None:
+            report["system_tokens"] = {"found": True, **tokens.describe()}
+        if design is not None:
+            report["design_gaps"] = design
+            report["design_gate"] = design["gate"]
+        return report
 
     @mcp.tool
     async def archive_project(project: str, ctx: Context | None = None, dev_token: str = "") -> dict:

@@ -61,7 +61,7 @@ dato**; con identidad pero sin permiso, `FORBIDDEN` o «inexistente», nunca una
 | Registro de proyectos y onboarding | `list_onboarded_projects`, `get_onboarding_status`, `onboard_project`, `upgrade_project`, `get_version_matrix`, `register_project`, `update_project_meta`, `archive_project`, `switch_backend`, `enable_mirror`, `disable_mirror` | Developer | Solo las entradas que registró o ligadas a un tenant del que es miembro (`CallerScope.can_see`). Lo ajeno se responde como inexistente (`PROJECT_NOT_VISIBLE`, `available` = solo lo propio) |
 | FreeForm remoto | Cualquier tool de board con `items_content` | Ninguna (el contenido es del cliente) | Únicamente el contenido enviado en esa llamada; el servidor no lo persiste ni lee su disco (`FREEFORM_REMOTE_DISK_MODE_REJECTED`, `FREEFORM_CONTENT_REQUIRED`) |
 | Diseño (Stitch, Claude Design) | `stitch_*`, `claude_design_*` | Credencial del proyecto en la sesión | Solo la cuenta de diseño configurada en esa sesión |
-| Documento de diseño | `generate_design_md_tool` | Ninguna (el contenido es del cliente) | Únicamente los ficheros enviados en esa llamada (`*_content`); en remoto no lee ni escribe el disco ni guarda nada del proyecto (`DESIGN_MD_CONTENT_REQUIRED`) |
+| Documento de diseño | `generate_design_md_tool`, `get_visual_gap_report` (`code_files`) | Ninguna (el contenido es del cliente) | Únicamente los ficheros enviados en esa llamada (`*_content`); en remoto no lee ni escribe el disco ni guarda nada del proyecto (`DESIGN_MD_CONTENT_REQUIRED`) |
 | Operación | `get_tool_access_log`, `reset_all_state`, `reset_project` | Operador | Global; cada reinicio queda en el registro de accesos como `state_reset` |
 
 ## 5. Qué se comparte entre clientes y qué no

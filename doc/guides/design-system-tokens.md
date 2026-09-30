@@ -117,3 +117,26 @@ qué enviar.
 
 Desde ese momento, cambiar el diseño es cambiar los tokens y volver a generar; el DESIGN.md no se
 edita a mano.
+
+## El gate de diseño
+
+Con tokens del sistema, el código de UI tampoco puede salirse de ellos. Antes de que una
+implementación pase a revisión (`move_uc` a review o done, `complete_uc`, `gh pr create`), el hook
+`design-system-gate.mjs` revisa los ficheros de UI cambiados en la rama y detecta:
+
+| Brecha | Ejemplos | Qué hacer |
+|---|---|---|
+| Color escrito | `#1A1B1E`, `rgba(0,0,0,.5)`, `bg-blue-500`, `text-white`, `Color(0xFF…)` | El token del sistema: su clase o `var(--…)` |
+| Fuente fuera del sistema | `font-family: Inter`, `fontFamily: 'Roboto'`, `font-['Poppins']`, Google Fonts | Las familias de los tokens |
+| Peso por encima del máximo | `font-bold`, `font-weight: 700`, `FontWeight.w800` | El peso máximo de los tokens (600 en Tinta) o menos |
+| Gradiente | `linear-gradient(…)`, `bg-gradient-to-r`, `LinearGradient` | Un color de superficie del sistema |
+
+En modo autopilot (`specbox.autopilot.level` distinto de `low`) bloquea y lista cada hallazgo con
+`fichero:línea` y qué hacer; fuera de autopilot solo avisa. `specbox.design_gate.mode` (`block`,
+`warn` u `off`) lo fija para el proyecto. El mismo análisis está en
+`get_visual_gap_report(code_files=…, system_tokens_content=…)` (sección `design_gaps` y veredicto
+`design_gate`), que `/implement` consulta antes de crear la PR.
+
+No revisa `node_modules`, `dist`, `public`, las pruebas, `doc/` ni las carpetas de tokens. Si un
+valor es deliberado (por ejemplo, el color de marca de un proveedor de pago), marca la línea con
+`design-gate:ignore` y el motivo; un fichero de terceros entero, con `design-gate:disable-file`.

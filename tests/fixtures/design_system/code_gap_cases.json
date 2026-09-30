@@ -1,0 +1,123 @@
+{
+  "_comment": "US-49 · UC-4902 — shared cases for the design gap scanner. Python (server/design_system/code_gaps.py) and JS (.claude/hooks/lib/design-gaps.mjs) must return exactly `expected` for each case, against tinta.design-system.tokens.json (families IBM Plex Sans / IBM Plex Mono, max weight 600).",
+  "cases": [
+    {
+      "name": "clean component using system classes and variables",
+      "file": "src/components/Card.tsx",
+      "content": "export function Card() {\n  return <div className=\"bg-paper-100 text-ink-900 border-line-200 font-semibold rounded-md\" style={{ color: 'var(--ink-700)' }}>ok</div>;\n}\n",
+      "expected": []
+    },
+    {
+      "name": "clean css with tokens",
+      "file": "src/styles/app.css",
+      "content": ".card {\n  background: var(--paper-100);\n  font-family: var(--font-sans);\n  font-weight: 600;\n  color: rgb(var(--ink-900));\n}\n#main { padding: 4px; }\n",
+      "expected": []
+    },
+    {
+      "name": "direct colours in css",
+      "file": "src/styles/legacy.css",
+      "content": ".a {\n  color: #1A1B1E;\n  border: 1px solid #ccc;\n  background: rgba(0, 0, 0, 0.5);\n  box-shadow: 0 1px 2px hsl(210 20% 50%);\n}\n",
+      "expected": [
+        {"kind": "direct_color", "line": 2, "value": "#1A1B1E"},
+        {"kind": "direct_color", "line": 3, "value": "#ccc"},
+        {"kind": "direct_color", "line": 4, "value": "rgba(0, 0, 0, 0.5)"},
+        {"kind": "direct_color", "line": 5, "value": "hsl(210 20% 50%)"}
+      ]
+    },
+    {
+      "name": "direct colours in tsx: arbitrary values and tailwind palette",
+      "file": "src/pages/Home.tsx",
+      "content": "const s = { color: '#FF0000' };\nexport default () => (\n  <main className=\"bg-[#0EA5E9] hover:bg-blue-500 text-white border-gray-200/50\">\n    <a href=\"#top\">up</a>\n  </main>\n);\n",
+      "expected": [
+        {"kind": "direct_color", "line": 1, "value": "#FF0000"},
+        {"kind": "direct_color", "line": 3, "value": "#0EA5E9"},
+        {"kind": "direct_color", "line": 3, "value": "bg-blue-500"},
+        {"kind": "direct_color", "line": 3, "value": "text-white"},
+        {"kind": "direct_color", "line": 3, "value": "border-gray-200"}
+      ]
+    },
+    {
+      "name": "fonts outside the system",
+      "file": "src/layouts/Base.astro",
+      "content": "---\nconst x = 1;\n---\n<link href=\"https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&family=IBM+Plex+Sans&display=swap\" rel=\"stylesheet\" />\n<style>\n  h1 { font-family: 'Inter', system-ui, sans-serif; }\n  p { font-family: \"IBM Plex Sans\", sans-serif; }\n</style>\n<span class=\"font-['Space_Grotesk']\" style={{ fontFamily: 'Roboto, sans-serif' }}>x</span>\n",
+      "expected": [
+        {"kind": "font_outside", "line": 4, "value": "poppins"},
+        {"kind": "font_outside", "line": 6, "value": "inter"},
+        {"kind": "font_outside", "line": 9, "value": "space grotesk"},
+        {"kind": "font_outside", "line": 9, "value": "roboto"}
+      ]
+    },
+    {
+      "name": "weights above the system maximum",
+      "file": "src/components/Title.jsx",
+      "content": "export const T = () => <h1 className=\"font-bold\">t</h1>;\nexport const U = () => <h2 className=\"font-extrabold font-[650] font-semibold\" style={{ fontWeight: 800 }}>u</h2>;\nconst css = `.x { font-weight: bold } .y { font-weight: 500 }`;\n",
+      "expected": [
+        {"kind": "weight_above", "line": 1, "value": "font-bold"},
+        {"kind": "weight_above", "line": 2, "value": "font-extrabold"},
+        {"kind": "weight_above", "line": 2, "value": "font-[650]"},
+        {"kind": "weight_above", "line": 2, "value": "800"},
+        {"kind": "weight_above", "line": 3, "value": "bold"}
+      ]
+    },
+    {
+      "name": "gradients in backgrounds",
+      "file": "src/components/Hero.vue",
+      "content": "<template>\n  <section class=\"bg-gradient-to-r from-paper-000 bg-linear-to-b\">hero</section>\n</template>\n<style>\n.hero { background-image: linear-gradient(to right, var(--paper-000), var(--paper-100)); }\n.ring { background: repeating-radial-gradient(circle, var(--line-100), var(--line-200) 4px); }\n</style>\n",
+      "expected": [
+        {"kind": "gradient", "line": 2, "value": "bg-gradient-to-r"},
+        {"kind": "gradient", "line": 2, "value": "bg-linear-to-b"},
+        {"kind": "gradient", "line": 5, "value": "linear-gradient"},
+        {"kind": "gradient", "line": 6, "value": "repeating-radial-gradient"}
+      ]
+    },
+    {
+      "name": "flutter",
+      "file": "lib/presentation/pages/home_page.dart",
+      "content": "final a = Container(color: Color(0xFF112233));\nfinal b = Text('x', style: TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, color: Colors.blue));\nfinal c = BoxDecoration(gradient: LinearGradient(colors: []), color: Colors.transparent);\nfinal d = GoogleFonts.poppins();\nfinal e = TextStyle(fontWeight: FontWeight.w600);\n",
+      "expected": [
+        {"kind": "direct_color", "line": 1, "value": "Color(0xFF112233)"},
+        {"kind": "font_outside", "line": 2, "value": "montserrat"},
+        {"kind": "weight_above", "line": 2, "value": "FontWeight.w700"},
+        {"kind": "direct_color", "line": 2, "value": "Colors.blue"},
+        {"kind": "gradient", "line": 3, "value": "LinearGradient"},
+        {"kind": "font_outside", "line": 4, "value": "poppins"}
+      ]
+    },
+    {
+      "name": "comments, ignore markers, urls and issue refs are not findings",
+      "file": "src/components/Legacy.ts",
+      "content": "// old: color: #ff0000\n/* background: linear-gradient(red, blue);\n   font-weight: 900; */\nconst url = 'https://example.com/#abc';\nconst svg = 'fill: url(#abc)';\nconst ref = 'PR #128';\n// design-gate:ignore — brand colour required by the payment provider\nconst paypal = '#003087';\nconst stripe = '#635BFF'; // design-gate:ignore\n",
+      "expected": []
+    },
+    {
+      "name": "a whole file can opt out",
+      "file": "src/vendor/chart-theme.ts",
+      "content": "/* design-gate:disable-file — third-party chart palette */\nexport const palette = ['#FF0000', '#00FF00'];\n",
+      "expected": []
+    },
+    {
+      "name": "files outside the UI source are not scanned",
+      "file": "src/styles/tokens/foundation.css",
+      "content": ":root { --ink-900: #1A1B1E; font-weight: 900; }\n",
+      "expected": []
+    },
+    {
+      "name": "candidate designs are not scanned",
+      "file": "doc/design/home/home.html",
+      "content": "<div style=\"background: linear-gradient(red, blue); color: #123456\">x</div>\n",
+      "expected": []
+    },
+    {
+      "name": "tests are not scanned",
+      "file": "src/components/__tests__/Card.test.tsx",
+      "content": "expect(el).toHaveStyle({ color: '#FF0000' });\n",
+      "expected": []
+    },
+    {
+      "name": "non ui files are not scanned",
+      "file": "server/app.py",
+      "content": "COLOR = '#FF0000'\n",
+      "expected": []
+    }
+  ]
+}

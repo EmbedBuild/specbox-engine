@@ -1762,6 +1762,52 @@ Si el pipeline NO es spec-driven (no hay board_id ni Trello/Plane configurado):
 
 ---
 
+## Paso 7.8: Design System Gate (US-49 · UC-4902 — BLOQUEANTE si hay tokens)
+
+> Solo si el proyecto tiene tokens del sistema (`design-system.tokens.json` en
+> `doc/design/`, `src/styles/tokens/`, `apps/web/src/styles/tokens/`,
+> `web/src/styles/tokens/`, `packages/tokens/dist/` o la raíz). Sin tokens, saltar:
+> no hay sistema contra el que comparar.
+
+Comprobar que el código de UI de la implementación no se sale del sistema, ANTES
+de crear la PR o mover la UC a revisión:
+
+1. Reunir los ficheros de UI cambiados en la rama:
+   `git diff --name-only --diff-filter=ACMR main...HEAD` + cambios sin commit.
+2. Llamar al informe de brecha visual con su contenido:
+
+```
+get_visual_gap_report(
+  code_files={"<ruta>": "<contenido>", ...},
+  system_tokens_content=<design-system.tokens.json>,
+  system_tokens_path="<ruta relativa>"
+)
+```
+
+3. Según `design_gate`:
+
+```
+├── "pass" → design_gaps.total == 0 y sin warnings → continuar a Paso 8
+└── "block" → PARAR. Mostrar design_gaps.findings (fichero:línea, tipo, valor)
+      y design_gaps.how_to_fix. Corregir cada hallazgo con los tokens del
+      sistema (color → su clase o var(--…); fuente → familia del sistema;
+      peso → el máximo del sistema o menos; gradiente → color de superficie),
+      volver a pasar tests y lint, y repetir este paso. Máximo 2 intentos;
+      después, reportar al humano con la lista.
+```
+
+Un valor deliberado (p. ej. el color de marca de un proveedor de pago) se marca en
+su línea con `design-gate:ignore` y el motivo; un fichero de terceros entero, con
+`design-gate:disable-file`. Nunca marcar para esquivar el gate.
+
+> **Enforcement mecánico**: el hook `design-system-gate.mjs` (PreToolUse sobre
+> `move_uc` a review/done, `complete_uc` y `gh pr create`) repite esta comprobación
+> sobre los ficheros cambiados y **bloquea** (exit 2) en modo autopilot
+> (`specbox.autopilot.level` distinto de `low`); fuera de autopilot solo avisa.
+> `specbox.design_gate.mode` (`block` | `warn` | `off`) lo fija explícitamente.
+
+---
+
 ## Paso 8: Crear Pull Request
 
 ### 8.1 Push de la rama

@@ -81,6 +81,7 @@ export async function deviceLogin({
     }
     if (error === "access_denied") throw new LoginError("denied");
     if (error === "expired_token" || error === "invalid_grant") throw new LoginError("expired");
+    if (error === "device_limit") throw new LoginError("device_limit"); // UC-3902 AC-04
     throw new LoginError("unexpected", `HTTP ${res.status} ${error ?? ""}`.trim());
   }
   throw new LoginError("expired");

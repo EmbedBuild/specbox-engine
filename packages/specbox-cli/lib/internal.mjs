@@ -124,7 +124,22 @@ export async function runInternal(command, ctx) {
         return 1;
       }
       if (res.status !== 200) {
-        const reason = res.status === 401 ? "invalid_token" : res.status === 409 ? "conflict" : `http_${res.status}`;
+        let code = null;
+        try {
+          code = (await res.json())?.code ?? null;
+        } catch {
+          // sin cuerpo JSON
+        }
+        // UC-3902 AC-04 — `device_limit`: la cuenta ya tiene cinco dispositivos
+        // y este ordenador no cabe; la extensión enseña dónde desconectar uno.
+        const reason =
+          res.status === 401
+            ? "invalid_token"
+            : res.status === 409
+              ? code === "device_limit"
+                ? "device_limit"
+                : "conflict"
+              : `http_${res.status}`;
         out({ ok: false, reason });
         return 1;
       }

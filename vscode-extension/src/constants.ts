@@ -11,6 +11,9 @@ export const CLAUDE_SETTINGS_LOCAL = path.join(CLAUDE_DIR, 'settings.local.json'
 /** Where Claude Code keeps MCP servers (user and local scope) — not the settings files. */
 export const CLAUDE_JSON = path.join(os.homedir(), '.claude.json');
 
+/** UC-3902 AC-04 — where the person disconnects a device when the account already has five. */
+export const PANEL_DEVICES_URL = 'https://cloud.specbox.build/profile';
+
 /** UC-3904 AC-06 — "How SpecBox connects", public page of the panel (ES / EN). */
 export function howToConnectUrl(language: string | undefined): string {
 	return (language ?? '').toLowerCase().startsWith('es')

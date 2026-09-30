@@ -113,3 +113,18 @@ Nunca hay que pegar un token en un chat ni pasarlo a una tool.
 - `last_used_at` refleja el uso real del MCP: el servidor lo anota al validar el token, como mucho
   una vez por hora. Antes de la migración 0025 solo lo escribía `/api/whoami` del panel, así que las
   fechas anteriores no sirven para decidir inactividad.
+- **Inactividad (UC-3902 AC-03, migración 0027).** `public.revoke_idle_mcp_tokens(p_idle_days, p_floor)`
+  revoca con `revoked_reason = 'idle'` los tokens activos y no caducados cuyo último uso real tiene más
+  de 60 días, y deja una fila en `audit_log` por token (`metadata.via = 'idle'`). El reloj nunca empieza
+  antes de `p_floor` (2026-09-29, el día en que el engine empezó a anotar el uso): el primer token
+  puede caer el 2026-11-28, no antes. En Supabase lo ejecuta el job de pg_cron `revoke-idle-mcp-tokens`
+  cada día a las 03:17 UTC (`SELECT * FROM cron.job` para verlo; `SELECT * FROM cron.job_run_details
+  ORDER BY start_time DESC LIMIT 5` para las últimas ejecuciones). En un Postgres sin pg_cron la función
+  existe y nada la programa. Para pararlo: `SELECT cron.unschedule('revoke-idle-mcp-tokens')`.
+- **Límite de dispositivos (UC-3902 AC-04, migración 0027).** `public.issue_device_token` rechaza el
+  sexto dispositivo de una persona con `DEVICE_LIMIT` (SQLSTATE 53400) y no cambia nada. Volver a
+  entrar, renovar o reemplazar en un dispositivo ya conocido nunca tropieza con el límite; los tokens
+  sin dispositivo (anteriores a 0025) y los caducados no ocupan plaza. La API del panel lo convierte en
+  `409 device_limit` con la lista de dispositivos, la página `/device` y la de la extensión dejan
+  desconectar uno y seguir, y la extensión avisa con «Gestionar dispositivos» si la adopción de un
+  token antiguo no cabe.

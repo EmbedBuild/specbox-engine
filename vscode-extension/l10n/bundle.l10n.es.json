@@ -55,5 +55,7 @@
   "Token expires on {0}": "El token caduca el {0}",
   "Token without expiry (issued before devices existed)": "Token sin caducidad (emitido antes de que existieran los dispositivos)",
   "Not connected with an account": "Sin conectar con una cuenta",
-  "SpecBox Extension update installed v{0} instead of v{1}. Install it from the Marketplace or run: node vscode-extension/install-ext.mjs": "La actualización de la extensión SpecBox instaló la v{0} en lugar de la v{1}. Instálala desde el Marketplace o ejecuta: node vscode-extension/install-ext.mjs"
+  "SpecBox Extension update installed v{0} instead of v{1}. Install it from the Marketplace or run: node vscode-extension/install-ext.mjs": "La actualización de la extensión SpecBox instaló la v{0} en lugar de la v{1}. Instálala desde el Marketplace o ejecuta: node vscode-extension/install-ext.mjs",
+  "Manage devices": "Gestionar dispositivos",
+  "This computer could not be connected: your account already has 5 connected devices. Disconnect one in the panel, then reload the window.": "No se ha podido conectar este ordenador: tu cuenta ya tiene 5 dispositivos conectados. Desconecta uno en el panel y vuelve a cargar la ventana."
 }

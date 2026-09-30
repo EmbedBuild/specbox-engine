@@ -182,6 +182,17 @@ test("_adopt obtiene un token de dispositivo con el que ya tenía la extensión 
   assert.equal(await internal(bad, "_adopt", { token: "spbx_revocado" }), 1);
   assert.equal(JSON.parse(bad.out.at(-1)).reason, "invalid_token");
   assert.equal(bad.store.read(accountFor(MCP)), null);
+
+  // UC-3902 AC-04 — la cuenta ya tiene cinco dispositivos: el motivo llega tal
+  // cual para que la extensión diga dónde desconectar uno; nada se guarda.
+  const full = harness(() => [409, { code: "device_limit", message: "Too many devices." }]);
+  assert.equal(await internal(full, "_adopt", { token: "spbx_anterior" }), 1);
+  assert.equal(JSON.parse(full.out.at(-1)).reason, "device_limit");
+  assert.equal(full.store.read(accountFor(MCP)), null);
+
+  const other = harness(() => [409, { code: "token_already_renewed" }]);
+  assert.equal(await internal(other, "_adopt", { token: "spbx_anterior" }), 1);
+  assert.equal(JSON.parse(other.out.at(-1)).reason, "conflict");
 });
 
 test("_renew devuelve el token vigente y renueva cuando toca", async () => {

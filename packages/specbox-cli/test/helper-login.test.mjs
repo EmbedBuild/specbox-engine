@@ -155,6 +155,7 @@ test("rechazado en el navegador, caducado o sin respuesta a tiempo → LoginErro
   for (const [reply, expected] of [
     [[400, { error: "access_denied" }], "denied"],
     [[400, { error: "expired_token" }], "expired"],
+    [[409, { error: "device_limit" }], "device_limit"], // UC-3902 AC-04
     [[400, { error: "invalid_grant" }], "expired"],
   ]) {
     const store = fileStore(mkdtempSync(join(tmpdir(), "specbox-l-")));

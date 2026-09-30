@@ -17,7 +17,7 @@ import { registerRevertCommand } from './migration';
 import { registerActivationUriHandler, maybeEmitActivation } from './activation';
 import { SpecboxCli, cloudApiBase } from './specbox-cli';
 import { ensureDeviceConnection, syncRenewal } from './device-connection';
-import { howToConnectUrl } from './constants';
+import { howToConnectUrl, PANEL_DEVICES_URL } from './constants';
 
 let statusBar: StatusBarManager | undefined;
 let identityPollingHandle: NodeJS.Timeout | undefined;
@@ -205,6 +205,36 @@ interface StartupDeps {
 async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDeps): Promise<void> {
 	const { health, statusBar: bar, statusTree, skillsTree, secrets, cli } = deps;
 
+	// UC-3901 AC-03 / UC-3904 — keep this computer connected without manual
+	// steps: adopt a token kept from an older version as a device token, renew
+	// it when due, restore the Claude Code helper config, drop the dead entry.
+	// FIRST, before the health check, the updater and the gates below: any of
+	// those may await a notification the person never clicks, and the
+	// connection must not depend on that (2026-09-30: the legacy entry of a
+	// connected Mac was never cleaned because the startup chain stalled).
+	try {
+		const report = await ensureDeviceConnection(cli, secrets, () => { removeLegacyLauncherEntry(); });
+		if (report.state === 'adopted') {
+			vscode.window.showInformationMessage(
+				vscode.l10n.t('This computer now connects to SpecBox with your account. New Claude Code sessions use it automatically.')
+			);
+		}
+		if (report.state === 'adopt_failed' && report.reason === 'device_limit') {
+			// UC-3902 AC-04 — the account already has five devices: say where to
+			// free one instead of failing silently. Not awaited: activation goes on.
+			const manage = vscode.l10n.t('Manage devices');
+			void vscode.window.showWarningMessage(
+				vscode.l10n.t('This computer could not be connected: your account already has 5 connected devices. Disconnect one in the panel, then reload the window.'),
+				manage,
+			).then((choice) => {
+				if (choice === manage) { void vscode.env.openExternal(vscode.Uri.parse(PANEL_DEVICES_URL)); }
+			});
+		}
+	} catch (err) {
+		console.warn('[specbox] device connection check failed:', err);
+	}
+
+
 	const config = vscode.workspace.getConfiguration('specbox');
 	if (config.get<boolean>('autoHealthCheck', true)) {
 		try {
@@ -256,20 +286,6 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 	await maybeShowOnboarding(context, secrets, undefined, cli).catch((err) => {
 		console.warn('[specbox] onboarding gate failed:', err);
 	});
-
-	// UC-3901 AC-03 / UC-3904 — keep this computer connected without manual
-	// steps: adopt a token kept from an older version as a device token, renew
-	// it when due, restore the Claude Code helper config, drop the dead entry.
-	try {
-		const report = await ensureDeviceConnection(cli, secrets, () => { removeLegacyLauncherEntry(); });
-		if (report.state === 'adopted') {
-			vscode.window.showInformationMessage(
-				vscode.l10n.t('This computer now connects to SpecBox with your account. New Claude Code sessions use it automatically.')
-			);
-		}
-	} catch (err) {
-		console.warn('[specbox] device connection check failed:', err);
-	}
 
 	// Skills context bootstrapping (drives viewsWelcome for specbox.skills).
 	await updateSkillsContext(skillsTree).catch((err) => {

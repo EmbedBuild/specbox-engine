@@ -84,6 +84,9 @@ export function messages(lang) {
         expired: es ? "✗ El código caducó antes de confirmarse. Ejecuta specbox login otra vez." : "✗ The code expired before it was confirmed. Run specbox login again.",
         rate_limited: es ? "✗ Demasiados intentos seguidos. Espera unos minutos." : "✗ Too many attempts in a row. Wait a few minutes.",
         network: es ? "✗ No hay conexión con el panel de SpecBox." : "✗ Cannot reach the SpecBox panel.",
+        device_limit: es
+          ? "✗ Tu cuenta ya tiene 5 dispositivos conectados. Desconecta uno en https://cloud.specbox.build/profile y ejecuta specbox login otra vez."
+          : "✗ Your account already has 5 connected devices. Disconnect one at https://cloud.specbox.build/profile and run specbox login again.",
       })[code] ?? (es ? `✗ No se pudo conectar (${code}).` : `✗ Could not connect (${code}).`),
     notConnected: es ? "Este ordenador no está conectado. Ejecuta: specbox login" : "This computer is not connected. Run: specbox login",
     statusTitle: es ? "SpecBox · este ordenador" : "SpecBox · this computer",

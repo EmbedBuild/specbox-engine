@@ -162,26 +162,36 @@ Migration: migrate_preview → migrate_project (bidirectional Trello ↔ Plane)
 specbox-engine/
 ├── CLAUDE.md              ← Este archivo
 ├── ENGINE_VERSION.yaml    ← Version del engine
-├── install.sh             ← Instala skills, hooks, commands, GGA
+├── install.sh             ← Instala skills, hooks, GGA
 ├── .gga                   ← Config de Gentleman Guardian Angel (cached lint)
 ├── .vscode/mcp.json       ← Servidor MCP de Engram (memoria persistente)
 ├── .claude/
 │   ├── skills/            ← Agent Skills (v5.18)
-│   │   ├── prd/SKILL.md
-│   │   ├── plan/SKILL.md
-│   │   ├── implement/SKILL.md
+│   │   ├── acceptance-check/SKILL.md
 │   │   ├── adapt-ui/SKILL.md
-│   │   ├── optimize-agents/SKILL.md
-│   │   ├── quality-gate/SKILL.md
+│   │   ├── app-init/SKILL.md
+│   │   ├── app-sync/SKILL.md
+│   │   ├── audit/SKILL.md
+│   │   ├── check-designs/SKILL.md
+│   │   ├── compliance/SKILL.md
+│   │   ├── discovery/SKILL.md
 │   │   ├── explore/SKILL.md
 │   │   ├── feedback/SKILL.md
-│   │   ├── check-designs/SKILL.md
-│   │   ├── visual-setup/SKILL.md
-│   │   ├── acceptance-check/SKILL.md
+│   │   ├── handoff/SKILL.md
+│   │   ├── implement/SKILL.md
+│   │   ├── manual-test/SKILL.md
+│   │   ├── optimize-agents/SKILL.md
+│   │   ├── plan/SKILL.md
+│   │   ├── prd/SKILL.md
+│   │   ├── quality-gate/SKILL.md
+│   │   ├── queue-review/SKILL.md
 │   │   ├── quickstart/SKILL.md
-│   │   ├── remote/SKILL.md
 │   │   ├── release/SKILL.md
-│   │   └── compliance/SKILL.md
+│   │   ├── stripe-connect/SKILL.md
+│   │   ├── stripe-standard/SKILL.md
+│   │   ├── stripe-switch-account/SKILL.md
+│   │   ├── switch-backend/SKILL.md
+│   │   └── visual-setup/SKILL.md
 │   ├── hooks/             ← Hooks (v5.18)
 │   │   ├── quality-first-guard.mjs
 │   │   ├── read-tracker.mjs
@@ -201,13 +211,6 @@ specbox-engine/
 │   │   ├── implement-healing.mjs
 │   │   └── post-implement-validate.mjs
 │   └── settings.json      ← Hooks config
-│   ├── prd.md
-│   ├── plan.md
-│   ├── implement.md
-│   ├── adapt-ui.md
-│   ├── optimize-agents.md
-│   ├── quality-gate.md
-│   └── feedback.md
 ├── agents/                ← Templates de agentes por rol
 │   ├── orchestrator.md
 │   ├── feature-generator.md
@@ -259,7 +262,9 @@ specbox-engine/
 │   │   ├── trello_backend.py   ← TrelloBackend (wraps TrelloClient)
 │   │   ├── plane_backend.py    ← PlaneBackend (Plane CE self-hosted)
 │   │   ├── plane_client.py     ← Async httpx client for Plane API v1
-│   │   └── freeform_backend.py ← FreeformBackend (local JSON + Markdown)
+│   │   ├── freeform_backend.py ← FreeformBackend (local JSON + Markdown)
+│   │   ├── native_backend.py   ← NativeBackend (Postgres gestionado, tenant por project_id)
+│   │   └── dual_backend.py     ← DualBackendWrapper (espejo Native best-effort sobre otro primario)
 │   ├── audit/             ← Quality Audit ISO/IEC 25010 (v5.22)
 │   │   ├── schema.py           ← QualityReport + Finding + schema v1.0
 │   │   ├── scoring.py          ← 0-100 normalization, semáforos, 60/40 mix

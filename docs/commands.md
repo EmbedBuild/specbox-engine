@@ -1,21 +1,20 @@
 # Referencia de Commands y Skills
 
-> **v5.25.0:** Los commands han sido migrados a **Agent Skills** en `.claude/skills/`. Los archivos en `commands/` se mantienen como referencia. Las Skills son la version activa con auto-discovery, context isolation y hooks.
+> **v5.25.0:** Los commands se convirtieron en **Agent Skills** en `.claude/skills/`. La carpeta `commands/` se retiró: las Skills son la única versión, con auto-discovery, context isolation y hooks.
 
 ## Instalacion
 
 ```bash
-./install.sh          # Instalar commands + skills + hooks
+./install.sh          # Instalar skills + hooks
 ./install.sh --dry-run    # Ver que haria sin cambios
 ./install.sh --uninstall  # Desinstalar
 ```
 
 Instala:
-- **Commands** (legacy) como symlinks en `~/.claude/commands/`
-- **Skills** copiados a `~/.claude/skills/`
+- **Skills** enlazadas (symlink) en `~/.claude/skills/`
 - **Hooks** copiados a `~/.claude/hooks/`
 
-## Skills disponibles (v5.25.0)
+## Skills disponibles (v6.14.2)
 
 | Skill | Modo | Descripcion |
 |-------|------|-------------|
@@ -31,11 +30,19 @@ Instala:
 | /check-designs | fork:Explore | Compliance retroactivo de diseños Stitch |
 | /acceptance-check | direct | Standalone BDD acceptance sin /implement |
 | /quickstart | direct | Tutorial interactivo para nuevos usuarios |
-| /remote | direct | Remote project management (WhatsApp/Discord via OpenClaw) |
 | /release | direct | Audit + version bump + changelog + push |
 | /compliance | direct | Compliance audit del engine |
 | /audit | direct | Quality Audit ISO/IEC 25010 (SQuaRE, AG-10) |
 | /stripe-connect | direct | **v5.25.0** Scaffold de marketplace Stripe Connect (Express + Direct charges + embedded) |
+| /stripe-standard | direct | Scaffold de Stripe cuenta estándar (suscripciones, metered, checkout one-shot) |
+| /stripe-switch-account | direct | Rotación segura de la cuenta Stripe activa (dry-run + rollback) |
+| /switch-backend | direct | Cambia el backend de tracking (FreeForm / Trello / Plane / Native) sin perder avance |
+| /discovery | direct | Product Discovery ligero antes de /prd (ICP, JTBD, validation gate) |
+| /app-init | direct | Crea o refresca `doc/app/app_prd.md` y `doc/app/app_spec.md` (canon del proyecto) |
+| /app-sync | direct | Verifica, repara o reconstruye los documentos canónicos (`--check`, `--repair`, `--review`, `--rebuild-from-tracking`) |
+| /queue-review | direct | Revisa y resuelve `doc/app/decisions_queue.md` (decisiones diferidas del autopilot) |
+| /handoff | direct | Persiste el estado fino de la sesión en `.quality/handoff.md` y Engram |
+| /manual-test | direct | Pruebas manuales sistemáticas con resolución de bugs en vivo y evidencia |
 
 Las Skills con `fork` corren en subagentes aislados — no contaminan la sesion principal.
 
@@ -45,7 +52,7 @@ Las Skills con `fork` corren en subagentes aislados — no contaminan la sesion 
 
 ### /prd
 
-**Archivo**: `commands/prd.md`
+**Skill**: `.claude/skills/prd/SKILL.md`
 **Proposito**: Genera un PRD (Product Requirements Document) y opcionalmente crea un Work Item en Plane.
 
 **Uso**:
@@ -65,7 +72,7 @@ Las Skills con `fork` corren en subagentes aislados — no contaminan la sesion 
 
 ### /plan
 
-**Archivo**: `commands/plan.md`
+**Skill**: `.claude/skills/plan/SKILL.md`
 **Proposito**: Genera un plan de implementacion detallado con analisis de componentes UI y opcionalmente diseños via Stitch MCP.
 
 **Uso**:
@@ -90,7 +97,7 @@ Las Skills con `fork` corren en subagentes aislados — no contaminan la sesion 
 
 ### /implement
 
-**Archivo**: `commands/implement.md`
+**Skill**: `.claude/skills/implement/SKILL.md`
 **Proposito**: Autopilot de implementacion end-to-end. Lee un plan, crea rama, ejecuta todas las fases, genera diseños Stitch si aplica, valida con QA, y crea PR.
 
 **Uso**:
@@ -118,7 +125,7 @@ Las Skills con `fork` corren en subagentes aislados — no contaminan la sesion 
 
 ### /adapt-ui
 
-**Archivo**: `commands/adapt-ui.md`
+**Skill**: `.claude/skills/adapt-ui/SKILL.md`
 **Proposito**: Escanea la estructura de widgets de un proyecto y genera un archivo de mapeo UI.
 
 **Uso**:
@@ -142,7 +149,7 @@ Las Skills con `fork` corren en subagentes aislados — no contaminan la sesion 
 
 ### /optimize-agents
 
-**Archivo**: `commands/optimize-agents.md`
+**Skill**: `.claude/skills/optimize-agents/SKILL.md`
 **Proposito**: Audita, reporta y optimiza el sistema agentico de un proyecto. Soporta tanto subagentes legacy como Agent Teams nativos.
 
 **Modos**:

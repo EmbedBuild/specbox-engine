@@ -62,6 +62,10 @@ git branch --show-current
 
 ### 0.4 Pre-flight: VSCode extension version sync (v6.2.0+)
 
+> Desde v6.14.2 la versión de `packages/specbox-cli/package.json` también va con la del engine:
+> el workflow de npm (Paso 6.6) falla si no coincide con la etiqueta. Bumpéala en el mismo commit.
+
+
 > Gate INVIOLABLE introducido por US-VSCODE-MARKETPLACE (UC-635).
 > Si `vscode-extension/package.json:version` no coincide con `ENGINE_VERSION.yaml:version`,
 > el publish CI fallará con drift. NO se permite tagear con drift.
@@ -507,6 +511,29 @@ Añadir una línea al bloque "Release completado" del Paso 6.4:
 
 ```
 - Estado + inventario publicados al site: {OK (N features, M versiones; A agentes, T tools, S skills, ext vX.Y.Z) | WARNING: no publicado — re-ejecutar `uv run python -m server.site_publish`}
+```
+
+---
+
+## Paso 6.6: La CLI `specbox` se publica sola en npm (v6.14.2+)
+
+> La etiqueta `vX.Y.Z` que publica la extensión dispara también
+> `.github/workflows/publish-specbox-cli.yml`, que publica `packages/specbox-cli` en npm con
+> trusted publishing (sin token). Runbook: `doc/runbooks/npm-trusted-publishing.md`.
+
+Tras subir la etiqueta:
+
+```bash
+gh run list --repo EmbedBuild/specbox-engine --workflow publish-specbox-cli.yml --limit 1
+npm view specbox version        # debe responder la versión recién etiquetada
+```
+
+Si el job falla porque `packages/specbox-cli/package.json` no coincide con la etiqueta, la
+versión no se sincronizó en el Paso 0.4/5: corrígela y relanza con
+`gh workflow run publish-specbox-cli.yml -f tag=vX.Y.Z`. Reflejar en el reporte final:
+
+```
+- CLI en npm: {OK specbox@X.Y.Z | WARNING: no publicada — ver el run del workflow}
 ```
 
 ---

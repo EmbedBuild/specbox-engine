@@ -393,6 +393,7 @@ Automatic enforcement — no need to remember running these manually:
 | uc-lifecycle-guard | PostToolUse (git push) | Non-blocking WARNING: warns if pushing feature branch without calling move_uc (board out of sync). |
 | **session-start** | SessionStart | Non-blocking: injects `.quality/handoff.md` (if fresh), active UC + checkpoint, and auto zones from `app_spec.md` as `additionalContext` for the new session. Capped at 14k chars. v5.30. |
 | **pre-read-budget-guard** | PreToolUse (Read) | Non-blocking WARNING: estimates tokens for the file being read; warns if ≥ `specbox.context_budget.warn_pct` of the window (default 5% of 1M). v5.30. |
+| **design-system-gate** | PreToolUse (mcp__SpecBox-MCP__move_uc → review/done, mcp__SpecBox-MCP__complete_uc, `gh pr create`) | **BLOCKING in autopilot** (exit 2): scans the UI files changed on the branch against the project's `design-system.tokens.json` — colours written directly, fonts outside the system, weights above the system maximum, gradients — and lists each with `file:line` and what to do. Warns outside autopilot; `specbox.design_gate.mode` overrides. US-49 · UC-4902. |
 | **freeform-path-guard** | PreToolUse (mcp__SpecBox-MCP__set_auth_token, mcp__SpecBox-MCP__onboard_project) | Auto-rewrites relative FreeForm `root_path` / `freeform_root_absolute` to an absolute path resolved against `git rev-parse --show-toplevel` via `hookSpecificOutput.updatedInput`. Covers the implicit-default case (`onboard_project` with no `backend_type` AND no `trello_board_name`). **BLOCKING** (exit 2) only when CWD is not a git repo and resolution is ambiguous. Logs every rewrite to `.quality/logs/freeform-path-rewrites.jsonl`. Defense in depth on top of the v5.29 server-side guard. v5.33. |
 
 ### Compliance Audit (v5.20.1)
@@ -2328,6 +2329,30 @@ Guía pública: [doc/guides/design-system-tokens.md](doc/guides/design-system-to
 - Tests: `tests/test_design_system_tokens.py`, `tests/test_design_md_system_tokens.py`,
   `tests/test_design_candidate_output.py` (fixture: los tokens reales de Tinta en
   `tests/fixtures/design_system/`).
+
+### El gate de diseño bloquea lo que se sale del sistema (UC-4902)
+
+- **Escáner** con las mismas reglas en dos sitios: `server/design_system/code_gaps.py` (para el
+  informe) y `.claude/hooks/lib/design-gaps.mjs` (para el hook). Detecta `direct_color` (hex,
+  `rgb()`/`hsl()`/`oklch()`…, clases de paleta de Tailwind como `bg-blue-500` o `text-white`,
+  `Color(0x…)`/`Colors.x` de Flutter), `font_outside` (familias de `font-family`, `fontFamily`,
+  `font-[…]`, Google Fonts, `GoogleFonts.x`), `weight_above` (peso mayor que el máximo de los
+  tokens: 600 en Tinta) y `gradient` (gradientes CSS, `bg-gradient-*`/`bg-linear-*`,
+  `LinearGradient`). Solo ficheros de UI (css/scss/ts/tsx/js/jsx/astro/vue/svelte/html/dart),
+  fuera de `node_modules`, `dist`, `public`, pruebas, `doc/` y las carpetas de tokens vendorizados.
+  Vía de escape documentada: `design-gate:ignore` (línea) y `design-gate:disable-file`.
+  `tests/fixtures/design_system/code_gap_cases.json` es el contrato que cumplen las dos.
+- **Informe**: `get_visual_gap_report(code_files=…, system_tokens_content=…)` añade `design_gaps`
+  (hallazgos con `fichero:línea` y `fix`, `by_kind`, `how_to_fix`) y `design_gate` = `pass` |
+  `block`. Con tokens, los artefactos del Brand Kit cuentan como presentes (el sistema lo sustituye).
+- **Hook** `design-system-gate.mjs` (PreToolUse sobre `move_uc` a review/done, `complete_uc` y
+  `gh pr create`): escanea los ficheros de UI cambiados en la rama (commits desde la base +
+  sin commit + nuevos) y, en autopilot (`specbox.autopilot.level` ≠ `low`), bloquea con exit 2
+  listando qué se detectó y qué hacer; fuera de autopilot avisa. `specbox.design_gate.mode`
+  (`block`|`warn`|`off`) lo fija. Sin tokens del sistema no hay nada que comparar: pasa.
+- `/implement` Paso 7.8 llama al informe antes de la PR y no sigue con `design_gate: block`.
+- Tests: `tests/test_design_code_gaps.py` (casos compartidos en Python y en Node, informe y hook
+  contra un repositorio git temporal).
 
 ## Engine Version
 

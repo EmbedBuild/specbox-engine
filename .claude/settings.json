@@ -97,6 +97,22 @@
             "if": "Bash(.*reset --hard.*)",
             "command": "node .claude/hooks/no-bypass-guard.mjs",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*gh pr create.*)",
+            "command": "node .claude/hooks/design-system-gate.mjs",
+            "timeout": 20
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__SpecBox-MCP__(move_uc|complete_uc)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/design-system-gate.mjs",
+            "timeout": 20
           }
         ]
       },

@@ -47,3 +47,6 @@ Thumbs.db
 
 # FreeForm tracking backups (proceso, no versionar)
 doc/tracking/items.json.bak-*
+
+# Wrangler CLI cache (never part of the engine)
+.wrangler/

@@ -1,8 +1,8 @@
-version: 6.14.1
-codename: "Forward Only"
+version: 6.14.2
+codename: "Idle Watch"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-09-29
+release_date: 2026-09-30
 min_claude_code: "1.0.0"
 
 stacks:
@@ -449,7 +449,23 @@ features:
   - extension-never-downgrades
   - changelog-security-check
 
+  # New (v6.14.2) — Idle Watch
+  - idle-token-revocation
+  - device-limit-five
+  - extension-connection-first
+  - remote-mcp-threat-model
+  - security-notes-to-site
+
 changelog:
+  6.14.2:
+    date: 2026-09-30
+    codename: "Idle Watch"
+    changes:
+      - "feat: tokens unused for 60 days are revoked (`revoke_idle_mcp_tokens`, migration 0027) — the clock never starts before 2026-09-29, when the engine began recording use; daily pg_cron job where available"
+      - "feat: at most five devices per person — `issue_device_token` refuses a sixth new device (DEVICE_LIMIT, 53400) and changes nothing; a known device signs in, renews or replaces freely"
+      - "feat: `specbox login` and the VS Code extension explain the device limit and point to the panel to disconnect one"
+      - "fix: the extension keeps the computer connected (adopt, renew, clean the legacy entry) BEFORE the health check, the updater and the start-up gates that may wait for a click"
+      - "feat: the Security section of the changelog reaches the site and the remote MCP threat model lives in doc/security/threat-model.md"
   6.14.1:
     date: 2026-09-29
     codename: "Forward Only"

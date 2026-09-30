@@ -2,6 +2,76 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.14.2] - 2026-09-30 — "Idle Watch"
+
+Un token que nadie usa deja de valer solo y una persona no acumula más de
+cinco dispositivos. La extensión mantiene la conexión del ordenador antes de
+cualquier aviso de arranque que pueda quedarse esperando un clic.
+
+### Added
+
+- **Revocación por inactividad** (US-39/UC-3902 AC-03) — migración
+  `0027_token_policy.sql`: `public.revoke_idle_mcp_tokens(p_idle_days = 60,
+  p_floor = 2026-09-29)` revoca con `revoked_reason = 'idle'` los tokens activos
+  y no caducados cuyo último uso real tiene más de 60 días, con una fila de
+  `audit_log` por token. El reloj nunca empieza antes del 2026-09-29 (cuando el
+  engine empezó a anotar el uso), así que el primer token puede caer el
+  2026-11-28 y nadie pierde la conexión por datos que el engine no tenía. Donde
+  hay pg_cron (Supabase) queda el job diario `revoke-idle-mcp-tokens`; sin
+  pg_cron la función existe y nada la programa.
+- **Cinco dispositivos por persona** (US-39/UC-3902 AC-04) —
+  `public.issue_device_token` rechaza el sexto dispositivo nuevo con
+  `DEVICE_LIMIT` (SQLSTATE 53400) y deshace lo que había revocado: un intento
+  rechazado no cambia nada. Entrar de nuevo, renovar o reemplazar en un
+  dispositivo conocido nunca tropieza; los tokens sin dispositivo y los caducados
+  no ocupan plaza. El panel (specbox_cloud v0.6.4) lo convierte en
+  `409 device_limit` con la lista de dispositivos para desconectar uno.
+- `specbox login` explica ese caso y dónde desconectar un dispositivo; la
+  extensión avisa con «Gestionar dispositivos» cuando la adopción de un token
+  antiguo no cabe.
+- **La sección Security llega al site** (US-43/UC-4302 AC-02) — el parser del
+  changelog une los ítems envueltos en varias líneas y el publicador envía la
+  sección `### Security` de cada versión (`engine_changelog_entry.security_notes`).
+- **Modelo de amenazas del MCP remoto** (US-43/UC-4303) —
+  `doc/security/threat-model.md`, referencia obligatoria para toda tool nueva.
+
+### Changed
+
+- **La extensión mantiene la conexión antes de las puertas de arranque**
+  (US-39/UC-3901 AC-03) — adopción del token antiguo, renovación y limpieza de
+  la entrada legacy `SpecBox-MCP` de `~/.claude/settings.local.json` se ejecutan
+  antes del health check, el updater y los avisos de arranque, que pueden
+  quedarse esperando un clic; hasta ahora eso dejaba la entrada sin limpiar en
+  un ordenador ya conectado.
+- El runbook `doc/runbooks/transport-auth.md` describe la política de
+  inactividad, el job de pg_cron y el límite de dispositivos.
+- Dependencias de desarrollo de la extensión al día (brace-expansion,
+  markdown-it, linkify-it).
+
+### Security
+
+- **Un token olvidado deja de valer solo**: sin uso real durante 60 días se
+  revoca, y la persona ve el motivo en el panel.
+- **Nadie acumula dispositivos**: el sexto no entra hasta que se desconecta
+  otro, y el intento rechazado no cambia nada.
+- **La conexión del ordenador no depende de un aviso pendiente**: la extensión
+  adopta, renueva y limpia antes de cualquier diálogo de arranque.
+- **El modelo de amenazas del MCP remoto está escrito** y cada tool nueva se
+  contrasta con él antes de registrarse.
+
+### Compatibility
+
+- 100 % retrocompatible. Hoy nadie tiene más de un dispositivo y ningún token
+  acumula 60 días sin uso desde el 2026-09-29: el primer efecto de la
+  inactividad llega el 2026-11-28, y los tokens anteriores a la caducidad
+  caducan igualmente el 2026-12-28.
+
+### Tests
+
+- Engine: `tests/test_token_policy.py` (14 nuevos, PG-gated) — 35/35 junto a
+  `tests/test_device_tokens.py` contra `postgres:16-alpine`.
+- CLI: 40 (node:test), 2 nuevos. Extensión: 137.
+
 ## [6.14.1] - 2026-09-29 — "Forward Only"
 
 La extensión de VSCode solo avanza: un paquete antiguo olvidado en su carpeta ya

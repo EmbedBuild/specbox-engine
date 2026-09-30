@@ -234,7 +234,6 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 		console.warn('[specbox] device connection check failed:', err);
 	}
 
-
 	const config = vscode.workspace.getConfiguration('specbox');
 	if (config.get<boolean>('autoHealthCheck', true)) {
 		try {

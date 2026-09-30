@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.14.1 — "Forward Only" (sobre v6.14.0 "Front Door")<br/>
+  v 6.14.2 — "Idle Watch" (sobre v6.14.1 "Forward Only")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -38,6 +38,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 100% backwards-compatible: la autenticación del transporte nace en `off` y los tokens existentes siguen funcionando.
 
 **v6.14.1 — "Forward Only"** — la extensión nunca se degrada al actualizarse, los tokens anteriores a la caducidad caducan el 2026-12-28, `SECURITY.md` explica cómo avisar de un problema de seguridad y el release exige que cada versión con cambios de seguridad cuente qué evita.
+
+**v6.14.2 — "Idle Watch"** — un token sin uso durante 60 días se revoca solo (el reloj empieza el 2026-09-29, así que el primero cae el 2026-11-28), nadie tiene más de cinco dispositivos (el sexto no entra hasta desconectar otro, y el panel enseña cuál) y la extensión mantiene la conexión del ordenador antes de cualquier aviso de arranque que pueda quedarse esperando.
 
 ---
 
@@ -529,7 +531,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.14.1 — "Forward Only" (over v6.14.0 "Front Door")
+> v 6.14.2 — "Idle Watch" (over v6.14.1 "Forward Only")
 
 ## What is this?
 
@@ -555,6 +557,8 @@ A system that turns Claude Code into a serious teammate:
 100% backwards-compatible: transport authentication starts in `off` and existing tokens keep working.
 
 **v6.14.1 — "Forward Only"** — the extension never downgrades when it updates, tokens issued before expiry existed expire on 2026-12-28, `SECURITY.md` explains how to report a security problem, and the release now requires every version with security changes to say what it prevents.
+
+**v6.14.2 — "Idle Watch"** — a token unused for 60 days is revoked by itself (the clock starts on 2026-09-29, so the first one falls on 2026-11-28), nobody holds more than five devices (the sixth does not get in until another is disconnected, and the panel shows which) and the extension keeps the computer connected before any start-up notice that might sit waiting.
 
 ---
 

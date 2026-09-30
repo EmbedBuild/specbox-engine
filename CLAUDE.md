@@ -1,4 +1,4 @@
-# SpecBox Engine v6.14.1
+# SpecBox Engine v6.14.2
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -24,7 +24,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Agents** — templates genericos de roles especializados
 - **Server** — MCP server unificado (FastMCP, JSON-RPC + minimal `/health`)
 - **Quality Audit** — ISO/IEC 25010 (SQuaRE) on-demand via `/audit` + AG-10 auditor externo
-- **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 5 migration, Trello y Plane)
+- **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 12 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
 
 ## Stack soportado
@@ -388,7 +388,6 @@ Automatic enforcement — no need to remember running these manually:
 | uc-lifecycle-guard | PostToolUse (git push) | Non-blocking WARNING: warns if pushing feature branch without calling move_uc (board out of sync). |
 | **session-start** | SessionStart | Non-blocking: injects `.quality/handoff.md` (if fresh), active UC + checkpoint, and auto zones from `app_spec.md` as `additionalContext` for the new session. Capped at 14k chars. v5.30. |
 | **pre-read-budget-guard** | PreToolUse (Read) | Non-blocking WARNING: estimates tokens for the file being read; warns if ≥ `specbox.context_budget.warn_pct` of the window (default 5% of 1M). v5.30. |
-| **stitch-quota-guard** | PreToolUse (mcp__SpecBox-MCP__stitch_*) | WARNING ≥80% PRO/Flash; **BLOCKING** when PRO is exhausted AND `flash_safety_net=false`. Reads cached quota from `.quality/stitch_quota.json` (written by `get_stitch_quota_status`). No-op when no cache. v5.31. |
 | **freeform-path-guard** | PreToolUse (mcp__SpecBox-MCP__set_auth_token, mcp__SpecBox-MCP__onboard_project) | Auto-rewrites relative FreeForm `root_path` / `freeform_root_absolute` to an absolute path resolved against `git rev-parse --show-toplevel` via `hookSpecificOutput.updatedInput`. Covers the implicit-default case (`onboard_project` with no `backend_type` AND no `trello_board_name`). **BLOCKING** (exit 2) only when CWD is not a git repo and resolution is ambiguous. Logs every rewrite to `.quality/logs/freeform-path-rewrites.jsonl`. Defense in depth on top of the v5.29 server-side guard. v5.33. |
 
 ### Compliance Audit (v5.20.1)
@@ -2271,9 +2270,28 @@ dos historias seguían abiertas con todas sus UC hechas.
   nueva**: su sección 8 es la lista que hay que pasar antes de registrar una tool, y la tabla de
   la sección 4 se actualiza en la misma PR.
 
+## Los tokens sin uso caducan solos y cinco dispositivos por persona (v6.14.2)
+
+- **UC-3902 AC-03 (US-39) — revocación por inactividad.** Migración `0027_token_policy.sql`:
+  `public.revoke_idle_mcp_tokens(p_idle_days = 60, p_floor = 2026-09-29)` revoca con
+  `revoked_reason = 'idle'` los tokens activos y no caducados sin uso real en 60 días, con una
+  fila de `audit_log` por token. El reloj nunca empieza antes del 2026-09-29 (cuando el engine
+  empezó a anotar `last_used_at`): el primer token puede caer el 2026-11-28. En Supabase el job
+  de pg_cron `revoke-idle-mcp-tokens` la ejecuta a las 03:17 UTC; sin pg_cron solo existe la
+  función. Runbook: [doc/runbooks/transport-auth.md](doc/runbooks/transport-auth.md).
+- **UC-3902 AC-04 (US-39) — cinco dispositivos.** `public.issue_device_token` rechaza el sexto
+  dispositivo nuevo con `DEVICE_LIMIT` (SQLSTATE 53400) y deshace lo revocado; entrar de nuevo,
+  renovar o reemplazar en uno conocido nunca tropieza; los tokens sin dispositivo y los caducados
+  no ocupan plaza. El panel (specbox_cloud v0.6.4) responde `409 device_limit` con la lista;
+  `specbox login` y la extensión («Gestionar dispositivos») explican el caso.
+  Tests: `tests/test_token_policy.py` (PG-gated).
+- **UC-3901 AC-03 — la conexión del ordenador va primero.** `runStartupTasks` ejecuta
+  `ensureDeviceConnection` (adopción, renovación, limpieza de la entrada legacy) antes del health
+  check, el updater y las puertas de arranque que pueden esperar un clic.
+
 ## Engine Version
 
-Current: v6.14.1 "Forward Only"
+Current: v6.14.2 "Idle Watch"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

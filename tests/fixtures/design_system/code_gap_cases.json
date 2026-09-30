@@ -60,6 +60,15 @@
       ]
     },
     {
+      "name": "tailwind v4 type hints: a variable is the system, a named family is not",
+      "file": "src/components/Stat.astro",
+      "content": "<p class=\"font-[family-name:var(--font-sans)] font-[number:500]\">a</p>\n<p class=\"font-[family-name:Poppins] font-[number:800]\">b</p>\n",
+      "expected": [
+        {"kind": "font_outside", "line": 2, "value": "poppins"},
+        {"kind": "weight_above", "line": 2, "value": "font-[number:800]"}
+      ]
+    },
+    {
       "name": "gradients in backgrounds",
       "file": "src/components/Hero.vue",
       "content": "<template>\n  <section class=\"bg-gradient-to-r from-paper-000 bg-linear-to-b\">hero</section>\n</template>\n<style>\n.hero { background-image: linear-gradient(to right, var(--paper-000), var(--paper-100)); }\n.ring { background: repeating-radial-gradient(circle, var(--line-100), var(--line-200) 4px); }\n</style>\n",

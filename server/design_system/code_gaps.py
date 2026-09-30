@@ -116,7 +116,7 @@ _GOOGLEFONTS_DART_RE = re.compile(r"\bGoogleFonts\.([a-z][A-Za-z0-9]*)\(")
 _CSS_WEIGHT_RE = re.compile(r"font-weight\s*:\s*(\d{3}|bold|bolder)\b")
 _JS_WEIGHT_RE = re.compile(r"fontWeight\s*:\s*['\"]?(\d{3}|bold|bolder)\b")
 _TW_WEIGHT_RE = re.compile(r"(?<![\w-])font-(bold|extrabold|black)(?![\w-])")
-_TW_WEIGHT_ARBITRARY_RE = re.compile(r"(?<![\w-])font-\[(\d{3})\]")
+_TW_WEIGHT_ARBITRARY_RE = re.compile(r"(?<![\w-])font-\[(?:number:)?(\d{3})\]")
 _DART_WEIGHT_RE = re.compile(r"\bFontWeight\.(w[1-9]00|bold)\b")
 
 _NAMED_WEIGHTS = {"bold": 700, "bolder": 900, "extrabold": 800, "black": 900}
@@ -281,7 +281,12 @@ def _line_gaps(line: str, rules: DesignSystemRules):
                 yield "font_outside", m.start(), family
     for m in _TW_FONT_RE.finditer(line):
         raw = m.group(1)
-        if raw.isdigit() or raw.startswith(("var(", "length:")):
+        hint = re.match(r"^([a-z-]+):", raw)  # Tailwind v4 type hint: family-name:, number:…
+        if hint:
+            if hint.group(1) != "family-name":
+                continue
+            raw = raw[hint.end() :]
+        if raw.isdigit() or raw.startswith(("var(", "theme(")):
             continue
         for family in _families_of(raw.replace("_", " ")):
             if outside(family):

@@ -255,9 +255,11 @@ echo ""
 
 skills_installed=0
 skills_updated=0
+skill_names=()
 for skill_dir in "$ENGINE_DIR"/.claude/skills/*/; do
     [ -d "$skill_dir" ] || continue
     skill_name=$(basename "$skill_dir")
+    skill_names+=("/$skill_name")
     target="$SKILLS_DIR/$skill_name"
 
     if [ -L "$target" ]; then
@@ -458,7 +460,7 @@ else
     fi
 
     echo -e "${GREEN}Installation complete.${NC}"
-    echo -e "Skills:   /prd, /visual-setup, /plan, /implement, /adapt-ui, /optimize-agents, /quality-gate, /explore, /feedback, /check-designs, /acceptance-check, /quickstart, /release, /compliance, /audit"
+    echo -e "Skills:   $(printf '%s, ' "${skill_names[@]}" | sed 's/, $//')"
     echo -e "Quality:  quality-first-guard.mjs (read before write), read-tracker.mjs (session tracking)"
     echo -e "Hooks:    $HOOK_NAMES"
     if [ "$VSCODE_EXT_STATUS" = "installed" ]; then

@@ -1,0 +1,121 @@
+name: Publish specbox CLI (npm)
+
+# UC-3904 — `npx specbox login` vive en npm como el paquete `specbox`
+# (packages/specbox-cli). Se publica con la MISMA etiqueta que la extensión de
+# VSCode (vX.Y.Z), así cada release del engine deja la CLI al día sin pasos a mano.
+#
+# Autenticación: trusted publishing de npm (OIDC de GitHub Actions). No hay token
+# en los secretos del repo: npmjs.com tiene configurado como publicador de
+# confianza el repositorio EmbedBuild/specbox-engine y este fichero, y npm ≥ 11.5
+# cambia el id-token del job por una credencial de un solo uso. Runbook:
+# doc/runbooks/npm-trusted-publishing.md (incluye el plan B con token).
+#
+# Idempotente: si esa versión ya está en npm, el job termina sin publicar.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (e.g. v6.14.2). Must already exist.'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write   # trusted publishing (OIDC) — no NPM_TOKEN needed
+
+jobs:
+  publish:
+    name: Test, publish, verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 1
+
+      - name: Set up Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: npm ≥ 11.5.1 (trusted publishing needs it)
+        run: |
+          npm install -g npm@latest
+          npm --version
+
+      - name: Resolve tag and check it matches packages/specbox-cli/package.json
+        id: meta
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#v}"
+          PKG="$(node -p "require('./packages/specbox-cli/package.json').version")"
+          if [ "$PKG" != "$VERSION" ]; then
+            echo "::error::Tag $TAG but packages/specbox-cli/package.json says $PKG (run /release: it syncs the CLI version)"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Tests
+        working-directory: packages/specbox-cli
+        run: node --test test/*.test.mjs
+
+      - name: The package ships only bin, lib and README
+        working-directory: packages/specbox-cli
+        run: |
+          npm pack --dry-run --json > pack.json
+          node -e "
+            const files = require('./pack.json')[0].files.map(f => f.path);
+            const bad = files.filter(p => !/^(bin|lib)\//.test(p) && !['README.md', 'package.json'].includes(p));
+            if (bad.length) { console.error('Ficheros inesperados en el paquete:', bad); process.exit(1); }
+            console.log(files.join('\n'));
+          "
+          rm -f pack.json
+
+      - name: Already on npm?
+        id: exists
+        run: |
+          if npm view "specbox@${{ steps.meta.outputs.version }}" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::specbox@${{ steps.meta.outputs.version }} is already on npm — nothing to publish"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish (trusted publishing, with provenance)
+        if: steps.exists.outputs.published == 'false'
+        working-directory: packages/specbox-cli
+        run: npm publish --provenance --access public
+
+      - name: Verify the registry serves the version
+        run: |
+          WANT="${{ steps.meta.outputs.version }}"
+          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            GOT="$(npm view specbox@"$WANT" version 2>/dev/null || true)"
+            if [ "$GOT" = "$WANT" ]; then
+              echo "npm serves specbox@$GOT"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::npm does not serve specbox@$WANT yet (got '$GOT')"
+          exit 1
+
+      - name: Summary
+        run: |
+          {
+            echo "## npm publish — specbox CLI"
+            echo ""
+            echo "| Field | Value |"
+            echo "|-------|-------|"
+            echo "| Tag | \`${{ steps.meta.outputs.tag }}\` |"
+            echo "| Version | \`${{ steps.meta.outputs.version }}\` |"
+            echo "| Already published | \`${{ steps.exists.outputs.published }}\` |"
+            echo "| Package | https://www.npmjs.com/package/specbox |"
+          } >> "$GITHUB_STEP_SUMMARY"

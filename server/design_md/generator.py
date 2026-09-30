@@ -1,6 +1,10 @@
 """Build a :class:`DesignMd` from SpecBox project inputs.
 
-The generator reads, in order of preference, from:
+When the project has system tokens (``design-system.tokens.json``, US-49 ·
+UC-4901) they are the only source: the document is built by
+:mod:`server.design_md.system_view` and nothing below is read.
+
+Otherwise the generator reads, in order of preference, from:
 
 1. ``doc/brand/brand_kit.md`` — palette, typography (canonical from ``/visual-setup``)
 2. ``doc/veg/{archetype}.md`` — motion, density, mood (from VEG)
@@ -20,6 +24,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..design_system.tokens import SystemTokens
 from .archetypes import ARCHETYPES, ArchetypeId, default_archetype
 from .schema import (
     Colors,
@@ -35,21 +40,31 @@ from .schema import (
     Spacing,
     Typography,
 )
+from .system_view import build_design_md_from_system
 
 # ── Inputs ──────────────────────────────────────────────────────────────
 
 
 @dataclass
 class GeneratorInputs:
-    """Opaque bag of optional inputs the generator may use."""
+    """Opaque bag of optional inputs the generator may use.
 
-    project_root: Path
+    Each input can come as a path (local server) or as text the client sent
+    (content-passing, the only mode of a remote server). Text wins.
+    """
+
+    project_root: Path | None
     project_name: str
     brand_kit_path: Path | None = None
     veg_path: Path | None = None
     app_prd_path: Path | None = None
     app_spec_path: Path | None = None
     archetype_override: ArchetypeId | None = None
+    brand_kit_text: str | None = None
+    veg_text: str | None = None
+    app_prd_text: str | None = None
+    app_spec_text: str | None = None
+    system_tokens: SystemTokens | None = None
 
 
 # ── Public API ──────────────────────────────────────────────────────────
@@ -58,6 +73,15 @@ class GeneratorInputs:
 def generate_design_md(inputs: GeneratorInputs) -> DesignMd:
     """Synthesise a DesignMd. Always returns a valid model."""
 
+    app_prd = _text(inputs.app_prd_text, inputs.app_prd_path)
+
+    if inputs.system_tokens is not None:
+        return build_design_md_from_system(
+            inputs.system_tokens,
+            project_name=inputs.project_name,
+            overview_text=_vision_paragraph(app_prd),
+        )
+
     archetype = (
         inputs.archetype_override
         or _detect_archetype(inputs)
@@ -65,10 +89,9 @@ def generate_design_md(inputs: GeneratorInputs) -> DesignMd:
     )
     base = ARCHETYPES[archetype]
 
-    brand_kit = _read_text(inputs.brand_kit_path)
-    veg = _read_text(inputs.veg_path)
-    app_prd = _read_text(inputs.app_prd_path)
-    app_spec = _read_text(inputs.app_spec_path)
+    brand_kit = _text(inputs.brand_kit_text, inputs.brand_kit_path)
+    veg = _text(inputs.veg_text, inputs.veg_path)
+    app_spec = _text(inputs.app_spec_text, inputs.app_spec_path)
 
     palette = _extract_palette(brand_kit) or base.palette
     typo = _extract_typography(brand_kit, app_spec) or base.typography
@@ -115,8 +138,9 @@ def generate_design_md(inputs: GeneratorInputs) -> DesignMd:
 def _detect_archetype(inputs: GeneratorInputs) -> ArchetypeId | None:
     """Map VEG archetype mentioned in inputs to our 6 canonical ids."""
 
-    if inputs.veg_path and inputs.veg_path.exists():
-        text = inputs.veg_path.read_text(encoding="utf-8").lower()
+    veg = _text(inputs.veg_text, inputs.veg_path)
+    if veg:
+        text = veg.lower()
         # VEG templates name the archetype on the "Arquetipo" line.
         for ar in ARCHETYPES:
             if f"arquetipo: {ar.value}" in text or f"archetype: {ar.value}" in text:
@@ -202,17 +226,29 @@ def _read_text(path: Path | None) -> str | None:
     return None
 
 
+def _text(text: str | None, path: Path | None) -> str | None:
+    """Client-sent text wins over a path (content-passing contract)."""
+    return text if text is not None else _read_text(path)
+
+
+def _vision_paragraph(app_prd: str | None) -> str | None:
+    """First paragraph after a "Vision"/"Visión" heading of app_prd.md."""
+    if not app_prd:
+        return None
+    m = re.search(
+        r"(?:^|\n)#{1,3}\s*(?:vision|visión|visio?n)\b[^\n]*\n+(.+?)(?:\n#{1,3}\s|$)",
+        app_prd,
+        re.I | re.S,
+    )
+    if not m:
+        return None
+    return m.group(1).strip().split("\n\n", 1)[0]
+
+
 def _build_overview(app_prd: str | None, tone: str, project_name: str) -> str:
-    if app_prd:
-        # Extract the first paragraph after a "Vision" or "Visión" heading.
-        m = re.search(
-            r"(?:^|\n)#{1,3}\s*(?:vision|visión|visio?n)\b[^\n]*\n+(.+?)(?:\n#{1,3}\s|$)",
-            app_prd,
-            re.I | re.S,
-        )
-        if m:
-            paragraph = m.group(1).strip().split("\n\n", 1)[0]
-            return f"{paragraph}\n\n**Voice & tone**: {tone}"
+    paragraph = _vision_paragraph(app_prd)
+    if paragraph:
+        return f"{paragraph}\n\n**Voice & tone**: {tone}"
     return (
         f"{project_name} — visión consolidada por SpecBox a partir del Brand Kit "
         f"y la VEG del proyecto.\n\n**Voice & tone**: {tone}"

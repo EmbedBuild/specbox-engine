@@ -2294,6 +2294,41 @@ dos historias seguían abiertas con todas sus UC hechas.
   `ensureDeviceConnection` (adopción, renovación, limpieza de la entrada legacy) antes del health
   check, el updater y las puertas de arranque que pueden esperar un clic.
 
+## Las herramientas de diseño leen el sistema, no un brand kit aparte (US-49 · UC-4901)
+
+Cuando un proyecto tiene **tokens del sistema** (`design-system.tokens.json`, el formato que
+`@specbox/tokens` deja en cada app con `npm run build:sync`), son la única fuente de diseño.
+Guía pública: [doc/guides/design-system-tokens.md](doc/guides/design-system-tokens.md).
+
+| Pieza | Archivo | Qué hace |
+|---|---|---|
+| Lector | `server/design_system/tokens.py` | `parse_system_tokens(content, source=)`: resuelve alias por tema y mapea papeles (principal, fondo, texto, estados; h1/h2/body…). Falta un papel obligatorio o el JSON es malo → `SystemTokensError` que dice qué falta |
+| Comprobador | `server/design_system/conformance.py` | `find_values_outside(documento, tokens)`: colores, longitudes y duraciones, pesos, interlineados sin unidad, familias y enums de Stitch (`ROUND_*`, `*_FONT`) que ningún token define, con su ubicación. Lo reutilizará UC-4902 |
+| Procedencia | `server/design_system/provenance.py` | `candidate_marker(provider)` (`design_role: candidate`, `production_source: system_tokens`, nota y `html_banner`) y `system_tokens_notice()` (aviso `SYSTEM_TOKENS_MISSING` con enlace a la guía); ES/EN por `Accept-Language` |
+| Vista del sistema | `server/design_md/system_view.py` | DESIGN.md hecho solo de tokens (front-matter, cuerpo y vista Material 3 para Stitch); el Brand Kit y el arquetipo no se leen |
+
+- **`generate_design_md_tool`** tiene modo **contenido** (`system_tokens_content`,
+  `system_tokens_path`, `brand_kit_content`, `veg_content`, `app_prd_content`,
+  `app_spec_content` → devuelve `design_md_content` + `suggested_relpath`, sin tocar el disco del
+  servidor) y conserva el modo **disco** solo con servidor local (busca los tokens en
+  `SYSTEM_TOKENS_CANDIDATE_PATHS`). En remoto, `project_root` sin contenido →
+  `DESIGN_MD_CONTENT_REQUIRED`. Con tokens la respuesta trae `values_outside_system` (vacío =
+  conforme) y `warnings` (p. ej. una fuente que Stitch no ofrece); sin tokens, `notice`; tokens
+  rotos → `SYSTEM_TOKENS_INVALID`, nunca un DESIGN.md del Brand Kit en silencio.
+- **Salida candidata**: `stitch_generate_screen[_v2]`, `stitch_edit_screen`,
+  `stitch_generate_variants`, `stitch_fetch_screen_code`, `stitch_build_site_batched_v2` y el `ok`
+  de `claude_design_sync_design_system` (que además nombra su `system_input`) llevan
+  `candidate_marker`.
+- **Skills**: `/plan` busca los tokens, genera el DESIGN.md en modo contenido, se lo da a Stitch
+  (`stitch_upload_design_md` + `stitch_create_design_system_from_design_md`), guarda cada HTML
+  con `html_banner` y escribe la sección **«Fuente de diseño»** en cada plan; sus prompts ya no
+  inventan colores ni fuentes. `/visual-setup` 3.7 sigue el mismo contrato.
+- El esquema de DESIGN.md admite `None` en pesos, interlineados, radios y espaciado para que un
+  documento del sistema no arrastre defaults de arquetipo (`bold: 700`, `lineHeight 1.2`).
+- Tests: `tests/test_design_system_tokens.py`, `tests/test_design_md_system_tokens.py`,
+  `tests/test_design_candidate_output.py` (fixture: los tokens reales de Tinta en
+  `tests/fixtures/design_system/`).
+
 ## Engine Version
 
 Current: v6.14.2 "Idle Watch"

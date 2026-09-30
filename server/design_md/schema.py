@@ -82,18 +82,24 @@ class FontSize(BaseModel):
 
 
 class FontWeight(BaseModel):
+    """Defaults are the archetype scale; a document built from system tokens
+    sets to ``None`` every weight the system does not define (UC-4901)."""
+
     model_config = ConfigDict(extra="allow")
-    regular: int = 400
-    medium: int = 500
-    semibold: int = 600
-    bold: int = 700
+    regular: int | None = 400
+    medium: int | None = 500
+    semibold: int | None = 600
+    bold: int | None = 700
 
 
 class LineHeight(BaseModel):
+    """Unitless archetype defaults; a document built from system tokens
+    replaces them with the per-style values of the tokens (UC-4901)."""
+
     model_config = ConfigDict(extra="allow")
-    tight: float = 1.2
-    normal: float = 1.5
-    relaxed: float = 1.75
+    tight: float | None = 1.2
+    normal: float | None = 1.5
+    relaxed: float | None = 1.75
 
 
 class Typography(BaseModel):
@@ -105,20 +111,20 @@ class Typography(BaseModel):
 
 class Rounded(BaseModel):
     model_config = ConfigDict(extra="allow")
-    sm: str = "4px"
-    md: str = "8px"
-    lg: str = "12px"
-    full: str = "9999px"
+    sm: str | None = "4px"
+    md: str | None = "8px"
+    lg: str | None = "12px"
+    full: str | None = "9999px"
 
 
 class Spacing(BaseModel):
     model_config = ConfigDict(extra="allow")
-    xs: str = "4px"
-    sm: str = "8px"
-    md: str = "16px"
-    lg: str = "24px"
-    xl: str = "32px"
-    xxl: str = "48px"
+    xs: str | None = "4px"
+    sm: str | None = "8px"
+    md: str | None = "16px"
+    lg: str | None = "24px"
+    xl: str | None = "32px"
+    xxl: str | None = "48px"
 
 
 class ComponentSpec(BaseModel):

@@ -21,10 +21,23 @@ import structlog
 from fastmcp import Context, FastMCP
 
 from ..auth_gateway import get_stitch_client
+from ..coordination.i18n_messages import extract_locale_from_ctx
 from ..design_md.generator import GeneratorInputs, generate_design_md
-from ..design_md.io import compute_signature, load, save
+from ..design_md.io import compute_signature, load
 from ..design_md.material3_view import build_material3_frontmatter
 from ..design_md.archetypes import ArchetypeId
+from ..design_md.system_view import build_material3_from_system
+from ..design_md.writer import serialize
+from ..design_system import (
+    SYSTEM_TOKENS_CANDIDATE_PATHS,
+    SYSTEM_TOKENS_GUIDE_URL,
+    SystemTokensError,
+    candidate_marker,
+    find_values_outside,
+    parse_system_tokens,
+    system_tokens_notice,
+)
+from ..transport import is_remote_transport
 from ..stitch_orchestration import (
     FallbackOutcome,
     FallbackStrategy,
@@ -82,114 +95,193 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
     async def generate_design_md_tool(
         ctx: Context,
         project: str,
-        project_root: str,
+        project_root: str | None = None,
         project_name: str | None = None,
         output_path: str | None = None,
         archetype_override: str | None = None,
         contract: str = "native_v2",
+        system_tokens_content: str | None = None,
+        system_tokens_path: str | None = None,
+        brand_kit_content: str | None = None,
+        veg_content: str | None = None,
+        app_prd_content: str | None = None,
+        app_spec_content: str | None = None,
     ) -> dict:
         """Generate the canonical DESIGN.md for a project.
 
         Synthesises a DESIGN.md (Google Stitch's official format —
-        github.com/google-labs-code/design.md) from existing SpecBox
-        inputs: ``doc/brand/brand_kit.md``, ``doc/veg/*.md``, the canonical
-        ``doc/app/app_prd.md`` + ``doc/app/app_spec.md``. Always produces
-        a valid file; missing inputs fall back to the closest VEG
-        archetype's defaults.
+        github.com/google-labs-code/design.md). **When the project has
+        system tokens** (``design-system.tokens.json``, US-49 · UC-4901)
+        they are the only source: colours, typography, radii, spacing,
+        states and shadows come from them, the brand kit and archetypes
+        are ignored, and the response reports ``values_outside_system``
+        (empty when the document holds only token values). Without
+        system tokens it synthesises from ``doc/brand/brand_kit.md``,
+        ``doc/veg/*.md`` and ``doc/app/app_{prd,spec}.md``, falls back to
+        the closest VEG archetype, and returns a ``notice`` explaining how
+        to adopt the tokens, with the link to the guide.
 
-        Idempotent: rerunning regenerates the file. Stable signature
-        across runs (excludes ``generated_at`` from the hash) so drift
-        detection only triggers on real content changes.
+        Two modes (MCP path contract):
+
+        - **content** — the client sends the files' contents
+          (``*_content``) and writes the returned ``design_md_content`` to
+          ``suggested_relpath`` itself. Nothing is read from or written to
+          the server's disk. The only mode of a remote server.
+        - **disk** — only with a local server: ``project_root`` is read
+          (system tokens are looked for in ``SYSTEM_TOKENS_CANDIDATE_PATHS``)
+          and DESIGN.md is written to ``output_path``.
+
+        Idempotent; the signature excludes ``generated_at``.
 
         Args:
-            project: SpecBox project slug (used for telemetry only).
-            project_root: Absolute path to the project repo on disk.
+            project: SpecBox project slug (telemetry only).
+            project_root: Local server only — absolute path of the repo.
             project_name: Display name (defaults to ``project``).
-            output_path: Where to write DESIGN.md (defaults to
-                ``{project_root}/doc/design/DESIGN.md``).
-            archetype_override: One of corporate, startup, creative,
-                consumer, gen_z, gov. If omitted, the generator detects
-                from VEG file or defaults to startup.
-            contract: ``"native_v2"`` (default, v6.4.0+) emits a
-                Material 3 YAML frontmatter consumable by Stitch's
-                ``create_design_system_from_design_md`` plus a ``VEG
-                Notes`` body section preserving VEG semantics.
-                ``"inline_prefix_v1"`` reproduces the v5.31 SpecBox-native
-                frontmatter for backwards compatibility — projects still
-                on that contract continue to work unchanged.
+            output_path: Disk mode: where to write (default
+                ``{project_root}/doc/design/DESIGN.md``). Content mode:
+                echoed as ``suggested_relpath``.
+            archetype_override: corporate | startup | creative | consumer |
+                gen_z | gov. Ignored when system tokens exist.
+            contract: ``"native_v2"`` (default) emits the Material 3
+                front-matter Stitch parses; ``"inline_prefix_v1"`` the
+                legacy SpecBox front-matter.
+            system_tokens_content: Content of ``design-system.tokens.json``.
+            system_tokens_path: Its path relative to the repo (provenance).
+            brand_kit_content / veg_content / app_prd_content /
+            app_spec_content: Contents of the other inputs, if any.
 
         Returns:
-            ``{status, path, signature, archetype, contract, sections,
-              material3}`` on success; ``{error}`` on failure.
-            ``material3`` is the resolved theme payload (only when
-            ``contract == "native_v2"``).
+            ``{status, mode, design_md_content, path | suggested_relpath,
+              signature, contract, sections, design_source, system_tokens,
+              values_outside_system?, notice?, warnings?, material3?}``;
+            ``{error, code}`` on failure (``DESIGN_MD_CONTENT_REQUIRED``,
+            ``SYSTEM_TOKENS_INVALID``).
         """
 
+        locale = extract_locale_from_ctx(ctx)
+        if contract not in {"native_v2", "inline_prefix_v1"}:
+            return {
+                "error": (
+                    f"unknown contract {contract!r}. Use 'native_v2' or "
+                    "'inline_prefix_v1'."
+                )
+            }
+
+        contents = (
+            system_tokens_content,
+            brand_kit_content,
+            veg_content,
+            app_prd_content,
+            app_spec_content,
+        )
+        content_mode = any(c is not None for c in contents) or not project_root
+        if not content_mode and is_remote_transport():
+            _log_v2(project, "generate_design_md", status="error", reason="remote_disk_mode")
+            return _content_required_error(project, project_root)
+
+        root: Path | None = None
+        tokens_text, tokens_rel = system_tokens_content, system_tokens_path
         try:
-            root = Path(project_root).expanduser().resolve()
-            if not root.is_dir():
-                _log_v2(project, "generate_design_md", status="error", reason="bad_root")
-                return {"error": f"project_root does not exist: {project_root}"}
-
-            if contract not in {"native_v2", "inline_prefix_v1"}:
-                return {
-                    "error": (
-                        f"unknown contract {contract!r}. Use 'native_v2' or "
-                        "'inline_prefix_v1'."
-                    )
-                }
-
-            out = (
-                Path(output_path).expanduser().resolve()
-                if output_path
-                else root / "doc" / "design" / "DESIGN.md"
+            if not content_mode:
+                root = Path(project_root).expanduser().resolve()  # type: ignore[arg-type]
+                if not root.is_dir():
+                    _log_v2(project, "generate_design_md", status="error", reason="bad_root")
+                    return {"error": f"project_root does not exist: {project_root}"}
+                if tokens_text is None:
+                    found = _find_system_tokens_file(root)
+                    if found:
+                        tokens_rel, tokens_text = found
+            tokens = (
+                parse_system_tokens(tokens_text, source=tokens_rel)
+                if tokens_text is not None
+                else None
             )
+        except SystemTokensError as exc:
+            _log_v2(project, "generate_design_md", status="error", reason="system_tokens_invalid")
+            return {
+                "error": f"SYSTEM_TOKENS_INVALID: {exc}",
+                "code": "SYSTEM_TOKENS_INVALID",
+                "project": project,
+                "path": tokens_rel,
+                "guide_url": SYSTEM_TOKENS_GUIDE_URL,
+            }
 
+        try:
             inputs = GeneratorInputs(
                 project_root=root,
                 project_name=project_name or project,
-                brand_kit_path=root / "doc" / "brand" / "brand_kit.md",
-                veg_path=_pick_veg_path(root),
-                app_prd_path=root / "doc" / "app" / "app_prd.md",
-                app_spec_path=root / "doc" / "app" / "app_spec.md",
+                brand_kit_path=root / "doc" / "brand" / "brand_kit.md" if root else None,
+                veg_path=_pick_veg_path(root) if root else None,
+                app_prd_path=root / "doc" / "app" / "app_prd.md" if root else None,
+                app_spec_path=root / "doc" / "app" / "app_spec.md" if root else None,
                 archetype_override=_resolve_archetype(archetype_override),
+                brand_kit_text=brand_kit_content,
+                veg_text=veg_content,
+                app_prd_text=app_prd_content,
+                app_spec_text=app_spec_content,
+                system_tokens=tokens,
             )
 
             doc = generate_design_md(inputs)
 
-            material3_payload: dict | None = None
+            warnings: list[str] = []
+            m3_fm = None
             if contract == "native_v2":
-                resolved_archetype = (
-                    inputs.archetype_override or ArchetypeId.STARTUP
-                )
-                m3_fm = build_material3_frontmatter(doc, resolved_archetype)
-                save(doc, out, material3=m3_fm)
-                material3_payload = m3_fm.to_dict()
-            else:
-                save(doc, out)
-
+                if tokens is not None:
+                    m3_fm = build_material3_from_system(doc, tokens)
+                    warnings.extend(m3_fm.warnings)
+                else:
+                    m3_fm = build_material3_frontmatter(
+                        doc, inputs.archetype_override or ArchetypeId.STARTUP
+                    )
+            content = serialize(doc, material3=m3_fm)
             sig = compute_signature(doc)
 
-            # Persist signature in project meta so the sync layer can
-            # detect drift between Brand Kit and DESIGN.md.
-            _store_design_md_meta(state_path, project, out, sig, doc.front_matter.colors.primary)
+            if content_mode:
+                location = {"suggested_relpath": output_path or "doc/design/DESIGN.md"}
+                logged_path = location["suggested_relpath"]
+            else:
+                out = (
+                    Path(output_path).expanduser().resolve()
+                    if output_path
+                    else root / "doc" / "design" / "DESIGN.md"  # type: ignore[operator]
+                )
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text(content, encoding="utf-8")
+                # Persist signature in project meta so the sync layer can
+                # detect drift between Brand Kit and DESIGN.md.
+                _store_design_md_meta(
+                    state_path, project, out, sig, doc.front_matter.colors.primary
+                )
+                location = {"path": str(out)}
+                logged_path = str(out)
 
             _log_v2(
                 project,
                 "generate_design_md",
                 signature=sig,
-                archetype=archetype_override or "auto",
+                archetype="system_tokens" if tokens else (archetype_override or "auto"),
                 contract=contract,
-                path=str(out),
+                path=logged_path,
             )
 
+            brand_kit_given = brand_kit_content is not None or bool(
+                inputs.brand_kit_path and inputs.brand_kit_path.exists()
+            )
             response: dict = {
                 "status": "ok",
                 "project": project,
-                "path": str(out),
+                "mode": "content" if content_mode else "disk",
+                **location,
+                "design_md_content": content,
                 "signature": sig,
-                "archetype": archetype_override or "auto",
+                "archetype": None if tokens else (archetype_override or "auto"),
                 "contract": contract,
+                "design_source": (
+                    tokens.describe()
+                    if tokens
+                    else {"kind": "brand_kit" if brand_kit_given else "archetype"}
+                ),
                 "sections": [
                     name
                     for name, body in (
@@ -205,8 +297,18 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                     if body and body.strip()
                 ],
             }
-            if material3_payload is not None:
-                response["material3"] = material3_payload
+            if tokens is not None:
+                response["system_tokens"] = {"found": True, **tokens.describe()}
+                response["values_outside_system"] = [
+                    d.to_dict() for d in find_values_outside(content, tokens)
+                ]
+            else:
+                response["system_tokens"] = {"found": False}
+                response["notice"] = system_tokens_notice(locale)
+            if warnings:
+                response["warnings"] = warnings
+            if m3_fm is not None:
+                response["material3"] = m3_fm.to_dict()
             return response
         except Exception as exc:
             logger.error("generate_design_md_error", project=project, error=str(exc))
@@ -431,6 +533,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 "contract": contract,
                 "prompt_mode": prompt_mode,
                 "design_system_info": ds_info,
+                **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
             }
         except Exception as exc:
             logger.error(
@@ -517,6 +620,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 "project": project,
                 "stitch_project_id": stitch_project_id,
                 **result,
+                **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
             }
         except Exception as exc:
             logger.error(
@@ -712,6 +816,47 @@ async def _v2_get_client(ctx: Context, project: str, state_path: Path):
 
 
 # ── Internal helpers (module-private, importable from later phases) ────
+
+
+def _find_system_tokens_file(root: Path) -> tuple[str, str] | None:
+    """Disk mode only: ``(relpath, content)`` of the project's system tokens."""
+
+    for rel in SYSTEM_TOKENS_CANDIDATE_PATHS:
+        path = root / rel
+        if path.is_file():
+            try:
+                return rel, path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+    return None
+
+
+def _content_required_error(project: str, project_root: str | None) -> dict:
+    """A remote server never reads the client's repo (threat model, rule 3)."""
+
+    return {
+        "error": (
+            "DESIGN_MD_CONTENT_REQUIRED: this MCP server is remote, so it cannot "
+            f"read {project_root!r} — that path lives on your machine. Send the "
+            "contents instead (system_tokens_content with system_tokens_path, and "
+            "brand_kit_content / veg_content / app_prd_content / app_spec_content "
+            "when they exist) and write the returned design_md_content to "
+            "suggested_relpath."
+        ),
+        "code": "DESIGN_MD_CONTENT_REQUIRED",
+        "project": project,
+        "how_to": {
+            "system_tokens": (
+                "look for design-system.tokens.json in: "
+                + ", ".join(SYSTEM_TOKENS_CANDIDATE_PATHS)
+            ),
+            "call": (
+                "generate_design_md_tool(project=..., "
+                "system_tokens_content=<file>, system_tokens_path=<relpath>)"
+            ),
+            "write": "save design_md_content to suggested_relpath (doc/design/DESIGN.md)",
+        },
+    }
 
 
 def _pick_veg_path(root: Path) -> Path | None:

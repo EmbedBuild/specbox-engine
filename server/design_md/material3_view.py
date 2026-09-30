@@ -20,7 +20,7 @@ migration case E.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from ..stitch_enums import (
@@ -107,6 +107,9 @@ class Material3FrontMatter:
     colors: dict[str, str]
     typography: dict[str, dict[str, Any]]
     veg_notes: list[str]
+    #: What the view could not represent faithfully (e.g. a system font Stitch
+    #: does not offer). Surfaced to the caller; never serialised.
+    warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         """Render to the dict shape expected by ``yaml.safe_dump``."""

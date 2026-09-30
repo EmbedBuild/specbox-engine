@@ -445,6 +445,21 @@ solo avisa).
 
 [Lista con specs básicas]
 
+## Fuente de diseño
+
+> Obligatoria si el plan tiene pantallas o UI. Se completa con lo que devuelve
+> `generate_design_md_tool` en el Paso 5.5.1.
+
+- **Fuente de producción**: los tokens del sistema `[ruta de design-system.tokens.json]`
+  ([nombre], versión [N]). Colores, tipografía, radios y estados salen solo de ahí (y del
+  registro de componentes del sistema, si el proyecto lo tiene).
+- **Diseños de Stitch / Claude Design de este plan**: son **candidatos**. Sirven para decidir
+  disposición, jerarquía y flujo; nunca son fuente de producción y el código no copia sus valores.
+- **DESIGN.md**: generado desde los tokens (`values_outside_system` vacío); no se edita a mano.
+- *Si el proyecto no tiene tokens del sistema*: [mensaje del aviso `SYSTEM_TOKENS_MISSING`, con
+  su enlace a la guía]. Mientras tanto la fuente es el Brand Kit / DESIGN.md, y los diseños
+  siguen siendo candidatos.
+
 ---
 
 ## Fases de Implementación
@@ -551,71 +566,75 @@ lib/
 > Este paso prepara el pipeline v2 (DESIGN.md canónico + cuota observada)
 > para que la generación del Paso 6 sea fiable y trazable.
 
-### 5.5.1 Verificar DESIGN.md canónico
+### 5.5.1 Generar DESIGN.md desde el sistema (US-49 · UC-4901)
 
-DESIGN.md (formato oficial Google: github.com/google-labs-code/design.md)
-es leído por Stitch como contexto persistente en cada generación, y es lo
-que evita el drift visual entre pantallas. SpecBox lo materializa via
-`/visual-setup` Paso 3.7.
+DESIGN.md (formato oficial Google: github.com/google-labs-code/design.md) es lo
+que Stitch recibe como sistema en cada generación. Si el proyecto tiene **tokens
+del sistema** (`design-system.tokens.json`), el DESIGN.md sale solo de ellos; el
+Brand Kit y el arquetipo no se leen. Se regenera en cada `/plan` con pantallas
+(es idempotente) y siempre en modo contenido: el MCP es remoto y no ve el disco
+del proyecto.
 
-```
-¿Existe doc/design/DESIGN.md en el proyecto?
-├── SI → Continuar a 5.5.2
-└── NO → Tomar UNA de estas rutas:
-    a) Si existe doc/brand/brand_kit.md (Brand Kit ya configurado):
-       Llamar generate_design_md_tool(
-         project="{project_slug}",
-         project_root="{absolute_path}"
-       )
-       Continuar a 5.5.2
-    b) Si NO existe brand_kit.md:
-       AVISAR al usuario:
-       "No hay DESIGN.md ni Brand Kit. Las pantallas saldrán con
-        defaults del arquetipo VEG 'startup' y mayor riesgo de drift.
-        Recomendado: corre /visual-setup primero. ¿Continuar igual?"
-       Continuar a 5.5.2 si el usuario confirma; abortar Paso 6 si no.
-```
-
-### 5.5.2 Registrar DESIGN.md frente al proyecto Stitch
-
-Si DESIGN.md existe Y hay `stitch.projectId` configurado:
+1. Buscar los tokens del sistema: el primer `design-system.tokens.json` en
+   `doc/design/`, `src/styles/tokens/`, `apps/web/src/styles/tokens/`,
+   `web/src/styles/tokens/`, `packages/tokens/dist/` o la raíz del repo.
+2. Leer también, si existen: `doc/brand/brand_kit.md`, el VEG activo y
+   `doc/app/app_prd.md` / `doc/app/app_spec.md`.
+3. Llamar (pasar solo los contenidos que existan):
 
 ```
-upload_design_md_to_stitch(
+generate_design_md_tool(
   project="{project_slug}",
-  stitch_project_id="{stitch.projectId}",
-  project_root="{absolute_path}"
+  system_tokens_content=<design-system.tokens.json>,
+  system_tokens_path="<ruta relativa del fichero>",
+  brand_kit_content=<brand_kit.md>,
+  veg_content=<VEG activo>,
+  app_prd_content=<app_prd.md>,
+  app_spec_content=<app_spec.md>
 )
 ```
 
-Modo `inline-prefix` hoy (Stitch MCP no expone endpoint nativo de
-attach todavía). Las tools v2 de generación leen este registro y
-prepended el contenido de DESIGN.md a cada prompt automáticamente.
-
-### 5.5.3 Pre-warning de cuota
-
-Antes de entrar al loop de generación, consultar cuota Stitch
-mensual (350 Standard + 200 Experimental, no upgradeable):
+4. Escribir `design_md_content` en `suggested_relpath` (`doc/design/DESIGN.md`).
+5. Según la respuesta:
 
 ```
-get_stitch_quota_status(
-  project="{project_slug}",
-  project_root="{absolute_path}",
-  write_cache=true
-)
+├── system_tokens.found == true
+│     └── values_outside_system tiene que venir vacío. Si no, PARAR y mostrar
+│         la lista: el DESIGN.md contiene valores que no son del sistema.
+│         Mostrar también `warnings` (p. ej. una fuente que Stitch no ofrece).
+├── notice.code == "SYSTEM_TOKENS_MISSING"
+│     └── Mostrar notice.message al usuario (incluye el enlace a la guía) y seguir:
+│         la fuente es el Brand Kit o el arquetipo. Si tampoco hay Brand Kit,
+│         avisar del riesgo de deriva y preguntar si continuar; abortar el
+│         Paso 6 si no.
+└── code == "SYSTEM_TOKENS_INVALID"
+      └── PARAR: los tokens existen pero están rotos. Mostrar el mensaje (dice
+          qué falta). No generar desde el Brand Kit.
 ```
 
-Tomar acción según el resultado:
+6. Completar la sección «Fuente de diseño» del plan guardado con `system_tokens`
+   (ruta, nombre y versión) o con el aviso.
 
-| Estado | Acción |
-|--------|--------|
-| `experimental.percent < 80` | Continuar a Paso 6 sin avisar |
-| `experimental.percent ≥ 80` y `< 100` | AVISAR al usuario: "Cuota PRO al X% — quedan N generaciones. ¿Continuar?" |
-| `experimental.percent ≥ 100` | BLOQUEAR Paso 6: "Cuota PRO agotada hasta {reset_at}. Opciones: (a) activar `flash_safety_net` en settings.local.json para usar Flash como degradación; (b) esperar al reset; (c) generar pantallas manualmente." |
+### 5.5.2 Dar el sistema a Stitch
 
-El cache `.quality/stitch_quota.json` que escribe esta tool lo puede leer
-cualquier consumidor externo (specbox_cloud, scripts ad-hoc) para mostrar
-el estado de cuota por proyecto.
+Si hay `stitch.projectId`, Stitch recibe el DESIGN.md recién generado. Con el
+contrato `native_v2` (el de siempre desde v6.4.0):
+
+```
+stitch_upload_design_md(project, stitch_project_id, design_md_content)
+  → screen_instance {id, sourceScreen}
+stitch_create_design_system_from_design_md(project, stitch_project_id,
+  screen_instance_id=id, source_screen=sourceScreen, device_type)
+```
+
+Si el proyecto Stitch ya tenía un Design System (`stitch_list_design_systems`),
+actualizarlo en lugar de crear otro: `stitch_update_design_system(...,
+theme=material3.theme)` con el `material3` de la respuesta del 5.5.1.
+
+Con el Design System aplicado, `stitch_generate_screen_v2` quita del prompt los
+colores, fuentes y radios: los pone Stitch desde el sistema. Con el contrato
+legado `inline_prefix_v1`, pasar `design_md_content` en cada
+`stitch_generate_screen_v2`.
 
 ---
 
@@ -687,6 +706,11 @@ el estado de cuota por proyecto.
 > motivo legible (p. ej. "missing dist/"). El VEG de Claude Design se marca `pending` y
 > el plan NO se interrumpe (JR-CD.3).
 
+> **Entrada y salida (UC-4901)**: la respuesta `ok` del sync nombra lo que Claude Design
+> recibe del sistema (`system_input`: componentes y tokens) y marca lo que diseñe como
+> candidato (`design_role: "candidate"`, `html_banner`). Igual que con Stitch, sus
+> pantallas nunca son fuente de producción.
+
 ### 6.0 Detectar Proyecto Stitch
 
 1. Buscar `stitch.projectId` en `.claude/settings.local.json` del proyecto
@@ -737,17 +761,17 @@ Cada prompt DEBE incluir:
 
 **Template de prompt por pantalla:**
 
+> **El prompt no inventa valores de diseño.** Con Design System aplicado (5.5.2),
+> no se escriben colores, fuentes ni radios: los pone Stitch desde el sistema.
+> Sin él, se copian del DESIGN.md generado en 5.5.1; nunca se escriben de memoria.
+
 ```
 Design a [screen description] for [App Name].
 
 Design System:
 - Theme: Light Mode
-- Background: #F5F5F5 (page), #FFFFFF (cards)
-- Primary: [color primario del proyecto]
-- Text: #1F2937 (primary), #6B7280 (secondary)
-- Borders: #E5E7EB, radius 12px
-- Font: [font del proyecto] / Inter / system-ui
-- Shadows: subtle shadow-sm on cards
+- Use the project's design system applied in this Stitch project
+  (sin Design System aplicado: colores, fuente, radio y sombra copiados del DESIGN.md)
 
 Screen: [Nombre de la pantalla]
 
@@ -773,7 +797,7 @@ Design a [screen description] for [App Name].
 
 Design System:
 - Theme: Light Mode
-- [colores, tipografia del proyecto]
+- Use the project's design system applied in this Stitch project
 
 Visual Direction (from VEG - {target_name}):
 - Density: {density}, Whitespace: {whitespace}
@@ -841,10 +865,13 @@ stitch_generate_screen_v2(
   device_type="{stitch.deviceType}",       // DESKTOP por defecto
   model_id="{stitch.modelId}",             // GEMINI_3_PRO por defecto (calidad-first)
   baseline_screen_id=null,                 // null en primera generación; ver 6.3.3
-  flash_safety_net=false,                  // opt-in en settings.local.json
   max_total_attempts=3
 )
 ```
+
+La respuesta trae `design_role: "candidate"`, `design_role_note` y `html_banner`:
+la pantalla es un **candidato** para decidir disposición y flujo, nunca fuente de
+producción. Decirlo así al presentarla al usuario.
 
 **Reglas de ejecución:**
 - Generar UNA pantalla a la vez (la tool tarda minutos por pantalla en PRO).
@@ -874,15 +901,13 @@ parcial y consume menos cuota.
 
 Para cada pantalla generada:
 
-1. Usar `mcp__stitch__get_screen` para obtener el HTML completo
-2. Guardar en `doc/design/{feature}/{screen_name}.html`
+1. Obtener el HTML completo con `stitch_fetch_screen_code(project, stitch_project_id, screen_id)`
+2. Guardar en `doc/design/{feature}/{screen_name}.html` con el `html_banner` de la
+   respuesta como **primera línea**: el fichero queda marcado como diseño candidato
+   (`specbox:design-role=candidate`) y nadie lo toma por fuente de producción
 3. Crear carpeta `doc/design/{feature}/` si no existe
 
-```
-mcp__stitch__get_screen(
-  name: "projects/[projectId]/screens/[screenId]"
-)
-```
+Lo mismo con los diseños de Claude Design: se guardan con su `html_banner`.
 
 ### 6.5 Registrar prompts usados
 
@@ -1018,7 +1043,8 @@ Usar `plane:create_work_item_comment`:
 | [nombre] | [id] | Generado | {Si/No} |
 | [nombre] | [id] | Generado | {Si/No} |
 
-**HTMLs guardados en**: `doc/design/[feature]/`
+**HTMLs guardados en**: `doc/design/[feature]/` (todos **candidatos**: la fuente de
+producción son los tokens del sistema; ver «Fuente de diseño» en el plan)
 **Prompts registrados en**: `doc/design/[feature]/[feature]_stitch_prompts.md`
 
 > Si `stitch_designs: PENDING` — /implement bloqueará la implementación hasta que

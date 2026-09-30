@@ -17,6 +17,8 @@ import structlog
 from fastmcp import Context, FastMCP
 
 from ..auth_gateway import get_stitch_client, store_stitch_credentials
+from ..coordination.i18n_messages import extract_locale_from_ctx
+from ..design_system import candidate_marker
 
 logger = structlog.get_logger(__name__)
 
@@ -270,7 +272,12 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
             )
             _log_stitch_usage(project, "generate_screen")
             logger.info("stitch_generate_screen_complete", project=project)
-            return {"status": "ok", "project": project, "result": result}
+            return {
+                "status": "ok",
+                "project": project,
+                "result": result,
+                **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
+            }
         except Exception as exc:
             logger.error(
                 "stitch_generate_screen_error", project=project, error=str(exc)
@@ -321,7 +328,12 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
             )
             _log_stitch_usage(project, "edit_screens")
             logger.info("stitch_edit_screen_complete", project=project)
-            return {"status": "ok", "project": project, "result": result}
+            return {
+                "status": "ok",
+                "project": project,
+                "result": result,
+                **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
+            }
         except Exception as exc:
             logger.error(
                 "stitch_edit_screen_error", project=project, error=str(exc)
@@ -381,7 +393,12 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
             )
             _log_stitch_usage(project, "generate_variants")
             logger.info("stitch_generate_variants_complete", project=project)
-            return {"status": "ok", "project": project, "result": result}
+            return {
+                "status": "ok",
+                "project": project,
+                "result": result,
+                **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
+            }
         except Exception as exc:
             logger.error(
                 "stitch_generate_variants_error", project=project, error=str(exc)
@@ -440,7 +457,12 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
             client = await _get_client_for_project(ctx, project)
             result = await client.fetch_screen_code(stitch_project_id, screen_id)
             _log_stitch_usage(project, "fetch_screen_code")
-            return {"status": "ok", "project": project, "result": result}
+            return {
+                "status": "ok",
+                "project": project,
+                "result": result,
+                **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
+            }
         except Exception as exc:
             logger.error(
                 "stitch_fetch_screen_code_error", project=project, error=str(exc)

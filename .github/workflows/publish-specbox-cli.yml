@@ -71,7 +71,11 @@ jobs:
         run: |
           npm pack --dry-run --json > pack.json
           node -e "
-            const files = require('./pack.json')[0].files.map(f => f.path);
+            // npm ≤ 11 prints an array; npm ≥ 12 prints an object keyed by package name.
+            const out = require('./pack.json');
+            const pkg = Array.isArray(out) ? out[0] : (out.files ? out : Object.values(out)[0]);
+            const files = (pkg.files || []).map(f => f.path);
+            if (!files.length) { console.error('npm pack no devolvió ficheros:', JSON.stringify(out).slice(0, 300)); process.exit(1); }
             const bad = files.filter(p => !/^(bin|lib)\//.test(p) && !['README.md', 'package.json'].includes(p));
             if (bad.length) { console.error('Ficheros inesperados en el paquete:', bad); process.exit(1); }
             console.log(files.join('\n'));

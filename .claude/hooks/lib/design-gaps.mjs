@@ -71,7 +71,7 @@ const GOOGLEFONTS_DART_RE = /\bGoogleFonts\.([a-z][A-Za-z0-9]*)\(/g;
 const CSS_WEIGHT_RE = /font-weight\s*:\s*(\d{3}|bold|bolder)\b/g;
 const JS_WEIGHT_RE = /fontWeight\s*:\s*['"]?(\d{3}|bold|bolder)\b/g;
 const TW_WEIGHT_RE = /(?<![\w-])font-(bold|extrabold|black)(?![\w-])/g;
-const TW_WEIGHT_ARBITRARY_RE = /(?<![\w-])font-\[(\d{3})\]/g;
+const TW_WEIGHT_ARBITRARY_RE = /(?<![\w-])font-\[(?:number:)?(\d{3})\]/g;
 const DART_WEIGHT_RE = /\bFontWeight\.(w[1-9]00|bold)\b/g;
 
 const NAMED_WEIGHTS = { bold: 700, bolder: 900, extrabold: 800, black: 900 };
@@ -229,8 +229,13 @@ function* lineGaps(line, rules) {
     for (const f of familiesOf(m[2])) if (outside(f)) yield ['font_outside', m.index, f];
   }
   for (const m of line.matchAll(TW_FONT_RE)) {
-    const raw = m[1];
-    if (/^\d+$/.test(raw) || raw.startsWith('var(') || raw.startsWith('length:')) continue;
+    let raw = m[1];
+    const hint = raw.match(/^([a-z-]+):/); // Tailwind v4 type hint: family-name:, number:…
+    if (hint) {
+      if (hint[1] !== 'family-name') continue;
+      raw = raw.slice(hint[0].length);
+    }
+    if (/^\d+$/.test(raw) || raw.startsWith('var(') || raw.startsWith('theme(')) continue;
     for (const f of familiesOf(raw.replace(/_/g, ' '))) if (outside(f)) yield ['font_outside', m.index, f];
   }
   for (const m of line.matchAll(GFONTS_RE)) {

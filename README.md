@@ -21,7 +21,7 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Bloquea atajos peligrosos** (push a main, AC vagos, code sin UC, paths inseguros).
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
-> SpecBox provides speed. The LLM provides quality.
+> The LLM provides speed. SpecBox provides quality and traceability.
 
 ---
 
@@ -542,7 +542,7 @@ A system that turns Claude Code into a serious teammate:
 - **Blocks dangerous shortcuts** (push to main, vague AC, code without UC, unsafe paths).
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
-> SpecBox provides speed. The LLM provides quality.
+> The LLM provides speed. SpecBox provides quality and traceability.
 
 ## What's new in v6.14
 
@@ -821,7 +821,7 @@ Full history in [CHANGELOG.md](CHANGELOG.md). Exhaustive technical reference in 
 
 ## Philosophy
 
-> SpecBox provides speed. The LLM provides quality.
+> The LLM provides speed. SpecBox provides quality and traceability.
 
 The engine doesn't take shortcuts for you — it **prevents them**. Every blocking hook exists because the alternative (LLM bypassing under pressure) is systematically worse than the friction.
 

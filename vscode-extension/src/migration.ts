@@ -4,6 +4,7 @@ import * as path from 'path';
 import { CLAUDE_SETTINGS_LOCAL } from './constants';
 import { REMOTE_MCP_URL } from './mcp';
 
+import { markDone } from './design';
 // US-CONN-UPGRADE (UC-664/665/666) — client-config migration after an engine update.
 //
 // Same shape as prerequisites.ts: a PURE core (detectClientConfigCase,
@@ -350,7 +351,7 @@ export function registerRevertCommand(context: vscode.ExtensionContext): void {
       const ok = revertLastMigration(settingsPath);
       if (ok) {
         vscode.window.showInformationMessage(
-          vscode.l10n.t('Reverted last migration from {0}. Reload the window to apply.', path.basename(latest)),
+          markDone(vscode.l10n.t('Reverted last migration from {0}. Reload the window to apply.', path.basename(latest))),
         );
       } else {
         vscode.window.showErrorMessage(

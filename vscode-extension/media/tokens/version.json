@@ -1,0 +1,11 @@
+{
+  "name": "@specbox/tokens",
+  "version": "2.1.1",
+  "direction": "Tinta",
+  "decision": "D18 2026-09-30",
+  "source": {
+    "path": "packages/tokens/src/tokens.json",
+    "sha256": "731d37097ffb1b70702dfb9bef825d28301b1ebc5d6bfd9596a8e60fc8029faf"
+  },
+  "orchestrator": "EmbedBuild/specbox-manager"
+}

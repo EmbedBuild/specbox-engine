@@ -2354,6 +2354,29 @@ Guía pública: [doc/guides/design-system-tokens.md](doc/guides/design-system-to
 - Tests: `tests/test_design_code_gaps.py` (casos compartidos en Python y en Node, informe y hook
   contra un repositorio git temporal).
 
+### La extensión habla el mismo idioma visual (UC-4903)
+
+- **Tokens en la extensión**: `npm run sync -- specbox-engine` en `packages/tokens` del
+  orquestador vendoriza los tokens en `vscode-extension/media/tokens/` y el símbolo en
+  `vscode-extension/media/brand/` (no se editan aquí). El paquete `.vsix` solo lleva
+  `foundation.css`, `semantic-light.css`, `semantic-dark.css` y los dos SVG del símbolo
+  (`.vscodeignore`).
+- **`vscode-extension/src/design.ts`**: `pageTheme()` (el tema de VSCode; oscuro por defecto,
+  claro con Light/HighContrastLight), `tokensCss()`, `brandMark()`/`brandBlock()` (la caja
+  marcada, decorativa), `lucideIcon(name, {label})` (Lucide al grosor del sistema, con nombre o
+  `aria-hidden`) y `renderPage()` (IBM Plex + variables del sistema + clases de estilo de texto de
+  `foundation.css`). Ningún color escrito.
+- **Página de retorno OAuth** (`oauth.ts`: `renderSuccessPage`/`renderErrorPage`) y **diagnóstico**
+  (`health.ts`: `renderHealthReport`, que se repinta al cambiar el tema de VSCode) usan esa
+  plantilla. El diagnóstico dice el estado con palabra: `[x] Listo`, `[ ] Pendiente`,
+  `[ ] Opcional`.
+- **Barra de estado** (`statusbar.ts`): icono nativo de VSCode (la única opción de la plataforma) y
+  siempre la palabra — `comprobando`, `sin instalar`, `N pendientes`; con todo bien,
+  `[x] SpecBox vX · listo` (la forma de terminal del símbolo). Los avisos de acciones terminadas
+  empiezan por `[x]` con `markDone(texto)` de `design.ts` (el lint de cadenas no acepta plantillas
+  literales como primer argumento de `show*Message`).
+- Tests: `vscode-extension/tests/design-system.test.mjs`.
+
 ## Engine Version
 
 Current: v6.14.2 "Idle Watch"

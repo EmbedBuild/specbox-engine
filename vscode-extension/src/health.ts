@@ -7,6 +7,7 @@ import {
 	CLAUDE_SETTINGS, CLAUDE_JSON, KNOWN_SKILLS, REQUIRED_NODE_VERSION
 } from './constants';
 import { exec, commandExists } from './util';
+import { brandBlock, escapeHtml, lucideIcon, pageTheme, renderPage, type PageTheme } from './design';
 
 export interface HealthResult {
 	engineInstalled: boolean;
@@ -52,42 +53,16 @@ export class HealthChecker {
 		};
 	}
 
+	/** UC-4903 — el diagnóstico como página del sistema «Tinta», con el tema de VSCode. */
 	showReport(r: HealthResult): void {
-		const notInstalled = vscode.l10n.t('Not installed');
-		const notFound = vscode.l10n.t('Not found');
-		const missing = vscode.l10n.t('Missing');
-		const optional = vscode.l10n.t('Not installed (optional)');
-		const installed = vscode.l10n.t('installed');
-		const configured = vscode.l10n.t('Configured');
-		const notConfigured = vscode.l10n.t('Not configured');
-		const ok = vscode.l10n.t('OK');
-
-		const lines: string[] = [
-			`# ${vscode.l10n.t('SpecBox Engine — Health Check')}`,
-			'',
-			`| ${vscode.l10n.t('Component')} | ${vscode.l10n.t('Status')} |`,
-			`|-----------|--------|`,
-			`| ${vscode.l10n.t('Engine')} | ${r.engineInstalled ? `v${r.engineVersion}` : notInstalled} |`,
-			`| ${vscode.l10n.t('Engine Path')} | ${r.enginePath ?? notFound} |`,
-			`| Node.js | ${r.node.ok ? r.node.version : vscode.l10n.t('Missing (need {0}+)', REQUIRED_NODE_VERSION)} |`,
-			`| Claude Code | ${r.claudeCode.ok ? r.claudeCode.version : missing} |`,
-			`| Engram | ${r.engram.ok ? r.engram.version : notInstalled} |`,
-			`| GGA | ${r.gga.ok ? r.gga.version : optional} |`,
-			`| Skills | ${r.skills.installed.length}/${r.skills.installed.length + r.skills.missing.length} |`,
-			`| Hooks | ${r.hooks.ok ? `${r.hooks.count} ${installed}` : missing} |`,
-			`| ${vscode.l10n.t('Settings')} | ${r.settings.ok ? ok : missing} |`,
-			`| MCP SpecBox | ${r.mcpSpecbox.configured ? configured : notConfigured} |`,
-			`| MCP Engram | ${r.mcpEngram.configured ? configured : notConfigured} |`,
-		];
-
-		if (r.skills.missing.length > 0) {
-			lines.push('', `**${vscode.l10n.t('Missing skills:')}** ${r.skills.missing.join(', ')}`);
-		}
-
 		const panel = vscode.window.createWebviewPanel(
 			'specbox.health', vscode.l10n.t('SpecBox Health Check'), vscode.ViewColumn.One
 		);
-		panel.webview.html = this.markdownToHtml(lines.join('\n'));
+		const render = () => { panel.webview.html = renderHealthReport(r); };
+		render();
+		// Sigue al tema de VSCode mientras el panel esté abierto.
+		const sub = vscode.window.onDidChangeActiveColorTheme?.(render);
+		panel.onDidDispose(() => sub?.dispose());
 	}
 
 	// --- Private checks ---
@@ -250,80 +225,89 @@ export class HealthChecker {
 		}
 		return { configured: false };
 	}
+}
 
-	private markdownToHtml(md: string): string {
-		const lines = md.split('\n');
-		const htmlParts: string[] = [];
-		let i = 0;
+/** Estado de una fila del diagnóstico: hecho, pendiente u opcional sin instalar. */
+export type HealthRowState = 'done' | 'pending' | 'optional';
 
-		while (i < lines.length) {
-			const line = lines[i];
+export interface HealthRow {
+	component: string;
+	state: HealthRowState;
+	detail: string;
+}
 
-			// Heading
-			if (line.startsWith('# ')) {
-				htmlParts.push(`<h1>${this.escapeHtml(line.slice(2))}</h1>`);
-				i++;
-				continue;
-			}
+/** Filas del diagnóstico. Pura salvo l10n (stub en las pruebas). */
+export function healthRows(r: HealthResult): HealthRow[] {
+	const t = vscode.l10n.t;
+	const row = (component: string, ok: boolean, detailOk: string, detailMissing: string, optional = false): HealthRow => ({
+		component,
+		state: ok ? 'done' : optional ? 'optional' : 'pending',
+		detail: ok ? detailOk : detailMissing,
+	});
+	return [
+		row(t('Engine'), r.engineInstalled, `v${r.engineVersion}`, t('Not installed')),
+		row(t('Engine Path'), !!r.enginePath, r.enginePath ?? '', t('Not found')),
+		row('Node.js', r.node.ok, r.node.version ?? '', t('Missing (need {0}+)', REQUIRED_NODE_VERSION)),
+		row('Claude Code', r.claudeCode.ok, r.claudeCode.version ?? '', t('Missing')),
+		row('Engram', r.engram.ok, r.engram.version ?? '', t('Not installed')),
+		row('GGA', r.gga.ok, r.gga.version ?? '', t('Not installed (optional)'), true),
+		row('Skills', r.skills.missing.length === 0,
+			`${r.skills.installed.length}/${r.skills.installed.length + r.skills.missing.length}`,
+			`${r.skills.installed.length}/${r.skills.installed.length + r.skills.missing.length}`),
+		row('Hooks', r.hooks.ok, `${r.hooks.count} ${t('installed')}`, t('Missing')),
+		row(t('Settings'), r.settings.ok, t('OK'), t('Missing')),
+		row('MCP SpecBox', r.mcpSpecbox.configured, t('Configured'), t('Not configured')),
+		row('MCP Engram', r.mcpEngram.configured, t('Configured'), t('Not configured')),
+	];
+}
 
-			// Table block: collect consecutive lines starting with |
-			if (line.startsWith('|')) {
-				const tableLines: string[] = [];
-				while (i < lines.length && lines[i].startsWith('|')) {
-					tableLines.push(lines[i]);
-					i++;
-				}
-				htmlParts.push(this.parseTable(tableLines));
-				continue;
-			}
+/**
+ * La palabra del estado, siempre visible, con la marca de terminal del sistema: `[x]` hecho,
+ * `[ ]` pendiente. El color solo acompaña a la palabra.
+ */
+export function stateLabel(state: HealthRowState): string {
+	const t = vscode.l10n.t;
+	if (state === 'done') { return `[x] ${t('Ready')}`; }
+	if (state === 'optional') { return `[ ] ${t('Optional')}`; }
+	return `[ ] ${t('Pending')}`;
+}
 
-			// Empty line → break
-			if (line.trim() === '') {
-				htmlParts.push('<br/>');
-			} else {
-				htmlParts.push(`<p>${this.escapeHtml(line)}</p>`);
-			}
-			i++;
-		}
+const HEALTH_CSS = `
+main { max-width: 960px; padding: var(--space-6); }
+.summary { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-2) 0 var(--space-6); }
+.summary.done { color: var(--status-done-text); }
+.summary.pending { color: var(--attention-text); }
+table { width: 100%; border-collapse: collapse; background: var(--paper-100); border: var(--stroke-hair) solid var(--line-100); border-radius: var(--radius-lg); }
+th, td { height: var(--density-row); padding: 0 var(--space-3); text-align: left; border-top: var(--stroke-hair) solid var(--line-100); }
+th { border-top: none; border-bottom: var(--stroke-hair) solid var(--line-200); color: var(--ink-700); }
+.state { white-space: nowrap; font-family: var(--font-mono); }
+.state.done { color: var(--status-done-text); }
+.state.pending { color: var(--attention-text); }
+.state.optional { color: var(--ink-700); }
+.detail { color: var(--ink-700); overflow-wrap: anywhere; }
+.missing { margin-top: var(--space-4); color: var(--ink-700); }
+`;
 
-		return `<!DOCTYPE html><html><head><style>
-			body { font-family: var(--vscode-font-family); padding: 20px; color: var(--vscode-foreground); }
-			table { border-collapse: collapse; width: 100%; margin: 16px 0; }
-			th, td { padding: 8px 12px; text-align: left; border: 1px solid var(--vscode-panel-border); }
-			th { background: var(--vscode-editor-background); font-weight: bold; }
-			h1 { border-bottom: 1px solid var(--vscode-panel-border); padding-bottom: 8px; }
-			p { margin: 4px 0; }
-		</style></head><body>${htmlParts.join('\n')}</body></html>`;
-	}
-
-	private parseTable(lines: string[]): string {
-		if (lines.length < 2) { return ''; }
-
-		const splitRow = (row: string): string[] => {
-			// Split by | but handle escaped pipes and empty cells
-			return row.split('|').slice(1, -1).map(c => c.trim());
-		};
-
-		const headers = splitRow(lines[0]);
-		// Skip separator line (line[1] is |---|---|)
-		const dataStart = lines.length > 1 && /^[|\s-:]+$/.test(lines[1]) ? 2 : 1;
-
-		const headerHtml = headers.map(h => `<th>${this.escapeHtml(h)}</th>`).join('');
-		const rowsHtml = lines.slice(dataStart).map(row => {
-			const cells = splitRow(row);
-			// Pad cells to match header count
-			while (cells.length < headers.length) { cells.push(''); }
-			return `<tr>${cells.map(c => `<td>${this.escapeHtml(c)}</td>`).join('')}</tr>`;
-		}).join('');
-
-		return `<table><thead><tr>${headerHtml}</tr></thead><tbody>${rowsHtml}</tbody></table>`;
-	}
-
-	private escapeHtml(text: string): string {
-		return text
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
-			.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-	}
+/** La página del diagnóstico con los tokens del sistema y el tema de VSCode (oscuro por defecto). */
+export function renderHealthReport(r: HealthResult, theme: PageTheme = pageTheme()): string {
+	const t = vscode.l10n.t;
+	const rows = healthRows(r);
+	const pending = rows.filter((x) => x.state === 'pending').length;
+	const summary = pending === 0
+		? `<p class="summary done label">${lucideIcon('circle-check', { label: t('Ready') })}<span>[x] ${escapeHtml(t('All systems operational'))}</span></p>`
+		: `<p class="summary pending label">${lucideIcon('circle-alert', { label: t('Pending') })}<span>${escapeHtml(t('{0} pending', String(pending)))}</span></p>`;
+	const body = rows.map((x) => `<tr><td class="body-md">${escapeHtml(x.component)}</td>`
+		+ `<td class="state ${x.state} data-md">${escapeHtml(stateLabel(x.state))}</td>`
+		+ `<td class="detail data-md">${escapeHtml(x.detail)}</td></tr>`).join('');
+	const missing = r.skills.missing.length > 0
+		? `<p class="missing body-md">${escapeHtml(t('Missing skills:'))} <span class="data-md">${escapeHtml(r.skills.missing.join(', '))}</span></p>`
+		: '';
+	return renderPage({
+		title: t('SpecBox Health Check'),
+		theme,
+		css: HEALTH_CSS,
+		body: `<main>${brandBlock(theme)}<h1 class="display-lg">${escapeHtml(t('SpecBox Engine — Health Check'))}</h1>${summary}
+<table><thead><tr><th class="label">${escapeHtml(t('Component'))}</th><th class="label">${escapeHtml(t('Status'))}</th><th class="label">${escapeHtml(t('Detail'))}</th></tr></thead>
+<tbody>${body}</tbody></table>${missing}</main>`,
+	});
 }

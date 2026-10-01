@@ -49,8 +49,8 @@ export class StatusBarManager {
 	constructor() {
 		this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
 		this.item.command = 'specbox.showStatus';
-		this.item.text = '$(loading~spin) SpecBox';
-		this.item.tooltip = 'SpecBox Engine — checking...';
+		this.item.text = `$(loading~spin) SpecBox · ${vscode.l10n.t('checking')}`;
+		this.item.tooltip = vscode.l10n.t('SpecBox Engine — checking…');
 		this.item.show();
 	}
 
@@ -68,27 +68,30 @@ export class StatusBarManager {
 	private render(): void {
 		const health = this.health;
 		const who = this.identity ? ` · @${this.identity.handle}` : '';
+		const t = vscode.l10n.t;
 		const lines: string[] = [];
 
+		// UC-4903 — la palabra del estado siempre visible; los iconos, los nativos de VSCode (única
+		// opción de la barra de estado). Hecho se dice con la marca de terminal del sistema: [x].
 		if (!health) {
-			this.item.text = `$(loading~spin) SpecBox${who}`;
-			lines.push('SpecBox Engine — checking...');
+			this.item.text = `$(loading~spin) SpecBox · ${t('checking')}${who}`;
+			lines.push(t('SpecBox Engine — checking…'));
 		} else if (!health.engineInstalled) {
-			this.item.text = `$(warning) SpecBox${who}`;
+			this.item.text = `$(warning) SpecBox · ${t('not installed')}${who}`;
 			this.item.command = 'specbox.onboard';
-			lines.push('SpecBox Engine — not installed. Click to run setup.');
+			lines.push(`[ ] ${t('SpecBox Engine — not installed. Click to run setup.')}`);
 		} else {
 			const issues: string[] = [];
-			if (!health.engram.ok) { issues.push('Engram missing'); }
-			if (!health.mcpSpecbox.configured) { issues.push('MCP not configured'); }
-			if (!health.mcpEngram.configured) { issues.push('Engram MCP not configured'); }
+			if (!health.engram.ok) { issues.push(t('Engram missing')); }
+			if (!health.mcpSpecbox.configured) { issues.push(t('MCP not configured')); }
+			if (!health.mcpEngram.configured) { issues.push(t('Engram MCP not configured')); }
 			this.item.command = 'specbox.showStatus';
 			if (issues.length > 0) {
-				this.item.text = `$(alert) SpecBox v${health.engineVersion}${who}`;
-				lines.push(`SpecBox Engine — Issues: ${issues.join(', ')}`);
+				this.item.text = `$(alert) SpecBox v${health.engineVersion} · ${t('{0} pending', String(issues.length))}${who}`;
+				lines.push(`SpecBox Engine v${health.engineVersion}`, ...issues.map((i) => `[ ] ${i}`));
 			} else {
-				this.item.text = `$(check) SpecBox v${health.engineVersion}${who}`;
-				lines.push('SpecBox Engine — all systems operational');
+				this.item.text = `[x] SpecBox v${health.engineVersion} · ${t('ready')}${who}`;
+				lines.push(`[x] ${t('SpecBox Engine — all systems operational')}`);
 			}
 		}
 

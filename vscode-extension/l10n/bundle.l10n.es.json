@@ -57,5 +57,22 @@
   "Not connected with an account": "Sin conectar con una cuenta",
   "SpecBox Extension update installed v{0} instead of v{1}. Install it from the Marketplace or run: node vscode-extension/install-ext.mjs": "La actualización de la extensión SpecBox instaló la v{0} en lugar de la v{1}. Instálala desde el Marketplace o ejecuta: node vscode-extension/install-ext.mjs",
   "Manage devices": "Gestionar dispositivos",
-  "This computer could not be connected: your account already has 5 connected devices. Disconnect one in the panel, then reload the window.": "No se ha podido conectar este ordenador: tu cuenta ya tiene 5 dispositivos conectados. Desconecta uno en el panel y vuelve a cargar la ventana."
+  "This computer could not be connected: your account already has 5 connected devices. Disconnect one in the panel, then reload the window.": "No se ha podido conectar este ordenador: tu cuenta ya tiene 5 dispositivos conectados. Desconecta uno en el panel y vuelve a cargar la ventana.",
+  "Done": "Hecho",
+  "Failed": "Falló",
+  "Ready": "Listo",
+  "Optional": "Opcional",
+  "Pending": "Pendiente",
+  "Detail": "Detalle",
+  "All systems operational": "Todo funciona",
+  "{0} pending": "{0} pendientes",
+  "checking": "comprobando",
+  "not installed": "sin instalar",
+  "ready": "listo",
+  "SpecBox Engine — checking…": "SpecBox Engine — comprobando…",
+  "SpecBox Engine — not installed. Click to run setup.": "SpecBox Engine — sin instalar. Haz clic para configurarlo.",
+  "SpecBox Engine — all systems operational": "SpecBox Engine — todo funciona",
+  "Engram missing": "Falta Engram",
+  "MCP not configured": "MCP sin configurar",
+  "Engram MCP not configured": "MCP de Engram sin configurar"
 }

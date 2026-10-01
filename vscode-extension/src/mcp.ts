@@ -5,6 +5,7 @@ import { CLAUDE_DIR, CLAUDE_SETTINGS_LOCAL } from './constants';
 import { readJson, writeJson, commandExists } from './util';
 import type { ClaudeConfigResult, SpecboxCli } from './specbox-cli';
 
+import { markDone } from './design';
 // US-VSCODE-ZERO-PY (zero-runtime onboarding): the SpecBox MCP server is consumed
 // exclusively through the free hosted endpoint. The legacy local mode was removed
 // to keep the client onboarding path free of any extra language runtime.
@@ -182,7 +183,7 @@ export class McpConfigurator {
 		if (specboxOk) { actions.push('SpecBox MCP'); }
 
 		if (actions.length > 0) {
-			vscode.window.showInformationMessage(`MCP configured: ${actions.join(', ')}`);
+			vscode.window.showInformationMessage(markDone(`MCP configured: ${actions.join(', ')}`));
 		} else {
 			vscode.window.showWarningMessage('No MCP servers were configured. Check prerequisites.');
 		}

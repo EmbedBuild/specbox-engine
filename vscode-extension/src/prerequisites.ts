@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { HealthResult } from './health';
 
+import { markDone } from './design';
 // US-VSCODE-PREREQ-GATE — prerequisites gate.
 //
 // Splits cleanly into a pure core (evaluatePrerequisites / buildPrereqWarning,
@@ -60,7 +61,7 @@ export async function showPrereqGate(health: HealthResult, opts: { onStartup: bo
 	if (verdict === 'ready') {
 		if (!opts.onStartup) {
 			vscode.window.showInformationMessage(
-				vscode.l10n.t('All prerequisites are installed. SpecBox is ready.')
+				markDone(vscode.l10n.t('All prerequisites are installed. SpecBox is ready.'))
 			);
 		}
 		return;

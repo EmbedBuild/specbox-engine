@@ -1,0 +1,90 @@
+/* VENDORIZADO desde @specbox/tokens — NO EDITAR. Fuente: packages/tokens/src/tokens.json del manager. Re-sync: `npm run build && npm run sync` en el paquete. */
+/* AUTO-GENERADO por @specbox/tokens v2 (Tinta, D18 2026-09-30) — NO EDITAR A MANO.
+   Fuente: src/tokens.json (W3C DTCG). Regenera con `npm run build`. */
+
+:root {
+  /* Fuentes (Google Fonts; el @import va en theme.css o en la app) */
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* space */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+
+  /* density */
+  --row-compact: 32px;
+  --row-comfortable: 40px;
+  --row-spacious: 52px;
+  --pad-compact: 8px;
+  --pad-comfortable: 12px;
+  --pad-spacious: 16px;
+  --text-compact: 14px;
+  --text-comfortable: 15px;
+  --text-spacious: 16px;
+
+  /* layout */
+  --sidebar: 240px;
+  --rail: 64px;
+  --topbar: 56px;
+  --content-max: 1280px;
+  --prose-max: 65ch;
+  --detail-panel: 420px;
+
+  /* stroke */
+  --stroke-hair: 1px;
+  --stroke-control: 1px;
+  --stroke-focus: 2px;
+  --focus-offset: 2px;
+  --icon-stroke: 1.75px;
+
+  /* capas, movimiento */
+  --z-base: 0;
+  --z-dropdown: 20;
+  --z-sticky: 30;
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --dur-fast: 120ms;
+  --dur-base: 140ms;
+  --dur-enter: 180ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Densidad activa: comfortable por defecto; un contenedor con data-density la cambia para todo lo que contiene */
+:root { --density-row: var(--row-comfortable); --density-pad: var(--pad-comfortable); --density-text: var(--text-comfortable); }
+[data-density="compact"] { --density-row: var(--row-compact); --density-pad: var(--pad-compact); --density-text: var(--text-compact); }
+[data-density="comfortable"] { --density-row: var(--row-comfortable); --density-pad: var(--pad-comfortable); --density-text: var(--text-comfortable); }
+[data-density="spacious"] { --density-row: var(--row-spacious); --density-pad: var(--pad-spacious); --density-text: var(--text-spacious); }
+
+/* Estilos de texto: una clase por estilo del sistema */
+.display-xl { font-family: var(--font-sans); font-size: 30px; line-height: 36px; font-weight: 600; letter-spacing: -0.01em; }
+.display-lg { font-family: var(--font-sans); font-size: 24px; line-height: 30px; font-weight: 600; letter-spacing: -0.01em; }
+.display-md { font-family: var(--font-sans); font-size: 20px; line-height: 26px; font-weight: 600; letter-spacing: -0.005em; }
+.display-sm { font-family: var(--font-sans); font-size: 17px; line-height: 24px; font-weight: 600; }
+.metric { font-family: var(--font-sans); font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.body-lg { font-family: var(--font-sans); font-size: 16px; line-height: 24px; font-weight: 400; }
+.body-md { font-family: var(--font-sans); font-size: 14px; line-height: 20px; font-weight: 400; }
+.label { font-family: var(--font-sans); font-size: 13px; line-height: 18px; font-weight: 500; }
+.caption { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 400; }
+.data-md { font-family: var(--font-mono); font-size: 13px; line-height: 20px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.data-sm { font-family: var(--font-mono); font-size: 12px; line-height: 16px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.code { font-family: var(--font-mono); font-size: 13px; line-height: 20px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.kbd { font-family: var(--font-mono); font-size: 12px; line-height: 16px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur-base: 0ms; --dur-enter: 0ms; }
+}

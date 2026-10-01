@@ -57,5 +57,22 @@
   "Not connected with an account": "Not connected with an account",
   "SpecBox Extension update installed v{0} instead of v{1}. Install it from the Marketplace or run: node vscode-extension/install-ext.mjs": "SpecBox Extension update installed v{0} instead of v{1}. Install it from the Marketplace or run: node vscode-extension/install-ext.mjs",
   "Manage devices": "Manage devices",
-  "This computer could not be connected: your account already has 5 connected devices. Disconnect one in the panel, then reload the window.": "This computer could not be connected: your account already has 5 connected devices. Disconnect one in the panel, then reload the window."
+  "This computer could not be connected: your account already has 5 connected devices. Disconnect one in the panel, then reload the window.": "This computer could not be connected: your account already has 5 connected devices. Disconnect one in the panel, then reload the window.",
+  "Done": "Done",
+  "Failed": "Failed",
+  "Ready": "Ready",
+  "Optional": "Optional",
+  "Pending": "Pending",
+  "Detail": "Detail",
+  "All systems operational": "All systems operational",
+  "{0} pending": "{0} pending",
+  "checking": "checking",
+  "not installed": "not installed",
+  "ready": "ready",
+  "SpecBox Engine — checking…": "SpecBox Engine — checking…",
+  "SpecBox Engine — not installed. Click to run setup.": "SpecBox Engine — not installed. Click to run setup.",
+  "SpecBox Engine — all systems operational": "SpecBox Engine — all systems operational",
+  "Engram missing": "Engram missing",
+  "MCP not configured": "MCP not configured",
+  "Engram MCP not configured": "Engram MCP not configured"
 }

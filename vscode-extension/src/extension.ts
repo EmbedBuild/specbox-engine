@@ -19,6 +19,7 @@ import { SpecboxCli, cloudApiBase } from './specbox-cli';
 import { ensureDeviceConnection, syncRenewal } from './device-connection';
 import { howToConnectUrl, PANEL_DEVICES_URL } from './constants';
 
+import { markDone } from './design';
 let statusBar: StatusBarManager | undefined;
 let identityPollingHandle: NodeJS.Timeout | undefined;
 let renewalHandle: NodeJS.Timeout | undefined;
@@ -98,8 +99,8 @@ export async function activate(context: vscode.ExtensionContext) {
 				connectionEndedNotified = false;
 				vscode.window.showInformationMessage(
 					result.handle
-						? vscode.l10n.t('Signed in as @{0}. Welcome!', result.handle)
-						: vscode.l10n.t('Signed in. Welcome!')
+						? markDone(vscode.l10n.t('Signed in as @{0}. Welcome!', result.handle))
+						: markDone(vscode.l10n.t('Signed in. Welcome!'))
 				);
 				void reportConnection(result);
 				await refreshIdentity(statusTree, secrets);
@@ -112,7 +113,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		vscode.commands.registerCommand('specbox.signOut', async () => {
 			await runSignOut(secrets, cli);
-			vscode.window.showInformationMessage(vscode.l10n.t('Signed out.'));
+			vscode.window.showInformationMessage(markDone(vscode.l10n.t('Signed out.')));
 			await refreshIdentity(statusTree, secrets);
 		}),
 
@@ -216,7 +217,7 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 		const report = await ensureDeviceConnection(cli, secrets, () => { removeLegacyLauncherEntry(); });
 		if (report.state === 'adopted') {
 			vscode.window.showInformationMessage(
-				vscode.l10n.t('This computer now connects to SpecBox with your account. New Claude Code sessions use it automatically.')
+				markDone(vscode.l10n.t('This computer now connects to SpecBox with your account. New Claude Code sessions use it automatically.'))
 			);
 		}
 		if (report.state === 'adopt_failed' && report.reason === 'device_limit') {

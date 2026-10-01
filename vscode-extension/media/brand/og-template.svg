@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Plantilla de imagen social de SpecBox (dirección Tinta, D18). Cada app sustituye {{title}} y
+       {{subtitle}} y la rasteriza a PNG de 1200×630 abriéndola en un navegador con IBM Plex Sans
+       cargada. Colores: paper-000, ink-900, ink-700, ink-500 y line-200 del tema claro. -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&amp;family=IBM+Plex+Mono:wght@400&amp;display=swap');
+    .sans { font-family: "IBM Plex Sans", system-ui, sans-serif; }
+    .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  </style>
+  <rect width="1200" height="630" fill="#F7F6F4"/>
+  <rect x="0" y="566" width="1200" height="1" fill="#C9C8C3"/>
+  <!-- El símbolo: specbox-mark-solid a 64 px -->
+  <g transform="translate(80 80) scale(2.6667)">
+    <rect x="2" y="2" width="20" height="20" rx="4.5" fill="#1A1B1E"/>
+    <path d="M7.2 12.5l3.2 3.2 6.6-7.6" fill="none" stroke="#F7F6F4" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="166" y="126" class="sans" font-size="36" font-weight="600" fill="#1A1B1E">SpecBox</text>
+  <!-- Título y subtítulo parten línea (máx. 2 cada uno) dentro de 1040 px -->
+  <foreignObject x="80" y="220" width="1040" height="300">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="sans" style="margin:0">
+      <div style="font-size:60px;line-height:70px;font-weight:600;letter-spacing:-0.6px;color:#1A1B1E;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{title}}</div>
+      <div style="margin-top:20px;font-size:30px;line-height:40px;font-weight:400;color:#55585E;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{subtitle}}</div>
+    </div>
+  </foreignObject>
+  <text x="80" y="606" class="mono" font-size="20" fill="#6B6E74">by embed.build</text>
+</svg>

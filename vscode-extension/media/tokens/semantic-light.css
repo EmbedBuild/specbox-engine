@@ -1,0 +1,58 @@
+/* VENDORIZADO desde @specbox/tokens — NO EDITAR. Fuente: packages/tokens/src/tokens.json del manager. Re-sync: `npm run build && npm run sync` en el paquete. */
+/* AUTO-GENERADO por @specbox/tokens v2 (Tinta, D18 2026-09-30) — NO EDITAR A MANO.
+   Fuente: src/tokens.json (W3C DTCG). Regenera con `npm run build`. */
+
+:root, [data-theme="light"], .light {
+  /* Papel, tinta y líneas */
+  --paper-100: #FFFFFF;
+  --paper-200: #EFEEEB;
+  --paper-300: #E4E3DF;
+  --paper-000: #F7F6F4;
+  --ink-400: #8A8D93;
+  --ink-500: #6B6E74;
+  --ink-700: #55585E;
+  --ink-900: #1A1B1E;
+  --line-100: #E1E0DC;
+  --line-200: #C9C8C3;
+  --line-300: #8A8D93;
+
+  /* Acento (la tinta), foco, enlaces, velo */
+  --accent: var(--ink-900);
+  --accent-hover: #2E2F33;
+  --accent-soft: #E9E8E4;
+  --on-accent: #FFFFFF;
+  --focus-ring: var(--ink-900);
+  --link: var(--ink-900);
+  --overlay: rgba(26, 27, 30, 0.55);
+
+  /* Estados del trabajo: texto sobre fondo, siempre con palabra */
+  --status-backlog-text: #5B6270;
+  --status-backlog-bg: #EEEFF1;
+  --status-progress-text: #1D4ED8;
+  --status-progress-bg: #E8EEFC;
+  --status-review-text: #92400E;
+  --status-review-bg: #FBF0DC;
+  --status-done-text: #166534;
+  --status-done-bg: #E3F3E8;
+  --status-blocked-text: #991B1B;
+  --status-blocked-bg: #FBE7E7;
+  --status-reserved-text: #5B21B6;
+  --status-reserved-bg: #EFE8FB;
+
+  /* Atención y semánticos: alias de los estados */
+  --attention-text: var(--status-review-text);
+  --attention-bg: var(--status-review-bg);
+  --success-text: var(--status-done-text);
+  --success-bg: var(--status-done-bg);
+  --warning-text: var(--status-review-text);
+  --warning-bg: var(--status-review-bg);
+  --danger-text: var(--status-blocked-text);
+  --danger-bg: var(--status-blocked-bg);
+  --info-text: var(--status-progress-text);
+  --info-bg: var(--status-progress-bg);
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px 0 rgba(26, 27, 30, 0.06);
+  --shadow-md: 0 4px 12px -2px rgba(26, 27, 30, 0.12);
+  color-scheme: light;
+}

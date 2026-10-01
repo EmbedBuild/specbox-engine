@@ -7,6 +7,7 @@ import { removeLegacyLauncherEntry, respawnMcpServer, buildFreeformProjectSettin
 import { fetchWhoami } from './cloud-api';
 import { credentialFromWhoami, type ConnectResult, type DeviceInfo, type SpecboxCli } from './specbox-cli';
 
+import { markDone } from './design';
 /**
  * How the device ended up after signing in (UC-3901 AC-03):
  *   - `connected`: token in the system secure store and Claude Code sends it;
@@ -223,8 +224,8 @@ export async function maybeShowOnboarding(
 			// they signed in as themselves, not someone else's reused session.
 			vscode.window.showInformationMessage(
 				result.handle
-					? vscode.l10n.t('Signed in as @{0}. Welcome!', result.handle)
-					: vscode.l10n.t('Signed in. Welcome!')
+					? markDone(vscode.l10n.t('Signed in as @{0}. Welcome!', result.handle))
+					: markDone(vscode.l10n.t('Signed in. Welcome!'))
 			);
 			return decision;
 		}

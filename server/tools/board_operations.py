@@ -578,7 +578,7 @@ async def set_ac_internal(
     """Mark or unmark an acceptance criterion as **internal** (US-33/UC-3301).
 
     An internal AC is not shown to the stakeholder in the business portal
-    (`projects.embed.build`). Use it for criteria that are real work but noise
+    (`projects.specbox.build`). Use it for criteria that are real work but noise
     for whoever is paying: data migrations, infrastructure details, refactors.
 
     Deliberately separate from `set_ac_metadata` (which stores *evidence*) and

@@ -272,7 +272,7 @@ Para cada Use Case, determinar:
 > **Un AC puede acabar proyectado en una pantalla, en una reunion, delante del
 > cliente.** Desde la decision D7 los criterios de aceptacion dejaron de ser
 > notas internas del equipo y pasaron a ser **entregable**: el portal de negocio
-> `projects.embed.build` los muestra al stakeholder que paga el proyecto.
+> `projects.specbox.build` los muestra al stakeholder que paga el proyecto.
 >
 > Eso cambia como se escriben. No como se verifican — un AC sigue teniendo que
 > ser comprobable — sino **que puede contener**.

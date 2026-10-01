@@ -10,12 +10,25 @@ on:
     paths:
       - 'packages/specbox-cli/**'
       - '.github/workflows/specbox-cli.yml'
+      - '.github/workflows/publish-specbox-cli.yml'
+      - 'scripts/npm-publish-and-wait.sh'
+      - 'scripts/tests/test-npm-publish-and-wait.sh'
   push:
     branches: [main]
     paths:
       - 'packages/specbox-cli/**'
+      - 'scripts/npm-publish-and-wait.sh'
 
 jobs:
+  # UC-5902 — el paso de publicación espera a npm aunque la versión quede «staged».
+  publish-wait:
+    name: Publicar y esperar a npm (script)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pruebas con un npm falso
+        run: bash scripts/tests/test-npm-publish-and-wait.sh
+
   test:
     strategy:
       fail-fast: false

@@ -17,7 +17,23 @@ la extensión. Nadie ejecuta `npm publish` a mano ni guarda un token en el repos
   relanzarlo sin miedo). Si `packages/specbox-cli/package.json` no coincide con la etiqueta, el
   job falla antes de publicar (`/release` sincroniza esa versión).
 - **Verificación.** El job no se da por bueno hasta que `npm view specbox@X.Y.Z version`
-  responde la versión publicada.
+  responde la versión publicada. Espera hasta 45 minutos (`scripts/npm-publish-and-wait.sh`,
+  UC-5902): npm a veces acepta la publicación y tarda en servirla.
+
+## Si npm tarda en servir la versión («staged»)
+
+npm puede aceptar `npm publish` y dejar la versión «staged» un rato antes de servirla
+(specbox@6.16.0 tardó ~31 minutos). Mientras tanto, volver a publicar responde
+`E409 … previously staged`. El workflow trata ese E409 como publicación aceptada y sigue
+comprobando cada 30 segundos hasta 45 minutos; termina en verde en cuanto npm la sirve.
+
+Si pasan los 45 minutos, el job falla con un mensaje que dice cómo relanzarlo. No se pierde
+nada: relánzalo más tarde y, en cuanto npm sirva la versión, termina en verde sin volver a
+publicar.
+
+```bash
+gh workflow run publish-specbox-cli.yml --repo EmbedBuild/specbox-engine -f tag=vX.Y.Z
+```
 
 ## Configuración en npmjs.com (una vez, la hace el dueño del paquete)
 

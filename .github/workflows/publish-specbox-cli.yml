@@ -31,7 +31,7 @@ jobs:
   publish:
     name: Test, publish, verify
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 60   # the publish step may wait up to 45 min for npm (UC-5902)
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -66,6 +66,9 @@ jobs:
         working-directory: packages/specbox-cli
         run: node --test test/*.test.mjs
 
+      - name: Tests of the publish-and-wait script
+        run: bash scripts/tests/test-npm-publish-and-wait.sh
+
       - name: The package ships only bin, lib and README
         working-directory: packages/specbox-cli
         run: |
@@ -92,24 +95,17 @@ jobs:
             echo "published=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Publish (trusted publishing, with provenance)
+      # UC-5902 — npm can accept a publish and keep it «staged» for a while
+      # (6.16.0: ~31 min); relaunching meanwhile answers E409. The script treats
+      # that E409 as accepted and waits up to 45 min until the registry serves it.
+      - name: Publish (trusted publishing, with provenance) and wait until npm serves it
         if: steps.exists.outputs.published == 'false'
         working-directory: packages/specbox-cli
-        run: npm publish --provenance --access public
-
-      - name: Verify the registry serves the version
-        run: |
-          WANT="${{ steps.meta.outputs.version }}"
-          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
-            GOT="$(npm view specbox@"$WANT" version 2>/dev/null || true)"
-            if [ "$GOT" = "$WANT" ]; then
-              echo "npm serves specbox@$GOT"
-              exit 0
-            fi
-            sleep 10
-          done
-          echo "::error::npm does not serve specbox@$WANT yet (got '$GOT')"
-          exit 1
+        env:
+          WAIT_SECONDS: '2700'
+          POLL_SECONDS: '30'
+          RERUN_HINT: "gh workflow run publish-specbox-cli.yml --repo ${{ github.repository }} -f tag=${{ steps.meta.outputs.tag }}"
+        run: bash "$GITHUB_WORKSPACE/scripts/npm-publish-and-wait.sh" specbox "${{ steps.meta.outputs.version }}" --provenance --access public
 
       - name: Summary
         run: |

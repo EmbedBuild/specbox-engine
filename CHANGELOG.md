@@ -2,6 +2,37 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.17.1] - 2026-10-01 — "EngineFirst"
+
+El engine vuelve a funcionar sin el panel: un operador que monta su propio Postgres y cuyos
+developers no pertenecen a ninguna organización ya puede crear proyectos con `setup_board`. La
+migración 0020 había declarado el engine agnóstico a organizaciones, pero
+`provision_native_project` seguía rechazando a un developer sin organización. Cierra la US-60 del
+board del orquestador.
+
+### Changed
+
+- **`provision_native_project` (y `setup_board`) crean el proyecto aunque no haya organización
+  que asignar** (US-60/UC-6001) — en vez de `OrgResolutionError`, el proyecto se crea con
+  `organization_id` NULL y queda el aviso `native_project_without_organization` en el log (solo
+  al crearlo). Con organización resoluble (la explícita, la del proyecto o una del developer) se
+  asigna como hasta ahora, y re-aprovisionar nunca la cambia ni la quita.
+- **En el panel**, un proyecto sin organización no lo ve ningún tenant (filtros de UC-1304) hasta
+  que el SuperAdmin se la asigna: la «degradación segura» que ya describía la 0020.
+- **`CLAUDE.md`** explica los proyectos sin organización y deja de hablar del NOT NULL de la 0019.
+
+### Compatibility
+
+- 100% backwards-compatible para quien usa el panel: el registro (UC-1303) da organización a
+  cada developer, así que sus proyectos siguen cayendo en ella. Desaparece la excepción
+  `OrgResolutionError`, que nadie más capturaba. Sin migraciones de base de datos.
+
+### Tests
+
+- `tests/test_native_provision.py` (proyecto sin organización con aviso único; re-aprovisionar
+  no cambia ni quita la organización) y `tests/test_native_orphan_provision.py` (`setup_board`
+  real sin panel). Suite completa contra Postgres: 2205 passed.
+
 ## [6.17.0] - 2026-10-01 — "Evidencias"
 
 Cada criterio de aceptación aceptado enseña su recibo: qué lo respalda, dónde está, quién lo

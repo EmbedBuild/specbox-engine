@@ -1,5 +1,5 @@
-version: 6.17.0
-codename: "Evidencias"
+version: 6.17.1
+codename: "EngineFirst"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-10-01
@@ -474,7 +474,15 @@ features:
   - npm-publish-waits-for-staged
   - native-pg-dev-port
 
+  # New (v6.17.1) — EngineFirst
+  - native-project-without-organization
+
 changelog:
+  6.17.1:
+    date: 2026-10-01
+    codename: "EngineFirst"
+    changes:
+      - "fix: `setup_board` / `provision_native_project` create a new project even when no organization can be assigned — an engine run without the panel, whose developers belong to none: the project gets `organization_id` NULL and a `native_project_without_organization` warning instead of `OrgResolutionError` (the engine is organization-agnostic since migration 0020). With a resolvable organization nothing changes, and re-provisioning never moves nor clears it"
   6.17.0:
     date: 2026-10-01
     codename: "Evidencias"

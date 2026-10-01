@@ -1,4 +1,4 @@
-# SpecBox Engine v6.17.0
+# SpecBox Engine v6.17.1
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2482,7 +2482,7 @@ coloca un proyecto en una organización cuando hay alguna que asignar — la que
 
 ## Engine Version
 
-Current: v6.17.0 "Evidencias"
+Current: v6.17.1 "EngineFirst"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

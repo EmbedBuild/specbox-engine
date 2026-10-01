@@ -29,22 +29,11 @@ PG_OK, PG_SKIP_REASON = reachable()
 pytestmark_pg = pytest.mark.skipif(not PG_OK, reason=PG_SKIP_REASON)
 
 
-@pytest.fixture(autouse=True)
-def _reset_shared_pool():
-    """`init_pool` es singleton de módulo y pytest-asyncio da un loop por test."""
-    import server.db.pool as poolmod
-
-    poolmod._pool = None
-    yield
-    poolmod._pool = None
-
-
 async def _pool():
-    import server.db.pool as poolmod
+    """Pool del test, migrada. `tests/conftest.py` la cierra al terminar (UC-5901)."""
     from server.db.migrate import apply_migrations
     from server.db.pool import init_pool
 
-    poolmod._pool = None
     pool = await init_pool(dsn=DSN)
     await apply_migrations(pool)
     return pool

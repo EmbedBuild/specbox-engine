@@ -1,12 +1,139 @@
-"""Pytest fixtures with httpx mocks for Trello API."""
+"""Pytest fixtures with httpx mocks for Trello API.
+
+Also, for every test (UC-5901): the native pool hygiene and the ``native_db``
+marker, see below.
+"""
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import inspect
+import socket
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
-
+import server.db.pool as native_pool
+import tests._native_db as native_db
 from server.trello_client import TrelloClient
+
+# ── native_db marker (UC-5901) ────────────────────────────────────────
+#
+# Every test module that talks to the native Postgres goes through the shared
+# helper ``tests/_native_db.py`` (DSN, reachability probe, fixtures). Its tests
+# get the ``native_db`` marker, so ``pytest -m native_db`` runs exactly the
+# Postgres-backed suite — the one ``.github/workflows/native-tests.yml`` runs
+# on every PR — and a new module joins it just by using the helper.
+
+_NATIVE_DB_EXPORTS = (
+    native_db,
+    native_db.DSN,
+    native_db.probe,
+    native_db.reachable,
+    native_db.seed_organization,
+)
+
+
+def _uses_native_db(module) -> bool:
+    return any(value is export for value in vars(module).values() for export in _NATIVE_DB_EXPORTS)
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "native_db: uses the native Postgres through tests/_native_db.py (run with -m native_db)",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    seen: dict[str, bool] = {}
+    for item in items:
+        module = getattr(item, "module", None)
+        if module is None:
+            continue
+        if module.__name__ not in seen:
+            seen[module.__name__] = _uses_native_db(module)
+        if seen[module.__name__]:
+            item.add_marker(pytest.mark.native_db)
+
+
+# ── Native pool hygiene (UC-5901) ─────────────────────────────────────
+#
+# ``server.db.pool`` keeps ONE asyncpg pool per process, and pytest-asyncio
+# gives every test its own event loop. A test that created the pool and did not
+# close it (a fixture that failed half-way, or code that reached ``get_pool()``
+# lazily because SPECBOX_NATIVE_DSN was exported) left behind a pool tied to a
+# closed loop. Two things followed:
+#
+# * every later ``init_pool()`` got that dead pool back ("attached to a
+#   different loop", "Event loop is closed"), so whole modules failed by order;
+# * modules that worked around it with ``_pool = None`` dropped the pool
+#   without closing it. Its connections stayed open on the server, some of them
+#   inside a transaction or half-way through a statement, still holding locks —
+#   and the next ``apply_migrations`` waited for those locks forever. That was
+#   the hang of the full suite against Postgres.
+#
+# The pool now never outlives the test that opened it: async tests close it in
+# their own loop, before pytest-asyncio closes that loop.
+
+#: Seconds a graceful close may take before its connections are terminated (a
+#: graceful close waits for every connection the test still holds).
+_POOL_CLOSE_TIMEOUT_S = 5.0
+
+
+def _cut_pool_connections(pool) -> None:
+    """Close a pool's sockets without its event loop (which may be closed).
+
+    The server ends those sessions and releases their locks. Only for a pool
+    that can no longer be closed gracefully.
+    """
+    for holder in getattr(pool, "_holders", ()):
+        transport = getattr(getattr(holder, "_con", None), "_transport", None)
+        sock = transport.get_extra_info("socket") if transport is not None else None
+        if sock is not None:
+            with contextlib.suppress(OSError):
+                sock.shutdown(socket.SHUT_RDWR)
+
+
+async def _close_native_pool() -> None:
+    pool = native_pool._pool
+    if pool is None:
+        return
+    try:
+        if getattr(pool, "_loop", None) is asyncio.get_running_loop():
+            try:
+                await asyncio.wait_for(pool.close(), timeout=_POOL_CLOSE_TIMEOUT_S)
+            except Exception:  # noqa: BLE001 — a connection still in use, or broken
+                try:
+                    pool.terminate()
+                except Exception:  # noqa: BLE001
+                    _cut_pool_connections(pool)
+        else:
+            _cut_pool_connections(pool)
+    finally:
+        native_pool._pool = None
+
+
+@pytest.fixture
+async def _native_pool_closer():
+    yield
+    await _close_native_pool()
+
+
+@pytest.fixture(autouse=True)
+def _native_pool_guard(request):
+    """Close the shared native pool when the test that opened it ends."""
+    if inspect.iscoroutinefunction(getattr(request.node, "obj", None)):
+        # Async fixture → its teardown runs in the test's loop, before it closes.
+        request.getfixturevalue("_native_pool_closer")
+    yield
+    pool = native_pool._pool
+    loop = getattr(pool, "_loop", None)
+    if pool is not None and (loop is None or loop.is_closed()):
+        # A sync test that ran async code in a throwaway loop.
+        _cut_pool_connections(pool)
+        native_pool._pool = None
 
 
 @pytest.fixture

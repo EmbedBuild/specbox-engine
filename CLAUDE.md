@@ -123,9 +123,26 @@ docker compose -f docker-compose.dev.yml up -d
 python -m pytest tests/test_native_*.py
 ```
 
-La suite native (`tests/test_native_*.py`) corre verde contra una instancia Supabase
-gestionada del mantenedor (Postgres 17+): 50 passed, 0 skipped. Cada operador del
-MCP es responsable de provisionar su propia instancia Supabase.
+Las pruebas que usan Postgres (UC-5901) son las de los módulos que pasan por
+`tests/_native_db.py`; `tests/conftest.py` les pone el marcador `native_db`, así que
+`python -m pytest -m native_db tests` las corre todas (461 hoy, ~35 s contra un Postgres 16
+limpio) y un módulo nuevo entra solo con usar el helper. La CI las ejecuta en cada PR y en
+cada push a main contra un `postgres:16-alpine` de servicio:
+`.github/workflows/native-tests.yml`, check `native-tests`. Tres reglas que las sostienen:
+
+- **La pool no sobrevive a la prueba que la abrió.** `server/db/pool.py` es un singleton por
+  proceso y pytest-asyncio da un loop por prueba; `tests/conftest.py` la cierra al terminar
+  cada prueba, en su propio loop. No la sueltes con `_pool = None`: sus conexiones siguen
+  abiertas en el servidor con sus bloqueos, y el siguiente `apply_migrations` espera para
+  siempre (era el cuelgue de la suite completa).
+- **Cada developer de prueba tiene organización.** `provision_native_project` (y con él
+  `setup_board`) rechaza con `OrgResolutionError` a un developer sin organización; en
+  producción la da el registro (UC-1303). Las fixtures la crean con
+  `tests._native_db.seed_organization(conn, developer_id)`.
+- **Una prueba bloqueada falla por tiempo**: `pytest-timeout`, 120 s por prueba
+  (`pyproject.toml`); la más lenta tarda ~4 s.
+
+Cada operador del MCP es responsable de provisionar su propia instancia Supabase.
 
 ## Instalacion
 

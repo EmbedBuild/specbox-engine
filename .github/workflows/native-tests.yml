@@ -1,0 +1,67 @@
+name: Native backend tests
+
+# UC-5901 (US-59) — every PR of the engine runs the native backend tests against
+# a real Postgres. They are the tests that use the shared helper
+# tests/_native_db.py (marker `native_db`, applied by tests/conftest.py): the
+# native_* suites, coordination, reservations, tokens, the access log, the
+# database surface, AC evidence… A new module joins just by using the helper.
+#
+# No path filter on purpose: the job is meant to be a required check, and a
+# required check that does not run blocks the PR.
+#
+# A test that blocks (e.g. waiting on a Postgres lock) fails by the time limit
+# set in pyproject.toml (pytest-timeout) instead of hanging the job.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: specbox_native
+          POSTGRES_USER: specbox
+          POSTGRES_PASSWORD: specbox_dev_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U specbox -d specbox_native"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      # Throwaway service database of this job, not a secret.
+      SPECBOX_NATIVE_DSN: postgresql://specbox:specbox_dev_only@localhost:5432/specbox_native
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade uv
+          uv sync --extra dev
+
+      # Without a reachable database every native test would SKIP and the job
+      # would go green having tested nothing.
+      - name: Postgres is reachable
+        run: |
+          uv run python -c "from tests._native_db import reachable; ok, why = reachable(); assert ok, why; print('Postgres reachable')"
+
+      - name: Native backend tests
+        run: uv run pytest -m native_db -rs --durations=15 tests

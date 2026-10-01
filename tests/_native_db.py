@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import uuid
 
 import asyncpg
 
@@ -73,3 +74,45 @@ def reachable() -> tuple[bool, str]:
             "(Supabase Pooler transaction-mode URI) or run "
             "docker compose -f docker-compose.dev.yml up -d"
         )
+
+
+#: Prefix of the organizations the tests create, so abandoned ones can be swept.
+TEST_ORG_PREFIX = "test-org-"
+
+
+async def seed_organization(conn: asyncpg.Connection, developer_id: str) -> str:
+    """Give a test developer the organization that provisioning requires.
+
+    ``provision_native_project`` — and with it ``setup_board`` — resolves the
+    organization of a new project from the caller and refuses to create one for
+    a developer without any (``OrgResolutionError``). In production the signup
+    (UC-1303) gives every developer an organization; a test that registers a
+    developer by hand has to do the same before provisioning a project for them.
+    The developer is ``org_admin``, as a signup leaves the creator.
+
+    Organizations left without members nor projects by earlier tests (their
+    cleanup deletes projects and developers, not organizations) are swept first,
+    so a reused dev database does not pile them up. Returns the organization id.
+    """
+    org_id = f"{TEST_ORG_PREFIX}{uuid.uuid4().hex[:12]}"
+    async with conn.transaction():
+        await conn.execute(
+            """
+            DELETE FROM organizations o
+             WHERE o.id LIKE $1 || '%'
+               AND NOT EXISTS (SELECT 1 FROM organization_members m WHERE m.organization_id = o.id)
+               AND NOT EXISTS (SELECT 1 FROM projects p WHERE p.organization_id = o.id)
+            """,
+            TEST_ORG_PREFIX,
+        )
+        await conn.execute(
+            "INSERT INTO organizations (id, name, slug, created_by) VALUES ($1, $1, $1, $2)",
+            org_id,
+            developer_id,
+        )
+        await conn.execute(
+            "INSERT INTO organization_members (organization_id, developer_id, role) VALUES ($1, $2, 'org_admin')",
+            org_id,
+            developer_id,
+        )
+    return org_id

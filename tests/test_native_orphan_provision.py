@@ -32,7 +32,7 @@ import uuid
 
 import pytest
 
-from tests._native_db import DSN, reachable
+from tests._native_db import DSN, reachable, seed_organization
 
 PG_OK, PG_SKIP_REASON = reachable()
 pytestmark_pg = pytest.mark.skipif(not PG_OK, reason=PG_SKIP_REASON)
@@ -56,13 +56,18 @@ async def _pool():
 
 
 async def _register_dev(pool):
-    """Register a developer + token, but NEITHER the projects row NOR membership."""
+    """Register a developer + token, but NEITHER the projects row NOR membership.
+
+    The developer gets an organization, as a signup gives one (UC-1303): it is
+    where a project the developer provisions lands.
+    """
     from server.coordination.identity import register_developer, register_mcp_token
 
     developer_id = f"orph-dev-{uuid.uuid4().hex[:8]}"
     token = f"orph-tok-{uuid.uuid4().hex[:16]}"
     async with pool.acquire() as conn:
         await register_developer(conn, developer_id=developer_id, display_name="Orphan Tester")
+        await seed_organization(conn, developer_id)
         await register_mcp_token(conn, developer_id=developer_id, token=token)
     return developer_id, token
 

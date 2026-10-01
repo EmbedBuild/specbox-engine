@@ -1226,7 +1226,7 @@ async def test_mirror_attempted_exactly_once_per_write_no_retries(primary) -> No
 
 import uuid  # noqa: E402
 
-from tests._native_db import DSN, reachable  # noqa: E402
+from tests._native_db import DSN, reachable, seed_organization  # noqa: E402
 
 PG_OK, PG_SKIP_REASON = reachable()
 pytestmark_pg = pytest.mark.skipif(not PG_OK, reason=PG_SKIP_REASON)
@@ -1248,6 +1248,8 @@ async def _pg_register_dev(pool):
     token = f"dual-tok-{uuid.uuid4().hex[:16]}"
     async with pool.acquire() as conn:
         await register_developer(conn, developer_id=developer_id, display_name="Dual Tester")
+        # The organization a signup gives (UC-1303): provisioning needs it.
+        await seed_organization(conn, developer_id)
         await register_mcp_token(conn, developer_id=developer_id, token=token)
     return developer_id, token
 

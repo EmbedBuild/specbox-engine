@@ -22,7 +22,7 @@ import uuid
 
 import pytest
 
-from tests._native_db import DSN, reachable
+from tests._native_db import DSN, reachable, seed_organization
 
 PG_OK, PG_SKIP_REASON = reachable()
 pytestmark_pg = pytest.mark.skipif(not PG_OK, reason=PG_SKIP_REASON)
@@ -97,7 +97,9 @@ async def _register_dev(pool, project_member: bool = False):
 
     Unlike the batch suite's ``_seed_identity``, this deliberately does NOT
     create the ``projects`` row nor the membership by default — the whole point
-    of US-NATIVE-PROVISION is that the engine provisions those itself.
+    of US-NATIVE-PROVISION is that the engine provisions those itself. It does
+    give the developer the organization a signup gives (UC-1303): that is where
+    a project they provision lands.
     """
     from server.coordination.identity import register_developer, register_mcp_token
 
@@ -105,6 +107,7 @@ async def _register_dev(pool, project_member: bool = False):
     token = f"prov-tok-{uuid.uuid4().hex[:16]}"
     async with pool.acquire() as conn:
         await register_developer(conn, developer_id=developer_id, display_name="Provision Tester")
+        await seed_organization(conn, developer_id)
         await register_mcp_token(conn, developer_id=developer_id, token=token)
     return developer_id, token
 
@@ -321,6 +324,51 @@ class TestProvisionNativeProject:
             async with pool.acquire() as conn:
                 await conn.execute("DELETE FROM developers WHERE developer_id = $1", dev_id)
             await close_pool()
+
+    async def test_provision_places_the_project_in_the_developers_organization(self):
+        """UC-1303/UC-1304: a new project lands in its creator's organization."""
+        from server.migration.native_handling import provision_native_project
+
+        pool = await self._pool()
+        pid = f"Acme/org-{uuid.uuid4().hex[:8]}"
+        dev_id, _ = await _register_dev(pool)
+        try:
+            await provision_native_project(pool, project_id=pid, developer_id=dev_id)
+            async with pool.acquire() as conn:
+                project_org = await conn.fetchval(
+                    "SELECT organization_id FROM projects WHERE project_id = $1", pid
+                )
+                dev_orgs = {
+                    r["organization_id"]
+                    for r in await conn.fetch(
+                        "SELECT organization_id FROM organization_members WHERE developer_id = $1", dev_id
+                    )
+                }
+            assert project_org is not None and project_org in dev_orgs
+        finally:
+            await _cleanup(pool, pid, dev_id)
+
+    async def test_provision_refuses_a_developer_without_organization_and_writes_nothing(self):
+        """UC-1304: no organization to place a new project in → OrgResolutionError, no rows.
+
+        The fixtures above give every developer the organization a signup gives
+        (UC-1303); this is the contract they satisfy.
+        """
+        from server.coordination.identity import register_developer
+        from server.migration.native_handling import OrgResolutionError, provision_native_project
+
+        pool = await self._pool()
+        pid = f"Acme/no-org-{uuid.uuid4().hex[:8]}"
+        dev_id = f"prov-noorg-{uuid.uuid4().hex[:8]}"
+        async with pool.acquire() as conn:
+            await register_developer(conn, developer_id=dev_id, display_name="No Org")
+        try:
+            with pytest.raises(OrgResolutionError):
+                await provision_native_project(pool, project_id=pid, developer_id=dev_id)
+            assert not await _project_exists(pool, pid)
+            assert await _member_role(pool, pid, dev_id) is None
+        finally:
+            await _cleanup(pool, pid, dev_id)
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -47,7 +47,7 @@ from server.db.pool import close_pool, init_pool
 # ── Module-level reachability probe (shared, TLS-aware — UC-405) ──────────
 # DSN + probe live in tests/_native_db.py so Supabase TLS handling is applied
 # consistently across all native test modules [AC-38, AC-39].
-from tests._native_db import DSN, reachable
+from tests._native_db import DSN, reachable, seed_organization
 
 PG_OK, PG_SKIP_REASON = reachable()
 
@@ -68,19 +68,22 @@ def _unique_token() -> str:
 
 
 async def _seed_native_identity(pool, project_id: str) -> tuple[str, str]:
-    """Seed developer + active mcp_token + project row + membership.
+    """Seed developer (with its organization) + active mcp_token + project row + membership.
 
     Returns ``(developer_id, token)``. Idempotent on the project row; the
     developer id and token are per-call unique so this is safe to call from
     parametrized fixtures running in parallel against the same DB.
 
     The native gate (UC-502) authenticates by token and authorizes by
-    project_members row — both must exist before any mutator runs.
+    project_members row — both must exist before any mutator runs. The
+    organization is what ``setup_board`` needs to provision the project for the
+    developer (UC-1303).
     """
     developer_id = _unique_dev()
     token = _unique_token()
     async with pool.acquire() as conn:
         await register_developer(conn, developer_id=developer_id, display_name="Conformance Tester")
+        await seed_organization(conn, developer_id)
         await register_mcp_token(conn, developer_id=developer_id, token=token)
         await conn.execute(
             """
@@ -117,9 +120,9 @@ async def _make_native(tmp_path) -> AsyncIterator[tuple[NativeBackend, str]]:
     # + membership BEFORE instantiating the backend so the UC-502 gate passes
     # on every mutator the conformance suite exercises.
     developer_id, token = await _seed_native_identity(pool, pid)
-    be = NativeBackend(project_id=pid, dev_token=token)
-    cfg = await be.setup_board("UC-101 conformance (native)")
     try:
+        be = NativeBackend(project_id=pid, dev_token=token)
+        cfg = await be.setup_board("UC-101 conformance (native)")
         yield be, cfg.board_id
     finally:
         # Remove only the project + developer we created (CASCADE drops child

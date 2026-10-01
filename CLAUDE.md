@@ -1926,7 +1926,7 @@ registry desde la sesión. Suites dual-backend + transactional-switch: 63 passed
 
 Tres US del board del orquestador `EmbedBuild/specbox-manager` (satélite engine) cierran el
 **funnel site↔engine de punta a punta**: el engine publica su estado vivo y su inventario de
-capacidades al site `specbox.embed.build` en cada `/release`, y la extensión VSCode emite el
+capacidades al site `specbox.build` en cada `/release`, y la extensión VSCode emite el
 evento de activación que cierra el funnel anónimo. La única vía de liberar (`/release`) es también
 la única vía de publicar → el changelog y el inventario del site nunca divergen del engine.
 

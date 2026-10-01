@@ -1,6 +1,6 @@
 """Site publish (US-16): publica el estado del engine al schema público de Supabase.
 
-El site público (`specbox.embed.build`, satélite `site`) refleja el estado real del
+El site público (`specbox.build`, satélite `site`) refleja el estado real del
 engine leyendo tablas `public.engine_*` en Supabase. La única fuente de verdad sigue
 siendo el repo (`ENGINE_VERSION.yaml` + `CHANGELOG.md`); este paquete los parsea
 (UC-1601) y publica vía UPSERT idempotente (UC-1602), invocado desde `/release`

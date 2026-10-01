@@ -1,6 +1,6 @@
 # specbox
 
-Connect this computer to [SpecBox](https://specbox.embed.build) without copying tokens.
+Connect this computer to [SpecBox](https://specbox.build/en/) without copying tokens.
 
 ```bash
 npx specbox login

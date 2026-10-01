@@ -348,14 +348,15 @@ class TestProvisionNativeProject:
         finally:
             await _cleanup(pool, pid, dev_id)
 
-    async def test_provision_refuses_a_developer_without_organization_and_writes_nothing(self):
-        """UC-1304: no organization to place a new project in → OrgResolutionError, no rows.
+    async def test_provision_without_organization_creates_the_project_with_null_org(self):
+        """US-60/UC-6001 AC-01: an engine without the panel has developers with no
+        organization. Provisioning still creates the project — with
+        ``organization_id`` NULL, the creator as admin and a warning — instead of
+        refusing (the engine is organization-agnostic since migration 0020)."""
+        from structlog.testing import capture_logs
 
-        The fixtures above give every developer the organization a signup gives
-        (UC-1303); this is the contract they satisfy.
-        """
         from server.coordination.identity import register_developer
-        from server.migration.native_handling import OrgResolutionError, provision_native_project
+        from server.migration.native_handling import provision_native_project
 
         pool = await self._pool()
         pid = f"Acme/no-org-{uuid.uuid4().hex[:8]}"
@@ -363,12 +364,58 @@ class TestProvisionNativeProject:
         async with pool.acquire() as conn:
             await register_developer(conn, developer_id=dev_id, display_name="No Org")
         try:
-            with pytest.raises(OrgResolutionError):
+            with capture_logs() as logs:
+                out = await provision_native_project(pool, project_id=pid, developer_id=dev_id)
+            assert out["project_created"] is True
+            assert await _member_role(pool, pid, dev_id) == "project_admin"
+            async with pool.acquire() as conn:
+                org = await conn.fetchval(
+                    "SELECT organization_id FROM projects WHERE project_id = $1", pid
+                )
+            assert org is None
+            warned = [e for e in logs if e.get("event") == "native_project_without_organization"]
+            assert len(warned) == 1 and warned[0]["project_id"] == pid
+            assert warned[0]["log_level"] == "warning"
+
+            # Re-provisioning the same project does not warn again.
+            with capture_logs() as again:
                 await provision_native_project(pool, project_id=pid, developer_id=dev_id)
-            assert not await _project_exists(pool, pid)
-            assert await _member_role(pool, pid, dev_id) is None
+            assert not [e for e in again if e.get("event") == "native_project_without_organization"]
         finally:
             await _cleanup(pool, pid, dev_id)
+
+    async def test_reprovision_never_moves_nor_clears_the_organization(self):
+        """US-60/UC-6001 AC-02: once a project has an organization, re-provisioning
+        it — by another developer with a different organization, or with an
+        explicit ``organization_id`` — never moves it nor clears it."""
+        from server.migration.native_handling import provision_native_project
+
+        pool = await self._pool()
+        pid = f"Acme/keep-org-{uuid.uuid4().hex[:8]}"
+        owner_id, _ = await _register_dev(pool)
+        other_id, _ = await _register_dev(pool)
+        try:
+            await provision_native_project(pool, project_id=pid, developer_id=owner_id)
+            async with pool.acquire() as conn:
+                original = await conn.fetchval(
+                    "SELECT organization_id FROM projects WHERE project_id = $1", pid
+                )
+                other_org = await conn.fetchval(
+                    "SELECT organization_id FROM organization_members WHERE developer_id = $1", other_id
+                )
+            assert original is not None and other_org is not None and other_org != original
+
+            await provision_native_project(pool, project_id=pid, developer_id=other_id, role="member")
+            await provision_native_project(
+                pool, project_id=pid, developer_id=owner_id, organization_id=other_org
+            )
+            async with pool.acquire() as conn:
+                after = await conn.fetchval(
+                    "SELECT organization_id FROM projects WHERE project_id = $1", pid
+                )
+            assert after == original
+        finally:
+            await _cleanup(pool, pid, owner_id, other_id)
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -136,10 +136,11 @@ cada push a main contra un `postgres:16-alpine` de servicio:
   cada prueba, en su propio loop. No la sueltes con `_pool = None`: sus conexiones siguen
   abiertas en el servidor con sus bloqueos, y el siguiente `apply_migrations` espera para
   siempre (era el cuelgue de la suite completa).
-- **Cada developer de prueba tiene organización.** `provision_native_project` (y con él
-  `setup_board`) rechaza con `OrgResolutionError` a un developer sin organización; en
-  producción la da el registro (UC-1303). Las fixtures la crean con
-  `tests._native_db.seed_organization(conn, developer_id)`.
+- **Organización, como en el panel.** `provision_native_project` (y con él `setup_board`)
+  coloca un proyecto nuevo en la organización de su creador; en producción la da el registro
+  del panel (UC-1303). Las fixtures que quieren ese comportamiento la crean con
+  `tests._native_db.seed_organization(conn, developer_id)`; sin ella el proyecto se crea sin
+  organización, como en un engine sin panel (ver «Proyectos sin organización»).
 - **Una prueba bloqueada falla por tiempo**: `pytest-timeout`, 120 s por prueba
   (`pyproject.toml`); la más lenta tarda ~4 s.
 
@@ -2462,6 +2463,22 @@ lo enseñan con la `EvidenceCard` del registro `@specbox/ui`.
 - `SpecBackend.mark_acceptance_criterion(..., evidence=None)`: los cinco backends y los dobles de
   pruebas aceptan el parámetro; el dual lo reenvía al espejo native.
 - Tests: `tests/test_ac_evidence.py` (las native, contra Postgres).
+
+## Proyectos sin organización (US-60 · UC-6001, v6.17.1)
+
+«Organización» es un concepto del panel, no del engine (migración 0020): los proyectos del
+engine son multi-tenant solo por `project_id`. `provision_native_project` (y `setup_board`)
+coloca un proyecto en una organización cuando hay alguna que asignar — la que se pasa en
+`organization_id`, la que ya tiene el proyecto o una del developer — y, si no hay ninguna
+(un engine sin panel, cuyos developers no pertenecen a ninguna), lo crea con
+`organization_id` NULL y deja el aviso `native_project_without_organization` en el log.
+
+- Todas las tools del engine funcionan igual sobre un proyecto sin organización.
+- En el panel, un proyecto sin organización no lo ve ningún tenant (los filtros de UC-1304
+  van por organización) hasta que el SuperAdmin se la asigna.
+- Re-aprovisionar un proyecto nunca le cambia ni le quita la organización: el `ON CONFLICT`
+  no toca `organization_id`.
+- Tests: `tests/test_native_provision.py` y `tests/test_native_orphan_provision.py`.
 
 ## Engine Version
 

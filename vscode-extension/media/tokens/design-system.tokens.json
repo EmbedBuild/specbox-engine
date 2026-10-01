@@ -1,0 +1,752 @@
+{
+  "name": "SpecBox",
+  "version": 2,
+  "meta": {
+    "direction": "Tinta",
+    "decision": "D18 2026-09-30",
+    "source": "packages/tokens/src/tokens.json (W3C DTCG) del orquestador specbox-manager"
+  },
+  "color": {
+    "themes": [
+      {
+        "id": "light",
+        "name": "Claro"
+      },
+      {
+        "id": "dark",
+        "name": "Oscuro"
+      }
+    ],
+    "tokens": [
+      {
+        "name": "paper-100",
+        "value": {
+          "light": "#FFFFFF",
+          "dark": "#1A1B1E"
+        },
+        "usage": "Superficies elevadas: cards, paneles, filas de tabla, inputs."
+      },
+      {
+        "name": "paper-200",
+        "value": {
+          "light": "#EFEEEB",
+          "dark": "#232428"
+        },
+        "usage": "Filas alternas, hover de fila, fondo de código y kbd."
+      },
+      {
+        "name": "paper-300",
+        "value": {
+          "light": "#E4E3DF",
+          "dark": "#2C2D31"
+        },
+        "usage": "Estado pulsado y esqueletos de carga."
+      },
+      {
+        "name": "paper-000",
+        "value": {
+          "light": "#F7F6F4",
+          "dark": "#121315"
+        },
+        "usage": "Fondo de página. Papel con un punto cálido en claro; casi negro en oscuro."
+      },
+      {
+        "name": "ink-400",
+        "value": {
+          "light": "#8A8D93",
+          "dark": "#6F7278"
+        },
+        "usage": "Placeholders, texto deshabilitado e iconos decorativos. 3,3:1: nunca para texto que informe."
+      },
+      {
+        "name": "ink-500",
+        "value": {
+          "light": "#6B6E74",
+          "dark": "#8E9197"
+        },
+        "usage": "Texto terciario que informa: metadatos, tiempos, captions (4,7:1 claro sobre paper-000, 5,1:1 sobre paper-100; 5,4:1 oscuro)."
+      },
+      {
+        "name": "ink-700",
+        "value": {
+          "light": "#55585E",
+          "dark": "#A7A9AE"
+        },
+        "usage": "Texto secundario y etiquetas sobre paper-000 y paper-100 (7,0:1 claro, 7,3:1 oscuro)."
+      },
+      {
+        "name": "ink-900",
+        "value": {
+          "light": "#1A1B1E",
+          "dark": "#F2F1EE"
+        },
+        "usage": "Texto principal y títulos sobre paper-000 y paper-100 (17:1 claro, 15:1 oscuro). Es también el acento."
+      },
+      {
+        "name": "line-100",
+        "value": {
+          "light": "#E1E0DC",
+          "dark": "#2C2D31"
+        },
+        "usage": "Separadores y bordes de card (decorativos)."
+      },
+      {
+        "name": "line-200",
+        "value": {
+          "light": "#C9C8C3",
+          "dark": "#3A3B40"
+        },
+        "usage": "Separadores fuertes y cabeceras de tabla."
+      },
+      {
+        "name": "line-300",
+        "value": {
+          "light": "#8A8D93",
+          "dark": "#6F7278"
+        },
+        "usage": "Bordes de controles: inputs, selects, checkboxes (3,3:1 claro, 3,6:1 oscuro)."
+      },
+      {
+        "name": "accent",
+        "value": {
+          "light": "{ink-900}",
+          "dark": "{ink-900}"
+        },
+        "usage": "El acento es la tinta: botones primarios, enlaces, selección y foco."
+      },
+      {
+        "name": "accent-hover",
+        "value": {
+          "light": "#2E2F33",
+          "dark": "#DEDDD9"
+        },
+        "usage": "Botón primario en hover y activo."
+      },
+      {
+        "name": "accent-soft",
+        "value": {
+          "light": "#E9E8E4",
+          "dark": "#26272B"
+        },
+        "usage": "Fila o elemento seleccionado; chip activo."
+      },
+      {
+        "name": "on-accent",
+        "value": {
+          "light": "#FFFFFF",
+          "dark": "#121315"
+        },
+        "usage": "Texto e iconos sobre accent y accent-hover (17:1 claro, 15:1 oscuro)."
+      },
+      {
+        "name": "focus-ring",
+        "value": {
+          "light": "{ink-900}",
+          "dark": "{ink-900}"
+        },
+        "usage": "Anillo de foco sólido, 2 px con 2 px de separación, sobre cualquier superficie."
+      },
+      {
+        "name": "link",
+        "value": {
+          "light": "{ink-900}",
+          "dark": "{ink-900}"
+        },
+        "usage": "Enlaces en texto corrido, siempre subrayados."
+      },
+      {
+        "name": "overlay",
+        "value": {
+          "light": "rgba(26, 27, 30, 0.55)",
+          "dark": "rgba(0, 0, 0, 0.6)"
+        },
+        "usage": "Velo detrás de diálogos y paneles laterales."
+      },
+      {
+        "name": "status-backlog-text",
+        "value": {
+          "light": "#5B6270",
+          "dark": "#9CA3AF"
+        },
+        "usage": "Texto del estado backlog / Pendiente sobre status-backlog-bg (5,3:1 claro, 6,1:1 oscuro)."
+      },
+      {
+        "name": "status-backlog-bg",
+        "value": {
+          "light": "#EEEFF1",
+          "dark": "#26282C"
+        },
+        "usage": "Fondo del badge backlog."
+      },
+      {
+        "name": "status-progress-text",
+        "value": {
+          "light": "#1D4ED8",
+          "dark": "#8AB4FF"
+        },
+        "usage": "Texto del estado en curso / En marcha sobre status-progress-bg (5,8:1 claro, 7,0:1 oscuro)."
+      },
+      {
+        "name": "status-progress-bg",
+        "value": {
+          "light": "#E8EEFC",
+          "dark": "#1C2942"
+        },
+        "usage": "Fondo del badge en curso."
+      },
+      {
+        "name": "status-review-text",
+        "value": {
+          "light": "#92400E",
+          "dark": "#F5C451"
+        },
+        "usage": "Texto del estado revisión / En revisión sobre status-review-bg (6,3:1 claro, 8,2:1 oscuro)."
+      },
+      {
+        "name": "status-review-bg",
+        "value": {
+          "light": "#FBF0DC",
+          "dark": "#3A2E14"
+        },
+        "usage": "Fondo del badge revisión."
+      },
+      {
+        "name": "status-done-text",
+        "value": {
+          "light": "#166534",
+          "dark": "#7EDC9A"
+        },
+        "usage": "Texto del estado hecho / Hecho sobre status-done-bg (6,2:1 claro, 8,5:1 oscuro)."
+      },
+      {
+        "name": "status-done-bg",
+        "value": {
+          "light": "#E3F3E8",
+          "dark": "#17301F"
+        },
+        "usage": "Fondo del badge hecho."
+      },
+      {
+        "name": "status-blocked-text",
+        "value": {
+          "light": "#991B1B",
+          "dark": "#F59A9A"
+        },
+        "usage": "Texto del estado bloqueada / Bloqueado sobre status-blocked-bg (7,0:1 claro, 7,2:1 oscuro)."
+      },
+      {
+        "name": "status-blocked-bg",
+        "value": {
+          "light": "#FBE7E7",
+          "dark": "#3B1D1D"
+        },
+        "usage": "Fondo del badge bloqueada."
+      },
+      {
+        "name": "status-reserved-text",
+        "value": {
+          "light": "#5B21B6",
+          "dark": "#C4B0F5"
+        },
+        "usage": "Texto del estado reservada / Asignado sobre status-reserved-bg (7,5:1 claro, 7,8:1 oscuro)."
+      },
+      {
+        "name": "status-reserved-bg",
+        "value": {
+          "light": "#EFE8FB",
+          "dark": "#2A2140"
+        },
+        "usage": "Fondo del badge reservada."
+      },
+      {
+        "name": "attention-text",
+        "value": {
+          "light": "{status-review-text}",
+          "dark": "{status-review-text}"
+        },
+        "usage": "«Necesita tu decisión»: texto sobre attention-bg. Es un estado, no marca."
+      },
+      {
+        "name": "attention-bg",
+        "value": {
+          "light": "{status-review-bg}",
+          "dark": "{status-review-bg}"
+        },
+        "usage": "Fondo de la franja o tarjeta que pide una decisión."
+      },
+      {
+        "name": "success-text",
+        "value": {
+          "light": "{status-done-text}",
+          "dark": "{status-done-text}"
+        },
+        "usage": "Mensajes de éxito, tests que pasan."
+      },
+      {
+        "name": "success-bg",
+        "value": {
+          "light": "{status-done-bg}",
+          "dark": "{status-done-bg}"
+        },
+        "usage": "Fondo de mensajes de éxito."
+      },
+      {
+        "name": "warning-text",
+        "value": {
+          "light": "{status-review-text}",
+          "dark": "{status-review-text}"
+        },
+        "usage": "Avisos que no bloquean."
+      },
+      {
+        "name": "warning-bg",
+        "value": {
+          "light": "{status-review-bg}",
+          "dark": "{status-review-bg}"
+        },
+        "usage": "Fondo de avisos."
+      },
+      {
+        "name": "danger-text",
+        "value": {
+          "light": "{status-blocked-text}",
+          "dark": "{status-blocked-text}"
+        },
+        "usage": "Errores, bloqueos de hook y el botón de peligro."
+      },
+      {
+        "name": "danger-bg",
+        "value": {
+          "light": "{status-blocked-bg}",
+          "dark": "{status-blocked-bg}"
+        },
+        "usage": "Fondo de errores."
+      },
+      {
+        "name": "info-text",
+        "value": {
+          "light": "{status-progress-text}",
+          "dark": "{status-progress-text}"
+        },
+        "usage": "Información neutra y enlaces de ayuda contextual."
+      },
+      {
+        "name": "info-bg",
+        "value": {
+          "light": "{status-progress-bg}",
+          "dark": "{status-progress-bg}"
+        },
+        "usage": "Fondo de información."
+      }
+    ]
+  },
+  "type": {
+    "fonts": [],
+    "families": {
+      "sans": "\"IBM Plex Sans\", system-ui, -apple-system, \"Segoe UI\", sans-serif",
+      "mono": "\"IBM Plex Mono\", ui-monospace, SFMono-Regular, Menlo, monospace"
+    },
+    "groups": [
+      {
+        "name": "Títulos",
+        "family": "sans",
+        "styles": [
+          {
+            "name": "display-xl",
+            "fontSize": "30px",
+            "lineHeight": "36px",
+            "fontWeight": 600,
+            "letterSpacing": "-0.01em",
+            "sample": "De la spec a la evidencia",
+            "usage": "Título de página. Herramienta, no hero."
+          },
+          {
+            "name": "display-lg",
+            "fontSize": "24px",
+            "lineHeight": "30px",
+            "fontWeight": 600,
+            "letterSpacing": "-0.01em",
+            "sample": "Sesiones de hoy",
+            "usage": "Título de sección o de panel de detalle."
+          },
+          {
+            "name": "display-md",
+            "fontSize": "20px",
+            "lineHeight": "26px",
+            "fontWeight": 600,
+            "letterSpacing": "-0.005em",
+            "sample": "SpecBox",
+            "usage": "Título de card, wordmark, título de diálogo."
+          },
+          {
+            "name": "display-sm",
+            "fontSize": "17px",
+            "lineHeight": "24px",
+            "fontWeight": 600,
+            "sample": "Evidencias",
+            "usage": "Título de grupo dentro de una card."
+          },
+          {
+            "name": "metric",
+            "fontSize": "28px",
+            "lineHeight": "32px",
+            "fontWeight": 600,
+            "letterSpacing": "-0.02em",
+            "sample": "68 %",
+            "usage": "Cifra de un metric tile, con tabular-nums. Nunca mono."
+          }
+        ]
+      },
+      {
+        "name": "Texto",
+        "family": "sans",
+        "styles": [
+          {
+            "name": "body-lg",
+            "fontSize": "16px",
+            "lineHeight": "24px",
+            "fontWeight": 400,
+            "sample": "Cada criterio de aceptación cierra con un recibo.",
+            "usage": "Texto corrido en portal y site (densidad spacious)."
+          },
+          {
+            "name": "body-md",
+            "fontSize": "14px",
+            "lineHeight": "20px",
+            "fontWeight": 400,
+            "sample": "Cada criterio de aceptación cierra con un recibo.",
+            "usage": "Texto en cloud y en tablas (densidad compact)."
+          },
+          {
+            "name": "label",
+            "fontSize": "13px",
+            "lineHeight": "18px",
+            "fontWeight": 500,
+            "sample": "Aprobar entregable",
+            "usage": "Botones, etiquetas de formulario, cabeceras de tabla, badges."
+          },
+          {
+            "name": "caption",
+            "fontSize": "12px",
+            "lineHeight": "16px",
+            "fontWeight": 400,
+            "sample": "aceptada por Jesús · 2026-09-30 10:16",
+            "usage": "Metadatos y tiempos, en ink-500."
+          }
+        ]
+      },
+      {
+        "name": "Datos",
+        "family": "mono",
+        "styles": [
+          {
+            "name": "data-md",
+            "fontSize": "13px",
+            "lineHeight": "20px",
+            "fontWeight": 400,
+            "sample": "UC-4106 · feat/us-42-hardening",
+            "usage": "IDs, ramas, hashes y cifras en tablas. Siempre tabular-nums."
+          },
+          {
+            "name": "data-sm",
+            "fontSize": "12px",
+            "lineHeight": "16px",
+            "fontWeight": 400,
+            "sample": "AC-02 · 10:16",
+            "usage": "IDs dentro de badges y captions."
+          },
+          {
+            "name": "code",
+            "fontSize": "13px",
+            "lineHeight": "20px",
+            "fontWeight": 400,
+            "sample": "specbox status --board EmbedBuild/specbox-manager",
+            "usage": "Comandos y bloques de código sobre paper-200."
+          },
+          {
+            "name": "kbd",
+            "fontSize": "12px",
+            "lineHeight": "16px",
+            "fontWeight": 500,
+            "sample": "⌘K",
+            "usage": "Atajos de teclado en una caja de radius-sm sobre paper-200."
+          }
+        ]
+      }
+    ]
+  },
+  "spacing": {
+    "note": "Rejilla de 4 px; el número es el múltiplo, igual que en Tailwind (space-8 = p-8 = 32 px).",
+    "tokens": [
+      {
+        "name": "space-1",
+        "value": "4px",
+        "usage": "Hueco entre icono y texto; separación del anillo de foco."
+      },
+      {
+        "name": "space-2",
+        "value": "8px",
+        "usage": "Padding de badges; hueco entre símbolo y nombre en el wordmark."
+      },
+      {
+        "name": "space-3",
+        "value": "12px",
+        "usage": "Padding horizontal de botones e inputs; hueco entre controles."
+      },
+      {
+        "name": "space-4",
+        "value": "16px",
+        "usage": "Padding de card en densidad compact; hueco entre cards."
+      },
+      {
+        "name": "space-5",
+        "value": "20px",
+        "usage": "Padding de card en densidad spacious."
+      },
+      {
+        "name": "space-6",
+        "value": "24px",
+        "usage": "Gutter de página y hueco de la rejilla de 12 columnas."
+      },
+      {
+        "name": "space-8",
+        "value": "32px",
+        "usage": "Hueco entre secciones."
+      },
+      {
+        "name": "space-10",
+        "value": "40px",
+        "usage": "Margen superior de una página en el portal."
+      },
+      {
+        "name": "space-12",
+        "value": "48px",
+        "usage": "Separación entre bloques del site."
+      },
+      {
+        "name": "space-16",
+        "value": "64px",
+        "usage": "Separación entre secciones del site."
+      }
+    ]
+  },
+  "radius": {
+    "tokens": [
+      {
+        "name": "radius-sm",
+        "value": "4px",
+        "usage": "Badges cuadrados, checkboxes, kbd, símbolo de marca a 16 px."
+      },
+      {
+        "name": "radius-md",
+        "value": "6px",
+        "usage": "Botones, inputs, chips."
+      },
+      {
+        "name": "radius-lg",
+        "value": "10px",
+        "usage": "Cards, paneles, diálogos, metric tiles."
+      },
+      {
+        "name": "radius-pill",
+        "value": "999px",
+        "usage": "Badges de estado y avatares."
+      }
+    ]
+  },
+  "shadow": {
+    "tokens": [
+      {
+        "name": "shadow-sm",
+        "value": {
+          "light": "0 1px 2px 0 rgba(26, 27, 30, 0.06)",
+          "dark": "0 1px 2px 0 rgba(0, 0, 0, 0.4)"
+        },
+        "usage": "Cards elevadas."
+      },
+      {
+        "name": "shadow-md",
+        "value": {
+          "light": "0 4px 12px -2px rgba(26, 27, 30, 0.12)",
+          "dark": "0 4px 12px -2px rgba(0, 0, 0, 0.5)"
+        },
+        "usage": "Popovers, menús, panel de detalle. Nada más alto."
+      }
+    ]
+  },
+  "density": {
+    "note": "Se eligen en el contenedor con data-density; un componente nunca fija la suya.",
+    "tokens": [
+      {
+        "name": "row-compact",
+        "value": "32px",
+        "usage": "Altura de fila en cloud."
+      },
+      {
+        "name": "row-comfortable",
+        "value": "40px",
+        "usage": "Altura de fila en móvil."
+      },
+      {
+        "name": "row-spacious",
+        "value": "52px",
+        "usage": "Altura de fila en el portal."
+      },
+      {
+        "name": "pad-compact",
+        "value": "8px",
+        "usage": "Padding vertical de celdas y controles en cloud."
+      },
+      {
+        "name": "pad-comfortable",
+        "value": "12px",
+        "usage": "Padding vertical en móvil."
+      },
+      {
+        "name": "pad-spacious",
+        "value": "16px",
+        "usage": "Padding vertical en el portal."
+      },
+      {
+        "name": "text-compact",
+        "value": "14px",
+        "usage": "Tamaño base de texto en cloud (body-md)."
+      },
+      {
+        "name": "text-comfortable",
+        "value": "15px",
+        "usage": "Tamaño base en móvil."
+      },
+      {
+        "name": "text-spacious",
+        "value": "16px",
+        "usage": "Tamaño base en el portal (body-lg)."
+      }
+    ]
+  },
+  "layout": {
+    "tokens": [
+      {
+        "name": "sidebar",
+        "value": "240px",
+        "usage": "Barra lateral de cloud desplegada."
+      },
+      {
+        "name": "rail",
+        "value": "64px",
+        "usage": "Barra lateral de cloud colapsada a iconos."
+      },
+      {
+        "name": "topbar",
+        "value": "56px",
+        "usage": "Barra superior con migas y ⌘K."
+      },
+      {
+        "name": "content-max",
+        "value": "1280px",
+        "usage": "Ancho máximo del contenido en cloud."
+      },
+      {
+        "name": "prose-max",
+        "value": "65ch",
+        "usage": "Ancho máximo del texto corrido en portal y site."
+      },
+      {
+        "name": "detail-panel",
+        "value": "420px",
+        "usage": "Panel lateral de detalle en cloud."
+      }
+    ]
+  },
+  "stroke": {
+    "tokens": [
+      {
+        "name": "stroke-hair",
+        "value": "1px",
+        "usage": "Separadores y bordes de card con line-100."
+      },
+      {
+        "name": "stroke-control",
+        "value": "1px",
+        "usage": "Bordes de inputs y checkboxes con line-300."
+      },
+      {
+        "name": "stroke-focus",
+        "value": "2px",
+        "usage": "Grosor del anillo de foco."
+      },
+      {
+        "name": "focus-offset",
+        "value": "2px",
+        "usage": "Separación del anillo de foco."
+      },
+      {
+        "name": "icon-stroke",
+        "value": "1.75px",
+        "usage": "Grosor de los iconos de línea (Lucide)."
+      }
+    ]
+  },
+  "zIndex": {
+    "tokens": [
+      {
+        "name": "z-base",
+        "value": "0",
+        "usage": "Contenido."
+      },
+      {
+        "name": "z-dropdown",
+        "value": "20",
+        "usage": "Menús y popovers."
+      },
+      {
+        "name": "z-sticky",
+        "value": "30",
+        "usage": "Cabeceras de tabla y barra superior."
+      },
+      {
+        "name": "z-overlay",
+        "value": "40",
+        "usage": "Velo de diálogos."
+      },
+      {
+        "name": "z-modal",
+        "value": "50",
+        "usage": "Diálogos y paleta de comandos."
+      },
+      {
+        "name": "z-toast",
+        "value": "60",
+        "usage": "Avisos flotantes."
+      }
+    ]
+  },
+  "duration": {
+    "tokens": [
+      {
+        "name": "dur-fast",
+        "value": "120ms",
+        "usage": "Hover y cambios de estado."
+      },
+      {
+        "name": "dur-base",
+        "value": "140ms",
+        "usage": "Diálogos y paneles."
+      },
+      {
+        "name": "dur-enter",
+        "value": "180ms",
+        "usage": "Entrada de página: fundido con desplazamiento de space-2."
+      }
+    ]
+  },
+  "easing": {
+    "tokens": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.2, 0, 0, 1)",
+        "usage": "Curva única para todo el movimiento."
+      }
+    ]
+  }
+}

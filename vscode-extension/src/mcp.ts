@@ -182,7 +182,7 @@ export class McpConfigurator {
 		if (specboxOk) { actions.push('SpecBox MCP'); }
 
 		if (actions.length > 0) {
-			vscode.window.showInformationMessage(`MCP configured: ${actions.join(', ')}`);
+			vscode.window.showInformationMessage(`[x] MCP configured: ${actions.join(', ')}`);
 		} else {
 			vscode.window.showWarningMessage('No MCP servers were configured. Check prerequisites.');
 		}

@@ -1,0 +1,28 @@
+/* VENDORIZADO desde @specbox/tokens — NO EDITAR. Fuente: packages/tokens/src/tokens.json del manager. Re-sync: `npm run build && npm run sync` en el paquete. */
+/* AUTO-GENERADO por @specbox/tokens v2 (Tinta, D18 2026-09-30) — NO EDITAR A MANO.
+   Fuente: src/tokens.json (W3C DTCG). Regenera con `npm run build`. */
+
+/* Capa de transición: los nombres de la v1 apuntan a los tokens v2. Retírala cuando la app
+   ya no use ninguno. Los colores de marca de la v1 (--color-electric-blue, --color-cyan-tech,
+   --color-violet…) NO tienen equivalente a propósito: cada uso debe migrarse a mano. */
+:root, [data-theme], .light, .dark {
+  --bg-primary: var(--paper-000);
+  --bg-secondary: var(--paper-100);
+  --bg-tertiary: var(--paper-200);
+  --text-primary: var(--ink-900);
+  --text-secondary: var(--ink-700);
+  --text-tertiary: var(--ink-500);
+  --border-color: var(--line-100);
+  --border-strong: var(--line-200);
+  --primary-subtle: var(--accent-soft);
+  --shadow-lg: var(--shadow-md);
+  --status-backlog: var(--status-backlog-text);
+  --status-progress: var(--status-progress-text);
+  --status-review: var(--status-review-text);
+  --status-done: var(--status-done-text);
+  --status-blocked: var(--status-blocked-text);
+  --status-reserved: var(--status-reserved-text);
+  --font-heading: var(--font-sans);
+  --font-body: var(--font-sans);
+  --radius-full: var(--radius-pill);
+}

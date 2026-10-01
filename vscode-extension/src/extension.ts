@@ -98,8 +98,8 @@ export async function activate(context: vscode.ExtensionContext) {
 				connectionEndedNotified = false;
 				vscode.window.showInformationMessage(
 					result.handle
-						? vscode.l10n.t('Signed in as @{0}. Welcome!', result.handle)
-						: vscode.l10n.t('Signed in. Welcome!')
+						? `[x] ${vscode.l10n.t('Signed in as @{0}. Welcome!', result.handle)}`
+						: `[x] ${vscode.l10n.t('Signed in. Welcome!')}`
 				);
 				void reportConnection(result);
 				await refreshIdentity(statusTree, secrets);
@@ -112,7 +112,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		vscode.commands.registerCommand('specbox.signOut', async () => {
 			await runSignOut(secrets, cli);
-			vscode.window.showInformationMessage(vscode.l10n.t('Signed out.'));
+			vscode.window.showInformationMessage(`[x] ${vscode.l10n.t('Signed out.')}`);
 			await refreshIdentity(statusTree, secrets);
 		}),
 
@@ -216,7 +216,7 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 		const report = await ensureDeviceConnection(cli, secrets, () => { removeLegacyLauncherEntry(); });
 		if (report.state === 'adopted') {
 			vscode.window.showInformationMessage(
-				vscode.l10n.t('This computer now connects to SpecBox with your account. New Claude Code sessions use it automatically.')
+				`[x] ${vscode.l10n.t('This computer now connects to SpecBox with your account. New Claude Code sessions use it automatically.')}`
 			);
 		}
 		if (report.state === 'adopt_failed' && report.reason === 'device_limit') {

@@ -105,7 +105,7 @@ export class OnboardWizard {
 		if (cloned && fs.existsSync(path.join(targetDir, 'ENGINE_VERSION.yaml'))) {
 			await vscode.workspace.getConfiguration('specbox').update('enginePath', targetDir, vscode.ConfigurationTarget.Global);
 			const action = await vscode.window.showInformationMessage(
-				'SpecBox Engine cloned successfully. Install now?',
+				'[x] SpecBox Engine cloned. Install now?',
 				'Install', 'Later'
 			);
 			if (action === 'Install') {
@@ -127,10 +127,10 @@ export class OnboardWizard {
 	}): void {
 		const lines: string[] = [];
 		if (h.engineInstalled) {
-			lines.push(`SpecBox Engine v${h.engineVersion} installed successfully!`);
+			lines.push(`[x] SpecBox Engine v${h.engineVersion} installed`);
 		}
-		lines.push(`Skills: ${h.skills.installed.length} installed`);
-		lines.push(`Hooks: ${h.hooks.count} active`);
+		lines.push(`[x] Skills: ${h.skills.installed.length} installed`);
+		lines.push(`[x] Hooks: ${h.hooks.count} active`);
 
 		const warnings: string[] = [];
 		if (!h.mcpSpecbox.configured) { warnings.push('MCP SpecBox not configured'); }
@@ -138,9 +138,9 @@ export class OnboardWizard {
 		if (!h.engram.ok) { warnings.push('Engram not installed'); }
 
 		if (warnings.length > 0) {
-			lines.push(`\nAction needed: ${warnings.join(', ')}`);
+			lines.push(...warnings.map((w) => `[ ] ${w}`));
 		} else {
-			lines.push('\nAll systems operational. You can now use /prd, /plan, /implement in Claude Code.');
+			lines.push('[x] All systems operational. You can now use /prd, /plan, /implement in Claude Code.');
 		}
 
 		if (warnings.length > 0) {

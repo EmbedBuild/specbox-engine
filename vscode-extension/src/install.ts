@@ -280,7 +280,7 @@ export class InstallManager {
 				}
 			} else {
 				vscode.window.showInformationMessage(
-					`SpecBox Engine v${result.engineVersion} installed: ${skillsResult.count} skills, ${hooksResult.count} hooks, MCP configured.`
+					`[x] SpecBox Engine v${result.engineVersion} installed: ${skillsResult.count} skills, ${hooksResult.count} hooks, MCP configured.`
 				);
 			}
 		});
@@ -365,7 +365,7 @@ export class InstallManager {
 		});
 
 		if (result.ok && result.path) {
-			vscode.window.showInformationMessage(vscode.l10n.t('SpecBox Engine cloned.'));
+			vscode.window.showInformationMessage(`[x] ${vscode.l10n.t('SpecBox Engine cloned.')}`);
 			await vscode.workspace.getConfiguration('specbox').update('enginePath', result.path, vscode.ConfigurationTarget.Global);
 			return result.path;
 		}

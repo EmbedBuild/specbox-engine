@@ -1,0 +1,123 @@
+/* VENDORIZADO desde @specbox/tokens — NO EDITAR. Fuente: packages/tokens/src/tokens.json del manager. Re-sync: `npm run build && npm run sync` en el paquete. */
+/* AUTO-GENERADO por @specbox/tokens v2 (Tinta, D18 2026-09-30) — NO EDITAR A MANO.
+   Fuente: src/tokens.json (W3C DTCG). Regenera con `npm run build`. */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+/* dark: sigue la elección explícita (data-theme="dark" o clase dark) en la raíz o en un contenedor.
+   system.css la amplía para seguir al sistema operativo cuando no hay elección. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
+
+/* Utilidades de Tailwind v4: font-sans, rounded-md, text-display-xl, shadow-sm, ease-standard… */
+@theme {
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-pill: 999px;
+
+  --text-display-xl: 30px;
+  --text-display-xl--line-height: 36px;
+  --text-display-xl--font-weight: 600;
+  --text-display-xl--letter-spacing: -0.01em;
+  --text-display-lg: 24px;
+  --text-display-lg--line-height: 30px;
+  --text-display-lg--font-weight: 600;
+  --text-display-lg--letter-spacing: -0.01em;
+  --text-display-md: 20px;
+  --text-display-md--line-height: 26px;
+  --text-display-md--font-weight: 600;
+  --text-display-md--letter-spacing: -0.005em;
+  --text-display-sm: 17px;
+  --text-display-sm--line-height: 24px;
+  --text-display-sm--font-weight: 600;
+  --text-metric: 28px;
+  --text-metric--line-height: 32px;
+  --text-metric--font-weight: 600;
+  --text-metric--letter-spacing: -0.02em;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 24px;
+  --text-body-lg--font-weight: 400;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 20px;
+  --text-body-md--font-weight: 400;
+  --text-label: 13px;
+  --text-label--line-height: 18px;
+  --text-label--font-weight: 500;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-caption--font-weight: 400;
+  --text-data-md: 13px;
+  --text-data-md--line-height: 20px;
+  --text-data-md--font-weight: 400;
+  --text-data-sm: 12px;
+  --text-data-sm--line-height: 16px;
+  --text-data-sm--font-weight: 400;
+  --text-code: 13px;
+  --text-code--line-height: 20px;
+  --text-code--font-weight: 400;
+  --text-kbd: 12px;
+  --text-kbd--line-height: 16px;
+  --text-kbd--font-weight: 500;
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Sombras por variable: shadow-sm y shadow-md siguen al tema (semantic-light/dark.css) */
+@theme inline {
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+}
+
+/* Colores por variable: bg-paper-000, text-ink-900, border-line-300, text-status-done-text… siguen al tema */
+@theme inline {
+  --color-paper-100: var(--paper-100);
+  --color-paper-200: var(--paper-200);
+  --color-paper-300: var(--paper-300);
+  --color-paper-000: var(--paper-000);
+  --color-ink-400: var(--ink-400);
+  --color-ink-500: var(--ink-500);
+  --color-ink-700: var(--ink-700);
+  --color-ink-900: var(--ink-900);
+  --color-line-100: var(--line-100);
+  --color-line-200: var(--line-200);
+  --color-line-300: var(--line-300);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-focus-ring: var(--focus-ring);
+  --color-link: var(--link);
+  --color-overlay: var(--overlay);
+  --color-status-backlog-text: var(--status-backlog-text);
+  --color-status-backlog-bg: var(--status-backlog-bg);
+  --color-status-progress-text: var(--status-progress-text);
+  --color-status-progress-bg: var(--status-progress-bg);
+  --color-status-review-text: var(--status-review-text);
+  --color-status-review-bg: var(--status-review-bg);
+  --color-status-done-text: var(--status-done-text);
+  --color-status-done-bg: var(--status-done-bg);
+  --color-status-blocked-text: var(--status-blocked-text);
+  --color-status-blocked-bg: var(--status-blocked-bg);
+  --color-status-reserved-text: var(--status-reserved-text);
+  --color-status-reserved-bg: var(--status-reserved-bg);
+  --color-attention-text: var(--attention-text);
+  --color-attention-bg: var(--attention-bg);
+  --color-success-text: var(--success-text);
+  --color-success-bg: var(--success-bg);
+  --color-warning-text: var(--warning-text);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger-text: var(--danger-text);
+  --color-danger-bg: var(--danger-bg);
+  --color-info-text: var(--info-text);
+  --color-info-bg: var(--info-bg);
+}
+
+/* Densidad activa del contenedor (foundation.css): h-row, min-h-row, py-pad, px-pad, text-density */
+@theme inline {
+  --spacing-row: var(--density-row);
+  --spacing-pad: var(--density-pad);
+  --text-density: var(--density-text);
+}

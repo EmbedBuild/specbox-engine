@@ -208,7 +208,7 @@ export class ExtensionUpdater {
 			if (result !== null && installed === engineVersion) {
 				const reload = vscode.l10n.t('Reload Now');
 				const choice = await vscode.window.showInformationMessage(
-					vscode.l10n.t('SpecBox Extension updated to v{0}. Reload to activate?', installed),
+					`[x] ${vscode.l10n.t('SpecBox Extension updated to v{0}. Reload to activate?', installed)}`,
 					reload,
 				);
 				if (choice === reload) {
@@ -418,7 +418,7 @@ export class ExtensionUpdater {
 
 		if (result === 'reloading') {
 			vscode.window.showInformationMessage(
-				vscode.l10n.t('SpecBox: engine reset to origin/{0}. Previous work backed up at {1}.', DEFAULT_REMOTE_BRANCH, backupRef),
+				`[x] ${vscode.l10n.t('SpecBox: engine reset to origin/{0}. Previous work backed up at {1}.', DEFAULT_REMOTE_BRANCH, backupRef)}`,
 			);
 		}
 		return result;

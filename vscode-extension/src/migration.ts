@@ -350,7 +350,7 @@ export function registerRevertCommand(context: vscode.ExtensionContext): void {
       const ok = revertLastMigration(settingsPath);
       if (ok) {
         vscode.window.showInformationMessage(
-          vscode.l10n.t('Reverted last migration from {0}. Reload the window to apply.', path.basename(latest)),
+          `[x] ${vscode.l10n.t('Reverted last migration from {0}. Reload the window to apply.', path.basename(latest))}`,
         );
       } else {
         vscode.window.showErrorMessage(

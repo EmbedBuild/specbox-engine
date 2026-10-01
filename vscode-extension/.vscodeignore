@@ -21,3 +21,17 @@ media/specbox_sidebar_icon.png
 media/Logo SpecBox.png
 README.es.md
 copy-cli.mjs
+
+# UC-4903 — de los tokens del sistema (media/tokens, vendorizados desde specbox-manager) la
+# extensión solo lee en ejecución foundation.css y semantic-*.css; el símbolo, de media/brand.
+media/tokens/version-check.mjs
+media/tokens/version.json
+media/tokens/design-system.tokens.json
+media/tokens/compat.css
+media/tokens/theme.css
+media/tokens/system.css
+media/tokens/recipes.css
+media/brand/og-template.svg
+media/brand/specbox-mark-solid.svg
+media/brand/specbox-favicon.svg
+media/favicon.svg

@@ -1,0 +1,75 @@
+/* VENDORIZADO desde @specbox/tokens — NO EDITAR. Fuente: packages/tokens/src/tokens.json del manager. Re-sync: `npm run build && npm run sync` en el paquete. */
+/* AUTO-GENERADO por @specbox/tokens v2 (Tinta, D18 2026-09-30) — NO EDITAR A MANO.
+   Fuente: src/tokens.json (W3C DTCG). Regenera con `npm run build`. */
+
+/* Hoja de preferencia del sistema. Impórtala DESPUÉS de semantic-light.css y semantic-dark.css.
+   Mientras la raíz no lleve data-theme="light|dark" ni la clase light|dark, el tema sigue al
+   sistema operativo; una elección explícita prevalece siempre. */
+
+:root { color-scheme: light dark; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not(.light) {
+    /* Papel, tinta y líneas */
+    --paper-100: #1A1B1E;
+    --paper-200: #232428;
+    --paper-300: #2C2D31;
+    --paper-000: #121315;
+    --ink-400: #6F7278;
+    --ink-500: #8E9197;
+    --ink-700: #A7A9AE;
+    --ink-900: #F2F1EE;
+    --line-100: #2C2D31;
+    --line-200: #3A3B40;
+    --line-300: #6F7278;
+
+    /* Acento (la tinta), foco, enlaces, velo */
+    --accent: var(--ink-900);
+    --accent-hover: #DEDDD9;
+    --accent-soft: #26272B;
+    --on-accent: #121315;
+    --focus-ring: var(--ink-900);
+    --link: var(--ink-900);
+    --overlay: rgba(0, 0, 0, 0.6);
+
+    /* Estados del trabajo: texto sobre fondo, siempre con palabra */
+    --status-backlog-text: #9CA3AF;
+    --status-backlog-bg: #26282C;
+    --status-progress-text: #8AB4FF;
+    --status-progress-bg: #1C2942;
+    --status-review-text: #F5C451;
+    --status-review-bg: #3A2E14;
+    --status-done-text: #7EDC9A;
+    --status-done-bg: #17301F;
+    --status-blocked-text: #F59A9A;
+    --status-blocked-bg: #3B1D1D;
+    --status-reserved-text: #C4B0F5;
+    --status-reserved-bg: #2A2140;
+
+    /* Atención y semánticos: alias de los estados */
+    --attention-text: var(--status-review-text);
+    --attention-bg: var(--status-review-bg);
+    --success-text: var(--status-done-text);
+    --success-bg: var(--status-done-bg);
+    --warning-text: var(--status-review-text);
+    --warning-bg: var(--status-review-bg);
+    --danger-text: var(--status-blocked-text);
+    --danger-bg: var(--status-blocked-bg);
+    --info-text: var(--status-progress-text);
+    --info-bg: var(--status-progress-bg);
+
+    /* Sombras */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+
+/* Tailwind v4: dark: también sigue al sistema cuando no hay elección. Redefine la variante de
+   theme.css, así que va después de ella. Fuera de Tailwind el navegador ignora este bloque. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *) { @slot; }
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]):not(.light), :root:not([data-theme="light"]):not(.light) *) { @slot; }
+  }
+}

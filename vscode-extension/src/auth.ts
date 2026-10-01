@@ -223,8 +223,8 @@ export async function maybeShowOnboarding(
 			// they signed in as themselves, not someone else's reused session.
 			vscode.window.showInformationMessage(
 				result.handle
-					? vscode.l10n.t('Signed in as @{0}. Welcome!', result.handle)
-					: vscode.l10n.t('Signed in. Welcome!')
+					? `[x] ${vscode.l10n.t('Signed in as @{0}. Welcome!', result.handle)}`
+					: `[x] ${vscode.l10n.t('Signed in. Welcome!')}`
 			);
 			return decision;
 		}

@@ -1,3 +1,4 @@
+import { brandBlock, escapeHtml, lucideIcon, pageTheme, renderPage } from './design';
 import * as vscode from 'vscode';
 import * as http from 'node:http';
 import * as crypto from 'node:crypto';
@@ -158,30 +159,49 @@ function handleRequest(
 	return { ok: true, token, state };
 }
 
-function renderSuccessPage(): string {
+/** UC-4903 — la página de retorno, con el sistema «Tinta»: tokens, tema de VSCode, símbolo e icono. */
+const CALLBACK_CSS = `
+.page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--space-6); box-sizing: border-box; }
+main { width: 100%; max-width: var(--prose-max); padding: var(--space-8); background: var(--paper-100); border: var(--stroke-hair) solid var(--line-100); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+.state { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-3); }
+.done { color: var(--status-done-text); }
+.failed { color: var(--danger-text); }
+.detail { margin-top: var(--space-3); color: var(--ink-700); }
+h1 { margin-bottom: var(--space-2); }
+`;
+
+export function renderSuccessPage(): string {
+	const theme = pageTheme();
 	const title = vscode.l10n.t('Signed in to SpecBox');
 	const message = vscode.l10n.t('You can close this tab and return to VS Code.');
-	return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
-<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#1a1a2e;color:#e6e6e6;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}main{max-width:480px;padding:32px;text-align:center}h1{font-size:24px;margin:0 0 12px}p{font-size:16px;opacity:.85}</style>
-</head><body><main><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p></main>
-<script>setTimeout(function(){try{window.close();}catch(e){}}, 1500);</script>
-</body></html>`;
+	const state = vscode.l10n.t('Done');
+	return renderPage({
+		title,
+		theme,
+		css: CALLBACK_CSS,
+		body: `<div class="page"><main>${brandBlock(theme)}
+<p class="state done label">${lucideIcon('circle-check', { label: state })}<span>[x] ${escapeHtml(state)}</span></p>
+<h1 class="display-lg">${escapeHtml(title)}</h1>
+<p class="body-lg">${escapeHtml(message)}</p></main></div>`,
+		script: 'setTimeout(function(){try{window.close();}catch(e){}}, 1500);',
+	});
 }
 
-function renderErrorPage(code: string, description?: string): string {
+export function renderErrorPage(code: string, description?: string): string {
+	const theme = pageTheme();
 	const title = vscode.l10n.t('Sign-in failed');
+	const state = vscode.l10n.t('Failed');
 	const safeDesc = description ?? code;
-	return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
-<style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#1a1a2e;color:#e6e6e6;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}main{max-width:480px;padding:32px;text-align:center}h1{font-size:24px;margin:0 0 12px;color:#ff7676}p{font-size:14px;opacity:.85}</style>
-</head><body><main><h1>${escapeHtml(title)}</h1><p>${escapeHtml(safeDesc)}</p></main></body></html>`;
-}
-
-function escapeHtml(s: string): string {
-	return s.replace(/[&<>"']/g, (c) => ({
-		'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-	}[c] as string));
+	return renderPage({
+		title,
+		theme,
+		css: CALLBACK_CSS,
+		body: `<div class="page"><main>${brandBlock(theme)}
+<p class="state failed label">${lucideIcon('circle-x', { label: state })}<span>${escapeHtml(state)}</span></p>
+<h1 class="display-lg">${escapeHtml(title)}</h1>
+<p class="body-lg">${escapeHtml(safeDesc)}</p>
+<p class="detail data-md">${escapeHtml(code)}</p></main></div>`,
+	});
 }
 
 /**

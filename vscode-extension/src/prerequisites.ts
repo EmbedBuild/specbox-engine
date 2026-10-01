@@ -60,7 +60,7 @@ export async function showPrereqGate(health: HealthResult, opts: { onStartup: bo
 	if (verdict === 'ready') {
 		if (!opts.onStartup) {
 			vscode.window.showInformationMessage(
-				vscode.l10n.t('All prerequisites are installed. SpecBox is ready.')
+				`[x] ${vscode.l10n.t('All prerequisites are installed. SpecBox is ready.')}`
 			);
 		}
 		return;

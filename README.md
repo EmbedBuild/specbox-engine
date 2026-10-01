@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.17.0 — "Evidencias" (sobre v6.16.0 "Goma")<br/>
+  v 6.17.1 — "EngineFirst" (sobre v6.17.0 "Evidencias")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -35,6 +35,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Las pruebas del backend native corren en cada PR** contra un Postgres real y la suite completa ya no se cuelga; la CLI espera a npm aunque la versión quede «staged», y el Postgres de desarrollo arranca en el puerto que elijas (`SPECBOX_NATIVE_PG_PORT`).
 
 100% backwards-compatible: la evidencia en texto libre se guarda y se comenta igual que antes.
+
+**v6.17.1 — "EngineFirst"** el engine crea proyectos aunque no haya panel: si no hay organización que asignar, `setup_board` crea el proyecto sin ella en vez de fallar.
 
 ---
 
@@ -569,7 +571,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.17.0 — "Evidencias" (over v6.16.0 "Goma")
+> v 6.17.1 — "EngineFirst" (over v6.17.0 "Evidencias")
 
 ## What is this?
 
@@ -592,6 +594,8 @@ A system that turns Claude Code into a serious teammate:
 - **The native backend tests run on every PR** against a real Postgres and the full suite no longer hangs; the CLI waits for npm even when a version stays "staged", and the dev Postgres starts on the port you choose (`SPECBOX_NATIVE_PG_PORT`).
 
 100% backwards-compatible: free-text evidence is stored and commented exactly as before.
+
+**v6.17.1 — "EngineFirst"** the engine creates projects without the panel: when there is no organization to assign, `setup_board` creates the project without one instead of failing.
 
 **v6.16.0 — "Goma"** ("eraser") removes what was created by mistake and fixes what went wrong when closing "Tinta":
 

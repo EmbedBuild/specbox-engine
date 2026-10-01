@@ -2373,7 +2373,8 @@ Guía pública: [doc/guides/design-system-tokens.md](doc/guides/design-system-to
 - **Barra de estado** (`statusbar.ts`): icono nativo de VSCode (la única opción de la plataforma) y
   siempre la palabra — `comprobando`, `sin instalar`, `N pendientes`; con todo bien,
   `[x] SpecBox vX · listo` (la forma de terminal del símbolo). Los avisos de acciones terminadas
-  empiezan por `[x]`.
+  empiezan por `[x]` con `markDone(texto)` de `design.ts` (el lint de cadenas no acepta plantillas
+  literales como primer argumento de `show*Message`).
 - Tests: `vscode-extension/tests/design-system.test.mjs`.
 
 ## Engine Version

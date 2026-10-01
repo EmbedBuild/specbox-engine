@@ -66,6 +66,14 @@ export function lucideIcon(name: keyof typeof LUCIDE, opts: { label?: string; si
 	return `<svg xmlns="http://www.w3.org/2000/svg" class="lucide lucide-${name}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" focusable="false" ${a11y}>${LUCIDE[name]}</svg>`;
 }
 
+/**
+ * Un aviso de acción terminada con la marca de terminal del sistema: `[x] texto` (UC-4903 AC-02).
+ * La palabra la pone el propio texto («Conectado», «Clonado»…); la marca dice que está hecho.
+ */
+export function markDone(text: string): string {
+	return `[x] ${text}`;
+}
+
 export function escapeHtml(s: string): string {
 	return s.replace(/[&<>"']/g, (c) => ({
 		'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'

@@ -105,9 +105,13 @@ def test_parse_changelog_latest_version(changelog_text, engine_version_text):
     )
     assert latest.codename == _campo_crudo(engine_version_text, "codename")
     assert latest.release_date == _campo_crudo(engine_version_text, "release_date")
-    # Tiene las secciones canónicas de Keep a Changelog.
-    assert "Added" in latest.sections
-    assert len(latest.sections["Added"]) >= 1
+    # Cuenta qué cambió en alguna sección de cambio de Keep a Changelog, con contenido. No
+    # siempre «Added»: una release de parche puede traer solo «Changed» o «Fixed» (6.17.1
+    # «EngineFirst»); el resto de secciones (Tests, Compatibility…) son propias del engine.
+    changes = {"Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"}
+    assert any(latest.sections.get(kind) for kind in changes), (
+        f"la versión vigente no cuenta qué cambió: secciones {sorted(latest.sections)}"
+    )
 
 
 def test_parse_changelog_multiple_versions(changelog_text):

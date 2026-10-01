@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.15.0 — "Tinta" (sobre v6.14.2 "Idle Watch")<br/>
+  v 6.16.0 — "Goma" (sobre v6.15.0 "Tinta")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,18 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.16
+
+**v6.16.0 — "Goma"** borra lo que se creó por error y corrige lo que salió mal al cerrar "Tinta":
+
+- **Borrar de verdad una UC creada por error** — `delete_uc` con `purge=true` borra la UC, sus AC, sus transiciones, su reserva y su rama en una sola transacción y deja una copia en la auditoría. Solo si la UC nunca tuvo trabajo (en backlog o archivada, sin AC hechos, sin evidencia y sin reserva); si no, la archiva como siempre y dice por qué.
+- **La extensión habla español de principio a fin** — con VSCode en español ya no aparecen avisos, botones ni pasos de instalación en inglés; `npm test` falla si un texto se queda sin traducir.
+- **El comprobador de seguridad de cada release** ya no confunde los tokens de diseño con credenciales.
+
+100% backwards-compatible: sin `purge`, `delete_uc` sigue archivando; en Trello y Plane, `purge` archiva.
 
 ---
 
@@ -544,7 +556,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.15.0 — "Tinta" (over v6.14.2 "Idle Watch")
+> v 6.16.0 — "Goma" (over v6.15.0 "Tinta")
 
 ## What is this?
 
@@ -557,7 +569,15 @@ A system that turns Claude Code into a serious teammate:
 
 > The LLM provides speed. SpecBox provides quality and traceability.
 
-## What's new in v6.15
+## What's new in v6.16
+
+**v6.16.0 — "Goma"** ("eraser") removes what was created by mistake and fixes what went wrong when closing "Tinta":
+
+- **Really delete a UC created by mistake** — `delete_uc` with `purge=true` deletes the UC, its ACs, its state transitions, its reservation and its branch record in one transaction and keeps a copy in the audit log. Only when the UC never had work (backlog or archived, no AC done, no evidence, no reservation); otherwise it archives it as always and says why.
+- **The extension speaks Spanish end to end** — with VS Code in Spanish, no notification, button or install step is left in English; `npm test` fails when a text is left untranslated.
+- **The release security check** no longer takes design tokens for credentials.
+
+100% backwards-compatible: without `purge`, `delete_uc` keeps archiving; on Trello and Plane, `purge` archives.
 
 **v6.15.0 — "Tinta"** makes the engine and the extension speak the SpecBox ecosystem's single design system: one source of colours, type and components for the panel, the portal, the site and the extension.
 

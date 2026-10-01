@@ -1,4 +1,4 @@
-# SpecBox Engine v6.15.0
+# SpecBox Engine v6.16.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2403,7 +2403,7 @@ error (el origen fue UC-4304, duplicada de UC-3904 y borrada a mano por SQL el 2
 
 ## Engine Version
 
-Current: v6.15.0 "Tinta"
+Current: v6.16.0 "Goma"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

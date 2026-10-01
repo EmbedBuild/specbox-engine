@@ -2,6 +2,61 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.16.0] - 2026-10-01 — "Goma"
+
+Borra lo que se creó por error y corrige lo que salió mal al cerrar «Tinta»: una UC creada por
+error se puede borrar de verdad sin perder el rastro, la extensión deja de mezclar inglés y
+español y el comprobador de seguridad de cada versión deja de confundir los tokens de diseño con
+credenciales. Cierra la US-55 y la US-57 del board del orquestador.
+
+### Added
+
+- **`delete_uc` con `purge=true` borra de verdad una UC que nunca tuvo trabajo** (US-55/UC-5501) —
+  solo si está en backlog o archivada, sin AC hechos, sin evidencia (adjunto o metadatos de
+  `set_ac_metadata`) y sin reserva (`purge_refusal` en `server/spec_backend.py`). En native, una
+  transacción con la UC bloqueada borra sus AC, sus transiciones de estado, su reserva, su
+  registro de rama y la UC, y deja en `audit_log` la operación `purge_uc` con el motivo, las filas
+  borradas y la copia de la UC y de sus AC. FreeForm la borra de `items.json`/`archive.json` con
+  sus comentarios y deja la copia en `purged.jsonl`. Si no se puede borrar, la tool archiva como
+  siempre y devuelve `purge_refused` con el código y el motivo.
+- **Prueba de traducciones de la extensión** (US-57/UC-5702) — `vscode-extension/tests/l10n.test.mjs`
+  corre con `npm test`: cada texto de `l10n.t` está en los dos bundles, los dos tienen las mismas
+  claves, el español conserva los huecos `{0}` y el linter de cadenas pasa.
+
+### Changed
+
+- **La extensión habla español de principio a fin** (US-57/UC-5702) — 113 claves nuevas en los
+  bundles (39 textos no tenían entrada en ninguno y VSCode los enseñaba en inglés). Pasan por
+  `l10n.t` la instalación, el asistente de inicio, la configuración de MCP, el resumen tras cada
+  actualización, el aviso de requisitos y la ficha y el árbol de skills. Ningún fichero queda
+  fuera del linter de cadenas, que ahora vigila también títulos y pasos de progreso, diálogos de
+  carpeta, terminales y la barra de estado. «Revertir la última migración» recupera sus tildes.
+- **El comprobador de seguridad de cada versión** (US-57/UC-5703) — en un mensaje que habla de
+  diseño, «token» a secas no cuenta como cambio de seguridad; los tokens de acceso
+  (`mcp_token`, `dev_token`, Bearer, `service_role`, API key) cuentan siempre.
+
+### Security
+
+- **Un borrado real no deja trabajo ni rastro fuera de su sitio**: solo alcanza una UC sin
+  trabajo del proyecto de la sesión (se comprueba la membresía del proyecto que se escribe), lo
+  que no cumple las condiciones se archiva y nunca se pierde, y cada borrado deja la copia de la
+  UC y de sus AC en `audit_log`, que no se borra. Modelo de amenazas: T14.
+- **El comprobador de cada versión reconoce siempre una credencial** aunque el mismo mensaje
+  hable de diseño, de modo que un cambio en `mcp_token`, `dev_token`, `service_role` o una API
+  key no puede pasar como cambio visual.
+
+### Compatibility
+
+- 100% backwards-compatible. Sin `purge`, `delete_uc` sigue archivando; en Trello y Plane,
+  `purge` archiva y responde `PURGE_NOT_SUPPORTED`. Sin migraciones de base de datos.
+
+### Tests
+
+- `tests/test_uc_purge.py` (27, 9 de ellas contra Postgres: cascada, copia en auditoría, progreso
+  de la US, rechazos que no tocan nada, aislamiento por tenant, sin identidad),
+  `tests/test_changelog_security_check.py` (19) y `vscode-extension/tests/l10n.test.mjs`; suite
+  de la extensión 151/151, suite Python sin base 1952 passed.
+
 ## [6.15.0] - 2026-10-01 — "Tinta"
 
 El engine y la extensión hablan el sistema de diseño único del ecosistema SpecBox («Tinta», D18):

@@ -37,6 +37,7 @@ from typing import Any
 import structlog
 
 from ..spec_backend import (
+    AC_METADATA_MARK,
     AttachmentDTO,
     BackendUser,
     BoardConfig,
@@ -46,6 +47,7 @@ from ..spec_backend import (
     ModuleDTO,
     SpecBackend,
     parse_item_id,
+    purge_refusal,
 )
 
 logger = structlog.get_logger(__name__)
@@ -796,6 +798,83 @@ class FreeformBackend(SpecBackend):
         self._regenerate_progress()
 
         return {"archive_location": "archive.json", "archived_at": target["archived_at"]}
+
+    async def purge_use_case(
+        self, board_id: str, uc_item_id: str, *, reason: str,
+    ) -> dict[str, Any]:
+        """Delete a UC that never had work for real, with its ACs (UC-5501 AC-04).
+
+        Disk mode looks for the UC in items.json and, if it was archived, in
+        archive.json; removes it with its ACs, comments and (empty) attachment
+        folders, and appends the copy to purged.jsonl so it can be rebuilt by
+        hand. Memory mode (remote MCP) removes it from the items content and
+        returns the copy; FreeForm has no reservations.
+        """
+        items = self._load_items()
+        uc = next((i for i in items if i.get("id") == uc_item_id), None)
+        state = (uc or {}).get("state", "")
+        archive: list[dict[str, Any]] | None = None
+        if uc is None and not self._memory_mode:
+            # An archived UC left items.json: the tool cannot find it by uc_id and
+            # passes the logical id (UC-xxx) instead of the item id.
+            archive_path = self.root / "archive.json"
+            if archive_path.exists():
+                archive = json.loads(archive_path.read_text())
+                uc = next(
+                    (
+                        i for i in archive
+                        if i.get("id") == uc_item_id or parse_item_id(i.get("name", ""), "UC")[0] == uc_item_id
+                    ),
+                    None,
+                )
+                state = "archived"
+        if uc is None:
+            raise ValueError(f"UC '{uc_item_id}' not found")
+
+        uc_item_id = uc["id"]
+        uc_id = parse_item_id(uc.get("name", ""), "UC")[0] or uc_item_id
+        acs = [i for i in items if i.get("parent_id") == uc_item_id and "AC" in i.get("labels", [])]
+        gone = {uc_item_id, *(ac["id"] for ac in acs)}
+        has_evidence = any(AC_METADATA_MARK in ac.get("name", "") for ac in acs) or (
+            not self._memory_mode
+            and any(
+                self._attachments_dir(item_id).exists() and any(self._attachments_dir(item_id).iterdir())
+                for item_id in gone
+            )
+        )
+        refusal = purge_refusal(
+            uc_id,
+            state=state,
+            done_ac_ids=[parse_item_id(ac.get("name", ""), "AC")[0] for ac in acs if ac.get("state") == "done"],
+            has_evidence=has_evidence,
+            reserved_by=None,
+        )
+        if refusal is not None:
+            raise refusal
+
+        purged_at = _now_iso()
+        snapshot = {"uc": uc, "acceptance_criteria": acs}
+        deleted = {"use_cases": 1, "acceptance_criteria": len(acs)}
+        self._save_items([i for i in items if i.get("id") not in gone])
+        if not self._memory_mode:
+            if archive is not None:
+                (self.root / "archive.json").write_text(
+                    json.dumps([i for i in archive if i.get("id") != uc_item_id], indent=2, ensure_ascii=False)
+                )
+            deleted["comments"] = 0
+            for item_id in gone:
+                comments = self._comments_path(item_id)
+                if comments.exists():
+                    comments.unlink()
+                    deleted["comments"] += 1
+                attachments = self._attachments_dir(item_id)
+                if attachments.exists():
+                    attachments.rmdir()  # empty: a folder with files is evidence and refuses above
+            with (self.root / "purged.jsonl").open("a") as f:
+                record = {"purged_at": purged_at, "uc_id": uc_id, "reason": reason, "snapshot": snapshot}
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        self._regenerate_progress()
+        return {"purged_at": purged_at, "deleted": deleted, "snapshot": snapshot}
 
     # ── SpecBackend: Comments ────────────────────────────────────
 

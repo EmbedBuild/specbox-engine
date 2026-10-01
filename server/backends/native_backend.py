@@ -73,6 +73,7 @@ import structlog
 
 from ..db.pool import get_pool
 from ..spec_backend import (
+    AC_METADATA_MARK,
     AttachmentDTO,
     BackendUser,
     BoardConfig,
@@ -82,6 +83,7 @@ from ..spec_backend import (
     ModuleDTO,
     SpecBackend,
     parse_item_id,
+    purge_refusal,
 )
 
 if TYPE_CHECKING:
@@ -169,6 +171,21 @@ def _from_jsonb(value: Any) -> Any:
         return json.loads(value)
     # Already decoded (a json codec was configured upstream) — pass through.
     return value
+
+
+_JSONB_COLUMNS = frozenset({"labels", "meta"})
+
+
+def _snapshot_row(row: asyncpg.Record) -> dict[str, Any]:
+    """A row as JSON-safe data, for the audit copy of a purged UC (UC-5501 AC-03)."""
+    out: dict[str, Any] = {}
+    for key, value in dict(row).items():
+        if key in _JSONB_COLUMNS:
+            value = _from_jsonb(value)
+        elif hasattr(value, "isoformat"):
+            value = value.isoformat()
+        out[key] = value
+    return out
 
 
 def _split_expected_version(
@@ -1544,6 +1561,91 @@ class NativeBackend(SpecBackend):
                 target_id=item_id,
             )
         return {"archive_location": "state=archived", "archived_at": archived_at}
+
+    async def purge_use_case(
+        self, board_id: str, uc_item_id: str, *, reason: str,
+    ) -> dict[str, Any]:
+        """Delete a UC that never had work, with everything that hangs from it (UC-5501).
+
+        One transaction, with the UC row locked: the eligibility check
+        (:func:`purge_refusal`) and the deletes see the same state, so a
+        concurrent ``mark_ac`` or ``reserve_uc`` either lands before (and the
+        purge is refused) or after (and finds nothing). Membership is checked
+        against ``board_id``, the project being written (US-34). The audit row
+        keeps the reason and a copy of the UC and its ACs (AC-03); the audit
+        trail itself (``audit_log`` rows about this UC) is never deleted.
+        """
+        dev = await self._require_membership_cached(board_id)
+        from datetime import datetime, timezone
+
+        from ..coordination.audit import OP_PURGE_UC, record_destructive
+
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                uc = await conn.fetchrow(
+                    "SELECT * FROM use_cases WHERE project_id = $1 AND id = $2 FOR UPDATE",
+                    board_id,
+                    uc_item_id,
+                )
+                if uc is None:
+                    raise ValueError(f"UC '{uc_item_id}' not found")
+                acs = await conn.fetch(
+                    "SELECT * FROM acceptance_criteria WHERE project_id = $1 AND uc_id = $2 ORDER BY ac_id",
+                    board_id,
+                    uc_item_id,
+                )
+                reserved_by = await conn.fetchval(
+                    "SELECT developer_id FROM uc_reservations WHERE project_id = $1 AND uc_id = $2",
+                    board_id,
+                    uc_item_id,
+                )
+                has_evidence = bool((_from_jsonb(uc["meta"]) or {}).get("attachments")) or any(
+                    (_from_jsonb(ac["meta"]) or {}).get("attachments") or AC_METADATA_MARK in ac["text"]
+                    for ac in acs
+                )
+                refusal = purge_refusal(
+                    uc_item_id,
+                    state=uc["state"],
+                    done_ac_ids=[ac["ac_id"] for ac in acs if ac["done"]],
+                    has_evidence=has_evidence,
+                    reserved_by=reserved_by,
+                )
+                if refusal is not None:
+                    raise refusal
+
+                deleted: dict[str, int] = {}
+                for table in ("acceptance_criteria", "uc_state_transitions", "uc_reservations", "branch_registry"):
+                    status = await conn.execute(
+                        f"DELETE FROM {table} WHERE project_id = $1 AND uc_id = $2",
+                        board_id,
+                        uc_item_id,
+                    )
+                    deleted[table] = int(status.split()[-1])
+                status = await conn.execute(
+                    "DELETE FROM use_cases WHERE project_id = $1 AND id = $2",
+                    board_id,
+                    uc_item_id,
+                )
+                deleted["use_cases"] = int(status.split()[-1])
+
+                snapshot = {
+                    "uc": _snapshot_row(uc),
+                    "acceptance_criteria": [_snapshot_row(ac) for ac in acs],
+                }
+                await record_destructive(
+                    conn,
+                    developer_id=dev.developer_id,
+                    project_id=board_id,
+                    operation=OP_PURGE_UC,
+                    target_id=uc_item_id,
+                    metadata={"reason": reason, "deleted": deleted, "snapshot": snapshot},
+                )
+        return {
+            "purged_at": datetime.now(timezone.utc).isoformat(),
+            "deleted": deleted,
+            "snapshot": snapshot,
+        }
 
     # ── SpecBackend: Comments ────────────────────────────────────
     #

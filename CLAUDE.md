@@ -2377,6 +2377,30 @@ Guía pública: [doc/guides/design-system-tokens.md](doc/guides/design-system-to
   literales como primer argumento de `show*Message`).
 - Tests: `vscode-extension/tests/design-system.test.mjs`.
 
+## Borrar de verdad una UC que nunca tuvo trabajo (US-55 · UC-5501)
+
+`delete_uc` sigue archivando por defecto. Con `purge=true` borra de verdad una UC creada por
+error (el origen fue UC-4304, duplicada de UC-3904 y borrada a mano por SQL el 2026-09-30).
+
+- **Quién se puede borrar**: `server/spec_backend.py::purge_refusal` — solo una UC en `backlog` o
+  `archived`, sin ningún AC hecho, sin evidencia (adjunto en la UC o en un AC, o el sufijo
+  `[META: …]` de `set_ac_metadata`) y sin reserva. Si no, `PurgeRefused` con su código
+  (`PURGE_UC_STATE`, `PURGE_UC_HAS_DONE_AC`, `PURGE_UC_HAS_EVIDENCE`, `PURGE_UC_RESERVED`) y la
+  tool archiva como sin `purge`, devolviendo `purge_refused = {code, message}`.
+- **Native** (`NativeBackend.purge_use_case`): una transacción con la UC bloqueada (`FOR UPDATE`)
+  borra `acceptance_criteria`, `uc_state_transitions`, `uc_reservations`, `branch_registry` y la
+  fila de `use_cases`, y escribe en `audit_log` la operación `purge_uc` con el motivo, las filas
+  borradas por tabla y la copia de la UC y de sus AC (`metadata.snapshot`). `audit_log` no se
+  toca. Membresía contra el `board_id` que se escribe (US-34).
+- **FreeForm** (`FreeformBackend.purge_use_case`): quita la UC y sus AC de `items.json` (o la UC
+  de `archive.json` si estaba archivada; la tool la busca por su id lógico), sus comentarios y
+  sus carpetas de adjuntos vacías, y añade la copia a `purged.jsonl`. En memoria (MCP remoto)
+  devuelve el board sin la UC y la copia en la respuesta.
+- **Trello y Plane** heredan el método por defecto: `PURGE_NOT_SUPPORTED` y la UC se archiva.
+  El backend dual borra en el principal y replica en el espejo sin propagar sus fallos.
+- Modelo de amenazas: T14 en `doc/security/threat-model.md`. Tests: `tests/test_uc_purge.py`
+  (las native, contra Postgres).
+
 ## Engine Version
 
 Current: v6.15.0 "Tinta"

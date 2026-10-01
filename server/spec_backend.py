@@ -139,6 +139,70 @@ def parse_item_id(name: str, prefix: str = "US") -> tuple[str, str]:
     return "", name
 
 
+# ── Real deletion of a UC that never had work (US-55 / UC-5501) ──────
+
+#: States from which a UC can be deleted for real: never started, or archived.
+PURGEABLE_UC_STATES = frozenset({"backlog", "archived"})
+
+PURGE_NOT_SUPPORTED = "PURGE_NOT_SUPPORTED"
+PURGE_UC_STATE = "PURGE_UC_STATE"
+PURGE_UC_HAS_DONE_AC = "PURGE_UC_HAS_DONE_AC"
+PURGE_UC_HAS_EVIDENCE = "PURGE_UC_HAS_EVIDENCE"
+PURGE_UC_RESERVED = "PURGE_UC_RESERVED"
+
+
+class PurgeRefused(Exception):
+    """A UC cannot be deleted for real; ``code`` says why (``PURGE_*``).
+
+    The caller keeps today's behaviour: the UC is archived, never lost.
+    """
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+def purge_refusal(
+    uc_id: str,
+    *,
+    state: str,
+    done_ac_ids: list[str],
+    has_evidence: bool,
+    reserved_by: str | None,
+) -> PurgeRefused | None:
+    """Why a UC cannot be deleted for real, or None when it can (UC-5501 AC-02).
+
+    Real deletion is only for a UC that never had work: in backlog or archived,
+    no AC done, no evidence attached and nobody holding a reservation on it.
+    """
+    if state not in PURGEABLE_UC_STATES:
+        return PurgeRefused(
+            PURGE_UC_STATE,
+            f"{uc_id} is in '{state}': only a UC in backlog or archived can be deleted for real.",
+        )
+    if done_ac_ids:
+        return PurgeRefused(
+            PURGE_UC_HAS_DONE_AC,
+            f"{uc_id} has {len(done_ac_ids)} AC done ({', '.join(done_ac_ids)}): it had work.",
+        )
+    if has_evidence:
+        return PurgeRefused(
+            PURGE_UC_HAS_EVIDENCE,
+            f"{uc_id} has evidence attached (to the UC or to one of its AC): it had work.",
+        )
+    if reserved_by:
+        return PurgeRefused(
+            PURGE_UC_RESERVED,
+            f"{uc_id} is reserved by {reserved_by}: release it first.",
+        )
+    return None
+
+
+#: An AC carries evidence when set_ac_metadata wrote its JSON suffix into the text.
+AC_METADATA_MARK = "[META:"
+
+
 # ── Abstract Backend ─────────────────────────────────────────────────
 
 
@@ -368,6 +432,25 @@ class SpecBackend(ABC):
 
         Returns: {"archive_location": str, "archived_at": str}
         """
+
+    async def purge_use_case(
+        self, board_id: str, uc_item_id: str, *, reason: str,
+    ) -> dict[str, Any]:
+        """Delete a UC that never had work for real, with its ACs (US-55 / UC-5501).
+
+        Only backends that own their storage implement it (Native, FreeForm);
+        Trello and Plane keep archiving, so the default refuses with
+        ``PURGE_NOT_SUPPORTED``. Implementations check :func:`purge_refusal`
+        and raise :class:`PurgeRefused` without touching anything, or delete
+        and return ``{"purged_at": str, "deleted": {what: count}, "snapshot":
+        {"uc": {...}, "acceptance_criteria": [...]}}``.
+
+        Raises ValueError if the UC is not found.
+        """
+        raise PurgeRefused(
+            PURGE_NOT_SUPPORTED,
+            f"{type(self).__name__} cannot delete for real: the UC is archived instead.",
+        )
 
     # ── Comments ─────────────────────────────────────────────────
 

@@ -106,6 +106,64 @@ def test_empty_section_fails(tmp_path):
     assert any("vacía" in p for p in result["problems"])
 
 
+DESIGN_COMMIT = {
+    "subject": "feat(US-49/UC-4901): las herramientas de diseño leen el sistema, no un brand kit aparte",
+    "body": "Cuando un proyecto tiene tokens del sistema (design-system.tokens.json), son la única fuente.",
+    "files": ["server/design_system/tokens.py"],
+}
+
+
+def test_design_tokens_alone_are_not_a_security_change(tmp_path):
+    """US-57/UC-5703 AC-01 — en un mensaje sobre diseño, «tokens» son valores de diseño."""
+    code, result, _ = _run(tmp_path, _changelog("### Added\n\n- x\n"), [DESIGN_COMMIT])
+    assert code == 0, result
+    assert result["security_commits"] == []
+
+
+def test_bare_token_still_counts_without_design_context(tmp_path):
+    commit = {"subject": "fix(cli): el ayudante guarda el token en el Llavero", "body": "", "files": ["packages/x.mjs"]}
+    code, result, _ = _run(tmp_path, _changelog("### Fixed\n\n- x\n"), [commit])
+    assert code == 1
+    assert result["security_commits"][0]["reasons"] == ["mensaje: «token»"]
+
+
+def test_design_commit_touching_a_sensitive_file_still_counts(tmp_path):
+    commit = {**DESIGN_COMMIT, "files": ["vscode-extension/src/oauth.ts"]}
+    code, result, _ = _run(tmp_path, _changelog("### Added\n\n- x\n"), [commit])
+    assert code == 1
+    assert result["security_commits"][0]["reasons"] == ["fichero: vscode-extension/src/oauth.ts"]
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    ["token de acceso", "access token", "mcp_token", "dev_token", "Bearer", "service_role", "API key"],
+)
+def test_access_tokens_always_count_even_in_a_design_message(tmp_path, phrase):
+    """US-57/UC-5703 AC-02."""
+    commit = {**DESIGN_COMMIT, "body": f"Los tokens del sistema de diseño y, además, el {phrase} de la sesión."}
+    code, result, _ = _run(tmp_path, _changelog("### Added\n\n- x\n"), [commit])
+    assert code == 1
+    assert result["security_commits"][0]["reasons"] == [f"mensaje: «{phrase}»"]
+
+
+def test_release_6_15_0_flags_only_its_real_security_commits():
+    """US-57/UC-5703 AC-01 sobre la historia real: los commits de «Tinta» no son de seguridad."""
+    if shutil.which("git") is None:
+        pytest.skip("git no está disponible")
+    for tag in ("v6.14.2", "v6.15.0"):
+        found = subprocess.run(["git", "rev-parse", "-q", "--verify", f"{tag}^{{commit}}"], cwd=ROOT, capture_output=True, check=False)
+        if found.returncode != 0:
+            pytest.skip(f"clon sin la etiqueta {tag}")
+    script = (
+        f"import {{ commitsFromGit, classifyCommit }} from {json.dumps(SCRIPT.as_uri())};"
+        "const commits = commitsFromGit('v6.14.2..v6.15.0', process.cwd());"
+        "console.log(JSON.stringify(commits.filter((c) => classifyCommit(c).length).map((c) => c.subject)));"
+    )
+    proc = subprocess.run(["node", "--input-type=module", "-e", script], cwd=ROOT, capture_output=True, text=True, check=True)
+    flagged = {subject.rsplit("(#", 1)[-1].rstrip(")") for subject in json.loads(proc.stdout)}
+    assert flagged == {"181", "174"}
+
+
 def test_the_published_changelog_passes_against_git_history():
     """El contrato vivo: la entrada superior del CHANGELOG.md real cumple la regla."""
     if shutil.which("git") is None:

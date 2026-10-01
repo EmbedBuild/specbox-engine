@@ -12,8 +12,11 @@
  *   2. Lista los commits de esa versión: desde la etiqueta de la entrada
  *      anterior (`v<anterior>`) hasta HEAD, o desde `--since <ref>`.
  *   3. Un commit es de seguridad si su mensaje habla de seguridad
- *      (SECURITY_KEYWORDS, en español o inglés) o toca la superficie sensible
- *      (SECURITY_PATHS). Los trailers (Co-Authored-By, Refs…) no cuentan.
+ *      (SECURITY_KEYWORDS, en español o inglés), nombra un token de acceso
+ *      (ACCESS_TOKEN) o toca la superficie sensible (SECURITY_PATHS). Los
+ *      trailers (Co-Authored-By, Refs…) no cuentan. «token» a secas no cuenta en
+ *      un mensaje que habla de diseño (DESIGN_CONTEXT): ahí son los tokens del
+ *      sistema de diseño (US-57/UC-5703).
  *   4. Con al menos un commit de seguridad, la entrada debe tener `### Security`
  *      (también vale `### Seguridad`) con contenido.
  *   5. Esa sección no puede nombrar severidades, incidentes, reportes, testers ni
@@ -50,6 +53,15 @@ export const SECURITY_KEYWORDS = new RegExp(
     ')\\b',
   'i',
 );
+
+// Tokens de acceso: cuentan siempre, hable de lo que hable el resto del mensaje.
+export const ACCESS_TOKEN =
+  /\b(tokens? de (acceso|dispositivo|sesi[oó]n)|access[ _-]?tokens?|mcp_tokens?|dev_tokens?|bearer|service[_-]role|api[ _-]?keys?)\b/i;
+
+// Un mensaje que habla del sistema de diseño (design-system.tokens.json, @specbox/tokens,
+// «Tinta»): ahí «token» a secas es un valor de diseño, no una credencial.
+export const DESIGN_CONTEXT = /\b(dise[ñn]o|design|design[-_]system|tinta)\b|@specbox\/tokens/i;
+const BARE_TOKEN = /^tokens?$/i;
 
 // Ficheros cuya modificación es, por sí sola, un cambio de seguridad.
 export const SECURITY_PATHS = [
@@ -124,8 +136,13 @@ export function classifyCommit(commit) {
     .split('\n')
     .filter((line) => !TRAILER.test(line));
   const message = [String(commit.subject || ''), ...bodyLines].join('\n');
-  const keyword = message.match(SECURITY_KEYWORDS);
-  if (keyword) reasons.push(`mensaje: «${keyword[0]}»`);
+  const aboutDesign = DESIGN_CONTEXT.test(message);
+  const keyword =
+    message.match(ACCESS_TOKEN)?.[0] ??
+    [...message.matchAll(new RegExp(SECURITY_KEYWORDS.source, 'gi'))]
+      .map((match) => match[0])
+      .find((word) => !(aboutDesign && BARE_TOKEN.test(word)));
+  if (keyword) reasons.push(`mensaje: «${keyword}»`);
   for (const file of commit.files || []) {
     if (SECURITY_PATHS.includes(file)) reasons.push(`fichero: ${file}`);
   }

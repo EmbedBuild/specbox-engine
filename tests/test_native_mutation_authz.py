@@ -40,7 +40,7 @@ from server.coordination.identity import (
 from server.db.migrate import apply_migrations
 from server.db.pool import close_pool, init_pool
 
-from tests._native_db import DSN, reachable
+from tests._native_db import DSN, reachable, seed_organization
 
 PG_OK, PG_SKIP_REASON = reachable()
 
@@ -63,9 +63,10 @@ def _unique_token() -> str:
 
 
 async def _seed_project(pool, *, project_id: str, developer_id: str, token: str, add_member: bool = True) -> str:
-    """Create project + developer + token + (optional) membership.
+    """Create project + developer (with its organization) + token + (optional) membership.
 
-    Returns the ``token_id`` minted by ``register_mcp_token``.
+    The organization is what ``setup_board`` needs to provision the project for
+    the developer (UC-1303). Returns the ``token_id`` minted by ``register_mcp_token``.
     """
     async with pool.acquire() as conn:
         await conn.execute(
@@ -74,6 +75,7 @@ async def _seed_project(pool, *, project_id: str, developer_id: str, token: str,
             "UC-502 mutation authz",
         )
         await register_developer(conn, developer_id=developer_id, display_name="Tester")
+        await seed_organization(conn, developer_id)
         token_id = await register_mcp_token(conn, developer_id=developer_id, token=token)
         if add_member:
             await add_project_member(conn, project_id=project_id, developer_id=developer_id)

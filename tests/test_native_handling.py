@@ -36,7 +36,7 @@ from server.migration.native_handling import (
     collect_discarded_native_state,
     seed_native_identity,
 )
-from tests._native_db import DSN, reachable
+from tests._native_db import DSN, reachable, seed_organization
 
 PG_OK, PG_SKIP_REASON = reachable()
 
@@ -55,13 +55,16 @@ async def _setup_board_with_identity(pool, pid: str, token: str, name: str) -> N
     the session token and provisions the membership atomically (so it can never
     leave an orphan). These tests therefore must register the throwaway token +
     developer BEFORE ``setup_board``; previously a fake token was enough because
-    the old ``setup_board`` did a bare INSERT with no identity.
+    the old ``setup_board`` did a bare INSERT with no identity. The developer
+    also needs the organization a signup gives (UC-1303): provisioning places the
+    project in it and refuses a developer without one.
     """
     from server.coordination.identity import register_developer, register_mcp_token
 
     dev_id = f"setup-dev-{uuid.uuid4().hex[:8]}"
     async with pool.acquire() as conn:
         await register_developer(conn, developer_id=dev_id, display_name="Setup Dev")
+        await seed_organization(conn, dev_id)
         await register_mcp_token(conn, developer_id=dev_id, token=token)
     be = NativeBackend(project_id=pid, dev_token=token)
     await be.setup_board(name)

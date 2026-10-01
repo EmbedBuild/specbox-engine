@@ -49,7 +49,7 @@ from server.coordination.identity import (
 from server.db.migrate import apply_migrations
 from server.db.pool import close_pool, init_pool
 
-from tests._native_db import DSN, reachable
+from tests._native_db import DSN, reachable, seed_organization
 
 PG_OK, PG_SKIP_REASON = reachable()
 
@@ -72,9 +72,13 @@ def _unique_token() -> str:
 
 
 async def _seed(pool, *, project_id: str, developer_id: str, token: str) -> str:
-    """Create project + dev + mcp_token + member. Returns the token_id."""
+    """Create project + dev (with the organization ``setup_board`` needs, UC-1303) + mcp_token + member.
+
+    Returns the token_id.
+    """
     async with pool.acquire() as conn:
         await register_developer(conn, developer_id=developer_id, display_name="Adversarial Tester")
+        await seed_organization(conn, developer_id)
         token_id = await register_mcp_token(conn, developer_id=developer_id, token=token)
         await conn.execute(
             """

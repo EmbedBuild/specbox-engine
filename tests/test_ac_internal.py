@@ -35,36 +35,18 @@ pytestmark_pg = pytest.mark.skipif(not PG_OK, reason=PG_SKIP_REASON)
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@pytest.fixture(autouse=True)
-def _reset_shared_pool():
-    """Deja el pool global a None ANTES y DESPUÉS de cada test de este módulo.
-
-    Sin el reset posterior, este fichero era mal vecino: dejaba en el global un
-    pool atado a SU último event loop, y el siguiente módulo de tests que
-    llamara a `init_pool` recibía un pool muerto. Medido: la suite conjunta
-    pasaba de 13 fallos (línea base de `origin/main`) a 21 solo por el orden.
-    """
-    import server.db.pool as poolmod
-
-    poolmod._pool = None
-    yield
-    poolmod._pool = None
-
-
 async def _pool():
-    """Pool NUEVO para cada test, ligado a su propio event loop.
+    """Pool del test, migrada.
 
-    `init_pool` es un singleton de módulo: devuelve el pool ya creado si existe.
-    Con `asyncio_mode="auto"` pytest-asyncio da un loop por test, así que el pool
-    del primer test queda atado a un loop muerto y el segundo revienta con
-    `Event loop is closed`. Resetear el global antes de crearlo es lo que hace
-    que la suite sea ejecutable de corrido y no solo test a test.
+    `init_pool` es un singleton de módulo y pytest-asyncio da un loop por test:
+    `tests/conftest.py` cierra la pool al terminar cada test (UC-5901), así que
+    aquí siempre se crea una nueva, ligada al loop de este test. Antes este
+    módulo soltaba la pool con `_pool = None` sin cerrarla, y sus conexiones
+    seguían abiertas en el servidor.
     """
-    import server.db.pool as poolmod
     from server.db.migrate import apply_migrations
     from server.db.pool import init_pool
 
-    poolmod._pool = None  # el pool anterior pertenece a un loop ya cerrado
     pool = await init_pool(dsn=DSN)
     await apply_migrations(pool)
     return pool

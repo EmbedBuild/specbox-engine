@@ -42,7 +42,7 @@ from server.backends.trello_backend import TrelloBackend
 
 # DSN + reachability probe live in tests/_native_db.py so Supabase TLS handling
 # is applied consistently across native test modules [AC-38, AC-39].
-from tests._native_db import DSN, reachable
+from tests._native_db import DSN, reachable, seed_organization
 
 
 def _mock_ctx(state_map: dict[str, object]) -> AsyncMock:
@@ -233,6 +233,8 @@ class StatefulCtx:
 class TestNativeSessionRoundTrip:
     async def test_round_trip_us_uc_ac(self, monkeypatch: pytest.MonkeyPatch):
         """A native session created via set_auth_token round-trips US→UC→AC. [AC-08]"""
+        from server.coordination.identity import register_developer, register_mcp_token
+        from server.db.migrate import apply_migrations
         from server.db.pool import close_pool, get_pool
         from server.tools.spec_driven import set_auth_token
 
@@ -243,32 +245,34 @@ class TestNativeSessionRoundTrip:
         monkeypatch.setenv("SPECBOX_NATIVE_DSN", DSN)
 
         project_id = f"test-uc103-rt-{uuid.uuid4().hex[:8]}"
+        developer_id = f"dev-roundtrip-{uuid.uuid4().hex[:8]}"
+        token = f"dev-roundtrip-token-{uuid.uuid4().hex[:16]}"
         ctx = StatefulCtx()
 
         try:
-            # 1. Build a native session (no DSN passed — Frontier 2). UC-505
-            # makes the dev_token mandatory; UC-502 then wires a mutation gate
-            # that re-validates ``(token, project_id)`` against
-            # ``mcp_tokens`` + ``project_members`` on every write. So before we
-            # hit the gate via ``create_item`` we seed the dev identity for
-            # the same clear token used by the session (registered + member).
-            # UC-506 will move this seeding into the dispatch layer itself.
+            # 0. The developer exists BEFORE the session: since UC-824
+            # ``set_auth_token`` → ``setup_board`` resolves the developer from
+            # the token and provisions the project with them as project_admin
+            # (so it never leaves an orphan tenant). Provisioning places the
+            # project in the developer's organization, which a signup gives
+            # (UC-1303). That membership is what the UC-502 gate checks below.
+            pool = await get_pool()
+            await apply_migrations(pool)
+            async with pool.acquire() as conn:
+                await register_developer(conn, developer_id=developer_id, display_name="Round-trip Dev")
+                await seed_organization(conn, developer_id)
+                await register_mcp_token(conn, developer_id=developer_id, token=token)
+
+            # 1. Build a native session (no DSN passed — Frontier 2).
             auth = await set_auth_token(
                 api_key="",
-                token="dev-roundtrip-token",
+                token=token,
                 ctx=ctx,
                 backend_type="native",
                 project_id=project_id,
             )
             assert auth.get("success") is True, f"set_auth_token failed: {auth}"
             assert auth.get("backend") == "native"
-
-            # Seed the developer + mcp_token + membership so the UC-502 gate
-            # accepts the calls below. ``set_auth_token`` already created the
-            # project row through ``setup_board`` so the FKs are satisfied.
-            from server.migration.native_handling import seed_native_identity
-
-            await seed_native_identity(await get_pool(), project_id, "dev-roundtrip", token="dev-roundtrip-token")
 
             # 2. Resolve the backend from the same session.
             backend = await get_session_backend(ctx)
@@ -320,8 +324,8 @@ class TestNativeSessionRoundTrip:
             assert all(ac.done is False for ac in acs), "fresh ACs should be undone"
 
         finally:
-            # Clean up ONLY the test project (CASCADE removes US/UC/AC), then
-            # release the shared pool. Never DROP tables.
+            # Clean up ONLY the test project (CASCADE removes US/UC/AC) and its
+            # developer, then release the shared pool. Never DROP tables.
             try:
                 pool = await get_pool()
                 async with pool.acquire() as conn:
@@ -329,5 +333,6 @@ class TestNativeSessionRoundTrip:
                         "DELETE FROM projects WHERE project_id = $1",
                         project_id,
                     )
+                    await conn.execute("DELETE FROM developers WHERE developer_id = $1", developer_id)
             finally:
                 await close_pool()

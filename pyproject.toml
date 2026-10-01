@@ -20,6 +20,7 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
+    "pytest-timeout>=2.3.0",
     "respx>=0.22.0",
     "ruff>=0.5.0",
 ]
@@ -48,6 +49,9 @@ line-length = 120
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# UC-5901: a test that blocks (e.g. waiting on a Postgres lock) fails by time
+# limit instead of stopping the suite. The slowest test takes ~4 s.
+timeout = 120
 
 [tool.mypy]
 python_version = "3.12"

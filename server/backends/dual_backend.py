@@ -375,6 +375,32 @@ class DualBackendWrapper(SpecBackend):
         await self._guarded_mirror("archive_item", _mirror)
         return result
 
+    async def purge_use_case(
+        self, board_id: str, uc_item_id: str, *, reason: str
+    ) -> dict[str, Any]:
+        # The primary decides (and refuses with PurgeRefused, which propagates);
+        # the mirror follows best-effort like every other write. Resolve the
+        # mirror id BEFORE the primary deletes the item it is resolved from.
+        mirror_id = None
+        try:
+            mirror_id = await self._resolve_mirror_id(board_id, uc_item_id)
+        except Exception as exc:  # noqa: BLE001 - the mirror never breaks the primary
+            logger.warning(
+                "mirror_write_failed",
+                method="purge_use_case",
+                mirror_board=self.mirror_board_id,
+                error=str(exc),
+            )
+        result = await self.primary.purge_use_case(board_id, uc_item_id, reason=reason)
+
+        async def _mirror() -> None:
+            if mirror_id is None:
+                return
+            await self.mirror.purge_use_case(self.mirror_board_id, mirror_id, reason=reason)
+
+        await self._guarded_mirror("purge_use_case", _mirror)
+        return result
+
     async def add_comment(
         self, board_id: str, item_id: str, text: str
     ) -> CommentDTO:

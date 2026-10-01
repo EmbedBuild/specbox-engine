@@ -56,7 +56,7 @@ dato**; con identidad pero sin permiso, `FORBIDDEN` o «inexistente», nunca una
 | Categoría | Ejemplos | Identidad exigida | Alcance de los datos |
 |---|---|---|---|
 | Información del engine | `get_engine_version`, `get_supported_stacks`, `list_skills`, `get_global_rules` | Ninguna | Datos públicos del propio engine (los mismos que el repositorio) |
-| Board native | `list_us`, `get_uc`, `start_uc`, `mark_ac`, `complete_uc`, `import_spec`, … | Developer miembro del `project_id` de la sesión | Solo ese tenant: toda consulta lleva `project_id`; las PK son `(project_id, id)` |
+| Board native | `list_us`, `get_uc`, `start_uc`, `mark_ac`, `complete_uc`, `import_spec`, `delete_uc`, … | Developer miembro del `project_id` de la sesión | Solo ese tenant: toda consulta lleva `project_id`; las PK son `(project_id, id)`. `delete_uc` con `purge=true` borra de verdad solo una UC sin trabajo y deja la copia en `audit_log` |
 | Coordinación | `whoami`, `reserve_uc`, `release_uc`, `register_native_branch` | Developer | Su tenant; las reservas ajenas se ven, no se sueltan |
 | Registro de proyectos y onboarding | `list_onboarded_projects`, `get_onboarding_status`, `onboard_project`, `upgrade_project`, `get_version_matrix`, `register_project`, `update_project_meta`, `archive_project`, `switch_backend`, `enable_mirror`, `disable_mirror` | Developer | Solo las entradas que registró o ligadas a un tenant del que es miembro (`CallerScope.can_see`). Lo ajeno se responde como inexistente (`PROJECT_NOT_VISIBLE`, `available` = solo lo propio) |
 | FreeForm remoto | Cualquier tool de board con `items_content` | Ninguna (el contenido es del cliente) | Únicamente el contenido enviado en esa llamada; el servidor no lo persiste ni lee su disco (`FREEFORM_REMOTE_DISK_MODE_REJECTED`, `FREEFORM_CONTENT_REQUIRED`) |
@@ -93,6 +93,7 @@ dato**; con identidad pero sin permiso, `FORBIDDEN` o «inexistente», nunca una
 | T11 | Un paquete antiguo devuelve la extensión a una versión anterior | `install-ext.mjs` solo instala la versión esperada; el updater no retrocede | `vscode-extension/tests/extension-no-downgrade.test.mjs` |
 | T12 | Falsear la IP para repartir los límites entre varias identidades | Se toma el último `X-Forwarded-For`, el que escribe el proxy; el cliente no puede añadirlo detrás | `tests/test_abuse_guard.py` |
 | T13 | Versión anunciada distinta de la publicada (cliente que cree estar al día) | El handshake anuncia `ENGINE_VERSION.yaml`; una prueba lo compara con el changelog | `tests/test_engine_version_contract.py` |
+| T14 | Borrar sin rastro trabajo hecho, o una UC de otro tenant, con el borrado real (`delete_uc` + `purge=true`) | Solo UC en backlog o archivada, sin AC hechos, sin evidencia y sin reserva, comprobado dentro de la transacción con la UC bloqueada; membresía del tenant que se escribe; lo rechazado se archiva, nunca se pierde; copia de la UC y de sus AC en `audit_log` (`purge_uc`), que no se borra | `tests/test_uc_purge.py` |
 
 ## 7. Supuestos y fuera de alcance
 

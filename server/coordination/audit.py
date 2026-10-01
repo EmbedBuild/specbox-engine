@@ -102,6 +102,13 @@ OP_CREATE_UC: str = "create_uc"
 OP_CREATE_AC: str = "create_ac"
 OP_IMPORT_SPEC: str = "import_spec"
 
+#: US-55 / UC-5501. Borrado real de una UC que nunca tuvo trabajo (``delete_uc``
+#: con ``purge=true``). Es la única huella de lo borrado: ``metadata`` guarda el
+#: motivo, cuántas filas salieron de cada tabla y una copia de la UC y de sus AC
+#: (``snapshot``), de modo que se puede reconstruir a mano. Mismo nombre que el
+#: borrado manual de UC-4304 (2026-09-30). ``target_id`` = uc_id.
+OP_PURGE_UC: str = "purge_uc"
+
 
 async def record_destructive(
     conn: asyncpg.Connection,

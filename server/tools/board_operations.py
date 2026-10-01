@@ -16,7 +16,7 @@ from fastmcp import Context
 
 from ..auth_gateway import get_session_backend
 from ._content_passing import returns_items_content
-from ..spec_backend import ItemDTO, parse_item_id
+from ..spec_backend import PURGE_NOT_SUPPORTED, ItemDTO, PurgeRefused, parse_item_id
 from . import _mutation_helpers as mh
 
 logger = structlog.get_logger(__name__)
@@ -308,6 +308,22 @@ async def link_uc_parent(
 # ── 3.4 delete_uc ────────────────────────────────────────────────────
 
 
+def _purged_response(
+    uc_id: str, reason: str, absorbed_by: str | None, purged: dict[str, Any]
+) -> dict[str, Any]:
+    """delete_uc response after a real deletion: what went and the copy of it."""
+    return {
+        "uc_id": uc_id,
+        "deleted_at": purged["purged_at"],
+        "reason": reason,
+        "absorbed_by": absorbed_by,
+        "purged": True,
+        "archive_location": None,
+        "deleted": purged["deleted"],
+        "snapshot": purged["snapshot"],
+    }
+
+
 @returns_items_content
 async def delete_uc(
     board_id: str,
@@ -316,22 +332,56 @@ async def delete_uc(
     ctx: Context,
     *,
     absorbed_by: str | None = None,
+    purge: bool = False,
     items_content: str | None = None,
 ) -> dict[str, Any]:
-    """Archive a UC (does NOT physically delete — moves to archive location).
+    """Archive a UC, or delete it for real with `purge=True` (US-55 / UC-5501).
 
-    If `absorbed_by` is provided, calls `link_uc_parent` with link_type
-    "absorbs" before archiving. This formalizes UC consolidation.
+    Default: archive (soft delete, recoverable — moves to archive location).
+
+    `purge=True` deletes the UC, its ACs, its state transitions, its
+    reservation and its branch record in one transaction, and leaves an
+    audit row with the reason and a copy of the UC and its ACs (Native);
+    FreeForm deletes it from its files. Only for a UC that never had work: in
+    backlog or archived, no AC done, no evidence, no reservation. Otherwise —
+    and always on Trello/Plane — the UC is archived exactly as without purge
+    and `purge_refused` = {code, message} says why.
+
+    If `absorbed_by` is provided, records an "absorbs" link before archiving
+    or deleting. This formalizes UC consolidation.
 
     Use this for UC removal. There is no batch variant — UC deletion is
     rare and always requires a per-UC `reason` for audit.
 
     Returns:
-        {uc_id, deleted_at, reason, absorbed_by, archive_location}
+        {uc_id, deleted_at, reason, absorbed_by, purged, archive_location,
+         deleted + snapshot (when purged), purge_refused (when refused)}
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await mh.find_uc(backend, board_id, uc_id)
+        if not uc_item and purge:
+            # FreeForm moves an archived UC out of items.json: only the backend
+            # can find it again, by its logical id.
+            try:
+                purged = await backend.purge_use_case(board_id, uc_id, reason=reason)
+            except ValueError:
+                purged = None
+            except PurgeRefused as refused:
+                if refused.code == PURGE_NOT_SUPPORTED:
+                    purged = None
+                else:
+                    return {
+                        "uc_id": uc_id,
+                        "deleted_at": None,
+                        "reason": reason,
+                        "absorbed_by": absorbed_by,
+                        "purged": False,
+                        "archive_location": "already archived",
+                        "purge_refused": {"code": refused.code, "message": refused.message},
+                    }
+            if purged is not None:
+                return _purged_response(uc_id, reason, absorbed_by, purged)
         if not uc_item:
             return _mk_error("UC_NOT_FOUND", f"UC {uc_id} not found", uc_id=uc_id)
 
@@ -364,18 +414,45 @@ async def delete_uc(
             except Exception:
                 logger.exception("delete_uc_link_comment_failed", uc=uc_id)
 
+        purge_refused: dict[str, str] | None = None
+        if purge:
+            try:
+                purged = await backend.purge_use_case(board_id, uc_item.id, reason=reason)
+            except PurgeRefused as refused:
+                # AC-02: the UC is not lost — it stays (or becomes) archived, as today.
+                purge_refused = {"code": refused.code, "message": refused.message}
+            except Exception as e:
+                return _mk_error("BACKEND_ERROR", str(e))
+            else:
+                return _purged_response(uc_id, reason, absorbed_by, purged)
+
+        if purge_refused and uc_item.state == "archived":
+            return {
+                "uc_id": uc_id,
+                "deleted_at": None,
+                "reason": reason,
+                "absorbed_by": absorbed_by,
+                "purged": False,
+                "archive_location": "already archived",
+                "purge_refused": purge_refused,
+            }
+
         try:
             result = await backend.archive_item(board_id, uc_item.id, reason=reason)
         except Exception as e:
             return _mk_error("BACKEND_ERROR", str(e))
 
-        return {
+        response = {
             "uc_id": uc_id,
             "deleted_at": result.get("archived_at", mh.utc_now_iso()),
             "reason": reason,
             "absorbed_by": absorbed_by,
+            "purged": False,
             "archive_location": result.get("archive_location", "unknown"),
         }
+        if purge_refused:
+            response["purge_refused"] = purge_refused
+        return response
     finally:
         await backend.close()
 
@@ -572,8 +649,11 @@ def register_board_operations_tools(mcp_instance) -> None:
         "depends_on, supersedes, related_to). Adds audit comment on BOTH cards."
     )(link_uc_parent)
     mcp_instance.tool(
-        description="Archive a UC (soft delete). Optionally records an 'absorbs' link "
-        "before archiving. Per-UC reason required for audit trail."
+        description="Archive a UC (soft delete). With purge=true, delete for real a UC "
+        "that never had work (backlog or archived, no AC done, no evidence, no "
+        "reservation) with its ACs, leaving an audit copy; otherwise it is archived "
+        "and purge_refused says why. Optionally records an 'absorbs' link first. "
+        "Per-UC reason required for audit trail."
     )(delete_uc)
     mcp_instance.tool(
         description="Compare board state between two timestamped snapshots. Detects "

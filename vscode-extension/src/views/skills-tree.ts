@@ -13,7 +13,8 @@ let outputChannel: vscode.OutputChannel | undefined;
 
 function getOutputChannel(): vscode.OutputChannel {
 	if (!outputChannel) {
-		outputChannel = vscode.window.createOutputChannel('SpecBox');
+		// The channel name is the product name, the same in every language.
+		outputChannel = vscode.window.createOutputChannel('SpecBox'); // l10n-lint:ignore
 	}
 	return outputChannel;
 }
@@ -84,9 +85,23 @@ export class SkillsTreeProvider implements vscode.TreeDataProvider<vscode.TreeIt
 	}
 }
 
+/** The category name in the user's language (CATEGORY_LABELS keeps the English source). */
+function categoryLabel(category: SkillCategory): string {
+	switch (category) {
+		case 'pipeline': return vscode.l10n.t('Pipeline');
+		case 'quality': return vscode.l10n.t('Quality');
+		case 'visual': return vscode.l10n.t('Visual');
+		case 'tracking': return vscode.l10n.t('Tracking');
+		case 'stripe': return vscode.l10n.t('Stripe');
+		case 'lifecycle': return vscode.l10n.t('Lifecycle');
+		case 'other': return vscode.l10n.t('Other');
+		default: return CATEGORY_LABELS[category];
+	}
+}
+
 class SkillCategoryItem extends vscode.TreeItem {
 	constructor(public readonly category: SkillCategory, public readonly count: number) {
-		super(CATEGORY_LABELS[category], vscode.TreeItemCollapsibleState.Expanded);
+		super(categoryLabel(category), vscode.TreeItemCollapsibleState.Expanded);
 		this.description = `(${count})`;
 		this.iconPath = new vscode.ThemeIcon(CATEGORY_ICONS[category]);
 		this.contextValue = 'specboxSkillCategory';
@@ -115,7 +130,7 @@ function pickTooltipSummary(skill: SkillInfo): string {
 	const def = SKILL_DEFAULTS[skill.name];
 	if (def) { return truncate(def.whatItDoes, TOOLTIP_MAX_CHARS); }
 	if (skill.description) { return truncate(skill.description, TOOLTIP_MAX_CHARS); }
-	return '(no description available)';
+	return vscode.l10n.t('(no description available)');
 }
 
 function truncate(text: string, max: number): string {
@@ -125,7 +140,7 @@ function truncate(text: string, max: number): string {
 
 class EmptyStateItem extends vscode.TreeItem {
 	constructor() {
-		super('No skills detected — run /install or check ~/.claude/skills/', vscode.TreeItemCollapsibleState.None);
+		super(vscode.l10n.t('No skills detected — run /install or check ~/.claude/skills/'), vscode.TreeItemCollapsibleState.None);
 		this.iconPath = new vscode.ThemeIcon('warning');
 		this.contextValue = 'specboxNoSkills';
 	}

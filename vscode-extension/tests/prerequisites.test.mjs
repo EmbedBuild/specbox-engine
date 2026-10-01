@@ -13,7 +13,8 @@ const outDir = path.resolve(__dirname, '..', 'out');
 const require = createRequire(import.meta.url);
 
 const vscodeStub = {
-	l10n: { t: (s) => s },
+	// Like vscode.l10n.t: the English key with {0}, {1}… filled in.
+	l10n: { t: (s, ...args) => s.replace(/\{(\d+)\}/g, (m, i) => (i in args ? String(args[i]) : m)) },
 	window: {},
 	env: {},
 	commands: {},

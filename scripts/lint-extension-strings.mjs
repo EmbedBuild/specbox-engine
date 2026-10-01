@@ -2,9 +2,13 @@
 // lint-extension-strings.mjs — fails if user-facing literals appear without vscode.l10n.t(...)
 // Used by:
 //   .github/workflows/publish-vscode-extension.yml (CI gate before publish)
+//   vscode-extension/tests/l10n.test.mjs (npm test — US-57/UC-5702)
 // Usage:
 //   node scripts/lint-extension-strings.mjs            # default: scan + report
 //   node scripts/lint-extension-strings.mjs --verbose  # also show passing files
+//
+// A literal that is a product name, not copy (the `SpecBox` output channel), is
+// marked on its line with `l10n-lint:ignore`.
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -14,21 +18,11 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const REPO_ROOT = join(__dirname, '..');
 const SRC_DIR = join(REPO_ROOT, 'vscode-extension', 'src');
 
-// --- Files NOT yet migrated to vscode.l10n.t (follow-up work).
-// Listed here explicitly so CI doesn't block the v6.2.0 publish.
-// Each entry should track a follow-up issue or be migrated.
-const ALLOWLIST_FILES = new Set([
-    'install.ts',     // TODO: migrate strings to l10n.t in follow-up
-    'mcp.ts',         // TODO: migrate strings to l10n.t in follow-up
-    'onboard.ts',     // TODO: migrate strings to l10n.t in follow-up
-    'updater.ts',     // TODO: migrate strings to l10n.t in follow-up
-    // skills-tree.ts only contains `createOutputChannel('SpecBox')` as the
-    // single offending literal — the channel name is a product identifier
-    // shown in the OUTPUT panel dropdown, the same way GitHub Actions /
-    // Git Base / Dart-Code etc. use their literal product names. Not
-    // user-facing copy that needs translation.
-    'skills-tree.ts',
-]);
+// Files not migrated to vscode.l10n.t yet. Empty since US-57/UC-5702 (install.ts,
+// mcp.ts, onboard.ts and updater.ts were migrated; skills-tree.ts uses the inline mark).
+const ALLOWLIST_FILES = new Set([]);
+
+const IGNORE_MARK = 'l10n-lint:ignore';
 
 // Patterns that surface a user-facing string the moment they appear with a literal.
 const VIOLATIONS = [
@@ -52,10 +46,31 @@ const VIOLATIONS = [
         pattern: /vscode\.window\.createOutputChannel\s*\(\s*(['"`])/g,
         description: 'createOutputChannel with literal name',
     },
+    // vscode.window.withProgress({ title: "literal", ... })  — US-57/UC-5702
+    {
+        pattern: /vscode\.window\.withProgress\s*\(\s*\{[^}]*\btitle\s*:\s*(['"`])/g,
+        description: 'withProgress with literal title',
+    },
+    // progress.report({ message: "literal" })
+    {
+        pattern: /\bprogress\.report\s*\(\s*\{[^}]*\bmessage\s*:\s*(['"`])/g,
+        description: 'progress.report with literal message',
+    },
+    // vscode.window.showOpenDialog({ openLabel: "literal", title: "literal" })
+    {
+        pattern: /vscode\.window\.show(Open|Save)Dialog\s*\(\s*\{[^}]*\b(openLabel|saveLabel|title)\s*:\s*(['"`])/g,
+        description: 'showOpenDialog/showSaveDialog with literal label or title',
+    },
+    // vscode.window.createTerminal("literal") / setStatusBarMessage("literal")
+    {
+        pattern: /vscode\.window\.(createTerminal|setStatusBarMessage)\s*\(\s*(['"`])/g,
+        description: 'createTerminal/setStatusBarMessage with literal text',
+    },
 ];
 
-// l10n.t wrappers are OK — detect to allow nested patterns.
-const L10N_WRAPPER = /vscode\.l10n\.t\s*\(/;
+// Every pattern ends right at the opening quote of the literal, so a text wrapped in
+// vscode.l10n.t(...) never matches. (Until UC-5702 any l10n.t( in the 200 characters
+// before a match excused it, which hid literals next to translated lines.)
 
 function walk(dir) {
     const out = [];
@@ -84,12 +99,11 @@ function scanFile(file) {
         let m;
         while ((m = pattern.exec(content))) {
             const idx = m.index;
-            // Walk back to find the start of the surrounding call to check for l10n.t.
-            const slice = content.slice(Math.max(0, idx - 200), idx + 100);
-            // If the literal is inside vscode.l10n.t(...), skip — that's an intentional fallback.
-            if (L10N_WRAPPER.test(slice.slice(0, slice.indexOf(m[0]) + 50))) {
-                // Heuristic: if a l10n.t( appears just before the match, the literal is wrapped.
-                // We allow this case.
+            // The line where the literal itself starts (the match may span lines).
+            const end = idx + m[0].length;
+            const eol = content.indexOf('\n', end);
+            const line = content.slice(content.lastIndexOf('\n', end - 1) + 1, eol === -1 ? content.length : eol);
+            if (line.includes(IGNORE_MARK)) {
                 continue;
             }
             const lineNum = content.slice(0, idx).split('\n').length;

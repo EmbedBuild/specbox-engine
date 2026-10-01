@@ -11,12 +11,17 @@ export interface SkillCardContent {
 	source: 'skill-md' | 'defaults' | 'placeholder';
 }
 
-const PLACEHOLDER_CONTENT: SkillDefaults = {
-	whatItDoes: '(no description available)',
-	whenToUse: ['(consult the SKILL.md or run /compliance to verify the skill is correctly installed)'],
-	command: '/<skill>',
-	example: '(no example available)',
-};
+// The card's own words go through l10n.t when the card is built. The skill content
+// (SKILL_DEFAULTS, the SKILL.md description) is the skill's documentation and stays
+// as written.
+function placeholderContent(): SkillDefaults {
+	return {
+		whatItDoes: vscode.l10n.t('(no description available)'),
+		whenToUse: [vscode.l10n.t('(consult the SKILL.md or run /compliance to verify the skill is correctly installed)')],
+		command: '/<skill>',
+		example: vscode.l10n.t('(no example available)'),
+	};
+}
 
 export function buildSkillCardContent(skill: SkillInfo): SkillCardContent {
 	const defaults = SKILL_DEFAULTS[skill.name];
@@ -28,24 +33,27 @@ export function buildSkillCardContent(skill: SkillInfo): SkillCardContent {
 	// the SKILL.md frontmatter more aggressively, but the description field
 	// today is a single sentence not a 4-block structure. Show a graceful
 	// placeholder labeled 'placeholder' so users see what's missing.
+	const placeholder = placeholderContent();
 	if (skill.hasFrontmatter && skill.description) {
 		return {
 			name: skill.name,
 			whatItDoes: skill.description,
-			whenToUse: PLACEHOLDER_CONTENT.whenToUse,
+			whenToUse: placeholder.whenToUse,
 			command: `/${skill.name}`,
-			example: PLACEHOLDER_CONTENT.example,
+			example: placeholder.example,
 			source: 'skill-md',
 		};
 	}
-	return { name: skill.name, ...PLACEHOLDER_CONTENT, source: 'placeholder' };
+	return { name: skill.name, ...placeholder, source: 'placeholder' };
 }
 
-const SOURCE_LABEL: Record<SkillCardContent['source'], string> = {
-	'skill-md': 'Source: SKILL.md frontmatter',
-	'defaults': 'Source: extension defaults',
-	'placeholder': 'Source: placeholder (no SKILL.md description, no static default)',
-};
+function sourceLabel(source: SkillCardContent['source']): string {
+	switch (source) {
+		case 'skill-md': return vscode.l10n.t('Source: SKILL.md frontmatter');
+		case 'defaults': return vscode.l10n.t('Source: extension defaults');
+		case 'placeholder': return vscode.l10n.t('Source: placeholder (no SKILL.md description, no static default)');
+	}
+}
 
 export function buildSkillCardItems(content: SkillCardContent): vscode.QuickPickItem[] {
 	const copyButton: vscode.QuickInputButton = {
@@ -55,23 +63,23 @@ export function buildSkillCardItems(content: SkillCardContent): vscode.QuickPick
 
 	return [
 		{
-			label: '$(info) What it does',
+			label: `$(info) ${vscode.l10n.t('What it does')}`,
 			detail: content.whatItDoes,
 			alwaysShow: true,
 		},
 		{
-			label: '$(question) When to use it',
+			label: `$(question) ${vscode.l10n.t('When to use it')}`,
 			detail: content.whenToUse.map(line => `• ${line}`).join('\n'),
 			alwaysShow: true,
 		},
 		{
-			label: '$(terminal) Command',
+			label: `$(terminal) ${vscode.l10n.t('Command')}`,
 			detail: content.command,
 			buttons: [copyButton],
 			alwaysShow: true,
 		},
 		{
-			label: '$(beaker) Example',
+			label: `$(beaker) ${vscode.l10n.t('Example')}`,
 			detail: content.example,
 			alwaysShow: true,
 		},
@@ -80,7 +88,7 @@ export function buildSkillCardItems(content: SkillCardContent): vscode.QuickPick
 			kind: vscode.QuickPickItemKind.Separator,
 		},
 		{
-			label: `$(file) ${SOURCE_LABEL[content.source]}`,
+			label: `$(file) ${sourceLabel(content.source)}`,
 			alwaysShow: true,
 		},
 	];
@@ -91,7 +99,7 @@ export async function showSkillCard(skill: SkillInfo): Promise<void> {
 	const items = buildSkillCardItems(content);
 
 	const quickPick = vscode.window.createQuickPick();
-	quickPick.title = `SpecBox skill: /${content.name}`;
+	quickPick.title = vscode.l10n.t('SpecBox skill: /{0}', content.name);
 	quickPick.placeholder = vscode.l10n.t('Press Esc to close. Click the copy icon to copy the command.');
 	quickPick.items = items;
 	quickPick.canSelectMany = false;

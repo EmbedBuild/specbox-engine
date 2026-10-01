@@ -29,5 +29,5 @@
   "configuration.enginePath.description": "Ruta al repositorio de SpecBox Engine. Se autodetecta si está vacío.",
   "configuration.autoHealthCheck.description": "Ejecuta la comprobación de salud al arrancar cuando se detecta un proyecto SpecBox.",
   "configuration.mcpAutoStart.description": "Configura automáticamente los servidores MCP (SpecBox + Engram) al instalar.",
-  "command.revertMigration.title": "Revertir ultima migracion"
+  "command.revertMigration.title": "Revertir la última migración"
 }

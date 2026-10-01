@@ -33,16 +33,16 @@ export function evaluatePrerequisites(input: PrereqInput): PrereqVerdict {
 	if (!input.claudeCode.ok) { missing.push('Claude Code'); }
 	if (!input.engram.ok) { missing.push('Engram'); }
 	if (!input.node.ok) { missing.push('Node.js'); }
-	if (!input.mcpSpecbox.configured) { missing.push('MCP SpecBox server'); }
-	if (!input.mcpEngram.configured) { missing.push('MCP Engram server'); }
+	if (!input.mcpSpecbox.configured) { missing.push(vscode.l10n.t('MCP SpecBox server')); }
+	if (!input.mcpEngram.configured) { missing.push(vscode.l10n.t('MCP Engram server')); }
 	return { verdict: missing.length > 0 ? 'degraded' : 'ready', missing };
 }
 
 /** Human-readable, action-oriented warning text for a degraded environment. */
 export function buildPrereqWarning(missing: string[]): string {
-	return (
-		`SpecBox may not work correctly — missing prerequisites: ${missing.join(', ')}. ` +
-		`Install the missing pieces or run the setup wizard to fix this.`
+	return vscode.l10n.t(
+		'SpecBox may not work correctly — missing prerequisites: {0}. Install the missing pieces or run the setup wizard to fix this.',
+		missing.join(', '),
 	);
 }
 

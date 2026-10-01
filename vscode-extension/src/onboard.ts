@@ -6,6 +6,7 @@ import { InstallManager } from './install';
 import { McpConfigurator } from './mcp';
 import { HealthChecker } from './health';
 import { exec } from './util';
+import { markDone } from './design';
 
 /**
  * Step-by-step onboarding wizard using native VSCode UI (no webview).
@@ -23,21 +24,23 @@ export class OnboardWizard {
 		const initial = await health.run();
 
 		// Step 1: Welcome + Prerequisites
+		const startSetup = vscode.l10n.t('Start Setup');
 		const proceed = await vscode.window.showInformationMessage(
-			'Welcome to SpecBox Engine! This wizard will set up everything you need for agentic development with Claude Code.',
+			vscode.l10n.t('Welcome to SpecBox Engine! This wizard will set up everything you need for agentic development with Claude Code.'),
 			{ modal: true, detail: this.prerequisiteSummary(initial) },
-			'Start Setup'
+			startSetup
 		);
-		if (proceed !== 'Start Setup') { return; }
+		if (proceed !== startSetup) { return; }
 
 		// Step 2: Locate or clone engine
 		const enginePath = await this.installer.resolveEnginePath();
 		if (!enginePath) {
+			const cloneFromGithub = vscode.l10n.t('Clone from GitHub');
 			const action = await vscode.window.showErrorMessage(
-				'SpecBox Engine repository not found.',
-				'Clone from GitHub', 'Cancel'
+				vscode.l10n.t('SpecBox Engine repository not found.'),
+				cloneFromGithub, vscode.l10n.t('Cancel')
 			);
-			if (action === 'Clone from GitHub') {
+			if (action === cloneFromGithub) {
 				await this.cloneEngine();
 			}
 			return;
@@ -46,17 +49,18 @@ export class OnboardWizard {
 		// Step 3: Install skills + hooks + settings
 		await vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
-			title: 'SpecBox: Installing engine components...',
+			title: vscode.l10n.t('SpecBox: Installing engine components...'),
 		}, async () => {
 			await this.installer.runFullInstall();
 		});
 
 		// Step 4: Configure MCP servers
+		const configure = vscode.l10n.t('Configure');
 		const configureMcp = await vscode.window.showInformationMessage(
-			'Engine installed. Now configure MCP servers (SpecBox + Engram) for Claude Code?',
-			'Configure', 'Skip'
+			vscode.l10n.t('Engine installed. Now configure MCP servers (SpecBox + Engram) for Claude Code?'),
+			configure, vscode.l10n.t('Skip')
 		);
-		if (configureMcp === 'Configure') {
+		if (configureMcp === configure) {
 			await this.mcp.configureAll();
 		}
 
@@ -70,13 +74,14 @@ export class OnboardWizard {
 		claudeCode: { ok: boolean; version: string | null };
 		engram: { ok: boolean; version: string | null };
 	}): string {
-		const check = (ok: boolean) => ok ? 'OK' : 'MISSING';
+		// The state as a word with the system's terminal box ([x] / [ ]), like the diagnostics.
+		const check = (ok: boolean) => ok ? `[x] ${vscode.l10n.t('OK')}` : `[ ] ${vscode.l10n.t('Missing')}`;
 		return [
 			`Node.js: ${check(h.node.ok)} ${h.node.version ?? ''}`,
 			`Claude Code: ${check(h.claudeCode.ok)} ${h.claudeCode.version ?? ''}`,
 			`Engram: ${check(h.engram.ok)} ${h.engram.version ?? ''}`,
 			'',
-			'The wizard will install what it can and guide you for the rest.',
+			vscode.l10n.t('The wizard will install what it can and guide you for the rest.'),
 		].join('\n');
 	}
 
@@ -85,16 +90,16 @@ export class OnboardWizard {
 		const targetDir = path.join(home, 'specbox-engine');
 
 		if (fs.existsSync(path.join(targetDir, 'ENGINE_VERSION.yaml'))) {
-			vscode.window.showInformationMessage('SpecBox Engine already exists at ~/specbox-engine');
+			vscode.window.showInformationMessage(vscode.l10n.t('SpecBox Engine already exists at {0}', '~/specbox-engine'));
 			return;
 		}
 
 		const cloned = await vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
-			title: 'SpecBox: Cloning repository...',
+			title: vscode.l10n.t('SpecBox: Cloning repository...'),
 			cancellable: false,
 		}, async (progress) => {
-			progress.report({ message: 'git clone in progress...' });
+			progress.report({ message: vscode.l10n.t('git clone in progress...') });
 			const result = await exec(
 				`git clone https://github.com/EmbedBuild/specbox-engine.git "${targetDir}"`,
 				home
@@ -104,15 +109,16 @@ export class OnboardWizard {
 
 		if (cloned && fs.existsSync(path.join(targetDir, 'ENGINE_VERSION.yaml'))) {
 			await vscode.workspace.getConfiguration('specbox').update('enginePath', targetDir, vscode.ConfigurationTarget.Global);
+			const install = vscode.l10n.t('Install');
 			const action = await vscode.window.showInformationMessage(
-				'[x] SpecBox Engine cloned. Install now?',
-				'Install', 'Later'
+				markDone(vscode.l10n.t('SpecBox Engine cloned. Install now?')),
+				install, vscode.l10n.t('Later')
 			);
-			if (action === 'Install') {
+			if (action === install) {
 				await vscode.commands.executeCommand('specbox.install');
 			}
 		} else {
-			vscode.window.showErrorMessage('Clone failed. Check your network connection and try again.');
+			vscode.window.showErrorMessage(vscode.l10n.t('Clone failed. Check your network connection and try again.'));
 		}
 	}
 
@@ -127,20 +133,20 @@ export class OnboardWizard {
 	}): void {
 		const lines: string[] = [];
 		if (h.engineInstalled) {
-			lines.push(`[x] SpecBox Engine v${h.engineVersion} installed`);
+			lines.push(markDone(vscode.l10n.t('SpecBox Engine v{0} installed', h.engineVersion ?? '')));
 		}
-		lines.push(`[x] Skills: ${h.skills.installed.length} installed`);
-		lines.push(`[x] Hooks: ${h.hooks.count} active`);
+		lines.push(markDone(vscode.l10n.t('Skills: {0} installed', h.skills.installed.length)));
+		lines.push(markDone(vscode.l10n.t('Hooks: {0} active', h.hooks.count)));
 
 		const warnings: string[] = [];
-		if (!h.mcpSpecbox.configured) { warnings.push('MCP SpecBox not configured'); }
-		if (!h.mcpEngram.configured) { warnings.push('MCP Engram not configured'); }
-		if (!h.engram.ok) { warnings.push('Engram not installed'); }
+		if (!h.mcpSpecbox.configured) { warnings.push(vscode.l10n.t('SpecBox MCP not configured')); }
+		if (!h.mcpEngram.configured) { warnings.push(vscode.l10n.t('Engram MCP not configured')); }
+		if (!h.engram.ok) { warnings.push(vscode.l10n.t('Engram not installed')); }
 
 		if (warnings.length > 0) {
 			lines.push(...warnings.map((w) => `[ ] ${w}`));
 		} else {
-			lines.push('[x] All systems operational. You can now use /prd, /plan, /implement in Claude Code.');
+			lines.push(markDone(vscode.l10n.t('All systems operational. You can now use /prd, /plan, /implement in Claude Code.')));
 		}
 
 		if (warnings.length > 0) {

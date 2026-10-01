@@ -240,48 +240,49 @@ export class InstallManager {
 
 		await vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
-			title: 'SpecBox Engine',
+			title: vscode.l10n.t('SpecBox Engine'),
 			cancellable: false,
 		}, async (progress) => {
 			// 1. Skills
-			progress.report({ message: 'Installing skills...', increment: 0 });
+			progress.report({ message: vscode.l10n.t('Installing skills...'), increment: 0 });
 			const skillsResult = this.installSkills(enginePath);
 
 			// 2. Hooks
-			progress.report({ message: 'Installing hooks...', increment: 20 });
+			progress.report({ message: vscode.l10n.t('Installing hooks...'), increment: 20 });
 			const hooksResult = this.installHooks(enginePath);
 
 			// 3. Commands (legacy)
-			progress.report({ message: 'Installing commands...', increment: 40 });
+			progress.report({ message: vscode.l10n.t('Installing commands...'), increment: 40 });
 			this.installCommands(enginePath);
 
 			// 4. Settings
-			progress.report({ message: 'Configuring settings...', increment: 60 });
+			progress.report({ message: vscode.l10n.t('Configuring settings...'), increment: 60 });
 			this.installSettings(enginePath);
 
 			// 5. Health check
-			progress.report({ message: 'Verifying installation...', increment: 80 });
+			progress.report({ message: vscode.l10n.t('Verifying installation...'), increment: 80 });
 			const result = await health.run();
 
-			progress.report({ message: 'Done!', increment: 100 });
+			progress.report({ message: vscode.l10n.t('Done!'), increment: 100 });
 
 			// Summary
 			const missing: string[] = [];
 			if (!result.engram.ok) { missing.push('Engram'); }
-			if (!result.mcpSpecbox.configured) { missing.push('MCP SpecBox server'); }
-			if (!result.mcpEngram.configured) { missing.push('MCP Engram server'); }
+			if (!result.mcpSpecbox.configured) { missing.push(vscode.l10n.t('MCP SpecBox server')); }
+			if (!result.mcpEngram.configured) { missing.push(vscode.l10n.t('MCP Engram server')); }
 
 			if (missing.length > 0) {
+				const configureMcp = vscode.l10n.t('Configure MCP');
 				const action = await vscode.window.showWarningMessage(
-					`SpecBox installed (${skillsResult.count} skills, ${hooksResult.count} hooks). Missing: ${missing.join(', ')}. Configure now?`,
-					'Configure MCP', 'Skip'
+					vscode.l10n.t('SpecBox installed ({0} skills, {1} hooks). Missing: {2}. Configure now?', skillsResult.count, hooksResult.count, missing.join(', ')),
+					configureMcp, vscode.l10n.t('Skip')
 				);
-				if (action === 'Configure MCP') {
+				if (action === configureMcp) {
 					vscode.commands.executeCommand('specbox.configureMcp');
 				}
 			} else {
 				vscode.window.showInformationMessage(
-					markDone(`SpecBox Engine v${result.engineVersion} installed: ${skillsResult.count} skills, ${hooksResult.count} hooks, MCP configured.`)
+					markDone(vscode.l10n.t('SpecBox Engine v{0} installed: {1} skills, {2} hooks, MCP configured.', result.engineVersion ?? '', skillsResult.count, hooksResult.count))
 				);
 			}
 		});
@@ -320,8 +321,8 @@ export class InstallManager {
 		const result = await vscode.window.showOpenDialog({
 			canSelectFolders: true,
 			canSelectFiles: false,
-			openLabel: 'Select SpecBox Engine folder',
-			title: 'Where is the SpecBox Engine repository?',
+			openLabel: vscode.l10n.t('Select SpecBox Engine folder'),
+			title: vscode.l10n.t('Where is the SpecBox Engine repository?'),
 		});
 
 		if (result?.[0]) {
@@ -331,7 +332,7 @@ export class InstallManager {
 				await vscode.workspace.getConfiguration('specbox').update('enginePath', selected, vscode.ConfigurationTarget.Global);
 				return selected;
 			}
-			vscode.window.showErrorMessage('Selected folder does not contain ENGINE_VERSION.yaml. Not a SpecBox Engine repo.');
+			vscode.window.showErrorMessage(vscode.l10n.t('Selected folder does not contain ENGINE_VERSION.yaml. Not a SpecBox Engine repo.'));
 		}
 		return null;
 	}

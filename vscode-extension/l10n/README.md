@@ -11,16 +11,21 @@ Key convention: each key is the literal English string, per `vscode-l10n` spec.
 
 1. Create `bundle.l10n.<lang>.json` with the same keys as `bundle.l10n.json`.
 2. Add `package.nls.<lang>.json` for the static manifest strings (commands, settings).
-3. Update `tests/test_l10n_parity.py` to include the new locale.
+3. Add the new bundle to `tests/l10n.test.mjs`.
 
 ## Coverage
 
-Currently localised: `extension.ts`, `health.ts`, `statusbar.ts`, `constants.ts`, `util.ts`, `views/*.ts`.
+Every file in `src/` is localised (US-57/UC-5702). `npm test` runs `tests/l10n.test.mjs`, which fails when:
 
-Pending follow-up (tracked in `scripts/lint-extension-strings.mjs` ALLOWLIST_FILES):
-- `install.ts`
-- `mcp.ts`
-- `onboard.ts`
-- `updater.ts`
+- a text passed to `vscode.l10n.t` (or its `const t = vscode.l10n.t` alias) is missing from either bundle;
+- a `vscode.l10n.t` key is not a string literal (it could never be translated);
+- the two bundles, or the two `package.nls` files, do not have the same keys;
+- an English value differs from its key, or a Spanish value is empty or loses a `{0}` placeholder;
+- `scripts/lint-extension-strings.mjs` finds a notification, dialog, progress title/step, terminal
+  or status-bar text written as a literal outside `vscode.l10n.t`.
 
-Once those files are refactored, remove the entry from `ALLOWLIST_FILES` and the linter will enforce.
+A literal that is a product name rather than copy (the `SpecBox` output channel) carries
+`l10n-lint:ignore` on its line.
+
+Not localised on purpose: the content of the skill cards (`views/skill-defaults.ts` and the
+description in each `SKILL.md`) is the skills' own documentation.

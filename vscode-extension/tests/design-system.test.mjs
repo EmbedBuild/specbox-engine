@@ -152,6 +152,6 @@ test('AC-02 · los avisos de acciones terminadas empiezan por [x]', () => {
 	for (const done of ['Signed out.', 'SpecBox Engine cloned.', 'All prerequisites are installed. SpecBox is ready.', 'Signed in. Welcome!']) {
 		assert.ok(sources.includes(`markDone(vscode.l10n.t('${done}')`), `«${done}» sin [x]`);
 	}
-	assert.ok(sources.includes('markDone(`MCP configured:'), 'MCP configurado sin [x]');
+	assert.ok(sources.includes("markDone(vscode.l10n.t('MCP configured: {0}'"), 'MCP configurado sin [x]');
 	assert.equal(design.markDone('Clonado'), '[x] Clonado');
 });

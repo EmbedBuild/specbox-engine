@@ -183,9 +183,9 @@ export class McpConfigurator {
 		if (specboxOk) { actions.push('SpecBox MCP'); }
 
 		if (actions.length > 0) {
-			vscode.window.showInformationMessage(markDone(`MCP configured: ${actions.join(', ')}`));
+			vscode.window.showInformationMessage(markDone(vscode.l10n.t('MCP configured: {0}', actions.join(', '))));
 		} else {
-			vscode.window.showWarningMessage('No MCP servers were configured. Check prerequisites.');
+			vscode.window.showWarningMessage(vscode.l10n.t('No MCP servers were configured. Check prerequisites.'));
 		}
 	}
 
@@ -196,11 +196,12 @@ export class McpConfigurator {
 			const plan = buildEngramInstallPlan(hasBrew);
 
 			if (plan.method === 'brew' && plan.command) {
+				const installWithBrew = vscode.l10n.t('Install with Homebrew');
 				const action = await vscode.window.showWarningMessage(
-					'Engram is not installed. It provides persistent memory for Claude Code (mandatory for token efficiency). Install it now?',
-					'Install with Homebrew', 'Skip'
+					vscode.l10n.t('Engram is not installed. It provides persistent memory for Claude Code (mandatory for token efficiency). Install it now?'),
+					installWithBrew, vscode.l10n.t('Skip')
 				);
-				if (action === 'Install with Homebrew') {
+				if (action === installWithBrew) {
 					const result = await this.runInstallCommand(plan.command);
 					if (!result) { return false; }
 				} else {
@@ -209,11 +210,12 @@ export class McpConfigurator {
 			} else {
 				// No Homebrew available — point the user at the native binary install.
 				// Engram ships as a single self-contained binary with zero deps.
+				const openGuide = vscode.l10n.t('Open install guide');
 				await vscode.window.showWarningMessage(
-					`Engram is not installed and Homebrew was not found. Install the Engram binary manually from ${plan.manualUrl} (single binary, no extra runtime needed), then re-run "Configure MCP Servers".`,
-					'Open install guide'
+					vscode.l10n.t('Engram is not installed and Homebrew was not found. Install the Engram binary manually from {0} (single binary, no extra runtime needed), then re-run "Configure MCP Servers".', plan.manualUrl),
+					openGuide
 				).then((choice) => {
-					if (choice === 'Open install guide') {
+					if (choice === openGuide) {
 						vscode.env.openExternal(vscode.Uri.parse(plan.manualUrl));
 					}
 				});
@@ -271,7 +273,9 @@ export class McpConfigurator {
 
 			writeJson(settingsPath, settings);
 		} catch (err) {
-			vscode.window.showErrorMessage(`Failed to write MCP config for ${name}: ${err instanceof Error ? err.message : String(err)}`);
+			vscode.window.showErrorMessage(
+				vscode.l10n.t('Failed to write MCP config for {0}: {1}', name, err instanceof Error ? err.message : String(err)),
+			);
 		}
 	}
 
@@ -288,20 +292,23 @@ export class McpConfigurator {
 
 			writeJson(mcpPath, data);
 		} catch (err) {
-			vscode.window.showWarningMessage(`Failed to write workspace MCP config: ${err instanceof Error ? err.message : String(err)}`);
+			vscode.window.showWarningMessage(
+				vscode.l10n.t('Failed to write workspace MCP config: {0}', err instanceof Error ? err.message : String(err)),
+			);
 		}
 	}
 
 	private async runInstallCommand(cmd: string): Promise<boolean> {
-		const terminal = vscode.window.createTerminal('SpecBox Setup');
+		const terminal = vscode.window.createTerminal(vscode.l10n.t('SpecBox Setup'));
 		terminal.sendText(cmd);
 		terminal.show();
 
+		const done = vscode.l10n.t('OK');
 		const ok = await vscode.window.showInformationMessage(
-			`Running: ${cmd}. Click OK when the installation finishes.`,
-			'OK', 'Failed'
+			vscode.l10n.t('Running: {0}. Click OK when the installation finishes.', cmd),
+			done, vscode.l10n.t('Failed')
 		);
-		return ok === 'OK';
+		return ok === done;
 	}
 }
 

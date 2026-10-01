@@ -218,10 +218,10 @@ export function buildMigrationSummary(
   switch (plan.case) {
     case 'freeform_local_obsolete':
       return {
-        changed: `SpecBox updated to v${v}. The local MCP server mode was removed; your FreeForm project now talks to the free hosted endpoint.`,
-        migrated: 'Your MCP transport config was switched to the hosted endpoint automatically. Your tracking data in doc/tracking/ was not touched.',
+        changed: vscode.l10n.t('SpecBox updated to v{0}. The local MCP server mode was removed; your FreeForm project now talks to the free hosted endpoint.', v),
+        migrated: vscode.l10n.t('Your MCP transport config was switched to the hosted endpoint automatically. Your tracking data in doc/tracking/ was not touched.'),
         backup: ctx.backupPath,
-        action: 'Nothing required — reload the window if Claude Code does not pick up the new MCP config. To undo, run "SpecBox: Revert last migration".',
+        action: vscode.l10n.t('Nothing required — reload the window if Claude Code does not pick up the new MCP config. To undo, run "SpecBox: Revert last migration".'),
         minimal: false,
       };
     case 'freeform_remote_ok':
@@ -232,10 +232,10 @@ export function buildMigrationSummary(
       return minimalSummary(v, 'Native (GitHub OAuth)');
     case 'onboarding_incomplete':
       return {
-        changed: `SpecBox updated to v${v}.`,
-        migrated: 'No migration ran — this project has not finished onboarding yet.',
+        changed: vscode.l10n.t('SpecBox updated to v{0}.', v),
+        migrated: vscode.l10n.t('No migration ran — this project has not finished onboarding yet.'),
         backup: null,
-        action: 'Run the SpecBox setup wizard to finish onboarding.',
+        action: vscode.l10n.t('Run the SpecBox setup wizard to finish onboarding.'),
         minimal: false,
       };
   }
@@ -243,10 +243,10 @@ export function buildMigrationSummary(
 
 function minimalSummary(version: string, _backendLabel: string): MigrationSummary {
   return {
-    changed: `Updated to v${version} — no changes needed for your configuration.`,
-    migrated: 'Nothing to migrate.',
+    changed: vscode.l10n.t('Updated to v{0} — no changes needed for your configuration.', version),
+    migrated: vscode.l10n.t('Nothing to migrate.'),
     backup: null,
-    action: 'Nothing to do.',
+    action: vscode.l10n.t('Nothing to do.'),
     minimal: true,
   };
 }
@@ -255,7 +255,7 @@ function minimalSummary(version: string, _backendLabel: string): MigrationSummar
 export function renderSummaryText(s: MigrationSummary): string {
   if (s.minimal) { return s.changed; }
   const lines = [s.changed, '', `• ${s.migrated}`];
-  if (s.backup) { lines.push(`• Backup: ${s.backup}`); }
+  if (s.backup) { lines.push(`• ${vscode.l10n.t('Backup: {0}', s.backup)}`); }
   lines.push(`• ${s.action}`);
   return lines.join('\n');
 }

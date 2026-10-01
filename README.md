@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.14.2 — "Idle Watch" (sobre v6.14.1 "Forward Only")<br/>
+  v 6.15.0 — "Tinta" (sobre v6.14.2 "Idle Watch")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,19 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.15
+
+**v6.15.0 — "Tinta"** pone el engine y la extensión a hablar el sistema de diseño único del ecosistema SpecBox: una sola fuente de colores, tipografía y componentes para el panel, el portal, el site y la extensión.
+
+- **Las herramientas de diseño leen el sistema** — `generate_design_md_tool` toma los tokens del sistema (`design-system.tokens.json`) como única fuente y dice qué valores se salen; lo que generan Stitch y Claude Design queda marcado como candidato y `/plan` escribe la fuente de diseño de cada plan.
+- **El gate de diseño bloquea lo que se sale del sistema** — colores escritos a mano, fuentes ajenas, pesos por encima del máximo y gradientes, con fichero y línea; en autopilot bloquea antes de pasar a revisión o abrir la PR.
+- **La extensión habla el mismo idioma visual** — la página de vuelta del inicio de sesión y el diagnóstico usan los tokens del sistema (oscuros por defecto y con el tema de VSCode) e iconos Lucide con nombre; la barra de estado dice siempre la palabra del estado y, con todo bien, `[x] SpecBox vX · listo`.
+- **La CLI `specbox` se publica sola en npm** con cada etiqueta (trusted publishing).
+
+100% backwards-compatible: un proyecto sin tokens del sistema sigue con su Brand Kit y recibe un aviso con el enlace a la guía.
 
 ---
 
@@ -531,7 +544,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.14.2 — "Idle Watch" (over v6.14.1 "Forward Only")
+> v 6.15.0 — "Tinta" (over v6.14.2 "Idle Watch")
 
 ## What is this?
 
@@ -543,6 +556,19 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.15
+
+**v6.15.0 — "Tinta"** makes the engine and the extension speak the SpecBox ecosystem's single design system: one source of colours, type and components for the panel, the portal, the site and the extension.
+
+- **Design tools read the system** — `generate_design_md_tool` takes the system tokens (`design-system.tokens.json`) as the only source and reports which values fall outside; Stitch and Claude Design output is marked as a candidate and `/plan` writes each plan's design source.
+- **The design gate blocks what leaves the system** — hand-written colours, foreign fonts, weights above the maximum and gradients, with file and line; in autopilot it blocks before review or opening the PR.
+- **The extension speaks the same visual language** — the sign-in return page and the health panel use the system tokens (dark by default and following the VS Code theme) and named Lucide icons; the status bar always shows the state word and, when everything is fine, `[x] SpecBox vX · ready`.
+- **The `specbox` CLI publishes itself to npm** on every tag (trusted publishing).
+
+100% backwards-compatible: a project without system tokens keeps its Brand Kit and gets a notice with a link to the guide.
+
+---
 
 ## What's new in v6.14
 

@@ -2,6 +2,68 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.15.0] - 2026-10-01 — "Tinta"
+
+El engine y la extensión hablan el sistema de diseño único del ecosistema SpecBox («Tinta», D18):
+las herramientas de diseño toman los tokens del sistema como única fuente, el gate de diseño
+bloquea el código de interfaz que se sale de ellos y la extensión de VSCode deja sus colores
+propios. Cierra la US-49 del board del orquestador.
+
+### Added
+
+- **Las herramientas de diseño leen el sistema** (US-49/UC-4901) — paquete
+  `server/design_system/`: lector de `design-system.tokens.json` (alias por tema y papeles),
+  comprobador de valores fuera del sistema y marca de procedencia. `generate_design_md_tool` en
+  modo contenido (`system_tokens_content`…) devuelve el DESIGN.md hecho solo de tokens y
+  `values_outside_system`; sin tokens avisa (`SYSTEM_TOKENS_MISSING`) y con tokens rotos falla
+  (`SYSTEM_TOKENS_INVALID`), nunca un DESIGN.md del Brand Kit en silencio. Lo que generan Stitch y
+  Claude Design lleva `design_role: candidate`. `/plan` escribe la «Fuente de diseño». Guía:
+  `doc/guides/design-system-tokens.md`.
+- **El gate de diseño bloquea lo que se sale del sistema** (US-49/UC-4902) — escáner gemelo
+  (`server/design_system/code_gaps.py` y `.claude/hooks/lib/design-gaps.mjs`, mismo contrato de
+  casos): colores escritos, fuentes ajenas, pesos por encima del máximo y gradientes, con
+  `fichero:línea` y qué hacer. `get_visual_gap_report(code_files=…)` devuelve `design_gate`; el hook
+  `design-system-gate.mjs` bloquea en autopilot antes de revisión, cierre o PR. Entiende las pistas
+  de tipo de Tailwind v4 (`text-(length:…)`).
+- **La extensión de VSCode habla el mismo idioma visual** (US-49/UC-4903) — tokens vendorizados en
+  `vscode-extension/media/tokens` (sincronización del orquestador) y `src/design.ts`. La página de
+  vuelta del inicio de sesión y el diagnóstico usan los tokens (oscuros por defecto, con el tema de
+  VSCode), IBM Plex, el símbolo del sistema e iconos Lucide con nombre accesible. La barra de estado
+  dice siempre la palabra del estado (`comprobando`, `sin instalar`, `N pendientes`) y, con todo
+  bien, `[x] SpecBox vX · listo`; los avisos de acciones terminadas empiezan por `[x]`.
+- **La CLI `specbox` se publica sola en npm** con cada etiqueta, con trusted publishing
+  (`.github/workflows/publish-specbox-cli.yml`); la comprobación del paquete entiende la salida de
+  `npm pack` ≥ 12.
+
+### Changed
+
+- El diagnóstico de la extensión pasa de una tabla Markdown sin estado a una página con columna de
+  estado (`[x] Listo`, `[ ] Pendiente`, `[ ] Opcional`) y detalle.
+- Limpieza tras la auditoría de la 6.14.2 (documentación, `install.sh`, backends) y el lema del
+  README: el LLM aporta velocidad; SpecBox, calidad y trazabilidad.
+
+### Security
+
+- **Publicar la CLI no necesita ningún token guardado**: npm la publica con trusted publishing
+  (una credencial de un solo uso por ejecución) y cada versión lleva su procedencia firmada, así
+  que no hay un token de npm en los secretos del repositorio que pueda filtrarse ni publicaciones
+  que no salgan de una etiqueta.
+- **La página de vuelta del inicio de sesión, rehecha con el sistema de diseño, no muestra el
+  token** y escapa todo lo que llega en la dirección (el código y la descripción del error), así
+  que un enlace manipulado no puede inyectar contenido; solo ejecuta el cierre de la pestaña.
+
+### Compatibility
+
+- 100% backwards-compatible. Un proyecto sin tokens del sistema sigue con su Brand Kit en las
+  herramientas de diseño y recibe un aviso con el enlace a la guía; el gate no tiene nada que
+  comparar y pasa. Fuera de autopilot el gate avisa sin bloquear (`specbox.design_gate.mode`).
+
+### Tests
+
+- `tests/test_design_system_tokens.py`, `tests/test_design_md_system_tokens.py`,
+  `tests/test_design_candidate_output.py`, `tests/test_design_code_gaps.py` (casos compartidos en
+  Python y Node) y `vscode-extension/tests/design-system.test.mjs`; suite de la extensión 144/144.
+
 ## [6.14.2] - 2026-09-30 — "Idle Watch"
 
 Un token que nadie usa deja de valer solo y una persona no acumula más de

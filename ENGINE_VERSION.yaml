@@ -1,8 +1,8 @@
-version: 6.14.2
-codename: "Idle Watch"
+version: 6.15.0
+codename: "Tinta"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-09-30
+release_date: 2026-10-01
 min_claude_code: "1.0.0"
 
 stacks:
@@ -456,7 +456,23 @@ features:
   - remote-mcp-threat-model
   - security-notes-to-site
 
+  # New (v6.15.0) — Tinta
+  - system-tokens-design-source
+  - design-candidate-marking
+  - design-system-gate
+  - extension-tinta-visual-language
+  - specbox-cli-trusted-publishing
+
 changelog:
+  6.15.0:
+    date: 2026-10-01
+    codename: "Tinta"
+    changes:
+      - "feat: design tools read the system tokens (`design-system.tokens.json`) as the single source — `generate_design_md_tool` content mode, `values_outside_system`, no Brand Kit fallback in silence"
+      - "feat: Stitch and Claude Design output is marked as a candidate (`design_role: candidate`); `/plan` writes the plan's design source"
+      - "feat: the design gate blocks UI code that leaves the system (written colours, foreign fonts, weights above the maximum, gradients) — twin Python/JS scanner, `get_visual_gap_report(code_files=…)` and the `design-system-gate` hook, blocking in autopilot"
+      - "feat: the VS Code extension speaks the system's visual language — OAuth return page and health panel with the system tokens (dark by default, following the VS Code theme) and named Lucide icons; the status bar always shows the state word and `[x] SpecBox vX · ready`"
+      - "ci: the `specbox` CLI publishes itself to npm on every tag with trusted publishing"
   6.14.2:
     date: 2026-09-30
     codename: "Idle Watch"

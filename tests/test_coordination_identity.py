@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import os
 import uuid
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock
@@ -297,8 +296,7 @@ async def test_whoami_rejects_non_native_session(monkeypatch):
 
 # ── PG-gated integration round-trip [AC-10, AC-13] ───────────────────
 
-_DEV_DSN = "postgresql://specbox:specbox_dev_only@localhost:55432/specbox_native"
-DSN = os.environ.get("SPECBOX_NATIVE_DSN", _DEV_DSN)
+from tests._native_db import DSN  # noqa: E402 — un solo DSN de desarrollo (UC-5903)
 
 
 def _probe(dsn: str) -> None:

@@ -22,7 +22,6 @@ bootstrap so the tests stay focused on complete_uc's release behaviour.
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 
 import asyncpg
@@ -83,8 +82,7 @@ async def test_release_path_active_only_for_native_session():
 
 # ── PG-gated AC-01 + AC-03 (real Postgres) ──────────────────────────
 
-_DEV_DSN = "postgresql://specbox:specbox_dev_only@localhost:55432/specbox_native"
-DSN = os.environ.get("SPECBOX_NATIVE_DSN", _DEV_DSN)
+from tests._native_db import DSN  # noqa: E402 — un solo DSN de desarrollo (UC-5903)
 
 
 def _probe(dsn: str) -> None:

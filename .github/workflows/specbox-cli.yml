@@ -18,6 +18,7 @@ on:
     paths:
       - 'packages/specbox-cli/**'
       - 'scripts/npm-publish-and-wait.sh'
+      - 'scripts/tests/test-npm-publish-and-wait.sh'
 
 jobs:
   # UC-5902 — el paso de publicación espera a npm aunque la versión quede «staged».

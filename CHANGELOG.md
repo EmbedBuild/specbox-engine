@@ -2,6 +2,68 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.17.0] - 2026-10-01 — "Evidencias"
+
+Cada criterio de aceptación aceptado enseña su recibo: qué lo respalda, dónde está, quién lo
+aceptó y cuándo. Hasta ahora la evidencia vivía como texto libre en un comentario de la UC, sin
+tipo, enlace ni autor, y el panel y el portal no podían enseñarla. Además, las pruebas del
+backend native vuelven a pasar y corren en cada PR. Cierra la US-56 (parte engine) y la US-59 del
+board del orquestador.
+
+### Added
+
+- **Recibos estructurados en `mark_ac` y `mark_ac_batch`** (US-56/UC-5601) — `evidence` acepta,
+  además del texto libre, un objeto `{type: test|screenshot|diff|url|pr, label, link?, detail?}`
+  (`server/ac_evidence.py`). El board native guarda cada recibo en
+  `acceptance_criteria.meta.evidence` con `by` (el developer de la sesión) y `at` (el reloj del
+  servidor), y el último veredicto en `meta.verdict`, en el mismo `UPDATE` que mueve `done`. Un
+  recibo inválido devuelve `INVALID_EVIDENCE` sin marcar nada; en `mark_ac_batch`, o todo o nada.
+- **`get_uc` devuelve los recibos de cada AC** — `evidence` (tipo, etiqueta, enlace, detalle,
+  quién y cuándo) y `accepted` `{by, at}`, que solo existe si el AC está hecho y su último
+  veredicto lo aceptó. Trello, Plane y FreeForm no tienen almacén por AC: se reconstruyen de los
+  comentarios de la UC con el autor desconocido.
+- **Migración 0028** (sin DDL) — convierte los comentarios «AC-XX: PASSED|FAILED — …» en recibos
+  con su fecha y `by: null`, y el último veredicto de cada AC en `verdict` cuando coincide con su
+  `done`. Idempotente y segura en cualquier orden con el despliegue: conserva los recibos escritos
+  antes y un veredicto con autor siempre gana.
+- **CI `native-tests`** (US-59/UC-5901) — cada PR y cada push a main ejecutan las pruebas del
+  backend native contra un Postgres de servicio; el check es obligatorio en main.
+- **`scripts/npm-publish-and-wait.sh`** (US-59/UC-5902) — publica la CLI y espera a que npm la
+  sirva, con sus pruebas contra un npm falso.
+
+### Changed
+
+- **La publicación de la CLI espera a npm** — hasta 45 minutos, y un `E409 previously staged`
+  cuenta como publicación aceptada; pasado el plazo, falla diciendo cómo relanzar el workflow.
+- **El Postgres de desarrollo** toma el puerto de `SPECBOX_NATIVE_PG_PORT` (55432 por defecto) y
+  las pruebas construyen su DSN con la misma variable (US-59/UC-5903).
+- **`SpecBackend.mark_acceptance_criterion`** recibe `evidence=None`; los cinco backends lo
+  aceptan y el dual lo reenvía a su espejo native.
+- **La guía de `acceptance-validator`** usaba `{"status": "passed"}` en `mark_ac_batch`, que la
+  tool ignora (lee `passed`); ahora pide un recibo por AC, igual que `/implement`.
+
+### Security
+
+- **Nadie puede atribuirse ni atribuir una aceptación**: quién y cuándo de cada recibo y de cada
+  veredicto los pone el servidor con la sesión que marca, nunca quien llama, y donde el autor no
+  consta se deja vacío en vez de suponerlo.
+- **Un recibo solo enlaza a http(s)**: cualquier otro esquema se rechaza al escribirlo.
+
+### Compatibility
+
+- 100% backwards-compatible. La evidencia en texto libre se guarda como recibo de tipo `url` con
+  el texto completo y el comentario de la UC no cambia ni un carácter. Quien implemente
+  `SpecBackend` por su cuenta debe aceptar el parámetro `evidence`.
+
+### Tests
+
+- `tests/test_ac_evidence.py` (26, la mitad contra Postgres: autor y fecha del recibo, veredicto,
+  `get_uc` real, migración idempotente que no atribuye lo que no consta),
+  `tests/test_native_pool_hygiene.py` y `scripts/tests/test-npm-publish-and-wait.sh` (8). La
+  suite completa con Postgres pasa de 55 fallos y 13 errores (y cuelgues) a 2203 passed: la pool
+  compartida se cierra tras la prueba que la abrió, las fixtures crean la organización que exige
+  el aprovisionamiento y una prueba bloqueada falla por tiempo límite.
+
 ## [6.16.0] - 2026-10-01 — "Goma"
 
 Borra lo que se creó por error y corrige lo que salió mal al cerrar «Tinta»: una UC creada por

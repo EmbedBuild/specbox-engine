@@ -81,14 +81,15 @@ TEST_ORG_PREFIX = "test-org-"
 
 
 async def seed_organization(conn: asyncpg.Connection, developer_id: str) -> str:
-    """Give a test developer the organization that provisioning requires.
+    """Give a test developer the organization a panel signup gives.
 
-    ``provision_native_project`` — and with it ``setup_board`` — resolves the
-    organization of a new project from the caller and refuses to create one for
-    a developer without any (``OrgResolutionError``). In production the signup
-    (UC-1303) gives every developer an organization; a test that registers a
-    developer by hand has to do the same before provisioning a project for them.
-    The developer is ``org_admin``, as a signup leaves the creator.
+    ``provision_native_project`` — and with it ``setup_board`` — places a new
+    project in its creator's organization. In production the signup (UC-1303)
+    gives every developer one; a test that registers a developer by hand and
+    wants the panel's behaviour does the same. Without it the project is created
+    with a NULL organization, as on an engine run without the panel
+    (US-60/UC-6001). The developer is ``org_admin``, as a signup leaves the
+    creator.
 
     Organizations left without members nor projects by earlier tests (their
     cleanup deletes projects and developers, not organizations) are swept first,

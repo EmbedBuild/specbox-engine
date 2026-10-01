@@ -254,6 +254,38 @@ class TestSetupBoardProvisionsMembership:
             await _cleanup(pool, pid, dev_id)
             await close_pool()
 
+    async def test_setup_board_without_panel_creates_project_without_organization(self):
+        """US-60/UC-6001 AC-01: an engine run without the panel — a developer that
+        belongs to no organization — creates its project with setup_board. The
+        project lands with a NULL organization instead of failing, and the board
+        works on it."""
+        from server.backends.native_backend import NativeBackend
+        from server.coordination.identity import register_developer, register_mcp_token
+        from server.db.pool import close_pool
+
+        pool = await _pool()
+        pid = f"Acme/setup-no-org-{uuid.uuid4().hex[:8]}"
+        dev_id = f"orphan-noorg-{uuid.uuid4().hex[:8]}"
+        token = f"orphan-noorg-tok-{uuid.uuid4().hex[:16]}"
+        async with pool.acquire() as conn:
+            await register_developer(conn, developer_id=dev_id, display_name="Engine sin panel")
+            await register_mcp_token(conn, developer_id=dev_id, token=token)
+        try:
+            be = NativeBackend(project_id=pid, dev_token=token)
+            cfg = await be.setup_board("Sin organización")
+
+            assert cfg.board_id == pid
+            assert await _member_role(pool, pid, dev_id) == "project_admin"
+            async with pool.acquire() as conn:
+                org = await conn.fetchval(
+                    "SELECT organization_id FROM projects WHERE project_id = $1", pid
+                )
+            assert org is None
+            assert await be.list_items(pid) == []
+        finally:
+            await _cleanup(pool, pid, dev_id)
+            await close_pool()
+
     async def test_setup_board_idempotent_no_admin_degrade(self):
         """AC-02: re-running setup_board is idempotent and keeps admin role."""
         from server.backends.native_backend import NativeBackend

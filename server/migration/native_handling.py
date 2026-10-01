@@ -259,7 +259,10 @@ async def provision_native_project(
        row; when ``None`` the canonical project_id is used on insert and the
        stored name is preserved on conflict (never clobbered);
     3. register the developer + token-less identity row and the membership
-       edge with ``role`` (defaults to ``project_admin``);
+       edge with ``role`` (defaults to ``project_admin``). The project lands in
+       an organization when one resolves (explicit, the project's own, or one of
+       the developer's); otherwise — an engine without the panel — it is created
+       with ``organization_id`` NULL and a warning (US-60/UC-6001);
     4. append a non-destructive ``provision_project`` row to ``audit_log``.
 
     Idempotency (AC-10): re-provisioning a project the same caller already
@@ -317,21 +320,22 @@ async def provision_native_project(
                 if existed
                 else 0
             )
-            # UC-1304 follow-up: ``projects.organization_id`` is NOT NULL since
-            # migration 0019. The bare INSERT below used to omit it, which now
-            # violates the constraint — even on a re-auth of an existing project,
-            # because Postgres builds the candidate row (org = NULL) before the
-            # ON CONFLICT fires. We resolve the org to write with this priority:
+            # Organization (UC-1304; US-60/UC-6001). "Organization" is a concept
+            # of the panel, not of the engine (migration 0020 made the column
+            # nullable again): the engine's projects are multi-tenant by
+            # ``project_id`` alone. A project is placed in an organization when
+            # one resolves, with this priority:
             #   1. an explicit ``organization_id`` passed by the caller (UC-1303
-            #      from-scratch signup will pass the creator's brand-new org);
-            #   2. the project's CURRENT org when it already exists (re-auth /
-            #      re-provision must preserve it — never clobber);
-            #   3. an organization the ``developer_id`` already belongs to (a
-            #      developer creating a project lands it in their own org);
-            # If none resolve (a brand-new project by a developer with no org
-            # yet), we raise a clear error rather than write a NULL — UC-1303 is
-            # responsible for ensuring every developer has an org before they can
-            # create a project from scratch.
+            #      from-scratch signup passes the creator's brand-new org);
+            #   2. the project's CURRENT org when it already exists — and the
+            #      ON CONFLICT below never touches ``organization_id``, so a
+            #      re-provision never moves nor clears it;
+            #   3. an organization the ``developer_id`` already belongs to.
+            # If none resolves — an engine run without the panel, whose
+            # developers belong to no organization — the project is created with
+            # a NULL org and a warning. Every engine tool works on it; in the
+            # panel it is invisible to every tenant (the UC-1304 filters scope by
+            # org) until the SuperAdmin assigns it.
             resolved_org = organization_id
             if resolved_org is None and existed:
                 resolved_org = await conn.fetchval(
@@ -348,12 +352,16 @@ async def provision_native_project(
                     """,
                     developer_id,
                 )
-            if resolved_org is None:
-                raise OrgResolutionError(
-                    f"Cannot provision project '{canonical}': no organization "
-                    f"could be resolved for developer '{developer_id}'. Pass "
-                    f"organization_id explicitly, or ensure the developer "
-                    f"belongs to an organization (signup creates one — UC-1303)."
+            if resolved_org is None and not existed:
+                logger.warning(
+                    "native_project_without_organization",
+                    project_id=canonical,
+                    developer_id=developer_id,
+                    hint=(
+                        "No organization to place the project in (engine without the "
+                        "panel?): created with organization_id NULL. The panel will not "
+                        "show it to any tenant until the SuperAdmin assigns it."
+                    ),
                 )
             await conn.execute(
                 """
@@ -431,14 +439,6 @@ async def provision_native_project(
 
 class MissingDevTokenError(RuntimeError):
     """Raised when a native target is requested without a dev_token (AC-09)."""
-
-
-class OrgResolutionError(RuntimeError):
-    """Raised when a project must be provisioned but no organization can be
-    resolved for it (UC-1304 / 0019 NOT NULL). Happens only for a brand-new
-    project created by a developer who has no organization yet — UC-1303 (signup)
-    guarantees every developer gets an org, so this should not fire in practice.
-    """
 
 
 def require_dev_token(target_type: str, dev_token: str) -> None:

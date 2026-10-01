@@ -23,7 +23,6 @@ identity via the pool and build the native session by hand
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 
 import asyncpg
@@ -84,8 +83,7 @@ async def test_release_helper_emits_release_not_complete():
 
 # ── PG-gated AC-19 + AC-20 + AC-21 (real Postgres) ──────────────────
 
-_DEV_DSN = "postgresql://specbox:specbox_dev_only@localhost:55432/specbox_native"
-DSN = os.environ.get("SPECBOX_NATIVE_DSN", _DEV_DSN)
+from tests._native_db import DSN  # noqa: E402 — un solo DSN de desarrollo (UC-5903)
 
 
 def _probe(dsn: str) -> None:

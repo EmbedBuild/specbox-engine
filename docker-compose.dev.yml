@@ -5,6 +5,12 @@
 #   docker compose -f docker-compose.dev.yml up -d
 #   docker compose -f docker-compose.dev.yml down -v   # -v borra el volumen
 #
+# Si el 55432 está ocupado, elige otro puerto con SPECBOX_NATIVE_PG_PORT: las
+# pruebas leen la misma variable para construir su DSN de desarrollo (UC-5903).
+#
+#   SPECBOX_NATIVE_PG_PORT=55434 docker compose -f docker-compose.dev.yml up -d
+#   SPECBOX_NATIVE_PG_PORT=55434 python -m pytest tests/test_native_*.py
+#
 # El NativeBackend lee su credencial de servicio SOLO de env (Frontera 2 del
 # plan), nunca del config de sesión. En local esa env apunta a este contenedor.
 services:
@@ -13,7 +19,8 @@ services:
     container_name: specbox-native-pg-dev
     restart: unless-stopped
     ports:
-      - "55432:5432"          # 55432 en host para no chocar con un Postgres local en 5432
+      # 55432 en host para no chocar con un Postgres local en 5432; otro con SPECBOX_NATIVE_PG_PORT
+      - "${SPECBOX_NATIVE_PG_PORT:-55432}:5432"
     environment:
       POSTGRES_DB: specbox_native
       POSTGRES_USER: specbox

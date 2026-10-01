@@ -31,7 +31,10 @@ from server.db.pool import _resolve_ssl
 #: Frontier 2: DSN is normally env-only. Tests honour an explicit override and
 #: fall back to the documented dev DSN (docker-compose.dev.yml). To run against
 #: Supabase, export SPECBOX_NATIVE_DSN with the Pooler transaction-mode URI.
-_DEV_DSN = "postgresql://specbox:specbox_dev_only@localhost:55432/specbox_native"
+#: UC-5903: the dev port follows SPECBOX_NATIVE_PG_PORT, the same variable
+#: docker-compose.dev.yml publishes, so a busy 55432 only needs one export.
+DEV_PORT = os.environ.get("SPECBOX_NATIVE_PG_PORT") or "55432"
+_DEV_DSN = f"postgresql://specbox:specbox_dev_only@localhost:{DEV_PORT}/specbox_native"
 DSN = os.environ.get("SPECBOX_NATIVE_DSN", _DEV_DSN)
 
 

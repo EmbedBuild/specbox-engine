@@ -114,6 +114,15 @@ Postgres dev local para verificar migraciones y tests:
 docker compose -f docker-compose.dev.yml up -d   # postgres:16, puerto 55432, db specbox_native
 ```
 
+Si el puerto 55432 ya está ocupado, elige otro con `SPECBOX_NATIVE_PG_PORT`. El contenedor
+lo publica en ese puerto y las pruebas construyen su DSN de desarrollo con él cuando
+`SPECBOX_NATIVE_DSN` no está definido (UC-5903):
+```bash
+export SPECBOX_NATIVE_PG_PORT=55434
+docker compose -f docker-compose.dev.yml up -d
+python -m pytest tests/test_native_*.py
+```
+
 La suite native (`tests/test_native_*.py`) corre verde contra una instancia Supabase
 gestionada del mantenedor (Postgres 17+): 50 passed, 0 skipped. Cada operador del
 MCP es responsable de provisionar su propia instancia Supabase.

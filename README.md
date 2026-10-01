@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.16.0 — "Goma" (sobre v6.15.0 "Tinta")<br/>
+  v 6.17.0 — "Evidencias" (sobre v6.16.0 "Goma")<br/>
   <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,19 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.17
+
+**v6.17.0 — "Evidencias"** hace que cada criterio de aceptación aceptado enseñe su recibo:
+
+- **Recibos estructurados** — `mark_ac` y `mark_ac_batch` aceptan, además del texto libre de siempre, un recibo `{type: test|screenshot|diff|url|pr, label, link?, detail?}`. El board native lo guarda junto al AC con quién lo marcó y cuándo; un recibo mal formado no marca nada.
+- **`get_uc` enseña los recibos** — por cada AC, sus evidencias con tipo, etiqueta, enlace, quién y cuándo, y quién lo aceptó. En Trello, Plane y FreeForm se reconstruyen de los comentarios con el autor desconocido: nunca se inventa.
+- **Lo de antes también tiene recibo** — la migración 0028 convierte los comentarios «AC-XX: PASSED — …» en recibos con su fecha.
+- **Las pruebas del backend native corren en cada PR** contra un Postgres real y la suite completa ya no se cuelga; la CLI espera a npm aunque la versión quede «staged», y el Postgres de desarrollo arranca en el puerto que elijas (`SPECBOX_NATIVE_PG_PORT`).
+
+100% backwards-compatible: la evidencia en texto libre se guarda y se comenta igual que antes.
 
 ---
 
@@ -556,7 +569,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.16.0 — "Goma" (over v6.15.0 "Tinta")
+> v 6.17.0 — "Evidencias" (over v6.16.0 "Goma")
 
 ## What is this?
 
@@ -569,7 +582,16 @@ A system that turns Claude Code into a serious teammate:
 
 > The LLM provides speed. SpecBox provides quality and traceability.
 
-## What's new in v6.16
+## What's new in v6.17
+
+**v6.17.0 — "Evidencias"** ("receipts") makes every accepted acceptance criterion show its receipt:
+
+- **Structured receipts** — `mark_ac` and `mark_ac_batch` accept, besides the usual free text, a receipt `{type: test|screenshot|diff|url|pr, label, link?, detail?}`. The Native board stores it with the AC, together with who marked it and when; a malformed receipt marks nothing.
+- **`get_uc` shows the receipts** — per AC, its evidence with type, label, link, who and when, and who accepted it. On Trello, Plane and FreeForm they are rebuilt from the comments with the author unknown: never invented.
+- **What came before has a receipt too** — migration 0028 turns the `AC-XX: PASSED — …` comments into receipts with their date.
+- **The native backend tests run on every PR** against a real Postgres and the full suite no longer hangs; the CLI waits for npm even when a version stays "staged", and the dev Postgres starts on the port you choose (`SPECBOX_NATIVE_PG_PORT`).
+
+100% backwards-compatible: free-text evidence is stored and commented exactly as before.
 
 **v6.16.0 — "Goma"** ("eraser") removes what was created by mistake and fixes what went wrong when closing "Tinta":
 

@@ -1,5 +1,5 @@
-version: 6.16.0
-codename: "Goma"
+version: 6.17.0
+codename: "Evidencias"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-10-01
@@ -468,7 +468,25 @@ features:
   - extension-full-l10n
   - changelog-security-check-design-tokens
 
+  # New (v6.17.0) — Evidencias
+  - ac-evidence-receipts
+  - native-tests-required-ci
+  - npm-publish-waits-for-staged
+  - native-pg-dev-port
+
 changelog:
+  6.17.0:
+    date: 2026-10-01
+    codename: "Evidencias"
+    changes:
+      - "feat: `mark_ac` and `mark_ac_batch` accept a structured receipt `{type: test|screenshot|diff|url|pr, label, link?, detail?}` besides free text (stored as type `url` with the full text as label, the UC comment unchanged); an invalid receipt returns `INVALID_EVIDENCE` and marks nothing — a batch is recorded whole or not at all"
+      - "feat: the Native board keeps each AC's receipts in `acceptance_criteria.meta.evidence` with who marked it (the session developer) and when (server clock), and its last verdict in `meta.verdict`, in the same UPDATE that moves `done`"
+      - "feat: `get_uc` returns, per AC, its receipts (type, label, link, detail, who, when) and `accepted` {by, at}; Trello, Plane and FreeForm rebuild them from the UC comments with the author unknown — never invented"
+      - "feat: migration 0028 turns the old `AC-XX: PASSED — …` comments into receipts with their date and `by: null`, and the last verdict of each AC into `verdict` when it matches `done`; idempotent and safe in any order with the deploy"
+      - "fix: the acceptance-validator guide used `{\"status\": \"passed\"}` in `mark_ac_batch`, which the tool ignores (it reads `passed`)"
+      - "test: the native backend tests pass and run on every PR against a Postgres service (`native-tests`, required on main); the full suite with Postgres no longer hangs — the shared pool is closed after the test that opened it, fixtures create the organization provisioning requires, and a blocked test fails by time limit"
+      - "fix: the npm CLI publish waits up to 45 min when npm keeps a version «staged» (E409 counts as accepted) and, past the deadline, fails saying how to relaunch"
+      - "fix: the dev Postgres takes its host port from `SPECBOX_NATIVE_PG_PORT` (55432 by default) and the tests build their dev DSN from the same variable"
   6.16.0:
     date: 2026-10-01
     codename: "Goma"

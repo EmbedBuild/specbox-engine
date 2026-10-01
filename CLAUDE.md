@@ -1,4 +1,4 @@
-# SpecBox Engine v6.16.0
+# SpecBox Engine v6.17.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -126,7 +126,8 @@ python -m pytest tests/test_native_*.py
 Las pruebas que usan Postgres (UC-5901) son las de los módulos que pasan por
 `tests/_native_db.py`; `tests/conftest.py` les pone el marcador `native_db`, así que
 `python -m pytest -m native_db tests` las corre todas (461 hoy, ~35 s contra un Postgres 16
-limpio) y un módulo nuevo entra solo con usar el helper. La CI las ejecuta en cada PR y en
+limpio) y un módulo nuevo entra solo con usar el helper. Es check obligatorio para fusionar en
+main. La CI las ejecuta en cada PR y en
 cada push a main contra un `postgres:16-alpine` de servicio:
 `.github/workflows/native-tests.yml`, check `native-tests`. Tres reglas que las sostienen:
 
@@ -2258,7 +2259,11 @@ dos historias seguían abiertas con todas sus UC hechas.
     `_status`, `_connect`, `_configure`, `_adopt` (`/api/devices/adopt`, NO revoca el token anterior),
     `_renew`, `_disconnect`.
   - Tests: `packages/specbox-cli/test/*.test.mjs`; workflow `specbox-cli.yml` (macOS, Linux, Windows ×
-    Node 18/22). Publicación en npm: manual (`npm publish` en `packages/specbox-cli`).
+    Node 18/22). Publicación en npm: automática con cada etiqueta `vX.Y.Z`
+    (`publish-specbox-cli.yml`, trusted publishing sin token). `scripts/npm-publish-and-wait.sh`
+    espera hasta 45 min a que npm sirva la versión (un `E409 previously staged` cuenta como
+    aceptada) y, pasado el plazo, dice cómo relanzar (UC-5902). Runbook:
+    `doc/runbooks/npm-trusted-publishing.md`.
 - **Extensión de VSCode**: `copy-cli.mjs` empaqueta `packages/specbox-cli` en `specbox-cli/` al
   compilar (generado, en `.gitignore`); `src/specbox-cli.ts` lo ejecuta con el Node del sistema.
   - Iniciar sesión añade el dispositivo a `/vscode/issue-token` y llama a `_connect`.
@@ -2427,9 +2432,40 @@ error (el origen fue UC-4304, duplicada de UC-3904 y borrada a mano por SQL el 2
 - Modelo de amenazas: T14 en `doc/security/threat-model.md`. Tests: `tests/test_uc_purge.py`
   (las native, contra Postgres).
 
+## Cada criterio aceptado enseña su recibo (US-56 · UC-5601, v6.17.0)
+
+`mark_ac` y `mark_ac_batch` guardan, además del estado, el **recibo** de cada AC: qué lo respalda,
+dónde está, quién lo marcó y cuándo. El panel (árbol de especificaciones) y el portal (roadmap)
+lo enseñan con la `EvidenceCard` del registro `@specbox/ui`.
+
+- **Entrada** (`server/ac_evidence.py::normalize_evidence`): `evidence` es texto libre, que se
+  guarda como `{type: "url", label: <texto completo>, link: null, detail: null}` y deja el
+  comentario de la UC igual que siempre, o un objeto `{type: test|screenshot|diff|url|pr, label,
+  link?, detail?}` (`link` solo http/https). Un recibo inválido devuelve `INVALID_EVIDENCE` y no
+  marca nada; en `mark_ac_batch` se validan todos antes de tocar el board.
+- **Native**: el mismo `UPDATE` que mueve `done` escribe `acceptance_criteria.meta.verdict =
+  {passed, by, at}` y añade el recibo a `meta.evidence` con `by` (developer de la sesión) y `at`
+  (`now()` del servidor). Quién y cuándo nunca los pone el llamante. Sin tabla nueva: no cambian
+  la superficie de la BD, los permisos ni las RLS.
+- **Salida**: `get_uc` devuelve por AC `evidence` (`{type, label, link, detail, by, at, passed}`) y
+  `accepted` (`{by, at}`, solo si el AC está hecho y su último veredicto lo aceptó; si se hizo por
+  otra vía, `null`: no se atribuye una aceptación que no consta).
+- **Trello, Plane y FreeForm** no tienen almacén por AC: aceptan el parámetro y lo ignoran, y
+  `get_uc` reconstruye recibos y veredictos de los comentarios de la UC con `by: null`
+  (`evidence_from_comments`, `verdicts_from_comments`).
+- **Migración 0028** (`server/db/migrations/0028_ac_evidence_backfill.sql`, gemela en
+  `supabase/migrations/20261001000028_…`, sin DDL): convierte los comentarios «AC-XX:
+  PASSED|FAILED — …» en recibos `source: "migrated"` con su fecha y `by: null`, y el último
+  veredicto (incluidas las líneas de «Validacion AG-09b») en `verdict` solo si coincide con `done`.
+  Idempotente y segura en cualquier orden con el despliegue. Mismas expresiones regulares que
+  `server/ac_evidence.py`.
+- `SpecBackend.mark_acceptance_criterion(..., evidence=None)`: los cinco backends y los dobles de
+  pruebas aceptan el parámetro; el dual lo reenvía al espejo native.
+- Tests: `tests/test_ac_evidence.py` (las native, contra Postgres).
+
 ## Engine Version
 
-Current: v6.16.0 "Goma"
+Current: v6.17.0 "Evidencias"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

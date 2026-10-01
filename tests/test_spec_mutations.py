@@ -130,7 +130,7 @@ class InMemoryBackend(SpecBackend):
     async def get_acceptance_criteria(self, board_id, uc_item_id):
         return list(self.acs.get(uc_item_id, []))
 
-    async def mark_acceptance_criterion(self, board_id, uc_item_id, ac_id, passed):
+    async def mark_acceptance_criterion(self, board_id, uc_item_id, ac_id, passed, evidence=None):
         for ac in self.acs.get(uc_item_id, []):
             if ac.id == ac_id:
                 ac.done = passed

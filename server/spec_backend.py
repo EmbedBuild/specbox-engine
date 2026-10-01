@@ -77,6 +77,12 @@ class ChecklistItemDTO:
     # backends that have no such concept (Trello / Plane / FreeForm) keep
     # behaving exactly as before: every AC they return is client-facing.
     internal: bool = False
+    # US-56/UC-5601: the receipts of this AC — each {type, label, link, detail,
+    # by, at, passed} — and its last verdict {passed, by, at}. Only the Native
+    # board stores them per AC; the other backends return them empty and
+    # `get_uc` rebuilds them from the UC comments (server/ac_evidence.py).
+    evidence: list[dict[str, Any]] = field(default_factory=list)
+    verdict: dict[str, Any] | None = None
 
 
 @dataclass
@@ -335,11 +341,18 @@ class SpecBackend(ABC):
         uc_item_id: str,
         ac_id: str,
         passed: bool,
+        evidence: dict[str, Any] | None = None,
     ) -> ChecklistItemDTO:
         """Mark a single AC as passed/failed.
 
         In Trello: updates checklist item state.
         In Plane: moves AC sub-item to Done/Backlog state.
+
+        ``evidence`` (US-56/UC-5601) is the normalized receipt
+        ``{type, label, link, detail}`` from `server.ac_evidence`. The Native
+        board stores it with the AC, plus who marked it and when; Trello, Plane
+        and FreeForm have nowhere to put it per AC and ignore it — the UC
+        comment the tool writes is their record.
         """
 
     async def set_ac_internal(

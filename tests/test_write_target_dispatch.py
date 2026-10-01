@@ -144,7 +144,7 @@ class InMemoryBackend:
         return created
 
     async def mark_acceptance_criterion(
-        self, board_id: str, uc_item_id: str, ac_id: str, passed: bool
+        self, board_id: str, uc_item_id: str, ac_id: str, passed: bool, evidence=None
     ) -> ChecklistItemDTO:
         for ac in self._acs.get(uc_item_id, []):
             if ac.id == ac_id:
@@ -385,7 +385,7 @@ class _AcMarkFlakyBackend(InMemoryBackend):
     """mark_acceptance_criterion raises — best-effort, must be swallowed."""
 
     async def mark_acceptance_criterion(
-        self, board_id: str, uc_item_id: str, ac_id: str, passed: bool
+        self, board_id: str, uc_item_id: str, ac_id: str, passed: bool, evidence=None
     ) -> ChecklistItemDTO:
         raise RuntimeError("cannot mark AC done")
 

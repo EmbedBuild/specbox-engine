@@ -2027,7 +2027,9 @@ git pull origin main
 #### Todos los backends (Trello/Plane/FreeForm):
 1. Llamar `move_uc(board_id, uc_id, "review")` — mueve UC a **Review** (NO a Done)
 2. Adjuntar evidencia: `attach_evidence(board_id, uc_id, "uc", "acceptance", evidence_md)`
-3. Reportar acceptance tests: `mark_ac_batch(board_id, uc_id, results)`
+3. Reportar acceptance tests: `mark_ac_batch(board_id, uc_id, results)`, con un recibo por AC
+   (`{"ac_id", "passed", "evidence": {type: test|screenshot|diff|url|pr, label, link?, detail?}}`,
+   US-56/UC-5601): el panel y el portal lo enseñan como prueba de que el criterio se cumple.
 
 > **IMPORTANTE**: El agente NUNCA mueve a Done. Solo a Review.
 > El humano revisa la PR, ejecuta flujos manuales, verifica E2E,

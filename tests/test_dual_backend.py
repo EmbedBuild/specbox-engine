@@ -165,7 +165,7 @@ class FakeBackend(SpecBackend):
         return list(self.acs.get(uc_item_id, {}).values())
 
     async def mark_acceptance_criterion(
-        self, board_id: str, uc_item_id: str, ac_id: str, passed: bool
+        self, board_id: str, uc_item_id: str, ac_id: str, passed: bool, evidence=None
     ) -> ChecklistItemDTO:
         self.calls.append("mark_acceptance_criterion")
         ac = self.acs[uc_item_id][ac_id]

@@ -279,18 +279,24 @@ class DualBackendWrapper(SpecBackend):
         return result
 
     async def mark_acceptance_criterion(
-        self, board_id: str, uc_item_id: str, ac_id: str, passed: bool
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+        passed: bool,
+        evidence: dict[str, Any] | None = None,
     ) -> ChecklistItemDTO:
         result = await self.primary.mark_acceptance_criterion(
-            board_id, uc_item_id, ac_id, passed
+            board_id, uc_item_id, ac_id, passed, evidence=evidence
         )
 
         async def _mirror() -> None:
             mirror_id = await self._resolve_mirror_id(board_id, uc_item_id)
             if mirror_id is None:
                 return
+            # UC-5601: the Native mirror is where the receipt is stored per AC.
             await self.mirror.mark_acceptance_criterion(
-                self.mirror_board_id, mirror_id, ac_id, passed
+                self.mirror_board_id, mirror_id, ac_id, passed, evidence=evidence
             )
 
         await self._guarded_mirror("mark_acceptance_criterion", _mirror)

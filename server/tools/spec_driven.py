@@ -22,6 +22,15 @@ from typing import Any
 import structlog
 from fastmcp import Context
 
+from ..ac_evidence import (
+    AcEvidenceInput,
+    EvidenceError,
+    accepted_from,
+    evidence_comment_text,
+    evidence_from_comments,
+    normalize_evidence,
+    verdicts_from_comments,
+)
 from ..auth_gateway import (
     BACKEND_STATE_KEY,
     get_session_backend,
@@ -1245,9 +1254,31 @@ async def get_uc(
             if us_item:
                 us_name = _clean_name(us_item.name, item_us_id)
 
-        # Get ACs
+        # Get ACs, each with its receipts (US-56/UC-5601). The Native board
+        # stores them per AC; for any AC without stored receipts (Trello, Plane,
+        # FreeForm, or a Native AC marked before UC-5601) they are rebuilt from
+        # the UC comments, with the author unknown.
         acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
-        ac_list = [{"id": ac.id, "text": ac.text, "done": ac.done} for ac in acs]
+        from_comments: dict[str, list[dict[str, Any]]] = {}
+        verdicts: dict[str, dict[str, Any]] = {}
+        if any(not ac.evidence and ac.verdict is None for ac in acs):
+            comments = await backend.get_comments(board_id, uc_item.id)
+            from_comments = evidence_from_comments(comments)
+            verdicts = verdicts_from_comments(comments)
+        ac_list = []
+        for ac in acs:
+            stored = bool(ac.evidence) or ac.verdict is not None
+            evidence = ac.evidence if stored else from_comments.get(ac.id, [])
+            verdict = ac.verdict if stored else verdicts.get(ac.id)
+            ac_list.append(
+                {
+                    "id": ac.id,
+                    "text": ac.text,
+                    "done": ac.done,
+                    "evidence": evidence,
+                    "accepted": accepted_from(ac.done, verdict),
+                }
+            )
 
         # Get attachments
         attachments = await backend.get_attachments(board_id, uc_item.id)
@@ -1787,19 +1818,23 @@ async def mark_ac(
     ac_id: str,
     passed: bool,
     ctx: Context,
-    evidence: str | None = None,
+    evidence: str | AcEvidenceInput | None = None,
     items_content: str | None = None,
 ) -> dict[str, Any]:
     """Mark a single Acceptance Criterion as passed or failed.
 
-    Updates the AC status and adds a comment.
+    Updates the AC status, stores its receipt and adds a comment.
 
     Args:
         board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
         ac_id: Acceptance Criterion ID (e.g., "AC-01")
         passed: True if the criterion passed, False if failed
-        evidence: Optional evidence text
+        evidence: Optional receipt. Either free text (stored as type "url"
+            with the full text as label and no link) or an object
+            {type: test|screenshot|diff|url|pr, label, link?, detail?}. The
+            Native board stores it with the AC together with the session
+            developer and the date (US-56/UC-5601).
         items_content: FreeForm content-passing (UC-660). Pass items.json as a
             string for remote MCP; the mutated string is returned under
             `items_content`. Omit for local MCP / disk mode.
@@ -1808,6 +1843,11 @@ async def mark_ac(
         AC status update result with totals, plus `items_content` (mutated
         items.json string) when `items_content` was provided.
     """
+    try:
+        receipt = normalize_evidence(evidence)  # type: ignore[arg-type]
+    except EvidenceError as e:
+        return {"error": f"Evidencia no válida para {ac_id}: {e}", "code": "INVALID_EVIDENCE"}
+
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
@@ -1816,7 +1856,9 @@ async def mark_ac(
 
         # Mark the AC
         try:
-            await backend.mark_acceptance_criterion(board_id, uc_item.id, ac_id, passed)
+            await backend.mark_acceptance_criterion(
+                board_id, uc_item.id, ac_id, passed, evidence=receipt
+            )
         except Exception as e:
             return {
                 "error": f"AC {ac_id} not found in {uc_id}: {str(e)}",
@@ -1826,8 +1868,8 @@ async def mark_ac(
         # Add comment
         status_text = "PASSED" if passed else "FAILED"
         comment = f"{ac_id}: {status_text}"
-        if evidence:
-            comment += f" — {evidence}"
+        if receipt:
+            comment += f" — {evidence_comment_text(receipt)}"
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         comment += f" [{now}]"
         await backend.add_comment(board_id, uc_item.id, comment)
@@ -1866,11 +1908,26 @@ async def mark_ac_batch(
     Args:
         board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
-        results: List of {ac_id: str, passed: bool, evidence: str | None}
+        results: List of {ac_id: str, passed: bool, evidence: str | object | None}.
+            Each evidence follows the same rules as in `mark_ac` (US-56/UC-5601):
+            free text, or {type, label, link?, detail?}. If any evidence is
+            invalid, nothing is marked.
 
     Returns:
         Batch result with total/passed/failed counts.
     """
+    # Validate every receipt before touching the board: a batch is either
+    # recorded whole or not at all.
+    receipts: list[dict[str, Any] | None] = []
+    for r in results:
+        try:
+            receipts.append(normalize_evidence(r.get("evidence")))
+        except EvidenceError as e:
+            return {
+                "error": f"Evidencia no válida para {r.get('ac_id', '?')}: {e}",
+                "code": "INVALID_EVIDENCE",
+            }
+
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
@@ -1881,12 +1938,14 @@ async def mark_ac_batch(
         passed_count = 0
         failed_count = 0
 
-        for r in results:
+        for r, receipt in zip(results, receipts):
             ac_id = r.get("ac_id", "")
             passed = r.get("passed", False)
 
             try:
-                await backend.mark_acceptance_criterion(board_id, uc_item.id, ac_id, passed)
+                await backend.mark_acceptance_criterion(
+                    board_id, uc_item.id, ac_id, passed, evidence=receipt
+                )
             except Exception:
                 logger.warning("mark_ac_batch_skip", uc_id=uc_id, ac_id=ac_id, error="not_found")
 
@@ -1895,14 +1954,18 @@ async def mark_ac_batch(
             else:
                 failed_count += 1
 
-            details.append({"ac_id": ac_id, "passed": passed})
+            details.append({"ac_id": ac_id, "passed": passed, "receipt": receipt})
 
         # Add consolidated comment
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         comment_lines = [f"Validacion AG-09b [{now}]:"]
         for d in details:
             status_text = "PASSED" if d["passed"] else "FAILED"
-            comment_lines.append(f"  {d['ac_id']}: {status_text}")
+            line = f"  {d['ac_id']}: {status_text}"
+            if d["receipt"]:
+                # One line per AC: a multi-line receipt would break the batch format.
+                line += " — " + " ".join(evidence_comment_text(d["receipt"]).split())
+            comment_lines.append(line)
         await backend.add_comment(board_id, uc_item.id, "\n".join(comment_lines))
 
         if failed_count == 0 and passed_count > 0:
@@ -1917,7 +1980,7 @@ async def mark_ac_batch(
             "total": len(results),
             "passed": passed_count,
             "failed": failed_count,
-            "details": details,
+            "details": [{"ac_id": d["ac_id"], "passed": d["passed"]} for d in details],
             "summary": f"Marcados {passed_count}/{len(results)} criterios como done en {uc_id}",
         }
     finally:
@@ -2546,8 +2609,19 @@ def register_spec_driven_tools(mcp_instance) -> None:
     )(complete_uc)
 
     # Acceptance Criteria (3)
-    mcp_instance.tool(description="Mark a single AC as passed/failed with optional evidence.")(mark_ac)
-    mcp_instance.tool(description="Mark multiple ACs at once (batch AG-09b validation).")(mark_ac_batch)
+    mcp_instance.tool(
+        description=(
+            "Mark a single AC as passed/failed with optional evidence: free text, or a receipt "
+            "{type: test|screenshot|diff|url|pr, label, link?, detail?} stored with the AC, "
+            "the session developer and the date."
+        )
+    )(mark_ac)
+    mcp_instance.tool(
+        description=(
+            "Mark multiple ACs at once (batch AG-09b validation); each result may carry "
+            "evidence like mark_ac."
+        )
+    )(mark_ac_batch)
     mcp_instance.tool(description="Get status of all Acceptance Criteria for a UC.")(get_ac_status)
 
     # Evidence (2)

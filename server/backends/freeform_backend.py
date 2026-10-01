@@ -647,6 +647,7 @@ class FreeformBackend(SpecBackend):
         uc_item_id: str,
         ac_id: str,
         passed: bool,
+        evidence: dict[str, Any] | None = None,  # UC-5601: no per-AC store here; the UC comment is the record
     ) -> ChecklistItemDTO:
         items = self._load_items()
         for item in items:

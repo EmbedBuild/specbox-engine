@@ -173,6 +173,17 @@ def _from_jsonb(value: Any) -> Any:
     return value
 
 
+def _ac_receipts(row: Any) -> dict[str, Any]:
+    """The receipts of an AC row (US-56/UC-5601): ``evidence`` list and last ``verdict``."""
+    meta = _from_jsonb(row["meta"]) or {}
+    evidence = meta.get("evidence")
+    verdict = meta.get("verdict")
+    return {
+        "evidence": evidence if isinstance(evidence, list) else [],
+        "verdict": verdict if isinstance(verdict, dict) else None,
+    }
+
+
 _JSONB_COLUMNS = frozenset({"labels", "meta"})
 
 
@@ -1169,6 +1180,7 @@ class NativeBackend(SpecBackend):
                 done=r["done"],
                 backend_id=r["id"],
                 internal=r["internal"],
+                **_ac_receipts(r),
             )
             for r in rows
         ]
@@ -1179,16 +1191,39 @@ class NativeBackend(SpecBackend):
         uc_item_id: str,
         ac_id: str,
         passed: bool,
+        evidence: dict[str, Any] | None = None,
     ) -> ChecklistItemDTO:
         dev = await self._require_membership_cached(board_id)
         from ..coordination.audit import OP_MARK_AC, OP_UNMARK_AC, record_destructive
 
         pool = await self._pool()
         async with pool.acquire() as conn:
+            # US-56/UC-5601: one UPDATE moves `done`, records the verdict (who
+            # and when, taken from the session and the server clock — never from
+            # the caller) and appends the receipt, so a concurrent mark can't
+            # leave the AC done without its verdict or drop a receipt.
             row = await conn.fetchrow(
                 """
                 UPDATE acceptance_criteria
-                SET done = $4, version = version + 1, updated_at = now()
+                SET done = $4::boolean,
+                    meta = meta
+                        || jsonb_build_object(
+                               'verdict',
+                               jsonb_build_object('passed', $4::boolean, 'by', $5::text, 'at', now())
+                           )
+                        || CASE
+                               WHEN $6::jsonb IS NULL THEN '{}'::jsonb
+                               ELSE jsonb_build_object(
+                                   'evidence',
+                                   COALESCE(meta->'evidence', '[]'::jsonb)
+                                   || jsonb_build_array(
+                                          $6::jsonb
+                                          || jsonb_build_object('by', $5::text, 'at', now(), 'passed', $4::boolean)
+                                      )
+                               )
+                           END,
+                    version = version + 1,
+                    updated_at = now()
                 WHERE project_id = $1 AND uc_id = $2 AND ac_id = $3
                 RETURNING *
                 """,
@@ -1196,6 +1231,8 @@ class NativeBackend(SpecBackend):
                 uc_item_id,
                 ac_id,
                 passed,
+                dev.developer_id,
+                _jsonb(evidence) if evidence is not None else None,
             )
             if row is None:
                 raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
@@ -1215,6 +1252,7 @@ class NativeBackend(SpecBackend):
             done=row["done"],
             backend_id=row["id"],
             internal=row["internal"],
+            **_ac_receipts(row),
         )
 
     async def set_ac_internal(

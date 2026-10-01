@@ -279,7 +279,7 @@ class _MockBackend(SpecBackend):
     async def get_acceptance_criteria(self, board_id, uc_item_id) -> list:
         return []
 
-    async def mark_acceptance_criterion(self, board_id, uc_item_id, ac_id, passed):
+    async def mark_acceptance_criterion(self, board_id, uc_item_id, ac_id, passed, evidence=None):
         return ChecklistItemDTO(id=ac_id, text="", done=passed)
 
     async def create_acceptance_criteria(self, board_id, uc_item_id, criteria) -> list:

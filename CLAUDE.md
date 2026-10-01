@@ -1,4 +1,4 @@
-# SpecBox Engine v6.14.2
+# SpecBox Engine v6.15.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2379,7 +2379,7 @@ Guía pública: [doc/guides/design-system-tokens.md](doc/guides/design-system-to
 
 ## Engine Version
 
-Current: v6.14.2 "Idle Watch"
+Current: v6.15.0 "Tinta"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

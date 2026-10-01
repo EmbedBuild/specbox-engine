@@ -7,7 +7,7 @@
 </p>
 
 <h1 align="center">SpecBox Engine</h1>
-<p align="center"><strong>Agentic Dev for Claude Code</strong></p>
+<p align="center"><strong>Agentic Dev for Claude Code</strong> · <a href="https://specbox.build/en/">specbox.build</a></p>
 
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=EmbedBuild.specbox-engine"><img src="https://img.shields.io/visual-studio-marketplace/v/EmbedBuild.specbox-engine?label=marketplace&color=00B4D8&style=flat-square" alt="Version" /></a>

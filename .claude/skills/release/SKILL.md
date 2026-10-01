@@ -472,7 +472,7 @@ git push
 > curado (US-16)— y (2) el **inventario de capacidades** —agentes, MCP tools, skills y la
 > extensión VSCode (US-20)— extraído del propio código del engine (`agents/*.md`, decoradores
 > `@*.tool` en `server/`, `.claude/skills/*/SKILL.md`, `vscode-extension/package.json`). El site
-> `specbox.embed.build` (satélite `site`) lee esas tablas y refleja la versión y el inventario
+> `specbox.build` (satélite `site`) lee esas tablas y refleja la versión y el inventario
 > recién liberados **sin editar `.astro` a mano**.
 >
 > **Por qué aquí**: la única vía de liberar (`/release`) es también la única vía de

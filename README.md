@@ -7,7 +7,7 @@
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
   v 6.17.1 — "EngineFirst" (sobre v6.17.0 "Evidencias")<br/>
-  <a href="#english-version">English version below</a>
+  <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
 ---
@@ -572,6 +572,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
 > v 6.17.1 — "EngineFirst" (over v6.17.0 "Evidencias")
+> [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
 

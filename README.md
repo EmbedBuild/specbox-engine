@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.17.1 — "EngineFirst" (sobre v6.17.0 "Evidencias")<br/>
+  v 6.18.0 — "Mudanza" (sobre v6.17.1 "EngineFirst")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,19 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.18
+
+**v6.18.0 — "Mudanza"** lleva el servidor alojado a `mcp.specbox.build` y deja que los clientes se muden solos:
+
+- **El servidor responde en `mcp.specbox.build`** — y en su nombre anterior, `mcp-specbox-engine.jpsdeveloper.com`, que sigue funcionando sin fecha de retirada. `scripts/check-mcp-hosts.mjs` comprueba que los dos responden igual: cada lunes en GitHub y en cada release con el token del ordenador.
+- **La extensión y `specbox login` usan el nombre nuevo** — al actualizarse, la extensión reescribe las entradas de Claude Code que apuntaban al anterior (la de usuario y las de cada proyecto) y antes guarda una copia en `~/.specbox/backups/`, sin ningún token.
+- **Nadie pierde la conexión** — la credencial del ordenador vale para los dos nombres: la que se guardó con el nombre anterior se sigue usando.
+- **Todo bajo specbox.build** — el site vive en [specbox.build](https://specbox.build), el contacto es `hola@specbox.build`, y la política de seguridad, las guías de conexión y las páginas de npm y del Marketplace apuntan ahí.
+
+100% backwards-compatible: una instalación sin actualizar sigue funcionando con el nombre anterior.
 
 ---
 
@@ -571,7 +584,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.17.1 — "EngineFirst" (over v6.17.0 "Evidencias")
+> v 6.18.0 — "Mudanza" (over v6.17.1 "EngineFirst")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -584,6 +597,17 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.18
+
+**v6.18.0 — "Mudanza"** ("moving house") moves the hosted server to `mcp.specbox.build` and lets clients move by themselves:
+
+- **The server answers at `mcp.specbox.build`** — and at its earlier name, `mcp-specbox-engine.jpsdeveloper.com`, which keeps working with no retirement date. `scripts/check-mcp-hosts.mjs` checks that both answer the same: every Monday on GitHub and in every release with this computer's token.
+- **The extension and `specbox login` use the new name** — after updating, the extension rewrites the Claude Code entries that pointed at the earlier one (user scope and every project) and first saves a copy in `~/.specbox/backups/`, without any token.
+- **Nobody loses the connection** — this computer's credential serves both names: the one saved under the earlier name keeps being used.
+- **Everything under specbox.build** — the site lives at [specbox.build](https://specbox.build/en/), the contact is `hola@specbox.build`, and the security policy, the connection guides and the npm and Marketplace pages point there.
+
+100% backwards-compatible: an installation that is not updated keeps working with the earlier name.
 
 ## What's new in v6.17
 

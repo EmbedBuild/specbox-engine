@@ -1,8 +1,8 @@
-version: 6.17.1
-codename: "EngineFirst"
+version: 6.18.0
+codename: "Mudanza"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-10-01
+release_date: 2026-10-02
 min_claude_code: "1.0.0"
 
 stacks:
@@ -477,7 +477,20 @@ features:
   # New (v6.17.1) — EngineFirst
   - native-project-without-organization
 
+  # New (v6.18.0) — Mudanza
+  - mcp-hosted-at-specbox-build
+  - mcp-hosts-check
+  - client-moves-to-new-mcp-host
+
 changelog:
+  6.18.0:
+    date: 2026-10-02
+    codename: "Mudanza"
+    changes:
+      - "feat: the hosted MCP server answers at `mcp.specbox.build` and keeps answering at its earlier name, `mcp-specbox-engine.jpsdeveloper.com`, with no retirement date; `scripts/check-mcp-hosts.mjs` checks that both give the same version, reject an invalid token, answer the same without a token and open a session with one — weekly without a token (`mcp-hosts.yml`) and in every `/release` with the device token (US-51/UC-5101, PR #198)"
+      - "feat: the VS Code extension and `specbox login` use `mcp.specbox.build`; after updating, the extension rewrites the Claude Code entries that still point at the earlier name (user scope and every project) and saves them first in `~/.specbox/backups/` without any Authorization value. One credential serves both names: `accountFor()` maps the earlier name to the new one and the store copies a credential saved under the old key the first time it reads it, so nobody loses the connection; an installation that is not updated keeps working with the earlier name (US-51/UC-5102, PR #199)"
+      - "docs: published links point to specbox.build — README (ES/EN), the Marketplace page, the npm page, the release skill and `site_publish`; contact `hola@specbox.build` in the commercial licence and the contributing guide; the `/prd` skill and `set_ac_internal` name the portal at `projects.specbox.build`; `SECURITY.md`, the transport-auth runbook and the connection guides name `mcp.specbox.build` (US-52/UC-5202, US-53/UC-5302, US-54/UC-5401, PRs #195–#197)"
+      - "fix: `test_parse_changelog_latest_version` no longer requires an «Added» section in the latest entry (a patch release can bring only «Changed» or «Fixed»)"
   6.17.1:
     date: 2026-10-01
     codename: "EngineFirst"

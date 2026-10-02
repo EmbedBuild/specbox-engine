@@ -1,4 +1,4 @@
--- 20260928000023_board_views_security_invoker.sql — Supabase mirror of server/db/migrations/0023_board_views_security_invoker.sql
+-- 0023_board_views_security_invoker.sql
 -- SpecBox Engine — the board's views and its indicator / lifecycle functions
 -- are closed by default (UC-4001, US-40).
 --

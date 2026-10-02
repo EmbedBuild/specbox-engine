@@ -144,6 +144,16 @@ cada push a main contra un `postgres:16-alpine` de servicio:
 - **Una prueba bloqueada falla por tiempo**: `pytest-timeout`, 120 s por prueba
   (`pyproject.toml`); la más lenta tarda ~4 s.
 
+**Una versión por migración (UC-6202).** `server/db/migrations/NNNN_<nombre>.sql` es la fuente
+del esquema del board (la aplican el runner, las pruebas y la CI) y
+`supabase/migrations/<versión de 14 cifras>_<nombre>.sql` es su copia byte a byte, la que se
+aplica en producción con `apply_migration`. Las migraciones que solo existen en Supabase (tablas
+del site, historia que la cadena local sustituyó) se declaran con su motivo en
+`server/db/migration_twins.yaml`. Una migración nueva se escribe en `server/db/migrations` y
+`python -m server.db.migration_twins --fix` crea su copia (versión = fecha UTC + `00NNNN`);
+sin `--fix` comprueba, y el workflow `db-surface-check.yml` falla si falta una copia o difiere
+en un solo byte. Tests: `tests/test_migration_twins.py`.
+
 Cada operador del MCP es responsable de provisionar su propia instancia Supabase.
 
 ## Instalacion

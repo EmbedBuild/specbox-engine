@@ -25,7 +25,7 @@
 -- `is_nullable`. Re-applying on a DB where the column is already NULLABLE is a
 -- no-op. Wrapped in a single transaction by the runner.
 --
--- Mirror of server/db/migrations/0020_organization_id_nullable_again.sql.
+-- Mirrored byte-for-byte in supabase/migrations/20260611000020_organization_id_nullable_again.sql.
 
 DO $$
 BEGIN

@@ -1,4 +1,4 @@
--- 20260929000025_device_tokens.sql — Supabase mirror of server/db/migrations/0025_device_tokens.sql
+-- 0025_device_tokens.sql
 -- SpecBox Engine — one token per device, with an expiry date (UC-3904, UC-3902 AC-01, US-39).
 --
 -- Origin: every sign-in from the VS Code extension minted a new token called

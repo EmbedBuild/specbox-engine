@@ -1,19 +1,25 @@
--- 20260522000001_native_schema.sql
--- SpecBox NativeBackend — multi-tenant Postgres schema (UC-102, ported to
--- Supabase migrations in UC-402).
+-- 0001_native_schema.sql
+-- SpecBox NativeBackend — multi-tenant Postgres schema (UC-102).
 --
--- This is the Supabase-ledger source of truth for the native spec tables.
--- It mirrors server/db/migrations/0001_native_schema.sql verbatim (the casero
--- runner stays for local dev / tests only — see server/db/migrate.py).
+-- Scope: schema only. The SpecBackend ABC implementation, optimistic-version
+-- increment logic, and dispatch wiring live in UC-101/UC-103 — NOT here.
 --
 -- Tenant isolation [AC-04, AC-05]: every spec table carries project_id (FK to
--- projects). All lookups filter by project_id.
--- Idempotency [AC-04, AC-29]: every statement uses IF NOT EXISTS, so applying
--- this through the Supabase ledger twice is a no-op.
--- Optimistic concurrency [AC-03]: US/UC/AC each carry version INTEGER.
--- RLS is added in a later migration (UC-403) — schema only here.
+-- projects). All lookups are expected to filter by project_id.
+--
+-- Idempotency [AC-04]: this whole file is safe to re-apply on a populated DB.
+-- Every statement uses IF NOT EXISTS (tables, indexes) — re-running raises no
+-- error and mutates nothing.
+--
+-- Optimistic concurrency [AC-03]: user_stories / use_cases / acceptance_criteria
+-- each carry a `version INTEGER NOT NULL DEFAULT 1`. Only the column is defined
+-- here; the increment + stale-version check is UC-101 scope.
+--
+-- Column shapes mirror the backend-agnostic DTOs in server/spec_backend.py
+-- (ItemDTO for US/UC, ChecklistItemDTO for AC). meta/labels/raw map to JSONB.
 
 -- ── projects ─────────────────────────────────────────────────────────
+-- One row per onboarded project (tenant root).
 CREATE TABLE IF NOT EXISTS projects (
     project_id    TEXT PRIMARY KEY,
     name          TEXT NOT NULL,
@@ -26,24 +32,24 @@ CREATE TABLE IF NOT EXISTS projects (
 
 -- ── user_stories (maps to ItemDTO) ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS user_stories (
-    id              TEXT PRIMARY KEY,
+    id              TEXT PRIMARY KEY,                          -- e.g. 'US-01'
     project_id      TEXT NOT NULL REFERENCES projects (project_id) ON DELETE CASCADE,
     name            TEXT NOT NULL,
     description     TEXT NOT NULL DEFAULT '',
-    state           TEXT NOT NULL DEFAULT 'user_stories',
-    labels          JSONB NOT NULL DEFAULT '[]'::jsonb,
+    state           TEXT NOT NULL DEFAULT 'user_stories',      -- workflow state key
+    labels          JSONB NOT NULL DEFAULT '[]'::jsonb,        -- list[str]
     priority        TEXT NOT NULL DEFAULT 'none',
     external_source TEXT NOT NULL DEFAULT '',
     external_id     TEXT NOT NULL DEFAULT '',
     meta            JSONB NOT NULL DEFAULT '{}'::jsonb,
-    version         INTEGER NOT NULL DEFAULT 1,
+    version         INTEGER NOT NULL DEFAULT 1,                -- optimistic concurrency [AC-03]
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ── use_cases (maps to ItemDTO, child of a US) ───────────────────────
 CREATE TABLE IF NOT EXISTS use_cases (
-    id              TEXT PRIMARY KEY,
+    id              TEXT PRIMARY KEY,                          -- e.g. 'UC-101'
     project_id      TEXT NOT NULL REFERENCES projects (project_id) ON DELETE CASCADE,
     us_id           TEXT REFERENCES user_stories (id) ON DELETE SET NULL,
     name            TEXT NOT NULL,
@@ -54,21 +60,21 @@ CREATE TABLE IF NOT EXISTS use_cases (
     external_source TEXT NOT NULL DEFAULT '',
     external_id     TEXT NOT NULL DEFAULT '',
     meta            JSONB NOT NULL DEFAULT '{}'::jsonb,
-    version         INTEGER NOT NULL DEFAULT 1,
+    version         INTEGER NOT NULL DEFAULT 1,                -- optimistic concurrency [AC-03]
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ── acceptance_criteria (maps to ChecklistItemDTO, child of a UC) ────
 CREATE TABLE IF NOT EXISTS acceptance_criteria (
-    id          TEXT PRIMARY KEY,
+    id          TEXT PRIMARY KEY,                              -- e.g. 'UC-101::AC-01'
     project_id  TEXT NOT NULL REFERENCES projects (project_id) ON DELETE CASCADE,
     uc_id       TEXT NOT NULL REFERENCES use_cases (id) ON DELETE CASCADE,
-    ac_id       TEXT NOT NULL,
+    ac_id       TEXT NOT NULL,                                 -- short id within UC, e.g. 'AC-01'
     text        TEXT NOT NULL,
     done        BOOLEAN NOT NULL DEFAULT false,
     meta        JSONB NOT NULL DEFAULT '{}'::jsonb,
-    version     INTEGER NOT NULL DEFAULT 1,
+    version     INTEGER NOT NULL DEFAULT 1,                    -- optimistic concurrency [AC-03]
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

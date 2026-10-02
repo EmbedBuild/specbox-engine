@@ -8,6 +8,11 @@ name: DB surface check
 # anon, or table of public writable by a public role that
 # server/db/surface_allowlist.yaml does not approve with a reason.
 #
+# UC-6202 (US-62) — it first checks there is one version per migration: every
+# file of server/db/migrations (the source) has its byte-for-byte copy in
+# supabase/migrations, and every Supabase-only file is declared with a reason
+# in server/db/migration_twins.yaml.
+#
 # Production (board + site + panel + portal) is checked from inside the MCP
 # container, where its DSN already lives — doc/runbooks/db-surface.md. No
 # production credential is stored in this public repository.
@@ -18,6 +23,7 @@ on:
       - "server/db/**"
       - "supabase/migrations/**"
       - "tests/test_db_surface_*.py"
+      - "tests/test_migration_twins.py"
       - ".github/workflows/db-surface-check.yml"
   push:
     branches: [main]
@@ -25,6 +31,7 @@ on:
       - "server/db/**"
       - "supabase/migrations/**"
       - "tests/test_db_surface_*.py"
+      - "tests/test_migration_twins.py"
       - ".github/workflows/db-surface-check.yml"
 
 permissions:
@@ -66,6 +73,9 @@ jobs:
           python -m pip install --upgrade uv
           uv sync --extra dev
 
+      - name: One version per migration
+        run: uv run python -m server.db.migration_twins
+
       - name: Database as Supabase ships it, then the engine migrations
         run: |
           uv run python - <<'EOF'
@@ -106,4 +116,4 @@ jobs:
         run: uv run python -m server.db.surface_check --schemas public
 
       - name: Surface tests
-        run: uv run pytest -q tests/test_db_surface_views.py tests/test_db_surface_tables.py tests/test_db_surface_check.py
+        run: uv run pytest -q tests/test_db_surface_views.py tests/test_db_surface_tables.py tests/test_db_surface_check.py tests/test_migration_twins.py

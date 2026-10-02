@@ -11,8 +11,8 @@
 -- Idempotent (ADD COLUMN IF NOT EXISTS), safe to re-apply — a no-op where the
 -- columns already exist (matches the 0008 pattern).
 --
--- Mirrored byte-for-byte in supabase/migrations/20260607000010_project_description.sql,
--- the production source of truth. See server/db/migrate.py.
+-- Mirrored byte-for-byte in supabase/migrations/20260607000010_project_description.sql
+-- (server/db/migration_twins.py, UC-6202). See server/db/migrate.py.
 
 ALTER TABLE projects
     ADD COLUMN IF NOT EXISTS description TEXT,

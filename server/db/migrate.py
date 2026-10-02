@@ -2,18 +2,21 @@
 
 DEPRECATED FOR PRODUCTION (UC-402) [AC-31]
 ==========================================
-Production runs on a managed Supabase Postgres, and the **source of truth for
-the schema is the Supabase migration ledger** (``supabase/migrations/*.sql``,
-applied via ``supabase db push`` / the ``apply_migration`` MCP tool and tracked
-in ``supabase_migrations.schema_migrations``). Do NOT run this runner against
-the production Supabase database — that would create a second, divergent source
-of truth.
+Production runs on a managed Supabase Postgres, migrated once per migration
+with the ``apply_migration`` MCP tool and tracked in
+``supabase_migrations.schema_migrations``. Do NOT run this runner against the
+production Supabase database — it re-applies every file on each call.
 
 This runner is retained ONLY for **local dev and tests**: it lets the
 conformance suite spin a throwaway Postgres (docker-compose.dev.yml) or a
-Supabase branch DB up to the same schema without invoking the Supabase CLI. The
-``server/db/migrations/*.sql`` files it reads are kept byte-for-byte in sync
-with ``supabase/migrations/*.sql``.
+Supabase branch DB up to the same schema without invoking the Supabase CLI.
+
+One version per migration (UC-6202): the ``server/db/migrations/*.sql`` files it
+reads are the source of the board schema, and ``supabase/migrations`` keeps a
+byte-for-byte copy of each one — the file applied in production — plus the
+Supabase-only migrations declared in ``migration_twins.yaml``.
+``python -m server.db.migration_twins`` checks it (and ``--fix`` writes the
+copies); the DB surface workflow runs it on every change.
 
 Applies every ``*.sql`` file under a migrations directory in lexical order.
 The migrations themselves are written to be re-appliable (CREATE TABLE/INDEX

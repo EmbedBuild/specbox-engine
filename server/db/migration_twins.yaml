@@ -1,0 +1,31 @@
+# Migrations that only live in supabase/migrations (UC-6202, US-62).
+#
+# server/db/migrations is the source of the board schema and every file there
+# has a byte-for-byte copy in supabase/migrations (server/db/migration_twins.py
+# checks it). A file of supabase/migrations with no local migration fails the
+# check unless it is listed here. Every entry needs:
+#   file:   its name in supabase/migrations
+#   reason: why it has no local migration. An entry without a reason fails the
+#           check on its own.
+#
+# Entries that match no file are reported as unused and do not fail.
+
+supabase_only:
+  - file: 20260522000004_rls_policies.sql
+    reason: >-
+      History (UC-403): RLS and explicit deny policies on the first board tables, applied
+      once in production. The local chain never had it; 0024_public_roles_without_writes
+      now gives every board table RLS and the restrictive specbox_deny_anon_<table> policy,
+      in both chains.
+
+  - file: 20260618000020_engine_capability_inventory.sql
+    reason: >-
+      Site tables, not board schema (UC-2002): engine_agent, engine_tool, engine_skill and
+      engine_vscode_ext, read by the public site and written by server/site_publish with the
+      service role. The local runner only builds the board.
+
+  - file: 20260929000027_engine_changelog_security_notes.sql
+    reason: >-
+      Site tables, not board schema (UC-4302): engine_release, engine_feature and
+      engine_changelog_entry with their security_notes column, read by the public site and
+      written by server/site_publish with the service role.

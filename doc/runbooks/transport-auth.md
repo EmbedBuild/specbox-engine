@@ -1,6 +1,7 @@
 # Autenticación de transporte del MCP remoto (UC-3901)
 
-El servidor remoto (`https://mcp-specbox-engine.jpsdeveloper.com/mcp`) comprueba el token de
+El servidor remoto (`https://mcp.specbox.build/mcp`; su nombre anterior,
+`mcp-specbox-engine.jpsdeveloper.com`, es el mismo servicio: UC-5101) comprueba el token de
 cada petición HTTP **antes** de que llegue al MCP, inicialización de sesión incluida. La
 comprobación de salud (`/health`) sigue siendo pública.
 
@@ -55,7 +56,7 @@ SPECBOX_TRANSPORT_AUTH_GRACE_UNTIL=<hoy + 30 días>
 y redesplegar. Comprobar:
 
 ```bash
-URL=https://mcp-specbox-engine.jpsdeveloper.com
+URL=https://mcp.specbox.build   # los dos nombres a la vez: node scripts/check-mcp-hosts.mjs
 curl -s -o /dev/null -w '%{http_code}\n' "$URL/health"                                   # 200
 curl -s -o /dev/null -w '%{http_code}\n' -X POST "$URL/mcp" -H 'Authorization: Bearer x' # 401
 ```

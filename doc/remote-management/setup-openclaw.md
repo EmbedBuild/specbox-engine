@@ -26,7 +26,7 @@ WhatsApp/Discord → OpenClaw Gateway → Claude Code subprocess → MCP Tools
 
 ```bash
 # MCP remoto de SpecBox
-MCP_URL=https://mcp-specbox-engine.jpsdeveloper.com/mcp
+MCP_URL=https://mcp.specbox.build/mcp
 MCP_AUTH_TOKEN=<SPECBOX_SYNC_TOKEN>
 
 # Canal de mensajeria (ejemplo WhatsApp via Twilio)

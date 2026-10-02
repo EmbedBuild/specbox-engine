@@ -21,6 +21,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { legacyAccountsFor } from "./config.mjs";
 
 export const SERVICE = "SpecBox MCP";
 const SECRET_TOOL_SERVICE = "specbox-mcp";
@@ -205,10 +206,51 @@ function withFallback(primary, fallback) {
   };
 }
 
-export function createStore({ platform = process.platform, run = runCommand, home } = {}) {
-  if (!home) throw new Error("createStore needs the specbox home");
+/**
+ * UC-5102: una versión anterior guardó la credencial con la URL antigua del servidor como
+ * clave. Al leer, si no está con la clave de ahora pero sí con una antigua, se copia a la de
+ * ahora y se usa: el ordenador sigue identificado tras la mudanza a mcp.specbox.build. La
+ * copia antigua se queda (una instalación sin actualizar la sigue leyendo). Al borrar
+ * (`specbox logout`) se borran todas.
+ */
+export function withLegacyAccounts(store) {
+  return {
+    get kind() {
+      return store.kind;
+    },
+    read(account) {
+      const value = store.read(account);
+      if (value) return value;
+      for (const legacy of legacyAccountsFor(account)) {
+        const old = store.read(legacy);
+        if (!old) continue;
+        try {
+          store.write(account, old);
+        } catch {
+          // se reintenta en la próxima lectura; la credencial sirve igual
+        }
+        return old;
+      }
+      return null;
+    },
+    write(account, credential) {
+      store.write(account, credential);
+    },
+    remove(account) {
+      store.remove(account);
+      for (const legacy of legacyAccountsFor(account)) store.remove(legacy);
+    },
+  };
+}
+
+function platformStore({ platform, run, home }) {
   if (platform === "darwin") return keychainStore(run);
   if (platform === "win32") return dpapiStore(run, home);
   if (platform === "linux") return withFallback(secretToolStore(run), fileStore(home));
   return fileStore(home);
+}
+
+export function createStore({ platform = process.platform, run = runCommand, home } = {}) {
+  if (!home) throw new Error("createStore needs the specbox home");
+  return withLegacyAccounts(platformStore({ platform, run, home }));
 }

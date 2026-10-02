@@ -31,6 +31,7 @@ const {
 	buildFreeformProjectSettings,
 	stripLegacySpecboxEntry,
 	FREEFORM_ROOT_RELATIVE,
+	LEGACY_REMOTE_MCP_URLS,
 	REMOTE_MCP_URL,
 } = require(path.join(outDir, 'mcp.js'));
 
@@ -51,7 +52,9 @@ async function specboxEntry() {
 }
 
 test('AC-01: SpecBox MCP config points at the free hosted endpoint over http, with the headers helper', async () => {
-	assert.equal(REMOTE_MCP_URL, 'https://mcp-specbox-engine.jpsdeveloper.com/mcp');
+	// UC-5102 AC-01: a fresh install configures Claude Code with mcp.specbox.build.
+	assert.equal(REMOTE_MCP_URL, 'https://mcp.specbox.build/mcp');
+	assert.deepEqual(LEGACY_REMOTE_MCP_URLS, ['https://mcp-specbox-engine.jpsdeveloper.com/mcp']);
 	assert.deepEqual(await specboxEntry(), {
 		type: 'http',
 		url: REMOTE_MCP_URL,
@@ -82,9 +85,11 @@ test('UC-3901 AC-03: the dead entries of older versions are removed from setting
 	assert.equal(cleaned.changed, true);
 	assert.deepEqual(cleaned.settings, { mcpServers: { engram: { command: 'engram', args: ['mcp'] } }, specbox: { backend_type: 'freeform' } });
 
-	const bridge = stripLegacySpecboxEntry({ mcpServers: { 'SpecBox-MCP': { command: 'npx', args: ['mcp-remote', REMOTE_MCP_URL] } } });
-	assert.equal(bridge.changed, true);
-	assert.deepEqual(bridge.settings, {});
+	for (const url of [REMOTE_MCP_URL, ...LEGACY_REMOTE_MCP_URLS]) {
+		const bridge = stripLegacySpecboxEntry({ mcpServers: { 'SpecBox-MCP': { command: 'npx', args: ['mcp-remote', url] } } });
+		assert.equal(bridge.changed, true, url);
+		assert.deepEqual(bridge.settings, {});
+	}
 
 	const custom = { mcpServers: { 'SpecBox-MCP': { command: 'my-own-wrapper', args: ['x'] } } };
 	assert.deepEqual(stripLegacySpecboxEntry(custom), { changed: false, settings: custom });

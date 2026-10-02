@@ -2480,6 +2480,31 @@ coloca un proyecto en una organización cuando hay alguna que asignar — la que
   no toca `organization_id`.
 - Tests: `tests/test_native_provision.py` y `tests/test_native_orphan_provision.py`.
 
+## El servidor alojado vive en mcp.specbox.build (US-51 · UC-5101/5102)
+
+El MCP alojado responde en **`https://mcp.specbox.build/mcp`** y en su nombre anterior,
+`mcp-specbox-engine.jpsdeveloper.com`: los dos son el mismo servicio de EasyPanel y el antiguo
+no tiene fecha de retirada. `scripts/check-mcp-hosts.mjs` compara los dos (versión, token
+inválido, sin token y, con `--with-device-token`, sesión con token); corre cada lunes sin
+token (`mcp-hosts.yml`) y con token en el Paso 6.7 de `/release`.
+
+Los clientes se mudan solos:
+
+- La CLI (`packages/specbox-cli/lib/config.mjs`) y la extensión (`vscode-extension/src/mcp.ts`)
+  usan el nombre nuevo por defecto; el anterior está en `LEGACY_MCP_URLS` /
+  `LEGACY_REMOTE_MCP_URLS`.
+- **Una sola credencial para los dos nombres:** `accountFor()` traduce el nombre anterior al
+  nuevo, y el almacén (`withLegacyAccounts`) copia a la clave nueva la credencial que una
+  versión anterior guardó con la antigua la primera vez que la lee. `specbox logout` borra las
+  dos.
+- **Entradas de Claude Code:** `claudeUsesHelper()` devuelve `false` si `SpecBox-MCP` apunta al
+  nombre anterior, así que la extensión actualizada llama a `_configure`. Este reescribe al
+  nombre nuevo la entrada de usuario y las locales de cada proyecto, y antes guarda las entradas
+  tal como estaban en `~/.specbox/backups/claude-mcp-<fecha>.json` (sin el valor de ningún
+  `Authorization`).
+- Una instalación sin actualizar sigue funcionando con el nombre anterior.
+- Tests: `packages/specbox-cli/test/mudanza.test.mjs` y `vscode-extension/tests/mcp.test.mjs`.
+
 ## Engine Version
 
 Current: v6.17.1 "EngineFirst"

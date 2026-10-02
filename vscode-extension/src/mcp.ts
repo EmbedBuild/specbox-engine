@@ -9,7 +9,17 @@ import { markDone } from './design';
 // US-VSCODE-ZERO-PY (zero-runtime onboarding): the SpecBox MCP server is consumed
 // exclusively through the free hosted endpoint. The legacy local mode was removed
 // to keep the client onboarding path free of any extra language runtime.
-export const REMOTE_MCP_URL = 'https://mcp-specbox-engine.jpsdeveloper.com/mcp';
+// UC-5102: the hosted endpoint is mcp.specbox.build; the bundled CLI moves entries
+// that still point at an earlier name (and keeps one credential for both).
+export const REMOTE_MCP_URL = 'https://mcp.specbox.build/mcp';
+
+/** Earlier names of the same hosted server; it still answers on them (UC-5101). */
+export const LEGACY_REMOTE_MCP_URLS = ['https://mcp-specbox-engine.jpsdeveloper.com/mcp'];
+
+/** Does this text (an entry, its args) reference the hosted server under any of its names? */
+export function mentionsHostedMcp(text: string): boolean {
+	return [REMOTE_MCP_URL, ...LEGACY_REMOTE_MCP_URLS].some((url) => text.includes(url));
+}
 
 interface McpServerConfig {
 	command: string;
@@ -37,7 +47,7 @@ export function stripLegacySpecboxEntry(settings: Record<string, unknown>): {
 	if (!entry) { return { changed: false, settings }; }
 	const args = Array.isArray(entry.args) ? entry.args.map(String) : [];
 	const launcher = entry.command === 'node' && args.some((a) => a.endsWith('mcp-launcher.mjs'));
-	const bridge = entry.command === 'npx' && args.includes('mcp-remote') && args.includes(REMOTE_MCP_URL);
+	const bridge = entry.command === 'npx' && args.includes('mcp-remote') && args.some(mentionsHostedMcp);
 	const placeholder = JSON.stringify(entry.env ?? {}).includes('${secretStorage:');
 	if (!launcher && !bridge && !placeholder) { return { changed: false, settings }; }
 	const remaining = { ...servers };

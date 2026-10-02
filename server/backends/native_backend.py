@@ -736,12 +736,14 @@ class NativeBackend(SpecBackend):
                     _jsonb(meta),
                 )
                 if developer_id is not None:  # UC-706 (see _insert_us)
+                    # UC-6405: un AC-NN se repite en cada UC; la UC dice de cuál es.
                     await record_destructive(
                         conn,
                         developer_id=developer_id,
                         project_id=board_id,
                         operation=OP_CREATE_AC,
                         target_id=ac_id,
+                        metadata={"uc_id": uc_id},
                     )
         logger.info("native_item_created", item_id=db_id, type="AC")
         return self._ac_row_to_item_dto(row)
@@ -1239,12 +1241,14 @@ class NativeBackend(SpecBackend):
             # UC-513: audit the progress mutation AFTER the UPDATE succeeded, on
             # the same connection. This is what makes the audit_log broadcast
             # trigger fire so the detail view refreshes live (useProjectRealtime).
+            # UC-6405: con la UC, el panel enseña US › UC › AC y salta al árbol.
             await record_destructive(
                 conn,
                 developer_id=dev.developer_id,
                 project_id=board_id,
                 operation=OP_MARK_AC if passed else OP_UNMARK_AC,
                 target_id=ac_id,
+                metadata={"uc_id": uc_item_id},
             )
         return ChecklistItemDTO(
             id=ac_id,
@@ -1310,7 +1314,7 @@ class NativeBackend(SpecBackend):
                 project_id=board_id,
                 operation=OP_SET_AC_INTERNAL,
                 target_id=ac_id,
-                metadata={"internal": internal},
+                metadata={"internal": internal, "uc_id": uc_item_id},  # UC-6405
             )
         return ChecklistItemDTO(
             id=ac_id,
@@ -1372,6 +1376,7 @@ class NativeBackend(SpecBackend):
                             project_id=board_id,
                             operation=OP_CREATE_AC,
                             target_id=criteria[0][0],
+                            metadata={"uc_id": uc_item_id},  # UC-6405
                         )
                     else:
                         await record_destructive(
@@ -1482,6 +1487,7 @@ class NativeBackend(SpecBackend):
                 project_id=board_id,
                 operation=OP_UPDATE_AC,
                 target_id=ac_id,
+                metadata={"uc_id": uc_item_id},  # UC-6405
             )
         return ChecklistItemDTO(
             id=ac_id,
@@ -1520,6 +1526,7 @@ class NativeBackend(SpecBackend):
                 project_id=board_id,
                 operation=OP_DELETE_AC,
                 target_id=ac_id,
+                metadata={"uc_id": uc_item_id},  # UC-6405
             )
 
     # ── SpecBackend: Archival ────────────────────────────────────

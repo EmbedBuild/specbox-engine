@@ -12,6 +12,7 @@ US/UC/ACs seeded, so tests do not collide on the global state.
 
 from __future__ import annotations
 
+import json
 import uuid
 
 import asyncpg
@@ -367,3 +368,71 @@ class TestNonDestructiveMutatorsLeaveAuditUntouched:
         rows = await _audit_rows_ordered(project_id)
         ops = [r["operation"] for r in rows[-4:]]
         assert ops == ["update_us", "mark_ac", "update_ac", OP_CREATE_AC], ops
+
+
+# ── US-64 / UC-6405: every AC event says which UC it belongs to ─────────
+
+
+async def _audit_rows_with_meta(project_id: str) -> list[asyncpg.Record]:
+    """All audit rows for a project with their metadata, oldest first."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        return await conn.fetch(
+            "SELECT operation, target_id, metadata FROM audit_log "
+            "WHERE project_id = $1 ORDER BY id ASC",
+            project_id,
+        )
+
+
+class TestAcEventsCarryTheirUc:
+    """UC-6405 AC-01 — un AC-NN se repite en cada UC (AC-01 existe en todas),
+    así que un evento de AC sin su UC no se puede situar: el panel no sabe qué
+    AC-01 se marcó ni a dónde llevar al usuario. Las seis operaciones sobre un
+    AC guardan ``uc_id`` en la metadata; ``set_ac_internal`` conserva además
+    ``internal``. La creación en bloque sigue apuntando a la UC (UC-706).
+    """
+
+    async def test_each_ac_operation_records_its_uc(self) -> None:
+        project_id = f"test-uc6405-{uuid.uuid4().hex[:8]}"
+        token = f"tok-{uuid.uuid4().hex[:16]}"
+        _us, uc_id, ac_ids = await _seed(project_id, "dev-uc6405", token)
+        backend = NativeBackend(project_id=project_id, dev_token=token)
+        before = await _count_audit(project_id)
+
+        await backend.mark_acceptance_criterion(project_id, uc_id, ac_ids[0], True)
+        await backend.mark_acceptance_criterion(project_id, uc_id, ac_ids[0], False)
+        await backend.update_acceptance_criterion(project_id, uc_id, ac_ids[1], text="AC-02 reescrito")
+        await backend.set_ac_internal(project_id, uc_id, ac_ids[2], True)
+        await backend.create_acceptance_criteria(project_id, uc_id, [("AC-04", "cuarto")])
+        await backend.create_item(project_id, name="AC-05: quinto", labels=["AC"], parent_id=uc_id)
+        await backend.delete_acceptance_criterion(project_id, uc_id, "AC-04")
+
+        rows = (await _audit_rows_with_meta(project_id))[before:]
+        got = [
+            (r["operation"], r["target_id"], json.loads(r["metadata"]) if isinstance(r["metadata"], str) else r["metadata"])
+            for r in rows
+        ]
+        assert got == [
+            ("mark_ac", ac_ids[0], {"uc_id": uc_id}),
+            ("unmark_ac", ac_ids[0], {"uc_id": uc_id}),
+            ("update_ac", ac_ids[1], {"uc_id": uc_id}),
+            ("set_ac_internal", ac_ids[2], {"internal": True, "uc_id": uc_id}),
+            (OP_CREATE_AC, "AC-04", {"uc_id": uc_id}),
+            (OP_CREATE_AC, "AC-05", {"uc_id": uc_id}),
+            (OP_DELETE_AC, "AC-04", {"uc_id": uc_id}),
+        ], got
+
+    async def test_bulk_create_still_targets_the_uc(self) -> None:
+        project_id = f"test-uc6405-bulk-{uuid.uuid4().hex[:8]}"
+        token = f"tok-{uuid.uuid4().hex[:16]}"
+        _us, uc_id, _acs = await _seed(project_id, "dev-uc6405-bulk", token)
+        backend = NativeBackend(project_id=project_id, dev_token=token)
+        before = await _count_audit(project_id)
+
+        await backend.create_acceptance_criteria(project_id, uc_id, [("AC-07", "a"), ("AC-08", "b")])
+
+        rows = (await _audit_rows_with_meta(project_id))[before:]
+        assert len(rows) == 1
+        meta = rows[0]["metadata"]
+        meta = json.loads(meta) if isinstance(meta, str) else meta
+        assert (rows[0]["operation"], rows[0]["target_id"], meta) == (OP_CREATE_AC, uc_id, {"ac": 2})

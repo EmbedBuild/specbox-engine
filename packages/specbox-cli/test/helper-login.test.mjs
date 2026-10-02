@@ -206,6 +206,7 @@ test("configura SpecBox-MCP con el ayudante y migra las entradas locales que apu
     claudeJsonPath: "/fake/.claude.json",
     readFile: () => JSON.stringify(claudeJson),
     projectExists: (p) => p !== "/p/borrado",
+    backup: () => null, // la copia de seguridad se prueba en mudanza.test.mjs, sin tocar ~/.specbox
   });
   assert.equal(result.ok, true);
   assert.deepEqual(result.updated.map((u) => [u.scope, u.name, u.cwd]), [

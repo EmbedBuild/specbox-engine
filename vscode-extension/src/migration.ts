@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CLAUDE_SETTINGS_LOCAL } from './constants';
-import { REMOTE_MCP_URL } from './mcp';
+import { REMOTE_MCP_URL, mentionsHostedMcp } from './mcp';
 
 import { markDone } from './design';
 // US-CONN-UPGRADE (UC-664/665/666) — client-config migration after an engine update.
@@ -62,14 +62,13 @@ export interface MigrationPlan {
 
 /**
  * Is the SpecBox-MCP entry pointing at the hosted endpoint? An entry is "remote
- * ok" when its args reference REMOTE_MCP_URL (directly, or wrapped by the
- * SecretStorage launcher whose inner config carries the same URL).
+ * ok" when its args reference the hosted server under any of its names (UC-5102),
+ * directly or wrapped by the SecretStorage launcher whose inner config carries it.
  */
 function isRemoteMcp(settings: ClaudeSettingsLocal): boolean {
   const entry = settings.mcpServers?.['SpecBox-MCP'];
   if (!entry) { return false; }
-  const haystack = JSON.stringify(entry);
-  return haystack.includes(REMOTE_MCP_URL);
+  return mentionsHostedMcp(JSON.stringify(entry));
 }
 
 /** Does the SpecBox-MCP entry look like the removed local mode? */
@@ -81,7 +80,7 @@ function isLocalMcp(settings: ClaudeSettingsLocal): boolean {
   const blob = JSON.stringify(entry);
   // Legacy local mode launched the server via python/uv or a local module path,
   // and never referenced the hosted URL.
-  if (blob.includes(REMOTE_MCP_URL)) { return false; }
+  if (mentionsHostedMcp(blob)) { return false; }
   if (cmd === 'uv' || cmd === 'python' || cmd === 'python3') { return true; }
   if (args.some((a) => a.includes('server.server') || a.includes('-m server'))) { return true; }
   if (args.some((a) => a === 'run' && cmd === 'uv')) { return true; }

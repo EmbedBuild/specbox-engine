@@ -28,7 +28,7 @@ Fixes ship in a versioned release. Each release notes what it now prevents in it
 
 ## Scope
 
-- SpecBox Engine: the MCP server, including the hosted instance at `mcp-specbox-engine.jpsdeveloper.com`
+- SpecBox Engine: the MCP server, including the hosted instance at `mcp.specbox.build` (and its earlier name, `mcp-specbox-engine.jpsdeveloper.com`)
 - The VS Code extension (`EmbedBuild.specbox-engine`) and the `specbox` CLI (npm)
 - SpecBox Cloud (`cloud.specbox.build`, `api-cloud.specbox.build`) and the public site
 
@@ -82,7 +82,7 @@ Las correcciones salen en una versión publicada. Cada versión cuenta en la sec
 
 ## Alcance
 
-- SpecBox Engine: el servidor MCP, incluida la instancia alojada en `mcp-specbox-engine.jpsdeveloper.com`
+- SpecBox Engine: el servidor MCP, incluida la instancia alojada en `mcp.specbox.build` (y su nombre anterior, `mcp-specbox-engine.jpsdeveloper.com`)
 - La extensión de VS Code (`EmbedBuild.specbox-engine`) y la CLI `specbox` (npm)
 - SpecBox Cloud (`cloud.specbox.build`, `api-cloud.specbox.build`) y el site público
 

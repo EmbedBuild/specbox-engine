@@ -11,7 +11,8 @@ import { accountFor } from "../lib/config.mjs";
 import { fileStore } from "../lib/store.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const MCP = "https://mcp-specbox-engine.jpsdeveloper.com/mcp";
+// UC-5102 AC-01: un `specbox login` nuevo configura Claude Code con mcp.specbox.build.
+const MCP = "https://mcp.specbox.build/mcp";
 const TOKEN_BODY = {
   access_token: "spbx_deldispositivo",
   token_id: "t1",

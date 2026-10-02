@@ -11,7 +11,7 @@
 ### 1. Verificar que el servidor responde
 
 ```bash
-curl https://mcp-specbox-engine.jpsdeveloper.com/health
+curl https://mcp.specbox.build/health
 # Esperado: {"status": "ok"}
 ```
 
@@ -19,7 +19,7 @@ curl https://mcp-specbox-engine.jpsdeveloper.com/health
 
 ```bash
 curl -H "Authorization: Bearer TU_TOKEN" \
-  https://mcp-specbox-engine.jpsdeveloper.com/api/sala
+  https://mcp.specbox.build/api/sala
 # Esperado: JSON con datos de proyectos
 ```
 
@@ -29,7 +29,7 @@ curl -H "Authorization: Bearer TU_TOKEN" \
 2. Ir a Settings > Integrations > MCP Servers
 3. Añadir nuevo servidor:
    - **Name**: SpecBox Engine
-   - **URL**: `https://mcp-specbox-engine.jpsdeveloper.com/mcp`
+   - **URL**: `https://mcp.specbox.build/mcp`
    - **Transport**: Streamable HTTP
    - **Authentication**: Bearer Token → pegar `SPECBOX_SYNC_TOKEN`
 

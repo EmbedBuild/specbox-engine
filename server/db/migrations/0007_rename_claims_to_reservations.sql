@@ -35,8 +35,8 @@
 --
 -- Production parity
 -- =================
--- This file is mirrored byte-for-byte in supabase/migrations/<ts>_rename_claims_to_reservations.sql,
--- which is the source of truth for the production Supabase database. See
+-- This file is the source; supabase/migrations/20260524000007_rename_claims_to_reservations.sql
+-- is its byte-for-byte copy (server/db/migration_twins.py, UC-6202). See
 -- server/db/migrate.py — this local runner is for dev / tests only.
 
 DO $$

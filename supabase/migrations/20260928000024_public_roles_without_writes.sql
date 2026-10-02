@@ -1,4 +1,4 @@
--- 20260928000024_public_roles_without_writes.sql — Supabase mirror of server/db/migrations/0024_public_roles_without_writes.sql
+-- 0024_public_roles_without_writes.sql
 -- SpecBox Engine — the public roles lose every write privilege on the board and
 -- the deny policies become restrictive (UC-4002, US-40).
 --

@@ -1,4 +1,4 @@
--- 20260928000022_tool_access_log.sql — Supabase mirror of server/db/migrations/0022_tool_access_log.sql
+-- 0022_tool_access_log.sql
 -- SpecBox Engine — append-only access log per tool call (UC-3803, US-38).
 --
 -- Origin: the external tester's report (2026-09-24) could only be audited

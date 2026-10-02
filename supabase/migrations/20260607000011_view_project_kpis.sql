@@ -17,7 +17,7 @@
 -- CREATE VIEW would raise "relation already exists" on the second pass. REPLACE
 -- is the idempotency contract for this object.
 --
--- Mirrored byte-for-byte in server/db/migrations/0011_view_project_kpis.sql.
+-- Mirrored byte-for-byte in supabase/migrations/20260607000011_view_project_kpis.sql.
 
 CREATE OR REPLACE VIEW project_kpis AS
 SELECT

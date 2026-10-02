@@ -248,16 +248,22 @@ def parse_changelog_md(md_text: str) -> list[ChangelogEntry]:
         if current_section is not None:
             item = _LIST_ITEM.match(raw_line)
             if item:
-                current.sections[current_section].append(_strip_markdown(item.group("text")))
+                current.sections[current_section].append(item.group("text"))
                 item_open = True
             elif item_open and raw_line.strip() and raw_line[0] in " \t":
                 items = current.sections[current_section]
-                items[-1] = f"{items[-1]} {_strip_markdown(raw_line.strip())}".strip()
+                items[-1] = f"{items[-1]} {raw_line.strip()}".strip()
             else:
                 item_open = False
 
     if current is not None:
         entries.append(current)
+
+    # El markdown se limpia con el ítem ya unido: la negrita o el código que empiezan en una
+    # línea y acaban en la siguiente se quitan enteros (UC-6210).
+    for entry in entries:
+        for name, items in entry.sections.items():
+            entry.sections[name] = [_strip_markdown(item) for item in items]
 
     return entries
 
@@ -267,15 +273,38 @@ def parse_changelog_md(md_text: str) -> list[ChangelogEntry]:
 # ---------------------------------------------------------------------------
 
 _MD_LINK = re.compile(r"\[([^\]]+)\]\([^)]+\)")
-_MD_EMPH = re.compile(r"(\*\*|__|\*|_|`)")
+# UC-6210: el código va entre comillas y se conserva tal cual; el énfasis solo cuenta si
+# rodea texto y no está pegado a letras o cifras, así `test_start_uc_atomic` no pierde sus `_`.
+_MD_CODE = re.compile(r"`([^`]*)`")
+_MD_BOLD = re.compile(r"(?<![\w*])(\*\*|__)(?=\S)(.+?)(?<=\S)\1(?![\w*])")
+_MD_ITALIC = re.compile(r"(?<![\w*])([*_])(?=\S)(.+?)(?<=\S)\1(?![\w*])")
 _UC_SUFFIX = re.compile(r"\s*\((?:US|UC)-[0-9A-Za-z/.\-]+\)\s*$")
 _TRAILING_UC = re.compile(r"\s*\((?:US|UC)-[^)]*\)")
 
 
+def _strip_emphasis(text: str) -> str:
+    """Quita negrita y cursiva (y una comilla de código suelta, si queda) de texto sin código."""
+    text = _MD_BOLD.sub(r"\2", text)
+    return _MD_ITALIC.sub(r"\2", text).replace("`", "")
+
+
 def _strip_markdown(text: str) -> str:
-    """Convierte un ítem markdown a texto plano legible (sin enlaces, énfasis, ni refs UC)."""
+    """Convierte un ítem markdown a texto plano legible (sin enlaces, énfasis, ni refs UC).
+
+    Lo que va entre comillas de código (`nombre_de_una_prueba`) pierde las comillas y nada
+    más: sus guiones bajos y asteriscos son parte del nombre, no formato (UC-6210).
+    """
     text = _MD_LINK.sub(r"\1", text)
-    text = _MD_EMPH.sub("", text)
+    # El código se aparta con un marcador (sin letras ni cifras a los lados) para que la
+    # negrita que lo rodea —«**responde en `mcp.specbox.build`**»— se quite entera.
+    code: list[str] = []
+
+    def _park(match: re.Match[str]) -> str:
+        code.append(match.group(1))
+        return f"{len(code) - 1}"
+
+    text = _strip_emphasis(_MD_CODE.sub(_park, text))
+    text = re.sub("(\\d+)", lambda m: code[int(m.group(1))], text)
     text = _TRAILING_UC.sub("", text)
     return text.strip()
 

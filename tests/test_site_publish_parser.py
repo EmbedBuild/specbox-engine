@@ -133,6 +133,29 @@ def test_changelog_items_are_plain_text(changelog_text):
         assert "**" not in item
 
 
+def test_code_names_keep_their_underscores():
+    """UC-6210: el código pierde las comillas y nada más; el énfasis real sí se quita."""
+    md = (
+        "# Changelog\n\n"
+        '## [6.10.1] - 2026-06-15 — "Reentrant"\n\n'
+        "### Fixed\n\n"
+        "- New PG-gated `test_start_uc_atomic_after_reserve_same_dev_does_not_abort_tx` reproduces the bug.\n"
+        "- **Negrita**, __también__, *cursiva* y _esta_; snake_case_suelto y 2*3*4 se quedan.\n"
+        "- Literal `**no es negrita**` y `__init__`.\n"
+        "- Envuelto `server/tools/spec_driven.py`\n"
+        "  y `mark_ac_batch` en la línea siguiente, con `un_nombre\n"
+        "  partido` entre líneas.\n"
+    )
+    items = parse_changelog_md(md)[0].sections["Fixed"]
+    assert items[0] == "New PG-gated test_start_uc_atomic_after_reserve_same_dev_does_not_abort_tx reproduces the bug."
+    assert items[1] == "Negrita, también, cursiva y esta; snake_case_suelto y 2*3*4 se quedan."
+    assert items[2] == "Literal **no es negrita** y __init__."
+    assert items[3] == (
+        "Envuelto server/tools/spec_driven.py y mark_ac_batch en la línea siguiente, "
+        "con un_nombre partido entre líneas."
+    )
+
+
 def test_wrapped_bullets_are_joined_and_the_security_section_travels_whole():
     """UC-4302: un ítem partido en varias líneas es UN texto; la sección Security se conserva."""
     md = (

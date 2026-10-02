@@ -1,0 +1,38 @@
+name: MCP — los dos nombres responden igual
+
+# UC-5101 AC-02: mcp.specbox.build y mcp-specbox-engine.jpsdeveloper.com son el mismo
+# servidor (misma versión, mismo rechazo de un token inválido, misma respuesta sin token).
+# Sin token: la sesión con token se comprueba en local en cada /release (Paso 6.7), para no
+# guardar en GitHub un token con acceso a los boards.
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/check-mcp-hosts*.mjs'
+      - '.github/workflows/mcp-hosts.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/check-mcp-hosts*.mjs'
+  schedule:
+    - cron: '30 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Pruebas del comprobador
+        run: node --test scripts/check-mcp-hosts.test.mjs
+
+      - name: Comparar los dos nombres en vivo
+        run: node scripts/check-mcp-hosts.mjs

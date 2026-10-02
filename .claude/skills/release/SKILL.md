@@ -538,6 +538,29 @@ versión no se sincronizó en el Paso 0.4/5: corrígela y relanza con
 
 ---
 
+## Paso 6.7: Los dos nombres del MCP responden igual (UC-5101, v6.18.0+)
+
+> El servidor responde en `mcp.specbox.build` (nombre canónico) y en
+> `mcp-specbox-engine.jpsdeveloper.com` (antiguo, sin fecha de retirada). El workflow
+> `mcp-hosts.yml` lo comprueba cada semana **sin** token; la sesión **con** token se comprueba
+> aquí, en local, con el token de dispositivo de este ordenador (no se guarda en GitHub).
+
+Cuando el MCP de producción ya sirve la versión nueva (`/health`):
+
+```bash
+node scripts/check-mcp-hosts.mjs --with-device-token
+```
+
+Exige en los dos nombres: misma versión, token inválido rechazado (401), la misma respuesta sin
+token (200 en la gracia de UC-3901, 401 después) y sesión abierta con token. Si falla, revisar
+los dominios del servicio `mcp-specbox-engine` en EasyPanel. Reflejar en el reporte final:
+
+```
+- MCP en los dos nombres: {OK | FALLO — salida de check-mcp-hosts}
+```
+
+---
+
 ## Paso 7: Pre-commit Consistency Check (BLOQUEANTE — v5.32.1+)
 
 > **Regla**: ANTES del `git commit` del Paso 6, correr el validador automatico

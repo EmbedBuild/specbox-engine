@@ -1,26 +1,27 @@
 """Tests del parser de inventario de capacidades (UC-2001, US-20).
 
-Cubren AC-01 (build_capability_inventory puro), AC-02 (agentes), AC-03 (tools — incluido el
-caso crítico "decorador comentado NO cuenta"), AC-04 (skills) y AC-05 (extensión VSCode).
+Cubren AC-01 (build_capability_inventory puro), AC-02 (agentes), AC-03 (tools — las del
+registro del servidor, UC-6201), AC-04 (skills) y AC-05 (extensión VSCode).
 
 Estrategia: un árbol fixture mínimo en tmp_path para aserciones deterministas sobre conteos,
 + una verificación contra el repo real (parents[1]) para garantizar que el parser funciona
-sobre las fuentes canónicas de hoy (13 agentes, 120 tools, 25 skills, ext v6.11.0).
+sobre las fuentes canónicas de hoy. Las tools se comparan con lo que un cliente MCP recibe en
+``tools/list``.
 """
 
+import asyncio
 from pathlib import Path
 
-import re
-
 import pytest
+from fastmcp import Client
 
 from server.site_publish.inventory import (
     CapabilityInventory,
     build_capability_inventory,
     parse_agents,
     parse_skills,
-    parse_tools,
     parse_vscode_ext,
+    registered_tools,
 )
 
 ENGINE_ROOT = Path(__file__).resolve().parents[1]
@@ -42,28 +43,6 @@ def fake_engine(tmp_path: Path) -> Path:
     )
     (agents / "db-specialist.md").write_text(
         "# DB Specialist (AG-03)\n\nDisena el schema y RLS.\n", encoding="utf-8"
-    )
-
-    # server/ con tools reales y una mención comentada (NO debe contar)
-    server = root / "server"
-    (server / "tools").mkdir(parents=True)
-    (server / "engine.py").write_text(
-        "import x\n\n"
-        "@mcp.tool\n"
-        "def get_engine_version():\n    return '1'\n\n"
-        "@mcp.tool\n"
-        "async def get_engine_status():\n    return {}\n\n"
-        "# Nota: @mcp.tool en un comentario NO cuenta.\n"
-        '"""Docstring que menciona @mcp.tool tampoco cuenta."""\n',
-        encoding="utf-8",
-    )
-    (server / "tools" / "other.py").write_text(
-        "@mcp.tool\ndef list_plans():\n    return []\n", encoding="utf-8"
-    )
-    # tests/ debe excluirse
-    (server / "tests").mkdir()
-    (server / "tests" / "test_x.py").write_text(
-        "@mcp.tool\ndef should_not_count():\n    pass\n", encoding="utf-8"
     )
 
     # .claude/skills/
@@ -97,7 +76,7 @@ def test_build_capability_inventory_returns_four_lists(fake_engine):
     inv = build_capability_inventory(fake_engine)
     assert isinstance(inv, CapabilityInventory)
     assert len(inv.agents) == 2
-    assert len(inv.tools) == 3  # 2 en engine.py + 1 en tools/other.py; comentario/docstring/tests excluidos
+    assert inv.tools == []  # sin server/server.py no hay registro que leer
     assert len(inv.skills) == 2
     assert inv.vscode_ext is not None
 
@@ -125,35 +104,51 @@ def test_parse_agents_real_repo_has_known_agents():
 
 
 # ---------------------------------------------------------------------------
-# AC-03 — tools por decoradores reales (comentados NO cuentan)
+# AC-03 — tools del registro del servidor (UC-6201)
 # ---------------------------------------------------------------------------
-def test_parse_tools_ignores_comments_and_tests(fake_engine):
-    tools = parse_tools(fake_engine / "server")
-    names = {t.tool_name for t in tools}
-    assert names == {"get_engine_version", "get_engine_status", "list_plans"}
-    assert "should_not_count" not in names  # tests/ excluido
-    assert all(t.module for t in tools)
+async def _tools_list_names() -> list[str]:
+    """Los nombres que recibe un cliente MCP real al pedir ``tools/list``."""
+    from server.server import mcp
+
+    async with Client(mcp) as client:
+        return [t.name for t in await client.list_tools()]
 
 
-def test_parse_tools_real_repo_count_matches_grep():
-    """El conteo del parser coincide con los decoradores reales del repo.
+def test_inventory_publishes_the_same_tools_as_tools_list():
+    """UC-6201 AC-02: lo que site_publish publica es lo que el servidor expone.
 
-    Antes el número estaba congelado (120) y se rompía cada vez que se añadía una
-    tool — de hecho llevaba roto desde que US-33 y US-34 añadieron cinco. Ahora se
-    cuenta igual que promete el nombre del test: con una búsqueda independiente,
-    que no comparte código con el parser que verifica.
+    El parser anterior leía decoradores con regex y se perdía las tools registradas como
+    ``mcp_instance.tool(...)(fn)``: el site decía 126 y el MCP exponía 192. Su test comparaba
+    el regex consigo mismo, así que nunca falló.
     """
-    decoradores = re.compile(r"^\s*@(?:mcp|app|server)\.tool")
-    esperado = 0
-    for py in (ENGINE_ROOT / "server").rglob("*.py"):
-        if "tests" in py.parts or "__pycache__" in py.parts:
-            continue
-        esperado += sum(1 for l in py.read_text(encoding="utf-8").splitlines() if decoradores.match(l))
+    inventory = [t.tool_name for t in build_capability_inventory(ENGINE_ROOT).tools]
+    listed = asyncio.run(_tools_list_names())
 
-    tools = parse_tools(ENGINE_ROOT / "server")
-    assert esperado > 0, "la búsqueda de control no encontró ninguna tool"
-    assert len(tools) == esperado
-    assert all(t.tool_name for t in tools)
+    assert len(inventory) == len(set(inventory)), "el inventario repite tools"
+    assert set(inventory) == set(listed), (
+        f"faltan en el inventario: {sorted(set(listed) - set(inventory))}; "
+        f"sobran: {sorted(set(inventory) - set(listed))}"
+    )
+
+
+def test_registered_tools_point_to_their_module():
+    tools = registered_tools(ENGINE_ROOT)
+    assert tools, "el servidor no registra ninguna tool"
+    for tool in tools:
+        assert tool.module.startswith("server/") and tool.module.endswith(".py"), tool
+        assert (ENGINE_ROOT / tool.module).is_file(), tool
+
+
+def test_registered_tools_without_server_is_empty(tmp_path):
+    assert registered_tools(tmp_path) == []
+
+
+def test_registered_tools_refuses_another_engine(tmp_path):
+    """Las tools salen del servidor importado: nunca se publican como si fueran de otro."""
+    (tmp_path / "server").mkdir()
+    (tmp_path / "server" / "server.py").write_text("mcp = None\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="otro engine"):
+        registered_tools(tmp_path)
 
 
 # ---------------------------------------------------------------------------

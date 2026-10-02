@@ -470,8 +470,9 @@ git push
 > commitear (Paso 6), publica al schema público de Supabase `SpecBox-Cloud`, en una sola
 > invocación, **dos** cosas: (1) el **estado del engine** —release actual, features, changelog
 > curado (US-16)— y (2) el **inventario de capacidades** —agentes, MCP tools, skills y la
-> extensión VSCode (US-20)— extraído del propio código del engine (`agents/*.md`, decoradores
-> `@*.tool` en `server/`, `.claude/skills/*/SKILL.md`, `vscode-extension/package.json`). El site
+> extensión VSCode (US-20)— extraído del propio engine (`agents/*.md`, el registro de tools del
+> servidor —lo mismo que `tools/list`, UC-6201—, `.claude/skills/*/SKILL.md`,
+> `vscode-extension/package.json`). El site
 > `specbox.build` (satélite `site`) lee esas tablas y refleja la versión y el inventario
 > recién liberados **sin editar `.astro` a mano**.
 >

@@ -1940,6 +1940,14 @@ la única vía de publicar → el changelog y el inventario del site nunca diver
 como paso post-commit **no bloqueante**: si la publicación falla, se reporta como WARNING accionable
 y el release NO se revierte. El publicador es UPSERT idempotente — re-ejecutarlo es seguro.
 
+**Las tools salen del registro del servidor (UC-6201, US-62).** Leer decoradores `@*.tool` con regex
+se perdía las tools registradas como `mcp_instance.tool(...)(fn)`: el site decía 126 cuando el MCP
+exponía 192. `registered_tools(engine_root)` pregunta a `server.server.mcp` (lo mismo que devuelve
+`tools/list`, con el nombre público y el fichero que la define) y se niega a describir otro checkout
+que el importado. `tests/test_site_publish_inventory_parser.py` compara el inventario con lo que un
+cliente MCP real recibe en `tools/list`; lo ejecuta el workflow `site-inventory.yml` en cada PR que
+toca `server/`.
+
 Tests: +56 verdes — 44 Python (`tests/test_site_publish_*.py`: parser, publisher, inventory
 parser/publisher, main) + 6 VSCode `node:test` (`activation.test.mjs`); 94% cobertura del código
 nuevo de `site_publish`, ruff limpio, service-role nunca logueada.

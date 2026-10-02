@@ -2,6 +2,67 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.18.0] - 2026-10-02 — "Mudanza"
+
+El servidor alojado se muda a `mcp.specbox.build` y los clientes se mudan solos, sin que nadie
+pierda la conexión. Es la parte del engine de la épica de dominios del orquestador (D19): el
+site ya vive en `specbox.build`, el portal en `projects.specbox.build` y el correo sale de
+`@specbox.build`. Cierra la US-51 del board del orquestador.
+
+### Added
+
+- **El servidor responde en `mcp.specbox.build`** (US-51/UC-5101) — y en su nombre anterior,
+  `mcp-specbox-engine.jpsdeveloper.com`, que es el mismo servicio y no tiene fecha de retirada.
+- **`scripts/check-mcp-hosts.mjs`** (UC-5101) — compara los dos nombres: misma versión, token
+  inválido rechazado, la misma respuesta sin token (vale en la gracia y después) y, con
+  `--with-device-token`, sesión abierta con el token del ordenador, que nunca se imprime. Corre
+  cada lunes sin token (`.github/workflows/mcp-hosts.yml`) y con token en el Paso 6.7 de
+  `/release`.
+
+### Changed
+
+- **La extensión y `specbox login` usan `mcp.specbox.build`** (UC-5102) — una instalación nueva
+  configura Claude Code con el nombre nuevo.
+- **Las entradas antiguas se mudan solas, con copia** (UC-5102) — `claudeUsesHelper()` da
+  `false` si `SpecBox-MCP` apunta al nombre anterior, así que la extensión actualizada
+  reconfigura Claude Code: reescribe al nombre nuevo la entrada de usuario y las locales de cada
+  proyecto, y antes guarda las entradas tal como estaban en
+  `~/.specbox/backups/claude-mcp-<fecha>.json` (0600, sin el valor de ningún `Authorization`).
+- **Una sola credencial para los dos nombres** (UC-5102) — `accountFor()` traduce el nombre
+  anterior al nuevo y el almacén copia a la clave nueva la credencial guardada con la antigua la
+  primera vez que la lee; `specbox logout` borra las dos.
+- **Enlaces publicados a specbox.build** (UC-5202, UC-5302, UC-5401) — README (ES/EN), página del
+  Marketplace, página de npm, skill de release y docstring de `site_publish`; contacto
+  `hola@specbox.build` en la licencia comercial y en la guía de contribución; la skill `/prd` y
+  `set_ac_internal` nombran el portal en `projects.specbox.build`; `SECURITY.md`, el runbook de
+  autenticación de transporte y las guías de conexión nombran `mcp.specbox.build`.
+
+### Fixed
+
+- `test_parse_changelog_latest_version` ya no exige una sección «Added» en la última entrada:
+  una release de parche puede traer solo «Changed» o «Fixed».
+
+### Security
+
+- La mudanza nunca saca la credencial del almacén seguro del sistema: se copia de una clave a
+  otra dentro del mismo almacén, sin pasar por un fichero ni por la salida de una orden.
+- La copia de las entradas de Claude Code que se guarda antes de reescribirlas solo la puede leer
+  su usuario (0600) y nunca lleva el valor de una cabecera `Authorization`.
+- La comparación de los dos nombres no imprime el token, y la que corre en GitHub lo hace sin
+  token: ningún token con acceso a los boards queda guardado en los secretos del repositorio.
+
+### Compatibility
+
+- 100% backwards-compatible: el nombre anterior sigue respondiendo, así que una instalación sin
+  actualizar sigue funcionando, y la credencial guardada con él se sigue usando. Sin migraciones
+  de base de datos. Quien configure su propio servidor con `SPECBOX_MCP_URL` no se ve afectado.
+
+### Tests
+
+- `packages/specbox-cli/test/mudanza.test.mjs` (9, nuevo; sin la lista de nombres anteriores
+  fallan 8), `scripts/check-mcp-hosts.test.mjs` (7, nuevo) y `vscode-extension/tests/mcp.test.mjs`.
+  CLI 49/49 (Linux, macOS y Windows; Node 18 y 22) y extensión 151/151.
+
 ## [6.17.1] - 2026-10-01 — "EngineFirst"
 
 El engine vuelve a funcionar sin el panel: un operador que monta su propio Postgres y cuyos

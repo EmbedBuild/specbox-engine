@@ -1,7 +1,8 @@
 """Tests del publicador de inventario (UC-2002, US-20).
 
 Cubren AC-06 (UPSERT idempotente merge-duplicates a las 4 tablas), AC-07 (credencial
-service-role nunca logueada) y AC-08 (fallo HTTP → PublishResult(ok=False) sin excepción).
+service-role nunca logueada), AC-08 (fallo HTTP → PublishResult(ok=False) sin excepción) y
+UC-6209 (tras el UPSERT, DELETE de lo que el engine ya no tiene, nunca con una lista vacía).
 """
 
 import pytest
@@ -64,21 +65,54 @@ def _inventory() -> CapabilityInventory:
 # ---------------------------------------------------------------------------
 def test_requests_target_four_tables():
     reqs = build_inventory_publish_requests(_inventory())
-    paths = [r.path for r in reqs]
-    assert paths == [
-        "/rest/v1/engine_agent",
-        "/rest/v1/engine_tool",
-        "/rest/v1/engine_skill",
-        "/rest/v1/engine_vscode_ext",
+    assert [(r.method, r.path) for r in reqs] == [
+        ("POST", "/rest/v1/engine_agent"),
+        ("DELETE", "/rest/v1/engine_agent"),
+        ("POST", "/rest/v1/engine_tool"),
+        ("DELETE", "/rest/v1/engine_tool"),
+        ("POST", "/rest/v1/engine_skill"),
+        ("DELETE", "/rest/v1/engine_skill"),
+        ("POST", "/rest/v1/engine_vscode_ext"),
     ]
 
 
 def test_all_upserts_use_merge_duplicates():
-    reqs = build_inventory_publish_requests(_inventory())
-    assert reqs, "debe haber upserts"
+    reqs = [r for r in build_inventory_publish_requests(_inventory()) if r.method == "POST"]
+    assert len(reqs) == 4
     for r in reqs:
-        assert r.method == "POST"
         assert r.prefer == "resolution=merge-duplicates"
+
+
+def test_prune_removes_what_the_engine_no_longer_has():
+    """UC-6209: el DELETE borra lo que no está en el inventario actual, y solo eso."""
+    inv = CapabilityInventory(
+        agents=[AgentInfo(agent_key="orchestrator"), AgentInfo(agent_key="db-specialist")],
+        tools=[ToolInfo(tool_name="whoami"), ToolInfo(tool_name=""), ToolInfo(tool_name="get_uc")],
+        skills=[SkillInfo(skill_key="prd")],
+    )
+    deletes = {r.path: r.params for r in build_inventory_publish_requests(inv) if r.method == "DELETE"}
+    assert deletes == {
+        "/rest/v1/engine_agent": {"agent_key": 'not.in.("db-specialist","orchestrator")'},
+        "/rest/v1/engine_tool": {"tool_name": 'not.in.("get_uc","whoami")'},
+        "/rest/v1/engine_skill": {"skill_key": 'not.in.("prd")'},
+    }
+
+
+def test_prune_never_runs_with_an_empty_list():
+    """Una superficie vacía (o sin nombres válidos) no borra nada de su tabla."""
+    inv = CapabilityInventory(agents=[AgentInfo(agent_key="o")], tools=[ToolInfo(tool_name="")])
+    reqs = build_inventory_publish_requests(inv)
+    assert [(r.method, r.path) for r in reqs] == [
+        ("POST", "/rest/v1/engine_agent"),
+        ("DELETE", "/rest/v1/engine_agent"),
+    ]
+
+
+def test_a_failed_upsert_stops_before_its_delete():
+    client = _FakeClient(fail_on=0, fail_status=500)
+    result = publish_inventory(_inventory(), CREDS, client)
+    assert result.ok is False and result.failed_step == 0
+    assert [c["method"] for c in client.calls] == ["POST"]
 
 
 def test_idempotent_same_requests_twice():
@@ -99,7 +133,7 @@ def test_empty_surfaces_skipped():
         agents=[AgentInfo(agent_key="o", name="O")],  # solo agentes
     )
     reqs = build_inventory_publish_requests(inv)
-    assert [r.path for r in reqs] == ["/rest/v1/engine_agent"]
+    assert [r.path for r in reqs] == ["/rest/v1/engine_agent", "/rest/v1/engine_agent"]
 
 
 # ---------------------------------------------------------------------------
@@ -114,8 +148,8 @@ def test_publish_inventory_ok_sends_all():
     client = _FakeClient()
     result = publish_inventory(_inventory(), CREDS, client)
     assert result.ok is True
-    assert result.steps == 4
-    assert len(client.calls) == 4
+    assert result.steps == 7
+    assert len(client.calls) == 7
     # la credencial viaja en headers pero el resultado nunca la expone
     assert "svc_secret_key_123" not in result.message
 

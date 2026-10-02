@@ -282,65 +282,69 @@ def build_capability_inventory(engine_root: Path) -> CapabilityInventory:
 # ---------------------------------------------------------------------------
 
 
+def _not_in(values: list[str]) -> str:
+    """Filtro de PostgREST «no está en esta lista», con cada valor entre comillas dobles."""
+    quoted = ",".join(
+        '"' + v.replace("\\", "\\\\").replace('"', '\\"') + '"' for v in sorted(set(values))
+    )
+    return f"not.in.({quoted})"
+
+
+def _upsert_and_prune(path: str, key: str, rows: list[dict]) -> list[PublishRequest]:
+    """UPSERT de las filas de una superficie y DELETE de las que el engine ya no tiene (UC-6209).
+
+    Sin filas no se emite nada: un inventario vacío (fuente ausente o rota) nunca vacía la
+    tabla. El DELETE va después del UPSERT, y ``execute_requests`` se para en el primer fallo:
+    si el UPSERT falla, no se borra nada.
+    """
+    if not rows:
+        return []
+    return [
+        PublishRequest(
+            method="POST", path=path, params={}, json=rows, prefer="resolution=merge-duplicates"
+        ),
+        PublishRequest(
+            method="DELETE",
+            path=path,
+            params={key: _not_in([row[key] for row in rows])},
+            json=None,
+            prefer="return=minimal",
+        ),
+    ]
+
+
 def build_inventory_publish_requests(inventory: CapabilityInventory) -> list[PublishRequest]:
     """Construye las peticiones idempotentes para publicar el inventario (AC-06).
 
-    Hermano de ``publisher.build_publish_requests``: un UPSERT con
-    ``Prefer: resolution=merge-duplicates`` por cada superficie del inventario a su tabla
-    ``public.engine_*``. Reejecutarlo sobre el mismo inventario produce el mismo estado final
-    (idempotente). No emite petición para una superficie vacía (evita POST con body []).
+    Hermano de ``publisher.build_publish_requests``: por cada superficie del inventario, un
+    UPSERT con ``Prefer: resolution=merge-duplicates`` a su tabla ``public.engine_*`` y un
+    DELETE de las filas que ya no están en el engine (UC-6209: una tool, agente o skill retirado
+    o renombrado deja de contarse en el site). Reejecutarlo sobre el mismo inventario produce el
+    mismo estado final (idempotente). Una superficie vacía no emite nada: ni POST con body [] ni
+    un DELETE que vaciaría la tabla.
 
     El transporte (`publish`) y la credencial (`PublishCredentials`) se reutilizan de
     ``publisher.py``; aquí solo se decide *qué* peticiones hacer (función pura, testeable sin red).
     """
     requests: list[PublishRequest] = []
-
-    if inventory.agents:
-        requests.append(
-            PublishRequest(
-                method="POST",
-                path="/rest/v1/engine_agent",
-                params={},
-                json=[
-                    {"agent_key": a.agent_key, "name": a.name or "", "role": a.role or ""}
-                    for a in inventory.agents
-                ],
-                prefer="resolution=merge-duplicates",
-            )
-        )
-
-    if inventory.tools:
-        requests.append(
-            PublishRequest(
-                method="POST",
-                path="/rest/v1/engine_tool",
-                params={},
-                json=[
-                    {"tool_name": t.tool_name, "module": t.module or ""}
-                    for t in inventory.tools
-                    if t.tool_name
-                ],
-                prefer="resolution=merge-duplicates",
-            )
-        )
-
-    if inventory.skills:
-        requests.append(
-            PublishRequest(
-                method="POST",
-                path="/rest/v1/engine_skill",
-                params={},
-                json=[
-                    {
-                        "skill_key": s.skill_key,
-                        "command": s.command or "",
-                        "description": s.description or "",
-                    }
-                    for s in inventory.skills
-                ],
-                prefer="resolution=merge-duplicates",
-            )
-        )
+    requests += _upsert_and_prune(
+        "/rest/v1/engine_agent",
+        "agent_key",
+        [{"agent_key": a.agent_key, "name": a.name or "", "role": a.role or ""} for a in inventory.agents],
+    )
+    requests += _upsert_and_prune(
+        "/rest/v1/engine_tool",
+        "tool_name",
+        [{"tool_name": t.tool_name, "module": t.module or ""} for t in inventory.tools if t.tool_name],
+    )
+    requests += _upsert_and_prune(
+        "/rest/v1/engine_skill",
+        "skill_key",
+        [
+            {"skill_key": s.skill_key, "command": s.command or "", "description": s.description or ""}
+            for s in inventory.skills
+        ],
+    )
 
     if inventory.vscode_ext is not None:
         ext = inventory.vscode_ext

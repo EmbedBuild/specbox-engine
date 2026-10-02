@@ -1,0 +1,50 @@
+name: Site inventory
+
+# UC-6201 (US-62) — the site shows the MCP tools that site_publish publishes.
+# They come from the server's own registry; this job checks they are the same
+# tools a real MCP client gets from tools/list, and runs the rest of the
+# site_publish tests. The general test suite does not run in CI, so without
+# this job the comparison would only run when someone runs it by hand.
+
+on:
+  pull_request:
+    paths:
+      - "server/**"
+      - "tests/test_site_publish_*.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/site-inventory.yml"
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - "tests/test_site_publish_*.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/site-inventory.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-inventory-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  site-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade uv
+          uv sync --extra dev
+
+      - name: site_publish tests (inventory = tools/list)
+        run: uv run pytest -rs tests/test_site_publish_*.py

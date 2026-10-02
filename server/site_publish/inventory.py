@@ -11,9 +11,9 @@ reutilizable por el publicador (UC-2002) y por `__main__` (UC-2003).
 
 Fuentes canónicas (verificadas en el repo, 2026-06-18):
 - Agentes: ``agents/*.md`` — 1 entrada por fichero. Nombre del H1 ``# Título (Nombre)``.
-- MCP tools: decoradores ``@<x>.tool`` en ``server/**/*.py`` — SOLO líneas que tras strip
-  empiezan por el decorador (las menciones en comentarios/docstrings NO cuentan). El nombre de
-  la tool es el ``def``/``async def`` de la línea siguiente.
+- MCP tools: el registro del propio servidor (``server.server.mcp``), lo mismo que devuelve
+  ``tools/list`` a un cliente (UC-6201). Leer decoradores con regex se perdía las tools
+  registradas como ``mcp_instance.tool(...)(fn)``: el site decía 126 cuando el MCP exponía 192.
 - Skills: ``.claude/skills/*/SKILL.md`` — 1 por directorio. ``command`` = ``/<dirname>``,
   ``description`` del front-matter YAML.
 - Extensión VSCode: ``vscode-extension/package.json`` — name/publisher/version + marketplace_id.
@@ -21,6 +21,8 @@ Fuentes canónicas (verificadas en el repo, 2026-06-18):
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
 import re
 from dataclasses import dataclass, field
@@ -120,49 +122,60 @@ def parse_agents(agents_dir: Path) -> list[AgentInfo]:
 
 
 # ---------------------------------------------------------------------------
-# MCP tools — decoradores @<x>.tool en server/**/*.py
+# MCP tools — el registro del servidor (lo que devuelve tools/list)
 # ---------------------------------------------------------------------------
 
-# Decorador de tool REAL: la línea, tras quitar indentación, empieza por @mcp.tool / @app.tool /
-# @server.tool (con o sin paréntesis). Una mención en comentario o docstring NO empieza por @.
-_TOOL_DECORATOR = re.compile(r"^@(?:mcp|app|server)\.tool\b")
-# Definición de función que sigue al decorador.
-_DEF_LINE = re.compile(r"^\s*(?:async\s+)?def\s+(?P<name>[A-Za-z_]\w*)\s*\(")
 
+def _tool_module(tool, engine_root: Path) -> str:
+    """Fichero que define la tool, relativo a ``engine_root`` ("server/tools/foo.py").
 
-def parse_tools(server_dir: Path) -> list[ToolInfo]:
-    """Cuenta los decoradores de tool REALES en ``server/**/*.py``.
-
-    Reglas (AC-03):
-    - Solo cuenta líneas que tras ``lstrip()`` empiezan por ``@mcp.tool`` / ``@app.tool`` /
-      ``@server.tool`` — las menciones en comentarios/docstrings no empiezan por ``@``.
-    - El ``tool_name`` es el nombre del ``def``/``async def`` de la siguiente línea no vacía.
-    - Excluye ``tests/`` y ``__pycache__``.
-    - ``module`` = path relativo del fichero respecto a ``server_dir.parent``.
+    ``inspect.unwrap`` salta los decoradores que envuelven la función (p. ej.
+    ``@requires_app_docs_sync``) para no atribuir la tool al módulo del decorador.
     """
-    if not server_dir.is_dir():
+    fn = getattr(tool, "fn", None)
+    if fn is None:
+        return ""
+    try:
+        source = inspect.getsourcefile(inspect.unwrap(fn))
+    except TypeError:
+        return ""
+    if not source:
+        return ""
+    try:
+        return str(Path(source).resolve().relative_to(engine_root))
+    except ValueError:
+        return ""
+
+
+def registered_tools(engine_root: Path) -> list[ToolInfo]:
+    """Las tools que expone el servidor MCP de ``engine_root``, en orden de registro.
+
+    Pregunta al registro del propio servidor en vez de leer el código: cuenta cualquier forma de
+    registrar una tool (decorador o ``mcp_instance.tool(...)(fn)``) y usa el nombre público, el
+    mismo que ve un cliente en ``tools/list``.
+
+    - Sin ``server/server.py`` bajo ``engine_root`` → lista vacía (fuente ausente).
+    - El registro es el del servidor importado en este proceso: si ``engine_root`` es otro
+      checkout, lanza ``ValueError`` en vez de publicar las tools de un engine distinto.
+    - Síncrona (``asyncio.run``): no llamarla desde un bucle de eventos en marcha.
+    """
+    engine_root = Path(engine_root).resolve()
+    if not (engine_root / "server" / "server.py").is_file():
         return []
 
-    tools: list[ToolInfo] = []
-    root = server_dir.parent  # para que module sea "server/foo.py"
-    for py in sorted(server_dir.rglob("*.py")):
-        parts = set(py.parts)
-        if "tests" in parts or "__pycache__" in parts:
-            continue
-        module = str(py.relative_to(root))
-        lines = py.read_text(encoding="utf-8").splitlines()
-        for i, line in enumerate(lines):
-            if not _TOOL_DECORATOR.match(line.lstrip()):
-                continue
-            # Buscar el def en las líneas siguientes (puede haber más decoradores en medio).
-            tool_name = ""
-            for nxt in lines[i + 1 : i + 8]:
-                m = _DEF_LINE.match(nxt)
-                if m:
-                    tool_name = m.group("name")
-                    break
-            tools.append(ToolInfo(tool_name=tool_name, module=module))
-    return tools
+    import server as server_package
+
+    imported_root = Path(server_package.__file__).resolve().parents[1]
+    if imported_root != engine_root:
+        raise ValueError(
+            f"El inventario de tools sale del servidor importado ({imported_root}) y no puede "
+            f"describir otro engine ({engine_root}). Ejecuta site_publish desde ese engine."
+        )
+
+    from server.server import mcp
+
+    tools = asyncio.run(mcp.list_tools())
+    return [ToolInfo(tool_name=t.name, module=_tool_module(t, engine_root)) for t in tools]
 
 
 # ---------------------------------------------------------------------------
@@ -250,14 +263,15 @@ def parse_vscode_ext(package_json: Path) -> VscodeExtInfo | None:
 def build_capability_inventory(engine_root: Path) -> CapabilityInventory:
     """Construye el inventario completo de capacidades del engine (AC-01).
 
-    Función pura: no toca red ni Supabase. Lee las cuatro fuentes canónicas bajo ``engine_root``
-    y devuelve un CapabilityInventory. Cualquier fuente ausente degrada a lista vacía / None sin
-    lanzar, de modo que el publicador puede decidir qué hacer.
+    No toca red ni Supabase. Lee agentes, skills y extensión bajo ``engine_root`` y las tools del
+    registro de su servidor (``registered_tools``), y devuelve un CapabilityInventory. Cualquier
+    fuente ausente degrada a lista vacía / None sin lanzar, de modo que el publicador puede
+    decidir qué hacer.
     """
     engine_root = Path(engine_root)
     return CapabilityInventory(
         agents=parse_agents(engine_root / "agents"),
-        tools=parse_tools(engine_root / "server"),
+        tools=registered_tools(engine_root),
         skills=parse_skills(engine_root / ".claude" / "skills"),
         vscode_ext=parse_vscode_ext(engine_root / "vscode-extension" / "package.json"),
     )

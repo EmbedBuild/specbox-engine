@@ -9,7 +9,8 @@ versión + changelog, y el mantenedor puede re-lanzarlo a mano si la publicació
 En una sola invocación publica DOS cosas a Supabase:
   1. Estado de release/changelog (US-16): engine_release, engine_changelog_entry, engine_feature.
   2. Inventario de capacidades (US-20): engine_agent, engine_tool, engine_skill, engine_vscode_ext
-     — extraído del propio código del engine (agents/*.md, decoradores @*.tool, skills, package.json).
+     — extraído del propio engine (agents/*.md, el registro de tools del servidor, skills,
+     package.json).
 
 Exit codes:
   0  publicación OK (release/changelog E inventario)

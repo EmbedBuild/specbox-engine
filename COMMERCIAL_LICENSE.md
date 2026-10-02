@@ -20,7 +20,7 @@ SpecBox Engine is licensed under the [Business Source License 1.1](LICENSE).
 
 Contact us to discuss licensing terms tailored to your needs:
 
-- **Email**: jesus@embed.build
+- **Email**: hola@specbox.build
 - **Web**: [embed.build](https://www.embed.build)
 - **LinkedIn**: [Jesus Perez Sanchez](https://www.linkedin.com/in/jesusperezpersonal/)
 
@@ -50,7 +50,7 @@ SpecBox Engine se distribuye bajo la [Business Source License 1.1](LICENSE).
 
 Contacta con nosotros para hablar de condiciones adaptadas a tus necesidades:
 
-- **Email**: jesus@embed.build
+- **Email**: hola@specbox.build
 - **Web**: [embed.build](https://www.embed.build)
 - **LinkedIn**: [Jesus Perez Sanchez](https://www.linkedin.com/in/jesusperezpersonal/)
 

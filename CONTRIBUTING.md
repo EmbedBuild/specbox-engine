@@ -44,7 +44,7 @@ The following files require explicit owner approval and should not be modified w
 
 ## Philosophy
 
-I share this project because I believe in transparency and building trust in the developer community. Contributions that improve SpecBox Engine are welcome and appreciated. But this is a professional tool that sustains a business — if you want to use it commercially, let's talk: **jesus@embed.build**
+I share this project because I believe in transparency and building trust in the developer community. Contributions that improve SpecBox Engine are welcome and appreciated. But this is a professional tool that sustains a business — if you want to use it commercially, let's talk: **hola@specbox.build**
 
 ---
 
@@ -94,4 +94,4 @@ Los siguientes archivos requieren aprobacion explicita del propietario:
 
 ## Filosofia
 
-Comparto este proyecto porque creo en la transparencia y en construir confianza en la comunidad de desarrolladores. Las contribuciones que mejoran SpecBox Engine son bienvenidas y apreciadas. Pero esta es una herramienta profesional que sostiene un negocio — si quieres usarla comercialmente, hablemos: **jesus@embed.build**
+Comparto este proyecto porque creo en la transparencia y en construir confianza en la comunidad de desarrolladores. Las contribuciones que mejoran SpecBox Engine son bienvenidas y apreciadas. Pero esta es una herramienta profesional que sostiene un negocio — si quieres usarla comercialmente, hablemos: **hola@specbox.build**

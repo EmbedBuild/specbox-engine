@@ -29,3 +29,10 @@ supabase_only:
       Site tables, not board schema (UC-4302): engine_release, engine_feature and
       engine_changelog_entry with their security_notes column, read by the public site and
       written by server/site_publish with the service role.
+
+  - file: 20261004000029_site_showcase.sql
+    reason: >-
+      Site objects, not board schema (UC-7001, UC-7002): the public views site_showcase,
+      site_activity and site_stats and the private tables site_showcase_pin and
+      site_showcase_signer. The local chain keeps every view of public closed (UC-4001);
+      tests/test_site_showcase.py applies this file inside a transaction it rolls back.

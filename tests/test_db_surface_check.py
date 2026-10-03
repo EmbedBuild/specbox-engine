@@ -41,6 +41,7 @@ def test_ac02_the_shipped_allowlist_covers_the_known_exceptions_with_reasons():
     names = {(e.kind, sc.normalize_name(e.name)) for e in allowed}
     assert ("function", sc.normalize_name("public.ingest_site_event(text, text, text, text, text, jsonb)")) in names
     assert ("view", "public.site_activity") in names and ("view", "public.site_stats") in names
+    assert ("view", "public.site_showcase") in names
     assert ("view", "business.project_specs") in names
     assert all(len(e.reason) >= 40 for e in allowed), "every exception explains itself"
 

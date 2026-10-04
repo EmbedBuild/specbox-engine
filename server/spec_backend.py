@@ -334,6 +334,16 @@ class SpecBackend(ABC):
         In Plane: reads child items with label 'AC'.
         """
 
+    async def get_uc_acceptance(self, board_id: str, uc_item_id: str) -> dict[str, Any] | None:
+        """La aceptación humana de una UC (US-76), o None si no la tiene.
+
+        Una persona owner o admin del proyecto la da desde el panel, nunca un agente por MCP: el
+        engine solo la lee. Devuelve ``{by, by_id, at}`` (nombre de quien aceptó, su developer_id
+        y la fecha ISO). Solo el backend Native la guarda; Trello, Plane y FreeForm no tienen
+        dónde y devuelven None.
+        """
+        return None
+
     @abstractmethod
     async def mark_acceptance_criterion(
         self,

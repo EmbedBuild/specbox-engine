@@ -1167,6 +1167,26 @@ class NativeBackend(SpecBackend):
 
     # ── SpecBackend: Acceptance Criteria ─────────────────────────
 
+    async def get_uc_acceptance(self, board_id: str, uc_item_id: str) -> dict[str, Any] | None:
+        """La aceptación humana de la UC (US-76 · UC-7601). Solo lectura: la escribe el panel."""
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT a.accepted_by_developer_id, a.accepted_at, d.display_name "
+                "FROM uc_acceptances a LEFT JOIN developers d "
+                "ON d.developer_id = a.accepted_by_developer_id "
+                "WHERE a.project_id = $1 AND a.uc_id = $2",
+                board_id,
+                uc_item_id,
+            )
+        if row is None:
+            return None
+        return {
+            "by": row["display_name"] or row["accepted_by_developer_id"],
+            "by_id": row["accepted_by_developer_id"],
+            "at": row["accepted_at"].isoformat(),
+        }
+
     async def get_acceptance_criteria(self, board_id: str, uc_item_id: str) -> list[ChecklistItemDTO]:
         pool = await self._pool()
         async with pool.acquire() as conn:

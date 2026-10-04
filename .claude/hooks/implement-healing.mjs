@@ -4,8 +4,7 @@
  * Usage: node implement-healing.mjs <feature> <phase> <level> <action> [result]
  */
 
-import { getProjectName, mkdir, now, getHooksDir, appendLine } from './lib/utils.mjs';
-import { spawn } from 'child_process';
+import { mkdir, now, appendLine } from './lib/utils.mjs';
 import { join } from 'path';
 
 const feature = process.argv[2] || '';
@@ -35,22 +34,5 @@ appendLine(join(evidenceDir, 'healing.jsonl'), entry);
 
 console.log(`[HEALING] Level ${level} action logged for ${feature} phase ${phase}`);
 
-// Report to MCP (fire-and-forget)
-const projectName = getProjectName();
-const hooksDir = getHooksDir();
-
-const mcpArgs = JSON.stringify({
-  project: projectName,
-  feature,
-  phase: Number(phase),
-  level: Number(level),
-  action,
-  result,
-  timestamp,
-});
-
-const child = spawn('node', [join(hooksDir, 'mcp-report.mjs'), 'report_healing', mcpArgs], {
-  detached: true,
-  stdio: 'ignore',
-});
-child.unref();
+// v6.1.0 Cloud Cutover: mcp-report.mjs no longer exists (UC-7204 removes the
+// leftover dispatch). The healing event stays in .quality/evidence/ above.

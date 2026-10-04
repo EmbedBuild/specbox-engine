@@ -7,21 +7,23 @@
  */
 
 import { execSync, spawnSync } from 'child_process';
-import { existsSync, writeFileSync, mkdirSync, unlinkSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { existsSync, writeFileSync, mkdirSync, mkdtempSync, unlinkSync, readFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { dirname, join, resolve } from 'path';
 
 const HOOKS_DIR = '.claude/hooks';
 let passed = 0;
 let failed = 0;
 const results = [];
 
-function test(name, hookFile, stdin, expectedExit, expectedOutput) {
+function test(name, hookFile, stdin, expectedExit, expectedOutput, { cwd, env } = {}) {
   try {
-    const result = spawnSync('node', [join(HOOKS_DIR, hookFile)], {
+    const result = spawnSync('node', [resolve(HOOKS_DIR, hookFile)], {
       input: stdin,
       encoding: 'utf-8',
       timeout: 10000,
-      cwd: process.cwd(),
+      cwd: cwd ?? process.cwd(),
+      env: env ?? process.env,
     });
 
     const exitCode = result.status ?? -1;
@@ -172,13 +174,17 @@ test(
 );
 
 // ---- pre-commit-lint.mjs ----
-// This one actually runs linters so we skip it in automated tests
-// but verify it parses correctly
+// pre-commit-lint runs whatever linter the computer has (gga, ruff, eslint...) on
+// the project, so it runs in an empty folder whose PATH only has node: the same
+// result on any computer (UC-7204; in the engine repo it ran ruff on CI and gga
+// on a laptop).
 test(
-  'pre-commit-lint: syntax check (import)',
+  'pre-commit-lint: no project and no linters → skips',
   'pre-commit-lint.mjs',
   '{}',
-  0  // In engine repo with no pubspec/package.json detected, exits 0
+  0,
+  'No linter detected',
+  { cwd: mkdtempSync(join(tmpdir(), 'pre-commit-lint-')), env: { ...process.env, PATH: dirname(process.execPath) } }
 );
 
 // ---- e2e-gate.mjs ----
@@ -186,15 +192,6 @@ test(
   'e2e-gate: empty staged files',
   'e2e-gate.mjs',
   '{}',
-  0
-);
-
-// ---- mcp-report.mjs ----
-// Without SPECBOX_ENGINE_MCP_URL, should exit silently
-test(
-  'mcp-report: no MCP URL configured',
-  'mcp-report.mjs',
-  '',
   0
 );
 

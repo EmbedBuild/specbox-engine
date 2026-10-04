@@ -34,7 +34,7 @@ with v6.7.0 zero-Python onboarding) and live here.
 3. The skill submits that JSON with
    `submit_quality_audit(project, report=<dict>)` (server validates via
    `QualityReport.from_dict`).
-4. AG-10 enriches justifications/recommendations, then
+4. AG-11 enriches justifications/recommendations, then
    `attach_audit_evidence(project, report)` persists PDF + JSON.
 
 ## Layout

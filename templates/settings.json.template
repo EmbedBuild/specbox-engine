@@ -33,6 +33,11 @@
           },
           {
             "type": "command",
+            "command": "node .claude/hooks/file-ownership-guard.mjs",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "node .claude/hooks/stripe-safety-guard.mjs",
             "timeout": 5
           }
@@ -54,6 +59,11 @@
           {
             "type": "command",
             "command": "node .claude/hooks/pipeline-phase-guard.mjs",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/file-ownership-guard.mjs",
             "timeout": 5
           },
           {
@@ -107,6 +117,46 @@
             "timeout": 20
           }
         ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/context-budget-guard.mjs",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/pre-read-budget-guard.mjs",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__SpecBox-MCP__(set_auth_token|onboard_project)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/freeform-path-guard.mjs",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/pre-prd-discovery-check.mjs",
+            "timeout": 8
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -146,6 +196,12 @@
             "if": "Bash(.*git commit.*)",
             "command": "node .claude/hooks/checkpoint-freshness-guard.mjs",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*git commit.*)",
+            "command": "node .claude/hooks/app-docs-sync-guard.mjs",
+            "timeout": 10
           },
           {
             "type": "command",
@@ -233,6 +289,17 @@
             "type": "command",
             "command": "node .claude/hooks/on-session-end.mjs",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/session-start.mjs",
+            "timeout": 5
           }
         ]
       }

@@ -574,10 +574,7 @@ Advertencia fiscal (España):
 ## Paso 12 — Telemetría + Engram (opcional)
 
 Registrar ejecución exitosa:
-```bash
-# Telemetría fire-and-forget (si el engine MCP está configurado)
-node .claude/hooks/mcp-report.mjs stripe-connect-executed '{"stack":"{STACK}","veg":{VEG_PRESENT}}'
-```
+La telemetría remota (`mcp-report.mjs`) se retiró en la 6.1.0: no hay nada que enviar.
 
 Si `mcp__plugin_engram_engram__mem_save` disponible, guardar observación:
 ```

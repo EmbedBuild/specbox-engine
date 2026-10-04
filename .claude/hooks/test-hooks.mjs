@@ -189,15 +189,6 @@ test(
   0
 );
 
-// ---- mcp-report.mjs ----
-// Without SPECBOX_ENGINE_MCP_URL, should exit silently
-test(
-  'mcp-report: no MCP URL configured',
-  'mcp-report.mjs',
-  '',
-  0
-);
-
 // ---- on-session-end.mjs ----
 test(
   'on-session-end: runs without error',

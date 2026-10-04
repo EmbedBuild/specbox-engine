@@ -23,7 +23,7 @@ Este repositorio es un **monorepo unificado** con el sistema completo de program
 - **Templates** — CLAUDE.md, settings.json, team-config para nuevos proyectos
 - **Agents** — templates genericos de roles especializados
 - **Server** — MCP server unificado (FastMCP, JSON-RPC + minimal `/health`)
-- **Quality Audit** — ISO/IEC 25010 (SQuaRE) on-demand via `/audit` + AG-10 auditor externo
+- **Quality Audit** — ISO/IEC 25010 (SQuaRE) on-demand via `/audit` + AG-11 auditor externo
 - **Spec-Driven** — Backend-agnostic tools para US/UC/AC (21 tools + 12 migration, Trello y Plane)
 - **Gherkin BDD** — Acceptance testing en español con frameworks por stack
 
@@ -230,38 +230,51 @@ specbox-engine/
 │   │   ├── stripe-switch-account/SKILL.md
 │   │   ├── switch-backend/SKILL.md
 │   │   └── visual-setup/SKILL.md
-│   ├── hooks/             ← Hooks (v5.18)
-│   │   ├── quality-first-guard.mjs
-│   │   ├── read-tracker.mjs
-│   │   ├── spec-guard.mjs
+│   ├── hooks/             ← Hooks (los registra .claude/settings.json; ver «Hooks»)
+│   │   ├── lib/           ← Módulos compartidos de los hooks
+│   │   ├── legacy-bash/   ← Versiones .sh anteriores a la 5.17
+│   │   ├── app-docs-sync-guard.mjs
 │   │   ├── branch-guard.mjs
-│   │   ├── commit-spec-guard.mjs
-│   │   ├── pre-commit-lint.mjs
-│   │   ├── e2e-gate.mjs
-│   │   ├── no-bypass-guard.mjs
-│   │   ├── design-gate.mjs
-│   │   ├── healing-budget-guard.mjs
-│   │   ├── pipeline-phase-guard.mjs
 │   │   ├── checkpoint-freshness-guard.mjs
-│   │   ├── uc-lifecycle-guard.mjs
-│   │   ├── on-session-end.mjs
+│   │   ├── commit-spec-guard.mjs
+│   │   ├── context-budget-guard.mjs
+│   │   ├── design-gate.mjs
+│   │   ├── design-system-gate.mjs
+│   │   ├── e2e-gate.mjs
+│   │   ├── file-ownership-guard.mjs
+│   │   ├── freeform-path-guard.mjs
+│   │   ├── healing-budget-guard.mjs
 │   │   ├── implement-checkpoint.mjs
 │   │   ├── implement-healing.mjs
-│   │   └── post-implement-validate.mjs
+│   │   ├── no-bypass-guard.mjs
+│   │   ├── on-session-end.mjs
+│   │   ├── pipeline-phase-guard.mjs
+│   │   ├── post-implement-validate.mjs
+│   │   ├── pre-commit-lint.mjs
+│   │   ├── pre-prd-discovery-check.mjs
+│   │   ├── pre-read-budget-guard.mjs
+│   │   ├── quality-first-guard.mjs
+│   │   ├── read-tracker.mjs
+│   │   ├── session-start.mjs
+│   │   ├── spec-guard.mjs
+│   │   ├── stripe-safety-guard.mjs
+│   │   ├── test-hooks.mjs
+│   │   └── uc-lifecycle-guard.mjs
 │   └── settings.json      ← Hooks config
 ├── agents/                ← Templates de agentes por rol
-│   ├── orchestrator.md
-│   ├── feature-generator.md
-│   ├── uiux-designer.md
-│   ├── db-specialist.md
-│   ├── qa-validation.md
-│   ├── design-specialist.md
-│   ├── n8n-specialist.md
-│   ├── appscript-specialist.md
-│   ├── quality-auditor.md
 │   ├── acceptance-tester.md
 │   ├── acceptance-validator.md
-│   └── developer-tester.md
+│   ├── ag-10-quality-auditor.md
+│   ├── appscript-specialist.md
+│   ├── db-specialist.md
+│   ├── design-specialist.md
+│   ├── developer-tester.md
+│   ├── feature-generator.md
+│   ├── n8n-specialist.md
+│   ├── orchestrator.md
+│   ├── qa-validation.md
+│   ├── quality-auditor.md
+│   └── uiux-designer.md
 ├── agent-teams/           ← Agent Teams nativo (Claude Code)
 │   ├── README.md
 │   ├── templates/
@@ -378,7 +391,7 @@ El campo `context:` del frontmatter de un SKILL.md determina cómo el harness de
 
 **Test rápido** para confirmar que un skill funciona: ejecutar su slash command en una sesión nueva (los cambios en SKILL.md no afectan sesiones ya abiertas). Si el skill responde "espero tu solicitud" o falla con error de escritura, el frontmatter está mal.
 
-## Available Skills (v5.30)
+## Available Skills
 
 Skills are auto-discoverable. Claude will use them when relevant. You can also invoke them explicitly.
 
@@ -398,14 +411,19 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /quickstart | "quickstart", "tutorial", "getting started" | direct | Full | v5.0 — Interactive onboarding tutorial (< 5 min) |
 | /release | "release", "bump version", "sube version", "prepara release" | direct | Full | v5.8 — Audit residuals + update version/changelog/docs + push |
 | /compliance | "check compliance", "audit specbox", "specbox audit", "is specbox up to date" | direct | Bash+Read | v5.18 — Compliance audit + version alignment + auto-fix |
-| /audit | "audit project", "quality audit", "ISO 25010", "SQuaRE audit" | direct | Full | v5.22 — Quality Audit ISO/IEC 25010 on-demand (AG-10, 8 analyzers, PDF+JSON) |
+| /audit | "audit project", "quality audit", "ISO 25010", "SQuaRE audit" | direct | Full | v5.22 — Quality Audit ISO/IEC 25010 on-demand (AG-11, 8 analyzers, PDF+JSON) |
 | /stripe-connect | "stripe connect", "marketplace billing", "integrar pagos marketplace" | direct | Full | v5.25 — Marketplace Connect (Express + Direct charges + subscriptions embedded) + Supabase + React/Flutter |
 | /stripe-standard | "stripe standard", "stripe sin connect", "subscriptions saas", "billing saas", "monta pagos saas" | direct | Full | v5.27 — Stripe Standard (no Connect) + 4 modalidades (single/tiered/metered/one_shot) + Supabase + React/Flutter |
 | /stripe-switch-account | "switch stripe account", "rotar cuenta stripe", "cambiar cuenta stripe" | direct | Full | v5.27 — Stripe credentials rotation (alias store + switch_stripe_account tool, both Standard and Connect modes, dry-run + automatic rollback) |
 | /handoff | "handoff", "save state", "guarda contexto", "voy a hacer compactación" | direct | Read+Bash+Write | v5.30 — Persiste estado fino a `.quality/handoff.md` + Engram structured. **Llamar ANTES de proponer compactación**. |
 | /switch-backend | "switch backend", "cambiar backend", "migrar de FreeForm a Trello/Plane/Native", "mover el tracking a" | direct | Full | v5.35 — Cambio guiado de backend N×N entre los 4 (FreeForm/Trello/Plane/Native). Preview obligatorio + confirmación literal + switch transaccional (3 lugares con rollback) + regenerate_evidence opt-in. Migración aditiva, no destruye origen. |
+| /discovery | "discovery", "framing", "antes de PRD", "definir ICP", "definir JTBD" | direct | Full | v6.0 — Product Discovery ligero antes de /prd: ICP + JTBD + gate → `doc/discovery/<feature>/icp_jtbd.md` |
+| /manual-test | "manual test", "pruebas manuales", "test plan", "testear la app" | direct | Full | Pruebas manuales sistemáticas con resolución de bugs en vivo y evidencia para stakeholders |
+| /queue-review | "queue review", "revisar cola", "resolver pendientes" | direct | Full | v5.29 — Revisa y resuelve `doc/app/decisions_queue.md` (decisiones aplazadas por el autopilot) |
+| /app-init | "app init", inicializar documentos canónicos | direct | Full | v5.29 — Crea o refresca `doc/app/app_prd.md` y `app_spec.md`, la fuente que consultan /prd, /plan y /visual-setup |
+| /app-sync | "app sync", "sync app docs" | direct | Full | v5.29 — `--check`, `--repair`, `--review` y `--rebuild-from-tracking` de los documentos canónicos |
 
-## Hooks (v5.34.0)
+## Hooks
 
 Automatic enforcement — no need to remember running these manually:
 
@@ -414,7 +432,7 @@ Automatic enforcement — no need to remember running these manually:
 | **quality-first-guard** | PreToolUse (Write/Edit) | **BLOCKING**: verifies the agent read the file before modifying it. Enforces "read before write." |
 | **read-tracker** | PostToolUse (Read) | Non-blocking: records which files the agent reads. Used by quality-first-guard. |
 | **spec-guard** | PostToolUse (Write/Edit on src/ or lib/) | **BLOCKING**: verifies active UC exists + branch is not main. No UC or main branch = no code writes. |
-| **branch-guard** | PostToolUse (Write/Edit on src/ or lib/) | **BLOCKING**: verifies current branch is not main/master. Enforces branch discipline. |
+| branch-guard | Not wired | Superseded: `spec-guard` already blocks writing code on main/master. The file stays for projects that wired it by hand. |
 | **commit-spec-guard** | PostToolUse (git commit) | **BLOCKING** (branch) + WARNING (rest): blocks commits on main; warns UC/checkpoint/size. |
 | pre-commit-lint | PostToolUse (git commit) | **BLOCKING**: runs `gga run` (cached lint, skips unmodified files). Falls back to direct lint if GGA not installed |
 | **e2e-gate** | PostToolUse (git commit) | **BLOCKING**: validates results.json schema + HTML Evidence Report exists + evidence integrity when committing acceptance files. Uses `validate-results-json.js`. |
@@ -423,7 +441,7 @@ Automatic enforcement — no need to remember running these manually:
 | on-session-end | Stop | Logs session telemetry to .quality/logs/ + persists summary to Engram |
 | implement-checkpoint | Manual (called by /implement) | Saves phase progress for resume |
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
-| post-implement-validate | Manual (called by /implement) | Checks baseline regression after implementation |
+| post-implement-validate | Manual | Checks baseline regression after implementation (run by hand; no skill calls it today) |
 | **healing-budget-guard** | PreToolUse (Write/Edit) | **BLOCKING**: counts healing.jsonl entries per feature. Blocks at 8 attempts (HARD limit). Prevents infinite healing loops. |
 | **pipeline-phase-guard** | PreToolUse (Write/Edit) | **BLOCKING**: reads pipeline_state.json to verify phase dependencies are met. Prevents out-of-order execution (e.g., feature code before DB). |
 | **stripe-safety-guard** | PreToolUse (Write/Edit on billing paths) | **BLOCKING**: scans `src/billing/`, `lib/billing/`, `supabase/functions/stripe-*`. Blocks 5 anti-patterns: sk_live_* hardcoded, webhook sin firma, webhook sin idempotencia (`stripe_processed_events`), `redirectToCheckout`/`ui_mode:hosted`, Payment Links. Escape hatches: `// stripe-safety-guard:ignore` / `:disable-file`. v5.25 — scaffoldeado por `/stripe-connect`. |
@@ -433,6 +451,11 @@ Automatic enforcement — no need to remember running these manually:
 | **pre-read-budget-guard** | PreToolUse (Read) | Non-blocking WARNING: estimates tokens for the file being read; warns if ≥ `specbox.context_budget.warn_pct` of the window (default 5% of 1M). v5.30. |
 | **design-system-gate** | PreToolUse (mcp__SpecBox-MCP__move_uc → review/done, mcp__SpecBox-MCP__complete_uc, `gh pr create`) | **BLOCKING in autopilot** (exit 2): scans the UI files changed on the branch against the project's `design-system.tokens.json` — colours written directly, fonts outside the system, weights above the system maximum, gradients — and lists each with `file:line` and what to do. Warns outside autopilot; `specbox.design_gate.mode` overrides. US-49 · UC-4902. |
 | **freeform-path-guard** | PreToolUse (mcp__SpecBox-MCP__set_auth_token, mcp__SpecBox-MCP__onboard_project) | Auto-rewrites relative FreeForm `root_path` / `freeform_root_absolute` to an absolute path resolved against `git rev-parse --show-toplevel` via `hookSpecificOutput.updatedInput`. Covers the implicit-default case (`onboard_project` with no `backend_type` AND no `trello_board_name`). **BLOCKING** (exit 2) only when CWD is not a git repo and resolution is ambiguous. Logs every rewrite to `.quality/logs/freeform-path-rewrites.jsonl`. Defense in depth on top of the v5.29 server-side guard. v5.33. |
+| context-budget-guard | PreToolUse (Task) | Non-blocking by default: estimates the tokens of a subagent's prompt and warns when it exceeds the budget; `specbox.implement.task_isolation.task_budget_mode: strict` blocks. v5.32. |
+| file-ownership-guard | PreToolUse (Write/Edit) | Non-blocking by default: warns when an /implement subagent writes outside the files its role owns (`.claude/skills/implement/file-ownership.md`); `ownership_mode: strict` blocks. v5.32. |
+| pre-prd-discovery-check | PreToolUse (Skill) | Off unless `specbox.discovery.gate_mode` in `.claude/settings.local.json` is `warn` or `block`: then `/prd` without a discovery for the feature warns or blocks; spec-driven invocations (`US-XX`, `UC-XXX`) pass. v6.0. |
+| app-docs-sync-guard | PostToolUse (git commit) | Non-blocking WARNING: detects drift between the canonical docs in `doc/app/` and their signatures in `.quality/app_docs_sync.lock`; `specbox.app_docs_sync` can make it block. v5.29/v6.0. |
+| test-hooks | — | Not a hook: smoke tests for the hooks (`node .claude/hooks/test-hooks.mjs`, run by CI `hooks.yml`). |
 
 ### Compliance Audit (v5.20.1)
 
@@ -563,7 +586,7 @@ Componentes:
 | `validate-results-json.js` | `.quality/scripts/validate-results-json.js <path> [--check-evidence]` | Validate results.json against contract (used by e2e-gate.mjs hook) |
 | `specbox-audit.mjs` | `.quality/scripts/specbox-audit.mjs [path] [--json] [--fix] [--verbose]` | Compliance audit: version, hooks, settings, quality infra, skills, spec-driven |
 
-## Agents (v5.24.0)
+## Agents
 
 | ID | Rol | Archivo | Modelo |
 |----|-----|---------|--------|
@@ -579,7 +602,7 @@ Componentes:
 | AG-09a | Acceptance Tester | `agents/acceptance-tester.md` | sonnet |
 | AG-09b | Acceptance Validator | `agents/acceptance-validator.md` | **opus** (v5.24.0) |
 | AG-10 | Developer Tester | `agents/developer-tester.md` | sonnet |
-| AG-10 | Quality Auditor (externo, /audit) | `agents/ag-10-quality-auditor.md` | **opus** (v5.24.0) |
+| AG-11 | Quality Auditor (externo, /audit) | `agents/ag-10-quality-auditor.md` (nombre histórico) | **opus** (v5.24.0) |
 
 ## Acceptance Engine (v3.8)
 
@@ -1102,7 +1125,7 @@ embed.build + JSON schema v1.0 persistidos como evidencia del proyecto.
 8. **Portability** — Dockerfile/compose, .env.example, hardcoded paths scan
 
 Cada bloque emite: `score` 0-100, `traffic_light`, `raw_metrics`,
-`findings[]` con severidad, `recommendations[]` priorizadas por AG-10.
+`findings[]` con severidad, `recommendations[]` priorizadas por AG-11.
 
 ### Herramientas externas (instalación perezosa)
 
@@ -1134,9 +1157,9 @@ on-demand y consentido.
 | `get_last_audit(project)` | Devuelve el resumen del último audit registrado en `meta.json` |
 | `check_audit_tools_status(project_path)` | Reporta qué tools externas están instaladas / faltan + comandos de instalación |
 
-### Agente AG-10 Quality Auditor
+### Agente AG-11 Quality Auditor
 
-Distinto de **AG-08** (gate interno por fase en `/implement`). AG-10 es
+Distinto de **AG-08** (gate interno por fase en `/implement`). AG-11 es
 externo, on-demand, no bloqueante, y su responsabilidad es **sintetizar**
 justificaciones y recomendaciones sobre el `QualityReport` bruto que
 produce el tool — nunca modifica código ni ejecuta tests.

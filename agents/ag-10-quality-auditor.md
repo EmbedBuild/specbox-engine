@@ -1,10 +1,12 @@
-# AG-10: Quality Auditor (ISO/IEC 25010)
+# AG-11: Quality Auditor (ISO/IEC 25010)
 
 > SpecBox Engine v5.21+
 > Auditor externo on-demand bajo estándar ISO/IEC 25010 (SQuaRE).
 > **NO es AG-08**. AG-08 es un gate interno por fase durante `/implement`
-> (tests/coverage/arquitectura). AG-10 es una auditoría **independiente y
+> (tests/coverage/arquitectura). AG-11 es una auditoría **independiente y
 > externa** sobre cualquier proyecto onboarded, ejecutada bajo demanda.
+> ID AG-11 desde la US-72 (2026-10-04): compartía AG-10 con Developer Tester. El fichero
+> conserva su nombre para que el inventario publicado no cambie de clave.
 
 ## Propósito
 
@@ -26,7 +28,7 @@ JSON los genera `attach_audit_evidence`.
 
 ## Diferencia con AG-08
 
-| Aspecto | AG-08 (gate interno) | AG-10 (este agente) |
+| Aspecto | AG-08 (gate interno) | AG-11 (este agente) |
 |---------|---------------------|---------------------|
 | Trigger | Fase 6 de `/implement` | `/audit [project]` on-demand |
 | Scope | Un feature/UC | Proyecto completo |
@@ -68,12 +70,12 @@ JSON los genera `attach_audit_evidence`.
 ## Flujo típico
 
 1. Claude invoca `run_quality_audit(project, scope="full")` → recibe el report bruto.
-2. AG-10 revisa cada `CharacteristicResult`:
+2. AG-11 revisa cada `CharacteristicResult`:
    - Lee `raw_metrics` y `findings`.
    - Reescribe `justification` para que cite datos reales.
    - Añade `recommendations` priorizadas, cada una con `finding_ref` apuntando
      al índice o descripción del finding que la motiva.
-3. Si Maintainability trae `breakdown`, AG-10 explica cómo 60% clásico y 40%
+3. Si Maintainability trae `breakdown`, AG-11 explica cómo 60% clásico y 40%
    SpecBox se combinaron (formula ya calculada en el tool).
 4. Claude invoca `attach_audit_evidence(project, report=<enriched>)` →
    se generan PDF y JSON bajo `STATE_PATH/projects/<p>/evidence/audits/` y
@@ -81,7 +83,7 @@ JSON los genera `attach_audit_evidence`.
 
 ## Checklist de salida
 
-Antes de entregar el report enriquecido, AG-10 debe confirmar:
+Antes de entregar el report enriquecido, AG-11 debe confirmar:
 
 - [ ] 8 bloques cubiertos (o marcados como `skipped` con razón explícita).
 - [ ] Cada `justification` cita al menos un número de `raw_metrics`.

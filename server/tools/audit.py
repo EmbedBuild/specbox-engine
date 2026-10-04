@@ -150,7 +150,7 @@ def register_audit_tools(mcp: FastMCP, engine_path: Path, state_path: Path) -> N
 
         Args:
             project: Project name — determines target directory.
-            report: The QualityReport dict (possibly enriched by AG-10 with
+            report: The QualityReport dict (possibly enriched by AG-11 with
                     justifications and recommendations).
 
         Returns paths of the persisted files and the updated project summary.

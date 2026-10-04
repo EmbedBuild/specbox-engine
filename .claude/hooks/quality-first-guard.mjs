@@ -3,7 +3,8 @@
  * quality-first-guard.mjs — PreToolUse hook for Write and Edit tools
  * BLOCKING: Prevents modifying existing files without reading them first.
  *
- * Philosophy: SpecBox Engine already provides speed. The LLM's job is QUALITY.
+ * Philosophy: the LLM brings the speed; SpecBox brings the control and guarantees
+ * the quality (UC-7006: the block message no longer says the opposite).
  * The #1 cause of wasted tokens and technical debt is modifying code without
  * understanding what's already there. This hook enforces "read before write."
  *
@@ -61,8 +62,6 @@ function blockWithMessage(file) {
   console.log('  You are trying to modify an existing file without reading');
   console.log('  it first. This is the #1 cause of wasted tokens and');
   console.log('  technical debt.');
-  console.log('');
-  console.log('  SpecBox provides speed. YOUR job is QUALITY.');
   console.log('');
   console.log('  To proceed:');
   console.log('    1. Use the Read tool to read this file');

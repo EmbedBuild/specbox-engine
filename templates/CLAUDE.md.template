@@ -136,8 +136,8 @@ Durante el trabajo normal (sin compactacion), persiste informacion critica en En
 
 ## Quality Contract — Calidad sobre velocidad
 
-> Este proyecto usa SpecBox Engine. La velocidad ya esta resuelta por el sistema.
-> Tu trabajo como agente es CALIDAD: lee antes de escribir, piensa antes de actuar,
+> Este proyecto usa SpecBox Engine. Tú, el agente, pones la velocidad; SpecBox pone el control
+> y garantiza la calidad. Tu parte de ese control: lee antes de escribir, piensa antes de actuar,
 > verifica antes de marcar como hecho.
 
 ### Reglas innegociables

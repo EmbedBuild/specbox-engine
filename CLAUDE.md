@@ -451,7 +451,7 @@ The `quality-first-guard.mjs` hook makes it **impossible** to modify an existing
 reading it first. The `read-tracker.mjs` hook records every Read tool call in
 `.quality/read_tracker.jsonl`. The tracker auto-clears after 24 hours (one session = fresh tracker).
 
-This enforces the principle: **SpecBox provides speed. The LLM provides quality.**
+This enforces the principle: **the LLM provides speed; SpecBox provides control and quality.**
 Every time the agent writes without reading, it risks breaking existing code, duplicating
 functionality, or introducing inconsistencies. The hook eliminates this antipattern mechanically.
 

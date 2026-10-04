@@ -2,7 +2,7 @@
 # quality-first-guard.sh — PreToolUse hook for Write and Edit tools
 # BLOCKING: Prevents modifying existing files without reading them first.
 #
-# Philosophy: SpecBox Engine already provides speed. The LLM's job is QUALITY.
+# Philosophy: the LLM brings the speed; SpecBox brings the control and guarantees the quality.
 # The #1 cause of wasted tokens and technical debt is modifying code without
 # understanding what's already there. This hook enforces "read before write."
 #
@@ -63,8 +63,6 @@ if [ ! -f "$TRACKER_FILE" ]; then
   echo "  You are trying to modify an existing file without reading"
   echo "  it first. This is the #1 cause of wasted tokens and"
   echo "  technical debt."
-  echo ""
-  echo "  SpecBox provides speed. YOUR job is QUALITY."
   echo ""
   echo "  To proceed:"
   echo "    1. Use the Read tool to read this file"

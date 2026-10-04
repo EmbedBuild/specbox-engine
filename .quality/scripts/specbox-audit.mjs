@@ -26,6 +26,7 @@ import { readFileSync, existsSync, statSync, readdirSync, mkdirSync, copyFileSyn
 import { join, basename, resolve, dirname } from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { requiredHooks as auditRequiredHooks, requiredLibFiles as auditRequiredLibFiles } from './audit-hooks.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -140,27 +141,10 @@ function auditVersionAlignment() {
 function auditHooksInstallation() {
   const checks = [];
 
-  const requiredHooks = [
-    { file: 'quality-first-guard.mjs', critical: true, desc: 'Read-before-write enforcement' },
-    { file: 'read-tracker.mjs', critical: true, desc: 'Tracks file reads for quality-first-guard' },
-    { file: 'spec-guard.mjs', critical: true, desc: 'No code without active UC' },
-    { file: 'branch-guard.mjs', critical: true, desc: 'No code on main/master' },
-    { file: 'commit-spec-guard.mjs', critical: true, desc: 'No commits on main' },
-    { file: 'pre-commit-lint.mjs', critical: true, desc: 'Zero-tolerance lint on commit' },
-    { file: 'design-gate.mjs', critical: false, desc: 'No UI without Stitch design' },
-    { file: 'e2e-gate.mjs', critical: false, desc: 'E2E evidence validation on commit' },
-    { file: 'no-bypass-guard.mjs', critical: true, desc: 'Blocks --no-verify, --force, --hard' },
-    { file: 'on-session-end.mjs', critical: false, desc: 'Session telemetry' },
-    { file: 'implement-checkpoint.mjs', critical: false, desc: 'Phase checkpoint helper' },
-    { file: 'implement-healing.mjs', critical: false, desc: 'Healing event logger' },
-    { file: 'healing-budget-guard.mjs', critical: true, desc: 'Healing budget enforcement (max 8)' },
-    { file: 'pipeline-phase-guard.mjs', critical: true, desc: 'Pipeline phase ordering enforcement' },
-    { file: 'checkpoint-freshness-guard.mjs', critical: false, desc: 'Checkpoint staleness warning on commit' },
-    { file: 'uc-lifecycle-guard.mjs', critical: false, desc: 'UC lifecycle warning on push' },
-    { file: 'mcp-report.mjs', critical: false, desc: 'MCP telemetry reporter' },
-  ];
-
-  const requiredLibFiles = ['utils.mjs', 'output.mjs', 'config.mjs', 'http.mjs'];
+  // US-75 (UC-7501): los hooks que registra la plantilla de proyectos y los ayudantes de
+  // /implement, con los módulos de lib/ que importan (audit-hooks.mjs). Ya no es una lista a mano.
+  const requiredHooks = auditRequiredHooks(ENGINE_ROOT);
+  const requiredLibFiles = auditRequiredLibFiles(ENGINE_ROOT, requiredHooks);
 
   // Check project-local hooks
   const localHooksDir = join(projectPath, '.claude', 'hooks');

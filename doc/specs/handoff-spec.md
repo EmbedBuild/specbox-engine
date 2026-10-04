@@ -182,5 +182,5 @@ Ver `tests/fixtures/handoff/`:
 | skill `/handoff` | Productor primario. Usa `handoff-builder.mjs` |
 | hook `session-start.mjs` | Consumidor: lee al inicio de cada sesión |
 | hook `on-session-end.mjs` | Productor secundario: si no existe handoff o es muy viejo, genera uno mínimo automáticamente al cerrar sesión |
-| `heartbeat-sender.mjs` | Reporta `handoff_present` y `handoff_age_minutes` |
+| ~~`heartbeat-sender.mjs`~~ | Retirado en la 6.1.0 (Cloud Cutover): ya no reporta `handoff_present` ni `handoff_age_minutes` |
 | `analyze-sessions.sh` | Métrica `handoff_rate` (% sesiones con handoff al cierre) |

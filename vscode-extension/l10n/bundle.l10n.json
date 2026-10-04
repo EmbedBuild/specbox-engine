@@ -187,5 +187,6 @@
   "Lifecycle": "Lifecycle",
   "Other": "Other",
   "Show skill card": "Show skill card",
-  "No skills detected — run /install or check ~/.claude/skills/": "No skills detected — run /install or check ~/.claude/skills/"
+  "No skills detected — run /install or check ~/.claude/skills/": "No skills detected — run /install or check ~/.claude/skills/",
+  "{0} configured but missing: {1}": "{0} configured but missing: {1}"
 }

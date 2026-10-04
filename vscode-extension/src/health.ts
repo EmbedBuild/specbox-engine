@@ -9,6 +9,48 @@ import {
 import { exec, commandExists } from './util';
 import { brandBlock, escapeHtml, lucideIcon, pageTheme, renderPage, type PageTheme } from './design';
 
+/** Un hook configurado cuyo script no existe en el proyecto donde Claude Code lo ejecuta (UC-7202). */
+export interface BrokenHook {
+	/** Nombre de la carpeta del proyecto abierto. */
+	project: string;
+	/** Qué settings lo configura: el del proyecto o el global. */
+	source: '.claude/settings.json' | '~/.claude/settings.json';
+	/** El script tal y como lo escribe el comando. */
+	script: string;
+}
+
+/**
+ * UC-7202 — los scripts de hook que un settings.json referencia y no existen. Claude Code ejecuta
+ * cada hook con el proyecto como directorio de trabajo, así que una ruta relativa se resuelve
+ * contra el proyecto (también las del settings global). Pura salvo `exists`, que las pruebas
+ * pueden sustituir.
+ */
+export function missingHookScripts(
+	settings: unknown,
+	projectDir: string,
+	home: string = os.homedir(),
+	exists: (p: string) => boolean = fs.existsSync,
+): string[] {
+	const events = (settings as { hooks?: Record<string, unknown> } | null)?.hooks ?? {};
+	const missing = new Set<string>();
+	for (const groups of Object.values(events)) {
+		for (const group of Array.isArray(groups) ? groups : []) {
+			for (const hook of (group as { hooks?: { command?: unknown }[] })?.hooks ?? []) {
+				if (typeof hook?.command !== 'string') { continue; }
+				for (const token of hook.command.replace(/["']/g, '').split(/\s+/)) {
+					if (!/\.(?:mjs|cjs|js|sh|py)$/.test(token)) { continue; }
+					const expanded = token
+						.replace(/^(?:\$\{CLAUDE_PROJECT_DIR\}|\$CLAUDE_PROJECT_DIR)/, projectDir)
+						.replace(/^(?:~|\$\{HOME\}|\$HOME)(?=\/|$)/, home);
+					const full = path.isAbsolute(expanded) ? expanded : path.join(projectDir, expanded);
+					if (!exists(full)) { missing.add(token); }
+				}
+			}
+		}
+	}
+	return [...missing];
+}
+
 export interface HealthResult {
 	engineInstalled: boolean;
 	engineVersion: string | null;
@@ -17,7 +59,8 @@ export interface HealthResult {
 	claudeCode: { ok: boolean; version: string | null };
 	engram: { ok: boolean; version: string | null };
 	skills: { installed: string[]; missing: string[] };
-	hooks: { ok: boolean; count: number };
+	/** count: hooks globales en ~/.claude/hooks; broken: los que un settings referencia en un proyecto abierto y no existen (UC-7202). */
+	hooks: { ok: boolean; count: number; broken?: BrokenHook[] };
 	settings: { ok: boolean };
 	mcpSpecbox: { configured: boolean };
 	mcpEngram: { configured: boolean };
@@ -149,10 +192,31 @@ export class HealthChecker {
 		return { installed, missing };
 	}
 
-	private checkHooks(): { ok: boolean; count: number } {
-		if (!fs.existsSync(CLAUDE_HOOKS_DIR)) { return { ok: false, count: 0 }; }
-		const files = fs.readdirSync(CLAUDE_HOOKS_DIR).filter(f => f.endsWith('.mjs'));
-		return { ok: files.length >= 10, count: files.length };
+	/**
+	 * Hooks globales instalados y, en cada proyecto abierto, los hooks que su settings.json (o el
+	 * global, que también corre ahí) configura y no existen: un hook que no arranca no protege
+	 * (UC-7202).
+	 */
+	private checkHooks(): HealthResult['hooks'] {
+		const count = fs.existsSync(CLAUDE_HOOKS_DIR)
+			? fs.readdirSync(CLAUDE_HOOKS_DIR).filter(f => f.endsWith('.mjs')).length
+			: 0;
+		const broken: BrokenHook[] = [];
+		for (const folder of vscode.workspace.workspaceFolders ?? []) {
+			const dir = folder.uri.fsPath;
+			const sources = [
+				['.claude/settings.json', path.join(dir, '.claude', 'settings.json')],
+				['~/.claude/settings.json', CLAUDE_SETTINGS],
+			] as const;
+			for (const [source, file] of sources) {
+				let settings: unknown;
+				try { settings = JSON.parse(fs.readFileSync(file, 'utf-8')); } catch { continue; }
+				for (const script of missingHookScripts(settings, dir)) {
+					broken.push({ project: folder.name, source, script });
+				}
+			}
+		}
+		return { ok: count >= 10 && broken.length === 0, count, broken };
 	}
 
 	private checkSettings(): { ok: boolean } {
@@ -244,6 +308,7 @@ export function healthRows(r: HealthResult): HealthRow[] {
 		state: ok ? 'done' : optional ? 'optional' : 'pending',
 		detail: ok ? detailOk : detailMissing,
 	});
+	const brokenHooks = r.hooks.broken ?? [];
 	return [
 		row(t('Engine'), r.engineInstalled, `v${r.engineVersion}`, t('Not installed')),
 		row(t('Engine Path'), !!r.enginePath, r.enginePath ?? '', t('Not found')),
@@ -254,7 +319,10 @@ export function healthRows(r: HealthResult): HealthRow[] {
 		row('Skills', r.skills.missing.length === 0,
 			`${r.skills.installed.length}/${r.skills.installed.length + r.skills.missing.length}`,
 			`${r.skills.installed.length}/${r.skills.installed.length + r.skills.missing.length}`),
-		row('Hooks', r.hooks.ok, `${r.hooks.count} ${t('installed')}`, t('Missing')),
+		row('Hooks', r.hooks.ok, `${r.hooks.count} ${t('installed')}`, brokenHooks.length
+			? t('{0} configured but missing: {1}', String(brokenHooks.length),
+				brokenHooks.map((b) => `${b.project}/${b.script} (${b.source})`).join(', '))
+			: t('Missing')),
 		row(t('Settings'), r.settings.ok, t('OK'), t('Missing')),
 		row('MCP SpecBox', r.mcpSpecbox.configured, t('Configured'), t('Not configured')),
 		row('MCP Engram', r.mcpEngram.configured, t('Configured'), t('Not configured')),

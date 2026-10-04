@@ -504,6 +504,7 @@ changelog:
       - "feat: the VS Code health check lists every hook a project's .claude/settings.json (or the global one) references and does not exist, resolving each script like Claude Code (project-relative, $CLAUDE_PROJECT_DIR, ~ and $HOME); Hooks turns pending until they exist (UC-7202, PR #211)"
       - "feat: hooks.yml runs the hook tests, the template parity and the CLAUDE.md inventory check on every PR that touches them (UC-7201/7203/7204, PR #210)"
       - "docs: CLAUDE.md names every skill (25), hook (28) and agent (13) that exists and none that does not, checked by tests/docs/claude-md-inventory.test.mjs; the /audit auditor becomes AG-11 (it shared AG-10 with Developer Tester); /implement and /stripe-connect stop citing hooks that do not do what they said (UC-7203, PR #210)"
+      - "fix: /compliance requires the hooks the project template wires — specbox-audit.mjs derives the list from templates/settings.json.template plus the /implement helpers, with the lib/ modules they import (.quality/scripts/audit-hooks.mjs); it no longer requires mcp-report.mjs and lib/http.mjs, removed in 6.1.0, nor branch-guard (US-75/UC-7501, PR #213)"
       - "fix: hook tests no longer depend on the computer or on removed modules — the orphan native-claim-revalidate test and the mcp-report case go, and the pre-commit-lint smoke test runs isolated from the local linters; implement-healing.mjs no longer spawns mcp-report.mjs, removed in 6.1.0 (UC-7204, PR #210)"
   6.19.0:
     date: 2026-10-04

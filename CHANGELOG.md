@@ -41,6 +41,12 @@ menos de lo que hay. Es la parte del engine de la US-72 del board del orquestado
   `pre-commit-lint` corre aislada del linter del ordenador (en un portátil pasaba con gga y en CI
   fallaba con ruff).
 - `implement-healing.mjs` ya no lanza `mcp-report.mjs`, que no existe desde la 6.1.0.
+- **`/compliance` exige los hooks que la plantilla instala** (US-75/UC-7501) — la lista de
+  `specbox-audit.mjs` estaba escrita a mano: exigía `mcp-report.mjs` y `lib/http.mjs`, retirados en
+  la 6.1.0 (cualquier proyecto salía con dos «Missing»), daba por crítico `branch-guard` y no
+  conocía los hooks nuevos. Ahora `.quality/scripts/audit-hooks.mjs` la deriva de
+  `templates/settings.json.template` y de los ayudantes de `/implement`, con los módulos de `lib/`
+  que importan.
 
 ### Compatibility
 
@@ -53,8 +59,9 @@ menos de lo que hay. Es la parte del engine de la US-72 del board del orquestado
 
 - Nuevos: `tests/hooks/settings-template.test.mjs` (4; con la plantilla anterior fallan 2),
   `tests/docs/claude-md-inventory.test.mjs` (6; con el `CLAUDE.md` anterior fallan 5) y
-  `vscode-extension/tests/health-hooks.test.mjs` (4). Hooks 80/80 y `test-hooks.mjs` 22/22 en local
-  y en Linux; extensión 155/155.
+  `vscode-extension/tests/health-hooks.test.mjs` (4) y `tests/hooks/compliance-required-hooks.test.mjs`
+  (4). Hooks 84/84 y `test-hooks.mjs` 22/22 en local y en Linux; extensión 155/155; autoaudit de
+  `/compliance` del engine: 100.
 
 ## [6.19.0] - 2026-10-04 — "Escaparate"
 

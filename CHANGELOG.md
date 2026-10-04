@@ -2,6 +2,60 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.20.0] - 2026-10-04 — "Cableado"
+
+Los hooks que SpecBox promete llegan conectados. La plantilla de los proyectos no activaba siete
+hooks que el engine sí usa; un proyecto podía configurar hooks cuyos ficheros no tenía sin que nada
+avisara (le pasaba al propio panel del ecosistema desde junio), y el `CLAUDE.md` del engine nombraba
+menos de lo que hay. Es la parte del engine de la US-72 del board del orquestador.
+
+### Added
+
+- **La plantilla de los proyectos activa los hooks que el engine instala** (US-72/UC-7201) —
+  `templates/settings.json.template` registra `session-start`, `pre-read-budget-guard`,
+  `context-budget-guard`, `file-ownership-guard`, `freeform-path-guard`,
+  `pre-prd-discovery-check` y `app-docs-sync-guard` con el mismo evento, matcher, condición y tiempo
+  que el engine. Ninguno bloquea por defecto. Un `onboard_project` nuevo los recibe todos.
+- **«Comprobar salud» avisa si un hook configurado no existe** (UC-7202) — en cada proyecto abierto
+  lee su `.claude/settings.json` y el global, resuelve cada script como Claude Code (relativo al
+  proyecto, `$CLAUDE_PROJECT_DIR`, `~` y `$HOME`) y, si alguno falta, Hooks sale pendiente y los
+  nombra uno a uno. Antes solo contaba los hooks globales.
+- **Workflow `hooks.yml`** (UC-7201, UC-7203, UC-7204) — corre las pruebas de los hooks, la paridad
+  de la plantilla y el inventario de `CLAUDE.md` en cada PR que los toca, en segundos.
+
+### Changed
+
+- **`CLAUDE.md` nombra lo que hay** (UC-7203) — árbol con los 28 hooks y los 13 agentes, y tablas
+  de skills (25) y hooks (28) completas; `branch-guard` figura como sustituido por `spec-guard` y
+  `post-implement-validate` como manual.
+- **El auditor de `/audit` es AG-11** (UC-7203) — compartía AG-10 con Developer Tester. El fichero
+  conserva su nombre para que el inventario publicado no cambie de clave.
+- `/implement` ya no atribuye a `branch-guard` el bloqueo de main (lo hace `spec-guard`) y
+  `/stripe-connect` ya no llama a `mcp-report.mjs`.
+
+### Fixed
+
+- **Pruebas de los hooks que dependían del ordenador o de módulos borrados** (UC-7204) — fuera la
+  prueba huérfana `native-claim-revalidate.test.mjs` (el módulo se renombró en UC-613 y su prueba
+  nueva cubre lo mismo) y el caso de `mcp-report.mjs`, retirado en la 6.1.0; la prueba de
+  `pre-commit-lint` corre aislada del linter del ordenador (en un portátil pasaba con gga y en CI
+  fallaba con ruff).
+- `implement-healing.mjs` ya no lanza `mcp-report.mjs`, que no existe desde la 6.1.0.
+
+### Compatibility
+
+- 100% backwards-compatible y sin migraciones. Ningún hook nuevo bloquea por defecto. Un proyecto
+  existente recibe la plantilla nueva con `upgrade_project`, pero esa tool devuelve los ficheros
+  regenerados enteros: en un repo con configuración propia conviene añadir las entradas nuevas a su
+  `settings.json` conservando lo suyo, como se hizo en los satélites del ecosistema.
+
+### Tests
+
+- Nuevos: `tests/hooks/settings-template.test.mjs` (4; con la plantilla anterior fallan 2),
+  `tests/docs/claude-md-inventory.test.mjs` (6; con el `CLAUDE.md` anterior fallan 5) y
+  `vscode-extension/tests/health-hooks.test.mjs` (4). Hooks 80/80 y `test-hooks.mjs` 22/22 en local
+  y en Linux; extensión 155/155.
+
 ## [6.19.0] - 2026-10-04 — "Escaparate"
 
 Lo que el engine enseña en público cuadra con lo que tiene. La home de `specbox.build` enseña en

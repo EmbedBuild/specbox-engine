@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.19.0 — "Escaparate" (sobre v6.18.0 "Mudanza")<br/>
+  v 6.20.0 — "Cableado" (sobre v6.19.0 "Escaparate")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,18 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.20
+
+**v6.20.0 — "Cableado"** hace que los hooks que SpecBox promete lleguen conectados:
+
+- **Los proyectos reciben todos los hooks** — la plantilla activa los siete que el engine usaba y no llegaban a los proyectos: retomar la sesión con el traspaso, avisar antes de leer ficheros enormes, el presupuesto de contexto y la propiedad de ficheros de los subagentes de `/implement`, las rutas de FreeForm, el gate de discovery y el de los documentos canónicos. Ninguno bloquea por defecto.
+- **La extensión avisa de un hook roto** — «Comprobar salud» lista cada hook que un proyecto configura y no tiene en disco. Un hook que no arranca no protege.
+- **`CLAUDE.md` cuenta lo que hay** — skills, hooks y agentes completos y comprobados en cada PR; el auditor de `/audit` pasa a AG-11.
+
+100% backwards-compatible: ningún hook nuevo bloquea por defecto y no hay migraciones.
 
 ---
 
@@ -598,7 +610,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.19.0 — "Escaparate" (over v6.18.0 "Mudanza")
+> v 6.20.0 — "Cableado" (over v6.19.0 "Escaparate")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -611,6 +623,16 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.20
+
+**v6.20.0 — "Cableado"** ("wiring") makes the hooks SpecBox promises arrive connected:
+
+- **Projects get every hook** — the template wires the seven the engine used and projects never received: resuming the session from the handoff, warning before reading huge files, the context budget and file ownership of `/implement` subagents, FreeForm paths, the discovery gate and the canonical-docs gate. None blocks by default.
+- **The extension flags a broken hook** — the health check lists every hook a project configures and does not have on disk. A hook that does not start protects nothing.
+- **`CLAUDE.md` names what exists** — skills, hooks and agents complete and checked on every PR; the `/audit` auditor becomes AG-11.
+
+100% backwards-compatible: no new hook blocks by default and there are no migrations.
 
 ## What's new in v6.19
 

@@ -36,3 +36,10 @@ supabase_only:
       site_activity and site_stats and the private tables site_showcase_pin and
       site_showcase_signer. The local chain keeps every view of public closed (UC-4001);
       tests/test_site_showcase.py applies this file inside a transaction it rolls back.
+
+  - file: 20261004200030_site_north_star.sql
+    reason: >-
+      Site objects, not board schema (UC-7606): the north-star metric in site_activity, who
+      accepted the pinned use case in site_showcase and the private table
+      site_north_star_start. Goes after 20261004000029_site_showcase.sql;
+      tests/test_site_showcase.py applies both, in order, inside a transaction it rolls back.

@@ -1,8 +1,8 @@
-version: 6.18.0
-codename: "Mudanza"
+version: 6.19.0
+codename: "Escaparate"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-10-02
+release_date: 2026-10-04
 min_claude_code: "1.0.0"
 
 stacks:
@@ -480,9 +480,28 @@ features:
   # New (v6.18.0) — Mudanza
   - mcp-hosted-at-specbox-build
   - mcp-hosts-check
+
+  # New (v6.19.0) — Escaparate
+  - site-showcase-public-view
+  - site-inventory-from-tool-registry
+  - site-inventory-prunes-retired
+  - ac-audit-events-carry-uc
+  - migration-twins-check
   - client-moves-to-new-mcp-host
 
 changelog:
+  6.19.0:
+    date: 2026-10-04
+    codename: "Escaparate"
+    changes:
+      - "feat: public read-only view `site_showcase` for the specbox.build home: for each use case pinned in `site_showcase_pin` (only from the `EmbedBuild/specbox-manager` board, enforced by a CHECK) its non-internal criteria and, for each receipt, type, label, date, result and the signer's public name (`site_showcase_signer`) — never the detail, and links only to specbox.build or the public engine repository; for each pinned story, done and total without archived ones. Supabase-only migration declared in `migration_twins.yaml` and approved in `surface_allowlist.yaml` (US-70/UC-7001, PR #207)"
+      - "feat: `site_activity` publishes every state (archived ones apart) so its total is the sum; `site_activity` and `site_stats` are versioned and public roles only get SELECT on the three public views (UC-7002, PR #207)"
+      - "feat: `site_publish` takes the tools from the server registry (the same as `tools/list`), so the site counts 192 tools instead of 126, and refuses to publish when `engine_root` is not the imported checkout (UC-6201, PR #201)"
+      - "feat: `site_publish` deletes, after each UPSERT, the agents, tools and skills that are no longer in the inventory; an empty surface deletes nothing and a failed UPSERT stops before any delete (UC-6209, PR #205)"
+      - "feat: AC events in `audit_log` carry `uc_id` (mark_ac, unmark_ac, update_ac, set_ac_internal, AC creation and deletion), since AC-NN repeats in every use case; history is not backfilled — it could be guessed by time, but that would be a guess, not a fact (UC-6405, PR #206)"
+      - "feat: `server/db/migration_twins.py` checks that every migration in `server/db/migrations` has its byte-identical copy in `supabase/migrations` (`--fix` regenerates them) and runs in `db-surface-check.yml`; the twelve diverging copies were regenerated and 0004–0006 created with the date they were applied (UC-6202, PR #202)"
+      - "fix: the site changelog keeps code names — the `site_publish` parser stripped every `_`, `*` and backtick, mangling 565 of 1,078 items; code spans are now kept and emphasis is only removed when it wraps text (UC-6210, PR #204)"
+      - "fix: the `quality-first-guard` block message no longer says «SpecBox provides speed. YOUR job is QUALITY.» — the LLM brings the speed; SpecBox, the control and the quality — and still says what was blocked, why and what to do; the same inverted motto is fixed in CLAUDE.md and in the projects' CLAUDE.md template (UC-7006, PR #208)"
   6.18.0:
     date: 2026-10-02
     codename: "Mudanza"

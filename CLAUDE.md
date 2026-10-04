@@ -1,4 +1,4 @@
-# SpecBox Engine v6.18.0
+# SpecBox Engine v6.19.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -369,7 +369,7 @@ El campo `context:` del frontmatter de un SKILL.md determina cómo el harness de
 
 | Combinación | Ejecución | Cuándo usarla |
 |-------------|-----------|---------------|
-| `context: direct` | Sesión principal, herramientas completas (Read, Write, Edit, Bash, MCPs). Contamina el contexto de la sesión. | Skills **operativos** que escriben artefactos al filesystem, llaman MCPs de escritura, crean PRs, adjuntan evidencia. Ejemplos: `prd`, `plan`, `visual-setup`, `implement`, `feedback`, `release`, `compliance`, `remote`. |
+| `context: direct` | Sesión principal, herramientas completas (Read, Write, Edit, Bash, MCPs). Contamina el contexto de la sesión. | Skills **operativos** que escriben artefactos al filesystem, llaman MCPs de escritura, crean PRs, adjuntan evidencia. Ejemplos: `prd`, `plan`, `visual-setup`, `implement`, `feedback`, `release`, `compliance`. |
 | `context: fork` + `agent: Explore` | Delega al sub-agente nativo Explore, read-only por diseño. Aísla el contexto de la sesión principal. | Skills **read-only** que analizan código y devuelven un informe. Ejemplos: `explore`, `adapt-ui`, `check-designs`, `optimize-agents` (modo audit). |
 | `context: fork` **sin** `agent:` | **ROTO.** El harness no sabe a quién delegar — el sub-agente recibe el SKILL.md como contexto descriptivo, no como instrucción, y responde "no se me ha pedido nada". | Nunca. |
 | `context: fork` + `agent: Plan` | Funciona pero fuerza modo read-only (el sub-agente nativo Plan es un arquitecto read-only). El skill puede llamar MCPs externos pero **no puede escribir al filesystem local**. | Nunca para skills de SpecBox — causa bugs silenciosos tipo "el plan se adjunta a Trello pero no se escribe `doc/plans/*.md`". |
@@ -2525,7 +2525,7 @@ Los clientes se mudan solos:
 
 ## Engine Version
 
-Current: v6.18.0 "Mudanza"
+Current: v6.19.0 "Escaparate"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

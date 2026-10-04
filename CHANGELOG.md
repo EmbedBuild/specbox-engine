@@ -2,6 +2,84 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.19.0] - 2026-10-04 — "Escaparate"
+
+Lo que el engine enseña en público cuadra con lo que tiene. La home de `specbox.build` enseña en
+vivo una UC real de nuestro board con los recibos de sus criterios, sin exponer nada interno; el
+inventario del site cuenta las mismas tools que lista el MCP y deja de contar lo retirado; el
+changelog conserva los nombres de código, y el hook que bloquea escribir sin leer deja de decir
+que SpecBox aporta la velocidad: la velocidad la pone el modelo; SpecBox, el control y la calidad.
+Es la parte del engine de la US-70 del board del orquestador.
+
+### Added
+
+- **Escaparate público de la home** (US-70/UC-7001) — `site_showcase`, vista pública de solo
+  lectura: de cada UC fijada en `site_showcase_pin` (solo del board `EmbedBuild/specbox-manager`,
+  lo impone un CHECK), sus criterios sin los internos y, de cada recibo, tipo, etiqueta, fecha,
+  resultado y el nombre público de quien lo acepta (`site_showcase_signer`); de cada US fijada,
+  hechas y totales sin archivadas. Migración solo de Supabase (`migration_twins.yaml`), aprobada
+  en `surface_allowlist.yaml` y aplicada en producción el 2026-10-04.
+- **`server/db/migration_twins.py`** (UC-6202) — comprueba que cada migración de
+  `server/db/migrations` tiene su copia idéntica en `supabase/migrations` (falta, difiere,
+  duplicada, solo de Supabase sin declarar, nombre mal formado); `--fix` regenera las copias. Lo
+  ejecuta `db-surface-check.yml` antes de montar Postgres.
+
+### Changed
+
+- **La foto de actividad cuadra** (UC-7002) — `site_activity` publica todos los estados (los
+  archivados aparte) y su total es la suma.
+- **El inventario del site cuenta lo que lista el MCP** (UC-6201) — `site_publish` toma las tools
+  del registro del servidor, lo mismo que devuelve `tools/list`: 192, no 126. Si `engine_root` no
+  es el checkout importado, se niega en vez de publicar las tools de otro engine.
+- **Y deja de contar lo retirado** (UC-6209) — tras cada UPSERT, un DELETE de los agentes, tools y
+  skills que ya no están en el inventario. Una superficie vacía no borra nada y, si el UPSERT
+  falla, no se borra nada.
+- **Los eventos de AC dicen a qué UC pertenecen** (UC-6405) — `mark_ac`, `unmark_ac`, `update_ac`,
+  `set_ac_internal` y la creación y el borrado de criterios guardan `uc_id` en el `audit_log`,
+  porque AC-01 existe en todas las UC. El histórico no se rellena: se podría deducir por la hora,
+  pero sería una deducción, no un dato.
+- **Cada migración del board tiene una sola versión** (UC-6202) — las doce copias de
+  `supabase/migrations` que divergían se regeneran byte a byte, y 0004–0006 se crean con la fecha
+  en que se aplicaron en producción.
+- **El bloqueo de `quality-first-guard` explica sin el lema invertido** (UC-7006) — fuera
+  «SpecBox provides speed. YOUR job is QUALITY.»; sigue diciendo qué se bloqueó, por qué y qué
+  hacer. El mismo lema estaba al revés en `CLAUDE.md` y en la plantilla del `CLAUDE.md` de los
+  proyectos («La velocidad ya está resuelta por el sistema»).
+
+### Fixed
+
+- **El changelog del site conserva los nombres de código** (UC-6210) — el parser de
+  `site_publish` quitaba todos los `_`, `*` y comillas de código, y 565 de sus 1.078 ítems
+  llegaban mutilados («sitepublish»). Ahora el código se conserva y la negrita o la cursiva solo se
+  quitan si rodean texto.
+- `CLAUDE.md` ya no pone de ejemplo la skill `remote`, eliminada, y la skill de release ya no
+  manda revisar un directorio `commands/` que no existe.
+
+### Security
+
+- La home pública nunca enseña el detalle de un recibo ni los criterios internos, solo enlaza a
+  `specbox.build` o al repositorio público del engine, y solo puede enseñar UC del board del
+  orquestador: fijar una de otro proyecto lo rechaza la base de datos.
+- Las tablas del escaparate son privadas (seguridad por filas sin políticas ni privilegios para
+  los roles públicos), y las tres vistas públicas (`site_activity`, `site_stats` y
+  `site_showcase`) solo admiten lectura: nadie puede escribir en ellas desde la API pública.
+- `site_publish` se niega a publicar el inventario de un engine que no es el checkout importado,
+  y un inventario vacío nunca vacía las tablas del site.
+
+### Compatibility
+
+- 100% backwards-compatible. La migración del escaparate es solo de Supabase y ya está aplicada
+  en producción; el runner del board no la necesita. Los proyectos reciben la plantilla corregida
+  del `CLAUDE.md` en su próximo `upgrade_project`.
+
+### Tests
+
+- Nuevos: `tests/test_site_showcase.py` (9; publicar el detalle, quitar el filtro de enlaces o no
+  cerrar las escrituras lo hacen fallar), `tests/test_migration_twins.py` y
+  `tests/hooks/quality-first-guard.test.mjs` (4). El inventario se compara con lo que un cliente
+  MCP real recibe en `tools/list` (`site-inventory.yml`, en cada PR que toca `server/`), y crecen
+  las pruebas del parser del changelog, del borrado del inventario y del `audit_log`.
+
 ## [6.18.0] - 2026-10-02 — "Mudanza"
 
 El servidor alojado se muda a `mcp.specbox.build` y los clientes se mudan solos, sin que nadie

@@ -166,7 +166,7 @@ Buscar en todo el proyecto:
 
 - `__init__.py` en cada directorio de `server/` y `server/backends/` y `server/tools/`
 - Todos los backends en `server/backends/` importados en `auth_gateway.py`
-- Archivos en `commands/` tienen correspondencia con `skills/`
+- Cada carpeta de `.claude/skills/` tiene su `SKILL.md`
 - `install.sh` copia todas las skills que existen
 
 ### 1.4 Reporte de auditoria

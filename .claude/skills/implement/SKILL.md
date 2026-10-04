@@ -81,7 +81,7 @@ Antes de cada gate o pregunta, llama a `evaluateDecision(decision_key, context)`
 
 **Reglas inviolables**:
 - Image cost > presupuesto **nunca** auto-confirma. Para subir el límite, edita `app_spec.md` sección 5 → autopilot.
-- Push a main siempre bloqueado por hook `branch-guard.mjs` y `commit-spec-guard.mjs`. /implement no debe intentar bypassearlo.
+- Escribir código en main lo bloquea el hook `spec-guard.mjs` y los commits en main, `commit-spec-guard.mjs`. /implement no debe intentar bypassearlo.
 - Acceptance Validator (AG-09b) verdict ACCEPTED **no** se auto-confirma — eso es validación de calidad y vive aparte del autopilot.
 
 Tras cada auto-decisión visible al usuario:

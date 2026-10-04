@@ -11,7 +11,7 @@ context: direct
 # /audit — ISO/IEC 25010 Quality Audit (on-demand)
 
 > v5.21+ — Módulo Quality Audit v1
-> Agente responsable: AG-10 Quality Auditor
+> Agente responsable: AG-11 Quality Auditor
 > Backend (v6.0.1): el cliente ejecuta los analizadores localmente y envía el `QualityReport` al MCP con `submit_quality_audit` + `attach_audit_evidence`.
 >
 > **Cambio v6.0.1 (MCP Path Contract)**: el viejo `run_quality_audit` orquestaba los 8 analizadores ISO/IEC 25010 en el host del MCP, lo que rompía en MCP remoto (los analizadores escaneaban el filesystem del VPS, no el del cliente). v6.0.1 mueve la orquestación al cliente: el skill ejecuta los scripts de `.quality/scripts/audit/` (ver README en ese directorio), construye el `QualityReport` dict en memoria y lo envía vía `submit_quality_audit(project, report)`. El nuevo `check_audit_tools_status(stack)` recibe el stack del cliente como parámetro en vez de escanear el filesystem. `run_quality_audit` queda como shim deprecado que retorna un error explicativo si lo llamas sin `report`.
@@ -48,7 +48,7 @@ context: direct
    node .quality/scripts/audit/run-audit.mjs --project <name> --stack <detected> [--scope <char>]
    ```
 
-   Imprime a stdout el `QualityReport` completo (8 `CharacteristicResult` en orden canónico, `global_score`, `global_traffic_light`, `tools_used`, `audit_id`). El skill captura ese JSON y lo envía verbatim con `submit_quality_audit(project, report=<dict>)`. El backend valida el dict (`QualityReport.from_dict`), reetiqueta `audit_tools_status` y devuelve el report canónico que pasa a AG-10. **No uses `run_quality_audit` salvo como fallback** — está deprecado y devuelve error si lo invocas sin `report`.
+   Imprime a stdout el `QualityReport` completo (8 `CharacteristicResult` en orden canónico, `global_score`, `global_traffic_light`, `tools_used`, `audit_id`). El skill captura ese JSON y lo envía verbatim con `submit_quality_audit(project, report=<dict>)`. El backend valida el dict (`QualityReport.from_dict`), reetiqueta `audit_tools_status` y devuelve el report canónico que pasa a AG-11. **No uses `run_quality_audit` salvo como fallback** — está deprecado y devuelve error si lo invocas sin `report`.
 
    Los analyzers escanean el filesystem del **cliente** (no el del MCP host), por eso funcionan en MCP remoto. Las herramientas externas (semgrep, gitleaks, pip-audit, npm, lizard, jscpd, checkov) son opcionales: si faltan, `tools_used` las marca `missing` y el audit continúa con degradación. El scoring (penalties por severidad, mix 60/40 de maintainability, media global) se calcula client-side en `lib/scoring.mjs` (réplica fiel de `server/audit/scoring.py`); el **PDF se renderiza server-side** en `attach_audit_evidence` (ReportLab + brand embed.build).
 
@@ -61,8 +61,8 @@ context: direct
    6. Security (semgrep + gitleaks + pip-audit/npm audit + checkov si IaC)
    7. Maintainability (mix 60% clásico + 40% SpecBox — documentado en `breakdown`)
    8. Portability
-4. Delega al agente **AG-10 Quality Auditor** la síntesis de justificaciones
-   y recomendaciones priorizadas. AG-10 jamás modifica código.
+4. Delega al agente **AG-11 Quality Auditor** la síntesis de justificaciones
+   y recomendaciones priorizadas. AG-11 jamás modifica código.
 5. Invoca `attach_audit_evidence(project, report=<enriched>)` → persiste:
    - `STATE_PATH/projects/<project>/evidence/audits/audit_<ts>.json`
    - `STATE_PATH/projects/<project>/evidence/audits/audit_<ts>.pdf`
@@ -121,7 +121,7 @@ Las herramientas externas son opcionales — si falta alguna, se reporta en
   │     ↓
   │   QualityReport canónico (validado) con 8 CharacteristicResult + audit_tools_status
   │     ↓
-  ├─ 4. AG-10 Quality Auditor sintetiza:
+  ├─ 4. AG-11 Quality Auditor sintetiza:
   │     - justification por bloque (cita raw_metrics)
   │     - recommendations priorizadas (con finding_ref)
   │     - desglose 60/40 verbalizado en maintainability

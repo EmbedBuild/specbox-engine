@@ -32,7 +32,7 @@ Instala:
 | /quickstart | direct | Tutorial interactivo para nuevos usuarios |
 | /release | direct | Audit + version bump + changelog + push |
 | /compliance | direct | Compliance audit del engine |
-| /audit | direct | Quality Audit ISO/IEC 25010 (SQuaRE, AG-10) |
+| /audit | direct | Quality Audit ISO/IEC 25010 (SQuaRE, AG-11) |
 | /stripe-connect | direct | **v5.25.0** Scaffold de marketplace Stripe Connect (Express + Direct charges + embedded) |
 | /stripe-standard | direct | Scaffold de Stripe cuenta estándar (suscripciones, metered, checkout one-shot) |
 | /stripe-switch-account | direct | Rotación segura de la cuenta Stripe activa (dry-run + rollback) |

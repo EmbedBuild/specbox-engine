@@ -1,10 +1,11 @@
-name: Hooks
+name: Hooks and CLAUDE.md inventory
 
-# UC-7201 / UC-7204 (US-72) — the hooks are the control SpecBox sells, so their
-# tests run on every PR that touches them: the hook suites, and the check that
-# templates/settings.json.template (what projects receive) wires the same hooks
-# as the engine, with every unwired hook decided in NOT_WIRED. Seconds, not
-# minutes: no Python, no Postgres.
+# UC-7201 / UC-7203 / UC-7204 (US-72) — the hooks are the control SpecBox sells,
+# so their tests run on every PR that touches them: the hook suites, the check
+# that templates/settings.json.template (what projects receive) wires the same
+# hooks as the engine, with every unwired hook decided in NOT_WIRED, and the
+# check that CLAUDE.md names every skill, hook and agent that exists (and none
+# that does not). Seconds, not minutes: no Python, no Postgres.
 
 on:
   pull_request:
@@ -13,6 +14,10 @@ on:
       - ".claude/settings.json"
       - "templates/settings.json.template"
       - "tests/hooks/**"
+      - "tests/docs/**"
+      - "CLAUDE.md"
+      - "agents/**"
+      - ".claude/skills/**"
       - ".github/workflows/hooks.yml"
   push:
     branches: [main]
@@ -21,6 +26,10 @@ on:
       - ".claude/settings.json"
       - "templates/settings.json.template"
       - "tests/hooks/**"
+      - "tests/docs/**"
+      - "CLAUDE.md"
+      - "agents/**"
+      - ".claude/skills/**"
       - ".github/workflows/hooks.yml"
 
 permissions:
@@ -41,8 +50,8 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Hook tests and settings template parity
-        run: node --test tests/hooks/*.test.mjs .claude/hooks/lib/*.test.mjs
+      - name: Hook tests, settings template parity and CLAUDE.md inventory
+        run: node --test tests/hooks/*.test.mjs tests/docs/*.test.mjs .claude/hooks/lib/*.test.mjs
 
       - name: Hook smoke tests
         run: node .claude/hooks/test-hooks.mjs

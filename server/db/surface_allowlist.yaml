@@ -38,8 +38,11 @@ exceptions:
       Public activity figures for the site's /activity page and home (US-27, UC-7002).
       Owner's rights on purpose: it returns only counts (projects, developers, stories, use
       cases, criteria, organizations and use cases per state, archived included so the total
-      matches) and completions per week, never a row or an identifier. Public roles hold
-      SELECT only (supabase/migrations/20261004000029_site_showcase.sql).
+      matches), completions per week and the north-star metric since the launch date in
+      site_north_star_start (private, RLS, no grants): use cases closed, with complete
+      evidence and accepted by a person, as counts and a percentage (UC-7606). Never a row
+      or an identifier. Public roles hold SELECT only
+      (supabase/migrations/20261004000029_site_showcase.sql, 20261004200030_site_north_star.sql).
 
   - kind: view
     name: public.site_showcase
@@ -48,7 +51,8 @@ exceptions:
       use cases and stories pinned in site_showcase_pin (private, RLS, no grants) of the
       EmbedBuild/specbox-manager board, which a CHECK makes the only possible project. Per
       receipt it returns type, label, date and result, never the detail; a link only when it
-      points to specbox.build or the public engine repository; a person's name only when
+      points to specbox.build or the public engine repository; per criterion who verified it
+      and, per pinned use case, who accepted it and when (UC-7606); a person's name only when
       site_showcase_signer lists them. Public roles hold SELECT only.
 
   - kind: view

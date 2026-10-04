@@ -1,26 +1,32 @@
-"""US-70 / UC-7001 y UC-7002 — el escaparate público de la home y la foto de actividad.
+"""US-70 / UC-7001 y UC-7002, US-76 / UC-7606 — el escaparate público de la home, la foto
+de actividad y la métrica norte.
 
-La migración ``supabase/migrations/20261004000029_site_showcase.sql`` solo existe en
-Supabase (objetos del site, no del board). Aquí se aplica sobre la cadena local, dentro
-de una transacción que se deshace al terminar: la base de pruebas sigue sin vistas
-públicas, como exige UC-4001.
+Las migraciones ``supabase/migrations/20261004000029_site_showcase.sql`` y
+``20261004200030_site_north_star.sql`` solo existen en Supabase (objetos del site, no del
+board). Aquí se aplican, en orden, sobre la cadena local, dentro de una transacción que se
+deshace al terminar: la base de pruebas sigue sin vistas públicas, como exige UC-4001.
 
-Antes de aplicarla, la transacción da a anon y authenticated lo que Supabase les da por
+Antes de aplicarlas, la transacción da a anon y authenticated lo que Supabase les da por
 defecto sobre todo objeto nuevo de public (todos los privilegios), así que cada aserción
-de permisos prueba que la migración los cierra.
+de permisos prueba que las migraciones los cierran.
 
 UC-7001:
 - AC-01: solo salen las UC y US fijadas del board EmbedBuild/specbox-manager; una UC sin
   fijar no sale, y fijar algo de otro proyecto es imposible.
 - AC-02: el detalle de un recibo no sale nunca, y su enlace solo si apunta a specbox.build
   o al repositorio público del engine.
-- AC-03: quien acepta sale con su nombre público si está en site_showcase_signer; si no,
+- AC-03: quien verifica sale con su nombre público si está en site_showcase_signer; si no,
   sin nombre.
 - AC-04: anon y authenticated solo leen la vista y no tienen nada sobre las tablas.
 
 UC-7002:
 - AC-01: site_activity publica todos los estados y el total coincide con la suma.
 - AC-02: anon y authenticated solo tienen SELECT sobre site_activity y site_stats.
+
+UC-7606:
+- AC-01: site_activity publica la métrica norte desde la fecha de lanzamiento (UC cerradas,
+  con la evidencia completa, aceptadas por una persona y su porcentaje), y nada mientras no
+  hay fecha; site_showcase dice quién y cuándo aceptó la UC fijada, o nada.
 """
 
 from __future__ import annotations
@@ -38,14 +44,20 @@ from tests._native_db import DSN, reachable
 _PG_OK, _PG_SKIP_REASON = reachable()
 pytestmark = pytest.mark.skipif(not _PG_OK, reason=_PG_SKIP_REASON)
 
-MIGRATION = Path(__file__).resolve().parent.parent / "supabase" / "migrations" / "20261004000029_site_showcase.sql"
+MIGRATIONS = tuple(
+    Path(__file__).resolve().parent.parent / "supabase" / "migrations" / name
+    for name in ("20261004000029_site_showcase.sql", "20261004200030_site_north_star.sql")
+)
 BOARD = "EmbedBuild/specbox-manager"
 OTHER = "Acme/site-showcase-test"
 OWNER = "jesusperezdeveloper"
 STRANGER = "showcase-stranger"
 PUBLIC_ROLES = ("anon", "authenticated")
 VIEWS = ("site_showcase", "site_activity", "site_stats")
-TABLES = ("site_showcase_pin", "site_showcase_signer")
+TABLES = ("site_showcase_pin", "site_showcase_signer", "site_north_star_start")
+# Una fecha de lanzamiento que ninguna otra prueba alcanza: la métrica cuenta todo el
+# ecosistema, y la base de pruebas guarda UC de otros módulos.
+LAUNCH = "2099-01-01T00:00:00Z"
 
 
 def _evidence(link: str, *, by: str, detail: str = "detalle interno: nywjsvumsvxlpflpbord") -> dict:
@@ -162,7 +174,8 @@ async def conn():
                 await connection.execute(
                     "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated"
                 )
-                await connection.execute(MIGRATION.read_text(encoding="utf-8"))
+                for migration in MIGRATIONS:
+                    await connection.execute(migration.read_text(encoding="utf-8"))
                 await _seed(connection)
                 yield connection
             finally:
@@ -260,8 +273,10 @@ async def test_ac02_no_detail_and_only_public_links(conn):
 async def test_ac03_only_listed_signers_have_a_name(conn):
     row = (await _showcase(conn, "uc"))["UC-9001"]
     criteria = _criteria(row)
-    assert criteria["AC-01"]["accepted_by"] == "Jesús"
-    assert criteria["AC-02"]["accepted_by"] is None
+    assert criteria["AC-01"]["verified_by"] == "Jesús"
+    assert criteria["AC-02"]["verified_by"] is None
+    # UC-7606: el veredicto de una sesión es una verificación, no una aceptación.
+    assert all("accepted_by" not in c and "accepted_at" not in c for c in criteria.values())
     assert {e["by"] for e in criteria["AC-01"]["evidence"]} == {"Jesús"}
     assert {e["by"] for e in criteria["AC-02"]["evidence"]} == {None}
     assert [h["by"] for h in json.loads(row["history"])] == ["Jesús", None]
@@ -298,3 +313,75 @@ async def test_uc7002_ac01_activity_total_matches_the_published_states(conn):
     assert {"backlog", "in_progress", "review", "done", "archived"} <= set(by_state)
     assert sum(by_state.values()) == row["use_cases_count"]
     assert by_state["archived"] >= 2  # UC-9003 en los dos proyectos sembrados
+
+
+# ── UC-7606 ─────────────────────────────────────────────────────────
+
+
+async def _accept(conn: asyncpg.Connection, project: str, uc_id: str, by: str) -> None:
+    await conn.execute(
+        "INSERT INTO uc_acceptances (project_id, uc_id, accepted_by_developer_id, accepted_at) "
+        "VALUES ($1, $2, $3, '2026-10-05T10:00:00Z')",
+        project,
+        uc_id,
+        by,
+    )
+
+
+async def test_uc7606_showcase_says_who_accepted_the_pinned_uc_or_nothing(conn):
+    ucs = await _showcase(conn, "uc")
+    assert ucs["UC-9001"]["accepted_at"] is None and ucs["UC-9001"]["accepted_by"] is None
+
+    await _accept(conn, BOARD, "UC-9001", OWNER)
+    row = (await _showcase(conn, "uc"))["UC-9001"]
+    assert row["accepted_by"] == "Jesús" and row["accepted_at"] is not None
+    us = (await _showcase(conn, "us"))["US-90"]
+    assert us["accepted_at"] is None and us["accepted_by"] is None
+
+    # Quien no está en site_showcase_signer acepta sin nombre, nunca con su identificador.
+    await conn.execute("DELETE FROM uc_acceptances WHERE project_id = $1", BOARD)
+    await _accept(conn, BOARD, "UC-9001", STRANGER)
+    row = (await _showcase(conn, "uc"))["UC-9001"]
+    assert row["accepted_at"] is not None and row["accepted_by"] is None
+
+
+async def test_uc7606_activity_has_no_north_star_until_the_launch_date_is_set(conn):
+    (row,) = await _as(conn, "anon", "SELECT north_star FROM site_activity")
+    assert row["north_star"] is None
+
+
+async def test_uc7606_activity_publishes_the_north_star_since_launch(conn):
+    await conn.execute("INSERT INTO site_north_star_start (started_at) VALUES ($1::text::timestamptz)", LAUNCH)
+    # Cerradas tras el lanzamiento: UC-9001 en los dos proyectos, con la evidencia completa
+    # (criterios visibles hechos y con un recibo que pasa; el interno no cuenta), y UC-9004,
+    # con un criterio sin recibo.
+    await conn.execute(
+        "INSERT INTO use_cases (id, project_id, us_id, name, state) VALUES "
+        "('UC-9004', $1, 'US-90', 'UC-9004: Sin recibo', 'done'), "
+        "('UC-9005', $1, 'US-90', 'UC-9005: Antes del lanzamiento', 'done')",
+        BOARD,
+    )
+    await conn.execute(
+        "INSERT INTO acceptance_criteria (id, project_id, uc_id, ac_id, text, done) VALUES "
+        "('UC-9004::AC-01', $1, 'UC-9004', 'AC-01', 'Sin recibo', true), "
+        "('UC-9005::AC-01', $1, 'UC-9005', 'AC-01', 'Antes', true)",
+        BOARD,
+    )
+    await conn.execute(
+        "UPDATE use_cases SET completed_at = '2099-01-02T00:00:00Z' WHERE id IN ('UC-9001', 'UC-9004')"
+        " AND project_id = ANY($1::text[])",
+        [BOARD, OTHER],
+    )
+    await conn.execute(
+        "UPDATE use_cases SET completed_at = '2098-12-31T00:00:00Z' WHERE id = 'UC-9005' AND project_id = $1", BOARD
+    )
+    # Aceptadas: UC-9001 del board (cuenta) y UC-9004 (sin evidencia completa: no cuenta) y
+    # UC-9005 (cerrada antes del lanzamiento: no cuenta).
+    for uc_id in ("UC-9001", "UC-9004", "UC-9005"):
+        await _accept(conn, BOARD, uc_id, OWNER)
+
+    (row,) = await _as(conn, "anon", "SELECT north_star FROM site_activity")
+    north_star = json.loads(row["north_star"])
+    assert north_star["since"].startswith("2099-01-01")
+    assert (north_star["closed"], north_star["with_evidence"], north_star["accepted"]) == (3, 2, 1)
+    assert north_star["pct"] == 33.3

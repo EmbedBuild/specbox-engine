@@ -1270,15 +1270,23 @@ async def get_uc(
             stored = bool(ac.evidence) or ac.verdict is not None
             evidence = ac.evidence if stored else from_comments.get(ac.id, [])
             verdict = ac.verdict if stored else verdicts.get(ac.id)
+            # US-76: el veredicto de mark_ac es una verificación de la sesión (en autopilot la firma
+            # la persona dueña del token aunque marque el agente), no una aceptación humana.
+            # `accepted` queda como alias de `verified` para quien ya lo lee.
+            verified = accepted_from(ac.done, verdict)
             ac_list.append(
                 {
                     "id": ac.id,
                     "text": ac.text,
                     "done": ac.done,
                     "evidence": evidence,
-                    "accepted": accepted_from(ac.done, verdict),
+                    "verified": verified,
+                    "accepted": verified,
                 }
             )
+
+        # US-76 (UC-7601): la aceptación de una persona, por UC, que solo da el panel.
+        human_acceptance = await backend.get_uc_acceptance(board_id, uc_item.id)
 
         # Get attachments
         attachments = await backend.get_attachments(board_id, uc_item.id)
@@ -1302,6 +1310,7 @@ async def get_uc(
             "screens": screens,
             "status": uc_item.state,
             "acceptance_criteria": ac_list,
+            "human_acceptance": human_acceptance,
             "context": context,
             "description_raw": uc_item.description,
             "attachments": attach_list,

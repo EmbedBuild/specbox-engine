@@ -52,6 +52,8 @@ TRIGGER_FUNCTIONS = (
     "uc_lifecycle_columns()",
     "uc_record_transition()",
     "tool_access_log_append_only()",
+    "uc_acceptance_void_on_state()",  # 0029 (US-76)
+    "uc_acceptance_void_on_criterion()",
 )
 CLOSED_FUNCTIONS = SERVER_CALLABLE_FUNCTIONS + TRIGGER_FUNCTIONS
 PUBLIC_ROLES = ("anon", "authenticated")

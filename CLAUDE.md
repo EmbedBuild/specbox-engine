@@ -2505,6 +2505,28 @@ lo enseñan con la `EvidenceCard` del registro `@specbox/ui`.
   pruebas aceptan el parámetro; el dual lo reenvía al espejo native.
 - Tests: `tests/test_ac_evidence.py` (las native, contra Postgres).
 
+## Verificado no es aceptado: la aceptación la da una persona (US-76 · UC-7601)
+
+El veredicto de `mark_ac` lo firma el dueño del token de la sesión, así que en autopilot dice
+«aceptado por» una persona aunque marque el agente. Desde US-76 ese veredicto es una
+**verificación**, y la **aceptación** la da el owner o un admin del proyecto desde el panel, una
+vez por UC.
+
+- **Migración 0029** (`server/db/migrations/0029_uc_acceptances.sql`, gemela en
+  `supabase/migrations/20261004100029_…`): tabla `uc_acceptances (project_id, uc_id,
+  accepted_by_developer_id, accepted_at)`, una fila por UC aceptada y borrada en cascada con la
+  UC. Sin privilegios para PUBLIC, `anon` ni `authenticated`, con RLS y denegación restrictiva
+  (como 0024). `accepted_by_developer_id` no lleva clave foránea, como `audit_log`.
+- **Se anula sola**: dos triggers borran la aceptación si la UC sale de `done` o si un criterio no
+  interno queda sin hacer (se desmarca, se añade uno sin hacer o uno interno sin hacer pasa a
+  visible). Sus funciones tienen `search_path` fijo y no se pueden ejecutar desde los roles públicos.
+- **Solo escribe el API del panel**, con su rol de servicio y tras comprobar la sesión y el rol.
+  Ninguna tool ni backend del engine escribe en la tabla, y una prueba lo comprueba.
+- **Lectura**: `SpecBackend.get_uc_acceptance` (native; el resto devuelve `None`). `get_uc`
+  devuelve `human_acceptance {by, by_id, at}` por UC y, por AC, `verified` (el veredicto de la
+  sesión). `accepted` por AC queda como alias de `verified` para quien ya lo lee.
+- Tests: `tests/test_uc_acceptances.py` (las de la tabla, contra Postgres).
+
 ## Proyectos sin organización (US-60 · UC-6001, v6.17.1)
 
 «Organización» es un concepto del panel, no del engine (migración 0020): los proyectos del

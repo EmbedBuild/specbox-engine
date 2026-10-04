@@ -18,6 +18,8 @@ on:
       - "CLAUDE.md"
       - "agents/**"
       - ".claude/skills/**"
+      - ".quality/scripts/audit-hooks.mjs"
+      - ".quality/scripts/specbox-audit.mjs"
       - ".github/workflows/hooks.yml"
   push:
     branches: [main]
@@ -30,6 +32,8 @@ on:
       - "CLAUDE.md"
       - "agents/**"
       - ".claude/skills/**"
+      - ".quality/scripts/audit-hooks.mjs"
+      - ".quality/scripts/specbox-audit.mjs"
       - ".github/workflows/hooks.yml"
 
 permissions:

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.18.0 — "Mudanza" (sobre v6.17.1 "EngineFirst")<br/>
+  v 6.19.0 — "Escaparate" (sobre v6.18.0 "Mudanza")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,20 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.19
+
+**v6.19.0 — "Escaparate"** hace que lo que el engine enseña en público cuadre con lo que tiene:
+
+- **Un escaparate con recibos reales** — la home de [specbox.build](https://specbox.build) enseña en vivo una UC de nuestro propio board y los recibos de sus criterios, desde una vista pública de solo lectura que nunca enseña el detalle ni los criterios internos.
+- **Cifras que cuadran** — el site cuenta las 192 tools que lista el MCP (antes 126), deja de contar lo retirado, conserva los nombres de código en el changelog y su foto de actividad suma.
+- **Cada evento de AC sabe de qué UC es** — el `audit_log` guarda `uc_id` en cada marca, edición, alta o borrado de un criterio.
+- **Una sola versión de cada migración** — `migration_twins.py` comprueba que `supabase/migrations` es copia exacta de `server/db/migrations`.
+- **El hook dice lo que es** — el bloqueo de «lee antes de escribir» ya no dice que SpecBox aporta la velocidad: la velocidad la pone el modelo; SpecBox, el control y la calidad.
+
+100% backwards-compatible: sin migraciones del board.
 
 ---
 
@@ -584,7 +598,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.18.0 — "Mudanza" (over v6.17.1 "EngineFirst")
+> v 6.19.0 — "Escaparate" (over v6.18.0 "Mudanza")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -597,6 +611,18 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.19
+
+**v6.19.0 — "Escaparate"** ("shop window") makes what the engine shows in public match what it has:
+
+- **A shop window with real receipts** — the [specbox.build](https://specbox.build/en/) home shows, live, a use case from our own board and the receipts of its criteria, from a public read-only view that never shows the detail nor the internal criteria.
+- **Figures that add up** — the site counts the 192 tools the MCP lists (126 before), stops counting what was retired, keeps code names in the changelog, and its activity snapshot adds up.
+- **Every AC event knows its use case** — the `audit_log` stores `uc_id` on every mark, edit, creation or deletion of a criterion.
+- **One version of each migration** — `migration_twins.py` checks that `supabase/migrations` is an exact copy of `server/db/migrations`.
+- **The hook says what it is** — the "read before you write" block no longer says SpecBox brings the speed: the LLM brings the speed; SpecBox, the control and the quality.
+
+100% backwards-compatible: no board migrations.
 
 ## What's new in v6.18
 

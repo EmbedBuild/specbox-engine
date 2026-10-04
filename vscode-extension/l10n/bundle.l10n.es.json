@@ -187,5 +187,6 @@
   "Lifecycle": "Ciclo de vida",
   "Other": "Otros",
   "Show skill card": "Ver la ficha del skill",
-  "No skills detected — run /install or check ~/.claude/skills/": "No se detectó ningún skill: ejecuta /install o revisa ~/.claude/skills/"
+  "No skills detected — run /install or check ~/.claude/skills/": "No se detectó ningún skill: ejecuta /install o revisa ~/.claude/skills/",
+  "{0} configured but missing: {1}": "{0} configurados que no existen: {1}"
 }

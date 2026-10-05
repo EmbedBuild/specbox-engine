@@ -63,6 +63,7 @@ class UseCaseSpec(BaseModel):
     screens: str = ""
     acceptance_criteria: list[str] = Field(default_factory=list)
     context: str = ""
+    satellite: str | None = None  # US-78 / UC-7805: the repo the UC's code goes to
 
     @model_validator(mode="before")
     @classmethod
@@ -95,6 +96,7 @@ class UserStorySpec(BaseModel):
     hours: float = 0
     screens: str = ""
     description: str = ""
+    epic: str | None = None  # US-78 / UC-7805: EP-NN or the name of a declared epic
     use_cases: list[UseCaseSpec] = Field(default_factory=list)
 
     @model_validator(mode="before")
@@ -110,7 +112,18 @@ class UserStorySpec(BaseModel):
         return data
 
 
+class EpicSpec(BaseModel):
+    """An epic declared by a PRD (US-78 / UC-7805, D20)."""
+
+    epic_id: str | None = None  # EP-NN; omit to take the next free one
+    name: str
+    objective: str = ""
+    link: str = ""
+    target_date: str | None = None  # YYYY-MM-DD
+
+
 class ImportSpec(BaseModel):
+    epics: list[EpicSpec] = Field(default_factory=list)
     user_stories: list[UserStorySpec]
 
 

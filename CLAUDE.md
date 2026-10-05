@@ -2601,10 +2601,19 @@ pertenece a una épica o a ninguna. Su estado y su avance no se guardan: se dedu
 - **Dependencias entre satélites (UC-7803)**: `get_cross_repo_dependencies` reconoce
   identificadores de cualquier longitud (`\bUC-\d+[a-zA-Z]?\b`); con `UC-\d{3}` leía UC-5101
   como «UC-510» y daba dependencias falsas.
+- **La siembra declara épicas (UC-7805)**: `import_spec` acepta `epics: [{epic_id?, name,
+  objective, link, target_date}]`, `epic` en cada historia (EP-NN o el nombre) y `satellite` en
+  cada caso de uso (validado con `check_satellite`). Crea las épicas que no existen, reutiliza
+  las que sí (por id o nombre), asigna cada historia y lo cuenta en `epics.created/reused/
+  assigned`; en Trello/Plane siembra el resto y lo explica en `epics.skipped`. Quita del título
+  de la historia las marcas `[satélite]` de los satélites conocidos y, al re-sembrar una historia
+  que ya existe, **ya no le cambia el estado** (antes volvía a `user_stories`). La skill `/prd`
+  (Paso 2.7) pregunta a qué épica va la feature salvo que el PRD lo declare
+  (`decision_key` `feature_epic_assignment`, siempre `ask`).
 - `/switch-backend` todavía no migra las épicas entre backends.
 - Tests: `tests/test_epics.py`, `tests/test_epics_tools.py` y
-  `tests/test_board_reads_epic_satellite.py` (las native, contra Postgres) y `epics` en las
-  tablas del board de `tests/test_db_surface_tables.py`.
+  `tests/test_board_reads_epic_satellite.py` y `tests/test_import_spec_epics.py` (las native,
+  contra Postgres) y `epics` en las tablas del board de `tests/test_db_surface_tables.py`.
 
 ## Proyectos sin organización (US-60 · UC-6001, v6.17.1)
 

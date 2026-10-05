@@ -46,12 +46,15 @@ from ..models import (
 )
 from ..pdf_generator import markdown_to_pdf
 from ..spec_backend import (
+    EPICS_NOT_SUPPORTED,
+    EpicError,
     ItemDTO,
     ModuleDTO,
     SpecBackend,
     parse_item_id,
     with_item_id,
 )
+from . import _mutation_helpers as mh
 
 logger = structlog.get_logger(__name__)
 
@@ -209,6 +212,20 @@ def _find_uc_item(items: list[ItemDTO], uc_id: str) -> ItemDTO | None:
         if _is_uc(item) and _get_uc_id(item) == uc_id:
             return item
     return None
+
+
+def _strip_satellite_tags(name: str, satellites: set[str]) -> str:
+    """Drop ``[engine]``-style satellite tags from a story title (US-78 / UC-7805 AC-03).
+
+    The satellite lives on each UC; written in the title it duplicated (and
+    drifted from) the data. Only tags that name a known satellite go.
+    """
+    import re as _re
+
+    if not satellites:
+        return name
+    pattern = _re.compile(r"\s*\[(" + "|".join(_re.escape(x) for x in sorted(satellites)) + r")\]", _re.IGNORECASE)
+    return _re.sub(r"\s{2,}", " ", pattern.sub("", name)).strip()
 
 
 def _satellites_of(ucs: list[ItemDTO]) -> list[str]:
@@ -681,9 +698,12 @@ async def import_spec(
 
     Args:
         board_id: Board/project ID
-        spec: JSON spec with structure: {user_stories: [{us_id, name, hours, screens,
-              description, use_cases: [{uc_id, name, actor, hours, screens,
-              acceptance_criteria: [str], context}]}]}
+        spec: JSON spec with structure: {epics?: [{epic_id?, name, objective?, link?,
+              target_date?}], user_stories: [{us_id, name, hours, screens,
+              description, epic? (EP-NN or epic name), use_cases: [{uc_id, name, actor,
+              hours, screens, acceptance_criteria: [str], context, satellite?}]}]}.
+              Declared epics that do not exist are created (an existing one, by id
+              or name, is reused) and each story goes to its epic (US-78 / UC-7805).
         items_content: FreeForm content-passing (UC-660). Pass items.json as a
             string for remote MCP; the mutated string is returned under
             `items_content`. Omit for local MCP / disk mode.
@@ -711,7 +731,45 @@ async def import_spec(
         created_ac = 0
         errors: list[str] = []
 
+        # US-78 / UC-7805: the epics the PRD declares — reuse what exists (by id
+        # or name), create the rest — and the key → EP-NN map the stories use.
+        epic_report: dict[str, Any] = {"created": [], "reused": [], "assigned": {}, "skipped": None}
+        epic_keys: dict[str, str] = {}
+        if parsed.epics or any(us.epic for us in parsed.user_stories):
+            for e in await backend.list_epics(board_id):
+                epic_keys[e.id.lower()] = e.id
+                epic_keys.setdefault(e.name.strip().lower(), e.id)
+            for e_spec in parsed.epics:
+                known = epic_keys.get((e_spec.epic_id or "").lower()) or epic_keys.get(e_spec.name.strip().lower())
+                if known:
+                    epic_report["reused"].append(known)
+                    epic_keys.setdefault(e_spec.name.strip().lower(), known)
+                    continue
+                try:
+                    created = await backend.create_epic(
+                        board_id,
+                        name=e_spec.name,
+                        objective=e_spec.objective,
+                        link=e_spec.link,
+                        target_date=e_spec.target_date,
+                        epic_id=e_spec.epic_id,
+                    )
+                except EpicError as exc:
+                    if exc.code == EPICS_NOT_SUPPORTED:
+                        epic_report["skipped"] = exc.message
+                        break
+                    errors.append(f"Epic {e_spec.epic_id or e_spec.name}: {exc.message}")
+                    continue
+                epic_report["created"].append(created.id)
+                epic_keys[created.id.lower()] = created.id
+                epic_keys[created.name.strip().lower()] = created.id
+
+        # UC-7805 AC-03: satellite tags never reach a story title.
+        known_satellites = {uc.satellite for us in parsed.user_stories for uc in us.use_cases if uc.satellite}
+        known_satellites |= set(await backend.get_board_satellites(board_id) or [])
+
         for us_spec in parsed.user_stories:
+            us_spec.name = _strip_satellite_tags(us_spec.name, known_satellites)
             try:
                 # Build US description
                 us_desc = (
@@ -732,12 +790,13 @@ async def import_spec(
                 existing_us = await backend.find_item_by_field(board_id, "us_id", us_spec.us_id)
                 module: ModuleDTO | None = None
                 if existing_us:
+                    # UC-7805: re-seeding a story keeps its state; it follows its
+                    # UCs (UC-4305) and moving it back to user_stories lied.
                     us_item = await backend.update_item(
                         board_id,
                         existing_us.id,
                         name=with_item_id(us_spec.us_id, us_spec.name),
                         description=us_desc,
-                        state="user_stories",
                         meta=us_meta,
                     )
                     updated_us += 1
@@ -754,6 +813,20 @@ async def import_spec(
                     # Create module only for new US items (pass only us_id)
                     module = await backend.create_module(board_id, us_spec.us_id)
                     created_us += 1
+
+                if us_spec.epic and epic_report["skipped"] is None:
+                    target = epic_keys.get(us_spec.epic.strip().lower())
+                    if target is None:
+                        errors.append(f"US {us_spec.us_id}: epic {us_spec.epic!r} is neither declared nor on the board")
+                    else:
+                        try:
+                            await backend.set_us_epic(board_id, us_item.id, target)
+                            epic_report["assigned"][us_spec.us_id] = target
+                        except EpicError as exc:
+                            if exc.code == EPICS_NOT_SUPPORTED:
+                                epic_report["skipped"] = exc.message
+                            else:
+                                errors.append(f"US {us_spec.us_id}: {exc.message}")
 
                 new_uc_item_ids: list[str] = []
 
@@ -786,6 +859,12 @@ async def import_spec(
                             "pantallas": uc_spec.screens,
                             "actor": uc_spec.actor,
                         }
+                        if uc_spec.satellite:
+                            ok, err = await mh.check_satellite(backend, board_id, uc_spec.satellite)
+                            if ok:
+                                uc_meta["satellite"] = uc_spec.satellite
+                            else:
+                                errors.append(f"UC {uc_spec.uc_id}: {err}")
 
                         # Find-or-create UC item
                         existing_uc = await backend.find_item_by_field(board_id, "uc_id", uc_spec.uc_id)
@@ -879,6 +958,8 @@ async def import_spec(
             "updated": {"us": updated_us, "uc": updated_uc},
             "errors": errors,
         }
+        if epic_keys or epic_report["skipped"]:
+            result["epics"] = epic_report
         if items_content is not None:
             result["items_content"] = backend.get_items_content()
         return result

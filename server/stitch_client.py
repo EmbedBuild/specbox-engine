@@ -4,15 +4,19 @@ Communicates with https://stitch.googleapis.com/mcp using the MCP
 JSON-RPC protocol over HTTP. Handles long timeouts for screen generation
 (up to 5 minutes) and API key authentication.
 
-Exposes 14 native MCP tools (verified against the live server via
-tools/list on 2026-05-26). The 6 design-system tools were added in v6.4.0
-after the post-Google-I/O audit:
-  - upload_design_md
-  - create_design_system
-  - create_design_system_from_design_md
-  - update_design_system
-  - list_design_systems
-  - apply_design_system
+The Stitch MCP exposes 15 tools (tools/list on 2026-10-05, saved in
+``.quality/evidence/stitch_smoke/mcp_tools_schema.json``; refresh it with
+``python -m server.stitch_schema``):
+  - projects: create_project, get_project, list_projects, delete_project
+  - screens: list_screens, get_screen, generate_screen_from_text,
+    edit_screens, generate_variants
+  - design systems: upload_design_md, create_design_system,
+    create_design_system_from_design_md, update_design_system,
+    list_design_systems, apply_design_system
+
+``delete_project`` has no wrapper on purpose: it is irreversible and nothing
+in the engine needs it. ``tests/test_stitch_contract.py`` validates every
+call below against that schema (UC-8408).
 
 Also exposes a REST batchCreate helper for DESIGN.md / HTML / image
 uploads that exceed ~5KB (the practical limit for the upload_design_md
@@ -266,7 +270,7 @@ class StitchClient:
         return {"content": content, "isError": result.get("isError", False)}
 
     # ── High-level tool wrappers ──────────────────────────────────
-    # Covers all 12 native Stitch MCP tools.
+    # One per Stitch tool except delete_project (see the module docstring).
 
     # -- Project management --
 

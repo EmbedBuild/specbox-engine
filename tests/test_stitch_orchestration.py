@@ -88,8 +88,6 @@ class FakeOps:
             creative_range=creative_range,
         )
 
-    async def build_site(self, project_id, routes):
-        return self._consume("build_site", project_id=project_id, routes=routes)
 
 
 # ── Error classification ───────────────────────────────────────────────
@@ -285,57 +283,54 @@ class TestPlanBuild:
         assert plan.unified_pass_planned is False
 
 
-# ── build_site_batched end-to-end with mock ────────────────────────────
+# ── build_site_batched end-to-end with mock (UC-8504) ──────────────────
+
+
+def _generated(screen_id: str) -> dict:
+    """The shape of a generate_screen_from_text answer."""
+    return {"outputComponents": [{"design": {"screens": [{"name": f"projects/p1/screens/{screen_id}"}]}}]}
 
 
 class TestBuildSiteBatchedIntegration:
     @pytest.mark.asyncio
-    async def test_single_batch_no_unified_pass(self):
+    async def test_every_screen_is_generated(self):
+        """AC-01 — one generate_screen per screen; ids come from the answers."""
         specs = [_spec(f"s{i}") for i in range(3)]
-        ops = FakeOps(
-            {
-                "build_site": [{"site_id": "site-1"}],
-                "edit_screens": [],  # never called
-            }
-        )
+        ops = FakeOps({"generate_screen": [_generated(f"g{i}") for i in range(3)], "edit_screens": []})
         out = await build_site_batched(ops, "p1", specs, batch_size=4)
-        assert out["total_screens"] == 3
-        assert out["total_batches"] == 1
-        assert out["unified_pass_applied"] is False
+        assert [c["method"] for c in ops.calls] == ["generate_screen"] * 3
+        assert out["total_screens"] == 3 and out["total_batches"] == 1
+        assert out["generated_screen_ids"] == ["g0", "g1", "g2"]
         assert out["batches"][0]["status"] == "ok"
+        assert out["batches"][0]["results"][0] == {"name": "s0", "status": "ok", "screen_ids": ["g0"]}
+        assert out["unified_pass_applied"] is False and out["failed_screens"] == []
 
     @pytest.mark.asyncio
-    async def test_multiple_batches_apply_unified_pass(self):
+    async def test_unified_pass_edits_all_generated_screens_at_once(self):
+        """AC-03 — one edit_screens with selectedScreenIds of every generated screen."""
         specs = [_spec(f"s{i}", order=i) for i in range(8)]
         ops = FakeOps(
-            {
-                "build_site": [
-                    {"site_id": "batch-1"},
-                    {"site_id": "batch-2"},
-                ],
-                "edit_screens": [{"ok": True}] * 8,
-            }
+            {"generate_screen": [_generated(f"g{i}") for i in range(8)], "edit_screens": [{"ok": True}]}
         )
         out = await build_site_batched(ops, "p1", specs, batch_size=4)
         assert out["total_batches"] == 2
+        edits = [c for c in ops.calls if c["method"] == "edit_screens"]
+        assert len(edits) == 1 and edits[0]["screen_id"] == [f"g{i}" for i in range(8)]
         assert out["unified_pass_applied"] is True
-        assert len(out["unified_pass"]) == 8
 
     @pytest.mark.asyncio
-    async def test_failed_batch_recorded_but_does_not_abort(self):
+    async def test_failed_screen_is_recorded_and_the_build_goes_on(self):
+        """AC-02 — the failure is named; the other screens are still generated."""
         specs = [_spec(f"s{i}", order=i) for i in range(8)]
         ops = FakeOps(
             {
-                "build_site": [
-                    RuntimeError("502 Bad Gateway"),
-                    {"site_id": "batch-2"},
-                ],
-                "edit_screens": [{"ok": True}] * 8,
+                "generate_screen": [RuntimeError("502 Bad Gateway")] + [_generated(f"g{i}") for i in range(1, 8)],
+                "edit_screens": [{"ok": True}],
             }
         )
         out = await build_site_batched(ops, "p1", specs, batch_size=4)
-        statuses = [b["status"] for b in out["batches"]]
-        assert "error" in statuses
-        assert "ok" in statuses
-        # Unified pass still ran for screens of the successful batch.
+        assert [b["status"] for b in out["batches"]] == ["error", "ok"]
+        assert out["failed_screens"] == [{"name": "s0", "status": "error", "error": "502 Bad Gateway"}]
+        assert "s0: 502 Bad Gateway" in out["batches"][0]["error"]
+        assert len(out["generated_screen_ids"]) == 7
         assert out["unified_pass_applied"] is True

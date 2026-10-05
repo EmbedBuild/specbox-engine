@@ -568,20 +568,19 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
         apply_unified_theme_pass: bool = True,
         unified_theme_prompt: str | None = None,
     ) -> dict:
-        """Multi-screen build that auto-partitions when needed.
+        """Multi-screen build: every screen generated, then one pass that unifies the theme.
 
-        Stitch's native ``build_site`` reliably handles up to ~5 connected
-        screens; beyond that it tends to drift or fail. This wrapper
-        partitions ``screens`` into groups of ≤``batch_size`` (preferring
-        explicit groups, then route prefix, then order chunks) and
-        applies a final pass that unifies the theme across all generated
-        screens.
+        Each screen is a ``generate_screen_from_text`` call, in batches of
+        ≤``batch_size`` (explicit group, then route prefix, then order).
+        With more than one batch, a final ``edit_screens`` over all the
+        generated screens aligns their visual language. If any screen fails
+        the answer is ``status: error`` and ``failed_screens`` says which
+        and why (UC-8504).
 
         Args:
             screens: list of dicts with ``name``, ``prompt``, optional
                 ``route`` (default ``/``), ``order``, ``group``.
-            batch_size: max screens per Stitch ``build_site`` call.
-                Default 4.
+            batch_size: max screens per batch. Default 4.
             apply_unified_theme_pass: if True and the build needed >1
                 batch, run a final ``edit_screens`` pass with
                 ``unified_theme_prompt`` to align the visual language.
@@ -626,13 +625,22 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 unified_pass_applied=result["unified_pass_applied"],
             )
 
-            return {
-                "status": "ok",
+            failed = result.get("failed_screens") or []
+            unified_failed = [x for x in result.get("unified_pass", []) if x.get("status") == "error"]
+            response = {
+                "status": "ok" if not failed and not unified_failed else "error",
                 "project": project,
                 "stitch_project_id": stitch_project_id,
                 **result,
                 **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
             }
+            if failed or unified_failed:
+                # UC-8504 — a build with failed screens is not ok: say which and why.
+                response["error"] = "; ".join(
+                    [f"{f['name']}: {f['error']}" for f in failed]
+                    + [f"unified pass: {x['error']}" for x in unified_failed]
+                )
+            return response
         except Exception as exc:
             logger.error(
                 "stitch_build_site_batched_v2_error",

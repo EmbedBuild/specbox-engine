@@ -35,7 +35,7 @@ from typing import Any
 import httpx
 import structlog
 
-from .stitch_enums import DEFAULT_MODEL
+from .stitch_enums import DEFAULT_MODEL, current_theme
 
 logger = structlog.get_logger(__name__)
 
@@ -141,7 +141,7 @@ def check_theme(theme: dict[str, Any] | None) -> dict[str, Any]:
     missing = [field for field in REQUIRED_THEME_FIELDS if not theme.get(field)]
     if missing:
         raise StitchClientError("designSystem.theme is missing required fields: " + ", ".join(missing))
-    return theme
+    return current_theme(theme)  # SOURCE_SERIF_FOUR → SOURCE_SERIF_4… (UC-8407)
 
 
 class StitchClient:

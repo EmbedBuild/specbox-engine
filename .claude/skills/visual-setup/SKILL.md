@@ -232,7 +232,7 @@ Mostrar tabla de fuentes soportadas por Stitch:
 | 7 | IBM_PLEX_SANS | Corporate, reliable | Enterprise, B2B |
 | 8 | MANROPE | Warm, rounded | Health, education, HR |
 | 9 | RUBIK | Soft, approachable | Consumer, mobile-first |
-| 10 | SOURCE_SANS_THREE | Clean, readable | Content-heavy, documentation |
+| 10 | SOURCE_SANS_3 | Clean, readable | Content-heavy, documentation |
 | 11 | MONTSERRAT | Bold, impactful | Marketing, landing pages |
 | 12 | WORK_SANS | Professional, balanced | Business tools, enterprise |
 
@@ -1426,7 +1426,7 @@ Todos los artefactos generados hasta el punto de cancelacion se mantienen. El us
 | IBM_PLEX_SANS | IBM Plex Sans | Corporate, reliable |
 | MANROPE | Manrope | Warm, rounded |
 | RUBIK | Rubik | Soft, approachable |
-| SOURCE_SANS_THREE | Source Sans 3 | Clean, readable |
+| SOURCE_SANS_3 | Source Sans 3 | Clean, readable |
 | MONTSERRAT | Montserrat | Bold, impactful |
 | WORK_SANS | Work Sans | Professional, balanced |
 | BE_VIETNAM_PRO | Be Vietnam Pro | Modern, geometric |
@@ -1440,8 +1440,8 @@ Todos los artefactos generados hasta el punto de cancelacion se mantienen. El us
 | LIBRE_CASLON_TEXT | Libre Caslon Text | Serif, elegant |
 | EB_GARAMOND | EB Garamond | Serif, classic |
 | LITERATA | Literata | Serif, reading |
-| SOURCE_SERIF_FOUR | Source Serif 4 | Serif, versatile |
-| METROPOLIS | Metropolis | Geometric, urban |
+| SOURCE_SERIF_4 | Source Serif 4 | Serif, versatile |
+| METROPHOBIC | Metrophobic | Geometric, light |
 | NUNITO_SANS | Nunito Sans | Rounded, friendly |
 | ARIMO | Arimo | Neutral, Arial-like |
 | HANKEN_GROTESK | Hanken Grotesk | Clean, modern |

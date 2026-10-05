@@ -121,7 +121,7 @@ class TestStitchOutputIsCandidate:
         [
             ("stitch_generate_screen", {"prompt": "A list"}),
             ("stitch_edit_screen", {"screen_id": "s1", "prompt": "Tighter"}),
-            ("stitch_generate_variants", {"screen_id": "s1"}),
+            ("stitch_generate_variants", {"screen_id": "s1", "prompt": "More playful"}),
             ("stitch_fetch_screen_code", {"screen_id": "s1"}),
         ],
     )

@@ -317,7 +317,8 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
         Args:
             project: SpecBox Engine project slug (to resolve the API Key).
             stitch_project_id: The Stitch project ID.
-            screen_id: The screen ID to edit.
+            screen_id: The screen to edit, or several separated by commas
+                (sent as ``selectedScreenIds``).
             prompt: Text description of the changes to make.
             device_type: Optional — "DESKTOP", "MOBILE", "TABLET", or "AGNOSTIC".
             model_id: "GEMINI_3_8_FLASH" when empty (quality first) or
@@ -371,8 +372,10 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
         variant_count: int = 3,
         creative_range: str = "EXPLORE",
         aspects: str = "",
+        device_type: str = "",
+        model_id: str = "",
     ) -> dict:
-        """Generate design variants of an existing Stitch screen.
+        """Generate design variants of one or several Stitch screens.
 
         WARNING: This operation can take several minutes to complete.
 
@@ -381,15 +384,27 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
         Args:
             project: SpecBox Engine project slug (to resolve the API Key).
             stitch_project_id: The Stitch project ID.
-            screen_id: The screen ID to generate variants from.
-            prompt: Optional text prompt to guide variant generation.
+            screen_id: The screen to vary, or several separated by commas.
+            prompt: What the variants should explore (required by Stitch).
             variant_count: Number of variants (1-5, default: 3).
             creative_range: "REFINE" (subtle), "EXPLORE" (moderate), or "REIMAGINE" (radical).
             aspects: Comma-separated aspects to vary: LAYOUT, COLOR_SCHEME, IMAGES, TEXT_FONT, TEXT_CONTENT.
+            device_type: Optional — "DESKTOP", "MOBILE", "TABLET" or "AGNOSTIC".
+            model_id: "GEMINI_3_8_FLASH" when empty or "GEMINI_3_5_FLASH_LITE";
+                a legacy id is translated and reported in ``model_notice``.
 
         Returns:
             List of generated variant screens.
         """
+        if not prompt.strip():
+            return {
+                "error": "stitch_generate_variants needs a prompt: say what the variants should explore.",
+                "project": project,
+            }
+        try:
+            model, model_notice = resolve_model(model_id)
+        except UnknownModelError as exc:
+            return {"error": str(exc), "project": project}
         try:
             client = await _get_client_for_project(ctx, project)
             aspect_list = (
@@ -407,16 +422,20 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
             result = await client.generate_variants(
                 stitch_project_id,
                 screen_id,
-                prompt=prompt or None,
+                prompt=prompt,
                 variant_count=variant_count,
                 creative_range=creative_range,
                 aspects=aspect_list,
+                device_type=device_type or None,
+                model_id=model,
             )
             _log_stitch_usage(project, "generate_variants")
             logger.info("stitch_generate_variants_complete", project=project)
             return {
                 "status": "ok",
                 "project": project,
+                "model_used": model,
+                **({"model_notice": model_notice} if model_notice else {}),
                 "result": result,
                 **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
             }

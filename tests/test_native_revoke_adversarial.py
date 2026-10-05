@@ -204,9 +204,15 @@ async def test_ac22_revoke_with_cache_documents_exposure_window(db_pool):
 
         # Defensive: verify the third AC is still ``done=False`` — the failed
         # mark must not have leaked through.
-        acs = await backend.get_acceptance_criteria(pid, uc_id)
-        ac_third = next(a for a in acs if a.id == ac_ids[2])
-        assert ac_third.done is False, "rejected mark must not flip done"
+        # Read straight from the DB: since UC-8301 a revoked token cannot read
+        # through the backend either.
+        third_done = await db_pool.fetchval(
+            "SELECT done FROM acceptance_criteria WHERE project_id = $1 AND uc_id = $2 AND ac_id = $3",
+            pid,
+            uc_id,
+            ac_ids[2],
+        )
+        assert third_done is False, "rejected mark must not flip done"
     finally:
         await _delete_project(db_pool, pid, dev_id)
 

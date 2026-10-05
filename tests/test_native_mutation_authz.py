@@ -387,11 +387,18 @@ async def test_ac05_revoke_and_clear_invalidates_a_previously_passing_call(db_po
         await _delete_project(db_pool, pid, dev_id)
 
 
-# ── AC-06: reads bypass the cached gate ──────────────────────────────
+# ── AC-06 (revised by US-83 / UC-8301): reads go through the gate too ──
 
 
-async def test_ac06_reads_succeed_with_revoked_token(db_pool):
-    """Forensic and whoami reads must remain available even after revoke [AC-06]."""
+async def test_ac06_reads_require_a_valid_token_since_uc8301(db_pool):
+    """A revoked token no longer reads the board [UC-502 AC-06, revised by UC-8301].
+
+    UC-502 left reads outside the gate so "forensic and whoami reads" survived a
+    revoke. With the remote MCP that same gap let any session read any project
+    by naming its board_id, so UC-8301 sends every native read through the gate:
+    after a revoke (and the cache window) reading fails like writing does. The
+    transport already rejects a revoked token before any tool runs (UC-3901).
+    """
     pid = _unique_pid()
     dev_id = _unique_dev()
     token = _unique_token()
@@ -400,32 +407,21 @@ async def test_ac06_reads_succeed_with_revoked_token(db_pool):
         backend = NativeBackend(project_id=pid, dev_token=token)
         await backend.setup_board("UC-502 AC-06")
         us_id, uc_id, _ = await _seed_us_uc_acs(backend, pid)
+        assert {i.id for i in await backend.list_items(pid)} >= {us_id, uc_id}
 
-        # Revoke + invalidate the cache so every following call would re-enter
-        # the gate if it were enforced. Reads must STILL work.
         async with db_pool.acquire() as conn:
             assert await revoke_mcp_token(conn, token_id=token_id) is True
         _clear_auth_cache()
 
-        # Each read returns data without raising — by design, the gate does
-        # not protect reads (decision documented in UC-502 AC-06).
-        items = await backend.list_items(pid)
-        ids = {i.id for i in items}
-        assert us_id in ids and uc_id in ids, "list_items must still serve data"
-
-        fetched = await backend.get_item(pid, uc_id)
-        assert fetched.id == uc_id
-
-        acs = await backend.get_acceptance_criteria(pid, uc_id)
-        assert {a.id for a in acs} == {"AC-01", "AC-02", "AC-03"}
-
-        comments = await backend.get_comments(pid, uc_id)
-        assert isinstance(comments, list)
-
-        attachments = await backend.get_attachments(pid, uc_id)
-        assert isinstance(attachments, list)
-
-        found = await backend.find_item_by_field(pid, "us_id", us_id)
-        assert found is not None and found.id == us_id
+        for read in (
+            lambda: backend.list_items(pid),
+            lambda: backend.get_item(pid, uc_id),
+            lambda: backend.get_acceptance_criteria(pid, uc_id),
+            lambda: backend.get_comments(pid, uc_id),
+            lambda: backend.get_attachments(pid, uc_id),
+            lambda: backend.find_item_by_field(pid, "us_id", us_id),
+        ):
+            with pytest.raises(UnauthenticatedError):
+                await read()
     finally:
         await _delete_project(db_pool, pid, dev_id)

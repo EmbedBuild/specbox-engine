@@ -2578,9 +2578,18 @@ pertenece a una épica o a ninguna. Su estado y su avance no se guardan: se dedu
   los estados de las historias (sin nada empezado, `backlog`), cuenta criterios hechos sobre total
   de sus UC no archivadas (sin criterios, `pct = None`, nunca un 0 % inventado) y junta los
   satélites; `summarize_board` añade el grupo `sin_epica` para que los grupos sumen el board.
+- **Tools (UC-7802, `server/tools/epics.py`)**: `add_epic`, `update_epic`, `delete_epic`,
+  `set_us_epic` (por `us_id`; `epic_id=None` la saca), `list_epics` (épicas en orden con estado,
+  avance y satélites, más `sin_epica`) y `get_epic` (lo mismo de una épica y cada una de sus
+  historias con sus recuentos). Native y FreeForm con `items_content`; los rechazos vuelven como
+  sobre `{code, error}` (`EPIC_*`, `US_NOT_FOUND`, `FORBIDDEN`, `UNAUTHENTICATED`), nunca con datos.
+- **El identificador, una sola vez** (UC-7802 AC-03): `with_item_id(id, nombre)` de
+  `server/spec_backend.py` quita las copias del id al principio del nombre y lo pone una vez;
+  lo usan `import_spec`, `add_uc`, `update_uc`, `update_uc_batch` y `update_us`. Antes
+  `import_spec` anteponía el id aunque el nombre ya lo trajera («US-76: US-76: …»).
 - `/switch-backend` todavía no migra las épicas entre backends.
-- Tests: `tests/test_epics.py` (las native, contra Postgres) y `epics` en las tablas del board de
-  `tests/test_db_surface_tables.py`.
+- Tests: `tests/test_epics.py` y `tests/test_epics_tools.py` (las native, contra Postgres) y
+  `epics` en las tablas del board de `tests/test_db_surface_tables.py`.
 
 ## Proyectos sin organización (US-60 · UC-6001, v6.17.1)
 

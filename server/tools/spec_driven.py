@@ -50,6 +50,7 @@ from ..spec_backend import (
     ModuleDTO,
     SpecBackend,
     parse_item_id,
+    with_item_id,
 )
 
 logger = structlog.get_logger(__name__)
@@ -701,7 +702,7 @@ async def import_spec(
                     us_item = await backend.update_item(
                         board_id,
                         existing_us.id,
-                        name=f"{us_spec.us_id}: {us_spec.name}",
+                        name=with_item_id(us_spec.us_id, us_spec.name),
                         description=us_desc,
                         state="user_stories",
                         meta=us_meta,
@@ -710,7 +711,7 @@ async def import_spec(
                 else:
                     us_item = await backend.create_item(
                         board_id,
-                        name=f"{us_spec.us_id}: {us_spec.name}",
+                        name=with_item_id(us_spec.us_id, us_spec.name),
                         description=us_desc,
                         state="user_stories",
                         labels=["US"],
@@ -759,7 +760,7 @@ async def import_spec(
                             uc_item = await backend.update_item(
                                 board_id,
                                 existing_uc.id,
-                                name=f"{uc_spec.uc_id}: {uc_spec.name}",
+                                name=with_item_id(uc_spec.uc_id, uc_spec.name),
                                 description=uc_desc,
                                 labels=uc_labels,
                                 parent_id=us_item.id,
@@ -769,7 +770,7 @@ async def import_spec(
                         else:
                             uc_item = await backend.create_item(
                                 board_id,
-                                name=f"{uc_spec.uc_id}: {uc_spec.name}",
+                                name=with_item_id(uc_spec.uc_id, uc_spec.name),
                                 description=uc_desc,
                                 state="backlog",
                                 labels=uc_labels,

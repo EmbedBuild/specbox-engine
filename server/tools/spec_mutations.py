@@ -22,7 +22,7 @@ from fastmcp import Context
 
 from ..auth_gateway import get_session_backend
 from ._content_passing import returns_items_content
-from ..spec_backend import ItemDTO, parse_item_id
+from ..spec_backend import ItemDTO, parse_item_id, with_item_id
 from . import _mutation_helpers as mh
 
 logger = structlog.get_logger(__name__)
@@ -132,6 +132,8 @@ async def update_uc(
         )
         merged_meta, meta_changed = mh.merge_meta(uc_item.meta, meta_updates)
 
+        if name is not None:
+            name = with_item_id(uc_id, name)  # UC-7802 AC-03: the id once
         name_changed = name is not None and name != uc_item.name
         desc_changed = description is not None and description != uc_item.description
 
@@ -264,6 +266,8 @@ async def update_uc_batch(
             merged_meta, meta_changed = mh.merge_meta(uc_item.meta, meta_updates)
 
             new_name = entry.get("name")
+            if new_name is not None:
+                new_name = with_item_id(uc_id, new_name)  # UC-7802 AC-03
             new_desc = entry.get("description")
             name_changed = new_name is not None and new_name != uc_item.name
             desc_changed = new_desc is not None and new_desc != uc_item.description
@@ -354,6 +358,8 @@ async def update_us(
         )
         merged_meta, meta_changed = mh.merge_meta(us_item.meta, meta_updates)
 
+        if name is not None:
+            name = with_item_id(us_id, name)  # UC-7802 AC-03: the id once
         name_changed = name is not None and name != us_item.name
         desc_changed = description is not None and description != us_item.description
 
@@ -868,7 +874,7 @@ async def add_uc(
         max_num = await mh.find_max_uc_number(backend, board_id)
         new_uc_id = mh.format_uc_id(max_num + 1)
 
-        full_name = f"{new_uc_id}: {name}"
+        full_name = with_item_id(new_uc_id, name)
         meta: dict[str, Any] = {
             "tipo": "UC",
             "uc_id": new_uc_id,

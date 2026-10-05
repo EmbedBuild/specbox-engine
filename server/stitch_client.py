@@ -230,10 +230,25 @@ class StitchClient:
 
     @staticmethod
     def _extract_tool_result(rpc_response: dict) -> Any:
-        """Extract the tool result content from a JSON-RPC response."""
+        """Extract the tool result content from a JSON-RPC response.
+
+        Stitch answers a rejected call (validation, unknown resource) with
+        HTTP 200, ``isError: true`` and a single text such as «Request
+        contains an invalid argument.». That is a failure, not a result:
+        raise it so the tools answer with ``error`` instead of ``status: ok``
+        (UC-8401).
+        """
         result = rpc_response.get("result", {})
         # MCP tools/call result has a "content" array
         content = result.get("content", [])
+        if result.get("isError"):
+            message = " ".join(
+                item.get("text", "") for item in content if item.get("type") == "text"
+            ).strip()
+            raise StitchClientError(
+                message or "Stitch returned an error without a message",
+                data=result,
+            )
         if not content:
             return result
 

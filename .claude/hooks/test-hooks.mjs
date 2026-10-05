@@ -151,12 +151,42 @@ test(
 );
 
 // ---- commit-spec-guard.mjs ----
-// In the engine repo (not spec-driven), should exit 0
+// commit-spec-guard reads the project config and the current branch, so each case
+// runs in its own throwaway repository: the same result in a PR, on main and on any
+// local branch (UC-8502; it ran in the engine repo, which is spec-driven, and
+// failed on every push to main).
+function scratchRepo(branch, { specDriven }) {
+  const dir = mkdtempSync(join(tmpdir(), 'commit-spec-guard-'));
+  spawnSync('git', ['init', '-q', '-b', branch], { cwd: dir });
+  if (specDriven) {
+    mkdirSync(join(dir, '.claude'));
+    writeFileSync(join(dir, '.claude', 'project-config.json'), JSON.stringify({ board_id: 'test-board' }));
+  }
+  return dir;
+}
 test(
-  'commit-spec-guard: non-spec project',
+  'commit-spec-guard: non-spec project on main',
   'commit-spec-guard.mjs',
   '{}',
-  0
+  0,
+  undefined,
+  { cwd: scratchRepo('main', { specDriven: false }) }
+);
+test(
+  'commit-spec-guard: spec-driven project on main → blocks',
+  'commit-spec-guard.mjs',
+  '{}',
+  1,
+  'COMMIT BLOCKED',
+  { cwd: scratchRepo('main', { specDriven: true }) }
+);
+test(
+  'commit-spec-guard: spec-driven project on a feature branch',
+  'commit-spec-guard.mjs',
+  '{}',
+  0,
+  undefined,
+  { cwd: scratchRepo('feature/x', { specDriven: true }) }
 );
 
 // ---- design-gate.mjs ----

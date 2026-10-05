@@ -72,6 +72,12 @@ class TestResolveModel:
             resolve_model("GPT_5")
 
 
+def _generate_args(route) -> dict:
+    """Arguments of the generate call (v1 first looks up the project's design system)."""
+    calls = [json.loads(c.request.content)["params"] for c in route.calls]
+    return next(c["arguments"] for c in calls if c["name"] == "generate_screen_from_text")
+
+
 def _ok() -> httpx.Response:
     return httpx.Response(200, json={"jsonrpc": "2.0", "id": "x", "result": {"content": [{"type": "text", "text": "{}"}]}})
 
@@ -101,7 +107,7 @@ class TestToolsUseTheNewModels:
     async def test_generate_screen_defaults_to_flash(self, v1_tools):
         route = respx.post(STITCH_MCP_URL).mock(return_value=_ok())
         res = await _call(v1_tools, "stitch_generate_screen", project="p", stitch_project_id="1", prompt="A list")
-        assert json.loads(route.calls[0].request.content)["params"]["arguments"]["modelId"] == DEFAULT_MODEL
+        assert _generate_args(route)["modelId"] == DEFAULT_MODEL
         assert res["model_used"] == DEFAULT_MODEL and "model_notice" not in res
 
     @respx.mock
@@ -112,7 +118,7 @@ class TestToolsUseTheNewModels:
             v1_tools, "stitch_generate_screen", project="p", stitch_project_id="1", prompt="A list", model_id="GEMINI_3_PRO"
         )
         assert res["status"] == "ok"
-        assert json.loads(route.calls[0].request.content)["params"]["arguments"]["modelId"] == "GEMINI_3_8_FLASH"
+        assert _generate_args(route)["modelId"] == "GEMINI_3_8_FLASH"
         assert "GEMINI_3_PRO" in res["model_notice"]
 
     @respx.mock
@@ -140,7 +146,7 @@ class _FakeStitch:
     async def list_design_systems(self, project_id):
         return []
 
-    async def generate_screen_from_text(self, project_id, prompt, *, device_type=None, model_id=None):
+    async def generate_screen_from_text(self, project_id, prompt, *, device_type=None, model_id=None, design_system=None):
         self.models.append(model_id)
         return {"screen": {"id": "s1"}}
 

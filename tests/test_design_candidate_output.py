@@ -32,7 +32,7 @@ class _FakeStitch:
     async def list_design_systems(self, project_id):
         return []
 
-    async def generate_screen_from_text(self, project_id, prompt, *, device_type=None, model_id=None):
+    async def generate_screen_from_text(self, project_id, prompt, *, device_type=None, model_id=None, design_system=None):
         return {"screen": {"id": "s1"}}
 
     async def edit_screens(self, project_id, screen_id, prompt, *, device_type=None, model_id=None):

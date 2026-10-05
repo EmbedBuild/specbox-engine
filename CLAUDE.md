@@ -1,4 +1,4 @@
-# SpecBox Engine v6.20.0
+# SpecBox Engine v6.21.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2672,7 +2672,7 @@ Los clientes se mudan solos:
 
 ## Engine Version
 
-Current: v6.20.0 "Cableado"
+Current: v6.21.0 "Gavilla"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

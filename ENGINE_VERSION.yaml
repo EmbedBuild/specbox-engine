@@ -1,8 +1,8 @@
-version: 6.20.0
-codename: "Cableado"
+version: 6.21.0
+codename: "Gavilla"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-10-04
+release_date: 2026-10-05
 min_claude_code: "1.0.0"
 
 stacks:
@@ -495,7 +495,32 @@ features:
   - claude-md-inventory-check
   - client-moves-to-new-mcp-host
 
+  # New (v6.21.0) — Gavilla
+  - epics-group-user-stories
+  - epic-tools
+  - board-reads-epic-and-satellite
+  - declared-satellites
+  - import-spec-epics
+  - find-next-uc-by-epic
+  - human-uc-acceptance
+  - north-star-public
+  - native-reads-require-membership
+  - milestones-deprecated
+
 changelog:
+  6.21.0:
+    date: 2026-10-05
+    codename: "Gavilla"
+    changes:
+      - "feat: the board keeps epics — table `epics` (EP-NN, name, objective, link, position, target date) and `user_stories.epic_id`, each story in one epic or none; deleting an epic leaves its stories without one. Native with audit in the same transaction, FreeForm with `EP` items in items.json, Trello and Plane list none and reject writes with EPICS_NOT_SUPPORTED. Migration 0030 and its Supabase twin (US-78/UC-7801, PR #216)"
+      - "feat: six epic tools — add_epic, update_epic, delete_epic, set_us_epic, list_epics and get_epic; state derived from the stories with the derive_us_state rule, progress counted by criteria (no criteria → no percentage, never a 0 %) and satellites from their use cases; a story or use case name carries its id once (UC-7802, PR #219)"
+      - "feat: board reads name the epic and the satellite — list_us/get_us return epic_id and satellites, list_uc/get_uc the satellite and the story's epic, get_board_status adds by_epic (groups that add up to the board, «sin_epica» last); declare_satellites stores the project's satellites in the board and set_uc_satellite validates against them also on the remote MCP; get_cross_repo_dependencies recognises ids of any length (UC-7803, PR #220)"
+      - "feat: /prd declares the epic and seeding creates it — import_spec accepts epics, the epic of each story and the satellite of each use case, creates or reuses epics and assigns stories; re-seeding an existing story no longer changes its state and titles lose the [satellite] marks; /prd Step 2.7 asks which epic a feature belongs to unless the PRD says so (UC-7805, PR #221)"
+      - "feat: find_next_uc accepts epic and satellite — with an epic, use cases follow the order of its stories, the one with work in progress first, and None when the epic is finished; an unknown epic returns EPIC_NOT_FOUND; /implement EP-NN chains the epic's use cases and stops (UC-7804, PR #222)"
+      - "feat: human acceptance per use case — table `uc_acceptances` (migration 0029 and twin), written only by the panel API; two triggers void it when the use case leaves done or a visible criterion is undone; get_uc returns human_acceptance per use case and verified per criterion (accepted stays as an alias) (US-76/UC-7601, PR #214)"
+      - "feat: `site_activity` publishes north_star (closed use cases, with complete evidence, accepted by a person, and the percentage since the launch date) and `site_showcase` says who verified each criterion and who accepted the pinned use case and when (UC-7606, PR #215)"
+      - "fix: every native read checks that the session is a member of the project it reads, with the same check and audit row as writes; opening a native session on a project that already has members grants no role (US-83/UC-8301, UC-8302, PRs #217, #218)"
+      - "deprecate: milestone tools (set_uc_milestone, set_uc_milestone_batch, get_milestone_status, rebalance_milestones, milestone_acceptance_check) keep working in 6.21 and 6.22, carry [DEPRECATED …] and answer with deprecation {since 6.21.0, removed_in 6.23.0, use_instead: epics}; the milestone parameter of update_uc, update_uc_batch, update_us, add_uc and get_satellite_queue warns only when used; FreeForm templates carry epic and satellite (UC-7806, PR #223)"
   6.20.0:
     date: 2026-10-04
     codename: "Cableado"

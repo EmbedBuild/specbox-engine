@@ -19,6 +19,7 @@ from fastmcp import Context, FastMCP
 from ..auth_gateway import get_stitch_client, store_stitch_credentials
 from ..coordination.i18n_messages import extract_locale_from_ctx
 from ..design_system import candidate_marker
+from ..stitch_client import StitchClientError, check_theme, design_system_payload
 from ..stitch_enums import DEFAULT_MODEL, UnknownModelError, resolve_model
 
 logger = structlog.get_logger(__name__)
@@ -599,19 +600,32 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
         project: str,
         stitch_project_id: str,
         display_name: str = "",
+        theme: dict | None = None,
     ) -> dict:
-        """Create an empty design system on a Stitch project.
+        """Create a design system with its name and theme on a Stitch project.
 
         Prefer `stitch_create_design_system_from_design_md` for the
-        DESIGN.md-driven flow — this tool exists for full manual control
-        when you want to populate theme tokens via
-        `stitch_update_design_system` instead.
+        DESIGN.md-driven flow. This tool is for full manual control.
+
+        Args:
+            project: SpecBox project slug.
+            stitch_project_id: Stitch project ID.
+            display_name: Name of the design system (required).
+            theme: DesignTheme dict, built as in `stitch_update_design_system`.
+                Required: colorMode, headlineFont, bodyFont, roundness and
+                customColor. A missing one is named in the error before
+                anything is sent to Stitch.
         """
+        try:
+            design_system_payload(display_name, theme)
+        except StitchClientError as exc:
+            return {"error": str(exc), "project": project}
         try:
             client = await _get_client_for_project(ctx, project)
             result = await client.create_design_system(
                 stitch_project_id,
-                display_name=display_name or None,
+                display_name,
+                theme or {},
             )
             _log_stitch_usage(project, "create_design_system")
             return {"status": "ok", "project": project, "result": result}
@@ -699,17 +713,15 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
                   - overridePrimaryColor / overrideSecondaryColor /
                     overrideTertiaryColor / overrideNeutralColor: hex
                   - designMd: full DESIGN.md content (optional)
-            display_name: Optional new displayName for the DS.
+                Required: colorMode, headlineFont, bodyFont, roundness and
+                customColor.
+            display_name: New displayName. Without it, the current name of
+                the design system is sent again (the API always asks for one).
         """
-        if "font" in theme:
-            return {
-                "error": (
-                    "DesignTheme.font is the deprecated legacy field; use "
-                    "headlineFont / bodyFont / labelFont. The Stitch server "
-                    "will reject this payload."
-                ),
-                "project": project,
-            }
+        try:
+            check_theme(theme)
+        except StitchClientError as exc:
+            return {"error": str(exc), "project": project}
         try:
             client = await _get_client_for_project(ctx, project)
             result = await client.update_design_system(

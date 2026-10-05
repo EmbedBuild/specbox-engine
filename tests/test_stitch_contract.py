@@ -68,16 +68,12 @@ CASES = [
         marks=_known_break("UC-8404", "sends screenId and loose options; the API asks for selectedScreenIds and variantOptions"),
     ),
     pytest.param("upload_design_md", ("123", "# Design\n"), {}, id="upload_design_md"),
-    pytest.param(
-        "create_design_system", ("123",), {"display_name": "Tinta"}, id="create_design_system",
-        marks=_known_break("UC-8403", "sends projectId+displayName; the API asks for designSystem with its theme"),
-    ),
+    pytest.param("create_design_system", ("123", "Tinta", THEME), {}, id="create_design_system"),
     pytest.param(
         "create_design_system_from_design_md", ("123", INSTANCE), {}, id="create_design_system_from_design_md",
     ),
     pytest.param(
-        "update_design_system", ("assets/1", "123", THEME), {}, id="update_design_system",
-        marks=_known_break("UC-8403", "without display_name designSystem lacks the required displayName"),
+        "update_design_system", ("assets/1", "123", THEME), {"display_name": "Tinta"}, id="update_design_system",
     ),
     pytest.param("list_design_systems", ("123",), {}, id="list_design_systems"),
     pytest.param("apply_design_system", ("123", "1", [INSTANCE]), {}, id="apply_design_system"),

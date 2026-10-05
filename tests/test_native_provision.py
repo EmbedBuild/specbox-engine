@@ -405,6 +405,12 @@ class TestProvisionNativeProject:
                 )
             assert original is not None and other_org is not None and other_org != original
 
+            # UC-8302: provisioning never joins a project with members, so the
+            # other developer is a member first (invited, as the panel does).
+            from server.coordination.identity import add_project_member
+
+            async with pool.acquire() as conn:
+                await add_project_member(conn, project_id=pid, developer_id=other_id, role="member")
             await provision_native_project(pool, project_id=pid, developer_id=other_id, role="member")
             await provision_native_project(
                 pool, project_id=pid, developer_id=owner_id, organization_id=other_org
@@ -630,4 +636,126 @@ class TestProvisionMigrateE2E:
             assert display_slug(pid) == pid.lower().replace("/", "-")
         finally:
             await _cleanup(pool, pid, dev_id)
+            await close_pool()
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# US-83 / UC-8302 — opening a session never makes anyone a member
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytestmark_pg
+class TestSessionNeverJoinsAProject:
+    """D2: only a new tenant or an orphan is provisioned; a populated one is not joined."""
+
+    async def _pool(self):
+        from server.db.migrate import apply_migrations
+        from server.db.pool import init_pool
+
+        pool = await init_pool(dsn=DSN)
+        await apply_migrations(pool)
+        return pool
+
+    async def _members(self, pool, project_id):
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT developer_id, role FROM project_members WHERE project_id = $1 ORDER BY developer_id",
+                project_id,
+            )
+        return [(r["developer_id"], r["role"]) for r in rows]
+
+    async def test_ac01_a_non_member_cannot_join_a_project_with_members(self):
+        """AC-01: setup_board (what set_auth_token runs) on someone else's project is refused."""
+        from server.backends.native_backend import NativeBackend
+        from server.coordination.identity import ForbiddenError
+        from server.db.pool import close_pool
+
+        pool = await self._pool()
+        pid = f"Acme/owned-{uuid.uuid4().hex[:8]}"
+        owner_id, owner_tok = await _register_dev(pool)
+        intruder_id, intruder_tok = await _register_dev(pool)
+        try:
+            await NativeBackend(pid, owner_tok).setup_board(pid)
+            before = await self._members(pool, pid)
+            assert before == [(owner_id, "project_admin")]
+
+            with pytest.raises(ForbiddenError):
+                await NativeBackend(pid, intruder_tok).setup_board(pid)
+            assert await self._members(pool, pid) == before
+        finally:
+            await _cleanup(pool, pid, owner_id, intruder_id)
+            await close_pool()
+
+    async def test_ac01_set_auth_token_answers_forbidden(self):
+        """AC-01 at the tool boundary: set_auth_token returns FORBIDDEN and stores no session."""
+        from server.backends.native_backend import NativeBackend
+        from server.db.pool import close_pool
+        from server.tools.spec_driven import set_auth_token
+
+        pool = await self._pool()
+        pid = f"Acme/owned-tool-{uuid.uuid4().hex[:8]}"
+        owner_id, owner_tok = await _register_dev(pool)
+        intruder_id, intruder_tok = await _register_dev(pool)
+        try:
+            await NativeBackend(pid, owner_tok).setup_board(pid)
+            result = await set_auth_token(
+                api_key="", token=intruder_tok, ctx=_ctx(), backend_type="native", project_id=pid
+            )
+            assert result.get("code") == "FORBIDDEN"
+            assert await _member_role(pool, pid, intruder_id) is None
+        finally:
+            await _cleanup(pool, pid, owner_id, intruder_id)
+            await close_pool()
+
+    async def test_ac02_a_member_keeps_their_role(self):
+        """AC-02: re-opening a session does not promote a plain member to project_admin."""
+        from server.backends.native_backend import NativeBackend
+        from server.coordination.identity import add_project_member
+        from server.db.pool import close_pool
+
+        pool = await self._pool()
+        pid = f"Acme/member-{uuid.uuid4().hex[:8]}"
+        owner_id, owner_tok = await _register_dev(pool)
+        member_id, member_tok = await _register_dev(pool)
+        try:
+            await NativeBackend(pid, owner_tok).setup_board(pid)
+            async with pool.acquire() as conn:
+                await add_project_member(conn, project_id=pid, developer_id=member_id, role="member")
+            await NativeBackend(pid, member_tok).setup_board(pid)
+            await NativeBackend(pid, owner_tok).setup_board(pid)
+            assert await _member_role(pool, pid, member_id) == "member"
+            assert await _member_role(pool, pid, owner_id) == "project_admin"
+        finally:
+            await _cleanup(pool, pid, owner_id, member_id)
+            await close_pool()
+
+    async def test_ac03_new_and_orphan_projects_still_make_the_opener_admin(self):
+        """AC-03: a new tenant and an orphan (no members) are provisioned and audited as before."""
+        from server.backends.native_backend import NativeBackend
+        from server.db.pool import close_pool
+
+        pool = await self._pool()
+        new_pid = f"Acme/new-{uuid.uuid4().hex[:8]}"
+        orphan_pid = f"Acme/orphan-{uuid.uuid4().hex[:8]}"
+        dev_id, tok = await _register_dev(pool)
+        try:
+            async with pool.acquire() as conn:
+                await conn.execute("INSERT INTO projects (project_id, name) VALUES ($1, 'orphan')", orphan_pid)
+            await NativeBackend(new_pid, tok).setup_board(new_pid)
+            await NativeBackend(orphan_pid, tok).setup_board(orphan_pid)
+            assert await _member_role(pool, new_pid, dev_id) == "project_admin"
+            assert await _member_role(pool, orphan_pid, dev_id) == "project_admin"
+            async with pool.acquire() as conn:
+                cases = [
+                    json.loads(r["metadata"])["case"] if isinstance(r["metadata"], str) else r["metadata"]["case"]
+                    for r in await conn.fetch(
+                        "SELECT metadata FROM audit_log WHERE operation = 'provision_project' "
+                        "AND project_id = ANY($1::text[]) ORDER BY id",
+                        [new_pid, orphan_pid],
+                    )
+                ]
+            assert cases == ["created", "adopted_orphan"]
+        finally:
+            await _cleanup(pool, new_pid, dev_id)
+            await _cleanup(pool, orphan_pid)
             await close_pool()

@@ -2132,6 +2132,14 @@ historias, criterios, comentarios y épicas de B con solo nombrarlo. Hallado y r
 - Tests: `tests/test_tenant_isolation.py` — `TestReaderInventory` prueba cada lectura desde
   otro proyecto y `test_catalog_covers_every_reader` falla si aparece una lectura nueva sin
   clasificar (como el inventario de mutadores).
+## Abrir sesión no hace miembro a nadie (US-83 · UC-8302)
+
+`provision_native_project` (lo que ejecutan `setup_board` y, con él, cada `set_auth_token`
+native) solo da rol al crear un proyecto nuevo o al adoptar uno sin miembros. En un proyecto con
+miembros exige que quien abre la sesión ya lo sea: si no, `ForbiddenError` (`FORBIDDEN` en
+`set_auth_token`) sin escribir nada; si lo es, conserva su rol (un `member` no sube a
+`project_admin`). Es la regla D2 (`native_provision_authority`), que hasta ahora solo aplicaba la
+ruta de migración. Tests: `tests/test_native_provision.py::TestSessionNeverJoinsAProject`.
 
 ## El esquema del board solo es legible por quien tiene permiso (US-40)
 

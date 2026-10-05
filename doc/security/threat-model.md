@@ -94,6 +94,7 @@ dato**; con identidad pero sin permiso, `FORBIDDEN` o «inexistente», nunca una
 | T12 | Falsear la IP para repartir los límites entre varias identidades | Se toma el último `X-Forwarded-For`, el que escribe el proxy; el cliente no puede añadirlo detrás | `tests/test_abuse_guard.py` |
 | T13 | Versión anunciada distinta de la publicada (cliente que cree estar al día) | El handshake anuncia `ENGINE_VERSION.yaml`; una prueba lo compara con el changelog | `tests/test_engine_version_contract.py` |
 | T14 | Borrar sin rastro trabajo hecho, o una UC de otro tenant, con el borrado real (`delete_uc` + `purge=true`) | Solo UC en backlog o archivada, sin AC hechos, sin evidencia y sin reserva, comprobado dentro de la transacción con la UC bloqueada; membresía del tenant que se escribe; lo rechazado se archiva, nunca se pierde; copia de la UC y de sus AC en `audit_log` (`purge_uc`), que no se borra | `tests/test_uc_purge.py` |
+| T15 | Hacerse miembro de un proyecto ajeno abriendo sesión en él | `setup_board` (lo que ejecuta `set_auth_token` native) solo da rol al crear un proyecto o adoptar uno sin miembros; en uno con miembros exige serlo ya (`FORBIDDEN` si no) y nunca cambia el rol (D2, US-83/UC-8302) | `tests/test_native_provision.py` |
 
 ## 7. Supuestos y fuera de alcance
 

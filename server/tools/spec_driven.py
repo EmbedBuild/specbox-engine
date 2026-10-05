@@ -317,6 +317,12 @@ async def set_auth_token(
             config = await backend.setup_board(project_id)
             await backend.close()
         except Exception as e:
+            from ..coordination.identity import ForbiddenError
+
+            if isinstance(e, ForbiddenError):
+                # US-83 / UC-8302: opening a session on a project with members
+                # requires being one of them — nobody joins by opening a session.
+                return {"error": str(e), "code": "FORBIDDEN"}
             logger.error("native_auth_error", error=str(e))
             return {"error": f"Native init failed: {str(e)}", "code": "NATIVE_ERROR"}
 

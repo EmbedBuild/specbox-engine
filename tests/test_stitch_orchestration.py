@@ -73,10 +73,12 @@ class FakeOps:
         project_id,
         screen_id,
         *,
-        prompt=None,
+        prompt="",
         variant_count=1,
         creative_range="REFINE",
         aspects=None,
+        device_type=None,
+        model_id=None,
     ):
         return self._consume(
             "generate_variants",

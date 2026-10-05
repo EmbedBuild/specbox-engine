@@ -67,10 +67,12 @@ class StitchOps(Protocol):
         project_id: str,
         screen_id: str,
         *,
-        prompt: str | None = None,
+        prompt: str = "",
         variant_count: int = 1,
         creative_range: str = "REFINE",
         aspects: list[str] | None = None,
+        device_type: str | None = None,
+        model_id: str | None = None,
     ) -> Any: ...
 
 
@@ -260,6 +262,7 @@ async def _run_strategy(
                 prompt=prompt,
                 variant_count=1,
                 creative_range="REFINE",
+                model_id=model_id,
             )
         else:
             # REGENERATE calls generate_screen with the requested model.

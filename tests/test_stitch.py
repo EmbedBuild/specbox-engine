@@ -138,7 +138,7 @@ class TestStitchClientPayload:
         body = json.loads(route.calls[0].request.content)
         assert body["params"]["name"] == "edit_screens"
         args = body["params"]["arguments"]
-        assert args["screenId"] == "screen1"
+        assert args["selectedScreenIds"] == ["screen1"]
         assert args["prompt"] == "Change button color to blue"
         await stitch_client.close()
 
@@ -164,9 +164,12 @@ class TestStitchClientPayload:
         )
         body = json.loads(route.calls[0].request.content)
         args = body["params"]["arguments"]
-        assert args["variantCount"] == 5
-        assert args["creativeRange"] == "REIMAGINE"
-        assert args["aspects"] == ["LAYOUT", "COLOR_SCHEME"]
+        assert args["selectedScreenIds"] == ["screen1"]
+        assert args["variantOptions"] == {
+            "variantCount": 5,
+            "creativeRange": "REIMAGINE",
+            "aspects": ["LAYOUT", "COLOR_SCHEME"],
+        }
         assert args["prompt"] == "More playful"
         await stitch_client.close()
 

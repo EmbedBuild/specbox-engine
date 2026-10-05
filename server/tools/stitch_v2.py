@@ -774,10 +774,12 @@ class _StitchOpsAdapter:
         project_id,
         screen_id,
         *,
-        prompt=None,
+        prompt="",
         variant_count=1,
         creative_range="REFINE",
         aspects=None,
+        device_type=None,
+        model_id=None,
     ):
         return await self._client.generate_variants(
             project_id,
@@ -786,6 +788,8 @@ class _StitchOpsAdapter:
             variant_count=variant_count,
             creative_range=creative_range,
             aspects=aspects,
+            device_type=device_type,
+            model_id=model_id,
         )
 
     # ``build_site`` deliberately omitted — the underlying MCP tool was

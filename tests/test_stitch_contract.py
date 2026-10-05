@@ -59,13 +59,11 @@ CASES = [
         marks=_known_break("UC-8406", "fetch_screen_image is not a Stitch tool"),
     ),
     pytest.param("generate_screen_from_text", ("123", "A login page in light mode"), {}, id="generate_screen_from_text"),
+    pytest.param("edit_screens", ("123", "abc", "Make the button blue"), {}, id="edit_screens"),
     pytest.param(
-        "edit_screens", ("123", "abc", "Make the button blue"), {}, id="edit_screens",
-        marks=_known_break("UC-8404", "sends screenId; the API asks for selectedScreenIds"),
-    ),
-    pytest.param(
-        "generate_variants", ("123", "abc"), {"prompt": "More playful"}, id="generate_variants",
-        marks=_known_break("UC-8404", "sends screenId and loose options; the API asks for selectedScreenIds and variantOptions"),
+        "generate_variants", ("123", "abc"),
+        {"prompt": "More playful", "aspects": ["LAYOUT"], "device_type": "MOBILE", "model_id": "GEMINI_3_8_FLASH"},
+        id="generate_variants",
     ),
     pytest.param("upload_design_md", ("123", "# Design\n"), {}, id="upload_design_md"),
     pytest.param("create_design_system", ("123", "Tinta", THEME), {}, id="create_design_system"),

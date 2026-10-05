@@ -95,6 +95,26 @@ class StitchTimeoutError(StitchClientError):
         self.may_still_complete = may_still_complete
 
 
+def screen_ids_for(screen_ids: str | list[str]) -> list[str]:
+    """``selectedScreenIds`` as the API asks for it: bare ids, never empty (UC-8404).
+
+    Accepts one id, a comma-separated string or a list, with or without the
+    ``screens/`` or ``projects/{p}/screens/`` prefix.
+    """
+    items = [screen_ids] if isinstance(screen_ids, str) else list(screen_ids or [])
+    ids: list[str] = []
+    for item in items:
+        for part in str(item).split(","):
+            sid = part.strip().strip("/")
+            if not sid:
+                continue
+            sid = sid.rsplit("/screens/", 1)[-1]
+            ids.append(sid.removeprefix("screens/"))
+    if not ids:
+        raise StitchClientError("selectedScreenIds needs at least one screen id")
+    return ids
+
+
 # The theme fields the API marks as required (tools/list, 2026-10-05).
 REQUIRED_THEME_FIELDS = ("colorMode", "headlineFont", "bodyFont", "roundness", "customColor")
 
@@ -420,16 +440,22 @@ class StitchClient:
     async def edit_screens(
         self,
         project_id: str,
-        screen_id: str,
+        screen_ids: str | list[str],
         prompt: str,
         *,
         device_type: str | None = None,
         model_id: str | None = None,
     ) -> Any:
-        """Edit an existing screen with a text prompt. Can take several minutes."""
+        """Edit one or several screens with a text prompt. Can take several minutes.
+
+        The API asks for ``selectedScreenIds`` (a list of bare ids), not
+        ``screenId`` (UC-8404).
+        """
+        if not (prompt or "").strip():
+            raise StitchClientError("edit_screens needs a prompt")
         args: dict[str, Any] = {
             "projectId": project_id,
-            "screenId": screen_id,
+            "selectedScreenIds": screen_ids_for(screen_ids),
             "prompt": prompt,
         }
         if device_type:
@@ -441,29 +467,42 @@ class StitchClient:
     async def generate_variants(
         self,
         project_id: str,
-        screen_id: str,
+        screen_ids: str | list[str],
         *,
-        prompt: str | None = None,
+        prompt: str = "",
         variant_count: int = 3,
         creative_range: str = "EXPLORE",
         aspects: list[str] | None = None,
+        device_type: str | None = None,
+        model_id: str | None = None,
     ) -> Any:
-        """Generate design variants of an existing screen.
+        """Generate design variants of one or several screens.
+
+        The API asks for ``selectedScreenIds``, a ``prompt`` (required) and
+        ``variantOptions`` with ``variantCount`` (1-5), ``creativeRange``
+        and ``aspects`` (UC-8404).
 
         Args:
             creative_range: REFINE | EXPLORE | REIMAGINE
             aspects: subset of LAYOUT, COLOR_SCHEME, IMAGES, TEXT_FONT, TEXT_CONTENT
         """
+        if not (prompt or "").strip():
+            raise StitchClientError("generate_variants needs a prompt: say what the variants should explore")
+        if not 1 <= int(variant_count) <= 5:
+            raise StitchClientError(f"variant_count must be between 1 and 5, got {variant_count}")
+        options: dict[str, Any] = {"variantCount": int(variant_count), "creativeRange": creative_range}
+        if aspects:
+            options["aspects"] = aspects
         args: dict[str, Any] = {
             "projectId": project_id,
-            "screenId": screen_id,
-            "variantCount": variant_count,
-            "creativeRange": creative_range,
+            "selectedScreenIds": screen_ids_for(screen_ids),
+            "prompt": prompt,
+            "variantOptions": options,
         }
-        if prompt:
-            args["prompt"] = prompt
-        if aspects:
-            args["aspects"] = aspects
+        if device_type:
+            args["deviceType"] = device_type
+        if model_id:
+            args["modelId"] = model_id
         return await self._call_tool("generate_variants", args, timeout=GENERATE_TIMEOUT, generates=True)
 
     # -- Design system (v6.4.0 — native Material 3 chain) --

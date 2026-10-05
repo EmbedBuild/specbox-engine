@@ -363,3 +363,106 @@ class TestMutatorInventory:
         finally:
             await backend.close()
             await _cleanup(pool, atacante, victima)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# US-83 / UC-8301 — las lecturas también exigen ser miembro del proyecto
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Hasta UC-8301 solo las escrituras pasaban por el gate: una sesión del
+# proyecto A leía el board de B con solo nombrar su board_id. Cada entrada es
+# (nombre, callable(backend, board_id_ajeno)) y debe acabar en ForbiddenError
+# sin devolver nada. Las que no tocan la base (constantes del flujo) van en
+# READ_STUBS; cualquier método público con board_id que no sea escritura tiene
+# que estar en una de las dos listas.
+
+READERS = [
+    ("get_board_name", lambda b, p: b.get_board_name(p)),
+    ("list_items", lambda b, p: b.list_items(p)),
+    ("get_item", lambda b, p: b.get_item(p, "US-01")),
+    ("find_item_by_field", lambda b, p: b.find_item_by_field(p, "us_id", "US-01")),
+    ("get_item_children", lambda b, p: b.get_item_children(p, "US-01")),
+    ("get_uc_acceptance", lambda b, p: b.get_uc_acceptance(p, "UC-001")),
+    ("get_acceptance_criteria", lambda b, p: b.get_acceptance_criteria(p, "UC-001")),
+    ("list_epics", lambda b, p: b.list_epics(p)),
+    ("get_comments", lambda b, p: b.get_comments(p, "UC-001")),
+    ("get_attachments", lambda b, p: b.get_attachments(p, "UC-001")),
+    ("get_labels", lambda b, p: b.get_labels(p)),
+    # Atajos heredados del ABC: pasan por list_items.
+    ("find_us_items", lambda b, p: b.find_us_items(p)),
+    ("find_uc_items", lambda b, p: b.find_uc_items(p)),
+]
+
+#: Devuelven constantes del flujo sin consultar la base: nada que aislar.
+READ_STUBS = ["get_state_id", "get_states"]
+
+_PREFIJOS_ESCRITURA = ("create_", "update_", "mark_", "set_", "delete_", "archive_", "add_", "emit_", "ingest_", "purge_")
+
+
+@pytestmark_pg
+class TestReaderInventory:
+    """UC-8301: leer un proyecto ajeno se deniega como escribirlo."""
+
+    @pytest.mark.parametrize("nombre,lectura", READERS, ids=[n for n, _ in READERS])
+    async def test_reader_rejects_cross_tenant_read(self, nombre, lectura):
+        """AC-01/AC-02: denegación sin datos y rastro en la auditoría del proyecto pedido."""
+        from server.coordination.audit import OP_CROSS_TENANT_DENIED
+        from server.coordination.identity import ForbiddenError
+
+        pool = await _pool()
+        atacante = await _seed_tenant(pool, "a")
+        victima = await _seed_tenant(pool, "b")
+        backend = _backend(atacante[0], atacante[2])
+        try:
+            with pytest.raises(ForbiddenError):
+                await lectura(backend, victima[0])
+            async with pool.acquire() as conn:
+                registrado = await conn.fetchval(
+                    "SELECT count(*) FROM audit_log WHERE project_id = $1 AND operation = $2 AND developer_id = $3",
+                    victima[0],
+                    OP_CROSS_TENANT_DENIED,
+                    atacante[1],
+                )
+            assert registrado >= 1, f"{nombre} denegó pero no dejó rastro en la auditoría de la víctima"
+        finally:
+            await backend.close()
+            await _cleanup(pool, atacante, victima)
+
+    async def test_own_board_reads_as_before(self):
+        """AC-02: leer el propio proyecto devuelve lo de siempre."""
+        pool = await _pool()
+        propio = await _seed_tenant(pool, "a")
+        backend = _backend(propio[0], propio[2])
+        try:
+            items = await backend.list_items(propio[0])
+            assert sorted(i.id for i in items if "US" in i.labels or i.meta.get("tipo") == "US") == ["US-01"]
+            assert [c.id for c in await backend.get_acceptance_criteria(propio[0], "UC-001")] == [
+                "AC-01",
+                "AC-02",
+                "AC-03",
+            ]
+            assert [e.id for e in await backend.list_epics(propio[0])] == ["EP-01"]
+            assert (await backend.get_item(propio[0], "US-01")).name == "US victima"
+        finally:
+            await backend.close()
+            await _cleanup(pool, propio)
+
+    async def test_catalog_covers_every_reader(self):
+        """AC-03: una lectura nueva sin clasificar hace fallar esta prueba."""
+        import inspect
+
+        from server.backends.native_backend import NativeBackend
+
+        descubiertos = {
+            nombre
+            for nombre, miembro in inspect.getmembers(NativeBackend, inspect.isfunction)
+            if not nombre.startswith("_")
+            and not nombre.startswith(_PREFIJOS_ESCRITURA)
+            and "board_id" in inspect.signature(miembro).parameters
+        }
+        catalogados = {n for n, _ in READERS} | set(READ_STUBS)
+        sin_clasificar = descubiertos - catalogados
+        assert not sin_clasificar, (
+            f"lecturas con board_id fuera del inventario: {sorted(sin_clasificar)}. "
+            "Añádelas a READERS (si consultan la base) o a READ_STUBS (si no)."
+        )

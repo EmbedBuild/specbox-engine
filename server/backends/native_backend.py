@@ -325,6 +325,17 @@ class NativeBackend(SpecBackend):
                     pass
                 raise
 
+    async def _require_read_access(self, board_id: str) -> None:
+        """Reading a board takes membership of THAT board too (US-83 / UC-8301).
+
+        Until UC-8301 only writes went through the gate (US-34): a reader passed
+        the ``board_id`` the client sent straight to SQL, so a session of
+        project A read project B's stories, criteria, comments and epics just by
+        naming B. Same crossing point, same gate, same audit row
+        (``cross_tenant_denied``) against the project that was asked for.
+        """
+        await self._require_membership_cached(board_id)
+
     # ── Row -> DTO mapping ───────────────────────────────────────
 
     def _us_row_to_dto(self, row: asyncpg.Record) -> ItemDTO:
@@ -469,6 +480,7 @@ class NativeBackend(SpecBackend):
         )
 
     async def get_board_name(self, board_id: str) -> str:
+        await self._require_read_access(board_id)
         pool = await self._pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -480,6 +492,7 @@ class NativeBackend(SpecBackend):
     # ── SpecBackend: Items (CRUD) ────────────────────────────────
 
     async def list_items(self, board_id: str) -> list[ItemDTO]:
+        await self._require_read_access(board_id)
         pool = await self._pool()
         async with pool.acquire() as conn:
             us_rows = await conn.fetch(
@@ -501,6 +514,7 @@ class NativeBackend(SpecBackend):
         return items
 
     async def get_item(self, board_id: str, item_id: str) -> ItemDTO:
+        await self._require_read_access(board_id)
         pool = await self._pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -1119,6 +1133,7 @@ class NativeBackend(SpecBackend):
             raise StaleVersionError(item_id, expected, actual)
 
     async def find_item_by_field(self, board_id: str, field_name: str, value: str) -> ItemDTO | None:
+        await self._require_read_access(board_id)
         # us_id / uc_id / ac_id resolve directly to the primary key (id) of the
         # respective table. Other fields fall back to a meta scan over list_items.
         if field_name == "us_id":
@@ -1160,6 +1175,7 @@ class NativeBackend(SpecBackend):
         return None
 
     async def get_item_children(self, board_id: str, parent_id: str) -> list[ItemDTO]:
+        await self._require_read_access(board_id)
         pool = await self._pool()
         async with pool.acquire() as conn:
             # Children of a US are UCs; children of a UC are ACs.
@@ -1182,6 +1198,7 @@ class NativeBackend(SpecBackend):
 
     async def get_uc_acceptance(self, board_id: str, uc_item_id: str) -> dict[str, Any] | None:
         """La aceptación humana de la UC (US-76 · UC-7601). Solo lectura: la escribe el panel."""
+        await self._require_read_access(board_id)
         pool = await self._pool()
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -1201,6 +1218,7 @@ class NativeBackend(SpecBackend):
         }
 
     async def get_acceptance_criteria(self, board_id: str, uc_item_id: str) -> list[ChecklistItemDTO]:
+        await self._require_read_access(board_id)
         pool = await self._pool()
         async with pool.acquire() as conn:
             rows = await conn.fetch(
@@ -1746,6 +1764,7 @@ class NativeBackend(SpecBackend):
         )
 
     async def list_epics(self, board_id: str) -> list[EpicDTO]:
+        await self._require_read_access(board_id)
         pool = await self._pool()
         async with pool.acquire() as conn:
             rows = await conn.fetch(
@@ -1970,6 +1989,7 @@ class NativeBackend(SpecBackend):
         return CommentDTO(id="", text=text, created_at=created_at, author="native")
 
     async def get_comments(self, board_id: str, item_id: str) -> list[CommentDTO]:
+        await self._require_read_access(board_id)
         pool = await self._pool()
         async with pool.acquire() as conn:
             table = await self._locate_table_any(conn, board_id, item_id)
@@ -2060,6 +2080,7 @@ class NativeBackend(SpecBackend):
         )
 
     async def get_attachments(self, board_id: str, item_id: str) -> list[AttachmentDTO]:
+        await self._require_read_access(board_id)
         pool = await self._pool()
         async with pool.acquire() as conn:
             table = await self._locate_table_any(conn, board_id, item_id)
@@ -2123,6 +2144,7 @@ class NativeBackend(SpecBackend):
         return {"name": name, "id": name, "color": color}
 
     async def get_labels(self, board_id: str) -> list[dict[str, str]]:
+        await self._require_read_access(board_id)
         pool = await self._pool()
         async with pool.acquire() as conn:
             raw = await conn.fetchval(

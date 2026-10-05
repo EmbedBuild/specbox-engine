@@ -2114,6 +2114,25 @@ descripciones de clientes, importes, NDA, URLs de repos y rutas locales) a cualq
   spool del registro de accesos no es "estado" y sobrevive al reinicio global.
 - Tests: `tests/test_state_reset_operator.py`.
 
+## Leer un proyecto exige ser su miembro (US-83 · UC-8301)
+
+Hasta UC-8301 solo las escrituras native pasaban por el gate de membresía (US-34): una lectura
+llevaba a SQL el `board_id` que mandaba el cliente, así que una sesión del proyecto A leía las
+historias, criterios, comentarios y épicas de B con solo nombrarlo. Hallado y reproducido el
+2026-10-05 al preparar las tools de épicas.
+
+- `NativeBackend._require_read_access(board_id)` = `_require_membership_cached(board_id)`: mismo
+  punto de cruce, misma caché de 30 s y misma fila `cross_tenant_denied` en la auditoría del
+  proyecto pedido. Lo llaman `get_board_name`, `list_items`, `get_item`, `find_item_by_field`,
+  `get_item_children`, `get_uc_acceptance`, `get_acceptance_criteria`, `list_epics`,
+  `get_comments`, `get_attachments` y `get_labels` (y los atajos `find_us_items`/`find_uc_items`).
+  `get_state_id` y `get_states` devuelven constantes y no consultan la base.
+- Cambia UC-502 AC-06: un token revocado ya no lee el board (el transporte ya lo rechazaba
+  antes de cualquier tool desde UC-3901).
+- Tests: `tests/test_tenant_isolation.py` — `TestReaderInventory` prueba cada lectura desde
+  otro proyecto y `test_catalog_covers_every_reader` falla si aparece una lectura nueva sin
+  clasificar (como el inventario de mutadores).
+
 ## El esquema del board solo es legible por quien tiene permiso (US-40)
 
 US-40 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) versiona y completa

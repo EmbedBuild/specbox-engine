@@ -355,7 +355,7 @@ mcp__stitch__generate_screen_from_text(
   projectId: "{stitch_project_id}",
   prompt: "{prompt_adaptado_arquetipo}",
   deviceType: "DESKTOP",
-  modelId: "GEMINI_3_PRO"
+  modelId: "GEMINI_3_8_FLASH"
 )
 ```
 

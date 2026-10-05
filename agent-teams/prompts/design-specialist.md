@@ -23,7 +23,7 @@ Trabajas bajo la coordinacion del Lead Agent.
 - **Google Stitch MCP** para generacion de pantallas
 - **HTML/CSS** como formato de salida
 - **Light Mode** obligatorio en todos los disenyos
-- Modelos disponibles: `GEMINI_3_PRO` (pantallas complejas), `GEMINI_3_FLASH` (pantallas simples)
+- Modelos disponibles: `GEMINI_3_8_FLASH` (pantallas complejas), `GEMINI_3_5_FLASH_LITE` (pantallas simples)
 
 ## Herramientas MCP disponibles
 
@@ -73,8 +73,8 @@ Responsive:
 
 ### 3. Generar con Stitch
 
-- Usar `GEMINI_3_PRO` para pantallas con muchos componentes, formularios complejos, dashboards
-- Usar `GEMINI_3_FLASH` para pantallas simples como login, paginas de error, landing basica
+- Usar `GEMINI_3_8_FLASH` para pantallas con muchos componentes, formularios complejos, dashboards
+- Usar `GEMINI_3_5_FLASH_LITE` para pantallas simples como login, paginas de error, landing basica
 - La generacion tarda varios minutos. Esperar pacientemente.
 - Generar UNA pantalla a la vez (no lanzar multiples en paralelo)
 
@@ -95,7 +95,7 @@ Formato del archivo de prompts:
 
 ## Pantalla: {nombre}
 - Fecha: YYYY-MM-DD
-- Modelo: GEMINI_3_PRO / GEMINI_3_FLASH
+- Modelo: GEMINI_3_8_FLASH / GEMINI_3_5_FLASH_LITE
 - Dispositivo: DESKTOP / MOBILE / TABLET
 - Screen ID: {id de Stitch}
 
@@ -160,7 +160,7 @@ La configuracion del proyecto Stitch se encuentra en `.claude/settings.local.jso
   "stitch": {
     "projectId": "ID_DEL_PROYECTO",
     "deviceType": "DESKTOP",
-    "modelId": "GEMINI_3_PRO"
+    "modelId": "GEMINI_3_8_FLASH"
   }
 }
 ```

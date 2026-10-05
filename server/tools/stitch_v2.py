@@ -37,6 +37,7 @@ from ..design_system import (
     parse_system_tokens,
     system_tokens_notice,
 )
+from ..stitch_enums import DEFAULT_MODEL, UnknownModelError, resolve_model
 from ..transport import is_remote_transport
 from ..stitch_orchestration import (
     FallbackOutcome,
@@ -429,7 +430,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
         stitch_project_id: str,
         prompt: str,
         device_type: str = "DESKTOP",
-        model_id: str = "GEMINI_3_PRO",
+        model_id: str = DEFAULT_MODEL,
         baseline_screen_id: str | None = None,
         max_total_attempts: int = 3,
         contract: str = "native_v2",
@@ -445,8 +446,12 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
             stitch_project_id: Target Stitch project ID.
             prompt: The generation prompt (already validated upstream).
             device_type: DESKTOP|MOBILE|TABLET.
-            model_id: Stitch model. Default GEMINI_3_PRO (per user
-                preference for quality).
+            model_id: Stitch model: GEMINI_3_8_FLASH (default, quality
+                first) or GEMINI_3_5_FLASH_LITE (simple screens). A legacy
+                id (GEMINI_3_PRO, GEMINI_3_FLASH, GEMINI_3_1_PRO) is
+                translated and reported in ``model_notice``; any other is
+                rejected before calling Stitch. The fallback ladder uses
+                GEMINI_3_5_FLASH_LITE.
             baseline_screen_id: If a previous screen exists for this
                 spot, supply its ID — it unlocks the EDIT_BASELINE and
                 VARIANTS_REFINE strategies. Without it, the chain
@@ -485,6 +490,11 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
             }
 
         try:
+            model, model_notice = resolve_model(model_id)
+        except UnknownModelError as exc:
+            return {"error": str(exc), "project": project}
+
+        try:
             client = await _v2_get_client(ctx, project, state_path)
 
             # Resolve effective prompt + mode based on contract & DS state.
@@ -502,7 +512,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 stitch_project_id,
                 effective_prompt,
                 device_type=device_type,
-                model_id=model_id,
+                model_id=model,
                 baseline_screen_id=baseline_screen_id,
                 max_total_attempts=max_total_attempts,
             )
@@ -533,6 +543,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 "contract": contract,
                 "prompt_mode": prompt_mode,
                 "design_system_info": ds_info,
+                **({"model_notice": model_notice} if model_notice else {}),
                 **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
             }
         except Exception as exc:
@@ -745,7 +756,7 @@ class _StitchOpsAdapter:
         self._client = client
 
     async def generate_screen(
-        self, project_id, prompt, *, device_type="DESKTOP", model_id="GEMINI_3_PRO"
+        self, project_id, prompt, *, device_type="DESKTOP", model_id=DEFAULT_MODEL
     ):
         return await self._client.generate_screen_from_text(
             project_id, prompt, device_type=device_type, model_id=model_id

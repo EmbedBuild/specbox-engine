@@ -1,7 +1,7 @@
 {
   "_comment": "Stitch prompts for /stripe-standard. The skill loops through these and calls mcp__stitch__generate_screen_from_text per screen. Each entry has: screen_name, file (relative to doc/design/stripe_standard/), modes_required (list — generated only if at least one is active), prompt template with placeholders {project_name}, {brand_primary}, {brand_font}, {currency}.",
   "device_default": "DESKTOP",
-  "model_default": "GEMINI_3_PRO",
+  "model_default": "GEMINI_3_8_FLASH",
   "screens": [
     {
       "screen_name": "Pricing / Paywall",

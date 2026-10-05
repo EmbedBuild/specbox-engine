@@ -19,6 +19,7 @@ from fastmcp import Context, FastMCP
 from ..auth_gateway import get_stitch_client, store_stitch_credentials
 from ..coordination.i18n_messages import extract_locale_from_ctx
 from ..design_system import candidate_marker
+from ..stitch_enums import DEFAULT_MODEL, UnknownModelError, resolve_model
 
 logger = structlog.get_logger(__name__)
 
@@ -238,7 +239,7 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
         stitch_project_id: str,
         prompt: str,
         device_type: str = "DESKTOP",
-        model_id: str = "GEMINI_3_PRO",
+        model_id: str = DEFAULT_MODEL,
     ) -> dict:
         """Generate a UI screen from a text prompt using Google Stitch.
 
@@ -252,11 +253,18 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
             stitch_project_id: The Stitch project ID to create the screen in.
             prompt: Text description of the UI to generate.
             device_type: Target device — "DESKTOP", "MOBILE", or "TABLET".
-            model_id: AI model — "GEMINI_3_PRO" (complex) or "GEMINI_3_FLASH" (simple).
+            model_id: "GEMINI_3_8_FLASH" (default, quality first) or
+                "GEMINI_3_5_FLASH_LITE" (simple screens). A legacy id
+                (GEMINI_3_PRO, GEMINI_3_FLASH, GEMINI_3_1_PRO) is translated
+                and reported in ``model_notice``.
 
         Returns:
             Generated screen details including ID and HTML content.
         """
+        try:
+            model, model_notice = resolve_model(model_id)
+        except UnknownModelError as exc:
+            return {"error": str(exc), "project": project}
         try:
             client = await _get_client_for_project(ctx, project)
             logger.info(
@@ -264,19 +272,21 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
                 project=project,
                 stitch_project=stitch_project_id,
                 device_type=device_type,
-                model_id=model_id,
+                model_id=model,
             )
             result = await client.generate_screen_from_text(
                 stitch_project_id,
                 prompt,
                 device_type=device_type,
-                model_id=model_id,
+                model_id=model,
             )
             _log_stitch_usage(project, "generate_screen")
             logger.info("stitch_generate_screen_complete", project=project)
             return {
                 "status": "ok",
                 "project": project,
+                "model_used": model,
+                **({"model_notice": model_notice} if model_notice else {}),
                 "result": result,
                 **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
             }
@@ -309,11 +319,17 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
             screen_id: The screen ID to edit.
             prompt: Text description of the changes to make.
             device_type: Optional — "DESKTOP", "MOBILE", "TABLET", or "AGNOSTIC".
-            model_id: Optional — "GEMINI_3_PRO" or "GEMINI_3_FLASH".
+            model_id: "GEMINI_3_8_FLASH" when empty (quality first) or
+                "GEMINI_3_5_FLASH_LITE"; a legacy id is translated and
+                reported in ``model_notice``.
 
         Returns:
             Updated screen details.
         """
+        try:
+            model, model_notice = resolve_model(model_id)
+        except UnknownModelError as exc:
+            return {"error": str(exc), "project": project}
         try:
             client = await _get_client_for_project(ctx, project)
             logger.info(
@@ -326,13 +342,15 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
                 screen_id,
                 prompt,
                 device_type=device_type or None,
-                model_id=model_id or None,
+                model_id=model,
             )
             _log_stitch_usage(project, "edit_screens")
             logger.info("stitch_edit_screen_complete", project=project)
             return {
                 "status": "ok",
                 "project": project,
+                "model_used": model,
+                **({"model_notice": model_notice} if model_notice else {}),
                 "result": result,
                 **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
             }

@@ -207,7 +207,7 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ### Google Stitch (si aplica UI)
 - Project ID: {STITCH_PROJECT_ID}
 - Device: {DESKTOP|MOBILE}
-- Model: GEMINI_3_PRO
+- Model: GEMINI_3_8_FLASH
 - Diseños en: doc/design/{feature}/
 
 ## Comandos Disponibles

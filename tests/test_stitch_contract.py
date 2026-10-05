@@ -58,10 +58,7 @@ CASES = [
         "fetch_screen_image", ("123", "abc"), {}, id="fetch_screen_image",
         marks=_known_break("UC-8406", "fetch_screen_image is not a Stitch tool"),
     ),
-    pytest.param(
-        "generate_screen_from_text", ("123", "A login page in light mode"), {}, id="generate_screen_from_text",
-        marks=_known_break("UC-8405", "the default modelId GEMINI_3_PRO is no longer accepted"),
-    ),
+    pytest.param("generate_screen_from_text", ("123", "A login page in light mode"), {}, id="generate_screen_from_text"),
     pytest.param(
         "edit_screens", ("123", "abc", "Make the button blue"), {}, id="edit_screens",
         marks=_known_break("UC-8404", "sends screenId; the API asks for selectedScreenIds"),

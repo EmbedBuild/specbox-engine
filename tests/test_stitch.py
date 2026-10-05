@@ -109,14 +109,14 @@ class TestStitchClientPayload:
             "proj1",
             "A login page with light mode",
             device_type="MOBILE",
-            model_id="GEMINI_3_FLASH",
+            model_id="GEMINI_3_5_FLASH_LITE",
         )
         body = json.loads(route.calls[0].request.content)
         args = body["params"]["arguments"]
         assert args["projectId"] == "proj1"
         assert args["prompt"] == "A login page with light mode"
         assert args["deviceType"] == "MOBILE"
-        assert args["modelId"] == "GEMINI_3_FLASH"
+        assert args["modelId"] == "GEMINI_3_5_FLASH_LITE"
         assert result["screenId"] == "s1"
         await stitch_client.close()
 

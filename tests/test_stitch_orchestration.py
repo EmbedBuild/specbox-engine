@@ -47,7 +47,7 @@ class FakeOps:
         return nxt
 
     async def generate_screen(
-        self, project_id, prompt, *, device_type="DESKTOP", model_id="GEMINI_3_PRO"
+        self, project_id, prompt, *, device_type="DESKTOP", model_id="GEMINI_3_8_FLASH"
     ):
         return self._consume(
             "generate_screen",

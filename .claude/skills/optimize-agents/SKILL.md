@@ -979,7 +979,7 @@ Si no existe `.claude/settings.json`, crearlo. Si existe, añadir:
           "Save HTML outputs to doc/design/{feature}/",
           "Register prompts in doc/design/{feature}/{feature}_stitch_prompts.md",
           "ALWAYS use Light Mode in Stitch prompts",
-          "Use GEMINI_3_PRO for complex screens, GEMINI_3_FLASH for simple ones",
+          "Use GEMINI_3_8_FLASH for complex screens, GEMINI_3_5_FLASH_LITE for simple ones",
           "Generate ONE screen at a time (API takes minutes per screen)"
         ],
         "fileOwnership": ["doc/design/"],

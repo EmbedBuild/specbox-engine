@@ -13,6 +13,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Protocol
 
+from ..stitch_enums import DEFAULT_MODEL
+
 
 # ── Inputs ──────────────────────────────────────────────────────────────
 
@@ -125,7 +127,7 @@ class BuildOps(Protocol):
         prompt: str,
         *,
         device_type: str = "DESKTOP",
-        model_id: str = "GEMINI_3_PRO",
+        model_id: str = DEFAULT_MODEL,
     ) -> Any: ...
 
 
@@ -157,7 +159,7 @@ async def build_site_batched(
         "Preserve content and layout of each screen."
     ),
     device_type: str = "DESKTOP",
-    model_id: str = "GEMINI_3_PRO",
+    model_id: str = DEFAULT_MODEL,
 ) -> dict:
     """Run ``ops.build_site`` in batches and apply a final unifying pass.
 
@@ -212,7 +214,7 @@ async def build_site_batched(
             started = time.time()
             try:
                 await ops.edit_screens(
-                    project_id, screen_id, unified_theme_prompt
+                    project_id, screen_id, unified_theme_prompt, model_id=model_id
                 )
                 unified.append(
                     {

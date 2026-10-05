@@ -764,7 +764,7 @@ Proxy completo de Google Stitch a través del SpecBox Engine MCP server. Permite
 Los enums se mantienen en `server/stitch_enums.py` y se pinnean en CI contra `mcp_tools_schema.json` para detectar drift cuando Google actualice el servidor.
 
 - **DeviceType**: `DESKTOP`, `MOBILE`, `TABLET` — el `AGNOSTIC` que aparecía en docs históricas **no existe** en el MCP real.
-- **ModelId**: `GEMINI_3_PRO` (calidad, default) / `GEMINI_3_FLASH` (rápido).
+- **ModelId** (UC-8405): `GEMINI_3_8_FLASH` (calidad, default) / `GEMINI_3_5_FLASH_LITE` (pantallas simples y cadena de respaldo). Desde 2026-10 la API solo acepta estos dos; `resolve_model` traduce un `modelId` antiguo de la configuración (`GEMINI_3_PRO`, `GEMINI_3_1_PRO` → `GEMINI_3_8_FLASH`; `GEMINI_3_FLASH` → `GEMINI_3_5_FLASH_LITE`) y lo avisa en `model_notice`; cualquier otro se rechaza antes de llamar a Stitch.
 - **ColorMode**: `LIGHT`, `DARK`.
 - **ColorVariant** (10): `FIDELITY`, `TONAL_SPOT` (no `TONAL` como dicen las docs), `VIBRANT`, `EXPRESSIVE`, `CONTENT`, `MONOCHROME`, `NEUTRAL`, `RAINBOW`, `FRUIT_SALAD` (+ UNSPECIFIED).
 - **Roundness**: `ROUND_TWO`, `ROUND_FOUR`, `ROUND_EIGHT`, `ROUND_TWELVE`, `ROUND_FULL` (+ UNSPECIFIED). `ROUND_TWO` no aparece en docs públicas.
@@ -830,9 +830,11 @@ adaptación de `/plan` y `stitch_generate_screen_v2` para usar la chain nativa
 y omitir tokens del prompt cuando DS está aplicado se entrega en una **PR-2
 posterior** (UC-705 del PRD `stitch_native_migration_prd.md`).
 
-**Decisión de calidad**: el modelo default sigue siendo `GEMINI_3_PRO`. Flash
-como safety-net **fue eliminado en v6.4.0** — degradar a Flash era defensivo
-para una cuota inexistente.
+**Decisión de calidad**: el modelo default es `GEMINI_3_8_FLASH`, el mejor que
+acepta Stitch desde 2026-10 (ya no hay modelo Pro). La cadena de respaldo
+reintenta con `GEMINI_3_5_FLASH_LITE` y lo marca `degraded` con
+`degraded_reason: fallback_model` (UC-8405). El safety-net de Flash por cuota
+**fue eliminado en v6.4.0** — degradar por una cuota inexistente no tenía sentido.
 
 ### 5 capas (todas aditivas, v1 sigue funcionando)
 
@@ -884,7 +886,7 @@ para una cuota inexistente.
 ```json
 {
   "stitch": {
-    "modelId": "GEMINI_3_PRO",
+    "modelId": "GEMINI_3_8_FLASH",
     "contract": "native_v2",
     "fallback": {
       "enabled": true,

@@ -4,7 +4,7 @@ title: <Título técnico y accionable>
 parent_us: US-NN
 status: draft         # draft | ready | in-progress | review | done | blocked | wontdo
 actor: <actor principal>
-milestone: <M1 | M2 | M3 | M4 | M5>
+satellite: <repo donde va el código, si el proyecto es multi-repo>
 hours: <estimación>
 screens: <pantallas de diseño asociadas o vacío si es de Sistema>
 design: missing       # covered | missing | pending | n/a

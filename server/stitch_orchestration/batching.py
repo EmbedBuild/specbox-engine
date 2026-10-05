@@ -1,10 +1,11 @@
 """Multi-screen build orchestration with batching and unified theme pass.
 
-Stitch's ``build_site`` is reliable up to about 5 connected screens per
-call (community-reported). Beyond that, the call either fails outright
-or returns inconsistent geometry. This module partitions screens into
-groups of ≤``batch_size`` and applies a final ``edit_screens`` pass that
-unifies the theme across all generated screens.
+Stitch has no ``build_site`` tool: each screen is generated with
+``generate_screen_from_text``, batch by batch (groups of ≤``batch_size``
+by explicit group, route prefix or order), and a final ``edit_screens``
+call over every generated screen unifies the theme (UC-8504). Until
+UC-8504 this module called ``ops.build_site``, which the client adapter
+never had, so every batch failed while the tool answered ``status: ok``.
 """
 
 from __future__ import annotations
@@ -107,20 +108,6 @@ def _route_prefix(route: str) -> str:
 class BuildOps(Protocol):
     """The minimal operations the batched build needs."""
 
-    async def build_site(
-        self, project_id: str, routes: list[dict[str, str]]
-    ) -> Any: ...
-
-    async def edit_screens(
-        self,
-        project_id: str,
-        screen_id: str,
-        prompt: str,
-        *,
-        device_type: str | None = None,
-        model_id: str | None = None,
-    ) -> Any: ...
-
     async def generate_screen(
         self,
         project_id: str,
@@ -129,6 +116,28 @@ class BuildOps(Protocol):
         device_type: str = "DESKTOP",
         model_id: str = DEFAULT_MODEL,
     ) -> Any: ...
+
+    async def edit_screens(
+        self,
+        project_id: str,
+        screen_id: str | list[str],
+        prompt: str,
+        *,
+        device_type: str | None = None,
+        model_id: str | None = None,
+    ) -> Any: ...
+
+
+def generated_screen_ids(result: Any) -> list[str]:
+    """Bare ids of the screens a generate/edit answer created."""
+    ids: list[str] = []
+    components = result.get("outputComponents") or [] if isinstance(result, dict) else []
+    for comp in components:
+        for screen in (comp.get("design") or {}).get("screens") or []:
+            name = screen.get("id") or screen.get("name") or ""
+            if name:
+                ids.append(name.rsplit("/screens/", 1)[-1])
+    return ids
 
 
 # ── Plan + execute ─────────────────────────────────────────────────────
@@ -161,9 +170,16 @@ async def build_site_batched(
     device_type: str = "DESKTOP",
     model_id: str = DEFAULT_MODEL,
 ) -> dict:
-    """Run ``ops.build_site`` in batches and apply a final unifying pass.
+    """Generate every screen, batch by batch, and unify the theme at the end.
 
-    Returns ``{batches, unified_pass, total_screens}``.
+    Each spec is one ``generate_screen`` call (Stitch has no ``build_site``).
+    A failed screen is recorded with its error and the build goes on; the
+    batch is ``ok`` only if all its screens were generated. The unifying
+    pass is one ``edit_screens`` over every generated screen
+    (``selectedScreenIds``).
+
+    Returns ``{batches, failed_screens, generated_screen_ids, unified_pass,
+    unified_pass_applied, total_screens, total_batches}``.
     """
 
     plan = plan_build(
@@ -171,72 +187,65 @@ async def build_site_batched(
     )
     batch_results: list[BatchResult] = []
     all_screen_ids: list[str] = []
+    failed: list[dict] = []
 
     for i, batch in enumerate(plan.batches):
         started = time.time()
-        try:
-            routes_payload = [
-                {"screenId": s.name, "route": s.route, "prompt": s.prompt}
-                for s in batch
-            ]
-            res = await ops.build_site(project_id, routes_payload)
-            batch_results.append(
-                BatchResult(
-                    index=i,
-                    screens=[s.name for s in batch],
-                    duration_s=round(time.time() - started, 3),
-                    status="ok",
-                    result=res,
-                )
-            )
-            # Best-effort: pull screen ids from the result if present.
-            for s in batch:
-                all_screen_ids.append(s.name)
-        except BaseException as exc:  # noqa: BLE001 — orchestration boundary
-            batch_results.append(
-                BatchResult(
-                    index=i,
-                    screens=[s.name for s in batch],
-                    duration_s=round(time.time() - started, 3),
-                    status="error",
-                    error=str(exc),
-                )
-            )
-
-    # Optional unifying pass: edit_screens on the first generated screen
-    # with a multi-target hint. The native multi-select is not exposed
-    # in the current MCP surface, so we approximate by editing each
-    # screen individually with the same prompt — still strictly cheaper
-    # than regenerating from scratch, and produces a consistent result.
-    unified: list[dict] = []
-    if plan.unified_pass_planned and any(b.status == "ok" for b in batch_results):
-        for screen_id in all_screen_ids:
-            started = time.time()
+        screens: list[dict] = []
+        for spec in batch:
             try:
-                await ops.edit_screens(
-                    project_id, screen_id, unified_theme_prompt, model_id=model_id
+                res = await ops.generate_screen(
+                    project_id, spec.prompt, device_type=device_type, model_id=model_id
                 )
-                unified.append(
-                    {
-                        "screen_id": screen_id,
-                        "status": "ok",
-                        "duration_s": round(time.time() - started, 3),
-                    }
-                )
-            except BaseException as exc:  # noqa: BLE001
-                unified.append(
-                    {
-                        "screen_id": screen_id,
-                        "status": "error",
-                        "duration_s": round(time.time() - started, 3),
-                        "error": str(exc),
-                    }
-                )
+                ids = generated_screen_ids(res)
+                all_screen_ids.extend(ids)
+                screens.append({"name": spec.name, "status": "ok", "screen_ids": ids})
+            except BaseException as exc:  # noqa: BLE001 — orchestration boundary
+                entry = {"name": spec.name, "status": "error", "error": str(exc)}
+                screens.append(entry)
+                failed.append(entry)
+        errors = [s for s in screens if s["status"] == "error"]
+        batch_results.append(
+            BatchResult(
+                index=i,
+                screens=[s.name for s in batch],
+                duration_s=round(time.time() - started, 3),
+                status="ok" if not errors else "error",
+                error="; ".join(f"{s['name']}: {s['error']}" for s in errors) or None,
+                result=screens,
+            )
+        )
+
+    unified: list[dict] = []
+    if plan.unified_pass_planned and len(all_screen_ids) > 1:
+        started = time.time()
+        try:
+            await ops.edit_screens(
+                project_id, list(all_screen_ids), unified_theme_prompt, model_id=model_id
+            )
+            unified.append(
+                {
+                    "screen_ids": list(all_screen_ids),
+                    "status": "ok",
+                    "duration_s": round(time.time() - started, 3),
+                }
+            )
+        except BaseException as exc:  # noqa: BLE001
+            unified.append(
+                {
+                    "screen_ids": list(all_screen_ids),
+                    "status": "error",
+                    "duration_s": round(time.time() - started, 3),
+                    "error": str(exc),
+                }
+            )
 
     return {
         "batches": [_batch_to_dict(b) for b in batch_results],
+        "failed_screens": failed,
+        "generated_screen_ids": all_screen_ids,
         "unified_pass": unified,
-        "unified_pass_applied": bool(unified),
+        "unified_pass_applied": any(u["status"] == "ok" for u in unified),
         "total_screens": len(specs),
         "total_batches": len(plan.batches),
     }
@@ -249,4 +258,5 @@ def _batch_to_dict(b: BatchResult) -> dict:
         "duration_s": b.duration_s,
         "status": b.status,
         "error": b.error,
+        "results": b.result,
     }

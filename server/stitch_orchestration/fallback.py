@@ -182,9 +182,10 @@ async def generate_screen_with_fallback(
             result=primary,
         )
 
-    # Fall back through the ladder.
+    # Fall back through the ladder — unless Stitch may still be generating:
+    # asking again would create the same screen twice (UC-8503).
     for strat in strategies:
-        if len(attempts) >= max_total_attempts:
+        if len(attempts) >= max_total_attempts or attempts[-1].get("may_still_complete"):
             break
         # Skip baseline-dependent strategies if no baseline.
         if strat in (FallbackStrategy.EDIT_BASELINE, FallbackStrategy.VARIANTS_REFINE):
@@ -277,6 +278,8 @@ async def _run_strategy(
         entry["error"] = str(exc)
         entry["error_type"] = type(exc).__name__
         entry["error_class"] = classify_error(exc)
+        if getattr(exc, "may_still_complete", False):
+            entry["may_still_complete"] = True
         entry["duration_s"] = round(time.time() - started_at, 3)
         attempts.append(entry)
         return None

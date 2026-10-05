@@ -81,6 +81,20 @@ class StitchClientError(Exception):
         self.data = data
 
 
+class StitchTimeoutError(StitchClientError):
+    """Stitch did not answer in time.
+
+    For a generation (``may_still_complete``) the work goes on server-side:
+    asking again can create the same screen twice (UC-8503).
+    """
+
+    may_still_complete = False
+
+    def __init__(self, message: str, *, may_still_complete: bool = False):
+        super().__init__(message)
+        self.may_still_complete = may_still_complete
+
+
 # The theme fields the API marks as required (tools/list, 2026-10-05).
 REQUIRED_THEME_FIELDS = ("colorMode", "headlineFont", "bodyFont", "roundness", "customColor")
 
@@ -143,10 +157,17 @@ class StitchClient:
         arguments: dict[str, Any] | None = None,
         *,
         timeout: float = DEFAULT_TIMEOUT,
+        generates: bool = False,
     ) -> Any:
         """Call a tool on the Stitch MCP endpoint via JSON-RPC.
 
         Uses MCP Streamable HTTP transport: POST with JSON-RPC 2.0 body.
+
+        ``timeout`` applies to this request whatever the connection was
+        opened with. ``generates`` marks a call that creates screens
+        (generate, edit, variants): Stitch asks not to repeat those
+        («DO NOT RETRY»), so they get one attempt and a timeout says the
+        screen may still appear (UC-8503).
         """
         request_id = str(uuid.uuid4())
         payload = {
@@ -160,13 +181,15 @@ class StitchClient:
         }
 
         last_exc: Exception | None = None
+        attempts = 1 if generates else RETRY_MAX_ATTEMPTS
+        request_timeout = httpx.Timeout(timeout, connect=10.0)
 
-        for attempt in range(RETRY_MAX_ATTEMPTS):
+        for attempt in range(attempts):
             try:
                 client = await self._get_client(timeout=timeout)
-                resp = await client.post(self.base_url, json=payload)
+                resp = await client.post(self.base_url, json=payload, timeout=request_timeout)
 
-                if resp.status_code in RETRYABLE_STATUS_CODES:
+                if resp.status_code in RETRYABLE_STATUS_CODES and attempt < attempts - 1:
                     delay = min(
                         RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 1),
                         RETRY_MAX_DELAY,
@@ -202,7 +225,7 @@ class StitchClient:
 
             except httpx.HTTPStatusError as exc:
                 last_exc = exc
-                if exc.response.status_code in RETRYABLE_STATUS_CODES:
+                if exc.response.status_code in RETRYABLE_STATUS_CODES and attempt < attempts - 1:
                     delay = min(
                         RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 1),
                         RETRY_MAX_DELAY,
@@ -221,7 +244,15 @@ class StitchClient:
 
             except httpx.TimeoutException as exc:
                 last_exc = exc
-                if attempt < RETRY_MAX_ATTEMPTS - 1:
+                if generates:
+                    raise StitchTimeoutError(
+                        f"Stitch did not answer within {timeout:.0f}s for {tool_name}. "
+                        "The screen may still be generated: check list_screens (or get_screen) "
+                        "in a few minutes before asking again — repeating the request can "
+                        "create the same screen twice.",
+                        may_still_complete=True,
+                    ) from exc
+                if attempt < attempts - 1:
                     delay = min(
                         RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 1),
                         RETRY_MAX_DELAY,
@@ -234,13 +265,13 @@ class StitchClient:
                     )
                     await asyncio.sleep(delay)
                     continue
-                raise StitchClientError(
-                    f"Stitch request timed out after {timeout}s for tool {tool_name}"
+                raise StitchTimeoutError(
+                    f"Stitch request timed out after {timeout:.0f}s for tool {tool_name}"
                 ) from exc
 
             except (httpx.RequestError, OSError) as exc:
                 last_exc = exc
-                if attempt < RETRY_MAX_ATTEMPTS - 1:
+                if attempt < attempts - 1:
                     delay = min(
                         RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 1),
                         RETRY_MAX_DELAY,
@@ -252,7 +283,7 @@ class StitchClient:
                 ) from exc
 
         raise StitchClientError(
-            f"Failed after {RETRY_MAX_ATTEMPTS} attempts for tool {tool_name}"
+            f"Failed after {attempts} attempts for tool {tool_name}"
         ) from last_exc
 
     def _parse_sse_response(self, body: str, request_id: str) -> Any:
@@ -383,6 +414,7 @@ class StitchClient:
                 "modelId": model_id,
             },
             timeout=GENERATE_TIMEOUT,
+            generates=True,
         )
 
     async def edit_screens(
@@ -404,7 +436,7 @@ class StitchClient:
             args["deviceType"] = device_type
         if model_id:
             args["modelId"] = model_id
-        return await self._call_tool("edit_screens", args, timeout=GENERATE_TIMEOUT)
+        return await self._call_tool("edit_screens", args, timeout=GENERATE_TIMEOUT, generates=True)
 
     async def generate_variants(
         self,
@@ -432,7 +464,7 @@ class StitchClient:
             args["prompt"] = prompt
         if aspects:
             args["aspects"] = aspects
-        return await self._call_tool("generate_variants", args, timeout=GENERATE_TIMEOUT)
+        return await self._call_tool("generate_variants", args, timeout=GENERATE_TIMEOUT, generates=True)
 
     # -- Design system (v6.4.0 — native Material 3 chain) --
 

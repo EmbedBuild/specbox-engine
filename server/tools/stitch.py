@@ -208,17 +208,19 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
         stitch_project_id: str,
         screen_id: str,
     ) -> dict:
-        """Get the full HTML of a specific Stitch screen.
+        """Get a Stitch screen: title, size and where to download its HTML and screenshot.
 
-        Use when you need the complete HTML output of a generated UI screen.
+        Use when you need a screen's details or the URLs of its code
+        (`htmlCode.downloadUrl`) and its image (`screenshot.downloadUrl`).
 
         Args:
             project: SpecBox Engine project slug (to resolve the API Key).
-            stitch_project_id: The Stitch project ID.
-            screen_id: The screen ID to retrieve.
+            stitch_project_id: The Stitch project ID (with or without `projects/`).
+            screen_id: The screen ID (bare, `screens/{id}` or the full
+                `projects/{p}/screens/{s}` name).
 
         Returns:
-            Full HTML content of the screen.
+            The screen resource as Stitch returns it.
         """
         try:
             client = await _get_client_for_project(ctx, project)

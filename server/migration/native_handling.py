@@ -320,6 +320,22 @@ async def provision_native_project(
                 if existed
                 else 0
             )
+            # US-83 / UC-8302 (D2, native_provision_authority): a tenant that
+            # already has members is never joined by provisioning. Before this,
+            # every ``set_auth_token`` → ``setup_board`` UPSERTed the caller as
+            # project_admin of ANY existing project — a valid token was enough to
+            # own somebody else's board, with no audit row (re-provisioning is
+            # silent). A member keeps the role they have (a ``member`` is not
+            # promoted); a non-member is refused and nothing is written.
+            current_role: str | None = None
+            if members_before:
+                current_role = await conn.fetchval(
+                    "SELECT role FROM project_members WHERE project_id = $1 AND developer_id = $2",
+                    canonical,
+                    developer_id,
+                )
+                if current_role is None:
+                    raise identity_mod.ForbiddenError(developer_id, canonical)
             # Organization (UC-1304; US-60/UC-6001). "Organization" is a concept
             # of the panel, not of the engine (migration 0020 made the column
             # nullable again): the engine's projects are multi-tenant by
@@ -386,12 +402,15 @@ async def provision_native_project(
                 developer_id=developer_id,
                 display_name=display_name or developer_id,
             )
-            await identity_mod.add_project_member(
-                conn,
-                project_id=canonical,
-                developer_id=developer_id,
-                role=role,
-            )
+            if current_role is None:
+                # Only the creator of a new tenant or the adopter of an orphan
+                # (zero members) gets the requested role.
+                await identity_mod.add_project_member(
+                    conn,
+                    project_id=canonical,
+                    developer_id=developer_id,
+                    role=role,
+                )
             # UC-606: only emit a ``provision_project`` audit event when the
             # provisioning REALLY provisions something — a tenant born from
             # scratch (``not existed``) or an orphan tenant being adopted (the
@@ -428,7 +447,7 @@ async def provision_native_project(
     return {
         "project_id": canonical,
         "developer_id": developer_id,
-        "role": role,
+        "role": current_role or role,
         "provisioned": True,
         "project_created": not existed,
     }

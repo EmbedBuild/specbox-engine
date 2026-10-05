@@ -31,6 +31,7 @@ from ..spec_backend import (
     BoardConfig,
     ChecklistItemDTO,
     CommentDTO,
+    EpicDTO,
     ItemDTO,
     ModuleDTO,
     SpecBackend,
@@ -498,6 +499,89 @@ class DualBackendWrapper(SpecBackend):
         return result
 
     # ── Cleanup ──────────────────────────────────────────────────
+
+    # ── Epics (US-78 / UC-7801): primary first, mirror best-effort ──
+    #
+    # The mirror gets the same EP-NN as the primary, so both boards name the
+    # epic the same way; a story is resolved by its logical US-XX.
+
+    async def list_epics(self, board_id: str) -> list[EpicDTO]:
+        return await self.primary.list_epics(board_id)
+
+    async def create_epic(
+        self,
+        board_id: str,
+        *,
+        name: str,
+        objective: str = "",
+        link: str = "",
+        position: int | None = None,
+        target_date: str | None = None,
+        epic_id: str | None = None,
+    ) -> EpicDTO:
+        epic = await self.primary.create_epic(
+            board_id,
+            name=name,
+            objective=objective,
+            link=link,
+            position=position,
+            target_date=target_date,
+            epic_id=epic_id,
+        )
+
+        async def _mirror() -> None:
+            await self.mirror.create_epic(
+                self.mirror_board_id,
+                name=epic.name,
+                objective=epic.objective,
+                link=epic.link,
+                position=epic.position,
+                target_date=epic.target_date,
+                epic_id=epic.id,
+            )
+
+        await self._guarded_mirror("create_epic", _mirror)
+        return epic
+
+    async def update_epic(
+        self,
+        board_id: str,
+        epic_id: str,
+        *,
+        name: str | None = None,
+        objective: str | None = None,
+        link: str | None = None,
+        position: int | None = None,
+        target_date: str | None = None,
+    ) -> EpicDTO:
+        fields = {"name": name, "objective": objective, "link": link, "position": position, "target_date": target_date}
+        epic = await self.primary.update_epic(board_id, epic_id, **fields)
+
+        async def _mirror() -> None:
+            await self.mirror.update_epic(self.mirror_board_id, epic_id, **fields)
+
+        await self._guarded_mirror("update_epic", _mirror)
+        return epic
+
+    async def delete_epic(self, board_id: str, epic_id: str) -> dict[str, Any]:
+        result = await self.primary.delete_epic(board_id, epic_id)
+
+        async def _mirror() -> None:
+            await self.mirror.delete_epic(self.mirror_board_id, epic_id)
+
+        await self._guarded_mirror("delete_epic", _mirror)
+        return result
+
+    async def set_us_epic(self, board_id: str, us_item_id: str, epic_id: str | None) -> ItemDTO:
+        result = await self.primary.set_us_epic(board_id, us_item_id, epic_id)
+
+        async def _mirror() -> None:
+            mirror_id = await self._resolve_mirror_id(board_id, us_item_id)
+            if mirror_id is not None:
+                await self.mirror.set_us_epic(self.mirror_board_id, mirror_id, epic_id)
+
+        await self._guarded_mirror("set_us_epic", _mirror)
+        return result
 
     async def close(self) -> None:
         # Mirror first, guarded: its failure must never block the primary's

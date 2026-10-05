@@ -2527,6 +2527,34 @@ vez por UC.
   sesión). `accepted` por AC queda como alias de `verified` para quien ya lo lee.
 - Tests: `tests/test_uc_acceptances.py` (las de la tabla, contra Postgres).
 
+## La épica agrupa las historias (US-78 · UC-7801, decisión D20)
+
+Por encima de la historia hay una sola agrupación: la **épica**, con ficha propia, y cada historia
+pertenece a una épica o a ninguna. Su estado y su avance no se guardan: se deducen de sus historias.
+
+- **Native** (migración `0030_epics.sql`, gemela `supabase/migrations/20261005000030_epics.sql`):
+  tabla `epics (project_id, id EP-NN, name, objective, link, position, target_date, version, …)`
+  y columna `user_stories.epic_id` con clave ajena compuesta y `ON DELETE SET NULL (epic_id)`
+  (Postgres 15+): borrar una épica deja sus historias sin épica. Cerrada a los roles públicos con
+  RLS y denegación restrictiva (0024). Cada escritura comprueba la membresía del proyecto escrito
+  (US-34) y deja su fila en `audit_log` (`create_epic`, `update_epic`, `delete_epic`,
+  `set_us_epic`). Dos creaciones a la vez no se pisan el número: bloqueo consultivo por proyecto.
+- **FreeForm**: la épica es un elemento más de `items.json` (`labels: ["EP"]`, `id: EP-NN`, campos
+  en `meta`), así viaja con el contenido del board; la historia lleva `meta.epic_id`. Las tools
+  solo cuentan elementos US/UC/AC, así que un `EP` no entra en los totales.
+- **`SpecBackend`**: `list_epics`, `create_epic` (sin `epic_id` toma el siguiente EP-NN),
+  `update_epic` (`target_date=""` la borra), `delete_epic` y `set_us_epic` no son abstractos.
+  Trello y Plane listan cero épicas y rechazan escribir con `EpicError(EPICS_NOT_SUPPORTED)`; el
+  backend dual escribe en el principal y replica en el espejo con el mismo EP-NN. Errores con
+  código estable: `EPIC_EXISTS`, `EPIC_NOT_FOUND`, `EPIC_INVALID`.
+- **`server/epics.py`** (puro): `summarize_epic` aplica la regla de `derive_us_state` (UC-4305) a
+  los estados de las historias (sin nada empezado, `backlog`), cuenta criterios hechos sobre total
+  de sus UC no archivadas (sin criterios, `pct = None`, nunca un 0 % inventado) y junta los
+  satélites; `summarize_board` añade el grupo `sin_epica` para que los grupos sumen el board.
+- `/switch-backend` todavía no migra las épicas entre backends.
+- Tests: `tests/test_epics.py` (las native, contra Postgres) y `epics` en las tablas del board de
+  `tests/test_db_surface_tables.py`.
+
 ## Proyectos sin organización (US-60 · UC-6001, v6.17.1)
 
 «Organización» es un concepto del panel, no del engine (migración 0020): los proyectos del

@@ -41,6 +41,7 @@ BOARD_TABLES = (
     "audit_log",
     "branch_registry",
     "developers",
+    "epics",
     "github_identities",
     "mcp_tokens",
     "organization_members",
@@ -146,6 +147,7 @@ async def test_ac01_writing_the_board_as_a_public_role_is_a_permission_error(poo
         ("UPDATE use_cases SET state = 'done' WHERE project_id = $1", "uc4002/none"),
         ("DELETE FROM audit_log WHERE project_id = $1", "uc4002/none"),
         ("DELETE FROM mcp_tokens WHERE developer_id = $1", "uc4002/none"),
+        ("INSERT INTO epics (project_id, id, name) VALUES ($1, 'EP-01', 'x')", "uc4002/none"),
     )
     async with pool.acquire() as conn:
         for sql, arg in writes:

@@ -68,6 +68,11 @@ async def _seed_tenant(pool, tag: str):
             project_id,
             "US victima",
         )
+        # US-78: una épica de la víctima, para los mutadores de épicas.
+        await conn.execute(
+            "INSERT INTO epics (project_id, id, name) VALUES ($1, 'EP-01', 'Épica víctima')",
+            project_id,
+        )
         await conn.execute(
             "INSERT INTO use_cases (id, project_id, us_id, name, state) VALUES ($1,$2,'US-01',$3,'backlog')",
             "UC-001",
@@ -103,7 +108,7 @@ async def _snapshot(pool, project_id: str) -> dict:
             "us": [
                 dict(r)
                 for r in await conn.fetch(
-                    "SELECT id, name, state, version, meta::text FROM user_stories "
+                    "SELECT id, name, state, version, epic_id, meta::text FROM user_stories "
                     "WHERE project_id=$1 ORDER BY id",
                     project_id,
                 )
@@ -121,6 +126,14 @@ async def _snapshot(pool, project_id: str) -> dict:
                 for r in await conn.fetch(
                     "SELECT ac_id, text, done, internal, version FROM acceptance_criteria "
                     "WHERE project_id=$1 ORDER BY ac_id",
+                    project_id,
+                )
+            ],
+            "epics": [
+                dict(r)
+                for r in await conn.fetch(
+                    "SELECT id, name, objective, position, version FROM epics "
+                    "WHERE project_id=$1 ORDER BY id",
                     project_id,
                 )
             ],
@@ -171,6 +184,11 @@ MUTATORS = [
     ("add_comment", lambda b, p: b.add_comment(p, "UC-001", "comentario de otro tenant")),
     ("add_attachment", lambda b, p: b.add_attachment(p, "UC-001", "ajeno.pdf", b"%PDF-1.4 ajeno")),
     ("create_label", lambda b, p: b.create_label(p, "etiqueta-ajena", "#ff0000")),
+    # US-78 / UC-7801: las épicas y la épica de cada historia.
+    ("create_epic", lambda b, p: b.create_epic(p, name="épica inyectada por otro tenant")),
+    ("update_epic", lambda b, p: b.update_epic(p, "EP-01", name="renombrada por otro tenant")),
+    ("delete_epic", lambda b, p: b.delete_epic(p, "EP-01")),
+    ("set_us_epic", lambda b, p: b.set_us_epic(p, "US-01", "EP-01")),
 ]
 
 #: Métodos que reciben `board_id` y llevan verbo de escritura en el nombre pero
@@ -184,7 +202,8 @@ STUB_METHODS = ["create_module", "add_items_to_module"]
 # EL INVENTARIO — cerrado por UC-3402 el 2026-08-24
 # ═══════════════════════════════════════════════════════════════════════
 #
-#   VULNERABLES: 0  ·  PROTEGIDOS: 11  ·  STUBS: 2  ·  sin clasificar: 0
+#   VULNERABLES: 0  ·  PROTEGIDOS: 15  ·  STUBS: 2  ·  sin clasificar: 0
+#   (los cuatro de épicas, US-78/UC-7801, entraron el 2026-10-05 ya protegidos)
 #
 # Estado medido por UC-3401 (2026-08-24): 10 vulnerables de 11 mutadores. Los
 # diez completaban la escritura sobre un proyecto ajeno sin error.

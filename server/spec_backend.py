@@ -609,6 +609,23 @@ class SpecBackend(ABC):
         """Put a story in an epic (it leaves its previous one), or take it out with ``None``."""
         raise EpicError(EPICS_NOT_SUPPORTED, f"{type(self).__name__} has no epics (D20: Native and FreeForm).")
 
+    # ── Declared satellites (US-78 / UC-7803) ────────────────────
+
+    async def get_board_satellites(self, board_id: str) -> list[str] | None:
+        """The satellites the project declared on its board, or None if it declared none.
+
+        Only the Native board keeps them (``projects.meta.satellites``); the
+        others answer None and satellite validation falls back to the local
+        orchestrator settings when the MCP is local.
+        """
+        return None
+
+    async def set_board_satellites(self, board_id: str, satellites: list[str]) -> list[str]:
+        """Declare the project's satellites on its board (Native only)."""
+        raise NotImplementedError(
+            f"{type(self).__name__} cannot store declared satellites; this is a Native-board feature."
+        )
+
     # ── Comments ─────────────────────────────────────────────────
 
     @abstractmethod

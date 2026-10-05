@@ -250,7 +250,7 @@ async def set_uc_satellite(
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        ok, err = mh.validate_satellite(satellite, mh.settings_path_from_env())
+        ok, err = await mh.check_satellite(backend, board_id, satellite)
         if not ok:
             return _mk_error("INVALID_SATELLITE", err or "invalid satellite")
 
@@ -621,9 +621,47 @@ async def sync_multirepo_state(
         await backend.close()
 
 
+# ── declare_satellites (US-78 / UC-7803) ─────────────────────────────
+
+
+async def declare_satellites(
+    board_id: str,
+    satellites: list[str],
+    ctx: Context,
+) -> dict[str, Any]:
+    """Declare the satellites of a multi-repo project on its board (Native).
+
+    ``set_uc_satellite``, ``update_uc``, ``update_uc_batch`` and ``add_uc``
+    validate against this list, also with the remote MCP (which cannot read
+    the orchestrator's settings.local.json). Replaces the previous list.
+
+    Returns:
+        {board_id, satellites, previous}
+    """
+    from ..coordination.identity import ForbiddenError, UnauthenticatedError
+
+    backend = await get_session_backend(ctx)
+    try:
+        previous = await backend.get_board_satellites(board_id)
+        stored = await backend.set_board_satellites(board_id, satellites)
+        return {"board_id": board_id, "satellites": stored, "previous": previous}
+    except NotImplementedError as e:
+        return _mk_error("NOT_SUPPORTED", str(e))
+    except ValueError as e:
+        return _mk_error("VALIDATION_FAILED", str(e))
+    except ForbiddenError as e:
+        return _mk_error("FORBIDDEN", str(e))
+    except UnauthenticatedError as e:
+        return _mk_error("UNAUTHENTICATED", str(e))
+    finally:
+        await backend.close()
+
+
 # ── 2.8 get_cross_repo_dependencies ──────────────────────────────────
 
-_UC_REF_RE = re.compile(r"UC-\d{3}")
+# US-78 / UC-7803: any length. ``UC-\d{3}`` cut UC-5101 into "UC-510" and reported
+# dependencies on the wrong (or a missing) UC.
+_UC_REF_RE = re.compile(r"\bUC-\d+[a-zA-Z]?\b")
 
 
 async def get_cross_repo_dependencies(
@@ -701,7 +739,7 @@ async def get_cross_repo_dependencies(
 
 
 def register_milestone_management_tools(mcp_instance) -> None:
-    """Register the 8 Tier 2 milestone & multirepo tools."""
+    """Register the Tier 2 milestone & multirepo tools (+ declare_satellites, UC-7803)."""
     mcp_instance.tool(
         description="Assign a milestone (H1-H4) to a UC and return updated distribution. "
         "For batch assignment use set_uc_milestone_batch."
@@ -730,6 +768,10 @@ def register_milestone_management_tools(mcp_instance) -> None:
         description="Propagate satellite labels from orchestrator settings.local.json to board "
         "cards without a satellite assigned."
     )(sync_multirepo_state)
+    mcp_instance.tool(
+        description="Declare the satellites of a multi-repo project on its board (Native). "
+        "Satellite assignments are validated against this list, also with the remote MCP."
+    )(declare_satellites)
     mcp_instance.tool(
         description="Detect cross-satellite UC dependencies by scanning descriptions, context, "
         "and links for UC-NNN references to UCs in different satellites."

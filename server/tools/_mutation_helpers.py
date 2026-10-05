@@ -92,6 +92,32 @@ def validate_satellite(
     return False, f"Satellite {value!r} not declared in settings; declared: {declared}"
 
 
+async def check_satellite(backend: Any, board_id: str, value: str) -> tuple[bool, str | None]:
+    """Validate a satellite against what the project declared (US-78 / UC-7803).
+
+    ``validate_satellite`` only read the orchestrator settings from the
+    SERVER's disk, so with the remote MCP any text was accepted. Order now:
+
+    1. the satellites declared on the board (``declare_satellites``; Native);
+    2. with a local MCP only, the orchestrator ``settings.local.json``;
+    3. nothing declared anywhere → any non-empty key (mono-repo projects).
+
+    A refusal lists the valid satellites.
+    """
+    if not value:
+        return False, "Satellite key must be a non-empty string"
+    declared = await backend.get_board_satellites(board_id)
+    if not declared:
+        from ..transport import is_remote_transport
+
+        if is_remote_transport():
+            return True, None
+        return validate_satellite(value, settings_path_from_env())
+    if value in declared:
+        return True, None
+    return False, f"Satellite {value!r} is not declared for this project. Valid satellites: {', '.join(declared)}"
+
+
 #: US-33/UC-3304 — señales de RESULTADO OBSERVABLE.
 #:
 #: Un AC es verificable cuando afirma algo que se puede ir a mirar. Verbos en

@@ -211,6 +211,22 @@ def _find_uc_item(items: list[ItemDTO], uc_id: str) -> ItemDTO | None:
     return None
 
 
+def _satellites_of(ucs: list[ItemDTO]) -> list[str]:
+    """US-78 / UC-7803: the satellites a set of UCs works in, without repeats, in order."""
+    out: list[str] = []
+    for uc in ucs:
+        sat = uc.meta.get("satellite")
+        if sat and sat not in out:
+            out.append(sat)
+    return out
+
+
+def _epic_of_us(items: list[ItemDTO], us_id: str) -> str | None:
+    """US-78 / UC-7803: the epic of a story (by its US-XX), or None."""
+    us_item = _find_us_item(items, us_id) if us_id else None
+    return (us_item.meta.get("epic_id") or None) if us_item else None
+
+
 def _get_uc_children(items: list[ItemDTO], us_id: str) -> list[ItemDTO]:
     """Get all UC items belonging to a US, matching by parent_id or us_id meta."""
     us_item = _find_us_item(items, us_id)
@@ -614,9 +630,25 @@ async def get_board_status(
                     "us_id": us_id,
                     "name": item.name,
                     "status": item.state,
+                    "epic_id": item.meta.get("epic_id") or None,
                     "uc_progress": f"{uc_done}/{len(uc_children)}",
                 }
             )
+
+        # US-78 / UC-7803: the board by epic, with the stories without epic last,
+        # so the groups add up to the whole board.
+        from ..epics import summarize_board
+
+        by_epic = [
+            {
+                k: g[k]
+                for k in (
+                    "epic_id", "name", "state", "us_total", "us_done", "uc_total", "uc_done",
+                    "ac_total", "ac_done", "pct", "satellites",
+                )
+            }
+            for g in summarize_board(await backend.list_epics(board_id), items)
+        ]
 
         blocked_count = sum(1 for us in us_summary if us.get("status") == "blocked")
         summary_text = f"{total_ucs} UCs ({done_ucs} done) | {round(pct, 1)}% horas completadas | {len(us_summary)} US"
@@ -631,6 +663,7 @@ async def get_board_status(
                 "pct": round(pct, 1),
             },
             "us_summary": us_summary,
+            "by_epic": by_epic,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "summary": summary_text,
         }
@@ -909,6 +942,8 @@ async def list_us(
                     "hours": hours,
                     "status": item.state,
                     "screens": screens,
+                    "epic_id": item.meta.get("epic_id") or None,
+                    "satellites": _satellites_of(uc_children),
                     "uc_total": len(uc_children),
                     "uc_done": uc_done,
                     "ac_total": ac_total,
@@ -967,6 +1002,7 @@ async def get_us(
                     "actor": actor,
                     "hours": uc_hours,
                     "status": uc_item.state,
+                    "satellite": uc_item.meta.get("satellite") or None,
                     "ac_total": ac_total,
                     "ac_done": ac_done,
                 }
@@ -978,6 +1014,8 @@ async def get_us(
             "hours": _extract_meta_float(us_item, "horas"),
             "status": us_item.state,
             "screens": _extract_meta_str(us_item, "pantallas"),
+            "epic_id": us_item.meta.get("epic_id") or None,
+            "satellites": _satellites_of(uc_children),
             "description": us_item.description,
             "use_cases": use_cases,
             "attachments": attach_list,
@@ -1211,6 +1249,8 @@ async def list_uc(
                     "hours": hours,
                     "status": item.state,
                     "screens": screens,
+                    "satellite": item.meta.get("satellite") or None,
+                    "epic_id": _epic_of_us(items, item_us_id),
                     "ac_total": ac_total,
                     "ac_done": ac_done,
                 }
@@ -1312,6 +1352,8 @@ async def get_uc(
             "name": _clean_name(uc_item.name, uc_id),
             "us_id": item_us_id,
             "us_name": us_name,
+            "satellite": uc_item.meta.get("satellite") or None,
+            "epic_id": _epic_of_us(items, item_us_id),
             "actor": actor,
             "hours": hours,
             "screens": screens,

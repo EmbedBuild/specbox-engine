@@ -2587,9 +2587,24 @@ pertenece a una épica o a ninguna. Su estado y su avance no se guardan: se dedu
   `server/spec_backend.py` quita las copias del id al principio del nombre y lo pone una vez;
   lo usan `import_spec`, `add_uc`, `update_uc`, `update_uc_batch` y `update_us`. Antes
   `import_spec` anteponía el id aunque el nombre ya lo trajera («US-76: US-76: …»).
+- **Lecturas con épica y satélite (UC-7803)**: `list_us`/`get_us` devuelven `epic_id` y
+  `satellites` (los de sus UC, sin repetir); `list_uc`/`get_uc` y cada UC de `get_us`, `satellite`
+  y la épica de su historia; `get_board_status` añade `epic_id` a `us_summary` y `by_epic`
+  (`summarize_board`: grupos que suman el board, con `sin_epica` al final).
+- **Satélites declarados en el board (UC-7803)**: `declare_satellites(board_id, satellites)`
+  guarda la lista en `projects.meta.satellites` (Native, con membresía y fila
+  `declare_satellites` en `audit_log`). `mh.check_satellite` valida `set_uc_satellite`,
+  `update_uc`, `update_uc_batch` y `add_uc` contra esa lista; sin ella, y solo con el MCP local,
+  contra el `settings.local.json` del orquestador; sin nada declarado acepta cualquier clave. Un
+  rechazo lista los satélites válidos. Antes solo se leía el disco del servidor, así que en remoto
+  se aceptaba cualquier texto. FreeForm en remoto no guarda declaración.
+- **Dependencias entre satélites (UC-7803)**: `get_cross_repo_dependencies` reconoce
+  identificadores de cualquier longitud (`\bUC-\d+[a-zA-Z]?\b`); con `UC-\d{3}` leía UC-5101
+  como «UC-510» y daba dependencias falsas.
 - `/switch-backend` todavía no migra las épicas entre backends.
-- Tests: `tests/test_epics.py` y `tests/test_epics_tools.py` (las native, contra Postgres) y
-  `epics` en las tablas del board de `tests/test_db_surface_tables.py`.
+- Tests: `tests/test_epics.py`, `tests/test_epics_tools.py` y
+  `tests/test_board_reads_epic_satellite.py` (las native, contra Postgres) y `epics` en las
+  tablas del board de `tests/test_db_surface_tables.py`.
 
 ## Proyectos sin organización (US-60 · UC-6001, v6.17.1)
 

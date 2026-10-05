@@ -98,6 +98,7 @@ Tras cada auto-decisión visible al usuario:
 
 ```
 Que recibi?
+├── EP-NN → Modo épica (US-78): encadenar las UC pendientes de la épica, en el orden de sus historias
 ├── US-XX → Modo Trello: ejecutar bloque de UCs de la US
 ├── UC-XXX → Modo Trello: ejecutar un UC individual
 ├── nombre_del_plan → Buscar doc/plans/{nombre}_plan.md
@@ -140,6 +141,22 @@ US-XX recibida
   │   └── Pull main
   └── No mas UCs en Backlog → Finalizar
 ```
+
+### 0.1a-bis Si es EP-NN (épica, D20 · US-78)
+
+1. `get_epic(board_id, epic_id)` → nombre, objetivo, historias y avance. Si responde
+   `EPIC_NOT_FOUND`, para y dilo.
+2. `find_next_uc(board_id, epic=epic_id)` (añade `satellite=<clave>` si trabajas desde un
+   satélite) → la UC pendiente de la épica en el orden de sus historias; una historia que ya
+   tiene trabajo en curso va primero.
+3. Para esa UC sigue el flujo normal (0.1a con `UC-XXX`: plan de su US, `start_uc`, fases,
+   PR, merge secuencial).
+4. Tras cada UC (Paso 8.5.5) vuelve a `find_next_uc(board_id, epic=epic_id)`. Cuando devuelve
+   `None`, **la épica no tiene más UC pendientes: para** y resume con `get_epic` (estado y
+   avance). No saltes a UC de otras épicas.
+
+En un satélite, `find_next_uc(board_id, satellite="<clave>")` sustituye a construir
+`uc_scope` a mano.
 
 ### 0.1b Si es plan local:
 
@@ -2040,6 +2057,13 @@ git pull origin main
 
 ### 8.5.5 Siguiente UC/card
 
+#### Si origen es una épica (EP-NN mode, US-78):
+```
+→ Llamar find_next_uc(board_id, epic=EP-NN) para la siguiente UC de la épica
+→ Si devuelve una UC: start_uc y volver a 0.1a-bis paso 3
+→ Si devuelve None: la épica no tiene más UC pendientes → parar y resumir con get_epic
+```
+
 #### Si origen es Trello (US-XX mode):
 ```
 → Llamar find_next_uc(board_id) para obtener siguiente UC en Backlog
@@ -2260,7 +2284,7 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 | `get_us(board_id, us_id)` | Paso 0: cargar datos de la US |
 | `list_uc(board_id, us_id)` | Paso 0: listar UCs hijos |
 | `get_uc(board_id, uc_id)` | Paso 0: detalle completo del UC (ACs, pantallas) |
-| `find_next_uc(board_id)` | Paso 0/8.5: determinar siguiente UC a implementar |
+| `find_next_uc(board_id, epic?, satellite?)` | Paso 0/8.5: determinar siguiente UC a implementar (por épica o satélite, US-78) |
 | `start_uc(board_id, uc_id)` | Paso 0: mover UC (y su US) a In Progress + timestamp |
 | `complete_uc(board_id, uc_id, evidence)` | Paso 8.5: mover UC a Done + actualizar US (a Done si era el ultimo UC) |
 | `move_us(board_id, us_id, target)` | Solo correcciones manuales: start_uc / move_uc / complete_uc ya mueven la US (UC-4305) |

@@ -228,6 +228,14 @@ def _strip_satellite_tags(name: str, satellites: set[str]) -> str:
     return _re.sub(r"\s{2,}", " ", pattern.sub("", name)).strip()
 
 
+def _id_number(item_id: str) -> tuple[int, str]:
+    """Natural sort key for US-9 / UC-0101-style ids."""
+    import re as _re
+
+    m = _re.search(r"(\d+)", item_id or "")
+    return (int(m.group(1)) if m else 0, item_id or "")
+
+
 def _satellites_of(ucs: list[ItemDTO]) -> list[str]:
     """US-78 / UC-7803: the satellites a set of UCs works in, without repeats, in order."""
     out: list[str] = []
@@ -2492,6 +2500,8 @@ async def find_next_uc(
     ctx: Context,
     uc_scope: list[str] | None = None,
     items_content: str | None = None,
+    epic: str | None = None,
+    satellite: str | None = None,
 ) -> dict[str, Any] | None:
     """Find the next Use Case to work on.
 
@@ -2503,6 +2513,11 @@ async def find_next_uc(
     Args:
         board_id: Board/project ID
         uc_scope: Optional list of UC IDs to restrict selection (multi-repo satellite filter). When provided, only UCs whose uc_id is in this list are considered. Leave empty/null for all UCs on the board (default, backwards-compatible).
+        epic: Optional EP-NN (US-78 / UC-7804): only UCs of that epic's stories, in
+            the order of its stories (a story already in progress keeps priority).
+            None when the epic has nothing pending — the signal for
+            ``/implement EP-NN`` to stop. An unknown epic answers EPIC_NOT_FOUND.
+        satellite: Optional satellite key (US-78 / UC-7804): only UCs of that repo.
         items_content: FreeForm content-passing (UC-660). Read-only — pass
             items.json as a string for remote MCP so the lookup reflects the
             client's board without the server touching disk (enables the
@@ -2522,6 +2537,19 @@ async def find_next_uc(
         if uc_scope:
             scope_set = set(uc_scope)
             ready_ucs = [i for i in ready_ucs if _extract_meta_str(i, "uc_id") in scope_set]
+
+        # US-78 / UC-7804: by satellite and/or by epic. Without them nothing changes.
+        if satellite:
+            ready_ucs = [i for i in ready_ucs if i.meta.get("satellite") == satellite]
+        if epic:
+            if not any(e.id == epic for e in await backend.list_epics(board_id)):
+                return {"error": f"{epic} does not exist on this board.", "code": "EPIC_NOT_FOUND"}
+            epic_us = {_get_us_id(i) for i in items if _is_us(i) and i.meta.get("epic_id") == epic}
+            ready_ucs = [
+                i for i in ready_ucs if (_extract_meta_str(i, "us_id") or "") in epic_us
+            ]
+            # The order of its stories, then of their UCs (US-9 before US-10).
+            ready_ucs.sort(key=lambda i: (_id_number(_extract_meta_str(i, "us_id")), _id_number(_get_uc_id(i))))
 
         # Native: exclude UCs already reserved by another developer [AC-20] so
         # two devs running find_next_uc concurrently get distinct UCs.

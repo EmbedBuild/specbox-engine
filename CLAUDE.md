@@ -2610,10 +2610,16 @@ pertenece a una épica o a ninguna. Su estado y su avance no se guardan: se dedu
   que ya existe, **ya no le cambia el estado** (antes volvía a `user_stories`). La skill `/prd`
   (Paso 2.7) pregunta a qué épica va la feature salvo que el PRD lo declare
   (`decision_key` `feature_epic_assignment`, siempre `ask`).
+- **El autopilot por épica o satélite (UC-7804)**: `find_next_uc(board_id, epic=?, satellite=?)`
+  (combinables con `uc_scope`; sin ellos, el mismo resultado de siempre). Con `epic`, las UC van
+  en el orden de sus historias (orden natural: US-9 antes que US-10), la historia con trabajo en
+  curso primero, y sin pendientes devuelve `None`; una épica que no existe, `EPIC_NOT_FOUND`.
+  `/implement EP-NN` (§0.1a-bis y §8.5.5 de la skill) encadena las UC de la épica y para al
+  recibir `None`.
 - `/switch-backend` todavía no migra las épicas entre backends.
 - Tests: `tests/test_epics.py`, `tests/test_epics_tools.py` y
-  `tests/test_board_reads_epic_satellite.py` y `tests/test_import_spec_epics.py` (las native,
-  contra Postgres) y `epics` en las tablas del board de `tests/test_db_surface_tables.py`.
+  `tests/test_board_reads_epic_satellite.py`, `tests/test_import_spec_epics.py` y
+  `tests/test_find_next_uc_epic.py` (las native, contra Postgres) y `epics` en las tablas del board de `tests/test_db_surface_tables.py`.
 
 ## Proyectos sin organización (US-60 · UC-6001, v6.17.1)
 

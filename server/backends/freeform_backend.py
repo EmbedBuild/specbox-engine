@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -38,16 +39,22 @@ import structlog
 
 from ..spec_backend import (
     AC_METADATA_MARK,
+    EPIC_EXISTS,
+    EPIC_NOT_FOUND,
     AttachmentDTO,
     BackendUser,
     BoardConfig,
     ChecklistItemDTO,
     CommentDTO,
+    EpicDTO,
+    EpicError,
     ItemDTO,
     ModuleDTO,
     SpecBackend,
+    next_epic_id,
     parse_item_id,
     purge_refusal,
+    validate_epic_fields,
 )
 
 logger = structlog.get_logger(__name__)
@@ -878,6 +885,144 @@ class FreeformBackend(SpecBackend):
         return {"purged_at": purged_at, "deleted": deleted, "snapshot": snapshot}
 
     # ── SpecBackend: Comments ────────────────────────────────────
+
+    # ── SpecBackend: Epics (US-78 / UC-7801) ─────────────────────
+    #
+    # An epic is one more element of items.json — labels ["EP"], id EP-NN —
+    # so it travels with the board content like everything else (content
+    # passing, UC-660). A story's epic is ``meta["epic_id"]`` on the story.
+    # The tools only count items labelled US/UC/AC, so an EP element never
+    # shows up in the US/UC totals.
+
+    @staticmethod
+    def _epic_from_item(d: dict[str, Any]) -> EpicDTO:
+        meta = d.get("meta", {})
+        return EpicDTO(
+            id=d["id"],
+            name=d.get("name", ""),
+            objective=meta.get("objective", ""),
+            link=meta.get("link", ""),
+            position=int(meta.get("position", 0)),
+            target_date=meta.get("target_date") or None,
+            created_at=d.get("created_at", ""),
+            updated_at=d.get("updated_at", d.get("created_at", "")),
+        )
+
+    @staticmethod
+    def _is_epic_item(d: dict[str, Any]) -> bool:
+        return "EP" in d.get("labels", [])
+
+    async def list_epics(self, board_id: str) -> list[EpicDTO]:
+        epics = [self._epic_from_item(d) for d in self._load_items() if self._is_epic_item(d)]
+        return sorted(epics, key=lambda e: (e.position, e.id))
+
+    async def create_epic(
+        self,
+        board_id: str,
+        *,
+        name: str,
+        objective: str = "",
+        link: str = "",
+        position: int | None = None,
+        target_date: str | None = None,
+        epic_id: str | None = None,
+    ) -> EpicDTO:
+        validate_epic_fields(epic_id=epic_id, name=name, target_date=target_date)
+        items = self._load_items()
+        epics = [d for d in items if self._is_epic_item(d)]
+        ids = [d["id"] for d in epics]
+        if epic_id is None:
+            epic_id = next_epic_id(ids)
+        elif epic_id in ids:
+            raise EpicError(EPIC_EXISTS, f"{epic_id} already exists.")
+        if position is None:
+            position = max((int(d.get("meta", {}).get("position", 0)) for d in epics), default=0) + 1
+        now = _now_iso()
+        item = {
+            "id": epic_id,
+            "name": name.strip(),
+            "description": "",
+            "state": "",
+            "parent_id": None,
+            "labels": ["EP"],
+            "priority": "none",
+            "meta": {
+                "tipo": "EP",
+                "epic_id": epic_id,
+                "objective": objective,
+                "link": link,
+                "position": position,
+                "target_date": target_date or None,
+            },
+            "created_at": now,
+            "updated_at": now,
+        }
+        items.append(item)
+        self._save_items(items)
+        logger.info("freeform_epic_created", epic_id=epic_id)
+        return self._epic_from_item(item)
+
+    async def update_epic(
+        self,
+        board_id: str,
+        epic_id: str,
+        *,
+        name: str | None = None,
+        objective: str | None = None,
+        link: str | None = None,
+        position: int | None = None,
+        target_date: str | None = None,
+    ) -> EpicDTO:
+        validate_epic_fields(name=name, target_date=target_date)
+        items = self._load_items()
+        item = next((d for d in items if self._is_epic_item(d) and d["id"] == epic_id), None)
+        if item is None:
+            raise EpicError(EPIC_NOT_FOUND, f"{epic_id} does not exist.")
+        meta = item.setdefault("meta", {})
+        if name is not None:
+            item["name"] = name.strip()
+        if objective is not None:
+            meta["objective"] = objective
+        if link is not None:
+            meta["link"] = link
+        if position is not None:
+            meta["position"] = position
+        if target_date is not None:
+            meta["target_date"] = target_date or None
+        item["updated_at"] = _now_iso()
+        self._save_items(items)
+        return self._epic_from_item(item)
+
+    async def delete_epic(self, board_id: str, epic_id: str) -> dict[str, Any]:
+        items = self._load_items()
+        item = next((d for d in items if self._is_epic_item(d) and d["id"] == epic_id), None)
+        if item is None:
+            raise EpicError(EPIC_NOT_FOUND, f"{epic_id} does not exist.")
+        detached: list[str] = []
+        for d in items:
+            meta = d.get("meta", {})
+            if "US" in d.get("labels", []) and meta.get("epic_id") == epic_id:
+                meta.pop("epic_id")
+                detached.append(meta.get("us_id", d["id"]))
+        epic = self._epic_from_item(item)
+        self._save_items([d for d in items if d is not item])
+        return {"epic": asdict(epic), "detached_us": sorted(detached)}
+
+    async def set_us_epic(self, board_id: str, us_item_id: str, epic_id: str | None) -> ItemDTO:
+        items = self._load_items()
+        story = next((d for d in items if d["id"] == us_item_id and "US" in d.get("labels", [])), None)
+        if story is None:
+            raise ValueError(f"Item {us_item_id} not found")
+        if epic_id is not None and not any(self._is_epic_item(d) and d["id"] == epic_id for d in items):
+            raise EpicError(EPIC_NOT_FOUND, f"{epic_id} does not exist.")
+        meta = story.setdefault("meta", {})
+        if epic_id is None:
+            meta.pop("epic_id", None)
+        else:
+            meta["epic_id"] = epic_id
+        story["updated_at"] = _now_iso()
+        self._save_items(items)
+        return self._dict_to_dto(story)
 
     async def add_comment(
         self, board_id: str, item_id: str, text: str

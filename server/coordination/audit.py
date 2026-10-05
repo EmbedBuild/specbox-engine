@@ -109,6 +109,15 @@ OP_IMPORT_SPEC: str = "import_spec"
 #: borrado manual de UC-4304 (2026-09-30). ``target_id`` = uc_id.
 OP_PURGE_UC: str = "purge_uc"
 
+#: US-78 / UC-7801. Las épicas y la épica de cada historia (D20). ``target_id`` es
+#: el EP-NN (o el us_id en ``set_us_epic``); ``metadata`` dice qué cambió:
+#: ``{"name"}`` al crear, ``{"fields"}`` al editar, ``{"snapshot", "detached_us"}``
+#: al borrar y ``{"from", "to"}`` al mover una historia de épica.
+OP_CREATE_EPIC: str = "create_epic"
+OP_UPDATE_EPIC: str = "update_epic"
+OP_DELETE_EPIC: str = "delete_epic"
+OP_SET_US_EPIC: str = "set_us_epic"
+
 
 async def record_destructive(
     conn: asyncpg.Connection,

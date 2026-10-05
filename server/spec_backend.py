@@ -117,6 +117,70 @@ class ModuleDTO:
     item_ids: list[str] = field(default_factory=list)
 
 
+@dataclass
+class EpicDTO:
+    """An epic: groups user stories (US-78 / UC-7801, decision D20).
+
+    Each story belongs to one epic or to none; the story carries the link
+    (``meta["epic_id"]`` on its ItemDTO). State and progress are not stored:
+    :mod:`server.epics` derives them from the epic's stories.
+    """
+
+    id: str  # EP-NN, unique within the project
+    name: str
+    objective: str = ""
+    link: str = ""  # its PRD or discovery
+    position: int = 0
+    target_date: str | None = None  # YYYY-MM-DD
+    created_at: str = ""
+    updated_at: str = ""
+
+
+#: An epic id: ``EP-`` and a number (EP-01, EP-12, EP-100).
+EPIC_ID_RE = re.compile(r"^EP-\d+$")
+
+
+class EpicError(Exception):
+    """An epic operation refused with a stable ``code`` (US-78 / UC-7801)."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+EPICS_NOT_SUPPORTED = "EPICS_NOT_SUPPORTED"
+EPIC_EXISTS = "EPIC_EXISTS"
+EPIC_NOT_FOUND = "EPIC_NOT_FOUND"
+EPIC_INVALID = "EPIC_INVALID"
+
+
+def next_epic_id(existing: list[str]) -> str:
+    """The next free EP-NN after the highest one in use (EP-01 for an empty board)."""
+    numbers = [int(e[3:]) for e in existing if EPIC_ID_RE.match(e)]
+    return f"EP-{(max(numbers) + 1 if numbers else 1):02d}"
+
+
+def validate_epic_fields(
+    *, epic_id: str | None = None, name: str | None = None, target_date: str | None = None
+) -> None:
+    """Raise :class:`EpicError` (``EPIC_INVALID``) for a malformed id, an empty name or a bad date.
+
+    ``target_date`` may be ``""`` (clear it) or ``YYYY-MM-DD``.
+    """
+    from datetime import date
+
+    if epic_id is not None and not EPIC_ID_RE.match(epic_id):
+        raise EpicError(EPIC_INVALID, f"Epic id {epic_id!r} must look like EP-01.")
+    if name is not None and not name.strip():
+        raise EpicError(EPIC_INVALID, "An epic needs a name.")
+    if target_date:
+        try:
+            date.fromisoformat(target_date)
+        except ValueError as exc:
+            raise EpicError(EPIC_INVALID, f"target_date {target_date!r} must be YYYY-MM-DD.") from exc
+
+
 # ── Name parsing helpers ─────────────────────────────────────────────
 
 # UC-707 bug C: accept an optional single-letter suffix on the numeric id
@@ -474,6 +538,60 @@ class SpecBackend(ABC):
             PURGE_NOT_SUPPORTED,
             f"{type(self).__name__} cannot delete for real: the UC is archived instead.",
         )
+
+    # ── Epics (US-78 / UC-7801) ──────────────────────────────────
+    #
+    # Not abstract: epics live in the boards SpecBox owns (Native and
+    # FreeForm). Trello and Plane list none and refuse to write, so a reader
+    # on those backends sees "no epics" and a writer gets a precise reason
+    # (decision D20: they are added only if someone asks).
+
+    async def list_epics(self, board_id: str) -> list[EpicDTO]:
+        """All epics of the board, ordered by ``position`` and then id."""
+        return []
+
+    async def create_epic(
+        self,
+        board_id: str,
+        *,
+        name: str,
+        objective: str = "",
+        link: str = "",
+        position: int | None = None,
+        target_date: str | None = None,
+        epic_id: str | None = None,
+    ) -> EpicDTO:
+        """Create an epic. Without ``epic_id`` it takes the next free EP-NN.
+
+        ``position`` defaults to the end of the list. Raises :class:`EpicError`
+        (``EPIC_EXISTS`` if ``epic_id`` is taken, ``EPIC_INVALID`` for bad data).
+        """
+        raise EpicError(EPICS_NOT_SUPPORTED, f"{type(self).__name__} has no epics (D20: Native and FreeForm).")
+
+    async def update_epic(
+        self,
+        board_id: str,
+        epic_id: str,
+        *,
+        name: str | None = None,
+        objective: str | None = None,
+        link: str | None = None,
+        position: int | None = None,
+        target_date: str | None = None,
+    ) -> EpicDTO:
+        """Change the given fields; ``target_date=""`` clears the date."""
+        raise EpicError(EPICS_NOT_SUPPORTED, f"{type(self).__name__} has no epics (D20: Native and FreeForm).")
+
+    async def delete_epic(self, board_id: str, epic_id: str) -> dict[str, Any]:
+        """Delete an epic; its stories stay, without epic.
+
+        Returns ``{"epic": <EpicDTO as dict>, "detached_us": [us_id, ...]}``.
+        """
+        raise EpicError(EPICS_NOT_SUPPORTED, f"{type(self).__name__} has no epics (D20: Native and FreeForm).")
+
+    async def set_us_epic(self, board_id: str, us_item_id: str, epic_id: str | None) -> ItemDTO:
+        """Put a story in an epic (it leaves its previous one), or take it out with ``None``."""
+        raise EpicError(EPICS_NOT_SUPPORTED, f"{type(self).__name__} has no epics (D20: Native and FreeForm).")
 
     # ── Comments ─────────────────────────────────────────────────
 

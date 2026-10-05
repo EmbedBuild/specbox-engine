@@ -66,6 +66,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
 import asyncpg
@@ -74,16 +75,22 @@ import structlog
 from ..db.pool import get_pool
 from ..spec_backend import (
     AC_METADATA_MARK,
+    EPIC_EXISTS,
+    EPIC_NOT_FOUND,
     AttachmentDTO,
     BackendUser,
     BoardConfig,
     ChecklistItemDTO,
     CommentDTO,
+    EpicDTO,
+    EpicError,
     ItemDTO,
     ModuleDTO,
     SpecBackend,
+    next_epic_id,
     parse_item_id,
     purge_refusal,
+    validate_epic_fields,
 )
 
 if TYPE_CHECKING:
@@ -323,7 +330,13 @@ class NativeBackend(SpecBackend):
     def _us_row_to_dto(self, row: asyncpg.Record) -> ItemDTO:
         labels = _from_jsonb(row["labels"]) or []
         meta = _from_jsonb(row["meta"]) or {}
+        # US-78: the story's epic lives in its own column; a stale copy in the
+        # JSON meta never wins over it.
+        meta.pop("epic_id", None)
         meta = {**meta, "tipo": "US", "version": row["version"]}
+        epic_id = row.get("epic_id")
+        if epic_id:
+            meta["epic_id"] = epic_id
         return ItemDTO(
             id=row["id"],
             name=row["name"],
@@ -1711,6 +1724,217 @@ class NativeBackend(SpecBackend):
             "deleted": deleted,
             "snapshot": snapshot,
         }
+
+    # ── SpecBackend: Epics (US-78 / UC-7801) ─────────────────────
+    #
+    # One row per epic in ``epics`` (0030) and the story's epic in
+    # ``user_stories.epic_id``. Every write checks membership against the
+    # project being written (US-34) and leaves its audit row in the same
+    # transaction, so the panel refreshes live like with any other change.
+
+    @staticmethod
+    def _epic_row_to_dto(row: asyncpg.Record) -> EpicDTO:
+        return EpicDTO(
+            id=row["id"],
+            name=row["name"],
+            objective=row["objective"],
+            link=row["link"],
+            position=row["position"],
+            target_date=row["target_date"].isoformat() if row["target_date"] else None,
+            created_at=row["created_at"].isoformat(),
+            updated_at=row["updated_at"].isoformat(),
+        )
+
+    async def list_epics(self, board_id: str) -> list[EpicDTO]:
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM epics WHERE project_id = $1 ORDER BY position, id",
+                board_id,
+            )
+        return [self._epic_row_to_dto(r) for r in rows]
+
+    async def create_epic(
+        self,
+        board_id: str,
+        *,
+        name: str,
+        objective: str = "",
+        link: str = "",
+        position: int | None = None,
+        target_date: str | None = None,
+        epic_id: str | None = None,
+    ) -> EpicDTO:
+        validate_epic_fields(epic_id=epic_id, name=name, target_date=target_date)
+        dev = await self._require_membership_cached(board_id)
+        from datetime import date
+
+        from ..coordination.audit import OP_CREATE_EPIC, record_destructive
+
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                # Two creations at once must not pick the same EP-NN.
+                await conn.execute("SELECT pg_advisory_xact_lock(hashtext($1))", f"epics:{board_id}")
+                existing = await conn.fetch("SELECT id, position FROM epics WHERE project_id = $1", board_id)
+                ids = [r["id"] for r in existing]
+                if epic_id is None:
+                    epic_id = next_epic_id(ids)
+                elif epic_id in ids:
+                    raise EpicError(EPIC_EXISTS, f"{epic_id} already exists in {board_id}.")
+                if position is None:
+                    position = max((r["position"] for r in existing), default=0) + 1
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO epics (project_id, id, name, objective, link, position, target_date)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    RETURNING *
+                    """,
+                    board_id,
+                    epic_id,
+                    name.strip(),
+                    objective,
+                    link,
+                    position,
+                    date.fromisoformat(target_date) if target_date else None,
+                )
+                await record_destructive(
+                    conn,
+                    developer_id=dev.developer_id,
+                    project_id=board_id,
+                    operation=OP_CREATE_EPIC,
+                    target_id=epic_id,
+                    metadata={"name": row["name"]},
+                )
+        return self._epic_row_to_dto(row)
+
+    async def update_epic(
+        self,
+        board_id: str,
+        epic_id: str,
+        *,
+        name: str | None = None,
+        objective: str | None = None,
+        link: str | None = None,
+        position: int | None = None,
+        target_date: str | None = None,
+    ) -> EpicDTO:
+        validate_epic_fields(name=name, target_date=target_date)
+        dev = await self._require_membership_cached(board_id)
+        from datetime import date
+
+        from ..coordination.audit import OP_UPDATE_EPIC, record_destructive
+
+        changes: dict[str, Any] = {}
+        if name is not None:
+            changes["name"] = name.strip()
+        if objective is not None:
+            changes["objective"] = objective
+        if link is not None:
+            changes["link"] = link
+        if position is not None:
+            changes["position"] = position
+        if target_date is not None:
+            changes["target_date"] = date.fromisoformat(target_date) if target_date else None
+
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                if not changes:
+                    row = await conn.fetchrow(
+                        "SELECT * FROM epics WHERE project_id = $1 AND id = $2", board_id, epic_id
+                    )
+                else:
+                    sets = ", ".join(f"{col} = ${i}" for i, col in enumerate(changes, start=3))
+                    row = await conn.fetchrow(
+                        f"UPDATE epics SET {sets}, version = version + 1, updated_at = now() "
+                        "WHERE project_id = $1 AND id = $2 RETURNING *",
+                        board_id,
+                        epic_id,
+                        *changes.values(),
+                    )
+                if row is None:
+                    raise EpicError(EPIC_NOT_FOUND, f"{epic_id} does not exist in {board_id}.")
+                if changes:
+                    await record_destructive(
+                        conn,
+                        developer_id=dev.developer_id,
+                        project_id=board_id,
+                        operation=OP_UPDATE_EPIC,
+                        target_id=epic_id,
+                        metadata={"fields": sorted(changes)},
+                    )
+        return self._epic_row_to_dto(row)
+
+    async def delete_epic(self, board_id: str, epic_id: str) -> dict[str, Any]:
+        dev = await self._require_membership_cached(board_id)
+        from ..coordination.audit import OP_DELETE_EPIC, record_destructive
+
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                row = await conn.fetchrow(
+                    "SELECT * FROM epics WHERE project_id = $1 AND id = $2 FOR UPDATE", board_id, epic_id
+                )
+                if row is None:
+                    raise EpicError(EPIC_NOT_FOUND, f"{epic_id} does not exist in {board_id}.")
+                detached = [
+                    r["id"]
+                    for r in await conn.fetch(
+                        "SELECT id FROM user_stories WHERE project_id = $1 AND epic_id = $2 ORDER BY id",
+                        board_id,
+                        epic_id,
+                    )
+                ]
+                # ON DELETE SET NULL (epic_id) takes the stories out of the epic.
+                await conn.execute("DELETE FROM epics WHERE project_id = $1 AND id = $2", board_id, epic_id)
+                epic = self._epic_row_to_dto(row)
+                await record_destructive(
+                    conn,
+                    developer_id=dev.developer_id,
+                    project_id=board_id,
+                    operation=OP_DELETE_EPIC,
+                    target_id=epic_id,
+                    metadata={"snapshot": _snapshot_row(row), "detached_us": detached},
+                )
+        return {"epic": asdict(epic), "detached_us": detached}
+
+    async def set_us_epic(self, board_id: str, us_item_id: str, epic_id: str | None) -> ItemDTO:
+        dev = await self._require_membership_cached(board_id)
+        from ..coordination.audit import OP_SET_US_EPIC, record_destructive
+
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                current = await conn.fetchrow(
+                    "SELECT epic_id FROM user_stories WHERE project_id = $1 AND id = $2 FOR UPDATE",
+                    board_id,
+                    us_item_id,
+                )
+                if current is None:
+                    raise ValueError(f"Item {us_item_id} not found")
+                previous = current["epic_id"]
+                if epic_id is not None and not await conn.fetchval(
+                    "SELECT 1 FROM epics WHERE project_id = $1 AND id = $2", board_id, epic_id
+                ):
+                    raise EpicError(EPIC_NOT_FOUND, f"{epic_id} does not exist in {board_id}.")
+                row = await conn.fetchrow(
+                    "UPDATE user_stories SET epic_id = $3, version = version + 1, updated_at = now() "
+                    "WHERE project_id = $1 AND id = $2 RETURNING *",
+                    board_id,
+                    us_item_id,
+                    epic_id,
+                )
+                if previous != epic_id:
+                    await record_destructive(
+                        conn,
+                        developer_id=dev.developer_id,
+                        project_id=board_id,
+                        operation=OP_SET_US_EPIC,
+                        target_id=us_item_id,
+                        metadata={"from": previous, "to": epic_id},
+                    )
+        return self._us_row_to_dto(row)
 
     # ── SpecBackend: Comments ────────────────────────────────────
     #

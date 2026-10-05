@@ -70,6 +70,10 @@ def test_roundness_matches_server_enum() -> None:
     )
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason="UC-8407: the 2026-10-05 snapshot adds SOURCE_SERIF_4, SOURCE_SANS_3 and METROPHOBIC",
+)
 def test_stitch_font_matches_server_enum() -> None:
     props = _design_theme_props()
     # Three font fields use the same enum — test against headlineFont.

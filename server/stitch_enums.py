@@ -9,8 +9,8 @@ on 2026-05-26. Public documentation lags substantially behind the server:
 - Public docs do not mention `ROUND_TWO` Roundness; it exists server-side.
 
 The canonical source for these values is
-`.quality/evidence/stitch_smoke/mcp_tools_schema.json`, refreshed by
-re-running `.quality/evidence/stitch_smoke/smoke_test_mcp_v2.py`.
+`.quality/evidence/stitch_smoke/mcp_tools_schema.json`, refreshed with
+`STITCH_API_KEY=... python -m server.stitch_schema` (UC-8408).
 
 USAGE
 -----

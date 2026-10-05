@@ -901,7 +901,9 @@ parcial y consume menos cuota.
 
 Para cada pantalla generada:
 
-1. Obtener el HTML completo con `stitch_fetch_screen_code(project, stitch_project_id, screen_id)`
+1. Obtener el HTML completo con `stitch_fetch_screen_code(project, stitch_project_id, screen_id)`:
+   el HTML viene en `result.html` (el engine lo baja de `htmlCode.downloadUrl` de
+   `get_screen`; la captura, con `stitch_fetch_screen_image`, en `result.image_base64`)
 2. Guardar en `doc/design/{feature}/{screen_name}.html` con el `html_banner` de la
    respuesta como **primera línea**: el fichero queda marcado como diseño candidato
    (`specbox:design-role=candidate`) y nadie lo toma por fuente de producción

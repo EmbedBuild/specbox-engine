@@ -400,19 +400,46 @@ class StitchClient:
             {"name": screen_resource(project_id, screen_id)},
         )
 
-    async def fetch_screen_code(self, project_id: str, screen_id: str) -> Any:
-        """Download the raw HTML/frontend code of a screen."""
-        return await self._call_tool(
-            "fetch_screen_code",
-            {"projectId": project_id, "screenId": screen_id},
-        )
+    async def fetch_screen_code(self, project_id: str, screen_id: str) -> dict[str, Any]:
+        """The HTML of a screen, downloaded from ``htmlCode.downloadUrl`` of :meth:`get_screen`.
 
-    async def fetch_screen_image(self, project_id: str, screen_id: str) -> Any:
-        """Download the high-res screenshot of a screen (base64)."""
-        return await self._call_tool(
-            "fetch_screen_image",
-            {"projectId": project_id, "screenId": screen_id},
-        )
+        Stitch has no ``fetch_screen_code`` tool: the screen resource carries a
+        download URL instead (UC-8406).
+        """
+        screen = await self.get_screen(project_id, screen_id)
+        url = ((screen or {}).get("htmlCode") or {}).get("downloadUrl")
+        if not url:
+            raise StitchClientError(f"{screen_resource(project_id, screen_id)} has no htmlCode.downloadUrl")
+        resp = await self._download(url)
+        return {
+            "screen": screen.get("name"),
+            "title": screen.get("title"),
+            "html": resp.text,
+            "downloadUrl": url,
+        }
+
+    async def fetch_screen_image(self, project_id: str, screen_id: str) -> dict[str, Any]:
+        """The screenshot of a screen (base64), from ``screenshot.downloadUrl`` of :meth:`get_screen`."""
+        screen = await self.get_screen(project_id, screen_id)
+        url = ((screen or {}).get("screenshot") or {}).get("downloadUrl")
+        if not url:
+            raise StitchClientError(f"{screen_resource(project_id, screen_id)} has no screenshot.downloadUrl")
+        resp = await self._download(url)
+        return {
+            "screen": screen.get("name"),
+            "title": screen.get("title"),
+            "image_base64": base64.b64encode(resp.content).decode("ascii"),
+            "mime_type": resp.headers.get("content-type", "").split(";")[0] or None,
+            "downloadUrl": url,
+        }
+
+    async def _download(self, url: str) -> httpx.Response:
+        """GET a Stitch download URL with its own client: the API key never leaves for that host."""
+        async with httpx.AsyncClient(follow_redirects=True, timeout=httpx.Timeout(60.0, connect=10.0)) as client:
+            resp = await client.get(url)
+        if resp.status_code != 200:
+            raise StitchClientError(f"Download failed {resp.status_code} for {url.split('?')[0]}", code=resp.status_code)
+        return resp
 
     # -- Generation --
 

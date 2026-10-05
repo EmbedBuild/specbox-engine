@@ -209,44 +209,9 @@ class TestStitchClientPayload:
         assert not hasattr(stitch_client, "build_site")
         await stitch_client.close()
 
-    @respx.mock
-    async def test_fetch_screen_code_payload(self, stitch_client):
-        route = respx.post(STITCH_BASE_URL).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "jsonrpc": "2.0",
-                    "id": "test",
-                    "result": {
-                        "content": [{"type": "text", "text": "<html>code</html>"}]
-                    },
-                },
-            )
-        )
-        result = await stitch_client.fetch_screen_code("proj1", "screen1")
-        body = json.loads(route.calls[0].request.content)
-        assert body["params"]["name"] == "fetch_screen_code"
-        assert result["text"] == "<html>code</html>"
-        await stitch_client.close()
-
-    @respx.mock
-    async def test_fetch_screen_image_payload(self, stitch_client):
-        route = respx.post(STITCH_BASE_URL).mock(
-            return_value=httpx.Response(
-                200,
-                json={
-                    "jsonrpc": "2.0",
-                    "id": "test",
-                    "result": {
-                        "content": [{"type": "text", "text": "base64data..."}]
-                    },
-                },
-            )
-        )
-        result = await stitch_client.fetch_screen_image("proj1", "screen1")
-        body = json.loads(route.calls[0].request.content)
-        assert body["params"]["name"] == "fetch_screen_image"
-        await stitch_client.close()
+    # fetch_screen_code / fetch_screen_image are not Stitch tools: the HTML
+    # and the screenshot come from the download URLs of get_screen (UC-8406,
+    # tests/test_stitch_fetch.py).
 
 
 class TestStitchClientAuth:

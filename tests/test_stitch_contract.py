@@ -17,6 +17,7 @@ shows every known break at once.
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 import json
 
@@ -25,7 +26,7 @@ import pytest
 import respx
 from jsonschema import Draft202012Validator
 
-from server.stitch_client import STITCH_MCP_URL, StitchClient
+from server.stitch_client import STITCH_MCP_URL, StitchClient, StitchClientError
 from server.stitch_schema import closed, input_schema, load_schema
 
 SCHEMA = load_schema()
@@ -50,14 +51,8 @@ CASES = [
     pytest.param("get_project", ("123",), {}, id="get_project"),
     pytest.param("list_screens", ("123",), {}, id="list_screens"),
     pytest.param("get_screen", ("123", "abc"), {}, id="get_screen"),
-    pytest.param(
-        "fetch_screen_code", ("123", "abc"), {}, id="fetch_screen_code",
-        marks=_known_break("UC-8406", "fetch_screen_code is not a Stitch tool"),
-    ),
-    pytest.param(
-        "fetch_screen_image", ("123", "abc"), {}, id="fetch_screen_image",
-        marks=_known_break("UC-8406", "fetch_screen_image is not a Stitch tool"),
-    ),
+    pytest.param("fetch_screen_code", ("123", "abc"), {}, id="fetch_screen_code"),
+    pytest.param("fetch_screen_image", ("123", "abc"), {}, id="fetch_screen_image"),
     pytest.param("generate_screen_from_text", ("123", "A login page in light mode"), {}, id="generate_screen_from_text"),
     pytest.param("edit_screens", ("123", "abc", "Make the button blue"), {}, id="edit_screens"),
     pytest.param(
@@ -85,10 +80,12 @@ def _ok() -> httpx.Response:
 
 
 async def _sent(method: str, args: tuple, kwargs: dict) -> tuple[str, dict]:
+    """The first tool call a method makes (the fetch_* methods then download a URL)."""
     client = StitchClient(api_key="test-api-key-12345678")
     with respx.mock:
         route = respx.post(STITCH_MCP_URL).mock(return_value=_ok())
-        await getattr(client, method)(*args, **kwargs)
+        with contextlib.suppress(StitchClientError):
+            await getattr(client, method)(*args, **kwargs)
         params = json.loads(route.calls[0].request.content)["params"]
     await client.close()
     return params["name"], params["arguments"]
@@ -111,10 +108,11 @@ async def test_call_matches_stitch_schema(method, args, kwargs):
 def test_every_client_call_has_a_case():
     """A new method that calls Stitch needs its contract case."""
     covered = {case.values[0] for case in CASES}
+    not_mcp = {"close", "upload_via_rest_batch_create"}  # REST upload, no MCP tool
     calls_stitch = {
         name
-        for name, fn in inspect.getmembers(StitchClient, inspect.iscoroutinefunction)
-        if not name.startswith("_") and "_call_tool" in inspect.getsource(fn)
+        for name, _ in inspect.getmembers(StitchClient, inspect.iscoroutinefunction)
+        if not name.startswith("_") and name not in not_mcp
     }
     assert calls_stitch == covered, (
         f"without a case: {sorted(calls_stitch - covered)}; stale cases: {sorted(covered - calls_stitch)}"

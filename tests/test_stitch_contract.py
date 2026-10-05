@@ -47,15 +47,9 @@ def _known_break(uc: str, why: str):
 CASES = [
     pytest.param("create_project", ("Demo",), {}, id="create_project"),
     pytest.param("list_projects", (), {}, id="list_projects"),
-    pytest.param(
-        "get_project", ("123",), {}, id="get_project",
-        marks=_known_break("UC-8402", "sends projectId; the API asks for name=projects/{id}"),
-    ),
+    pytest.param("get_project", ("123",), {}, id="get_project"),
     pytest.param("list_screens", ("123",), {}, id="list_screens"),
-    pytest.param(
-        "get_screen", ("123", "abc"), {}, id="get_screen",
-        marks=_known_break("UC-8402", "sends projectId+screenId; the API asks for name=projects/{p}/screens/{s}"),
-    ),
+    pytest.param("get_screen", ("123", "abc"), {}, id="get_screen"),
     pytest.param(
         "fetch_screen_code", ("123", "abc"), {}, id="fetch_screen_code",
         marks=_known_break("UC-8406", "fetch_screen_code is not a Stitch tool"),

@@ -54,6 +54,22 @@ GENERATE_TIMEOUT = 360.0  # 6 minutes for generate operations
 DESIGN_SYSTEM_TIMEOUT = 180.0  # 3 minutes
 
 
+def project_resource(project_id: str) -> str:
+    """``projects/{id}`` for a bare id or one that already has the prefix (UC-8402)."""
+    pid = project_id.strip().strip("/")
+    return pid if pid.startswith("projects/") else f"projects/{pid}"
+
+
+def screen_resource(project_id: str, screen_id: str) -> str:
+    """``projects/{p}/screens/{s}`` without repeating a prefix the ids already carry."""
+    sid = screen_id.strip().strip("/")
+    if sid.startswith("projects/"):
+        return sid
+    if sid.startswith("screens/"):
+        sid = sid[len("screens/"):]
+    return f"{project_resource(project_id)}/screens/{sid}"
+
+
 class StitchClientError(Exception):
     """Error from the Stitch MCP endpoint."""
 
@@ -283,8 +299,8 @@ class StitchClient:
         return await self._call_tool("list_projects")
 
     async def get_project(self, project_id: str) -> Any:
-        """Get details of a specific Stitch project."""
-        return await self._call_tool("get_project", {"projectId": project_id})
+        """Get details of a Stitch project, by its resource name ``projects/{id}``."""
+        return await self._call_tool("get_project", {"name": project_resource(project_id)})
 
     # -- Screen queries --
 
@@ -293,10 +309,13 @@ class StitchClient:
         return await self._call_tool("list_screens", {"projectId": project_id})
 
     async def get_screen(self, project_id: str, screen_id: str) -> Any:
-        """Get metadata for a specific screen."""
+        """Get a screen by its resource name ``projects/{p}/screens/{s}``.
+
+        The answer carries ``htmlCode.downloadUrl`` and ``screenshot.downloadUrl``.
+        """
         return await self._call_tool(
             "get_screen",
-            {"projectId": project_id, "screenId": screen_id},
+            {"name": screen_resource(project_id, screen_id)},
         )
 
     async def fetch_screen_code(self, project_id: str, screen_id: str) -> Any:

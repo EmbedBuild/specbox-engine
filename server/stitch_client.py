@@ -81,6 +81,35 @@ class StitchClientError(Exception):
         self.data = data
 
 
+# The theme fields the API marks as required (tools/list, 2026-10-05).
+REQUIRED_THEME_FIELDS = ("colorMode", "headlineFont", "bodyFont", "roundness", "customColor")
+
+
+def design_system_payload(display_name: str | None, theme: dict[str, Any] | None) -> dict[str, Any]:
+    """``designSystem`` as ``create_design_system`` and ``update_design_system`` ask for it.
+
+    Checked before any call, so a missing field is named here instead of
+    coming back from Stitch as «invalid argument» (UC-8403).
+    """
+    name = (display_name or "").strip()
+    if not name:
+        raise StitchClientError("designSystem.displayName is required")
+    return {"displayName": name, "theme": check_theme(theme)}
+
+
+def check_theme(theme: dict[str, Any] | None) -> dict[str, Any]:
+    """A copy of ``theme`` with every required field, or the error naming what is missing."""
+    theme = dict(theme or {})
+    if "font" in theme:
+        raise StitchClientError(
+            "DesignTheme.font is the deprecated legacy field; use headlineFont / bodyFont / labelFont."
+        )
+    missing = [field for field in REQUIRED_THEME_FIELDS if not theme.get(field)]
+    if missing:
+        raise StitchClientError("designSystem.theme is missing required fields: " + ", ".join(missing))
+    return theme
+
+
 class StitchClient:
     """Async MCP client for Google Stitch design service."""
 
@@ -434,21 +463,22 @@ class StitchClient:
 
     async def create_design_system(
         self,
-        project_id: str,
-        *,
-        display_name: str | None = None,
+        project_id: str | None,
+        display_name: str,
+        theme: dict[str, Any],
     ) -> Any:
-        """Create an empty design system on a project.
+        """Create a design system with its name and theme (UC-8403).
 
-        Use this when you want full manual control over theme tokens via
-        :meth:`update_design_system`. For DESIGN.md-driven creation,
-        prefer :meth:`create_design_system_from_design_md` which
-        auto-populates theme tokens from the YAML frontmatter and
-        avoids a second round trip.
+        The API asks for ``designSystem: {displayName, theme}`` and, in the
+        theme, ``colorMode``, ``headlineFont``, ``bodyFont``, ``roundness`` and
+        ``customColor``; :func:`design_system_payload` checks them first.
+        Without ``project_id`` the design system belongs to the account.
+        For DESIGN.md-driven creation prefer
+        :meth:`create_design_system_from_design_md`.
         """
-        args: dict[str, Any] = {"projectId": project_id}
-        if display_name:
-            args["displayName"] = display_name
+        args: dict[str, Any] = {"designSystem": design_system_payload(display_name, theme)}
+        if project_id:
+            args["projectId"] = project_id
         return await self._call_tool(
             "create_design_system",
             args,
@@ -503,32 +533,46 @@ class StitchClient:
                 ``headlineFont``/``bodyFont``/``labelFont`` — the
                 legacy ``font`` field WILL be rejected with
                 ``invalid argument``.
-            display_name: Optional rename of the DS.
+            display_name: New name of the DS. The API always asks for it:
+                without one, the current name is read with
+                :meth:`list_design_systems` and sent again (UC-8403).
 
         Operation is destructive on the theme (no versioning).
         """
-        design_system: dict[str, Any] = {"theme": theme}
-        if display_name:
-            design_system["displayName"] = display_name
+        if not (display_name or "").strip():
+            display_name = await self._current_display_name(project_id, asset_name)
         return await self._call_tool(
             "update_design_system",
             {
                 "name": asset_name,
                 "projectId": project_id,
-                "designSystem": design_system,
+                "designSystem": design_system_payload(display_name, theme),
             },
             timeout=DESIGN_SYSTEM_TIMEOUT,
         )
 
-    async def list_design_systems(self, project_id: str) -> Any:
-        """List all design systems registered on a project.
+    async def _current_display_name(self, project_id: str | None, asset_name: str) -> str:
+        """The displayName Stitch has for ``asset_name`` (``assets/{id}`` or the bare id)."""
+        wanted = asset_name if asset_name.startswith("assets/") else f"assets/{asset_name}"
+        listed = await self.list_design_systems(project_id)
+        for item in (listed or {}).get("designSystems", []) if isinstance(listed, dict) else []:
+            if item.get("name") == wanted:
+                name = (item.get("designSystem") or {}).get("displayName")
+                if name:
+                    return name
+        raise StitchClientError(
+            f"{wanted} has no displayName in this project; pass display_name to update it."
+        )
+
+    async def list_design_systems(self, project_id: str | None) -> Any:
+        """List the design systems of a project, or the account's without one.
 
         Returns either ``{"designSystems": [...]}`` or an empty dict
-        when the project has none.
+        when there are none.
         """
         return await self._call_tool(
             "list_design_systems",
-            {"projectId": project_id},
+            {"projectId": project_id} if project_id else {},
         )
 
     async def apply_design_system(

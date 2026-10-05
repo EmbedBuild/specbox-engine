@@ -56,23 +56,26 @@ class TestNativeDesignSystemPayloads:
         assert base64.b64decode(args["designMdBase64"]).startswith(b"# Tiny")
 
     @respx.mock
-    async def test_create_design_system_minimal(self, stitch_client):
+    async def test_create_design_system_sends_name_and_theme(self, stitch_client):
+        # UC-8403 — the API asks for designSystem {displayName, theme}; the
+        # earlier {projectId, displayName} was always rejected.
         route = respx.post(STITCH_MCP_URL).mock(
             return_value=_ok_response({"name": "assets/abc"})
         )
-        await stitch_client.create_design_system("p1")
+        theme = {
+            "colorMode": "LIGHT",
+            "headlineFont": "INTER",
+            "bodyFont": "INTER",
+            "roundness": "ROUND_EIGHT",
+            "customColor": "#0EA5E9",
+        }
+        await stitch_client.create_design_system("p1", "Brand DS", theme)
         body = json.loads(route.calls[0].request.content)
         assert body["params"]["name"] == "create_design_system"
-        assert body["params"]["arguments"] == {"projectId": "p1"}
-
-    @respx.mock
-    async def test_create_design_system_with_display_name(self, stitch_client):
-        route = respx.post(STITCH_MCP_URL).mock(
-            return_value=_ok_response({"name": "assets/abc"})
-        )
-        await stitch_client.create_design_system("p1", display_name="Brand DS")
-        body = json.loads(route.calls[0].request.content)
-        assert body["params"]["arguments"]["displayName"] == "Brand DS"
+        assert body["params"]["arguments"] == {
+            "designSystem": {"displayName": "Brand DS", "theme": theme},
+            "projectId": "p1",
+        }
 
     @respx.mock
     async def test_create_design_system_from_design_md(self, stitch_client):
@@ -95,11 +98,7 @@ class TestNativeDesignSystemPayloads:
         assert args["deviceType"] == "MOBILE"
 
     @respx.mock
-    async def test_update_design_system_strips_legacy_font(self, stitch_client):
-        # The MCP server rejects the legacy "font" key — we don't filter
-        # it on the client (the MCP tool wrapper does), but the wrapper
-        # itself must send what the caller gave. The strip happens at
-        # the MCP tool layer, see test_stitch_update_design_system.
+    async def test_update_design_system_payload(self, stitch_client):
         route = respx.post(STITCH_MCP_URL).mock(
             return_value=_ok_response({"name": "assets/abc", "designSystem": {}})
         )
@@ -109,14 +108,18 @@ class TestNativeDesignSystemPayloads:
             theme={
                 "colorMode": "LIGHT",
                 "headlineFont": "INTER",
+                "bodyFont": "INTER",
                 "roundness": "ROUND_EIGHT",
+                "customColor": "#0EA5E9",
             },
+            display_name="Brand DS",
         )
         body = json.loads(route.calls[0].request.content)
         args = body["params"]["arguments"]
         assert body["params"]["name"] == "update_design_system"
         assert args["name"] == "assets/abc"
         assert args["projectId"] == "p1"
+        assert args["designSystem"]["displayName"] == "Brand DS"
         assert args["designSystem"]["theme"]["colorMode"] == "LIGHT"
 
     @respx.mock

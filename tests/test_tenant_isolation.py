@@ -189,6 +189,8 @@ MUTATORS = [
     ("update_epic", lambda b, p: b.update_epic(p, "EP-01", name="renombrada por otro tenant")),
     ("delete_epic", lambda b, p: b.delete_epic(p, "EP-01")),
     ("set_us_epic", lambda b, p: b.set_us_epic(p, "US-01", "EP-01")),
+    # US-78 / UC-7803: la declaración de satélites del proyecto.
+    ("set_board_satellites", lambda b, p: b.set_board_satellites(p, ["intruso"])),
 ]
 
 #: Métodos que reciben `board_id` y llevan verbo de escritura en el nombre pero
@@ -202,7 +204,7 @@ STUB_METHODS = ["create_module", "add_items_to_module"]
 # EL INVENTARIO — cerrado por UC-3402 el 2026-08-24
 # ═══════════════════════════════════════════════════════════════════════
 #
-#   VULNERABLES: 0  ·  PROTEGIDOS: 15  ·  STUBS: 2  ·  sin clasificar: 0
+#   VULNERABLES: 0  ·  PROTEGIDOS: 16  ·  STUBS: 2  ·  sin clasificar: 0
 #   (los cuatro de épicas, US-78/UC-7801, entraron el 2026-10-05 ya protegidos)
 #
 # Estado medido por UC-3401 (2026-08-24): 10 vulnerables de 11 mutadores. Los
@@ -391,6 +393,7 @@ READERS = [
     # Atajos heredados del ABC: pasan por list_items.
     ("find_us_items", lambda b, p: b.find_us_items(p)),
     ("find_uc_items", lambda b, p: b.find_uc_items(p)),
+    ("get_board_satellites", lambda b, p: b.get_board_satellites(p)),
 ]
 
 #: Devuelven constantes del flujo sin consultar la base: nada que aislar.

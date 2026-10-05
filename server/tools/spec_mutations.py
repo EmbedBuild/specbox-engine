@@ -114,7 +114,7 @@ async def update_uc(
             if not ok:
                 return _mk_error("INVALID_MILESTONE", err or "invalid milestone")
         if satellite is not None:
-            ok, err = mh.validate_satellite(satellite, mh.settings_path_from_env())
+            ok, err = await mh.check_satellite(backend, board_id, satellite)
             if not ok:
                 return _mk_error("INVALID_SATELLITE", err or "invalid satellite")
 
@@ -241,7 +241,7 @@ async def update_uc_batch(
 
             satellite = entry.get("satellite")
             if satellite is not None:
-                ok, err = mh.validate_satellite(satellite, mh.settings_path_from_env())
+                ok, err = await mh.check_satellite(backend, board_id, satellite)
                 if not ok:
                     failed.append({"uc_id": uc_id, "error": err, "code": "INVALID_SATELLITE"})
                     if stop_on_error:
@@ -863,7 +863,7 @@ async def add_uc(
             if not ok:
                 return _mk_error("INVALID_MILESTONE", err or "invalid milestone")
         if satellite is not None:
-            ok, err = mh.validate_satellite(satellite, mh.settings_path_from_env())
+            ok, err = await mh.check_satellite(backend, board_id, satellite)
             if not ok:
                 return _mk_error("INVALID_SATELLITE", err or "invalid satellite")
 

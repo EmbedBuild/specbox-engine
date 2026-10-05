@@ -1955,6 +1955,49 @@ class NativeBackend(SpecBackend):
                     )
         return self._us_row_to_dto(row)
 
+    # ── SpecBackend: Declared satellites (US-78 / UC-7803) ───────
+
+    async def get_board_satellites(self, board_id: str) -> list[str] | None:
+        await self._require_read_access(board_id)
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            raw = await conn.fetchval("SELECT meta->'satellites' FROM projects WHERE project_id = $1", board_id)
+        declared = _from_jsonb(raw)
+        return [str(x) for x in declared] if isinstance(declared, list) and declared else None
+
+    async def set_board_satellites(self, board_id: str, satellites: list[str]) -> list[str]:
+        clean: list[str] = []
+        for sat in satellites:
+            key = str(sat).strip()
+            if key and key not in clean:
+                clean.append(key)
+        if not clean:
+            raise ValueError("Declare at least one satellite.")
+        dev = await self._require_membership_cached(board_id)
+        from ..coordination.audit import record_destructive
+
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                previous = _from_jsonb(
+                    await conn.fetchval("SELECT meta->'satellites' FROM projects WHERE project_id = $1", board_id)
+                )
+                await conn.execute(
+                    "UPDATE projects SET meta = meta || jsonb_build_object('satellites', $2::jsonb), "
+                    "updated_at = now() WHERE project_id = $1",
+                    board_id,
+                    _jsonb(clean),
+                )
+                await record_destructive(
+                    conn,
+                    developer_id=dev.developer_id,
+                    project_id=board_id,
+                    operation="declare_satellites",
+                    target_id=board_id,
+                    metadata={"from": previous, "to": clean},
+                )
+        return clean
+
     # ── SpecBackend: Comments ────────────────────────────────────
     #
     # UC-102 schema has no comments table. Comments are stored in the item's

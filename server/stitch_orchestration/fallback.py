@@ -129,6 +129,7 @@ async def generate_screen_with_fallback(
     device_type: str = "DESKTOP",
     model_id: str = DEFAULT_MODEL,
     fallback_model_id: str = FALLBACK_MODEL,
+    design_system: str | None = None,
     baseline_screen_id: str | None = None,
     fallback_strategy: list[FallbackStrategy] | None = None,
     max_total_attempts: int = 3,
@@ -144,6 +145,8 @@ async def generate_screen_with_fallback(
         fallback_strategy: Strategies in order. Defaults to
             ``[EDIT_BASELINE, VARIANTS_REFINE, REGENERATE]``.
         max_total_attempts: Hard ceiling across all strategies.
+        design_system: ``assets/{id}`` sent with every generation so Stitch
+            applies the project's design system (UC-8501).
         fallback_model_id: Model for the ladder after the natural call
             fails (UC-8405: ``GEMINI_3_5_FLASH_LITE``). When it differs
             from ``model_id`` a success through the ladder is reported as
@@ -173,6 +176,7 @@ async def generate_screen_with_fallback(
         device_type=device_type,
         model_id=model_id,
         baseline_screen_id=baseline_screen_id,
+        design_system=design_system,
         attempts=attempts,
     )
     if primary is not None:
@@ -202,6 +206,7 @@ async def generate_screen_with_fallback(
             device_type=device_type,
             model_id=fallback_model_id,
             baseline_screen_id=baseline_screen_id,
+            design_system=design_system,
             attempts=attempts,
         )
         if out is not None:
@@ -238,6 +243,7 @@ async def _run_strategy(
     model_id: str,
     baseline_screen_id: str | None,
     attempts: list[dict],
+    design_system: str | None = None,
 ) -> Any | None:
     """Execute one strategy. Returns the result on success or None on
     failure (and appends an entry to ``attempts``)."""
@@ -271,6 +277,7 @@ async def _run_strategy(
                 prompt,
                 device_type=device_type,
                 model_id=model_id,
+                **({"design_system": design_system} if design_system else {}),
             )
         entry["status"] = "ok"
         entry["duration_s"] = round(time.time() - started_at, 3)

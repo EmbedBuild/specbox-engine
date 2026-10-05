@@ -48,12 +48,17 @@ def _known_break(uc: str, why: str):
 CASES = [
     pytest.param("create_project", ("Demo",), {}, id="create_project"),
     pytest.param("list_projects", (), {}, id="list_projects"),
+    pytest.param("list_projects", ("shared",), {}, id="list_projects_shared"),
     pytest.param("get_project", ("123",), {}, id="get_project"),
     pytest.param("list_screens", ("123",), {}, id="list_screens"),
     pytest.param("get_screen", ("123", "abc"), {}, id="get_screen"),
     pytest.param("fetch_screen_code", ("123", "abc"), {}, id="fetch_screen_code"),
     pytest.param("fetch_screen_image", ("123", "abc"), {}, id="fetch_screen_image"),
     pytest.param("generate_screen_from_text", ("123", "A login page in light mode"), {}, id="generate_screen_from_text"),
+    pytest.param(
+        "generate_screen_from_text", ("123", "A login page"), {"design_system": "9", "device_type": "AGNOSTIC"},
+        id="generate_screen_with_design_system",
+    ),
     pytest.param("edit_screens", ("123", "abc", "Make the button blue"), {}, id="edit_screens"),
     pytest.param(
         "generate_variants", ("123", "abc"),
@@ -69,6 +74,8 @@ CASES = [
         "update_design_system", ("assets/1", "123", THEME), {"display_name": "Tinta"}, id="update_design_system",
     ),
     pytest.param("list_design_systems", ("123",), {}, id="list_design_systems"),
+    pytest.param("list_design_systems", (None,), {}, id="list_design_systems_global"),
+    pytest.param("create_design_system", (None, "Tinta", THEME), {}, id="create_design_system_global"),
     pytest.param("apply_design_system", ("123", "1", [INSTANCE]), {}, id="apply_design_system"),
 ]
 

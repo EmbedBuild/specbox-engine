@@ -95,6 +95,12 @@ class StitchTimeoutError(StitchClientError):
         self.may_still_complete = may_still_complete
 
 
+def asset_resource(asset: str) -> str:
+    """``assets/{id}`` for a bare id or one that already has the prefix."""
+    aid = asset.strip().strip("/")
+    return aid if aid.startswith("assets/") else f"assets/{aid}"
+
+
 def screen_ids_for(screen_ids: str | list[str]) -> list[str]:
     """``selectedScreenIds`` as the API asks for it: bare ids, never empty (UC-8404).
 
@@ -376,9 +382,11 @@ class StitchClient:
         """Create a new Stitch project/workspace."""
         return await self._call_tool("create_project", {"title": title})
 
-    async def list_projects(self) -> Any:
-        """List all Stitch projects for the authenticated user."""
-        return await self._call_tool("list_projects")
+    async def list_projects(self, view: str | None = None) -> Any:
+        """List the Stitch projects of the user: ``view="owned"`` (default) or ``"shared"`` with them."""
+        if view and view not in {"owned", "shared"}:
+            raise StitchClientError(f"view must be 'owned' or 'shared', got {view!r}")
+        return await self._call_tool("list_projects", {"filter": f"view={view}"} if view else {})
 
     async def get_project(self, project_id: str) -> Any:
         """Get details of a Stitch project, by its resource name ``projects/{id}``."""
@@ -450,16 +458,25 @@ class StitchClient:
         *,
         device_type: str = "DESKTOP",
         model_id: str = DEFAULT_MODEL,
+        design_system: str | None = None,
     ) -> Any:
-        """Generate a UI screen from a text prompt. Can take several minutes."""
+        """Generate a UI screen from a text prompt. Can take several minutes.
+
+        ``design_system`` (``assets/{id}`` or the bare id) makes Stitch apply
+        that design system's colours and fonts; the API recommends always
+        sending it (UC-8501).
+        """
+        args: dict[str, Any] = {
+            "projectId": project_id,
+            "prompt": prompt,
+            "deviceType": device_type,
+            "modelId": model_id,
+        }
+        if design_system:
+            args["designSystem"] = asset_resource(design_system)
         return await self._call_tool(
             "generate_screen_from_text",
-            {
-                "projectId": project_id,
-                "prompt": prompt,
-                "deviceType": device_type,
-                "modelId": model_id,
-            },
+            args,
             timeout=GENERATE_TIMEOUT,
             generates=True,
         )

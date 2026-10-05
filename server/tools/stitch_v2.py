@@ -435,6 +435,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
         max_total_attempts: int = 3,
         contract: str = "native_v2",
         design_md_content: str | None = None,
+        design_system: str | None = None,
     ) -> dict:
         """Generate a screen with the v5.31.0 fallback chain.
 
@@ -466,6 +467,10 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
             design_md_content: When ``contract == "inline_prefix_v1"``,
                 the DESIGN.md text to prepend. Ignored when contract is
                 ``native_v2`` and a DS is detected.
+            design_system: ``assets/{id}`` to generate with. Without it,
+                ``native_v2`` sends the project's design system it detects
+                (the first one listed), so the colours and fonts stripped
+                from the prompt come from the DS (UC-8501).
 
         Returns:
             ``{status, outcome, final_strategy, model_used, attempts,
@@ -506,6 +511,9 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 design_md_content=design_md_content,
             )
 
+            ds_asset = design_system or (
+                ds_info.get("first_asset") if prompt_mode == "design_system_applied" else None
+            )
             ops = _StitchOpsAdapter(client)
             result = await generate_screen_with_fallback(
                 ops,
@@ -513,6 +521,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 effective_prompt,
                 device_type=device_type,
                 model_id=model,
+                design_system=ds_asset,
                 baseline_screen_id=baseline_screen_id,
                 max_total_attempts=max_total_attempts,
             )
@@ -543,6 +552,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 "contract": contract,
                 "prompt_mode": prompt_mode,
                 "design_system_info": ds_info,
+                "design_system_used": ds_asset,
                 **({"model_notice": model_notice} if model_notice else {}),
                 **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
             }
@@ -764,10 +774,10 @@ class _StitchOpsAdapter:
         self._client = client
 
     async def generate_screen(
-        self, project_id, prompt, *, device_type="DESKTOP", model_id=DEFAULT_MODEL
+        self, project_id, prompt, *, device_type="DESKTOP", model_id=DEFAULT_MODEL, design_system=None
     ):
         return await self._client.generate_screen_from_text(
-            project_id, prompt, device_type=device_type, model_id=model_id
+            project_id, prompt, device_type=device_type, model_id=model_id, design_system=design_system
         )
 
     async def edit_screens(

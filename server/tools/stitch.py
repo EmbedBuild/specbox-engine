@@ -134,21 +134,34 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
             "Call stitch_set_api_key(project, api_key) first."
         )
 
+    async def _project_design_system(client, stitch_project_id: str) -> str | None:
+        """The first design system of the project (``assets/{id}``), or None."""
+        try:
+            listed = await client.list_design_systems(stitch_project_id)
+        except Exception:  # noqa: BLE001 — generating without a DS is still possible
+            return None
+        items = listed.get("designSystems") if isinstance(listed, dict) else None
+        if items and isinstance(items[0], dict):
+            return items[0].get("name")
+        return None
+
     @mcp.tool
-    async def stitch_list_projects(ctx: Context, project: str) -> dict:
-        """List all Google Stitch projects for the user's account.
+    async def stitch_list_projects(ctx: Context, project: str, view: str = "owned") -> dict:
+        """List the Google Stitch projects of the user's account.
 
         Use when you need to see which Stitch design projects are available.
 
         Args:
             project: SpecBox Engine project slug (to resolve the API Key).
+            view: "owned" (default) or "shared" — the projects others shared
+                with you (UC-8501).
 
         Returns:
             List of Stitch projects with their IDs and names.
         """
         try:
             client = await _get_client_for_project(ctx, project)
-            result = await client.list_projects()
+            result = await client.list_projects(view)
             _log_stitch_usage(project, "list_projects")
             return {"status": "ok", "project": project, "result": result}
         except Exception as exc:
@@ -241,6 +254,7 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
         prompt: str,
         device_type: str = "DESKTOP",
         model_id: str = DEFAULT_MODEL,
+        design_system: str = "",
     ) -> dict:
         """Generate a UI screen from a text prompt using Google Stitch.
 
@@ -258,6 +272,9 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
                 "GEMINI_3_5_FLASH_LITE" (simple screens). A legacy id
                 (GEMINI_3_PRO, GEMINI_3_FLASH, GEMINI_3_1_PRO) is translated
                 and reported in ``model_notice``.
+            design_system: ``assets/{id}`` to generate with. Empty: the
+                project's design system (the first one listed), if any —
+                Stitch recommends always sending one (UC-8501).
 
         Returns:
             Generated screen details including ID and HTML content.
@@ -275,11 +292,13 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
                 device_type=device_type,
                 model_id=model,
             )
+            ds_asset = design_system or await _project_design_system(client, stitch_project_id)
             result = await client.generate_screen_from_text(
                 stitch_project_id,
                 prompt,
                 device_type=device_type,
                 model_id=model,
+                design_system=ds_asset,
             )
             _log_stitch_usage(project, "generate_screen")
             logger.info("stitch_generate_screen_complete", project=project)
@@ -287,6 +306,7 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
                 "status": "ok",
                 "project": project,
                 "model_used": model,
+                "design_system_used": ds_asset,
                 **({"model_notice": model_notice} if model_notice else {}),
                 "result": result,
                 **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
@@ -617,7 +637,7 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
     async def stitch_create_design_system(
         ctx: Context,
         project: str,
-        stitch_project_id: str,
+        stitch_project_id: str = "",
         display_name: str = "",
         theme: dict | None = None,
     ) -> dict:
@@ -628,7 +648,8 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
 
         Args:
             project: SpecBox project slug.
-            stitch_project_id: Stitch project ID.
+            stitch_project_id: Stitch project ID. Empty: a design system of
+                the account, usable from every project (UC-8501).
             display_name: Name of the design system (required).
             theme: DesignTheme dict, built as in `stitch_update_design_system`.
                 Required: colorMode, headlineFont, bodyFont, roundness and
@@ -642,7 +663,7 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
         try:
             client = await _get_client_for_project(ctx, project)
             result = await client.create_design_system(
-                stitch_project_id,
+                stitch_project_id or None,
                 display_name,
                 theme or {},
             )
@@ -763,17 +784,18 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
     async def stitch_list_design_systems(
         ctx: Context,
         project: str,
-        stitch_project_id: str,
+        stitch_project_id: str = "",
     ) -> dict:
-        """List all design systems attached to a Stitch project.
+        """List the design systems of a Stitch project, or of the account without one.
 
-        Returns `{"designSystems": [...]}` or an empty dict when the
-        project has none. Useful for `stitch_generate_screen_v2` to
-        decide whether to omit theme directives from the prompt.
+        Returns `{"designSystems": [...]}` or an empty dict when there are
+        none. Useful for `stitch_generate_screen_v2` to decide whether to
+        omit theme directives from the prompt. Without `stitch_project_id`
+        it lists the account's global design systems (UC-8501).
         """
         try:
             client = await _get_client_for_project(ctx, project)
-            result = await client.list_design_systems(stitch_project_id)
+            result = await client.list_design_systems(stitch_project_id or None)
             _log_stitch_usage(project, "list_design_systems")
             return {"status": "ok", "project": project, "result": result}
         except Exception as exc:

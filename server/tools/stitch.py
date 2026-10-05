@@ -724,7 +724,7 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
                   - colorMode: LIGHT | DARK
                   - headlineFont / bodyFont / labelFont: any value of
                     `StitchFont` (do NOT use the deprecated `font` key)
-                  - roundness: ROUND_TWO..ROUND_FULL
+                  - roundness: ROUND_FOUR | ROUND_EIGHT | ROUND_TWELVE | ROUND_FULL
                   - colorVariant: e.g. TONAL_SPOT (M3 default), FIDELITY,
                     VIBRANT, EXPRESSIVE, MONOCHROME, NEUTRAL, CONTENT,
                     RAINBOW, FRUIT_SALAD

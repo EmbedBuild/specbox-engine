@@ -70,10 +70,6 @@ def test_roundness_matches_server_enum() -> None:
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="UC-8407: the 2026-10-05 snapshot adds SOURCE_SERIF_4, SOURCE_SANS_3 and METROPHOBIC",
-)
 def test_stitch_font_matches_server_enum() -> None:
     props = _design_theme_props()
     # Three font fields use the same enum — test against headlineFont.
@@ -88,17 +84,22 @@ def test_stitch_font_matches_server_enum() -> None:
 
 def test_font_count_pinned() -> None:
     # Sanity check that the enum hasn't accidentally lost values during edits.
-    # Captured from MCP tools/list on 2026-05-26: 65 values including the
-    # UNSPECIFIED sentinel.
-    assert len(list(StitchFont)) == 65
+    # Captured from MCP tools/list on 2026-10-05: 68 values including the
+    # UNSPECIFIED sentinel (UC-8407 added SOURCE_SERIF_4, SOURCE_SANS_3 and
+    # METROPHOBIC).
+    assert len(list(StitchFont)) == 68
 
 
-def test_device_type_excludes_agnostic() -> None:
-    # Public docs list AGNOSTIC but the live MCP does not — verified via
-    # smoke v2. Including it locally would let bad calls through.
-    values = {d.value for d in DeviceType}
-    assert "AGNOSTIC" not in values
-    assert values == {"DESKTOP", "MOBILE", "TABLET"}
+def test_device_type_matches_server_enum() -> None:
+    # UC-8407: AGNOSTIC passes the API validation (probed 2026-10-05: a call
+    # with it gets «not found» for a missing project, an unknown value gets
+    # «invalid argument»), and it is in the schema of every tool that takes
+    # a device.
+    schema = json.loads(SCHEMA_PATH.read_text())
+    for tool in schema["tools"]:
+        prop = tool["inputSchema"].get("properties", {}).get("deviceType")
+        if prop:
+            assert {d.value for d in DeviceType} == set(prop["enum"]) - {"DEVICE_TYPE_UNSPECIFIED"}, tool["name"]
 
 
 @pytest.mark.parametrize(

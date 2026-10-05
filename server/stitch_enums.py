@@ -60,7 +60,7 @@ class Roundness(StrEnum):
     """Corner radius scale for design system components."""
 
     UNSPECIFIED = "ROUNDNESS_UNSPECIFIED"
-    ROUND_TWO = "ROUND_TWO"  # 2px — sharp
+    ROUND_TWO = "ROUND_TWO"  # 2px — «Unused» for the API: never produced (UC-8407)
     ROUND_FOUR = "ROUND_FOUR"  # 4px — restrained
     ROUND_EIGHT = "ROUND_EIGHT"  # 8px — balanced
     ROUND_TWELVE = "ROUND_TWELVE"  # 12px — friendly
@@ -68,7 +68,10 @@ class Roundness(StrEnum):
 
 
 class StitchFont(StrEnum):
-    """All 65 fonts the Stitch MCP server accepts in DesignTheme.
+    """All 68 fonts the Stitch MCP server accepts in DesignTheme (2026-10-05).
+
+    SOURCE_SERIF_FOUR, SOURCE_SANS_THREE and METROPOLIS are still accepted
+    but deprecated by the API: see :data:`DEPRECATED_FONTS`.
 
     Server-validated; values not in this enum will be rejected by
     `update_design_system` and `create_design_system`.
@@ -99,10 +102,13 @@ class StitchFont(StrEnum):
     LIBRE_CASLON_TEXT = "LIBRE_CASLON_TEXT"
     EB_GARAMOND = "EB_GARAMOND"
     LITERATA = "LITERATA"
-    SOURCE_SERIF_FOUR = "SOURCE_SERIF_FOUR"
+    SOURCE_SERIF_FOUR = "SOURCE_SERIF_FOUR"  # deprecated → SOURCE_SERIF_4
+    SOURCE_SERIF_4 = "SOURCE_SERIF_4"
     MONTSERRAT = "MONTSERRAT"
-    METROPOLIS = "METROPOLIS"
-    SOURCE_SANS_THREE = "SOURCE_SANS_THREE"
+    METROPOLIS = "METROPOLIS"  # deprecated, no replacement
+    METROPHOBIC = "METROPHOBIC"
+    SOURCE_SANS_THREE = "SOURCE_SANS_THREE"  # deprecated → SOURCE_SANS_3
+    SOURCE_SANS_3 = "SOURCE_SANS_3"
     NUNITO_SANS = "NUNITO_SANS"
     ARIMO = "ARIMO"
     HANKEN_GROTESK = "HANKEN_GROTESK"
@@ -150,11 +156,38 @@ class StitchFont(StrEnum):
 
 
 class DeviceType(StrEnum):
-    """Device type for generation and DS scoping. AGNOSTIC is NOT supported."""
+    """Device type for generation, edit, variants and DS from DESIGN.md.
+
+    AGNOSTIC («not tied to a specific device») is accepted: probed on
+    2026-10-05, it passes validation where an unknown value gets «invalid
+    argument» (UC-8407).
+    """
 
     DESKTOP = "DESKTOP"
     MOBILE = "MOBILE"
     TABLET = "TABLET"
+    AGNOSTIC = "AGNOSTIC"
+
+
+# Values the API still takes but marks deprecated or unused (2026-10-05), with
+# the one to send instead. The engine never produces them (UC-8407).
+DEPRECATED_FONTS: dict[str, str | None] = {
+    StitchFont.SOURCE_SERIF_FOUR.value: StitchFont.SOURCE_SERIF_4.value,
+    StitchFont.SOURCE_SANS_THREE.value: StitchFont.SOURCE_SANS_3.value,
+    StitchFont.METROPOLIS.value: None,
+}
+DEPRECATED_ROUNDNESS: frozenset[str] = frozenset({Roundness.ROUND_TWO.value})
+_FONT_FIELDS = ("headlineFont", "bodyFont", "labelFont")
+
+
+def current_theme(theme: dict) -> dict:
+    """A copy of ``theme`` with each deprecated font replaced by its current name."""
+    out = dict(theme)
+    for field in _FONT_FIELDS:
+        value = out.get(field)
+        if DEPRECATED_FONTS.get(value):
+            out[field] = DEPRECATED_FONTS[value]
+    return out
 
 
 class ModelId(StrEnum):
@@ -240,6 +273,9 @@ __all__ = [
     "StitchFont",
     "DeviceType",
     "ModelId",
+    "DEPRECATED_FONTS",
+    "DEPRECATED_ROUNDNESS",
+    "current_theme",
     "DEFAULT_MODEL",
     "SIMPLE_MODEL",
     "FALLBACK_MODEL",

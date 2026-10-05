@@ -52,7 +52,7 @@ class TestRoundnessResolution:
     @pytest.mark.parametrize(
         "css,expected",
         [
-            ("2px", Roundness.ROUND_TWO),
+            ("2px", Roundness.ROUND_FOUR),  # ROUND_TWO is «Unused» for the API (UC-8407)
             ("4px", Roundness.ROUND_FOUR),
             ("8px", Roundness.ROUND_EIGHT),
             ("12px", Roundness.ROUND_TWELVE),

@@ -55,7 +55,7 @@ _ARCHETYPE_ID_TO_VEG: dict[ArchetypeId, VegArchetype] = {
 # :func:`archetypes.Archetype.rounded` and accepted by Stitch's
 # ``Roundness`` enum.
 _ROUNDED_TO_ENUM: dict[str, Roundness] = {
-    "2px": Roundness.ROUND_TWO,
+    "2px": Roundness.ROUND_FOUR,  # ROUND_TWO is «Unused» for the API (UC-8407)
     "4px": Roundness.ROUND_FOUR,
     "8px": Roundness.ROUND_EIGHT,
     "12px": Roundness.ROUND_TWELVE,
@@ -64,7 +64,7 @@ _ROUNDED_TO_ENUM: dict[str, Roundness] = {
 
 
 # Font family name (CSS-ish) → StitchFont enum. The Stitch server validates
-# these against its 65-value enum. We only need to cover the families we
+# these against its 68-value enum. We only need to cover the families we
 # actually emit; anything else falls back to INTER.
 _FAMILY_TO_FONT: dict[str, StitchFont] = {
     "inter": StitchFont.INTER,
@@ -88,6 +88,9 @@ _FAMILY_TO_FONT: dict[str, StitchFont] = {
     "roboto flex": StitchFont.ROBOTO_FLEX,
     "ibm plex sans": StitchFont.IBM_PLEX_SANS,
     "jetbrains mono": StitchFont.JETBRAINS_MONO,
+    "source sans 3": StitchFont.SOURCE_SANS_3,
+    "source serif 4": StitchFont.SOURCE_SERIF_4,
+    "metrophobic": StitchFont.METROPHOBIC,
 }
 
 

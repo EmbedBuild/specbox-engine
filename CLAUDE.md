@@ -763,12 +763,12 @@ Proxy completo de Google Stitch a través del SpecBox Engine MCP server. Permite
 
 Los enums se mantienen en `server/stitch_enums.py` y se pinnean en CI contra `mcp_tools_schema.json` para detectar drift cuando Google actualice el servidor.
 
-- **DeviceType**: `DESKTOP`, `MOBILE`, `TABLET` — el `AGNOSTIC` que aparecía en docs históricas **no existe** en el MCP real.
+- **DeviceType**: `DESKTOP`, `MOBILE`, `TABLET`, `AGNOSTIC` (sin dispositivo concreto; la API lo acepta, comprobado el 2026-10-05, UC-8407).
 - **ModelId** (UC-8405): `GEMINI_3_8_FLASH` (calidad, default) / `GEMINI_3_5_FLASH_LITE` (pantallas simples y cadena de respaldo). Desde 2026-10 la API solo acepta estos dos; `resolve_model` traduce un `modelId` antiguo de la configuración (`GEMINI_3_PRO`, `GEMINI_3_1_PRO` → `GEMINI_3_8_FLASH`; `GEMINI_3_FLASH` → `GEMINI_3_5_FLASH_LITE`) y lo avisa en `model_notice`; cualquier otro se rechaza antes de llamar a Stitch.
 - **ColorMode**: `LIGHT`, `DARK`.
 - **ColorVariant** (10): `FIDELITY`, `TONAL_SPOT` (no `TONAL` como dicen las docs), `VIBRANT`, `EXPRESSIVE`, `CONTENT`, `MONOCHROME`, `NEUTRAL`, `RAINBOW`, `FRUIT_SALAD` (+ UNSPECIFIED).
-- **Roundness**: `ROUND_TWO`, `ROUND_FOUR`, `ROUND_EIGHT`, `ROUND_TWELVE`, `ROUND_FULL` (+ UNSPECIFIED). `ROUND_TWO` no aparece en docs públicas.
-- **StitchFont**: 65 fuentes — incluye `GEIST`, `DM_SANS`, `GOOGLE_SANS_*`, `JETBRAINS_MONO`, etc. — vs. 9 documentadas en repos públicos.
+- **Roundness**: `ROUND_FOUR`, `ROUND_EIGHT`, `ROUND_TWELVE`, `ROUND_FULL` (+ UNSPECIFIED). `ROUND_TWO` sigue en el enum pero la API lo marca «Unused»: el engine no lo produce (`2px` → `ROUND_FOUR`).
+- **StitchFont**: 68 fuentes (esquema del 2026-10-05) — incluye `GEIST`, `DM_SANS`, `GOOGLE_SANS_*`, `JETBRAINS_MONO`, `SOURCE_SANS_3`, `SOURCE_SERIF_4`, `METROPHOBIC`… `SOURCE_SANS_THREE`, `SOURCE_SERIF_FOUR` y `METROPOLIS` están obsoletas: `current_theme` envía las dos primeras con su nombre nuevo y el engine no ofrece ninguna (UC-8407).
 - **CreativeRange** (variantes): `REFINE` (sutil), `EXPLORE` (moderado), `REIMAGINE` (radical).
 - **VariantAspect**: `LAYOUT`, `COLOR_SCHEME`, `IMAGES`, `TEXT_FONT`, `TEXT_CONTENT`.
 - **ScreenType** (REST batchCreate): `DOCUMENT` (HTML / Markdown), `IMAGE` (PNG / JPEG / WebP).

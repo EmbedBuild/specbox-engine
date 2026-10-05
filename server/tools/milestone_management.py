@@ -741,29 +741,33 @@ async def get_cross_repo_dependencies(
 def register_milestone_management_tools(mcp_instance) -> None:
     """Register the Tier 2 milestone & multirepo tools (+ declare_satellites, UC-7803)."""
     mcp_instance.tool(
-        description="Assign a milestone (H1-H4) to a UC and return updated distribution. "
+        description=mh.MILESTONE_DEPRECATED_LABEL
+        + "Assign a milestone (H1-H4) to a UC and return updated distribution. "
         "For batch assignment use set_uc_milestone_batch."
-    )(set_uc_milestone)
+    )(mh.milestone_deprecated(set_uc_milestone))
     mcp_instance.tool(
-        description="Assign milestones to many UCs in one call. Primary use case: initial "
+        description=mh.MILESTONE_DEPRECATED_LABEL
+        + "Assign milestones to many UCs in one call. Primary use case: initial "
         "milestone assignment of all UCs on a newly-planned board."
-    )(set_uc_milestone_batch)
+    )(mh.milestone_deprecated(set_uc_milestone_batch))
     mcp_instance.tool(
         description="Assign a UC to a satellite repo. Validates the satellite key against "
         "the orchestrator's multirepo settings."
     )(set_uc_satellite)
     mcp_instance.tool(
-        description="Sprint status filtered by milestone: UC counts by state, AC pass rate, "
+        description=mh.MILESTONE_DEPRECATED_LABEL
+        + "Sprint status filtered by milestone: UC counts by state, AC pass rate, "
         "blocked items. For board-wide view use get_sprint_status."
-    )(get_milestone_status)
+    )(mh.milestone_deprecated(get_milestone_status))
     mcp_instance.tool(
-        description="Suggest UC moves to align AC distribution with target percentages. "
+        description=mh.MILESTONE_DEPRECATED_LABEL
+        + "Suggest UC moves to align AC distribution with target percentages. "
         "dry_run=True (default) only returns suggestions."
-    )(rebalance_milestones)
+    )(mh.milestone_deprecated(rebalance_milestones))
     mcp_instance.tool(
         description="List UCs assigned to a satellite repo, in Backlog, optionally filtered "
         "by milestone. Returns the full ordered queue."
-    )(get_satellite_queue)
+    )(mh.milestone_deprecated(get_satellite_queue, when=mh.uses_milestone))
     mcp_instance.tool(
         description="Propagate satellite labels from orchestrator settings.local.json to board "
         "cards without a satellite assigned."

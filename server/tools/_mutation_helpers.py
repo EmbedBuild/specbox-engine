@@ -118,6 +118,57 @@ async def check_satellite(backend: Any, board_id: str, value: str) -> tuple[bool
     return False, f"Satellite {value!r} is not declared for this project. Valid satellites: {', '.join(declared)}"
 
 
+# ── Milestones: deprecated (US-78 / UC-7806) ─────────────────────────
+
+#: Milestones H1–H4 give way to epics (D20). They keep working for two
+#: versions and every response says so; UC-7807 removes them in 6.23.0.
+MILESTONE_DEPRECATION: dict[str, str] = {
+    "since": "6.21.0",
+    "removed_in": "6.23.0",
+    "use_instead": "epics: add_epic, set_us_epic, list_epics, get_epic",
+    "message": (
+        "Milestones are deprecated since v6.21.0 and will be removed in v6.23.0. "
+        "Group stories with epics instead (add_epic, set_us_epic, list_epics, get_epic)."
+    ),
+}
+
+#: Prefix for the description of a deprecated tool.
+MILESTONE_DEPRECATED_LABEL = "[DEPRECATED since v6.21.0, removed in v6.23.0 — use epics] "
+
+
+def milestone_deprecated(fn: Any, *, when: Any = None) -> Any:
+    """Wrap a tool so its dict response carries ``deprecation`` (UC-7806 AC-01).
+
+    ``when(bound_arguments) -> bool`` limits the notice to calls that use a
+    milestone (``update_uc(milestone=...)``); without it, every call carries it.
+    The signature FastMCP sees is the original one.
+    """
+    import functools
+    import inspect
+
+    signature = inspect.signature(fn)
+
+    @functools.wraps(fn)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        result = await fn(*args, **kwargs)
+        try:
+            bound = signature.bind_partial(*args, **kwargs).arguments
+        except TypeError:
+            bound = kwargs
+        if (when is None or when(bound)) and isinstance(result, dict):
+            result = {**result, "deprecation": dict(MILESTONE_DEPRECATION)}
+        return result
+
+    return wrapper
+
+
+def uses_milestone(bound: dict[str, Any]) -> bool:
+    """True when the call passed a milestone, directly or in a batch entry."""
+    if bound.get("milestone"):
+        return True
+    return any(isinstance(e, dict) and e.get("milestone") for e in bound.get("updates") or [])
+
+
 #: US-33/UC-3304 — señales de RESULTADO OBSERVABLE.
 #:
 #: Un AC es verificable cuando afirma algo que se puede ir a mirar. Verbos en

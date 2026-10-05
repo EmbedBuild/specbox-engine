@@ -379,6 +379,7 @@ def register_acceptance_automation_tools(mcp_instance) -> None:
         "Returns estimate only — does NOT apply it. Chain with update_uc to apply."
     )(estimate_from_ac)
     mcp_instance.tool(
-        description="Consolidated acceptance validation for all UCs in a milestone. "
+        description=mh.MILESTONE_DEPRECATED_LABEL
+        + "Consolidated acceptance validation for all UCs in a milestone. "
         "Returns GO/CONDITIONAL_GO/NO_GO verdict with per-UC pass rates."
-    )(milestone_acceptance_check)
+    )(mh.milestone_deprecated(milestone_acceptance_check))

@@ -2,7 +2,7 @@
 id: US-NN
 title: <Título breve y orientado a usuario>
 status: draft         # draft | ready | in-progress | review | done | blocked | wontdo
-milestone: <M1 | M2 | M3 | M4 | M5>
+epic: <EP-NN o vacío>   # la épica a la que pertenece (D20)
 owner: <responsable>
 created: YYYY-MM-DD
 updated: YYYY-MM-DD

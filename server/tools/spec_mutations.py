@@ -936,15 +936,15 @@ def register_spec_mutations_tools(mcp_instance) -> None:
         description="Update metadata of a single Use Case (name, description, hours, "
         "screens, actor, context, milestone, satellite). Idempotent. For batch "
         "updates on many UCs use update_uc_batch."
-    )(update_uc)
+    )(mh.milestone_deprecated(update_uc, when=mh.uses_milestone))
     mcp_instance.tool(
         description="Update metadata of many Use Cases in a single MCP call. Preferred "
         "when updating more than 2-3 UCs — saves round-trips and calls list_items once."
-    )(update_uc_batch)
+    )(mh.milestone_deprecated(update_uc_batch, when=mh.uses_milestone))
     mcp_instance.tool(
         description="Update metadata of a User Story. Optionally propagates milestone to "
         "child UCs without a milestone set (existing milestones never overwritten)."
-    )(update_us)
+    )(mh.milestone_deprecated(update_us, when=mh.uses_milestone))
     mcp_instance.tool(
         description="Rewrite an AC's text and/or change its done state. For pure done-flag "
         "toggles use mark_ac/mark_ac_batch. For many AC rewrites use update_ac_batch."
@@ -964,4 +964,4 @@ def register_spec_mutations_tools(mcp_instance) -> None:
     mcp_instance.tool(
         description="Create a single new Use Case under an existing US. Auto-assigns next "
         "uc_id. Use for 1-3 additions; for bulk creation prefer import_spec."
-    )(add_uc)
+    )(mh.milestone_deprecated(add_uc, when=mh.uses_milestone))

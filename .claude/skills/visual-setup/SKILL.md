@@ -1110,7 +1110,7 @@ Leer `.claude/settings.local.json` actual (o crear si no existe) y MERGE con:
     "projectId": "{stitch_project_id}",
     "designSystemAssetId": "{asset_id}",
     "deviceType": "{DESKTOP|MOBILE}",
-    "modelId": "GEMINI_3_PRO",
+    "modelId": "GEMINI_3_8_FLASH",
     "multiFormFactor": true,
     "formFactors": ["DESKTOP", "TABLET", "MOBILE"],
     "brandContextFile": "doc/brand/brand_kit/SKILL.md"
@@ -1203,8 +1203,8 @@ Para cada pantalla que requiera responsive, generar 3 versiones:
 
 | Complejidad | Modelo | Cuando usar |
 |-------------|--------|-------------|
-| Simple | GEMINI_3_FLASH | Pantallas con 1-3 secciones, formularios simples, paginas de confirmacion |
-| Compleja | GEMINI_3_PRO | Dashboards, tablas de datos, multi-panel, pantallas con >3 secciones |
+| Simple | GEMINI_3_5_FLASH_LITE | Pantallas con 1-3 secciones, formularios simples, paginas de confirmacion |
+| Compleja | GEMINI_3_8_FLASH | Dashboards, tablas de datos, multi-panel, pantallas con >3 secciones |
 
 ## Referencia Rapida
 

@@ -35,6 +35,8 @@ from typing import Any
 import httpx
 import structlog
 
+from .stitch_enums import DEFAULT_MODEL
+
 logger = structlog.get_logger(__name__)
 
 STITCH_MCP_URL = "https://stitch.googleapis.com/mcp"
@@ -340,7 +342,7 @@ class StitchClient:
         prompt: str,
         *,
         device_type: str = "DESKTOP",
-        model_id: str = "GEMINI_3_PRO",
+        model_id: str = DEFAULT_MODEL,
     ) -> Any:
         """Generate a UI screen from a text prompt. Can take several minutes."""
         return await self._call_tool(

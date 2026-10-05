@@ -25,7 +25,7 @@ Cada proyecto que use Stitch debe tener la configuracion en `.claude/settings.lo
   "stitch": {
     "projectId": "ID_DEL_PROYECTO_STITCH",
     "deviceType": "DESKTOP",
-    "modelId": "GEMINI_3_PRO"
+    "modelId": "GEMINI_3_8_FLASH"
   }
 }
 ```
@@ -34,7 +34,7 @@ Cada proyecto que use Stitch debe tener la configuracion en `.claude/settings.lo
 
 - `projectId`: ID del proyecto en Stitch. Se obtiene con `mcp__stitch__list_projects`.
 - `deviceType`: Tipo de dispositivo objetivo. Valores: `DESKTOP`, `MOBILE`, `TABLET`.
-- `modelId`: Modelo de generacion. `GEMINI_3_PRO` para pantallas complejas, `GEMINI_3_FLASH` para pantallas simples.
+- `modelId`: Modelo de generacion. `GEMINI_3_8_FLASH` para pantallas complejas, `GEMINI_3_5_FLASH_LITE` para pantallas simples.
 
 Si no existe configuracion de Stitch en el proyecto, Claude debe preguntar al usuario antes de proceder.
 
@@ -76,8 +76,8 @@ El comando `/design-to-code` toma los HTML de referencia y los convierte al stac
 
 ### Seleccion de modelo
 
-- **GEMINI_3_PRO**: Pantallas con multiples componentes, tablas de datos, dashboards, formularios complejos, navegacion anidada. Genera resultados de mayor calidad pero tarda mas.
-- **GEMINI_3_FLASH**: Pantallas simples como login, paginas de error, confirmaciones, pantallas con pocos elementos. Mas rapido pero menos detalle.
+- **GEMINI_3_8_FLASH**: Pantallas con multiples componentes, tablas de datos, dashboards, formularios complejos, navegacion anidada. Genera resultados de mayor calidad pero tarda mas.
+- **GEMINI_3_5_FLASH_LITE**: Pantallas simples como login, paginas de error, confirmaciones, pantallas con pocos elementos. Mas rapido pero menos detalle.
 
 ### Una pantalla a la vez
 
@@ -130,8 +130,8 @@ Este enfoque reduce significativamente el tiempo muerto y mantiene el flujo de d
 | Concepto | Valor |
 |----------|-------|
 | Modo visual | Light Mode (siempre) |
-| Modelo complejo | GEMINI_3_PRO |
-| Modelo simple | GEMINI_3_FLASH |
+| Modelo complejo | GEMINI_3_8_FLASH |
+| Modelo simple | GEMINI_3_5_FLASH_LITE |
 | Ruta de HTMLs | `doc/design/{feature}/` |
 | Ruta de prompts | `doc/design/{feature}/{feature}_stitch_prompts.md` |
 | Generacion | Una pantalla a la vez |

@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Awaitable, Callable, Literal, Protocol
 
+from ..stitch_enums import DEFAULT_MODEL, FALLBACK_MODEL
+
 
 class FallbackStrategy(str, Enum):
     EDIT_BASELINE = "edit_baseline"
@@ -47,7 +49,7 @@ class StitchOps(Protocol):
         prompt: str,
         *,
         device_type: str = "DESKTOP",
-        model_id: str = "GEMINI_3_PRO",
+        model_id: str = DEFAULT_MODEL,
     ) -> Any: ...
 
     async def edit_screens(
@@ -123,7 +125,8 @@ async def generate_screen_with_fallback(
     prompt: str,
     *,
     device_type: str = "DESKTOP",
-    model_id: str = "GEMINI_3_PRO",
+    model_id: str = DEFAULT_MODEL,
+    fallback_model_id: str = FALLBACK_MODEL,
     baseline_screen_id: str | None = None,
     fallback_strategy: list[FallbackStrategy] | None = None,
     max_total_attempts: int = 3,
@@ -139,6 +142,10 @@ async def generate_screen_with_fallback(
         fallback_strategy: Strategies in order. Defaults to
             ``[EDIT_BASELINE, VARIANTS_REFINE, REGENERATE]``.
         max_total_attempts: Hard ceiling across all strategies.
+        fallback_model_id: Model for the ladder after the natural call
+            fails (UC-8405: ``GEMINI_3_5_FLASH_LITE``). When it differs
+            from ``model_id`` a success through the ladder is reported as
+            ``degraded`` with ``degraded_reason="fallback_model"``.
 
     Note: v5.31 ``enable_flash_safety_net`` and ``flash_model_id`` were
     removed in v6.4.0 — Stitch MCP is free of charge, so degrading to
@@ -190,23 +197,26 @@ async def generate_screen_with_fallback(
             project_id=project_id,
             prompt=prompt,
             device_type=device_type,
-            model_id=model_id,
+            model_id=fallback_model_id,
             baseline_screen_id=baseline_screen_id,
             attempts=attempts,
         )
         if out is not None:
+            degraded = fallback_model_id != model_id
             return FallbackResult(
                 outcome=FallbackOutcome.OK_AFTER_FALLBACK,
                 final_strategy=strat.value,
-                model_used=model_id,
+                model_used=fallback_model_id,
                 attempts=attempts,
                 result=out,
+                degraded=degraded,
+                degraded_reason="fallback_model" if degraded else None,
             )
 
     return FallbackResult(
         outcome=FallbackOutcome.FAILED,
         final_strategy=attempts[-1]["strategy"] if attempts else "none",
-        model_used=model_id,
+        model_used=attempts[-1]["model"] if attempts else model_id,
         attempts=attempts,
         error=attempts[-1]["error"] if attempts else "no attempts recorded",
     )

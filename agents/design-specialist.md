@@ -35,7 +35,7 @@ Buscar en este orden:
   "stitch": {
     "projectId": "{stitch_project_id}",
     "deviceType": "DESKTOP",
-    "modelId": "GEMINI_3_PRO"
+    "modelId": "GEMINI_3_8_FLASH"
   }
 }
 ```
@@ -43,11 +43,11 @@ Buscar en este orden:
 | Campo | Valores | Default |
 |-------|---------|---------|
 | `deviceType` | DESKTOP, MOBILE | DESKTOP |
-| `modelId` | GEMINI_3_PRO, GEMINI_3_FLASH | GEMINI_3_PRO |
+| `modelId` | GEMINI_3_8_FLASH, GEMINI_3_5_FLASH_LITE | GEMINI_3_8_FLASH |
 
 **Criterio de seleccion de modelo:**
-- `GEMINI_3_PRO` -- Pantallas complejas (dashboards, formularios multiples, tablas densas)
-- `GEMINI_3_FLASH` -- Pantallas simples (landing, login, empty states)
+- `GEMINI_3_8_FLASH` -- Pantallas complejas (dashboards, formularios multiples, tablas densas)
+- `GEMINI_3_5_FLASH_LITE` -- Pantallas simples (landing, login, empty states)
 
 ---
 

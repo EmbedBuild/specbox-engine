@@ -157,6 +157,57 @@ class DeviceType(StrEnum):
     TABLET = "TABLET"
 
 
+class ModelId(StrEnum):
+    """Models Stitch accepts for generate, edit and variants (UC-8405).
+
+    Since 2026-10 the API only takes these two. There is no Pro model any
+    more: ``GEMINI_3_8_FLASH`` is the default (quality first) and
+    ``GEMINI_3_5_FLASH_LITE`` is for simple screens and the fallback chain.
+    """
+
+    GEMINI_3_8_FLASH = "GEMINI_3_8_FLASH"
+    GEMINI_3_5_FLASH_LITE = "GEMINI_3_5_FLASH_LITE"
+
+
+DEFAULT_MODEL = ModelId.GEMINI_3_8_FLASH.value
+SIMPLE_MODEL = ModelId.GEMINI_3_5_FLASH_LITE.value
+FALLBACK_MODEL = ModelId.GEMINI_3_5_FLASH_LITE.value
+
+# Models the API took until 2026 and rejects now, with the one that replaces
+# each: a project whose configuration still names one keeps generating.
+LEGACY_MODELS: dict[str, str] = {
+    "GEMINI_3_PRO": DEFAULT_MODEL,
+    "GEMINI_3_1_PRO": DEFAULT_MODEL,
+    "GEMINI_3_FLASH": SIMPLE_MODEL,
+}
+
+
+class UnknownModelError(ValueError):
+    """A model id that is neither accepted nor a known legacy one."""
+
+
+def resolve_model(model_id: str | None) -> tuple[str, str | None]:
+    """The model to send to Stitch and, when it was translated, why.
+
+    Empty → :data:`DEFAULT_MODEL`. A legacy id → its replacement plus a
+    notice for the response. Anything else not in :class:`ModelId` raises
+    :class:`UnknownModelError` before Stitch is called.
+    """
+    raw = (model_id or "").strip().upper()
+    if not raw:
+        return DEFAULT_MODEL, None
+    if raw in {m.value for m in ModelId}:
+        return raw, None
+    if raw in LEGACY_MODELS:
+        new = LEGACY_MODELS[raw]
+        return new, (
+            f"Stitch no longer accepts {raw}; {new} was used instead. "
+            f"Update stitch.modelId in the project settings."
+        )
+    accepted = ", ".join(m.value for m in ModelId)
+    raise UnknownModelError(f"Unknown Stitch model {model_id!r}. Accepted: {accepted}.")
+
+
 class CreativeRange(StrEnum):
     """How creative generate_variants can be."""
 
@@ -188,6 +239,13 @@ __all__ = [
     "Roundness",
     "StitchFont",
     "DeviceType",
+    "ModelId",
+    "DEFAULT_MODEL",
+    "SIMPLE_MODEL",
+    "FALLBACK_MODEL",
+    "LEGACY_MODELS",
+    "UnknownModelError",
+    "resolve_model",
     "CreativeRange",
     "VariantAspect",
     "ScreenType",

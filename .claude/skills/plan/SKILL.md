@@ -723,7 +723,7 @@ legado `inline_prefix_v1`, pasar `design_md_content` en cada
   "stitch": {
     "projectId": "10448117637612065749",
     "deviceType": "DESKTOP",
-    "modelId": "GEMINI_3_PRO"
+    "modelId": "GEMINI_3_8_FLASH"
   }
 }
 ```
@@ -863,7 +863,7 @@ stitch_generate_screen_v2(
   stitch_project_id="{stitch.projectId}",
   prompt="{normalized_prompt o split_prompt[i]}",
   device_type="{stitch.deviceType}",       // DESKTOP por defecto
-  model_id="{stitch.modelId}",             // GEMINI_3_PRO por defecto (calidad-first)
+  model_id="{stitch.modelId}",             // GEMINI_3_8_FLASH por defecto (calidad-first)
   baseline_screen_id=null,                 // null en primera generación; ver 6.3.3
   max_total_attempts=3
 )

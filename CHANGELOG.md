@@ -2,6 +2,89 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.21.0] - 2026-10-05 — "Gavilla"
+
+Las historias se atan en épicas. Por encima de la historia hay una sola agrupación, la épica, con
+ficha propia; su estado y su avance se deducen de sus historias, y el board, las lecturas, la
+siembra y el autopilot la conocen. Los milestones, que agrupaban casos de uso de otra manera,
+avisan de que se retiran. Además, el board guarda la aceptación de una persona aparte de la
+verificación del agente. Es la parte del engine de las US-76, US-78 y US-83 del board del
+orquestador.
+
+### Added
+
+- **Épicas en el board** (US-78/UC-7801) — tabla `epics` (EP-NN, nombre, objetivo, enlace, orden y
+  fecha objetivo) y `user_stories.epic_id`: cada historia en una épica o en ninguna. Borrar una
+  épica deja sus historias sin épica, nunca las borra. Native, con auditoría en la misma
+  transacción; FreeForm, con elementos `EP` en `items.json`; Trello y Plane listan cero y
+  rechazan crear con `EPICS_NOT_SUPPORTED`. Migración 0030 (y su gemela de Supabase).
+- **Seis tools de épicas** (UC-7802) — `add_epic`, `update_epic`, `delete_epic`, `set_us_epic`,
+  `list_epics` y `get_epic`. El estado sale de sus historias con la misma regla que el de una
+  historia, el avance se cuenta por criterios (sin criterios no hay porcentaje, no un 0 %) y los
+  satélites son los de sus casos de uso.
+- **Las lecturas dicen la épica y el satélite** (UC-7803) — `list_us` y `get_us` traen `epic_id`
+  y los satélites de la historia; `list_uc` y `get_uc`, el satélite y la épica de su historia;
+  `get_board_status` suma el board épica a épica (`by_epic`, con «sin épica» al final).
+- **`declare_satellites`** (UC-7803) — guarda en el board los satélites del proyecto, y
+  `set_uc_satellite` valida contra esa lista también con el MCP remoto. El rechazo dice cuáles
+  valen.
+- **`/prd` declara la épica y la siembra la crea** (UC-7805) — `import_spec` acepta `epics`, la
+  épica de cada historia y el satélite de cada caso de uso; crea o reutiliza las épicas y asigna
+  las historias. El Paso 2.7 de `/prd` pregunta a qué épica va la feature salvo que el PRD lo diga
+  (`decision_key` `feature_epic_assignment`, siempre `ask`).
+- **El autopilot trabaja por épica o por satélite** (UC-7804) — `find_next_uc` acepta `epic` y
+  `satellite`: con épica, las UC van en el orden de sus historias, la que tiene trabajo en curso
+  primero, y al acabar devuelve `None`. `/implement EP-NN` encadena las UC de la épica y para.
+- **Aceptación humana de cada UC** (US-76/UC-7601) — tabla `uc_acceptances`: la verificación de
+  `mark_ac` la firma la sesión que marca; la aceptación la da una persona desde el panel. La
+  aceptación se anula sola si la UC sale de hecha o un criterio visible queda sin hacer. `get_uc`
+  devuelve `human_acceptance` por UC y `verified` por criterio (`accepted` queda como alias).
+  Migración 0029 (y su gemela).
+- **La métrica norte, en público** (UC-7606) — `site_activity` publica `north_star`: desde la
+  fecha de lanzamiento, las UC cerradas, las que tienen la evidencia completa, las aceptadas por
+  una persona y su porcentaje. `site_showcase` dice quién verificó cada criterio y quién y cuándo
+  aceptó la UC fijada.
+
+### Changed
+
+- Re-sembrar una historia que ya existe no le cambia el estado, y el título deja de llevar marcas
+  `[satélite]` y repite el identificador una sola vez (UC-7802, UC-7805).
+- `get_cross_repo_dependencies` reconoce identificadores de cualquier longitud (UC-7803).
+- Las plantillas FreeForm llevan `epic` en la historia y `satellite` en el caso de uso (UC-7806).
+
+### Deprecated
+
+- **Los milestones se retiran en la 6.23.0** (UC-7806). Usa las épicas en su lugar.
+  `set_uc_milestone`, `set_uc_milestone_batch`, `get_milestone_status`, `rebalance_milestones` y
+  `milestone_acceptance_check` siguen funcionando en la 6.21 y la 6.22, llevan `[DEPRECATED …]`
+  en su descripción y responden con `deprecation` (`since: 6.21.0`, `removed_in: 6.23.0`,
+  `use_instead`). El parámetro `milestone` de `update_uc`, `update_uc_batch`, `update_us`,
+  `add_uc` y `get_satellite_queue` avisa solo cuando se usa. La documentación, las plantillas y
+  las skills ya no los enseñan.
+
+### Security
+
+- Cada lectura del backend native comprueba que la sesión es miembro del proyecto que lee, con la
+  misma comprobación y el mismo registro que las escrituras. Un token revocado ya no lee.
+- Abrir sesión en un proyecto que ya tiene miembros no da ningún rol: hay que serlo antes, y el rol
+  que se tenía se conserva. Solo se recibe rol al crear un proyecto o al adoptar uno sin miembros.
+- Las tablas `epics` y `uc_acceptances` están cerradas a los roles públicos, la aceptación solo la
+  escribe el panel y las vistas públicas solo conceden lectura.
+
+### Compatibility
+
+- Sin cambios incompatibles. Migraciones 0029 y 0030, aplicadas en producción. Sin épicas, el
+  board, las lecturas y `find_next_uc` dan el mismo resultado de siempre. `/switch-backend`
+  todavía no migra las épicas entre backends.
+
+### Tests
+
+- Nuevos: `tests/test_epics.py`, `tests/test_epics_tools.py`,
+  `tests/test_board_reads_epic_satellite.py`, `tests/test_import_spec_epics.py`,
+  `tests/test_find_next_uc_epic.py`, `tests/test_milestone_deprecation.py` y
+  `tests/test_uc_acceptances.py`; `tests/test_tenant_isolation.py` clasifica cada lectura y falla
+  con una lectura nueva sin clasificar.
+
 ## [6.20.0] - 2026-10-04 — "Cableado"
 
 Los hooks que SpecBox promete llegan conectados. La plantilla de los proyectos no activaba siete

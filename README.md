@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.20.0 — "Cableado" (sobre v6.19.0 "Escaparate")<br/>
+  v 6.21.0 — "Gavilla" (sobre v6.20.0 "Cableado")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,20 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.21
+
+**v6.21.0 — "Gavilla"** ata las historias en épicas, como espigas en un haz:
+
+- **Épicas en el board** — por encima de la historia hay una sola agrupación, la épica, con nombre, objetivo y orden. Su estado y su avance no se escriben: se deducen de sus historias, y sin criterios no inventa un 0 %.
+- **Todo el flujo las conoce** — seis tools para crearlas y consultarlas; las lecturas dicen la épica y el satélite de cada historia y caso de uso; `/prd` pregunta a qué épica va la feature y la siembra la crea; `/implement EP-NN` trabaja una épica de principio a fin.
+- **Verificado no es aceptado** — el board guarda aparte la aceptación de una persona, que se anula sola si la UC deja de estar hecha, y la home pública cuenta cuántas UC cerradas aceptó alguien.
+- **Cada proyecto solo se lee desde dentro** — las lecturas del board comprueban la membresía igual que las escrituras, y abrir sesión no hace miembro a nadie.
+- **Los milestones se retiran en la 6.23.0** — siguen funcionando dos versiones más y avisan en cada respuesta; usa las épicas.
+
+100% backwards-compatible: sin épicas, el board y el autopilot responden como siempre.
 
 ---
 
@@ -610,7 +624,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.20.0 — "Cableado" (over v6.19.0 "Escaparate")
+> v 6.21.0 — "Gavilla" (over v6.20.0 "Cableado")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -623,6 +637,18 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.21
+
+**v6.21.0 — "Gavilla"** ("sheaf") binds stories into epics, like ears of wheat in a sheaf:
+
+- **Epics in the board** — above the story there is a single grouping, the epic, with a name, an objective and an order. Its state and progress are not written: they come from its stories, and without criteria it does not make up a 0 %.
+- **The whole flow knows them** — six tools to create and query them; reads name the epic and the satellite of each story and use case; `/prd` asks which epic a feature belongs to and seeding creates it; `/implement EP-NN` works an epic from start to finish.
+- **Verified is not accepted** — the board keeps a person's acceptance apart, voided by itself if the use case stops being done, and the public home counts how many closed use cases someone accepted.
+- **A project is only read from inside** — board reads check membership just like writes, and opening a session makes nobody a member.
+- **Milestones go away in 6.23.0** — they keep working for two more versions and warn in every answer; use epics.
+
+100% backwards-compatible: without epics, the board and the autopilot answer as always.
 
 ## What's new in v6.20
 

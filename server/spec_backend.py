@@ -191,6 +191,22 @@ _UC_RE = re.compile(r"\[?(UC-\d+[a-zA-Z]?)\]?\s*:?\s*(.*)")
 _AC_RE = re.compile(r"\[?(AC-\d+[a-zA-Z]?)\]?\s*:?\s*(.*)")
 
 
+def with_item_id(item_id: str, name: str) -> str:
+    """The name with its id in front exactly once: ``US-78: Name`` (US-78 / UC-7802 AC-03).
+
+    Strips any leading copies of the id (``US-78: US-78: Name``, ``[US-78] Name``)
+    before adding it, so a caller that already writes the id never doubles it.
+    """
+    pattern = re.compile(rf"^\[?{re.escape(item_id)}(?![0-9A-Za-z])\]?\s*:?\s*", re.IGNORECASE)
+    rest = (name or "").strip()
+    while True:
+        stripped = pattern.sub("", rest, count=1)
+        if stripped == rest:
+            break
+        rest = stripped
+    return f"{item_id}: {rest}" if rest else item_id
+
+
 def parse_item_id(name: str, prefix: str = "US") -> tuple[str, str]:
     """Extract item ID and clean name from formatted name.
 

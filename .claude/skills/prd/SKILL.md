@@ -72,6 +72,7 @@ Cada vez que estés a punto de hacer una pregunta al usuario, identifica el `dec
 | "¿A quién va dirigida la app?" (Paso 2 #4) | `feature_ui_interaction_profile` | hereda de `app_prd.md` cuando `audience_defined=true` |
 | Definition Quality Gate (Paso 2.5) — AC vagos | `definition_quality_gate` | en `agresivo` con `score>=0.7` auto-confirma; en otros tiers siempre itera |
 | Backend ambigüo en Paso 0.2 | `backend_selection` | `equilibrado`+ → freeform por defecto |
+| "¿A qué épica pertenece?" (Paso 2.7) | `feature_epic_assignment` | siempre `ask`, salvo que el PRD ya declare la épica de cada historia |
 
 **Inviolables que /prd debe respetar**:
 - Si el AC objetivamente falla calidad (score <0.7), nunca auto-confirmar — itera.
@@ -481,14 +482,24 @@ distintos y se reportan por separado.
 
 ---
 
+## Épicas
+
+> D20: una historia pertenece a una épica o a ninguna. Un PRD puede abrir una o varias, o sumarse
+> a una existente (Paso 2.7).
+
+| Épica | Nombre | Objetivo | Historias |
+|-------|--------|----------|-----------|
+| [EP-NN o «nueva»] | [nombre] | [resultado que persigue] | US-01, US-02 |
+
 ## User Stories y Use Cases
 
-### US-01: [Nombre de la User Story]
+### US-01: [Nombre de la User Story] · épica [EP-NN] · satélites `[engine]`, `[cloud]`
 
 > Como [actor], quiero [objetivo], para [beneficio].
 
 #### UC-001: [Nombre del Use Case]
 - **Actor**: [actor]
+- **Satélite**: [repo donde va el código]
 - **Horas estimadas**: [N]h
 - **Pantallas**: [lista]
 
@@ -793,6 +804,36 @@ VEG Readiness: {ENABLED (Modo X) / DISABLED}
 ```
 
 ---
+
+## Paso 2.7: Épica de cada historia (D20 · US-78)
+
+Antes de crear nada, cada historia tiene que saber a qué épica pertenece (o que no tiene):
+
+1. Si el PRD ya declara la épica de cada historia (sección «Épicas» y `· épica EP-NN` en cada
+   US), no preguntes: usa esa declaración.
+2. Si no, llama a `list_epics(board_id)` y pregunta al usuario con las opciones reales:
+   «¿Se suma a una épica existente (EP-NN — nombre) o abre una nueva?» (`decision_key`
+   `feature_epic_assignment`, nunca auto). Una épica nueva necesita nombre y objetivo; el enlace
+   es el PRD que estás escribiendo.
+3. Anota el resultado en la sección «Épicas» del PRD.
+
+Al sembrar (`import_spec`):
+
+```json
+{
+  "epics": [{"name": "Épicas", "objective": "…", "link": "doc/prd/<feature>/prd.md"}],
+  "user_stories": [
+    {"us_id": "US-78", "name": "Cada historia pertenece a una épica", "epic": "Épicas",
+     "use_cases": [{"uc_id": "UC-7801", "name": "…", "satellite": "engine", "acceptance_criteria": ["…"]}]}
+  ]
+}
+```
+
+- `epics` crea las que no existen y reutiliza las que sí (por `epic_id` o por nombre); `epic`
+  en cada historia acepta EP-NN o el nombre. La respuesta trae `epics.created/reused/assigned`.
+- **El título de la historia no lleva el satélite entre corchetes** (nada de `[engine][cloud]`):
+  el satélite va en cada caso de uso (`satellite`), y `import_spec` quita esas marcas si llegan.
+- El nombre va sin el identificador delante: el engine pone «US-78: …» una sola vez.
 
 ## Paso 3: Crear Work Items
 

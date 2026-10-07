@@ -17,8 +17,10 @@ content instead (content mode, :mod:`server.app_docs.workspace`):
   implementation status: send ``files_content`` and apply the returned
   ``files_changed`` / ``files_appended`` in the repository.
 * ``CLIENT_CONTENT_REQUIRED`` for Claude Design (``files_content``), the
-  Stitch prompt validator's palette (``design_md_content``) and the multirepo
-  satellite sync (``settings_content``).
+  Stitch prompt validator's palette (``design_md_content``), the multirepo
+  satellite sync (``settings_content``) and the board diff, whose snapshots
+  live in the client's ``.quality/board_snapshots`` (``from_content`` and
+  ``to_content``, UC-8905).
 * ``REMOTE_PATH_REJECTED`` where a remote server has nothing to do with the
   path: registering a DESIGN.md path for inline prefixes (use
   ``stitch_upload_design_md``) and the Trello/Plane → FreeForm download (use
@@ -134,6 +136,16 @@ CLIENT_PATH_TOOLS: Mapping[str, ClientPathRule] = {
         "orchestrator_path",
         content="settings_content",
         how_to="Send the orchestrator's .claude/settings.local.json as settings_content.",
+    ),
+    # Board snapshots: files of the client's repository, named by board and snapshot (UC-8905)
+    "get_board_diff": ClientPathRule(
+        CLIENT_CONTENT_REQUIRED,
+        ("from_snapshot", "to_snapshot"),
+        content_params=("from_content", "to_content"),
+        how_to=(
+            "Read .quality/board_snapshots/<board_id>/<snapshot>.json in your repository and "
+            "send both snapshots as from_content and to_content."
+        ),
     ),
     # Nothing to do with a client path on a remote server
     "upload_design_md_to_stitch": _rejected(

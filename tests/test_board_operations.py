@@ -342,35 +342,123 @@ async def test_delete_uc_with_absorbed_by_links_first(backend, ctx):
 # ── get_board_diff ───────────────────────────────────────────────────
 
 
-async def test_board_diff_detects_changes(tmp_path, ctx, monkeypatch):
-    # Patch Path resolution to use tmp_path
-    board_dir = tmp_path / ".quality" / "board_snapshots" / "board1"
-    board_dir.mkdir(parents=True)
+SNAP_FROM = {
+    "items": [
+        {"uc_id": "UC-001", "name": "Login", "state": "backlog", "milestone": "H1", "ac_count": 3, "ac_done": 0},
+        {"uc_id": "UC-002", "name": "Register", "state": "backlog", "milestone": "H1", "ac_count": 2, "ac_done": 1},
+        {"uc_id": "UC-003", "name": "Removed", "state": "backlog", "milestone": "H2", "ac_count": 1, "ac_done": 0},
+    ]
+}
+SNAP_TO = {
+    "items": [
+        {"uc_id": "UC-001", "name": "Login", "state": "done", "milestone": "H1", "ac_count": 3, "ac_done": 3},
+        {"uc_id": "UC-002", "name": "Register", "state": "backlog", "milestone": "H2", "ac_count": 2, "ac_done": 1},
+        {"uc_id": "UC-004", "name": "New UC", "state": "backlog", "milestone": "H3", "ac_count": 5, "ac_done": 0},
+    ]
+}
 
-    snap_from = {
-        "items": [
-            {"uc_id": "UC-001", "name": "Login", "state": "backlog", "milestone": "H1", "ac_count": 3, "ac_done": 0},
-            {"uc_id": "UC-002", "name": "Register", "state": "backlog", "milestone": "H1", "ac_count": 2, "ac_done": 1},
-            {"uc_id": "UC-003", "name": "Removed", "state": "backlog", "milestone": "H2", "ac_count": 1, "ac_done": 0},
-        ]
-    }
-    snap_to = {
-        "items": [
-            {"uc_id": "UC-001", "name": "Login", "state": "done", "milestone": "H1", "ac_count": 3, "ac_done": 3},
-            {"uc_id": "UC-002", "name": "Register", "state": "backlog", "milestone": "H2", "ac_count": 2, "ac_done": 1},
-            {"uc_id": "UC-004", "name": "New UC", "state": "backlog", "milestone": "H3", "ac_count": 5, "ac_done": 0},
-        ]
-    }
-    (board_dir / "snap1.json").write_text(json.dumps(snap_from))
-    (board_dir / "snap2.json").write_text(json.dumps(snap_to))
 
-    monkeypatch.chdir(tmp_path)
-    result = await bo.get_board_diff("board1", "snap1", "snap2", ctx)
+def _check_diff(result: dict) -> None:
     assert result["added_ucs"] == ["UC-004"]
     assert result["removed_ucs"] == ["UC-003"]
-    assert len(result["modified_ucs"]) == 2  # UC-001 state changed, UC-002 milestone changed
-    assert len(result["milestone_moves"]) == 1  # UC-002 H1→H2
+    # UC-001 changed state; the milestone of UC-002 no longer counts (removed in v6.23.0)
+    assert result["modified_ucs"] == [{"uc_id": "UC-001", "changes": {"state": ["backlog", "done"]}}]
+    assert "milestone_moves" not in result
     assert result["ac_changes"]["passed_delta"] == 3  # UC-001 went 0→3
+
+
+@pytest.fixture
+def no_disk(monkeypatch):
+    """Fail on any filesystem call while armed."""
+    import builtins
+    import pathlib
+
+    armed = {"on": False}
+
+    def trip(original):
+        def wrapper(*a, **k):
+            if armed["on"]:
+                raise AssertionError("disk access")
+            return original(*a, **k)
+
+        return wrapper
+
+    for name in ("read_text", "exists", "open", "is_file"):
+        monkeypatch.setattr(pathlib.Path, name, trip(getattr(pathlib.Path, name)))
+    monkeypatch.setattr(builtins, "open", trip(builtins.open))
+    return armed
+
+
+async def test_board_diff_detects_changes(tmp_path, ctx, monkeypatch):
+    board_dir = tmp_path / ".quality" / "board_snapshots" / "board1"
+    board_dir.mkdir(parents=True)
+    (board_dir / "snap1.json").write_text(json.dumps(SNAP_FROM))
+    (board_dir / "snap2.json").write_text(json.dumps(SNAP_TO))
+
+    monkeypatch.chdir(tmp_path)
+    _check_diff(await bo.get_board_diff("board1", "snap1", "snap2", ctx))
+
+
+async def test_board_diff_reads_an_owner_repo_board_locally(tmp_path, ctx, monkeypatch):
+    board_dir = tmp_path / ".quality" / "board_snapshots" / "Owner" / "repo"
+    board_dir.mkdir(parents=True)
+    (board_dir / "a.json").write_text(json.dumps(SNAP_FROM))
+    (board_dir / "b.json").write_text(json.dumps(SNAP_TO))
+
+    monkeypatch.chdir(tmp_path)
+    _check_diff(await bo.get_board_diff("Owner/repo", "a", "b", ctx))
+
+
+async def test_board_diff_compares_the_content_sent_without_touching_disk(tmp_path, ctx, monkeypatch, no_disk):
+    monkeypatch.chdir(tmp_path)
+    no_disk["on"] = True
+    result = await bo.get_board_diff(
+        "board1", "snap1", "snap2", ctx, from_content=json.dumps(SNAP_FROM), to_content=json.dumps(SNAP_TO)
+    )
+    no_disk["on"] = False
+    _check_diff(result)
+
+
+@pytest.mark.parametrize("given", ["from_content", "to_content"])
+async def test_board_diff_needs_both_snapshots(ctx, no_disk, given):
+    no_disk["on"] = True
+    result = await bo.get_board_diff("board1", "snap1", "snap2", ctx, **{given: json.dumps(SNAP_FROM)})
+    no_disk["on"] = False
+    assert result["code"] == "VALIDATION_FAILED"
+    assert "from_content and to_content" in result["error"]
+
+
+@pytest.mark.parametrize("content", ["not json", "[1, 2]", "null"])
+async def test_board_diff_rejects_a_snapshot_that_is_not_an_object(ctx, content):
+    result = await bo.get_board_diff("board1", "a", "b", ctx, from_content=content, to_content=json.dumps(SNAP_TO))
+    assert result["code"] == "VALIDATION_FAILED"
+    assert "from_content is not a board snapshot" in result["error"]
+
+
+@pytest.mark.parametrize(
+    ("board_id", "snapshot"),
+    [
+        ("", "snap1"),
+        ("../../data/state/projects/x", "meta"),
+        ("/etc", "snap1"),
+        ("a/b/c", "snap1"),
+        ("a\\b", "snap1"),
+        ("a\x00", "snap1"),
+        ("..", "snap1"),
+        ("board1", ".."),
+        ("board1", "../../../meta"),
+        ("board1", "a/b"),
+        ("board1", "a\\b"),
+        ("board1", ""),
+        ("board1", " snap1"),
+    ],
+)
+async def test_board_diff_rejects_names_outside_the_snapshots_folder(ctx, no_disk, board_id, snapshot):
+    no_disk["on"] = True
+    result = await bo.get_board_diff(board_id, snapshot, "snap2", ctx)
+    no_disk["on"] = False
+    assert result["code"] == "VALIDATION_FAILED"
+    assert "not a" in result["error"]
 
 
 # ── Backend archive_item tests ───────────────────────────────────────

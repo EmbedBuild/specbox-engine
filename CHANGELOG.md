@@ -2,6 +2,90 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.22.0] - 2026-10-07 — "Cerrojo"
+
+El servidor alojado deja de usar lo que no es de quien llama: la clave de Stitch de otro proyecto,
+el estado de un proyecto ajeno o un fichero del disco que nombra el cliente. Y las tools de Stitch
+vuelven a hablar la API de hoy. Es la parte del engine de las US-84 y US-86 del board del
+orquestador.
+
+### Security
+
+- La clave de Stitch vive solo en la sesión MCP: `stitch_set_api_key` ya no la escribe en
+  `meta.json` y ninguna tool de Stitch la lee del disco, así que otra sesión que nombre el mismo
+  proyecto no puede usarla.
+- En el servidor alojado, la telemetría (`report_*`, `report_heartbeat`), las lecturas de
+  actividad (`get_project_activity`, `get_project_timeline`) y la evidencia de auditoría
+  (`attach_audit_evidence`, `get_last_audit`) solo leen o escriben el estado de un proyecto
+  registrado que quien llama puede ver. Lo demás se responde como inexistente y la lista de
+  proyectos de la respuesta solo enseña los propios.
+- Un nombre de proyecto solo puede ser un nombre o un `owner/repo`: nunca sale de
+  `STATE_PATH/projects/` (`INVALID_PROJECT_NAME`).
+- En el servidor alojado ninguna tool lee ni escribe una ruta que vive en la máquina del cliente
+  (`project_path`, `project_root`, `target_path`, `design_md_path`, `orchestrator_path`), tampoco
+  con el valor por defecto `"."`: responde `APP_DOCS_CONTENT_REQUIRED` o `REMOTE_PATH_REJECTED`
+  antes de tocar el disco. Cambiar de backend o activar el espejo escribe solo el registro y
+  devuelve `client_writes` con los dos ficheros del cliente.
+- Los registros de uso de Stitch y Claude Design solo se escriben con servidor local.
+
+### Added
+
+- **`ProjectStateScopeMiddleware` y `project_state_dir`** (`server/coordination/project_state_scope.py`)
+  — comprueban el nombre del proyecto en todo transporte y, en remoto, a quien llama (US-86/UC-8603,
+  #239).
+- **`ClientPathGuardMiddleware`** (`server/coordination/client_paths.py`) y
+  **`envelope_result`** (`server/coordination/tool_envelope.py`, el sobre respeta el esquema de
+  salida de cada tool) (UC-8604, #240).
+- **Sistemas de diseño de la cuenta y proyectos compartidos** — `stitch_create_design_system` y
+  `stitch_list_design_systems` sin proyecto, `stitch_list_projects(view="shared")`; generar
+  pantalla envía el sistema de diseño del proyecto (UC-8501, #236).
+- **`python -m server.stitch_schema`** refresca el esquema de Stitch desde `tools/list`
+  (UC-8408, #227).
+
+### Changed
+
+- `apply_switch_transactional` y `apply_mirror_transactional`: en remoto solo el registro y
+  `client_writes`; `/switch-backend` lo aplica en el repositorio (UC-8604).
+- `/plan` y `/visual-setup` envían `stitch.apiKey` al empezar cada sesión; `/visual-setup` usa el
+  slug del proyecto (UC-8601, #238).
+- `get_version_matrix`, el benchmark y las señales de auditoría construyen la carpeta de cada
+  proyecto con `project_state_dir` (UC-8606, #241).
+
+### Fixed
+
+- Stitch con la API de hoy (US-84): una llamada rechazada llega como error y no como `ok`
+  (UC-8401); proyectos y pantallas por nombre de recurso (UC-8402); crear y actualizar sistemas
+  de diseño con `designSystem` completo (UC-8403); editar y variantes con `selectedScreenIds` y
+  `variantOptions` (UC-8404); modelo por defecto `GEMINI_3_8_FLASH`, con los `modelId` antiguos
+  traducidos y avisados (UC-8405); HTML y captura desde las URL de `get_screen` (UC-8406);
+  fuentes, esquinas y `AGNOSTIC` según el esquema del 2026-10-05 (UC-8407). PRs #226, #228–#234.
+- Generar, editar y variar esperan lo que tarda Stitch (6 min) y se envían una sola vez: un tiempo
+  agotado avisa de que la pantalla puede aparecer después (UC-8503, #231).
+- `stitch_build_site_batched_v2` genera de verdad cada pantalla y dice cuáles fallaron (UC-8504,
+  #235).
+- La prueba de `commit-spec-guard` pasa igual en una PR que en `main` (UC-8502, #225).
+
+### Compatibility
+
+- Con el MCP alojado, las tools de documentos canónicos, decisiones, cola, autopilot, deriva,
+  migración v5.29 y estado de implementación responden `APP_DOCS_CONTENT_REQUIRED` en lugar de
+  usar el disco del servidor (lo que devolvían ahí no era del proyecto del cliente); se usan con
+  el MCP local hasta que tengan modo contenido. El autopilot de las skills no cambia: usa su
+  helper local.
+- La clave de Stitch hay que enviarla en cada sesión (`stitch_set_api_key`); el servidor ya no la
+  recuerda entre sesiones.
+- En remoto, la telemetría de un proyecto que no está registrado a tu nombre ya no se guarda ni lo
+  registra solo.
+- Con el MCP local (`stdio`) todo sigue igual. Sin migraciones de base de datos.
+
+### Tests
+
+- Nuevos: `tests/test_stitch_key_session_only.py`, `tests/test_project_state_scope.py`,
+  `tests/test_client_path_guard.py` (cada tool rechazada sin un solo acceso a disco, con las
+  llamadas de fichero instrumentadas) y `tests/test_remote_surface_inventory.py` (inventario sobre
+  las tools registradas, con una prueba de que cada comprobación detecta lo que debe);
+  `tests/test_stitch_contract.py` valida cada llamada del cliente contra el esquema de Stitch.
+
 ## [6.21.0] - 2026-10-05 — "Gavilla"
 
 Las historias se atan en épicas. Por encima de la historia hay una sola agrupación, la épica, con

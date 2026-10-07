@@ -1,8 +1,8 @@
-version: 6.21.0
-codename: "Gavilla"
+version: 6.22.0
+codename: "Cerrojo"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-10-05
+release_date: 2026-10-07
 min_claude_code: "1.0.0"
 
 stacks:
@@ -507,7 +507,28 @@ features:
   - native-reads-require-membership
   - milestones-deprecated
 
+  # New (v6.22.0) — Cerrojo
+  - stitch-key-session-only
+  - project-state-caller-scope
+  - remote-client-path-guard
+  - remote-surface-inventory
+  - stitch-api-current-schema
+  - stitch-contract-test
+  - stitch-shared-projects-and-global-design-systems
+
 changelog:
+  6.22.0:
+    date: 2026-10-07
+    codename: "Cerrojo"
+    changes:
+      - "fix: the Stitch API key lives only in the MCP session — stitch_set_api_key no longer writes it (nor its hint) to meta.json and no Stitch tool, v1 or v2, reads a key from disk; another session that names the same project cannot use it. /plan and /visual-setup send stitch.apiKey again in each session (US-86/UC-8601, PR #238)"
+      - "fix: a project's state is read and written only by who can see it — ProjectStateScopeMiddleware checks the project name on every transport and, on a remote one, lets the telemetry (report_*, report_heartbeat), activity reads and audit evidence through only for a registered project the caller sees; anything else answers like a project that does not exist and `available` lists only the caller's own. project_state_dir is the only way to build STATE_PATH/projects/<name> (a name or owner/repo); the Stitch and Claude Design usage logs are written only by a local server (UC-8603, PR #239)"
+      - "fix: on a remote transport no tool resolves a path that lives on the client's machine — ClientPathGuardMiddleware answers APP_DOCS_CONTENT_REQUIRED (canonical docs, decisions, queue, autopilot log, drift, v5.29 migration, implementation status) or REMOTE_PATH_REJECTED (Claude Design project_root, DESIGN.md registration, prompt palette, multirepo sync, FreeForm download) before touching the disk, also for the default \".\"; the backend switch and the mirror write only the registry remotely and return client_writes for the client's two files (UC-8604, PR #240)"
+      - "test: an inventory over the registered tools fails when a tool takes a client path without the remote guard, when a project reaches the state without the name and caller checks, or when code builds projects/<name> by hand; each check is tested against a tool that breaks it (UC-8606, PR #241)"
+      - "fix: Stitch calls follow the current API — a rejected call is an error, not ok; projects and screens are requested by resource name; create/update design system send the full designSystem; edit and variants use selectedScreenIds and variantOptions; code and screenshot come from the get_screen download URLs; fonts, corner sizes and AGNOSTIC device match the schema of 2026-10-05; default model GEMINI_3_8_FLASH with old modelIds translated (US-84/UC-8401..8407, PRs #226-#234)"
+      - "fix: generate, edit and variants wait as long as Stitch takes (6 min) and are sent once — a timeout says the screen may still appear; stitch_build_site_batched_v2 really generates each screen and reports the ones that failed (UC-8503, UC-8504, PRs #231, #235)"
+      - "feat: stitch_generate_screen and stitch_generate_screen_v2 send the project's design system; design systems of the account (no project) and projects shared with you (view=shared) (UC-8501, PR #236)"
+      - "test: a contract test validates every Stitch client call against the stored tools/list schema (`python -m server.stitch_schema` refreshes it); the hooks test runs each case in its own temporary repository (UC-8408, UC-8502, PRs #227, #225)"
   6.21.0:
     date: 2026-10-05
     codename: "Gavilla"

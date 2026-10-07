@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.21.0 — "Gavilla" (sobre v6.20.0 "Cableado")<br/>
+  v 6.22.0 — "Cerrojo" (sobre v6.21.0 "Gavilla")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,20 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.22
+
+**v6.22.0 — "Cerrojo"** echa el cerrojo a lo que el servidor alojado abría a quien nombrara un proyecto, y pone las tools de Stitch al día con su API:
+
+- **La clave de Stitch vive solo en tu sesión** — el servidor ya no la guarda en disco, y otra sesión que nombre tu proyecto no puede usarla. `/plan` y `/visual-setup` la vuelven a enviar en cada sesión.
+- **El estado de un proyecto solo lo toca quien lo ve** — en el servidor alojado, la telemetría, la actividad y la evidencia de auditoría exigen que el proyecto sea tuyo, y los errores solo listan tus proyectos.
+- **El servidor alojado no lee ni escribe tu disco** — las tools que reciben una ruta de tu máquina responden antes de tocar nada; úsalas con el MCP local. Cambiar de backend devuelve los cambios de tus ficheros para que los escribas tú.
+- **Una prueba impide que vuelva a pasar** — recorre todas las tools registradas y falla si una nueva abre alguno de estos huecos.
+- **Stitch, al día** — llamadas con la forma actual de la API, errores que llegan como errores, esperas de 6 minutos sin repetir la generación, modelo por defecto `GEMINI_3_8_FLASH`, sistemas de diseño de la cuenta y proyectos compartidos.
+
+Con el MCP alojado cambia una cosa: las tools de documentos canónicos, cola, decisiones y estado de implementación responden con un aviso en vez de usar el disco del servidor. Con el MCP local todo sigue igual.
 
 ---
 
@@ -624,7 +638,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.21.0 — "Gavilla" (over v6.20.0 "Cableado")
+> v 6.22.0 — "Cerrojo" (over v6.21.0 "Gavilla")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -637,6 +651,18 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.22
+
+**v6.22.0 — "Cerrojo"** ("deadbolt") bolts what the hosted server left open to anyone who named a project, and brings the Stitch tools up to date with its API:
+
+- **Your Stitch key lives only in your session** — the server no longer stores it on disk, and another session naming your project cannot use it. `/plan` and `/visual-setup` send it again in each session.
+- **A project's state is touched only by who can see it** — on the hosted server, telemetry, activity and audit evidence require the project to be yours, and errors list only your projects.
+- **The hosted server neither reads nor writes your disk** — tools that take a path on your machine answer before touching anything; use them with the local MCP. Switching backend returns the changes to your files for you to write.
+- **A test keeps it from coming back** — it walks every registered tool and fails when a new one opens any of these holes.
+- **Stitch, up to date** — calls in the current API shape, failures that arrive as errors, 6-minute waits without repeating a generation, `GEMINI_3_8_FLASH` by default, account design systems and shared projects.
+
+With the hosted MCP one thing changes: the canonical documents, queue, decisions and implementation status tools answer with a notice instead of using the server's disk. With the local MCP nothing changes.
 
 ## What's new in v6.21
 

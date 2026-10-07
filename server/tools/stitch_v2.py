@@ -53,6 +53,7 @@ from ..stitch_prompt import (
     build_prompt,
     validate_and_normalize,
 )
+from ..app_docs.workspace import MemoryWorkspace
 # Quota subsystem removed in v6.4.0. Stitch MCP is free of charge —
 # the 350+200 monthly ceiling applies only to the Stitch web UI, not to
 # the MCP/API surface. See doc/decisions/stitch_native_chain.md.
@@ -683,6 +684,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
         prompt: str,
         mode: str = "warn",
         project_root: str | None = None,
+        design_md_content: str | None = None,
     ) -> dict:
         """Validate a Stitch prompt against the v5.31.0 best-practice rules.
 
@@ -715,11 +717,16 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 return {"error": f"unknown mode {mode!r}; expected 'warn' or 'strict'"}
 
             palette = None
-            if project_root:
+            design_md_path = None
+            if design_md_content is not None:
+                # Content mode (UC-8604): the client's DESIGN.md, never the server's disk.
+                design_md_path = MemoryWorkspace({"DESIGN.md": design_md_content}).root / "DESIGN.md"
+            elif project_root:
                 design_md_path = (
                     Path(project_root).expanduser().resolve()
                     / "doc" / "design" / "DESIGN.md"
                 )
+            if design_md_path is not None:
                 if design_md_path.exists():
                     try:
                         doc = load(design_md_path)

@@ -45,6 +45,7 @@ APPROVED_PATHS: dict[str, str] = {
     "onboard_project": "freeform_root_absolute is stored in the registry, never opened",
     "report_e2e_results": "report_path is stored as text, never opened",
     "run_quality_audit": "project_path is never used: the tool raises (deprecated)",
+    "claude_design_create_project": "project_root is never used: it returns the DesignSync call to make",
     "switch_backend": "remotely writes the registry only and returns client_writes (UC-8604)",
     "switch_project_backend": "remotely writes the registry only and returns client_writes (UC-8604)",
     "enable_mirror": "remotely writes the registry only and returns client_writes (UC-8604)",

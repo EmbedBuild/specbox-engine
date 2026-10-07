@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from .visual_provider import GateResult
+from ..app_docs.workspace import WorkspacePathError, as_path
 
 Role = Literal["orchestrator", "satellite", "monorepo"]
 
@@ -91,7 +92,7 @@ def resolve_site(project_root: str | Path) -> SiteResolution:
       (AC-02).
     - no ``multirepo`` / null role → monorepo: site is this repo (AC-03).
     """
-    root = Path(project_root).resolve()
+    root = as_path(project_root).resolve()
     mr = _read_multirepo(root)
     role = mr.get("role")
 
@@ -108,7 +109,11 @@ def resolve_site(project_root: str | Path) -> SiteResolution:
         # layout: ../.. ). Fall back to the repo itself if not declared.
         orch_rel = mr.get("orchestrator")
         if isinstance(orch_rel, str) and orch_rel:
-            orch_path = (root / orch_rel).resolve()
+            try:
+                orch_path = (root / orch_rel).resolve()
+            except WorkspacePathError:
+                # Content mode (UC-8604): the client sent the orchestrator's files.
+                orch_path = root
         else:
             orch_path = root
         return SiteResolution(

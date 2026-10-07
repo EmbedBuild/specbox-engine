@@ -2375,10 +2375,11 @@ o cualquier carpeta escribible.
 - `server/coordination/client_paths.py::ClientPathGuardMiddleware` (en `server.py`): en transporte
   remoto, las tools de `CLIENT_PATH_TOOLS` responden antes de resolver la ruta.
   `APP_DOCS_CONTENT_REQUIRED` para documentos canónicos, cola, decisiones canónicas, autopilot,
-  deriva, migración v5.29 y estado de implementación; `REMOTE_PATH_REJECTED` para Claude Design
-  (`project_root`), el registro de DESIGN.md, la paleta de `validate_stitch_prompt`,
-  `sync_multirepo_state` y `migrate_to_freeform_tool`. Una regla `optional` solo rechaza si la
-  ruta llega. En `stdio`, igual que antes.
+  deriva, migración v5.29 y estado de implementación; `CLIENT_CONTENT_REQUIRED` para Claude Design
+  (`project_root`), la paleta de `validate_stitch_prompt` y `sync_multirepo_state`;
+  `REMOTE_PATH_REJECTED` para el registro de DESIGN.md (`upload_design_md_to_stitch`) y
+  `migrate_to_freeform_tool`. Si la llamada trae su parámetro de contenido (`content_params` de la
+  regla), pasa. Una regla `optional` solo rechaza si la ruta llega. En `stdio`, igual que antes.
 - `server/coordination/tool_envelope.py::envelope_result`: el sobre respeta el esquema de salida
   de la tool (lo envuelve en `result` o lo manda como resultado de error si la tool devuelve una
   lista). Lo usan este middleware y el de UC-8603.
@@ -2388,11 +2389,20 @@ o cualquier carpeta escribible.
   renderizado de la zona `tracking_backend`); `switch_backend`, `enable_mirror`,
   `disable_mirror` y `switch_project_backend` (`switch_result`) lo pasan al cliente. La skill
   `/switch-backend` lo aplica en el repo.
-- El modo contenido de estas tools (enviar los ficheros y recibir lo mutado) y la adaptación de
-  las skills llegan después; mientras, se usan con el MCP local.
+- **Modo contenido** (`server/app_docs/workspace.py`): las 18 tools de `app_docs` y de estado de
+  implementación aceptan `files_content` (`{ruta relativa: texto}`) y ejecutan su código de siempre
+  sobre un `MemoryWorkspace` (un árbol en memoria con la parte de `pathlib` que usan; `as_path`
+  en los puntos de entrada). La respuesta añade `files_changed` (contenido completo),
+  `files_deleted`, `files_appended` (líneas de los `.jsonl`, para añadirlas sin pisar el historial)
+  y `files_requested` (lo que la tool buscó y no llegó). `VirtualPath` no tiene `__fspath__`: lo que
+  intentara llegar al disco falla. Claude Design (`claude_design_status`/`sync_design_system`) usa
+  el mismo `files_content`; `validate_stitch_prompt` acepta `design_md_content` y
+  `sync_multirepo_state` `settings_content`. `claude_design_create_project` no usa su `project_root`.
 - Tests: `tests/test_client_path_guard.py` (inventario sobre las tools registradas, rechazo sin
   tocar disco con `write_text`/`mkdir`/`read_text`/`open`/`exists` instrumentados, `"."` por
-  defecto, ruta opcional, cambio de backend y espejo en remoto, `stdio` sin cambios).
+  defecto, ruta opcional, cambio de backend y espejo en remoto, `stdio` sin cambios) y
+  `tests/test_content_mode.py` (cada tool en modo contenido, en remoto y con la trampa de disco
+  armada, da la misma respuesta y los mismos ficheros que con ruta en local).
 
 ## La extensión solo avanza y cada versión cuenta qué evita (v6.14.1)
 

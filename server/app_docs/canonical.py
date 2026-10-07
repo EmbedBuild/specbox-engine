@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
+from .workspace import as_path
+from .workspace import run_in_root
 
 
 CANONICAL_FILE = ".quality/canonical_decisions.json"
@@ -54,7 +56,7 @@ class _Counter:
 
 
 def _store_path(project_path: Path | str = ".") -> Path:
-    return Path(project_path) / CANONICAL_FILE
+    return as_path(project_path) / CANONICAL_FILE
 
 
 def _load_store(project_path: Path | str = ".") -> dict[str, Any]:
@@ -226,15 +228,18 @@ def register_canonical_tools(mcp: FastMCP, engine_path: Path) -> None:
 
     @mcp.tool
     def get_canonical_decision(
-        decision_key: str, project_path: str = "."
+        decision_key: str, project_path: str = ".", files_content: dict[str, str] | None = None
     ) -> dict[str, Any] | None:
         """Return the active canonical decision for a decision_key, or None.
 
         Skills consult this before asking the user. If a canonical exists,
         the skill applies its value silently and skips the question.
         """
-        canonical = get_canonical(decision_key, project_path)
-        return asdict(canonical) if canonical else None
+        def _get(root: Any) -> dict[str, Any] | None:
+            canonical = get_canonical(decision_key, root)
+            return asdict(canonical) if canonical else None
+
+        return run_in_root(project_path, files_content, _get)
 
     @mcp.tool
     def record_canonical_confirmation(
@@ -242,6 +247,7 @@ def register_canonical_tools(mcp: FastMCP, engine_path: Path) -> None:
         value: str,
         project_path: str = ".",
         promotion_threshold: int = DEFAULT_PROMOTION_THRESHOLD,
+        files_content: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Record that the user confirmed a particular value for a decision_key.
 
@@ -252,21 +258,28 @@ def register_canonical_tools(mcp: FastMCP, engine_path: Path) -> None:
         If the user picks a different value than the existing canonical,
         the canonical is auto-invalidated and a fresh counter starts.
         """
-        return record_confirmation(
-            decision_key,
-            value,
-            project_path=project_path,
-            promotion_threshold=promotion_threshold,
+        return run_in_root(
+            project_path,
+            files_content,
+            lambda root: record_confirmation(
+                decision_key, value, project_path=root, promotion_threshold=promotion_threshold
+            ),
         )
 
     @mcp.tool
-    def list_canonical_decisions(project_path: str = ".") -> list[dict[str, Any]]:
-        """List all canonical decisions for a project (active + invalidated)."""
-        return list_canonicals(project_path)
+    def list_canonical_decisions(project_path: str = ".", files_content: dict[str, str] | None = None) -> list[dict[str, Any]]:
+        """List all canonical decisions for a project (active + invalidated).
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
+        """
+        return run_in_root(project_path, files_content, list_canonicals)
 
     @mcp.tool
     def revoke_canonical_decision(
-        decision_key: str, project_path: str = "."
+        decision_key: str, project_path: str = ".", files_content: dict[str, str] | None = None
     ) -> dict[str, Any]:
-        """Hard-revoke a canonical decision (user-driven). Returns ok status."""
-        return revoke_canonical(decision_key, project_path)
+        """Hard-revoke a canonical decision (user-driven). Returns ok status.
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
+        """
+        return run_in_root(project_path, files_content, lambda root: revoke_canonical(decision_key, root))

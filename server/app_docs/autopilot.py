@@ -23,6 +23,8 @@ from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
+from .workspace import as_path
+from .workspace import run_in_root
 
 
 # ── Catalog (mirror of autopilot.mjs DECISION_KEYS) ──────────────────
@@ -127,7 +129,7 @@ DEFAULT_BUDGET_EUR = 5.0
 
 def load_autopilot_config(project_path: str | Path = ".") -> dict[str, Any]:
     """Read `.claude/settings.local.json` -> `specbox.autopilot`."""
-    settings_path = Path(project_path) / ".claude" / "settings.local.json"
+    settings_path = as_path(project_path) / ".claude" / "settings.local.json"
     cfg: dict[str, Any] = {}
     if settings_path.exists():
         try:
@@ -270,7 +272,7 @@ def log_auto_decision(
     ref: str | None = None,
 ) -> dict[str, Any]:
     """Append a JSONL entry to `.quality/autopilot_decisions.jsonl`."""
-    log_path = Path(project_path) / ".quality" / "autopilot_decisions.jsonl"
+    log_path = as_path(project_path) / ".quality" / "autopilot_decisions.jsonl"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     entry = {
         "ts": datetime.now(timezone.utc).isoformat(),
@@ -321,6 +323,7 @@ def register_autopilot_tools(mcp: FastMCP, engine_path: Path) -> None:
         is_unique: bool | None = None,
         feature: str | None = None,
         log: bool = True,
+        files_content: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Evaluate one autopilot decision against the project policy.
 
@@ -341,21 +344,27 @@ def register_autopilot_tools(mcp: FastMCP, engine_path: Path) -> None:
             is_unique: Whether the inferred match is unique (origin_detection).
             feature: Feature name to record in the audit log.
             log: Whether to append to autopilot_decisions.jsonl on auto.
+            files_content: Remote MCP — the project's files ({relpath: text});
+                the logged line comes back in files_appended (UC-8604).
         """
-        ctx: dict[str, Any] = {"projectPath": project_path}
-        if score is not None:
-            ctx["score"] = score
-        if cost_eur is not None:
-            ctx["costEur"] = cost_eur
-        if has_app_prd is not None:
-            ctx["hasAppPrd"] = has_app_prd
-        if has_app_spec is not None:
-            ctx["hasAppSpec"] = has_app_spec
-        if is_unique is not None:
-            ctx["isUnique"] = is_unique
-        if log:
-            return evaluate_and_log(decision_key, ctx, feature=feature)
-        return evaluate_decision(decision_key, ctx)
+
+        def _evaluate(root: Any) -> dict[str, Any]:
+            ctx: dict[str, Any] = {"projectPath": root}
+            if score is not None:
+                ctx["score"] = score
+            if cost_eur is not None:
+                ctx["costEur"] = cost_eur
+            if has_app_prd is not None:
+                ctx["hasAppPrd"] = has_app_prd
+            if has_app_spec is not None:
+                ctx["hasAppSpec"] = has_app_spec
+            if is_unique is not None:
+                ctx["isUnique"] = is_unique
+            if log:
+                return evaluate_and_log(decision_key, ctx, feature=feature)
+            return evaluate_decision(decision_key, ctx)
+
+        return run_in_root(project_path, files_content, _evaluate)
 
     @mcp.tool
     def list_decision_keys() -> dict[str, Any]:

@@ -2,9 +2,9 @@
 
 Not registered as MCP tools. Imported by:
 - server/tools/spec_mutations.py (Tier 1)
-- server/tools/milestone_management.py (Tier 2, future)
-- server/tools/board_operations.py (Tier 3, future)
-- server/tools/acceptance_automation.py (Tier 4, future)
+- server/tools/milestone_management.py (Tier 2)
+- server/tools/board_operations.py (Tier 3)
+- server/tools/acceptance_automation.py (Tier 4)
 
 See doc/design/v5.23.0-full-mutations.md — section "Shared helpers".
 """

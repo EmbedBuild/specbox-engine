@@ -2433,6 +2433,14 @@ o cualquier carpeta escribible.
   intentara llegar al disco falla. Claude Design (`claude_design_status`/`sync_design_system`) usa
   el mismo `files_content`; `validate_stitch_prompt` acepta `design_md_content` y
   `sync_multirepo_state` `settings_content`. `claude_design_create_project` no usa su `project_root`.
+- **`get_board_diff`** (UC-8905) no recibía ninguna ruta y aun así abría
+  `.quality/board_snapshots/{board_id}/{snapshot}.json` relativo al directorio del servidor. Ahora
+  compara las dos instantáneas que manda el cliente (`from_content`, `to_content`); sin ellas, en
+  remoto responde `CLIENT_CONTENT_REQUIRED`, y con el MCP local rechaza (`VALIDATION_FAILED`) un
+  `board_id` o un nombre de instantánea que salga de esa carpeta. Ya no compara milestones. El
+  inventario de UC-8606 falla también si una tool lee relativo al directorio de trabajo del
+  servidor (un `Path("…")` relativo, `Path.cwd()`, `os.getcwd()` o una constante `Path` relativa de
+  su módulo) sin estar en la guarda.
 - Tests: `tests/test_client_path_guard.py` (inventario sobre las tools registradas, rechazo sin
   tocar disco con `write_text`/`mkdir`/`read_text`/`open`/`exists` instrumentados, `"."` por
   defecto, ruta opcional, cambio de backend y espejo en remoto, `stdio` sin cambios) y

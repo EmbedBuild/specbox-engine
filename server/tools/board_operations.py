@@ -15,6 +15,7 @@ import structlog
 from fastmcp import Context
 
 from ..auth_gateway import get_session_backend
+from ..coordination.project_state_scope import InvalidProjectNameError, check_project_name
 from ._content_passing import returns_items_content
 from ..spec_backend import PURGE_NOT_SUPPORTED, ItemDTO, PurgeRefused, parse_item_id
 from . import _mutation_helpers as mh
@@ -48,7 +49,7 @@ async def validate_ac_quality(
     existing ACs. If `uc_id` is passed, validates only that UC.
     Otherwise, validates the whole board.
 
-    Use this tool to audit AC quality before a milestone acceptance check.
+    Use this tool to audit AC quality before validating a UC's acceptance.
     For rewriting flagged ACs, use `update_ac` or `update_ac_batch`.
 
     US-33/UC-3303 — además del veredicto de calidad, devuelve una lista
@@ -460,37 +461,83 @@ async def delete_uc(
 # ── 3.5 get_board_diff ───────────────────────────────────────────────
 
 
+#: Where a client keeps its snapshots, relative to its repository root.
+BOARD_SNAPSHOTS_DIR = Path(".quality") / "board_snapshots"
+
+
+def _snapshot_name_error(board_id: Any, from_snapshot: Any, to_snapshot: Any) -> str | None:
+    """Why these names cannot name two files under ``BOARD_SNAPSHOTS_DIR``, or None.
+
+    The board id is a name or an ``owner/repo`` id (the rules of a project
+    name); a snapshot is one file name without ``.json``.
+    """
+    try:
+        check_project_name(board_id)
+    except InvalidProjectNameError:
+        return f"'{board_id}' is not a board id: use an id or an owner/repo id."
+    for name in (from_snapshot, to_snapshot):
+        if (
+            not isinstance(name, str)
+            or not name.strip()
+            or name != name.strip()
+            or any(c in name for c in ("/", "\\", "\x00"))
+            or name in (".", "..")
+        ):
+            return f"'{name}' is not a snapshot name: use its file name without .json."
+    return None
+
+
 async def get_board_diff(
     board_id: str,
     from_snapshot: str,
     to_snapshot: str,
     ctx: Context,
+    from_content: str | None = None,
+    to_content: str | None = None,
 ) -> dict[str, Any]:
     """Compare board state between two timestamped snapshots.
 
-    Snapshots are stored under `.quality/board_snapshots/{board_id}/{timestamp}.json`.
-    To create one, call `get_board_status` and save the result there.
+    A snapshot is the result of `get_board_status` that the client saves in
+    its repository as `.quality/board_snapshots/{board_id}/{timestamp}.json`.
+    Send both files as `from_content` and `to_content` and the tool compares
+    them in memory. Without them, only a local MCP reads the two files from its
+    working directory; a remote one answers CLIENT_CONTENT_REQUIRED before
+    opening anything (US-86 · UC-8905).
 
     This tool only works forward from when snapshots were taken. There is
     no retroactive history in Trello/Plane.
 
     Returns:
-        {from, to, added_ucs, removed_ucs, modified_ucs, milestone_moves, ac_changes}
+        {from, to, added_ucs, removed_ucs, modified_ucs, ac_changes}
     """
-    # This tool is purely file-based — no backend needed
+    # This tool is purely snapshot-based — no backend needed
     try:
-        from_path = Path(f".quality/board_snapshots/{board_id}/{from_snapshot}.json")
-        to_path = Path(f".quality/board_snapshots/{board_id}/{to_snapshot}.json")
+        if from_content is not None or to_content is not None:
+            if from_content is None or to_content is None:
+                return _mk_error("VALIDATION_FAILED", "Send both snapshots: from_content and to_content.")
+            texts = {"from_content": from_content, "to_content": to_content}
+        else:
+            invalid = _snapshot_name_error(board_id, from_snapshot, to_snapshot)
+            if invalid:
+                return _mk_error("VALIDATION_FAILED", invalid)
+            texts = {}
+            for key, name in (("from_content", from_snapshot), ("to_content", to_snapshot)):
+                path = BOARD_SNAPSHOTS_DIR / board_id / f"{name}.json"
+                if not path.exists():
+                    return _mk_error("VALIDATION_FAILED", f"Snapshot not found: {path}")
+                texts[key] = path.read_text()
 
-        if not from_path.exists():
-            return _mk_error("VALIDATION_FAILED", f"Snapshot not found: {from_path}")
-        if not to_path.exists():
-            return _mk_error("VALIDATION_FAILED", f"Snapshot not found: {to_path}")
+        snapshots: dict[str, dict] = {}
+        for key, text in texts.items():
+            try:
+                data = json.loads(text)
+            except (TypeError, ValueError):
+                data = None
+            if not isinstance(data, dict):
+                return _mk_error("VALIDATION_FAILED", f"{key} is not a board snapshot (a JSON object).")
+            snapshots[key] = data
 
-        from_data = json.loads(from_path.read_text())
-        to_data = json.loads(to_path.read_text())
-
-        # Parse UCs from snapshot data — expect {items: [{uc_id, name, state, milestone, ac_count, ac_done}]}
+        # Parse UCs from snapshot data — expect {items: [{uc_id, name, state, hours, ac_count, ac_done}]}
         def _uc_map(data: dict) -> dict[str, dict]:
             items = data.get("items", data.get("ucs", []))
             result = {}
@@ -500,8 +547,8 @@ async def get_board_diff(
                     result[uid] = it
             return result
 
-        from_ucs = _uc_map(from_data)
-        to_ucs = _uc_map(to_data)
+        from_ucs = _uc_map(snapshots["from_content"])
+        to_ucs = _uc_map(snapshots["to_content"])
 
         from_ids = set(from_ucs.keys())
         to_ids = set(to_ucs.keys())
@@ -510,7 +557,6 @@ async def get_board_diff(
         removed = sorted(from_ids - to_ids)
 
         modified: list[dict[str, Any]] = []
-        milestone_moves: list[dict[str, str]] = []
         ac_added = ac_removed = ac_passed_delta = 0
 
         for uid in from_ids & to_ids:
@@ -518,17 +564,11 @@ async def get_board_diff(
             t_item = to_ucs[uid]
             changes: dict[str, list] = {}
 
-            for field in ("name", "state", "milestone", "hours"):
+            for field in ("name", "state", "hours"):
                 fv = f_item.get(field)
                 tv = t_item.get(field)
                 if fv != tv:
                     changes[field] = [fv, tv]
-                    if field == "milestone":
-                        milestone_moves.append({
-                            "uc_id": uid,
-                            "from": str(fv or ""),
-                            "to": str(tv or ""),
-                        })
 
             f_ac = int(f_item.get("ac_count", 0))
             t_ac = int(t_item.get("ac_count", 0))
@@ -550,7 +590,6 @@ async def get_board_diff(
             "added_ucs": added,
             "removed_ucs": removed,
             "modified_ucs": modified,
-            "milestone_moves": milestone_moves,
             "ac_changes": {
                 "added": ac_added,
                 "removed": ac_removed,
@@ -656,6 +695,8 @@ def register_board_operations_tools(mcp_instance) -> None:
         "Per-UC reason required for audit trail."
     )(delete_uc)
     mcp_instance.tool(
-        description="Compare board state between two timestamped snapshots. Detects "
-        "added/removed/modified UCs, milestone moves, and AC count changes."
+        description="Compare two board snapshots (get_board_status results) that the "
+        "client sends as from_content and to_content; a local MCP can read them from "
+        ".quality/board_snapshots/<board_id>/<snapshot>.json. Detects added/removed/"
+        "modified UCs and AC count changes."
     )(get_board_diff)

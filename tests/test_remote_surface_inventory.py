@@ -7,6 +7,10 @@ opens a hole that US-86 closed:
 
 * a parameter that names a path on the client's machine without the remote
   guard (``CLIENT_PATH_TOOLS``, UC-8604);
+* a tool that reads a path relative to the server's working directory — a
+  relative ``Path("…")``, ``Path.cwd()``, ``os.getcwd()`` or a relative ``Path``
+  constant of its module — without that guard (UC-8905: ``get_board_diff`` took
+  no path parameter and still read ``.quality/board_snapshots`` on the server);
 * a ``project`` that becomes ``STATE_PATH/projects/<project>`` without the name
   check (``PROJECT_NAME_TOOLS``) or without resolving who calls on a remote
   transport (``STATE_PROJECT_TOOLS`` or ``resolve_caller_scope`` in the tool),
@@ -23,7 +27,7 @@ from __future__ import annotations
 import inspect
 import re
 from collections.abc import Callable
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from server.coordination.client_paths import CLIENT_PATH_TOOLS
 from server.coordination.project_state_scope import (
@@ -52,6 +56,13 @@ APPROVED_PATHS: dict[str, str] = {
     "disable_mirror": "remotely writes the registry only and returns client_writes (UC-8604)",
 }
 
+#: Reads relative to the server's working directory: a relative ``Path`` literal,
+#: ``Path.cwd()`` or ``os.getcwd()`` in the tool's own source.
+CWD_READ = re.compile(r"""\bPath\(\s*f?["'](?![/~])|\bPath\.cwd\(|\bos\.getcwd\(""")
+
+#: Tools that read relative to the server's working directory without the guard, and why.
+APPROVED_CWD: dict[str, str] = {}
+
 #: Calls that turn ``project`` into a folder under ``STATE_PATH/projects``.
 STATE_MARKERS = re.compile(
     r"\b(project_state_dir|_ensure_project_dir|audit_dir|update_project_meta|_store_design_md_meta)\("
@@ -79,6 +90,24 @@ def path_problems(name: str, fn: Callable) -> list[str]:
         return [f"{name}: client path {params} without remote guard (add it to CLIENT_PATH_TOOLS)"]
     missing = set(rule.path_params) - set(params)
     return [f"{name}: guarded params {sorted(missing)} are not parameters"] if missing else []
+
+
+def cwd_problems(name: str, fn: Callable) -> list[str]:
+    """A tool that reads relative to the server's working directory must be guarded or approved."""
+    if name in CLIENT_PATH_TOOLS or name in APPROVED_CWD:
+        return []
+    try:
+        source = inspect.getsource(fn)
+    except (OSError, TypeError):
+        return []
+    constants = sorted(
+        key
+        for key, value in getattr(fn, "__globals__", {}).items()
+        if isinstance(value, PurePath) and not value.is_absolute() and re.search(rf"\b{re.escape(key)}\b", source)
+    )
+    if not CWD_READ.search(source) and not constants:
+        return []
+    return [f"{name}: reads relative to the server's working directory without remote guard (add it to CLIENT_PATH_TOOLS)"]
 
 
 def state_problems(name: str, fn: Callable) -> list[str]:
@@ -126,6 +155,12 @@ async def test_every_tool_with_a_client_path_is_guarded_or_approved():
     assert set(CLIENT_PATH_TOOLS) <= set(tools), sorted(set(CLIENT_PATH_TOOLS) - set(tools))
 
 
+async def test_every_tool_that_reads_the_working_directory_is_guarded_or_approved():
+    tools = await _registered_tools()
+    problems = [p for name, fn in sorted(tools.items()) for p in cwd_problems(name, fn)]
+    assert problems == []
+
+
 async def test_every_tool_whose_project_reaches_the_state_checks_name_and_caller():
     tools = await _registered_tools()
     problems = [p for name, fn in sorted(tools.items()) for p in state_problems(name, fn)]
@@ -138,7 +173,7 @@ def test_no_code_builds_a_project_state_path_by_hand():
 
 
 def test_approved_entries_say_why():
-    for reason in {**APPROVED_PATHS, **APPROVED_STATE}.values():
+    for reason in {**APPROVED_PATHS, **APPROVED_STATE, **APPROVED_CWD}.values():
         assert len(reason) > 20
 
 
@@ -152,6 +187,31 @@ def test_path_check_flags_an_unguarded_client_path():
     assert path_problems("leaky_report", leaky_report) == [
         "leaky_report: client path ['project_path'] without remote guard (add it to CLIENT_PATH_TOOLS)"
     ]
+
+
+LEAKY_SNAPSHOTS = Path(".quality") / "snapshots"
+
+
+def test_cwd_check_flags_a_tool_that_reads_the_working_directory():
+    async def leaky_literal(board_id: str, name: str) -> dict:
+        return {"text": Path(f".quality/snapshots/{board_id}/{name}.json").read_text()}
+
+    async def leaky_constant(board_id: str) -> dict:
+        return {"exists": (LEAKY_SNAPSHOTS / board_id).exists()}
+
+    async def leaky_cwd() -> dict:
+        return {"here": str(Path.cwd())}
+
+    async def absolute_only() -> dict:
+        return {"exists": Path("/data/state").exists()}
+
+    for leaky in (leaky_literal, leaky_constant, leaky_cwd):
+        assert cwd_problems(leaky.__name__, leaky) == [
+            f"{leaky.__name__}: reads relative to the server's working directory without remote guard "
+            "(add it to CLIENT_PATH_TOOLS)"
+        ]
+    assert cwd_problems("absolute_only", absolute_only) == []
+    assert cwd_problems("get_board_diff", leaky_literal) == []  # guarded
 
 
 def test_state_check_flags_a_project_that_reaches_the_state_unchecked():

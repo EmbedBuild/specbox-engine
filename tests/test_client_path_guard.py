@@ -35,6 +35,7 @@ from server.coordination.client_paths import (
     ClientPathGuardMiddleware,
 )
 from server.migration.transactional_switch import apply_mirror_transactional, apply_switch_transactional
+from server.tools.board_operations import register_board_operations_tools
 from server.tools.claude_design import register_claude_design_tools
 from server.tools.milestone_management import register_milestone_management_tools
 from server.tools.stitch_v2 import register_stitch_v2_tools
@@ -81,6 +82,7 @@ def server(tmp_path: Path) -> FastMCP:
     register_claude_design_tools(mcp, tmp_path / "state")
     register_stitch_v2_tools(mcp, tmp_path / "state")
     register_milestone_management_tools(mcp)
+    register_board_operations_tools(mcp)
     return mcp
 
 
@@ -103,6 +105,7 @@ def _args(tool: str, where: str) -> dict:
         "upload_design_md_to_stitch": {"project": "p", "stitch_project_id": "1"},
         "validate_stitch_prompt": {"project": "p", "prompt": "a screen"},
         "sync_multirepo_state": {},
+        "get_board_diff": {"board_id": "b", "to_snapshot": "s2"},
     }.get(tool, {})
     rule = CLIENT_PATH_TOOLS[tool]
     return {**base, rule.path_params[0]: where}
@@ -167,6 +170,29 @@ async def test_remote_default_dot_is_never_resolved(server, tool, monkeypatch, n
             armed["on"] = False
     assert touched == []
     assert _payload(result)["code"] == APP_DOCS_CONTENT_REQUIRED
+
+
+async def test_remote_board_diff_compares_the_snapshots_sent(server, monkeypatch, no_disk):
+    """UC-8905: the snapshots travel as content; one alone is not enough."""
+    monkeypatch.setenv("MCP_TRANSPORT", "http")
+    snap = json.dumps({"items": [{"uc_id": "UC-1", "state": "backlog", "ac_count": 1, "ac_done": 0}]})
+    done = json.dumps({"items": [{"uc_id": "UC-1", "state": "done", "ac_count": 1, "ac_done": 1}]})
+    base = {"board_id": "../../data/state", "from_snapshot": "a", "to_snapshot": "b"}
+    armed, touched = no_disk
+    async with Client(server) as client:
+        armed["on"] = True
+        try:
+            both = await client.call_tool(
+                "get_board_diff", {**base, "from_content": snap, "to_content": done}, raise_on_error=False
+            )
+            one = await client.call_tool("get_board_diff", {**base, "from_content": snap}, raise_on_error=False)
+        finally:
+            armed["on"] = False
+    assert touched == []
+    out = _payload(both)
+    assert out["modified_ucs"] == [{"uc_id": "UC-1", "changes": {"state": ["backlog", "done"]}}]
+    assert out["ac_changes"]["passed_delta"] == 1
+    assert _payload(one)["code"] == "VALIDATION_FAILED"
 
 
 async def test_remote_optional_path_only_rejects_when_given(server, monkeypatch):

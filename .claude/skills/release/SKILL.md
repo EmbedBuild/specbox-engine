@@ -416,6 +416,18 @@ head -10 CHANGELOG.md | grep -E "^## \[{nueva_version}\]"
 # Debe matchear. Si no, abortar.
 ```
 
+### 5.5.3 CHANGELOG de la extensión (si la release toca `vscode-extension/`)
+
+El Marketplace enseña `vscode-extension/CHANGELOG.md`, no el de la raíz: sin esta entrada, la
+pestaña «Changelog» de la extensión no dice qué cambió (estuvo parado en 6.6.0 hasta 6.22.1).
+Si `git diff --stat {etiqueta_anterior}..HEAD -- vscode-extension/` no está vacío, añade debajo de
+`## [Unreleased]` una entrada `## [{nueva_version}] — "{codename}"` en inglés con lo que cambia
+para quien usa la extensión, y comprueba:
+
+```bash
+grep -E "^## \[{nueva_version}\]" vscode-extension/CHANGELOG.md
+```
+
 ---
 
 ## Paso 6: Commit y Push
@@ -433,6 +445,7 @@ Mostrar resumen al usuario de todos los archivos que se van a commitear.
 
 ```bash
 git add ENGINE_VERSION.yaml CLAUDE.md pyproject.toml CHANGELOG.md README.md \
+        [vscode-extension/CHANGELOG.md si 5.5.3 aplica] \
         [otros archivos corregidos en auditoria]
 git commit -m "feat: v{nueva_version} {codename} — {resumen de 1 linea}
 

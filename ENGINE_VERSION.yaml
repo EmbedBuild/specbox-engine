@@ -1,5 +1,5 @@
-version: 6.22.1
-codename: "Llave"
+version: 6.22.2
+codename: "Mesura"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-10-07
@@ -523,6 +523,11 @@ features:
   - extension-identity-schedule
 
 changelog:
+  6.22.2:
+    date: 2026-10-07
+    codename: "Mesura"
+    changes:
+      - "docs: the extension's own CHANGELOG (what the Marketplace shows) lists what changes again — it had stopped at 6.6.0; the 6.22.1 entry tells that it asks who you are every 30 minutes, and /release step 5.5.3 adds an entry there whenever a release touches vscode-extension/ (US-89/UC-8903, PR #249)"
   6.22.1:
     date: 2026-10-07
     codename: "Llave"

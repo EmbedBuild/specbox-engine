@@ -266,7 +266,11 @@ Auto-derivar zona auto `exportable_copy` con LLM: landing headline, LinkedIn pos
 
 Tras completar `app_market.md` con `Write`/`Edit`, llamar `record_app_docs_signature` para sellar la baseline, y bajar al flujo de la feature (vuelve al Paso 1 en modo standard).
 
-> **Nota v6.0.1**: `record_app_docs_signature` sigue siendo state-tool (cat B) — no cambia firma. La firma se calcula a partir del contenido que el cliente ya escribió en disco vía la API de telemetría/state estándar.
+> **MCP remoto (UC-8604)**: el servidor alojado no lee tu repositorio. Llama
+> `record_app_docs_signature(files_content={...})` con `doc/app/app_prd.md`, `doc/app/app_spec.md`,
+> `doc/app/app_market.md`, `.quality/app_docs_sync.lock`, `.claude/settings.local.json` y
+> `.specbox-meta.json` (los que existan) y escribe el `.quality/app_docs_sync.lock` que vuelve en
+> `files_changed`. Con el MCP local basta `project_path`.
 
 ---
 

@@ -663,6 +663,10 @@ mcp__SpecBox-MCP__claude_design_status(
 )
 ```
 
+Con el MCP alojado (UC-8604) el servidor no lee tu repositorio: añade `files_content` con
+`.claude/settings.local.json`, el `package.json` del design-system y un fichero de su `dist/` (o su
+configuración de Storybook). En un satélite, los del orquestador.
+
 El status devuelve `gate_ready` (hay `package.json` + `dist/`/Storybook en el sitio
 resuelto — orquestador en multirepo, repo en monorepo), `role`, `site` y `login_active`.
 

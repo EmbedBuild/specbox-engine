@@ -685,6 +685,9 @@ legado `inline_prefix_v1`, pasar `design_md_content` en cada
 
     mcp__SpecBox-MCP__claude_design_status(project, project_root)
     → gate_ready, role, site, projectId, login_active
+    # MCP remoto (UC-8604): añade files_content con .claude/settings.local.json,
+    # el package.json del design-system y un fichero de su dist/ (o su config de
+    # Storybook); en un satélite, los del orquestador. Igual en sync_design_system.
 
     ¿gate_ready == true (hay design-system compilado en el sitio resuelto)?
     ├── SI → Ejecutar/guiar el sync ANTES de construir pantallas:
@@ -848,6 +851,7 @@ validate_stitch_prompt(
   mode="warn",
   project_root="{absolute_path}"
 )
+# MCP remoto (UC-8604): en lugar de project_root, design_md_content=<doc/design/DESIGN.md>
 ```
 
 Tomar acción según el resultado:

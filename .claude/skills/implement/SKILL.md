@@ -2026,6 +2026,11 @@ Antes del merge, escribir el Implementation Status en el PRD:
 **Tambien disponible como MCP tool:** `write_implementation_status(project_path, uc_id, branch, phase_deltas)`
 **Consulta posterior:** `get_implementation_status(project_path, item_id)` — devuelve JSON con deltas y overall_status
 
+> **MCP remoto (UC-8604)**: el servidor alojado no lee tu repositorio. Pasa el PRD como
+> `files_content={"doc/prds/{prd_file}": <contenido>}` (con `project_path="."`) y escribe el PRD
+> que vuelve en `files_changed` antes del commit del paso 5. `get_implementation_status` igual,
+> sin nada que escribir.
+
 ### 8.5.2 Merge
 
 ```bash

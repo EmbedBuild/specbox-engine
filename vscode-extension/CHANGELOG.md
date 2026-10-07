@@ -8,6 +8,14 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.23.0] — "Poda"
+
+### Changed
+
+- **No change in the extension itself.** The hosted SpecBox MCP it connects to drops the milestone
+  tools announced as deprecated in 6.21.0 (group the work with epics instead), and
+  `get_board_diff` compares the two board snapshots you send.
+
 ## [6.22.2] — "Mesura"
 
 ### Changed

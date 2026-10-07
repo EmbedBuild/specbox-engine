@@ -500,7 +500,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
             return {"error": str(exc), "project": project}
 
         try:
-            client = await _v2_get_client(ctx, project, state_path)
+            client = await _v2_get_client(ctx, project)
 
             # Resolve effective prompt + mode based on contract & DS state.
             effective_prompt, prompt_mode, ds_info = await _resolve_prompt_for_contract(
@@ -603,7 +603,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
         """
 
         try:
-            client = await _v2_get_client(ctx, project, state_path)
+            client = await _v2_get_client(ctx, project)
             ops = _StitchOpsAdapter(client)
             specs = [
                 ScreenSpec(
@@ -816,36 +816,14 @@ class _StitchOpsAdapter:
     # ``generate_screen`` + ``edit_screens`` instead.
 
 
-async def _v2_get_client(ctx: Context, project: str, state_path: Path):
-    """Resolve a StitchClient. Mirrors the v1 ``_get_client_for_project``
-    fallback (session → meta.json on disk) so v1 and v2 share behaviour.
+async def _v2_get_client(ctx: Context, project: str):
+    """Resolve the StitchClient from this session's key, like v1.
+
+    Never from disk: a key in ``meta.json`` would be usable by any session
+    that names the project (threat model §4 and T9, UC-8601).
     """
 
-    try:
-        return await get_stitch_client(ctx, project)
-    except RuntimeError:
-        pass
-    # Disk fallback (same shape as v1 _get_client_for_project)
-    project_dir = state_path / "projects" / project
-    meta_file = project_dir / "meta.json"
-    if meta_file.exists():
-        try:
-            meta = json.loads(meta_file.read_text(encoding="utf-8"))
-            key_b64 = meta.get("stitch_key_b64")
-            if key_b64:
-                import base64
-
-                from ..auth_gateway import store_stitch_credentials
-
-                api_key = base64.b64decode(key_b64).decode()
-                await store_stitch_credentials(ctx, project, api_key)
-                return await get_stitch_client(ctx, project)
-        except (json.JSONDecodeError, OSError, ValueError):
-            pass
-    raise RuntimeError(
-        f"No Stitch API Key configured for project '{project}'. "
-        "Call stitch_set_api_key(project, api_key) first."
-    )
+    return await get_stitch_client(ctx, project)
 
 
 # ── Internal helpers (module-private, importable from later phases) ────

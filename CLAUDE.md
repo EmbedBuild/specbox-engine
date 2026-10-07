@@ -789,8 +789,7 @@ Los enums se mantienen en `server/stitch_enums.py` y se pinnean en CI contra `mc
 
 ### Almacenamiento de API Key
 
-- **Sesión**: Credenciales en FastMCP session state (aisladas por cliente).
-- **Disco**: Key en base64 en `meta.json` del proyecto (fallback entre sesiones).
+- **Sesión**: Credenciales en FastMCP session state (aisladas por cliente). Es el único sitio: desde UC-8601 (US-86) el servidor no escribe la clave en `meta.json` ni la lee de disco, así que el cliente la vuelve a enviar con `stitch_set_api_key` en cada sesión (la tiene en `stitch.apiKey` de su `settings.local.json`). Tests: `tests/test_stitch_key_session_only.py`.
 - **Telemetría**: Uso registrado en `stitch_usage.jsonl` por proyecto.
 
 ### Cuota — sin cuota

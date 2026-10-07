@@ -2409,7 +2409,8 @@ o cualquier carpeta escribible.
 - `server/coordination/client_paths.py::ClientPathGuardMiddleware` (en `server.py`): en transporte
   remoto, las tools de `CLIENT_PATH_TOOLS` responden antes de resolver la ruta.
   `APP_DOCS_CONTENT_REQUIRED` para documentos canónicos, cola, decisiones canónicas, autopilot,
-  deriva, migración v5.29 y estado de implementación; `CLIENT_CONTENT_REQUIRED` para Claude Design
+  deriva, descubrimiento del backend, migración v5.29 y estado de implementación;
+  `CLIENT_CONTENT_REQUIRED` para Claude Design
   (`project_root`), la paleta de `validate_stitch_prompt` y `sync_multirepo_state`;
   `REMOTE_PATH_REJECTED` para el registro de DESIGN.md (`upload_design_md_to_stitch`) y
   `migrate_to_freeform_tool`. Si la llamada trae su parámetro de contenido (`content_params` de la

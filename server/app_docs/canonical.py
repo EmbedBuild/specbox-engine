@@ -234,6 +234,9 @@ def register_canonical_tools(mcp: FastMCP, engine_path: Path) -> None:
 
         Skills consult this before asking the user. If a canonical exists,
         the skill applies its value silently and skips the question.
+
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_requested (UC-8604).
         """
         def _get(root: Any) -> dict[str, Any] | None:
             canonical = get_canonical(decision_key, root)
@@ -257,6 +260,9 @@ def register_canonical_tools(mcp: FastMCP, engine_path: Path) -> None:
 
         If the user picks a different value than the existing canonical,
         the canonical is auto-invalidated and a fresh counter starts.
+
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
         """
         return run_in_root(
             project_path,

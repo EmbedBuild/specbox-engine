@@ -325,6 +325,9 @@ def register_queue_tools(mcp: FastMCP, engine_path: Path) -> None:
         Skills call this when the user has autopilot.queue_enabled=true and
         the decision falls in the deferrable category (not inviolable).
         Returns {ok, entry} or {ok: false, error: ...} for invalid keys.
+
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
         """
         return run_in_root(
             project_path,
@@ -363,6 +366,8 @@ def register_queue_tools(mcp: FastMCP, engine_path: Path) -> None:
             resolution: Short note describing what the user decided.
             auto_resolved: Set true when called by the auto-resolve job
                 after queue_auto_resolve_days have passed.
+            files_content: Remote MCP — ``doc/app/decisions_queue.md`` as
+                {relpath: text}; the new queue comes back in files_changed (UC-8604).
         """
         return run_in_root(
             project_path,

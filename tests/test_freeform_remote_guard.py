@@ -30,7 +30,7 @@ from server.auth_gateway import (
     get_session_backend,
 )
 from server.backends.freeform_backend import FreeformBackend
-from server.tools.milestone_management import set_uc_milestone
+from server.tools.milestone_management import set_uc_satellite
 from server.tools.spec_driven import (
     get_board_status,
     list_us,
@@ -195,9 +195,9 @@ async def test_ac02_remote_reads_and_mutations_use_only_the_client_content(remot
     assert '"in_progress"' in moved["items_content"]
 
     # Mutación de otro módulo (decorador UC-3801): también lo devuelve.
-    tagged = await set_uc_milestone("whatever", "UC-001", "H1", ctx, items_content=moved["items_content"])
-    assert tagged["milestone"] == "H1"
-    assert '"milestone": "H1"' in tagged["items_content"]
+    tagged = await set_uc_satellite("whatever", "UC-001", "engine", ctx, items_content=moved["items_content"])
+    assert tagged["satellite"] == "engine"
+    assert '"satellite": "engine"' in tagged["items_content"]
     # El contenido devuelto acumula ambas mutaciones: nada se perdió por el camino.
     assert '"in_progress"' in tagged["items_content"]
 

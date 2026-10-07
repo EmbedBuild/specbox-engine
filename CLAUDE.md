@@ -2710,17 +2710,18 @@ pertenece a una épica o a ninguna. Su estado y su avance no se guardan: se dedu
   curso primero, y sin pendientes devuelve `None`; una épica que no existe, `EPIC_NOT_FOUND`.
   `/implement EP-NN` (§0.1a-bis y §8.5.5 de la skill) encadena las UC de la épica y para al
   recibir `None`.
-- **Los milestones se retiran (UC-7806 → UC-7807)**: desde la v6.21.0 las tools
-  `set_uc_milestone`, `set_uc_milestone_batch`, `get_milestone_status`, `rebalance_milestones` y
-  `milestone_acceptance_check` llevan `[DEPRECATED …]` en su descripción y `deprecation`
-  (`since`, `removed_in: 6.23.0`, `use_instead`, `message`) en cada respuesta; `update_uc`,
-  `update_uc_batch`, `update_us`, `add_uc` y `get_satellite_queue` solo avisan cuando reciben un
-  milestone (`mh.milestone_deprecated(fn, when=mh.uses_milestone)`). Siguen funcionando hasta que
-  UC-7807 los quite en la 6.23.0. Las plantillas FreeForm llevan `epic` (US) y `satellite` (UC).
+- **Los milestones se retiraron en la 6.23.0 (UC-7806 → UC-7807)**: avisaron en la 6.21 y la
+  6.22 y ya no existen. `set_uc_milestone`, `set_uc_milestone_batch`, `get_milestone_status`,
+  `rebalance_milestones` y `milestone_acceptance_check` no están en el servidor; `update_uc`,
+  `update_us`, `add_uc` y `get_satellite_queue` no aceptan `milestone` (una llamada con él es un
+  error de validación), `update_us` ya no propaga milestones y `update_uc_batch` rechaza la entrada
+  que lo trae (`MILESTONES_REMOVED`). `get_cross_repo_dependencies` deja de devolver
+  `blocks_milestone`. Las épicas agrupan el trabajo. Las plantillas FreeForm llevan `epic` (US) y
+  `satellite` (UC).
 - `/switch-backend` todavía no migra las épicas entre backends.
 - Tests: `tests/test_epics.py`, `tests/test_epics_tools.py` y
   `tests/test_board_reads_epic_satellite.py`, `tests/test_import_spec_epics.py` y
-  `tests/test_find_next_uc_epic.py` y `tests/test_milestone_deprecation.py` (las native, contra
+  `tests/test_find_next_uc_epic.py` y `tests/test_milestones_removed.py` (las native, contra
   Postgres) y `epics` en las tablas del board de `tests/test_db_surface_tables.py`.
 
 ## Proyectos sin organización (US-60 · UC-6001, v6.17.1)

@@ -166,27 +166,6 @@ async def _seed_22_ucs_with_hours_in_desc(backend):
     return us
 
 
-async def _seed_milestone_ucs(backend, milestone="H1", n=5, ac_done_ratio=1.0):
-    """Seed n UCs in a milestone with controlled AC done ratio."""
-    us = await backend.create_item("b", "US-01: X", labels=["US"], meta={"us_id": "US-01"})
-    ucs = []
-    for i in range(1, n + 1):
-        uc_id = f"UC-{i:03d}"
-        uc = await backend.create_item(
-            "b", f"{uc_id}: F{i}", labels=["UC"], parent_id=us.id,
-            meta={"uc_id": uc_id, "us_id": "US-01", "milestone": milestone},
-        )
-        ac_pairs = [(f"AC-{j:02d}", f"Dado usuario cuando opera entonces debe validar {j}") for j in range(1, 4)]
-        await backend.create_acceptance_criteria("b", uc.id, ac_pairs)
-        # Mark some ACs as done
-        acs = backend.acs[uc.id]
-        done_count = round(len(acs) * ac_done_ratio)
-        for ac in acs[:done_count]:
-            ac.done = True
-        ucs.append(uc)
-    return us, ucs
-
-
 # ── bulk_update_hours_from_description ───────────────────────────────
 
 
@@ -253,32 +232,3 @@ async def test_estimate_fibonacci(backend, ctx):
     ])
     result = await aa.estimate_from_ac("b", "UC-001", ctx, strategy="fibonacci")
     assert result["estimated_hours"] == 8.0  # 5 ACs → index 4 → fib[4]=8
-
-
-# ── milestone_acceptance_check ───────────────────────────────────────
-
-
-async def test_milestone_check_go_verdict(backend, ctx):
-    await _seed_milestone_ucs(backend, "H1", n=3, ac_done_ratio=1.0)
-    result = await aa.milestone_acceptance_check("b", "H1", ctx, run_ag09b=False)
-    assert result["verdict"] == "GO"
-    assert result["pass_rate"] == 1.0
-    assert result["total_acs"] == 9
-    assert result["passed_acs"] == 9
-
-
-async def test_milestone_check_no_go_verdict(backend, ctx):
-    await _seed_milestone_ucs(backend, "H1", n=3, ac_done_ratio=0.0)
-    result = await aa.milestone_acceptance_check("b", "H1", ctx, run_ag09b=True)
-    assert result["verdict"] == "NO_GO"
-    assert result["pass_rate"] == 0.0
-
-
-async def test_milestone_check_conditional_go(backend, ctx):
-    # 3 UCs: 2 with all ACs done, 1 with 2/3 done → overall ~88%
-    us, ucs = await _seed_milestone_ucs(backend, "H1", n=3, ac_done_ratio=1.0)
-    # Undo 1 AC on the last UC
-    backend.acs[ucs[2].id][2].done = False
-    result = await aa.milestone_acceptance_check("b", "H1", ctx, run_ag09b=True)
-    assert result["pass_rate"] == pytest.approx(8 / 9, abs=0.01)
-    assert result["verdict"] == "CONDITIONAL_GO"

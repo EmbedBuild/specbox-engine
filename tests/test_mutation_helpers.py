@@ -12,20 +12,7 @@ from server.spec_backend import ChecklistItemDTO, ItemDTO
 from server.tools import _mutation_helpers as mh
 
 
-# ── validate_milestone / validate_link_type ──────────────────────────
-
-
-def test_validate_milestone_accepts_h1_to_h4():
-    for m in ("H1", "H2", "H3", "H4"):
-        ok, err = mh.validate_milestone(m)
-        assert ok is True
-        assert err is None
-
-
-def test_validate_milestone_rejects_invalid():
-    ok, err = mh.validate_milestone("H5")
-    assert ok is False
-    assert "H5" in err
+# ── validate_link_type ───────────────────────────────────────────────
 
 
 def test_validate_link_type_rejects_unknown():
@@ -177,31 +164,3 @@ def test_classify_ac_simple_default():
     assert mh.classify_ac("Texto sin palabras clave") == "simple"
 
 
-# ── compute_distribution ─────────────────────────────────────────────
-
-
-def _uc(uc_id: str, milestone: str | None) -> ItemDTO:
-    return ItemDTO(
-        id=f"id-{uc_id}",
-        name=f"{uc_id}: demo",
-        labels=["UC"],
-        meta={"uc_id": uc_id, "milestone": milestone} if milestone else {"uc_id": uc_id},
-    )
-
-
-def test_compute_distribution_happy_path():
-    items = [
-        _uc("UC-001", "H1"),
-        _uc("UC-002", "H1"),
-        _uc("UC-003", "H2"),
-        _uc("UC-004", None),  # ignored
-    ]
-    ac_counts = {"UC-001": 3, "UC-002": 2, "UC-003": 5, "UC-004": 10}
-    dist = mh.compute_distribution(items, ac_counts)
-    assert dist["H1"]["ucs"] == ["UC-001", "UC-002"]
-    assert dist["H1"]["ac_count"] == 5
-    assert dist["H2"]["ac_count"] == 5
-    assert dist["H3"]["ac_count"] == 0
-    # Total relevant ACs = 10 (UC-004 is excluded)
-    assert dist["H1"]["pct_acs"] == 0.5
-    assert dist["H2"]["pct_acs"] == 0.5

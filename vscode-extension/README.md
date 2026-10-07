@@ -148,8 +148,9 @@ for a detailed walkthrough.
    server so the token is in scope.
 5. If the token is **revoked** on the cloud, the engine reports
    `UNAUTHENTICATED` on the next native tool call (≤30s thanks to the
-   server-side auth cache TTL). The sidebar polls every 60s and updates
-   on its own — total revoke-visibility ≤ 90s.
+   server-side auth cache TTL). The sidebar and status bar check your
+   identity when the window regains focus (if 5 minutes went by) and every
+   30 minutes in the background, so they show it at most 30 minutes later.
 
 The cloud side is implemented in [`EmbedBuild/specbox_cloud`](https://github.com/EmbedBuild/specbox_cloud)
 (US-09). See [doc/decisions/native_default_oauth.md](https://github.com/EmbedBuild/specbox-engine/blob/main/doc/decisions/native_default_oauth.md)

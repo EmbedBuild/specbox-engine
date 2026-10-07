@@ -18,12 +18,13 @@ import { registerActivationUriHandler, maybeEmitActivation } from './activation'
 import { SpecboxCli, cloudApiBase } from './specbox-cli';
 import { ensureDeviceConnection, syncRenewal } from './device-connection';
 import { howToConnectUrl, PANEL_DEVICES_URL } from './constants';
+import { IdentityRefresher } from './identity-schedule';
 
 import { markDone } from './design';
 let statusBar: StatusBarManager | undefined;
-let identityPollingHandle: NodeJS.Timeout | undefined;
+/** US-89 (UC-8903) — asks /api/whoami on activation, focus and every 30 min, not every minute. */
+let identityRefresher: IdentityRefresher | undefined;
 let renewalHandle: NodeJS.Timeout | undefined;
-const IDENTITY_POLL_INTERVAL_MS = 60_000;
 /** UC-3904 AC-03 — once a day the token is renewed if due (the helper also does it on connect). */
 const RENEWAL_INTERVAL_MS = 24 * 60 * 60 * 1000;
 /** UC-3904 AC-07 — the "connection ended" notice is shown once per session. */
@@ -103,7 +104,7 @@ export async function activate(context: vscode.ExtensionContext) {
 						: markDone(vscode.l10n.t('Signed in. Welcome!'))
 				);
 				void reportConnection(result);
-				await refreshIdentity(statusTree, secrets);
+				await refreshIdentityNow(statusTree, secrets);
 			} else {
 				vscode.window.showWarningMessage(
 					vscode.l10n.t('Sign-in failed: {0}.', describeSignInError(result.error))
@@ -114,7 +115,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('specbox.signOut', async () => {
 			await runSignOut(secrets, cli);
 			vscode.window.showInformationMessage(markDone(vscode.l10n.t('Signed out.')));
-			await refreshIdentity(statusTree, secrets);
+			await refreshIdentityNow(statusTree, secrets);
 		}),
 
 		vscode.commands.registerCommand('specbox.showSkillCard', async (skill: SkillInfo) => {
@@ -160,20 +161,25 @@ export async function activate(context: vscode.ExtensionContext) {
 	// activation is captured even on this very startup.
 	registerActivationUriHandler(context);
 
-	// Identity polling — registered synchronously so its disposal is wired up
-	// regardless of how the async startup tasks below resolve.
-	identityPollingHandle = setInterval(() => {
-		refreshIdentity(statusTree, secrets).catch(() => { /* ignore */ });
-	}, IDENTITY_POLL_INTERVAL_MS);
+	// Identity refresh (US-89 / UC-8903) — registered synchronously so its
+	// disposal is wired up regardless of how the async startup tasks below
+	// resolve. Every 30 min in the background and on focus, not every minute.
+	identityRefresher = new IdentityRefresher(() => refreshIdentity(statusTree, secrets));
+	context.subscriptions.push(
+		vscode.window.onDidChangeWindowState((state) => {
+			if (state.focused) { identityRefresher?.onFocus(); }
+		}),
+	);
 	// UC-3904 AC-03 — daily renewal; the SecretStorage copy follows the token.
 	renewalHandle = setInterval(() => {
 		syncRenewal(cli, secrets)
-			.then((changed) => (changed ? refreshIdentity(statusTree, secrets) : undefined))
+			.then((changed) => (changed ? refreshIdentityNow(statusTree, secrets) : undefined))
 			.catch(() => { /* ignore */ });
 	}, RENEWAL_INTERVAL_MS);
 	context.subscriptions.push({
 		dispose: () => {
-			if (identityPollingHandle) { clearInterval(identityPollingHandle); identityPollingHandle = undefined; }
+			identityRefresher?.dispose();
+			identityRefresher = undefined;
 			if (renewalHandle) { clearInterval(renewalHandle); renewalHandle = undefined; }
 		},
 	});
@@ -292,8 +298,9 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 		console.warn('[specbox] skills context bootstrap failed:', err);
 	});
 
-	// UC-649 — initial identity refresh (polling already armed in activate()).
-	await refreshIdentity(statusTree, secrets).catch((err) => {
+	// UC-649 — initial identity refresh; it also arms the 30-minute background
+	// refresh (UC-8903).
+	await refreshIdentityNow(statusTree, secrets).catch((err) => {
 		console.warn('[specbox] initial identity refresh failed:', err);
 	});
 
@@ -301,6 +308,11 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 	// privacy-respecting, fully self-guarded — fired without await so a slow or
 	// failing POST can never wedge activation.
 	void maybeEmitActivation(context);
+}
+
+/** Ask /api/whoami now; through the schedule when it exists, so the next background ask is 30 min later. */
+function refreshIdentityNow(tree: StatusTreeProvider, secrets: SecretsManager): Promise<void> {
+	return identityRefresher ? identityRefresher.refreshNow() : refreshIdentity(tree, secrets);
 }
 
 async function refreshIdentity(tree: StatusTreeProvider, secrets: SecretsManager, retried = false): Promise<void> {
@@ -379,7 +391,8 @@ function maskHandle(token: string): string {
 }
 
 export function deactivate() {
-	if (identityPollingHandle) { clearInterval(identityPollingHandle); identityPollingHandle = undefined; }
+	identityRefresher?.dispose();
+	identityRefresher = undefined;
 	if (renewalHandle) { clearInterval(renewalHandle); renewalHandle = undefined; }
 	statusBar = undefined;
 }

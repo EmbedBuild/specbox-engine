@@ -24,7 +24,7 @@ from ..coordination.identity import UnauthenticatedError
 from ..design_system import SystemTokensError, parse_system_tokens, system_tokens_notice
 from ..design_system.code_gaps import DesignSystemRules, design_gap_report
 from ..coordination.project_id import InvalidProjectIdError, validate_project_id
-from ..coordination.project_state_scope import project_state_dir
+from ..coordination.project_state_scope import InvalidProjectNameError, project_state_dir
 from ..coordination.scope import (
     NATIVE_PROJECT_ID_FIELD,
     REGISTERED_BY_FIELD,
@@ -1378,7 +1378,10 @@ def register_onboarding_tools(
 
         stitch_contract_counts: dict[str, int] = {}
         for proj_name in scope.visible_names(registry.get("projects")):
-            project_dir = state_path / "projects" / proj_name
+            try:
+                project_dir = project_state_dir(state_path, proj_name)
+            except InvalidProjectNameError:
+                continue
             meta = _read_meta(project_dir)
 
             proj_engine = meta.get("engine_version", "unknown")

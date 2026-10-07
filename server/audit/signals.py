@@ -11,6 +11,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ..coordination.project_state_scope import InvalidProjectNameError, project_state_dir
+
 
 def fetch_specbox_signals(project_path: Path, project_name: str, state_path: Path | None = None) -> dict[str, Any]:
     signals: dict[str, Any] = {
@@ -75,8 +77,11 @@ def fetch_specbox_signals(project_path: Path, project_name: str, state_path: Pat
             signals["tests"]["passed"] = int(metrics.get("tests_passed", signals["tests"]["passed"]))
 
     # Acceptance + AC + board from state registry (if state_path provided)
-    if state_path:
-        project_state = state_path / "projects" / project_name
+    try:
+        project_state = project_state_dir(state_path, project_name) if state_path else None
+    except InvalidProjectNameError:
+        project_state = None
+    if project_state is not None:
         ac_file = project_state / "ac_status.json"
         if ac_file.exists():
             try:

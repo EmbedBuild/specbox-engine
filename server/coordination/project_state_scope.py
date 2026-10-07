@@ -37,6 +37,7 @@ import structlog
 from ..transport import is_remote_transport
 from .identity import UnauthenticatedError
 from .scope import not_visible_envelope, resolve_caller_scope, unauthenticated_envelope
+from .tool_envelope import envelope_result
 
 logger = structlog.get_logger(__name__)
 
@@ -138,16 +139,6 @@ except ImportError:  # pragma: no cover
     MiddlewareContext = Any  # type: ignore[assignment,misc]
 
 
-def _envelope_result(payload: dict[str, Any]) -> Any:
-    from fastmcp.tools.tool import ToolResult
-    from mcp.types import TextContent
-
-    return ToolResult(
-        content=[TextContent(type="text", text=json.dumps(payload, ensure_ascii=False))],
-        structured_content=payload,
-    )
-
-
 class ProjectStateScopeMiddleware(Middleware):  # type: ignore[misc,valid-type]
     """Check the project name and, remotely, who may touch that project's state."""
 
@@ -163,7 +154,7 @@ class ProjectStateScopeMiddleware(Middleware):  # type: ignore[misc,valid-type]
         try:
             check_project_name(project)
         except InvalidProjectNameError as exc:
-            return _envelope_result(invalid_name_envelope(project, exc))
+            return await envelope_result(context, tool, invalid_name_envelope(project, exc))
         if tool not in STATE_PROJECT_TOOLS or not is_remote_transport():
             return await call_next(context)
 
@@ -171,10 +162,10 @@ class ProjectStateScopeMiddleware(Middleware):  # type: ignore[misc,valid-type]
         try:
             scope = await resolve_caller_scope(ctx, token=str(arguments.get("dev_token") or ""))
         except UnauthenticatedError:
-            return _envelope_result(unauthenticated_envelope(ctx))
+            return await envelope_result(context, tool, unauthenticated_envelope(ctx))
         projects = _registry_projects(self.state_path)
         entry = projects.get(project)
         if not isinstance(entry, Mapping) or not scope.can_see(project, entry):
             logger.info("project_state_not_visible", tool=tool, developer_id=scope.developer_id)
-            return _envelope_result(not_visible_envelope(project, scope, projects))
+            return await envelope_result(context, tool, not_visible_envelope(project, scope, projects))
         return await call_next(context)

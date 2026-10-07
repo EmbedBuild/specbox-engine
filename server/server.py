@@ -36,6 +36,7 @@ from .coordination.access_log import ToolAccessLogMiddleware, build_default_stor
 from .coordination.transport_auth import TransportAuthMiddleware, TransportNoticeMiddleware  # UC-3901
 from .coordination.abuse_guard import AbuseGuardMiddleware  # UC-3903
 from .coordination.project_state_scope import ProjectStateScopeMiddleware  # UC-8603
+from .coordination.client_paths import ClientPathGuardMiddleware  # UC-8604
 from .tools.spec_mutations import register_spec_mutations_tools
 from .tools.milestone_management import register_milestone_management_tools
 from .tools.epics import register_epic_tools  # US-78 UC-7802
@@ -213,6 +214,11 @@ mcp.add_middleware(TransportNoticeMiddleware())
 # gets a valid name or INVALID_PROJECT_NAME, and on a remote transport the
 # telemetry, activity and audit tools only touch a project the caller sees.
 mcp.add_middleware(ProjectStateScopeMiddleware(STATE_PATH))
+
+# UC-8604 — on a remote transport no tool resolves a path that lives on the
+# client's machine (project_path, project_root, target_path…): it answers
+# APP_DOCS_CONTENT_REQUIRED / REMOTE_PATH_REJECTED before touching the disk.
+mcp.add_middleware(ClientPathGuardMiddleware())
 
 # Register Tier 1 mutation tools (v5.23.0 Full Mutations — 8 tools:
 # update_uc, update_uc_batch, update_us, update_ac, update_ac_batch,

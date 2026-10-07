@@ -20,6 +20,11 @@ project on its original backend (AC-13).
 The ``*_writer`` keyword arguments inject the write functions so tests can
 simulate a mid-transaction failure; production callers omit them and get the
 real implementations.
+
+On a remote transport (UC-8604) the server writes the registry only: the other
+two places live in the client's repository, so they are neither read nor
+written here. The result carries ``client_writes`` — the ``settings`` change
+and the rendered ``tracking_backend`` zone — for the client to apply.
 """
 
 from __future__ import annotations
@@ -30,6 +35,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 import structlog
+
+from ..transport import is_remote_transport
 
 logger = structlog.get_logger(__name__)
 
@@ -142,6 +149,24 @@ def _restore_registry(project_slug: str, snapshot: dict[str, Any], state_path: s
     else:
         registry["projects"].pop(project_slug, None)
     path.write_text(json.dumps(registry, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+# ── Remote: the client writes its own files (UC-8604) ───────────────
+
+
+def _client_writes(settings_change: dict[str, Any], app_spec_payload: dict[str, Any]) -> dict[str, Any]:
+    """What the client must apply in its repository when the server is remote."""
+    from ..app_docs.sync import _render_zone_body
+
+    return {
+        PLACE_SETTINGS: {"path": ".claude/settings.local.json", **settings_change},
+        PLACE_APP_SPEC: {
+            "path": "doc/app/app_spec.md",
+            "zone_id": "tracking_backend",
+            "body": _render_zone_body("tracking_backend", app_spec_payload, Path(".")),
+            "note": "Replace the body of the tracking_backend zone; skip it if the file does not exist.",
+        },
+    }
 
 
 # ── settings.local.json ──────────────────────────────────────────────
@@ -262,6 +287,7 @@ def apply_switch_transactional(
     settings_writer: Callable[[], None] | None = None,
     registry_writer: Callable[[], None] | None = None,
     app_spec_writer: Callable[[], None] | None = None,
+    local_files: bool | None = None,
 ) -> dict[str, Any]:
     """Atomically update registry + app_spec + settings, rolling back on failure.
 
@@ -280,17 +306,25 @@ def apply_switch_transactional(
         settings_writer / registry_writer / app_spec_writer: Test seams to
             inject a write function (e.g. one that raises). Default: the real
             writers bound to the call's arguments.
+        local_files: Whether app_spec and settings are this machine's files.
+            Default: not on a remote transport (UC-8604).
 
     Returns:
         ``{"updated": ["registry", "app_spec", "settings"], "previous": {...}}``
-        where ``previous`` holds the three snapshots taken before writing.
+        where ``previous`` holds the snapshots taken before writing; remotely
+        ``{"updated": ["registry"], ..., "client_writes": {...}}``.
     """
+    if local_files is None:
+        local_files = not is_remote_transport()
+    places = WRITE_ORDER if local_files else (PLACE_REGISTRY,)
+
     # Snapshots first — these are what we restore on rollback.
     snapshots: dict[str, dict[str, Any]] = {
         PLACE_REGISTRY: _read_registry_snapshot(project_slug, state_path),
-        PLACE_APP_SPEC: _read_app_spec_snapshot(project_path),
-        PLACE_SETTINGS: _read_settings_snapshot(project_path),
     }
+    if local_files:
+        snapshots[PLACE_APP_SPEC] = _read_app_spec_snapshot(project_path)
+        snapshots[PLACE_SETTINGS] = _read_settings_snapshot(project_path)
 
     # Bind real writers unless a test seam overrides them.
     writers: dict[str, Callable[[], None]] = {
@@ -308,7 +342,7 @@ def apply_switch_transactional(
     }
 
     applied: list[str] = []
-    for place in WRITE_ORDER:
+    for place in places:
         try:
             writers[place]()
             applied.append(place)
@@ -327,7 +361,13 @@ def apply_switch_transactional(
         new_backend=new_backend,
         updated=applied,
     )
-    return {"updated": applied, "previous": snapshots}
+    result: dict[str, Any] = {"updated": applied, "previous": snapshots}
+    if not local_files:
+        result["client_writes"] = _client_writes(
+            {"set": {"specbox.backend_type": new_backend}},
+            _build_app_spec_payload(new_backend, new_board_id, project_path, freeform_root_absolute),
+        )
+    return result
 
 
 # ── Mirror block (US-DUAL-BACKEND) ───────────────────────────────────
@@ -463,6 +503,7 @@ def apply_mirror_transactional(
     settings_writer: Callable[[], None] | None = None,
     registry_writer: Callable[[], None] | None = None,
     app_spec_writer: Callable[[], None] | None = None,
+    local_files: bool | None = None,
 ) -> dict[str, Any]:
     """Atomically persist (or remove) the ``mirror`` block in the 3 places.
 
@@ -477,13 +518,21 @@ def apply_mirror_transactional(
     materialised in ``projects.json`` on this MCP host (cloud case). When the
     entry already exists they are ignored — the on-disk primary always wins.
 
+    On a remote transport only the registry is written and the result carries
+    ``client_writes`` for the client's two files (UC-8604).
+
     Returns ``{"updated": [...], "previous": {...}, "mirror": ...}``.
     """
+    if local_files is None:
+        local_files = not is_remote_transport()
+    places = WRITE_ORDER if local_files else (PLACE_REGISTRY,)
+
     snapshots: dict[str, dict[str, Any]] = {
         PLACE_REGISTRY: _read_registry_snapshot(project_slug, state_path),
-        PLACE_APP_SPEC: _read_app_spec_snapshot(project_path),
-        PLACE_SETTINGS: _read_settings_snapshot(project_path),
     }
+    if local_files:
+        snapshots[PLACE_APP_SPEC] = _read_app_spec_snapshot(project_path)
+        snapshots[PLACE_SETTINGS] = _read_settings_snapshot(project_path)
 
     writers: dict[str, Callable[[], None]] = {
         PLACE_REGISTRY: registry_writer
@@ -514,7 +563,7 @@ def apply_mirror_transactional(
     }
 
     applied: list[str] = []
-    for place in WRITE_ORDER:
+    for place in places:
         try:
             writers[place]()
             applied.append(place)
@@ -533,4 +582,18 @@ def apply_mirror_transactional(
         mirror=mirror_project_id,
         updated=applied,
     )
-    return {"updated": applied, "previous": snapshots, "mirror": mirror_project_id}
+    result: dict[str, Any] = {"updated": applied, "previous": snapshots, "mirror": mirror_project_id}
+    if not local_files:
+        entry = _read_registry_snapshot(project_slug, state_path).get("entry") or {}
+        payload = _build_app_spec_payload(
+            entry.get("spec_backend", ""), entry.get("board_id", ""), project_path, None
+        )
+        if mirror_project_id is not None:
+            payload["mirror_native_project_id"] = mirror_project_id
+            settings_change: dict[str, Any] = {
+                "set": {"specbox.mirror": {"backend": "native", "project_id": mirror_project_id}}
+            }
+        else:
+            settings_change = {"unset": ["specbox.mirror"]}
+        result["client_writes"] = _client_writes(settings_change, payload)
+    return result

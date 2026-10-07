@@ -903,6 +903,7 @@ async def switch_backend(
         "new_backend": backend_type,
         "new_board_id": board_id,
         "updated": outcome["updated"],
+        **({"client_writes": outcome["client_writes"]} if "client_writes" in outcome else {}),
         "note": "prefer switch_project_backend for atomic switches "
         "(migrate + seed + switch + exit-report in one all-or-nothing call)",
     }
@@ -1911,6 +1912,7 @@ async def enable_mirror(
         "mirror": {"backend": "native", "project_id": canonical},
         "backfill": backfill_summary,
         "config_updated": outcome["updated"],
+        **({"client_writes": outcome["client_writes"]} if "client_writes" in outcome else {}),
         "summary": (
             f"Espejo native {canonical} activado sobre primario {primary_type}. "
             "Las escrituras spec-driven ahora replican best-effort; el primario "
@@ -1956,6 +1958,7 @@ async def disable_mirror(
     return {
         "status": "disabled",
         "config_updated": outcome["updated"],
+        **({"client_writes": outcome["client_writes"]} if "client_writes" in outcome else {}),
         "summary": (
             "Espejo desactivado: el proyecto vuelve a single-backend sin "
             "pérdida en el primario. Los datos del espejo quedan en Postgres."

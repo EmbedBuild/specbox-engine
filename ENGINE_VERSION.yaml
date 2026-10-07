@@ -1,5 +1,5 @@
-version: 6.22.0
-codename: "Cerrojo"
+version: 6.22.1
+codename: "Llave"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-10-07
@@ -516,7 +516,21 @@ features:
   - stitch-contract-test
   - stitch-shared-projects-and-global-design-systems
 
+  # New (v6.22.1) — Llave
+  - remote-content-mode
+  - skills-send-content
+  - board-reads-scoped
+  - extension-identity-schedule
+
 changelog:
+  6.22.1:
+    date: 2026-10-07
+    codename: "Llave"
+    changes:
+      - "feat: content mode — on the hosted MCP the 18 canonical docs, decisions, queue, autopilot, drift, v5.29 migration and implementation status tools accept files_content ({relpath: text}) and run their usual code over an in-memory tree (MemoryWorkspace; VirtualPath has no __fspath__, so nothing reaches the disk); the answer adds files_changed, files_deleted, files_appended and files_requested. Claude Design takes files_content, validate_stitch_prompt design_md_content and sync_multirepo_state settings_content; without content they answer APP_DOCS_CONTENT_REQUIRED or CLIENT_CONTENT_REQUIRED (US-86/UC-8604, PR #244)"
+      - "docs: /app-sync, /queue-review, /discovery, /implement, /plan, /visual-setup and /switch-backend send the files each call reads and apply the answer in the repository (UC-8605, PR #245)"
+      - "fix: each tool reads from the native board only what it needs — tools on one use case or story read that story, whole-board tools read stories and use cases without long text, counts are a GROUP BY; get_uc on the manager board goes from 1,866 KB to 19 KB (US-89/UC-8901, PR #243)"
+      - "fix: the VSCode extension asks who you are on activation, sign-in/out, token renewal, on focus after 5 minutes and every 30 minutes in the background, instead of every minute per window (US-89/UC-8903, PR #246)"
   6.22.0:
     date: 2026-10-07
     codename: "Cerrojo"

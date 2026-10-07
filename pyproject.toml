@@ -1,6 +1,6 @@
 [project]
 name = "specbox-engine"
-version = "6.22.0"
+version = "6.22.1"
 description = "SpecBox Engine — agentic programming with Claude Code without trading quality for speed: spec-driven US/UC/AC tracking with receipts for every accepted criterion, quality gates and an MCP server."
 requires-python = ">=3.12"
 dependencies = [

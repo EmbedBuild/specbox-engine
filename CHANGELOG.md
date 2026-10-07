@@ -2,6 +2,65 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.22.1] - 2026-10-07 — "Llave"
+
+Con el cerrojo echado, cada uno abre con sus propios ficheros: las tools que trabajan sobre el
+repositorio del cliente vuelven a funcionar con el MCP alojado sin que el servidor toque su disco.
+Y el ecosistema pide a Supabase solo lo que usa. Es la parte del engine de US-86 (UC-8604 y
+UC-8605) y de US-89 (UC-8901 y UC-8903) del board del orquestador.
+
+### Security
+
+- El modo contenido trabaja sobre los ficheros que envía el cliente en un árbol en memoria: una
+  ruta de `files_content` absoluta, con `..` o con `\` se rechaza (`INVALID_FILES_CONTENT`), y
+  nada de lo que hace la tool puede llegar al disco del servidor (`VirtualPath` no tiene
+  `__fspath__`).
+- Sin contenido, estas tools siguen respondiendo antes de resolver la ruta del cliente
+  (`APP_DOCS_CONTENT_REQUIRED`, `CLIENT_CONTENT_REQUIRED`).
+
+### Added
+
+- **Modo contenido** (`server/app_docs/workspace.py`) — las 18 tools de documentos canónicos,
+  decisiones canónicas, cola, autopilot, deriva, migración v5.29 y estado de implementación
+  aceptan `files_content` (`{ruta relativa: texto}`) y responden además con `files_changed`
+  (contenido completo), `files_deleted`, `files_appended` (líneas de los `.jsonl`) y
+  `files_requested` (lo que la tool buscó y no llegó). Claude Design acepta `files_content`,
+  `validate_stitch_prompt` `design_md_content` y `sync_multirepo_state` `settings_content`
+  (US-86/UC-8604, #244).
+- `CLIENT_CONTENT_REQUIRED`: el aviso de las tools que no son de documentos cuando falta el
+  contenido.
+
+### Changed
+
+- Las skills `/app-sync`, `/queue-review`, `/discovery`, `/implement`, `/plan`, `/visual-setup` y
+  `/switch-backend` envían los ficheros que lee cada llamada y aplican la respuesta en el
+  repositorio; `/switch-backend` vuelve a verificar con `detect_project_backend` (UC-8605, #245).
+- `REMOTE_PATH_REJECTED` queda solo para `upload_design_md_to_stitch` (usa
+  `stitch_upload_design_md`) y `migrate_to_freeform_tool` (usa `switch_project_backend`).
+  `claude_design_create_project` deja de pasar por la guarda: nunca usó su `project_root`.
+- La extensión de VSCode pregunta quién eres al activarse, al iniciar o cerrar sesión, al renovar
+  el token, al recuperar el foco si han pasado 5 minutos y cada 30 minutos en segundo plano; antes,
+  cada minuto por ventana (US-89/UC-8903, #246).
+
+### Fixed
+
+- Cada tool lee del board native solo lo que necesita: las de una UC o una historia leen esa
+  historia, las del board entero leen US y UC sin texto largo y los recuentos son un `GROUP BY`.
+  Sobre el board del orquestador, `get_uc` pasa de 1.866 KB a 19 KB y las del board entero de
+  1,9–3,7 MB a 137–175 KB (US-89/UC-8901, #243).
+
+### Compatibility
+
+- Sin cambios incompatibles. Con el MCP local (`stdio`) todo sigue igual. Con el MCP alojado, las
+  tools de documentos vuelven a funcionar si la llamada trae `files_content`; sin él responden
+  como en la 6.22.0. Sin migraciones de base de datos.
+
+### Tests
+
+- Nuevos: `tests/test_content_mode.py` (cada tool con ruta en local y con contenido en remoto da
+  la misma respuesta y los mismos ficheros, sin un solo acceso a disco),
+  `tests/test_board_reads_scoped.py` y `vscode-extension/tests/identity-schedule.test.mjs`.
+
 ## [6.22.0] - 2026-10-07 — "Cerrojo"
 
 El servidor alojado deja de usar lo que no es de quien llama: la clave de Stitch de otro proyecto,

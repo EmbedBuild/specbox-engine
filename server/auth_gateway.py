@@ -365,13 +365,16 @@ async def store_stitch_credentials(ctx: Context, project: str, api_key: str) -> 
 async def get_stitch_client(ctx: Context, project: str) -> "StitchClient":
     """Create a StitchClient from session-stored Stitch credentials.
 
-    Raises RuntimeError if no Stitch key is configured for the project.
+    Raises RuntimeError if this session has no Stitch key for the project.
+    The key is never read from disk (UC-8601).
     """
     state_key = f"{STITCH_STATE_PREFIX}{project}"
     config = await ctx.get_state(state_key)
     if not config:
         raise RuntimeError(
-            f"Stitch API Key not configured for project '{project}'. Call stitch_set_api_key(project, api_key) first."
+            f"Stitch API Key not configured for project '{project}' in this session. "
+            "Call stitch_set_api_key(project, api_key) first: the server keeps the key "
+            "only for the session."
         )
     from .stitch_client import StitchClient
 

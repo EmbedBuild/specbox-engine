@@ -721,14 +721,18 @@ Si veg.providers incluye "claude_design":
      Introduce tu API Key:"
 ```
 
-Si el usuario proporciona API Key, configurarla via MCP:
+Configurarla via MCP, con el mismo `project` (el slug) que usarán las demás tools de Stitch:
 
 ```
 mcp__SpecBox-MCP__stitch_set_api_key(
-  project="{project_path}",
+  project="{project}",
   api_key="{api_key}"
 )
 ```
+
+El servidor guarda la clave solo en la sesión y no la escribe en disco (UC-8601): en cada
+sesión nueva hay que volver a llamar a `stitch_set_api_key`, con `stitch.apiKey` de
+`settings.local.json`.
 
 ### 3.2 Crear proyecto en Stitch
 

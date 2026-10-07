@@ -4,7 +4,9 @@ Exposes Stitch functionality through the SpecBox Engine MCP server so that
 claude.ai users (who only have OAuth) can use Stitch (which requires API Key)
 via the SpecBox Engine connector.
 
-API Key is stored per-project in session state and in project meta on disk.
+The API Key lives only in the MCP session (per project), never on the
+server's disk: a key written to ``meta.json`` could be used by any other
+session that names the same project (threat model §4 and T9, UC-8601).
 """
 
 from __future__ import annotations
@@ -55,8 +57,8 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
         """Configure or update the Google Stitch API Key for a project.
 
         Use when a user wants to set up Stitch design generation for their project.
-        The API Key is stored in the session and persisted in project meta on disk
-        (obfuscated — only last 4 chars visible).
+        The API Key is kept only in this MCP session: the server never writes it
+        to disk, so the client sends it again in each new session.
 
         Args:
             project: Project slug (as registered in SpecBox Engine).
@@ -68,71 +70,23 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
         if not api_key or len(api_key) < 8:
             return {"error": "Invalid API key — must be at least 8 characters."}
 
-        # Store in session for immediate use
         await store_stitch_credentials(ctx, project, api_key)
 
-        # Persist obfuscated reference in project meta on disk
-        project_dir = state_path / "projects" / project
-        project_dir.mkdir(parents=True, exist_ok=True)
-        meta_file = project_dir / "meta.json"
-        meta = {}
-        if meta_file.exists():
-            try:
-                meta = json.loads(meta_file.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                meta = {}
-
-        meta["stitch_configured"] = True
-        meta["stitch_key_hint"] = f"...{api_key[-4:]}"
-        meta["stitch_configured_at"] = time.strftime(
-            "%Y-%m-%dT%H:%M:%SZ", time.gmtime()
-        )
-
-        # Store encrypted key on disk (base64 obfuscation — not true encryption,
-        # but avoids plain-text exposure in JSON files)
-        import base64
-
-        meta["stitch_key_b64"] = base64.b64encode(api_key.encode()).decode()
-
-        meta_file.write_text(
-            json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
-
-        logger.info("stitch_api_key_set", project=project, hint=meta["stitch_key_hint"])
+        key_hint = f"...{api_key[-4:]}"
+        logger.info("stitch_api_key_set", project=project, hint=key_hint)
         return {
             "status": "ok",
             "project": project,
-            "key_hint": meta["stitch_key_hint"],
-            "message": f"Stitch API Key configured for project '{project}'.",
+            "key_hint": key_hint,
+            "message": (
+                f"Stitch API Key configured for project '{project}' in this session. "
+                "It is not stored on the server: send it again in a new session."
+            ),
         }
 
     async def _get_client_for_project(ctx: Context, project: str):
-        """Resolve StitchClient for a project — session first, then disk fallback."""
-        try:
-            return await get_stitch_client(ctx, project)
-        except RuntimeError:
-            pass
-
-        # Fallback: try to load from disk meta
-        project_dir = state_path / "projects" / project
-        meta_file = project_dir / "meta.json"
-        if meta_file.exists():
-            try:
-                meta = json.loads(meta_file.read_text(encoding="utf-8"))
-                key_b64 = meta.get("stitch_key_b64")
-                if key_b64:
-                    import base64
-
-                    api_key = base64.b64decode(key_b64).decode()
-                    await store_stitch_credentials(ctx, project, api_key)
-                    return await get_stitch_client(ctx, project)
-            except (json.JSONDecodeError, OSError, ValueError):
-                pass
-
-        raise RuntimeError(
-            f"No Stitch API Key configured for project '{project}'. "
-            "Call stitch_set_api_key(project, api_key) first."
-        )
+        """Resolve the StitchClient from this session's key (never from disk)."""
+        return await get_stitch_client(ctx, project)
 
     async def _project_design_system(client, stitch_project_id: str) -> str | None:
         """The first design system of the project (``assets/{id}``), or None."""

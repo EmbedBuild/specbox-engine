@@ -5,7 +5,8 @@ Validates:
 - StitchClient handles SSE and JSON responses
 - StitchClient retries on transient errors
 - Auth gateway stores/retrieves Stitch credentials per project
-- Stitch tools resolve API keys from session and disk fallback
+- Stitch tools resolve API keys only from the session
+  (tests/test_stitch_key_session_only.py, UC-8601)
 """
 
 import json
@@ -325,34 +326,6 @@ class TestStitchAuthGateway:
 
         with pytest.raises(RuntimeError, match="Stitch API Key not configured"):
             await get_stitch_client(ctx, "unknown-project")
-
-
-# ---------------------------------------------------------------------------
-# Stitch tools — API key disk fallback
-# ---------------------------------------------------------------------------
-
-
-class TestStitchApiKeyDiskFallback:
-    """Verify API key is loaded from meta.json when not in session."""
-
-    def test_meta_json_stores_key(self, state_path: Path):
-        import base64
-
-        project_dir = state_path / "projects" / "test-project"
-        meta = {
-            "stitch_configured": True,
-            "stitch_key_b64": base64.b64encode(b"test-key-from-disk").decode(),
-            "stitch_key_hint": "...disk",
-        }
-        (project_dir / "meta.json").write_text(
-            json.dumps(meta), encoding="utf-8"
-        )
-
-        meta_loaded = json.loads(
-            (project_dir / "meta.json").read_text(encoding="utf-8")
-        )
-        recovered = base64.b64decode(meta_loaded["stitch_key_b64"]).decode()
-        assert recovered == "test-key-from-disk"
 
 
 class TestStitchUsageTelemetry:

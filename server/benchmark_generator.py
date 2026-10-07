@@ -15,6 +15,8 @@ import string
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .coordination.project_state_scope import InvalidProjectNameError, project_state_dir
+
 
 def _read_registry(state_path: Path) -> dict:
     """Read state/registry.json, returning empty structure if missing."""
@@ -114,7 +116,10 @@ def generate_benchmark(state_path: Path, engine_version: str) -> dict:
     all_uc_durations: list[float] = []
 
     for idx, (proj_name, proj_info) in enumerate(sorted(projects_raw.items())):
-        project_dir = state_path / "projects" / proj_name
+        try:
+            project_dir = project_state_dir(state_path, proj_name)
+        except InvalidProjectNameError:
+            continue
         if not project_dir.exists():
             continue
 

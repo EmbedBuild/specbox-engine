@@ -3,7 +3,8 @@
 Remotely, every tool in ``CLIENT_PATH_TOOLS`` answers before resolving its
 path: the filesystem calls a tool could use (``Path.write_text``/``mkdir``/
 ``read_text``/``open``/``exists``, ``open``) are instrumented to fail during
-the call, so a single disk access breaks the test. The backend-switch
+the call, so a single disk access breaks the test (the inventory of guarded
+tools lives in ``tests/test_remote_surface_inventory.py``). The backend-switch
 transaction writes only the registry remotely and returns the client's two
 files as ``client_writes``.
 """
@@ -11,10 +12,8 @@ files as ``client_writes``.
 from __future__ import annotations
 
 import builtins
-import inspect
 import json
 import pathlib
-import re
 from pathlib import Path
 
 import pytest
@@ -42,21 +41,6 @@ from server.tools.sync import register_sync_tools
 
 ENGINE = Path(__file__).resolve().parent.parent
 
-#: Registered tools with a path-like parameter that the guard does not reject,
-#: each with the reason it is safe.
-APPROVED: dict[str, str] = {
-    "generate_design_md_tool": "own guard: DESIGN_MD_CONTENT_REQUIRED remotely (UC-4901)",
-    "set_auth_token": "FreeForm root_path rejected remotely (UC-3801)",
-    "get_visual_gap_report": "system_tokens_path only labels the content sent",
-    "onboard_project": "freeform_root_absolute is stored in the registry, never opened",
-    "report_e2e_results": "report_path is stored as text, never opened",
-    "run_quality_audit": "project_path is never used: the tool raises (deprecated)",
-    "switch_backend": "remotely writes the registry only and returns client_writes",
-    "switch_project_backend": "remotely writes the registry only and returns client_writes",
-    "enable_mirror": "remotely writes the registry only and returns client_writes",
-    "disable_mirror": "remotely writes the registry only and returns client_writes",
-}
-
 def _payload(result) -> dict:
     """The envelope as the client reads it.
 
@@ -72,32 +56,6 @@ def _payload(result) -> dict:
         return out["result"]
     return out
 
-
-PATH_LIKE = re.compile(r"(path|root|_dir$|folder)", re.I)
-NOT_A_PATH = re.compile(r"(content|present|inventory|files_modified|has_)", re.I)
-
-
-# ── Inventory ────────────────────────────────────────────────────────
-
-
-async def test_every_tool_with_a_client_path_is_guarded_or_approved():
-    from server.server import mcp
-
-    found: dict[str, list[str]] = {}
-    for tool in await mcp.list_tools():
-        params = [
-            p
-            for p in inspect.signature(tool.fn).parameters
-            if PATH_LIKE.search(p) and not NOT_A_PATH.search(p)
-        ]
-        if params:
-            found[tool.name] = params
-
-    unguarded = sorted(set(found) - set(CLIENT_PATH_TOOLS) - set(APPROVED))
-    assert unguarded == [], f"tools with a client path and no remote guard: {unguarded}"
-    for name, rule in CLIENT_PATH_TOOLS.items():
-        assert name in found, f"{name} is guarded but not registered with a path parameter"
-        assert set(rule.path_params) <= set(found[name]), name
 
 
 # ── Remote rejection without touching the disk (AC-01, AC-04) ────────

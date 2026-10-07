@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.22.2 — "Mesura" (sobre v6.22.1 "Llave")<br/>
+  v 6.23.0 — "Poda" (sobre v6.22.2 "Mesura")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,17 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.23
+
+**v6.23.0 — "Poda"** corta lo que ya había avisado que se iría:
+
+- **Los milestones se van** — `set_uc_milestone`, `set_uc_milestone_batch`, `get_milestone_status`, `rebalance_milestones` y `milestone_acceptance_check` desaparecen, y `update_uc`, `update_us`, `add_uc` y `get_satellite_queue` ya no aceptan `milestone`. Agrupa el trabajo con épicas (`add_epic`, `set_us_epic`, `list_epics`, `get_epic`).
+- **`get_board_diff` compara lo que le envías** — le mandas tus dos instantáneas del board y te dice qué cambió; el servidor alojado ya no busca esos ficheros en su disco.
+
+Una llamada a una tool de milestones responde ahora que la tool no existe.
 
 ---
 
@@ -642,7 +653,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.22.2 — "Mesura" (over v6.22.1 "Llave")
+> v 6.23.0 — "Poda" (over v6.22.2 "Mesura")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -655,6 +666,15 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.23
+
+**v6.23.0 — "Poda"** ("pruning") cuts what it had already announced would go:
+
+- **Milestones are gone** — `set_uc_milestone`, `set_uc_milestone_batch`, `get_milestone_status`, `rebalance_milestones` and `milestone_acceptance_check` disappear, and `update_uc`, `update_us`, `add_uc` and `get_satellite_queue` no longer take `milestone`. Group the work with epics (`add_epic`, `set_us_epic`, `list_epics`, `get_epic`).
+- **`get_board_diff` compares what you send** — you send your two board snapshots and it tells you what changed; the hosted server no longer looks for those files on its disk.
+
+A call to a milestone tool now answers that the tool does not exist.
 
 ## What's new in v6.22
 

@@ -1,5 +1,5 @@
-version: 6.22.2
-codename: "Mesura"
+version: 6.23.0
+codename: "Poda"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-10-07
@@ -522,7 +522,18 @@ features:
   - board-reads-scoped
   - extension-identity-schedule
 
+  # New (v6.23.0) — Poda
+  - milestones-removed
+  - board-diff-content-mode
+  - remote-cwd-read-inventory
+
 changelog:
+  6.23.0:
+    date: 2026-10-07
+    codename: "Poda"
+    changes:
+      - "remove: milestones are gone, as 6.21.0 announced — set_uc_milestone, set_uc_milestone_batch, get_milestone_status, rebalance_milestones and milestone_acceptance_check are no longer registered (194 tools); update_uc, update_us, add_uc and get_satellite_queue no longer take milestone, update_us no longer propagates it, update_uc_batch refuses an entry that carries it (MILESTONES_REMOVED) and get_cross_repo_dependencies drops blocks_milestone. Epics group the work (US-78/UC-7807, PR #250)"
+      - "fix: get_board_diff compares the two board snapshots the client sends (from_content, to_content) instead of opening .quality/board_snapshots on the server's working directory; without them a remote server answers CLIENT_CONTENT_REQUIRED before opening anything, a local one rejects a board id or snapshot name that leaves that folder, and milestone_moves is gone. The remote surface inventory also fails when a tool reads relative to the server's working directory without the remote guard (US-86/UC-8905, PR #252)"
   6.22.2:
     date: 2026-10-07
     codename: "Mesura"

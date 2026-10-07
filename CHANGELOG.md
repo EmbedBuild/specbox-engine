@@ -2,6 +2,55 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.23.0] - 2026-10-07 — "Poda"
+
+La 6.21.0 anunció que los milestones se irían en la 6.23.0 y lo avisó en cada respuesta durante
+dos versiones: esta los quita. Con la poda sale también la última tool que leía el disco del
+servidor alojado sin recibir una ruta. Es la parte del engine de US-78 (UC-7807) y de US-86
+(UC-8905) del board del orquestador.
+
+### Security
+
+- `get_board_diff` ya no abre ficheros del servidor: compara las dos instantáneas del board que
+  envía el cliente (`from_content`, `to_content`). Sin ellas, el MCP alojado responde
+  `CLIENT_CONTENT_REQUIRED` antes de abrir nada, así que una llamada ya no puede leer ni sondear
+  ficheros `.json` del servidor con un `board_id` o un nombre de instantánea que salga de la
+  carpeta; con el MCP local esos nombres se rechazan (`VALIDATION_FAILED`) (UC-8905, #252).
+- El inventario de tools registradas falla también si una tool lee relativo al directorio de
+  trabajo del servidor (`Path("…")` relativo, `Path.cwd()`, `os.getcwd()` o una constante `Path`
+  relativa de su módulo) sin pasar por la guarda remota, para que no vuelva a aparecer otra.
+
+### Removed
+
+- Las tools `set_uc_milestone`, `set_uc_milestone_batch`, `get_milestone_status`,
+  `rebalance_milestones` y `milestone_acceptance_check` (UC-7807, #250). El servidor registra 194
+  tools.
+- El parámetro `milestone` de `update_uc`, `update_us`, `add_uc` y `get_satellite_queue`: una
+  llamada con él es un error de validación. `update_us` deja de propagarlo a sus UC
+  (`propagate_milestone`, `propagated_to_ucs`).
+- `blocks_milestone` en `get_cross_repo_dependencies` y `milestone_moves` en `get_board_diff`.
+
+### Changed
+
+- `update_uc_batch` rechaza la entrada que trae `milestone` (`MILESTONES_REMOVED`, con las épicas
+  como alternativa) y aplica las demás.
+- `get_board_diff` acepta `from_content` y `to_content`.
+
+### Compatibility
+
+- Una llamada a una tool de milestones recibe un error de tool desconocida. Las épicas agrupan el
+  trabajo: `add_epic`, `set_us_epic`, `list_epics` y `get_epic`.
+- Quien guardaba instantáneas en `.quality/board_snapshots` las sigue usando con el MCP local; con
+  el alojado, las envía como contenido.
+
+### Tests
+
+- `tests/test_milestones_removed.py` sustituye a `test_milestone_deprecation.py`: las cinco tools no
+  están registradas, ninguna tool acepta `milestone`, una llamada con él se rechaza y
+  `update_uc_batch` responde `MILESTONES_REMOVED`.
+- `tests/test_board_operations.py`, `tests/test_client_path_guard.py` y
+  `tests/test_remote_surface_inventory.py` cubren UC-8905.
+
 ## [6.22.2] - 2026-10-07 — "Mesura"
 
 La 6.22.1 hizo que la extensión preguntara quién eres cada 30 minutos en vez de cada minuto, pero

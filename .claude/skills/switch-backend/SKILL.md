@@ -300,14 +300,23 @@ total (incluida la migración de datos), y devuelve `rolled_back=true` con `fail
 **Si la respuesta trae `rolled_back: true`** → reporta el fallo al usuario y NO continúes
 al reporte de éxito; el proyecto quedó en su backend original.
 
-**Write-back de los 3 lugares (cliente)**: si la respuesta incluye contenido de
-`app_spec.md` y `settings.local.json` (porque el MCP remoto no escribe el FS del
-cliente), escríbelos con la tool `Write` en sus rutas del repo:
-`doc/app/app_spec.md` y `.claude/settings.local.json`. Verifica que
-`.claude/settings.local.json` del cliente refleja el nuevo `backend_type`.
+**Write-back de los 3 lugares (cliente)**: con el MCP remoto el servidor solo escribe el
+registro y devuelve `client_writes` (en `switch_result.client_writes` de
+`switch_project_backend`, o en `client_writes` de `switch_backend`, `enable_mirror` y
+`disable_mirror`) para que lo apliques tú en el repo (UC-8604):
 
-Verifica la consistencia llamando a `detect_project_backend(".")` → debe devolver
-el nuevo backend.
+- `client_writes.settings` → `.claude/settings.local.json`: aplica cada clave de `set`
+  (con puntos = anidada: `specbox.backend_type`, `specbox.mirror`) y borra las de `unset`.
+  Crea el fichero con `{}` si no existe. Lee, modifica y escribe con `Read` + `Write`.
+- `client_writes.app_spec` → `doc/app/app_spec.md`: sustituye el cuerpo de la zona
+  `tracking_backend` (entre sus marcadores `<!-- @specbox:zone … id="tracking_backend" -->`)
+  por `body`. Si el fichero no existe, sáltalo.
+
+Con el MCP local la respuesta no trae `client_writes`: el servidor ya escribió los tres.
+
+Verifica la consistencia leyendo tú `.claude/settings.local.json`: `specbox.backend_type`
+debe ser el nuevo backend. No uses `detect_project_backend` con el MCP remoto: no lee tu
+repositorio y responde `APP_DOCS_CONTENT_REQUIRED`.
 
 ---
 

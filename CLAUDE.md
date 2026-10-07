@@ -2365,6 +2365,35 @@ Las tools que convierten `project` en `STATE_PATH/projects/<project>` (telemetr�
 - `stitch_usage.jsonl` y `claude_design_usage.jsonl` solo se escriben con servidor local.
 - Tests: `tests/test_project_state_scope.py`.
 
+## En remoto ninguna tool toca una ruta del cliente (US-86 · UC-8604)
+
+Unas treinta tools reciben una ruta que vive en la máquina del cliente (`project_path`,
+`project_root`, `target_path`, `design_md_path`, `orchestrator_path`) y la resolvían en el disco
+del servidor: con el MCP remoto leían o escribían el `/app` del engine (valor por defecto `"."`)
+o cualquier carpeta escribible.
+
+- `server/coordination/client_paths.py::ClientPathGuardMiddleware` (en `server.py`): en transporte
+  remoto, las tools de `CLIENT_PATH_TOOLS` responden antes de resolver la ruta.
+  `APP_DOCS_CONTENT_REQUIRED` para documentos canónicos, cola, decisiones canónicas, autopilot,
+  deriva, migración v5.29 y estado de implementación; `REMOTE_PATH_REJECTED` para Claude Design
+  (`project_root`), el registro de DESIGN.md, la paleta de `validate_stitch_prompt`,
+  `sync_multirepo_state` y `migrate_to_freeform_tool`. Una regla `optional` solo rechaza si la
+  ruta llega. En `stdio`, igual que antes.
+- `server/coordination/tool_envelope.py::envelope_result`: el sobre respeta el esquema de salida
+  de la tool (lo envuelve en `result` o lo manda como resultado de error si la tool devuelve una
+  lista). Lo usan este middleware y el de UC-8603.
+- `server/migration/transactional_switch.py`: en remoto, `apply_switch_transactional` y
+  `apply_mirror_transactional` escriben solo el registro (ni leen ni escriben `app_spec.md` ni
+  `settings.local.json`) y devuelven `client_writes` (`settings` con `set`/`unset` y el cuerpo
+  renderizado de la zona `tracking_backend`); `switch_backend`, `enable_mirror`,
+  `disable_mirror` y `switch_project_backend` (`switch_result`) lo pasan al cliente. La skill
+  `/switch-backend` lo aplica en el repo.
+- El modo contenido de estas tools (enviar los ficheros y recibir lo mutado) y la adaptación de
+  las skills llegan después; mientras, se usan con el MCP local.
+- Tests: `tests/test_client_path_guard.py` (inventario sobre las tools registradas, rechazo sin
+  tocar disco con `write_text`/`mkdir`/`read_text`/`open`/`exists` instrumentados, `"."` por
+  defecto, ruta opcional, cambio de backend y espejo en remoto, `stdio` sin cambios).
+
 ## La extensión solo avanza y cada versión cuenta qué evita (v6.14.1)
 
 - **UC-4307 (US-14) — la extensión nunca se degrada al actualizarse.**

@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
+from .workspace import as_path
+from .workspace import run_in_root
 
 
 QUEUE_FILE = "doc/app/decisions_queue.md"
@@ -63,7 +65,7 @@ class QueueEntry:
 
 
 def _queue_path(project_path: Path | str = ".") -> Path:
-    return Path(project_path) / QUEUE_FILE
+    return as_path(project_path) / QUEUE_FILE
 
 
 def _ensure_skeleton(path: Path) -> None:
@@ -316,6 +318,7 @@ def register_queue_tools(mcp: FastMCP, engine_path: Path) -> None:
         blocks: str = "",
         action: str = "confirm | adjust | revert",
         evidence: str | None = None,
+        files_content: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Append a pending decision to doc/app/decisions_queue.md.
 
@@ -323,20 +326,27 @@ def register_queue_tools(mcp: FastMCP, engine_path: Path) -> None:
         the decision falls in the deferrable category (not inviolable).
         Returns {ok, entry} or {ok: false, error: ...} for invalid keys.
         """
-        return enqueue_decision(
-            decision_key,
-            feature,
-            default_applied=default_applied,
-            blocks=blocks,
-            action=action,
-            evidence=evidence,
-            project_path=project_path,
+        return run_in_root(
+            project_path,
+            files_content,
+            lambda root: enqueue_decision(
+                decision_key,
+                feature,
+                default_applied=default_applied,
+                blocks=blocks,
+                action=action,
+                evidence=evidence,
+                project_path=root,
+            ),
         )
 
     @mcp.tool
-    def list_decisions_queue(project_path: str = ".") -> dict[str, Any]:
-        """List pendientes and resueltas in the decisions queue."""
-        return list_queue(project_path)
+    def list_decisions_queue(project_path: str = ".", files_content: dict[str, str] | None = None) -> dict[str, Any]:
+        """List pendientes and resueltas in the decisions queue.
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
+        """
+        return run_in_root(project_path, files_content, list_queue)
 
     @mcp.tool
     def resolve_queue_entry(
@@ -344,6 +354,7 @@ def register_queue_tools(mcp: FastMCP, engine_path: Path) -> None:
         resolution: str,
         project_path: str = ".",
         auto_resolved: bool = False,
+        files_content: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Move a queue entry from pendientes to resueltas.
 
@@ -353,9 +364,10 @@ def register_queue_tools(mcp: FastMCP, engine_path: Path) -> None:
             auto_resolved: Set true when called by the auto-resolve job
                 after queue_auto_resolve_days have passed.
         """
-        return resolve_entry(
-            engine_id,
-            resolution=resolution,
-            auto_resolved=auto_resolved,
-            project_path=project_path,
+        return run_in_root(
+            project_path,
+            files_content,
+            lambda root: resolve_entry(
+                engine_id, resolution=resolution, auto_resolved=auto_resolved, project_path=root
+            ),
         )

@@ -30,6 +30,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 from fastmcp import FastMCP
+from .workspace import as_path
+from .workspace import run_in_root
 
 
 CaseId = Literal[
@@ -76,7 +78,7 @@ def detect_case(project_path: str | Path = ".") -> MigrationPlan:
     and case 8 (pending feedback) are checked early because they can
     co-exist with any backend-related case and demand additional care.
     """
-    root = Path(project_path).resolve()
+    root = as_path(project_path).resolve()
     plan = MigrationPlan(case_id="case_1_empty", project_path=str(root))
 
     has_app_dir = (root / "doc" / "app").exists()
@@ -379,7 +381,7 @@ def run_migration(
     /app-init skill so the user always sees a confirmation prompt for
     write-heavy operations.
     """
-    root = Path(project_path).resolve()
+    root = as_path(project_path).resolve()
     plan = detect_case(root)
     report: dict[str, Any] = {
         "case_id": plan.case_id,
@@ -431,29 +433,37 @@ def register_v529_migration_tools(mcp: FastMCP, engine_path: Path) -> None:
     """Expose the v5.28→v5.29 migration helpers."""
 
     @mcp.tool
-    def detect_v529_migration_case(project_path: str = ".") -> dict[str, Any]:
+    def detect_v529_migration_case(project_path: str = ".", files_content: dict[str, str] | None = None) -> dict[str, Any]:
         """Detect which of the 10 v5.28→v5.29 migration cases applies.
 
         Returns the case_id, recommended steps, and whether a backup is
         required. Read-only — does not modify the project.
+
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
         """
-        plan = detect_case(project_path)
-        return {
-            "case_id": plan.case_id,
-            "project_path": plan.project_path,
-            "backup_required": plan.backup_required,
-            "notes": plan.notes,
-            "steps": [
-                {"name": s.name, "description": s.description, "severity": s.severity}
-                for s in plan.steps
-            ],
-        }
+
+        def _detect(root: Any) -> dict[str, Any]:
+            plan = detect_case(root)
+            return {
+                "case_id": plan.case_id,
+                "project_path": plan.project_path,
+                "backup_required": plan.backup_required,
+                "notes": plan.notes,
+                "steps": [
+                    {"name": s.name, "description": s.description, "severity": s.severity}
+                    for s in plan.steps
+                ],
+            }
+
+        return run_in_root(project_path, files_content, _detect)
 
     @mcp.tool
     def run_v529_migration(
         project_path: str = ".",
         apply: bool = False,
         backend_type: str = "freeform",
+        files_content: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Run the safe automatic subset of the v5.28→v5.29 migration.
 
@@ -463,5 +473,10 @@ def register_v529_migration_tools(mcp: FastMCP, engine_path: Path) -> None:
         deferred-mode report explaining what to do.
 
         Default is dry-run (apply=False).
+
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
         """
-        return run_migration(project_path, apply=apply, backend_type=backend_type)
+        return run_in_root(
+            project_path, files_content, lambda root: run_migration(root, apply=apply, backend_type=backend_type)
+        )

@@ -31,6 +31,7 @@ import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from .workspace import as_path
 
 
 class ZoneKind(str, Enum):
@@ -106,7 +107,7 @@ def parse_document(path: Path | str, *, content: str | None = None) -> ParsedDoc
         content: Optional in-memory content to parse. When omitted, the
             file at ``path`` is read.
     """
-    p = Path(path)
+    p = as_path(path)
     if content is None:
         content = p.read_text(encoding="utf-8")
 

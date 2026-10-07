@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
+from .workspace import as_path
+from .workspace import run_in_root
 
 
 def detect_backend(project_path: str | Path = ".") -> dict[str, Any]:
@@ -39,7 +41,7 @@ def detect_backend(project_path: str | Path = ".") -> dict[str, Any]:
           "warnings": [str, ...],
         }
     """
-    root = Path(project_path).resolve()
+    root = as_path(project_path).resolve()
     warnings: list[str] = []
 
     settings_path = root / ".claude" / "settings.local.json"
@@ -161,11 +163,14 @@ def register_discovery_tools(mcp: FastMCP, engine_path: Path) -> None:
     """Expose backend auto-discovery as an MCP tool."""
 
     @mcp.tool
-    def detect_project_backend(project_path: str = ".") -> dict[str, Any]:
+    def detect_project_backend(project_path: str = ".", files_content: dict[str, str] | None = None) -> dict[str, Any]:
         """Auto-detect the spec backend (freeform/trello/plane) for a project.
 
         Returns the backend type and the source it was inferred from. Skills
         call this in Paso 0 before deciding whether to ask the user about
         backend choice (they shouldn't have to, in v5.29.0 onwards).
+
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
         """
-        return detect_backend(project_path)
+        return run_in_root(project_path, files_content, detect_backend)

@@ -41,6 +41,7 @@ from ..design_system import candidate_marker
 from ..transport import is_remote_transport
 from ..veg.design_system_gate import evaluate_gate
 from ..veg.visual_provider import claude_design_config, parse_providers
+from ..app_docs.workspace import as_path, run_in_root
 
 logger = structlog.get_logger(__name__)
 
@@ -342,6 +343,7 @@ def register_claude_design_tools(mcp: FastMCP, state_path: Path):
         project: str,
         project_root: str,
         session_projects: list[dict] | None = None,
+        files_content: dict[str, str] | None = None,
     ) -> dict:
         """Plan the design-system sync to Claude Design (AC-02, AC-06).
 
@@ -353,8 +355,17 @@ def register_claude_design_tools(mcp: FastMCP, state_path: Path):
         The ``ok`` response names the ``system_input`` Claude Design receives
         and marks what it designs from it as a candidate (``design_role``,
         UC-4901): never a production source.
+
+        Remote MCP: send ``files_content`` with ``.claude/settings.local.json``,
+        the design-system's ``package.json`` and one file of its ``dist/`` (or
+        its Storybook config) — a satellite sends the orchestrator's (UC-8604).
         """
-        root = Path(project_root)
+        locale = extract_locale_from_ctx(ctx)
+        return run_in_root(
+            project_root, files_content, lambda root: _sync_plan(project, as_path(root), session_projects, locale)
+        )
+
+    def _sync_plan(project: str, root: Any, session_projects: list[dict] | None, locale: str) -> dict:
         settings = _read_project_settings(root)
         # Provider must include claude_design (validated upstream by /plan).
         if "claude_design" not in parse_providers(settings):
@@ -364,7 +375,7 @@ def register_claude_design_tools(mcp: FastMCP, state_path: Path):
                 "reason": "claude_design not in veg.providers",
             }
 
-        gate, site = evaluate_gate(project_root)
+        gate, site = evaluate_gate(root)
         if not gate.ready:
             return {
                 "status": "pending",
@@ -404,7 +415,7 @@ def register_claude_design_tools(mcp: FastMCP, state_path: Path):
                 "kind": "design_system",
                 "includes": list(SYSTEM_INPUT_WRITES),
             },
-            **candidate_marker("claude_design", extract_locale_from_ctx(ctx)),
+            **candidate_marker("claude_design", locale),
         }
         if write_check.get("foreign_owner"):
             result["warning"] = (
@@ -420,17 +431,24 @@ def register_claude_design_tools(mcp: FastMCP, state_path: Path):
         project: str,
         project_root: str,
         session_projects: list[dict] | None = None,
+        files_content: dict[str, str] | None = None,
     ) -> dict:
         """Report the Claude Design capability state for a project.
 
         Surfaces providers, anchored projectId, gate readiness, and whether an
         active claude.ai login is present on this machine (so it's auditable
         whose subscription would be consumed). Read-only; never raises.
+
+        Remote MCP: send ``files_content`` with ``.claude/settings.local.json``,
+        the design-system's ``package.json`` and one file of its ``dist/`` (or
+        its Storybook config) — a satellite sends the orchestrator's (UC-8604).
         """
-        root = Path(project_root)
+        return run_in_root(project_root, files_content, lambda root: _status(project, as_path(root), session_projects))
+
+    def _status(project: str, root: Any, session_projects: list[dict] | None) -> dict:
         settings = _read_project_settings(root)
         providers = parse_providers(settings)
-        gate, site = evaluate_gate(project_root)
+        gate, site = evaluate_gate(root)
         cd_cfg = claude_design_config(settings)
         identity = assert_session_identity(session_projects)
         return {

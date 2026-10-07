@@ -39,6 +39,8 @@ from .zones import (
     parse_document,
     replace_zone_body,
 )
+from .workspace import as_path
+from .workspace import run_in_root
 
 
 SYNC_LOCK_PATH = ".quality/app_docs_sync.lock"
@@ -65,7 +67,7 @@ class SyncResult:
 
 
 def _lock_path(project_path: Path | str) -> Path:
-    return Path(project_path) / SYNC_LOCK_PATH
+    return as_path(project_path) / SYNC_LOCK_PATH
 
 
 def _load_lock(project_path: Path | str) -> dict[str, Any]:
@@ -151,7 +153,7 @@ def verify_app_docs_in_sync(project_path: str | Path = ".") -> SyncResult:
     de onboarding del proyecto se ignoran. Docs en estado template-pristine
     se ignoran (no warning hasta primera inicialización).
     """
-    root = Path(project_path).resolve()
+    root = as_path(project_path).resolve()
     drift: list[DriftEntry] = []
     signatures: dict[str, str] = {}
 
@@ -217,7 +219,7 @@ def record_sync_signature(project_path: str | Path = ".") -> dict[str, Any]:
     la versión del proyecto. Docs no presentes en disco se eliminan del
     lock state para mantenerlo limpio.
     """
-    root = Path(project_path).resolve()
+    root = as_path(project_path).resolve()
     state = _load_lock(root)
     sigs = state.setdefault("signatures", {})
 
@@ -272,7 +274,7 @@ def sync_app_docs(
     v6.0: el dispatcher resuelve `doc_id → path` via `get_doc()` del
     registro en lugar de mapear hardcoded a `PRD_PATH`/`SPEC_PATH`.
     """
-    root = Path(project_path).resolve()
+    root = as_path(project_path).resolve()
     targets = EVENT_ZONE_MAP.get(event_type, [])
     if not targets:
         return {
@@ -486,7 +488,7 @@ def _render_zone_body(zone_id: str, payload: dict[str, Any], project_path: Path)
 
 def register_sync_tools(mcp: FastMCP, engine_path: Path) -> None:
     @mcp.tool
-    def verify_app_docs(project_path: str = ".") -> dict[str, Any]:
+    def verify_app_docs(project_path: str = ".", files_content: dict[str, str] | None = None) -> dict[str, Any]:
         """Check whether canonical docs under `doc/app/` are in sync.
 
         Returns {in_sync, prd_signature, spec_signature, signatures, drift[], locked_signatures}.
@@ -495,25 +497,33 @@ def register_sync_tools(mcp: FastMCP, engine_path: Path) -> None:
         project's engine_version_at_onboard). `prd_signature` and
         `spec_signature` preserved for backwards compat.
         Read-only: never modifies the project.
+
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
         """
-        result = verify_app_docs_in_sync(project_path)
-        return {
-            "in_sync": result.in_sync,
-            "prd_signature": result.prd_signature,
-            "spec_signature": result.spec_signature,
-            "signatures": result.signatures,
-            "drift": [
-                {"severity": d.severity, "document": d.document, "zone_id": d.zone_id, "message": d.message}
-                for d in result.drift
-            ],
-            "locked_signatures": result.locked_signatures,
-        }
+
+        def _verify(root: Any) -> dict[str, Any]:
+            result = verify_app_docs_in_sync(root)
+            return {
+                "in_sync": result.in_sync,
+                "prd_signature": result.prd_signature,
+                "spec_signature": result.spec_signature,
+                "signatures": result.signatures,
+                "drift": [
+                    {"severity": d.severity, "document": d.document, "zone_id": d.zone_id, "message": d.message}
+                    for d in result.drift
+                ],
+                "locked_signatures": result.locked_signatures,
+            }
+
+        return run_in_root(project_path, files_content, _verify)
 
     @mcp.tool
     def apply_app_docs_sync(
         event_type: str,
         payload: dict[str, Any] | None = None,
         project_path: str = ".",
+        files_content: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Apply an event-driven sync to the relevant auto-zones.
 
@@ -524,10 +534,17 @@ def register_sync_tools(mcp: FastMCP, engine_path: Path) -> None:
         app_market_icp_added, app_market_jtbd_added, nsm_updated.
 
         Idempotent: re-running with identical payload writes nothing.
+
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
         """
-        return sync_app_docs(event_type, payload or {}, project_path)
+        return run_in_root(project_path, files_content, lambda root: sync_app_docs(event_type, payload or {}, root))
 
     @mcp.tool
-    def record_app_docs_signature(project_path: str = ".") -> dict[str, Any]:
-        """Snapshot current canonical doc signatures for future drift detection."""
-        return record_sync_signature(project_path)
+    def record_app_docs_signature(project_path: str = ".", files_content: dict[str, str] | None = None) -> dict[str, Any]:
+        """Snapshot current canonical doc signatures for future drift detection.
+
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
+        """
+        return run_in_root(project_path, files_content, record_sync_signature)

@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .delta_generator import compile_uc_status
+from .app_docs.workspace import as_path
 
 
 def find_prd_path(
@@ -27,7 +28,7 @@ def find_prd_path(
       4. doc/prds/*.md (single file → that's the one)
       5. None if not found
     """
-    root = Path(project_path)
+    root = as_path(project_path)
 
     # 1. By feature name in doc/prds/
     if feature:

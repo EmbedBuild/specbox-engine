@@ -87,8 +87,16 @@ def _read_multirepo_settings(path: str | Path | None) -> dict[str, Any]:
     if not p.exists():
         return {}
     try:
-        data = json.loads(p.read_text())
-    except (OSError, json.JSONDecodeError):
+        return _parse_multirepo_settings(p.read_text())
+    except OSError:
+        return {}
+
+
+def _parse_multirepo_settings(text: str) -> dict[str, Any]:
+    """The ``multirepo`` block of a settings.local.json text ({} if malformed)."""
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
         return {}
     return data.get("multirepo", {}) if isinstance(data, dict) else {}
 
@@ -538,6 +546,7 @@ async def sync_multirepo_state(
     orchestrator_path: str,
     ctx: Context,
     items_content: str | None = None,
+    settings_content: str | None = None,
 ) -> dict[str, Any]:
     """Propagate satellite labels from orchestrator settings to board cards.
 
@@ -548,12 +557,19 @@ async def sync_multirepo_state(
 
     Useful after restructuring a repo from mono to multi.
 
+    Remote MCP: send the orchestrator's ``.claude/settings.local.json`` as
+    ``settings_content``; the server never reads ``orchestrator_path`` there
+    (UC-8604).
+
     Returns:
         {updated_ucs, skipped_ucs, board_id}
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        mr_config = _read_multirepo_settings(orchestrator_path)
+        if settings_content is not None:
+            mr_config = _parse_multirepo_settings(settings_content)
+        else:
+            mr_config = _read_multirepo_settings(orchestrator_path)
         satellites = mr_config.get("satellites", {})
         if not isinstance(satellites, dict) or not satellites:
             return _mk_error(

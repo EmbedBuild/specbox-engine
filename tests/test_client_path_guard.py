@@ -29,6 +29,7 @@ from server.app_docs.queue import register_queue_tools
 from server.app_docs.sync import register_sync_tools as register_app_sync_tools
 from server.coordination.client_paths import (
     APP_DOCS_CONTENT_REQUIRED,
+    CLIENT_CONTENT_REQUIRED,
     CLIENT_PATH_TOOLS,
     REMOTE_PATH_REJECTED,
     ClientPathGuardMiddleware,
@@ -143,7 +144,7 @@ async def test_remote_call_with_a_client_path_is_rejected_without_touching_disk(
             armed["on"] = False
     out = _payload(result)
     assert touched == []
-    assert out["code"] in (APP_DOCS_CONTENT_REQUIRED, REMOTE_PATH_REJECTED)
+    assert out["code"] in (APP_DOCS_CONTENT_REQUIRED, CLIENT_CONTENT_REQUIRED, REMOTE_PATH_REJECTED)
     assert out["code"] == CLIENT_PATH_TOOLS[tool].code
     assert str(tmp_path) not in json.dumps(out)
 
@@ -179,7 +180,7 @@ async def test_remote_optional_path_only_rejects_when_given(server, monkeypatch)
             raise_on_error=False,
         )
     assert (without.structured_content or {}).get("code") is None
-    assert with_root.structured_content["code"] == REMOTE_PATH_REJECTED
+    assert with_root.structured_content["code"] == CLIENT_CONTENT_REQUIRED
 
 
 async def test_stdio_keeps_reading_the_path(server, tmp_path, monkeypatch):

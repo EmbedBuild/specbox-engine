@@ -39,6 +39,8 @@ from typing import Any
 from fastmcp import FastMCP
 
 from .zones import parse_document, ZoneKind
+from .workspace import as_path
+from .workspace import run_in_root
 
 
 KNOWN_LOCKFILES: dict[str, str] = {
@@ -250,7 +252,7 @@ def _detect_roadmap_drift(project_path: Path) -> list[DriftSignal]:
 
 def run_drift_detection(project_path: str | Path = ".") -> dict[str, Any]:
     """Run every detector against the project and return a structured report."""
-    root = Path(project_path).resolve()
+    root = as_path(project_path).resolve()
     now = datetime.now(timezone.utc).isoformat()
     signals: list[DriftSignal] = []
     for detector in (
@@ -301,7 +303,7 @@ def heartbeat_payload(project_path: str | Path = ".") -> dict[str, Any]:
 
 def register_drift_tools(mcp: FastMCP, engine_path: Path) -> None:
     @mcp.tool
-    def detect_app_docs_drift(project_path: str = ".") -> dict[str, Any]:
+    def detect_app_docs_drift(project_path: str = ".", files_content: dict[str, str] | None = None) -> dict[str, Any]:
         """Run the multi-source drift detector against a project.
 
         Inspects the filesystem for signals that the canonical docs are
@@ -312,14 +314,20 @@ def register_drift_tools(mcp: FastMCP, engine_path: Path) -> None:
 
         Returns a structured report with summary counts and individual
         signals. Read-only with respect to the canonical docs themselves.
+
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
         """
-        return run_drift_detection(project_path)
+        return run_in_root(project_path, files_content, run_drift_detection)
 
     @mcp.tool
-    def app_docs_drift_for_heartbeat(project_path: str = ".") -> dict[str, Any]:
+    def app_docs_drift_for_heartbeat(project_path: str = ".", files_content: dict[str, str] | None = None) -> dict[str, Any]:
         """Compact drift summary suited for telemetry / external dashboards.
 
         Used by external consumers (specbox_cloud, ad-hoc scripts) to
         display per-project sync health across all onboarded projects.
+
+        Remote MCP: send the files as ``files_content`` ({relpath: text}); the
+        answer adds files_changed / files_appended / files_requested (UC-8604).
         """
-        return heartbeat_payload(project_path)
+        return run_in_root(project_path, files_content, heartbeat_payload)

@@ -8,6 +8,22 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.22.1] — "Llave"
+
+### Changed
+
+- **Identity check every 30 minutes, not every minute (US-89 / UC-8903).** The extension asks
+  `/api/whoami` who you are on activation, sign-in, sign-out and token renewal, when the window
+  regains focus (if 5 minutes went by) and every 30 minutes in the background. It used to ask
+  every 60 seconds per window, day and night. A revoked or expired token shows in the status bar
+  at most 30 minutes later, or as soon as the window regains focus.
+
+### Note
+
+Versions 6.7.0 to 6.22.0 changed the extension too; their notes are in the
+[engine changelog](https://github.com/EmbedBuild/specbox-engine/blob/main/CHANGELOG.md).
+From 6.22.1 on, every release that touches `vscode-extension/` adds its entry here as well.
+
 ## [6.6.0] — "Discoverability"
 
 Closes the post-install funnel gap that v6.2.0 (Marketplace) and v6.3.0

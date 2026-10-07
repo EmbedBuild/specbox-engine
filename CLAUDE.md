@@ -2142,6 +2142,29 @@ miembros exige que quien abre la sesión ya lo sea: si no, `ForbiddenError` (`FO
 `project_admin`). Es la regla D2 (`native_provision_authority`), que hasta ahora solo aplicaba la
 ruta de migración. Tests: `tests/test_native_provision.py::TestSessionNeverJoinsAProject`.
 
+## Cada tool lee del board solo lo que necesita (US-89 · UC-8901)
+
+En el MCP alojado cada fila que lee el backend native cruza el pooler de la base, y eso agotó la
+cuota de egress de Supabase (el 92,5 % era el pooler): `get_uc`, `start_uc`, `move_uc` y
+`complete_uc` leían el board entero (`list_items`, `SELECT *` de US, UC y AC) para encontrar una
+UC, y `list_us`, `list_uc`, `get_sprint_status` y `get_delivery_report` leían además los criterios
+de cada UC solo para contarlos.
+
+- Tres métodos de `SpecBackend` con la implementación de siempre por defecto (Trello, Plane y
+  FreeForm no cambian), que `NativeBackend` lee acotados y con la misma membresía (UC-8301):
+  `list_story_items(board_id, us_id=|uc_id=)` (una historia y sus UC, enteras),
+  `list_board_summary(board_id, with_acs=)` (todas las US y UC sin `description` ni las claves
+  `comments`/`context`/`attachments` de `meta`; los criterios, solo para contar, sin texto ni
+  recibos) y `count_acceptance_criteria(board_id, uc_ids)` (un `GROUP BY`, internos incluidos).
+- Las tools de una UC o una historia usan `list_story_items`; las del board entero (`get_board_status`,
+  `list_us`, `list_uc`, `find_next_uc`, `get_sprint_status`, `get_delivery_report` y las de épicas),
+  `list_board_summary`; los recuentos, `count_acceptance_criteria`. `list_items` sigue igual.
+- Sobre el board del manager: `get_uc` pasa de 1.866 KB a 19 KB y las del board entero, de
+  1,9–3,7 MB a 137–175 KB. `scripts/measure-board-reads.sql` lo mide en la base, sin sacar filas.
+- Tests: `tests/test_board_reads_scoped.py` (PG-gated) registra cada sentencia SQL y falla si una
+  tool de una UC lee el board o algo de otra historia, y compara cada respuesta con la de leer el
+  board entero; las tres lecturas entran en el inventario de `tests/test_tenant_isolation.py`.
+
 ## El esquema del board solo es legible por quien tiene permiso (US-40)
 
 US-40 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) versiona y completa

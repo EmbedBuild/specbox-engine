@@ -717,6 +717,54 @@ class SpecBackend(ABC):
     async def close(self) -> None:
         """Release HTTP resources."""
 
+    # ── Reading only what a tool needs (US-89 / UC-8901) ─────────
+    #
+    # The defaults read the whole board, so Trello, Plane and FreeForm behave as
+    # before. Native reads less: on the hosted MCP every byte crosses the
+    # database pooler, and a tool about one UC used to read every story, UC and
+    # criterion of the project.
+
+    async def list_story_items(
+        self,
+        board_id: str,
+        *,
+        us_id: str | None = None,
+        uc_id: str | None = None,
+    ) -> list[ItemDTO]:
+        """The items a tool about one story or one UC needs, whole.
+
+        With ``uc_id``: that UC, its story and the story's other UCs. With
+        ``us_id``: that story and its UCs. Criteria are not included (read them
+        with ``get_acceptance_criteria`` or ``count_acceptance_criteria``).
+        Default: ``list_items``; a tool keeps filtering as before.
+        """
+        return await self.list_items(board_id)
+
+    async def list_board_summary(
+        self, board_id: str, *, with_acs: bool = False
+    ) -> list[ItemDTO]:
+        """Every story and UC, for the tools that look at the whole board.
+
+        A backend may leave out what those tools never show: the description
+        and the ``comments``, ``context`` and ``attachments`` meta keys. With
+        ``with_acs`` the criteria come too, only to count them (no text, no
+        receipts). Default: ``list_items``.
+        """
+        return await self.list_items(board_id)
+
+    async def count_acceptance_criteria(
+        self, board_id: str, uc_item_ids: list[str]
+    ) -> dict[str, tuple[int, int]]:
+        """``(total, done)`` criteria per UC backend id, internal ones included.
+
+        Default: one ``get_acceptance_criteria`` per UC.
+        """
+        counts: dict[str, tuple[int, int]] = {}
+        for uc_item_id in uc_item_ids:
+            acs = await self.get_acceptance_criteria(board_id, uc_item_id)
+            counts[uc_item_id] = (len(acs), sum(1 for ac in acs if ac.done))
+        return counts
+
     # ── Convenience (non-abstract) ───────────────────────────────
 
     async def find_us_items(self, board_id: str) -> list[ItemDTO]:

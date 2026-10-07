@@ -513,6 +513,109 @@ class NativeBackend(SpecBackend):
         items.extend(self._ac_row_to_item_dto(r) for r in ac_rows)
         return items
 
+    # ── Reading only what a tool needs (US-89 / UC-8901) ─────────
+
+    async def list_story_items(
+        self,
+        board_id: str,
+        *,
+        us_id: str | None = None,
+        uc_id: str | None = None,
+    ) -> list[ItemDTO]:
+        """One story (by ``us_id``, or the story of ``uc_id``) and its UCs, whole.
+
+        A UC without a story comes alone; an unknown UC or story gives ``[]``.
+        Without either id, the whole board as ``list_items``.
+        """
+        if us_id is None and uc_id is None:
+            return await self.list_items(board_id)
+        await self._require_read_access(board_id)
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            if uc_id is not None:
+                uc_row = await conn.fetchrow(
+                    "SELECT * FROM use_cases WHERE project_id = $1 AND id = $2",
+                    board_id,
+                    uc_id,
+                )
+                if uc_row is None:
+                    return []
+                if uc_row["us_id"] is None:
+                    return [self._uc_row_to_dto(uc_row)]
+                us_id = uc_row["us_id"]
+            us_rows = await conn.fetch(
+                "SELECT * FROM user_stories WHERE project_id = $1 AND id = $2",
+                board_id,
+                us_id,
+            )
+            uc_rows = await conn.fetch(
+                "SELECT * FROM use_cases WHERE project_id = $1 AND us_id = $2 ORDER BY id",
+                board_id,
+                us_id,
+            )
+        items: list[ItemDTO] = []
+        items.extend(self._us_row_to_dto(r) for r in us_rows)
+        items.extend(self._uc_row_to_dto(r) for r in uc_rows)
+        return items
+
+    #: What the board-wide tools never show, left in the database.
+    _LIGHT_META = "meta - 'comments' - 'context' - 'attachments' AS meta"
+
+    async def list_board_summary(
+        self, board_id: str, *, with_acs: bool = False
+    ) -> list[ItemDTO]:
+        """Every story and UC without description nor long meta; criteria only to count."""
+        await self._require_read_access(board_id)
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            us_rows = await conn.fetch(
+                "SELECT id, name, '' AS description, state, labels, priority, "
+                f"external_source, external_id, {self._LIGHT_META}, version, epic_id "
+                "FROM user_stories WHERE project_id = $1 ORDER BY id",
+                board_id,
+            )
+            uc_rows = await conn.fetch(
+                "SELECT id, us_id, name, '' AS description, state, labels, priority, "
+                f"external_source, external_id, {self._LIGHT_META}, version "
+                "FROM use_cases WHERE project_id = $1 ORDER BY id",
+                board_id,
+            )
+            ac_rows = (
+                await conn.fetch(
+                    "SELECT id, uc_id, ac_id, '' AS text, done, '{}'::jsonb AS meta, version "
+                    "FROM acceptance_criteria WHERE project_id = $1 ORDER BY id",
+                    board_id,
+                )
+                if with_acs
+                else []
+            )
+        items: list[ItemDTO] = []
+        items.extend(self._us_row_to_dto(r) for r in us_rows)
+        items.extend(self._uc_row_to_dto(r) for r in uc_rows)
+        items.extend(self._ac_row_to_item_dto(r) for r in ac_rows)
+        return items
+
+    async def count_acceptance_criteria(
+        self, board_id: str, uc_item_ids: list[str]
+    ) -> dict[str, tuple[int, int]]:
+        """One ``GROUP BY`` instead of reading every criterion of every UC."""
+        await self._require_read_access(board_id)
+        counts: dict[str, tuple[int, int]] = {uc: (0, 0) for uc in uc_item_ids}
+        if not uc_item_ids:
+            return counts
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT uc_id, count(*)::int AS total, count(*) FILTER (WHERE done)::int AS done "
+                "FROM acceptance_criteria WHERE project_id = $1 AND uc_id = ANY($2::text[]) "
+                "GROUP BY uc_id",
+                board_id,
+                list(uc_item_ids),
+            )
+        for r in rows:
+            counts[r["uc_id"]] = (r["total"], r["done"])
+        return counts
+
     async def get_item(self, board_id: str, item_id: str) -> ItemDTO:
         await self._require_read_access(board_id)
         pool = await self._pool()

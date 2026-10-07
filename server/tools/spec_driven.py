@@ -270,12 +270,11 @@ def _get_uc_children(items: list[ItemDTO], us_id: str) -> list[ItemDTO]:
     return children
 
 
-async def _get_ac_counts(backend: SpecBackend, board_id: str, uc_item: ItemDTO) -> tuple[int, int]:
-    """Get (total, done) AC counts for a UC item."""
-    acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
-    total = len(acs)
-    done = sum(1 for ac in acs if ac.done)
-    return total, done
+async def _ac_counts(
+    backend: SpecBackend, board_id: str, uc_items: list[ItemDTO]
+) -> dict[str, tuple[int, int]]:
+    """(total, done) AC counts per UC item id, in one backend call (US-89 / UC-8901)."""
+    return await backend.count_acceptance_criteria(board_id, [uc.id for uc in uc_items])
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -615,7 +614,7 @@ async def get_board_status(
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        items = await backend.list_items(board_id)
+        items = await backend.list_board_summary(board_id, with_acs=True)
 
         # Build per-state counts
         list_stats: list[dict[str, Any]] = []
@@ -1000,29 +999,21 @@ async def list_us(
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        items = await backend.list_items(board_id)
+        items = await backend.list_board_summary(board_id)
+        stories = [i for i in items if _is_us(i) and not (status and i.state != status)]
+        children = {s.id: _get_uc_children(items, _get_us_id(s)) for s in stories}
+        counts = await _ac_counts(backend, board_id, [uc for ucs in children.values() for uc in ucs])
 
         result: list[dict[str, Any]] = []
-        for item in items:
-            if not _is_us(item):
-                continue
-            if status and item.state != status:
-                continue
-
+        for item in stories:
             us_id = _get_us_id(item)
             hours = _extract_meta_float(item, "horas")
             screens = _extract_meta_str(item, "pantallas")
 
-            uc_children = _get_uc_children(items, us_id)
+            uc_children = children[item.id]
             uc_done = sum(1 for c in uc_children if c.state == "done")
-
-            # Get AC counts for each UC
-            ac_total = 0
-            ac_done = 0
-            for uc_item in uc_children:
-                t, d = await _get_ac_counts(backend, board_id, uc_item)
-                ac_total += t
-                ac_done += d
+            ac_total = sum(counts[uc.id][0] for uc in uc_children)
+            ac_done = sum(counts[uc.id][1] for uc in uc_children)
 
             result.append(
                 {
@@ -1064,7 +1055,7 @@ async def get_us(
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        items = await backend.list_items(board_id)
+        items = await backend.list_story_items(board_id, us_id=us_id)
 
         us_item = _find_us_item(items, us_id)
         if not us_item:
@@ -1076,13 +1067,14 @@ async def get_us(
 
         # Get child UCs
         uc_children = _get_uc_children(items, us_id)
+        counts = await _ac_counts(backend, board_id, uc_children)
         use_cases: list[dict[str, Any]] = []
         for uc_item in uc_children:
             uc_id = _get_uc_id(uc_item)
             uc_hours = _extract_meta_float(uc_item, "horas")
             actor = _extract_meta_str(uc_item, "actor")
 
-            ac_total, ac_done = await _get_ac_counts(backend, board_id, uc_item)
+            ac_total, ac_done = counts[uc_item.id]
 
             use_cases.append(
                 {
@@ -1146,7 +1138,7 @@ async def move_us(
 
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        items = await backend.list_items(board_id)
+        items = await backend.list_story_items(board_id, us_id=us_id)
 
         us_item = _find_us_item(items, us_id)
         if not us_item:
@@ -1227,13 +1219,14 @@ async def get_us_progress(
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        items = await backend.list_items(board_id)
+        items = await backend.list_story_items(board_id, us_id=us_id)
 
         us_item = _find_us_item(items, us_id)
         if not us_item:
             return {"error": f"User Story {us_id} not found", "code": "US_NOT_FOUND"}
 
         uc_children = _get_uc_children(items, us_id)
+        counts = await _ac_counts(backend, board_id, uc_children)
 
         ucs_data: list[dict[str, Any]] = []
         total_acs = 0
@@ -1246,7 +1239,7 @@ async def get_us_progress(
             uc_hours = _extract_meta_float(uc_item, "horas")
             is_done = uc_item.state == "done"
 
-            acs_total_uc, acs_passed_uc = await _get_ac_counts(backend, board_id, uc_item)
+            acs_total_uc, acs_passed_uc = counts[uc_item.id]
 
             total_acs += acs_total_uc
             passed_acs += acs_passed_uc
@@ -1305,9 +1298,12 @@ async def list_uc(
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        items = await backend.list_items(board_id)
+        if us_id:
+            items = await backend.list_story_items(board_id, us_id=us_id)
+        else:
+            items = await backend.list_board_summary(board_id)
 
-        result: list[dict[str, Any]] = []
+        selected: list[tuple[ItemDTO, str]] = []
         for item in items:
             if not _is_uc(item):
                 continue
@@ -1321,13 +1317,17 @@ async def list_uc(
                 continue
             if status and item.state != status:
                 continue
+            selected.append((item, item_us_id))
 
+        counts = await _ac_counts(backend, board_id, [item for item, _ in selected])
+        result: list[dict[str, Any]] = []
+        for item, item_us_id in selected:
             uc_id = _get_uc_id(item)
             hours = _extract_meta_float(item, "horas")
             screens = _extract_meta_str(item, "pantallas")
             actor = _extract_meta_str(item, "actor")
 
-            ac_total, ac_done = await _get_ac_counts(backend, board_id, item)
+            ac_total, ac_done = counts[item.id]
 
             result.append(
                 {
@@ -1371,7 +1371,7 @@ async def get_uc(
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        items = await backend.list_items(board_id)
+        items = await backend.list_story_items(board_id, uc_id=uc_id)
 
         uc_item = _find_uc_item(items, uc_id)
         if not uc_item:
@@ -1491,7 +1491,7 @@ async def move_uc(
 
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        items = await backend.list_items(board_id)
+        items = await backend.list_story_items(board_id, uc_id=uc_id)
 
         uc_item = _find_uc_item(items, uc_id)
         if not uc_item:
@@ -1894,7 +1894,7 @@ async def complete_uc(
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        items = await backend.list_items(board_id)
+        items = await backend.list_story_items(board_id, uc_id=uc_id)
 
         uc_item = _find_uc_item(items, uc_id)
         if not uc_item:
@@ -2331,7 +2331,8 @@ async def get_sprint_status(
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         board_name = await backend.get_board_name(board_id)
-        items = await backend.list_items(board_id)
+        items = await backend.list_board_summary(board_id)
+        counts = await _ac_counts(backend, board_id, [i for i in items if not _is_us(i) and _is_uc(i)])
 
         total_us = 0
         total_uc = 0
@@ -2366,7 +2367,7 @@ async def get_sprint_status(
                 elif item.state == "in_progress":
                     hours_in_progress += h
 
-                ac_t, ac_d = await _get_ac_counts(backend, board_id, item)
+                ac_t, ac_d = counts[item.id]
                 total_ac += ac_t
                 acs_passed += ac_d
 
@@ -2439,28 +2440,26 @@ async def get_delivery_report(
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         board_name = await backend.get_board_name(board_id)
-        items = await backend.list_items(board_id)
+        items = await backend.list_board_summary(board_id)
 
         us_items = [i for i in items if _is_us(i)]
         total_us = len(us_items)
         completed_us = 0
         user_stories: list[dict[str, Any]] = []
+        children = {s.id: _get_uc_children(items, _get_us_id(s)) for s in us_items}
+        counts = await _ac_counts(backend, board_id, [uc for ucs in children.values() for uc in ucs])
 
         for us_item in us_items:
             us_id = _get_us_id(us_item)
             us_name = _clean_name(us_item.name, us_id)
             us_hours = _extract_meta_float(us_item, "horas")
 
-            uc_children = _get_uc_children(items, us_id)
+            uc_children = children[us_item.id]
             uc_done = sum(1 for c in uc_children if c.state == "done")
             uc_total = len(uc_children)
 
-            ac_total = 0
-            ac_passed = 0
-            for uc_item in uc_children:
-                t, d = await _get_ac_counts(backend, board_id, uc_item)
-                ac_total += t
-                ac_passed += d
+            ac_total = sum(counts[uc.id][0] for uc in uc_children)
+            ac_passed = sum(counts[uc.id][1] for uc in uc_children)
 
             if us_item.state == "done":
                 completed_us += 1
@@ -2528,7 +2527,7 @@ async def find_next_uc(
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        items = await backend.list_items(board_id)
+        items = await backend.list_board_summary(board_id)
 
         # Find all UCs in Backlog
         ready_ucs = [i for i in items if _is_uc(i) and i.state == "backlog"]
@@ -2660,7 +2659,7 @@ async def _sync_parent_us_state(
     us_id = ""
     try:
         if items is None:
-            items = await backend.list_items(board_id)
+            items = await backend.list_story_items(board_id, uc_id=_get_uc_id(uc_item))
         us_id = _extract_meta_str(uc_item, "us_id")
         if not us_id and uc_item.parent_id:
             parent = next((i for i in items if i.id == uc_item.parent_id), None)
@@ -2710,10 +2709,8 @@ async def _handle_uc_completion(
 
     if all_done and uc_siblings:
         total_ucs = len(uc_siblings)
-        total_acs = 0
-        for uc in uc_siblings:
-            ac_t, _ = await _get_ac_counts(backend, board_id, uc)
-            total_acs += ac_t
+        counts = await _ac_counts(backend, board_id, uc_siblings)
+        total_acs = sum(counts[uc.id][0] for uc in uc_siblings)
 
         await backend.add_comment(
             board_id,

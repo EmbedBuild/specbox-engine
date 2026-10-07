@@ -91,7 +91,7 @@ async def add_epic(
             target_date=target_date,
             epic_id=epic_id,
         )
-        return {"epic": summarize_epic(epic, await backend.list_items(board_id))}
+        return {"epic": summarize_epic(epic, await backend.list_board_summary(board_id, with_acs=True))}
 
     return await _run(ctx, items_content, op)
 
@@ -127,7 +127,7 @@ async def update_epic(
     async def op(backend: SpecBackend) -> dict[str, Any]:
         epic = await backend.update_epic(board_id, epic_id, **fields)
         return {
-            "epic": summarize_epic(epic, await backend.list_items(board_id)),
+            "epic": summarize_epic(epic, await backend.list_board_summary(board_id, with_acs=True)),
             "updated_fields": sorted(fields),
         }
 
@@ -183,7 +183,7 @@ async def list_epics(
     """
 
     async def op(backend: SpecBackend) -> dict[str, Any]:
-        groups = summarize_board(await backend.list_epics(board_id), await backend.list_items(board_id))
+        groups = summarize_board(await backend.list_epics(board_id), await backend.list_board_summary(board_id, with_acs=True))
         epics = [g for g in groups if g["epic_id"] != NO_EPIC]
         loose = next((g for g in groups if g["epic_id"] == NO_EPIC), None)
         return {"epics": epics, "sin_epica": loose, "total": len(epics)}
@@ -202,7 +202,7 @@ async def get_epic(
 
     async def op(backend: SpecBackend) -> dict[str, Any]:
         epic = await _find_epic(backend, board_id, epic_id)
-        items = await backend.list_items(board_id)
+        items = await backend.list_board_summary(board_id, with_acs=True)
         summary = summarize_epic(epic, items)
         stories = [i for i in items if "US" in (i.labels or []) and epic_of(i) == epic_id]
         summary["stories"] = [

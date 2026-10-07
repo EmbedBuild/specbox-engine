@@ -394,6 +394,10 @@ READERS = [
     ("find_us_items", lambda b, p: b.find_us_items(p)),
     ("find_uc_items", lambda b, p: b.find_uc_items(p)),
     ("get_board_satellites", lambda b, p: b.get_board_satellites(p)),
+    # US-89 / UC-8901: las lecturas acotadas del board.
+    ("list_story_items", lambda b, p: b.list_story_items(p, uc_id="UC-001")),
+    ("list_board_summary", lambda b, p: b.list_board_summary(p, with_acs=True)),
+    ("count_acceptance_criteria", lambda b, p: b.count_acceptance_criteria(p, ["UC-001"])),
 ]
 
 #: Devuelven constantes del flujo sin consultar la base: nada que aislar.

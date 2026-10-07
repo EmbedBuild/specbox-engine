@@ -56,6 +56,10 @@ un conteo inesperado (p.ej. el del engine), **PARA** — el source no es el tuyo
 Llama a `detect_project_backend(project_path=".")`. Reporta al usuario el backend
 actual y de qué fuente se infirió (settings / items.json / app_spec / default).
 
+Con el MCP alojado (UC-8604) añade `files_content` con `.claude/settings.local.json`,
+`doc/tracking/items.json` y `doc/app/app_spec.md` (los que existan): el servidor no lee tu
+repositorio.
+
 ```
 Backend actual: {freeform|trello|plane|native} (fuente: {...})
 ```
@@ -314,9 +318,8 @@ registro y devuelve `client_writes` (en `switch_result.client_writes` de
 
 Con el MCP local la respuesta no trae `client_writes`: el servidor ya escribió los tres.
 
-Verifica la consistencia leyendo tú `.claude/settings.local.json`: `specbox.backend_type`
-debe ser el nuevo backend. No uses `detect_project_backend` con el MCP remoto: no lee tu
-repositorio y responde `APP_DOCS_CONTENT_REQUIRED`.
+Verifica la consistencia con `detect_project_backend` (con el MCP remoto, enviando
+`files_content` con los ficheros ya escritos, como en el Paso 1): debe devolver el nuevo backend.
 
 ---
 

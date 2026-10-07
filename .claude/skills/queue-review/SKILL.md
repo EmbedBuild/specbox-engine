@@ -28,12 +28,35 @@ Procesa la cola en `doc/app/decisions_queue.md`. La cola solo se llena cuando el
 
 ---
 
+## MCP remoto: enviar la cola
+
+El servidor alojado (`mcp.specbox.build`) no lee ni escribe tu repositorio (UC-8604). Con él,
+cada llamada a estas tools lleva **`files_content`**: los ficheros que lee, como `{ruta relativa:
+contenido}` (léelos con `Read`; los que no existan, no los mandes). Después aplica la respuesta en
+el repositorio:
+
+- `files_changed` → escribe cada fichero con ese contenido completo (`Write`).
+- `files_deleted` → bórralos.
+- `files_appended` → añade ese texto al final del fichero, sin sobrescribir lo que tiene.
+- `files_requested` → ficheros que la tool buscó y no mandaste: si existen, repite la llamada
+  añadiéndolos.
+
+Si la respuesta es `APP_DOCS_CONTENT_REQUIRED` o `CLIENT_CONTENT_REQUIRED`, faltó el contenido. Con
+el MCP local (`stdio`) basta `project_path` y nada de esto hace falta.
+
+Aquí el fichero es uno: `doc/app/decisions_queue.md`. Cada `resolve_queue_entry` devuelve la cola
+nueva en `files_changed`: escríbela y manda **esa** versión en la llamada siguiente (en un batch,
+encadena las resoluciones sobre el contenido actualizado).
+
+---
+
 ## Paso 1 — Listar la cola
 
 Llama:
 
 ```
 list_decisions_queue(project_path=".")
+# MCP remoto: list_decisions_queue(files_content={"doc/app/decisions_queue.md": <contenido>})
 ```
 
 Si retorna `exists=false`, informa "La cola no se ha creado aún. Las decisiones diferibles solo se acumulan cuando `autopilot.queue_enabled=true`." y termina.

@@ -31,6 +31,36 @@ es la forma legítima de resolverlo.
 
 ---
 
+## MCP remoto: enviar los ficheros
+
+El servidor alojado (`mcp.specbox.build`) no lee ni escribe tu repositorio (UC-8604). Con él,
+cada llamada a estas tools lleva **`files_content`**: los ficheros que lee, como `{ruta relativa:
+contenido}` (léelos con `Read`; los que no existan, no los mandes). Después aplica la respuesta en
+el repositorio:
+
+- `files_changed` → escribe cada fichero con ese contenido completo (`Write`).
+- `files_deleted` → bórralos.
+- `files_appended` → añade ese texto al final del fichero, sin sobrescribir lo que tiene.
+- `files_requested` → ficheros que la tool buscó y no mandaste: si existen, repite la llamada
+  añadiéndolos.
+
+Si la respuesta es `APP_DOCS_CONTENT_REQUIRED` o `CLIENT_CONTENT_REQUIRED`, faltó el contenido. Con
+el MCP local (`stdio`) basta `project_path` y nada de esto hace falta.
+
+Ficheros por tool en esta skill:
+
+| Tool | `files_content` |
+|------|-----------------|
+| `verify_app_docs`, `record_app_docs_signature`, `apply_app_docs_sync` | `doc/app/app_prd.md`, `doc/app/app_spec.md`, `doc/app/app_market.md`, `.quality/app_docs_sync.lock`, `.claude/settings.local.json`, `.specbox-meta.json` |
+| `detect_project_backend` | `.claude/settings.local.json`, `doc/tracking/items.json`, `doc/app/app_spec.md` |
+| `list_canonical_decisions` | `.quality/canonical_decisions.json` |
+| `detect_app_docs_drift` | los de la primera fila, los lockfiles (`package.json`, `pubspec.yaml`, `pyproject.toml`, `go.mod`), `doc/tracking/items.json` y lo que pida `files_requested` |
+
+`apply_app_docs_sync` devuelve los documentos reescritos en `files_changed` y el lock nuevo;
+`record_app_docs_signature`, el lock (`.quality/app_docs_sync.lock`).
+
+---
+
 ## Paso 0 — Comprobaciones previas
 
 1. Ejecuta `git status`. Si hay cambios sin commitear que afectan a `doc/app/`, advierte al usuario y ofrece opciones:

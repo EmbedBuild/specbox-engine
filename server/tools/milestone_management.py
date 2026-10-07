@@ -786,7 +786,8 @@ def register_milestone_management_tools(mcp_instance) -> None:
     )(mh.milestone_deprecated(get_satellite_queue, when=mh.uses_milestone))
     mcp_instance.tool(
         description="Propagate satellite labels from orchestrator settings.local.json to board "
-        "cards without a satellite assigned."
+        "cards without a satellite assigned. Remote MCP: send that file as settings_content; "
+        "the server never reads orchestrator_path."
     )(sync_multirepo_state)
     mcp_instance.tool(
         description="Declare the satellites of a multi-repo project on its board (Native). "

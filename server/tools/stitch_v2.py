@@ -701,9 +701,11 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
             prompt: The full prompt string to validate.
             mode: 'warn' (default — issues reported, prompt still allowed)
                 or 'strict' (errors set valid=False).
-            project_root: If provided, the validator loads
+            project_root: Local MCP only. If provided, the validator loads
                 ``{project_root}/doc/design/DESIGN.md`` and uses its
                 palette to auto-resolve named colors.
+            design_md_content: The DESIGN.md text, for the same palette on a
+                remote MCP, which never reads ``project_root`` (UC-8604).
 
         Returns:
             ``{status, valid, normalized_prompt, warnings, errors,

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.22.1 — "Llave" (sobre v6.22.0 "Cerrojo")<br/>
+  v 6.22.2 — "Mesura" (sobre v6.22.1 "Llave")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -38,6 +38,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 Con el MCP alojado cambia una cosa: las tools de documentos canónicos, cola, decisiones y estado de implementación responden con un aviso en vez de usar el disco del servidor. Con el MCP local todo sigue igual.
 
 **v6.22.1 — "Llave"** devuelve esas tools al MCP alojado: les envías tus ficheros y te devuelven lo que hay que escribir, sin que el servidor toque su disco. Además, el MCP lee del board solo lo que necesita y la extensión pregunta quién eres cada 30 minutos en vez de cada minuto.
+
+**v6.22.2 — "Mesura"** hace que la pestaña de cambios de la extensión en el Marketplace vuelva a decir qué cambia en cada versión.
 
 ---
 
@@ -640,7 +642,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.22.1 — "Llave" (over v6.22.0 "Cerrojo")
+> v 6.22.2 — "Mesura" (over v6.22.1 "Llave")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -667,6 +669,8 @@ A system that turns Claude Code into a serious teammate:
 With the hosted MCP one thing changes: the canonical documents, queue, decisions and implementation status tools answer with a notice instead of using the server's disk. With the local MCP nothing changes.
 
 **v6.22.1 — "Llave"** ("key") brings those tools back to the hosted MCP: you send your files and get back what to write, without the server touching its disk. Also, the MCP reads from the board only what it needs and the extension asks who you are every 30 minutes instead of every minute.
+
+**v6.22.2 — "Mesura"** ("restraint") makes the extension's changelog tab on the Marketplace say again what each version changes.
 
 ## What's new in v6.21
 

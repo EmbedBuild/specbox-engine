@@ -8,6 +8,13 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.22.2] — "Mesura"
+
+### Changed
+
+- **This changelog lists what changes again.** It had stopped at 6.6.0; see the 6.22.1 entry
+  below for the identity check every 30 minutes. No change in how the extension behaves.
+
 ## [6.22.1] — "Llave"
 
 ### Changed

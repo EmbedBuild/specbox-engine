@@ -2,6 +2,25 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.22.2] - 2026-10-07 — "Mesura"
+
+La 6.22.1 hizo que la extensión preguntara quién eres cada 30 minutos en vez de cada minuto, pero
+la pestaña de cambios del Marketplace no lo contaba: enseña el `CHANGELOG.md` de la extensión,
+parado desde la 6.6.0, y `/release` solo escribía el de la raíz. Parte del engine de US-89
+(UC-8903) del board del orquestador.
+
+### Changed
+
+- `vscode-extension/CHANGELOG.md` vuelve a decir qué cambia: entrada de 6.22.1 (identidad cada 30
+  minutos, al recuperar el foco tras 5 minutos y al iniciar sesión o renovar el token) y enlace a
+  este fichero para 6.7.0–6.22.0 (#249).
+- `/release` gana el paso 5.5.3: si la release toca `vscode-extension/`, también añade su entrada
+  en `vscode-extension/CHANGELOG.md` y la incluye en el `git add` (#249).
+
+### Compatibility
+
+- Solo documentación: la extensión, la CLI y el servidor se comportan igual que en 6.22.1.
+
 ## [6.22.1] - 2026-10-07 — "Llave"
 
 Con el cerrojo echado, cada uno abre con sus propios ficheros: las tools que trabajan sobre el

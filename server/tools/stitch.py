@@ -19,10 +19,12 @@ import structlog
 from fastmcp import Context, FastMCP
 
 from ..auth_gateway import get_stitch_client, store_stitch_credentials
+from ..coordination.project_state_scope import project_state_dir
 from ..coordination.i18n_messages import extract_locale_from_ctx
 from ..design_system import candidate_marker
 from ..stitch_client import StitchClientError, check_theme, design_system_payload
 from ..stitch_enums import DEFAULT_MODEL, UnknownModelError, resolve_model
+from ..transport import is_remote_transport
 
 logger = structlog.get_logger(__name__)
 
@@ -34,9 +36,15 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
     """Register Stitch proxy tools on the MCP instance."""
 
     def _log_stitch_usage(project: str, tool: str) -> None:
-        """Log Stitch proxy usage for telemetry."""
+        """Log Stitch proxy usage for telemetry — local servers only.
+
+        On a remote server the access log already records each call, and the
+        session's ``project`` is not checked against the caller (UC-8603).
+        """
+        if is_remote_transport():
+            return
         try:
-            log_dir = state_path / "projects" / project
+            log_dir = project_state_dir(state_path, project)
             log_dir.mkdir(parents=True, exist_ok=True)
             log_file = log_dir / "stitch_usage.jsonl"
             entry = {
@@ -47,6 +55,8 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
                 f.write(json.dumps(entry, ensure_ascii=False) + "\n")
         except OSError:
             pass  # Telemetry is best-effort
+        except ValueError:
+            pass  # not a project name (InvalidProjectNameError)
 
     @mcp.tool
     async def stitch_set_api_key(

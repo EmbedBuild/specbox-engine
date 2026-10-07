@@ -36,7 +36,9 @@ import structlog
 from fastmcp import Context, FastMCP
 
 from ..coordination.i18n_messages import extract_locale_from_ctx
+from ..coordination.project_state_scope import project_state_dir
 from ..design_system import candidate_marker
+from ..transport import is_remote_transport
 from ..veg.design_system_gate import evaluate_gate
 from ..veg.visual_provider import claude_design_config, parse_providers
 
@@ -246,8 +248,12 @@ def register_claude_design_tools(mcp: FastMCP, state_path: Path):
     """
 
     def _log_usage(project: str, tool: str) -> None:
+        # Local servers only: remotely the access log already records each
+        # call and ``project`` is not checked against the caller (UC-8603).
+        if is_remote_transport():
+            return
         try:
-            log_dir = state_path / "projects" / project
+            log_dir = project_state_dir(state_path, project)
             log_dir.mkdir(parents=True, exist_ok=True)
             with open(log_dir / "claude_design_usage.jsonl", "a", encoding="utf-8") as f:
                 f.write(
@@ -262,8 +268,8 @@ def register_claude_design_tools(mcp: FastMCP, state_path: Path):
                     )
                     + "\n"
                 )
-        except OSError:
-            pass  # best-effort
+        except (OSError, ValueError):
+            pass  # best-effort (ValueError: not a project name)
 
     @mcp.tool
     async def claude_design_list_projects(ctx: Context, project: str) -> dict:

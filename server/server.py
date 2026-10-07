@@ -35,6 +35,7 @@ from .tools.access_log import register_access_log_tools  # UC-3803
 from .coordination.access_log import ToolAccessLogMiddleware, build_default_store, configure_store
 from .coordination.transport_auth import TransportAuthMiddleware, TransportNoticeMiddleware  # UC-3901
 from .coordination.abuse_guard import AbuseGuardMiddleware  # UC-3903
+from .coordination.project_state_scope import ProjectStateScopeMiddleware  # UC-8603
 from .tools.spec_mutations import register_spec_mutations_tools
 from .tools.milestone_management import register_milestone_management_tools
 from .tools.epics import register_epic_tools  # US-78 UC-7802
@@ -207,6 +208,11 @@ register_access_log_tools(mcp)
 # connections without a token are tolerated (grace period), every tool response
 # carries the notice with the deadline and the two ways to connect.
 mcp.add_middleware(TransportNoticeMiddleware())
+
+# UC-8603 — a tool that turns ``project`` into STATE_PATH/projects/<project>
+# gets a valid name or INVALID_PROJECT_NAME, and on a remote transport the
+# telemetry, activity and audit tools only touch a project the caller sees.
+mcp.add_middleware(ProjectStateScopeMiddleware(STATE_PATH))
 
 # Register Tier 1 mutation tools (v5.23.0 Full Mutations — 8 tools:
 # update_uc, update_uc_batch, update_us, update_ac, update_ac_batch,

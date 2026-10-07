@@ -24,6 +24,7 @@ from ..coordination.identity import UnauthenticatedError
 from ..design_system import SystemTokensError, parse_system_tokens, system_tokens_notice
 from ..design_system.code_gaps import DesignSystemRules, design_gap_report
 from ..coordination.project_id import InvalidProjectIdError, validate_project_id
+from ..coordination.project_state_scope import project_state_dir
 from ..coordination.scope import (
     NATIVE_PROJECT_ID_FIELD,
     REGISTERED_BY_FIELD,
@@ -1000,7 +1001,7 @@ def register_onboarding_tools(
                 registry.setdefault("projects", {})[project] = registry_entry
                 _write_registry(state_path, registry)
 
-                project_dir = state_path / "projects" / project
+                project_dir = project_state_dir(state_path, project)
                 meta: dict = {
                     "stack": detected_stack,
                     "infra": infra_list,
@@ -1101,7 +1102,7 @@ def register_onboarding_tools(
             return not_visible_envelope(project, scope, registry.get("projects"))
 
         # Read existing meta to preserve project config
-        project_dir = state_path / "projects" / project
+        project_dir = project_state_dir(state_path, project)
         meta = _read_meta(project_dir)
         proj_info = registry["projects"][project]
         detected_stack = meta.get("stack", proj_info.get("stack", "unknown"))
@@ -1809,7 +1810,7 @@ def register_onboarding_tools(
         now = datetime.now(timezone.utc).isoformat()
 
         # Update project meta
-        project_dir = state_path / "projects" / project
+        project_dir = project_state_dir(state_path, project)
         meta = _read_meta(project_dir)
         meta["status"] = "archived"
         meta["archived_at"] = now

@@ -42,6 +42,7 @@ from ..coordination.access_log import (
 )
 from ..coordination.identity import UnauthenticatedError
 from ..coordination.project_id import InvalidProjectIdError, validate_project_id
+from ..coordination.project_state_scope import project_state_dir
 from ..coordination.scope import (
     NATIVE_PROJECT_ID_FIELD,
     REGISTERED_BY_FIELD,
@@ -72,7 +73,7 @@ STATE_RESET_ALL = "*"
 
 def _ensure_project_dir(state_path: Path, project: str) -> Path:
     """Create the project directory under state/projects/ if needed."""
-    project_dir = state_path / "projects" / project
+    project_dir = project_state_dir(state_path, project)
     project_dir.mkdir(parents=True, exist_ok=True)
     return project_dir
 
@@ -858,7 +859,7 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
         _write_registry(state_path, registry)
 
         # Initialize meta.json — never with a description (AC-04)
-        project_dir = state_path / "projects" / project
+        project_dir = project_state_dir(state_path, project)
         meta = strip_sensitive_fields(_read_meta(project_dir))
         meta.update({
             "stack": stack or meta.get("stack", "unknown"),
@@ -918,7 +919,7 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
         if entry is None or not scope.can_see(project, entry):
             return not_visible_envelope(project, scope, registry.get("projects"))
 
-        project_dir = state_path / "projects" / project
+        project_dir = project_state_dir(state_path, project)
         meta = strip_sensitive_fields(_read_meta(project_dir))
         infra_list = [s.strip() for s in infra.split(",") if s.strip()] if infra else None
 
@@ -969,7 +970,7 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
                 "available": _available_projects(state_path),
             }
 
-        project_dir = state_path / "projects" / project
+        project_dir = project_state_dir(state_path, project)
         sessions = _filter_by_days(_read_jsonl(project_dir / "sessions.jsonl"), days)
         checkpoints = _filter_by_days(_read_jsonl(project_dir / "checkpoints.jsonl"), days)
         healing = _filter_by_days(_read_jsonl(project_dir / "healing.jsonl"), days)
@@ -1082,7 +1083,7 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
                 "available": _available_projects(state_path),
             }
 
-        project_dir = state_path / "projects" / project
+        project_dir = project_state_dir(state_path, project)
         events: list[dict] = []
 
         for record in _read_jsonl(project_dir / "sessions.jsonl"):
@@ -1254,7 +1255,7 @@ def register_state_tools(mcp: FastMCP, engine_path: Path, state_path: Path):
             }
 
         # Count files before deletion
-        project_dir = state_path / "projects" / project
+        project_dir = project_state_dir(state_path, project)
         files_deleted = 0
         if project_dir.exists():
             files_deleted = sum(1 for _ in project_dir.rglob("*") if _.is_file())

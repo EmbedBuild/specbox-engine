@@ -14,6 +14,7 @@ from ..audit.reporters import load_brand, write_json_report, write_pdf_report
 from ..audit.schema import QualityReport, new_audit_id
 from ..audit.signals import fetch_specbox_signals
 from ..audit.tool_check import check_audit_tools
+from ..coordination.project_state_scope import project_state_dir
 from .onboarding import _detect_infra, _detect_stack
 
 
@@ -195,7 +196,7 @@ def register_audit_tools(mcp: FastMCP, engine_path: Path, state_path: Path) -> N
     @mcp.tool
     def get_last_audit(project: str) -> dict:
         """Return the latest audit summary stored in the project's meta.json."""
-        meta_file = state_path / "projects" / project / "meta.json"
+        meta_file = project_state_dir(state_path, project) / "meta.json"
         if not meta_file.exists():
             return {"error": f"No meta for project '{project}'"}
         try:

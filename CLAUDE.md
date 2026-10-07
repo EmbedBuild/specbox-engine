@@ -2346,6 +2346,25 @@ dos historias seguían abiertas con todas sus UC hechas.
 - `transport_auth`: los rechazos enlazan `https://cloud.specbox.build/como-se-conecta` (ES) o
   `/how-to-connect` (EN) según `Accept-Language`.
 
+## El estado de un proyecto solo lo toca quien lo ve (US-86 · UC-8603)
+
+Las tools que convierten `project` en `STATE_PATH/projects/<project>` (telemetría `report_*` y
+`report_heartbeat`, `get_project_activity`, `get_project_timeline`, `attach_audit_evidence`,
+`get_last_audit`, `upload_design_md_to_stitch`) no preguntaban quién llamaba ni validaban el nombre.
+
+- `server/coordination/project_state_scope.py::project_state_dir(state_path, project)` es la única
+  forma de construir la carpeta de un proyecto: acepta un nombre (con espacios) o un `owner/repo` y
+  rechaza vacío, absoluto, `\`, segmentos `.`/`..` o más de una `/` (`InvalidProjectNameError`,
+  `INVALID_PROJECT_NAME`). La usan `state.py`, `onboarding.py`, la persistencia de auditoría y los
+  registros de uso de Stitch y Claude Design.
+- `ProjectStateScopeMiddleware` (registrado en `server.py`): para `PROJECT_NAME_TOOLS` responde
+  `INVALID_PROJECT_NAME` sin llamar a la tool; en transporte remoto, para `STATE_PROJECT_TOOLS`,
+  resuelve a quien llama y solo deja pasar si el proyecto está registrado y lo ve (`can_see`). Si
+  no, `UNAUTHENTICATED` o `PROJECT_NOT_VISIBLE` con `available` = solo lo propio, y en remoto ya no
+  se registra un proyecto solo por mandarle telemetría. En `stdio`, igual que antes.
+- `stitch_usage.jsonl` y `claude_design_usage.jsonl` solo se escriben con servidor local.
+- Tests: `tests/test_project_state_scope.py`.
+
 ## La extensión solo avanza y cada versión cuenta qué evita (v6.14.1)
 
 - **UC-4307 (US-14) — la extensión nunca se degrada al actualizarse.**

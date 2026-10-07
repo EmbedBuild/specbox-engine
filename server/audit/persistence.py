@@ -9,17 +9,18 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ..coordination.project_state_scope import project_state_dir
 from .schema import QualityReport
 
 
 def audit_dir(state_path: Path, project: str) -> Path:
-    d = state_path / "projects" / project / "evidence" / "audits"
+    d = project_state_dir(state_path, project) / "evidence" / "audits"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
 
 def update_project_meta(state_path: Path, project: str, summary: dict[str, Any]) -> None:
-    meta_file = state_path / "projects" / project / "meta.json"
+    meta_file = project_state_dir(state_path, project) / "meta.json"
     meta_file.parent.mkdir(parents=True, exist_ok=True)
     data: dict = {}
     if meta_file.exists():

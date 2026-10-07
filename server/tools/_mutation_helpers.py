@@ -21,7 +21,6 @@ from ..spec_backend import ChecklistItemDTO, ItemDTO, SpecBackend, parse_item_id
 
 # ── Constants ────────────────────────────────────────────────────────
 
-MILESTONES: tuple[str, ...] = ("H1", "H2", "H3", "H4")
 LINK_TYPES: tuple[str, ...] = (
     "absorbs",
     "blocks",
@@ -30,12 +29,6 @@ LINK_TYPES: tuple[str, ...] = (
     "related_to",
 )
 VERDICT_TYPES: tuple[str, ...] = ("ACCEPTED", "CONDITIONAL", "REJECTED")
-DEFAULT_MILESTONE_TARGETS: dict[str, float] = {
-    "H1": 0.30,
-    "H2": 0.25,
-    "H3": 0.25,
-    "H4": 0.20,
-}
 
 
 def utc_now_iso() -> str:
@@ -44,13 +37,6 @@ def utc_now_iso() -> str:
 
 
 # ── Validators ───────────────────────────────────────────────────────
-
-
-def validate_milestone(value: str) -> tuple[bool, str | None]:
-    """Check if value is a valid milestone key."""
-    if value in MILESTONES:
-        return True, None
-    return False, f"Milestone must be one of {MILESTONES}, got {value!r}"
 
 
 def validate_link_type(value: str) -> tuple[bool, str | None]:
@@ -118,55 +104,14 @@ async def check_satellite(backend: Any, board_id: str, value: str) -> tuple[bool
     return False, f"Satellite {value!r} is not declared for this project. Valid satellites: {', '.join(declared)}"
 
 
-# ── Milestones: deprecated (US-78 / UC-7806) ─────────────────────────
+# ── Milestones: removed (US-78 / UC-7807) ────────────────────────────
 
-#: Milestones H1–H4 give way to epics (D20). They keep working for two
-#: versions and every response says so; UC-7807 removes them in 6.23.0.
-MILESTONE_DEPRECATION: dict[str, str] = {
-    "since": "6.21.0",
-    "removed_in": "6.23.0",
-    "use_instead": "epics: add_epic, set_us_epic, list_epics, get_epic",
-    "message": (
-        "Milestones are deprecated since v6.21.0 and will be removed in v6.23.0. "
-        "Group stories with epics instead (add_epic, set_us_epic, list_epics, get_epic)."
-    ),
-}
-
-#: Prefix for the description of a deprecated tool.
-MILESTONE_DEPRECATED_LABEL = "[DEPRECATED since v6.21.0, removed in v6.23.0 — use epics] "
-
-
-def milestone_deprecated(fn: Any, *, when: Any = None) -> Any:
-    """Wrap a tool so its dict response carries ``deprecation`` (UC-7806 AC-01).
-
-    ``when(bound_arguments) -> bool`` limits the notice to calls that use a
-    milestone (``update_uc(milestone=...)``); without it, every call carries it.
-    The signature FastMCP sees is the original one.
-    """
-    import functools
-    import inspect
-
-    signature = inspect.signature(fn)
-
-    @functools.wraps(fn)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
-        result = await fn(*args, **kwargs)
-        try:
-            bound = signature.bind_partial(*args, **kwargs).arguments
-        except TypeError:
-            bound = kwargs
-        if (when is None or when(bound)) and isinstance(result, dict):
-            result = {**result, "deprecation": dict(MILESTONE_DEPRECATION)}
-        return result
-
-    return wrapper
-
-
-def uses_milestone(bound: dict[str, Any]) -> bool:
-    """True when the call passed a milestone, directly or in a batch entry."""
-    if bound.get("milestone"):
-        return True
-    return any(isinstance(e, dict) and e.get("milestone") for e in bound.get("updates") or [])
+#: Milestones H1–H4 gave way to epics (D20): deprecated in 6.21.0,
+#: removed in 6.23.0. A batch entry that still carries one gets this.
+MILESTONES_REMOVED_MESSAGE = (
+    "Milestones were removed in v6.23.0. Group stories with epics instead "
+    "(add_epic, set_us_epic, list_epics, get_epic)."
+)
 
 
 #: US-33/UC-3304 — señales de RESULTADO OBSERVABLE.
@@ -555,50 +500,6 @@ def classify_ac(text: str) -> Literal["simple", "integration", "e2e"]:
         if kw in lower:
             return "simple"
     return "simple"
-
-
-# ── Milestone distribution math ──────────────────────────────────────
-
-
-def compute_distribution(
-    items: list[ItemDTO], ac_counts: dict[str, int]
-) -> dict[str, dict[str, Any]]:
-    """Compute per-milestone distribution from a list of UCs.
-
-    Args:
-        items: list of UC ItemDTOs with optional meta["milestone"]
-        ac_counts: mapping uc_id -> number of ACs
-
-    Returns:
-        {
-            "H1": {"ucs": [uc_id, ...], "ac_count": int, "pct_acs": float},
-            ...
-        }
-    """
-    distribution: dict[str, dict[str, Any]] = {
-        m: {"ucs": [], "ac_count": 0, "pct_acs": 0.0} for m in MILESTONES
-    }
-    total_acs = 0
-    for item in items:
-        milestone = item.meta.get("milestone")
-        if milestone not in MILESTONES:
-            continue
-        uc_id = item.meta.get("uc_id") or parse_item_id(item.name, "UC")[0]
-        if not uc_id:
-            continue
-        ac_count = int(ac_counts.get(uc_id, 0))
-        bucket = distribution[milestone]
-        bucket["ucs"].append(uc_id)
-        bucket["ac_count"] = int(bucket["ac_count"]) + ac_count
-        total_acs += ac_count
-
-    if total_acs > 0:
-        for bucket in distribution.values():
-            bucket["pct_acs"] = round(
-                int(bucket["ac_count"]) / total_acs, 4
-            )
-
-    return distribution
 
 
 # ── Settings path resolution ─────────────────────────────────────────

@@ -2,7 +2,7 @@
 SpecBox Engine MCP Server.
 
 Unified MCP endpoint exposing the full tool surface (engine + spec-driven +
-mutations + milestones + board-ops + acceptance + migration + telemetry +
+mutations + multirepo + board-ops + acceptance + migration + telemetry +
 stitch + quality-audit + app-docs sync layer + product discovery).
 Soporta stdio (Claude Code local) y streamable-http (remoto).
 
@@ -225,10 +225,9 @@ mcp.add_middleware(ClientPathGuardMiddleware())
 # add_ac, delete_ac, add_uc)
 register_spec_mutations_tools(mcp)
 
-# Register Tier 2 milestone & multirepo tools (v5.23.0 — 8 tools:
-# set_uc_milestone, set_uc_milestone_batch, set_uc_satellite,
-# get_milestone_status, rebalance_milestones, get_satellite_queue,
-# sync_multirepo_state, get_cross_repo_dependencies)
+# Register Tier 2 multirepo tools (set_uc_satellite, get_satellite_queue,
+# sync_multirepo_state, declare_satellites, get_cross_repo_dependencies).
+# The milestone tools were removed in v6.23.0 (US-78/UC-7807): epics.
 register_milestone_management_tools(mcp)
 
 # Register the epic tools (US-78 / UC-7802, D20 — 6 tools: add_epic,
@@ -240,9 +239,8 @@ register_epic_tools(mcp)
 # get_board_diff)
 register_board_operations_tools(mcp)
 
-# Register Tier 4 acceptance automation tools (v5.23.0 — 3 tools:
-# bulk_update_hours_from_description, estimate_from_ac,
-# milestone_acceptance_check)
+# Register Tier 4 acceptance automation tools (bulk_update_hours_from_description,
+# estimate_from_ac; milestone_acceptance_check was removed in v6.23.0)
 register_acceptance_automation_tools(mcp)
 
 # Register migration tools (5 tools: migrate_preview, migrate_project, migrate_status, set_migration_target, switch_backend)

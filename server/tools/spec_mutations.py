@@ -7,7 +7,7 @@ Guiding principles (copied here as a reminder — read the design doc for
 rationale):
 
 1. Batch-first: every granular tool's docstring references its batch equivalent.
-2. Validation lives here, not in backends (milestone, satellite, link_type).
+2. Validation lives here, not in backends (satellite, link_type).
 3. Every mutation is idempotent — returns reason="no_change" on second call.
 4. Errors are structured dicts with code field, never raised.
 5. All tools take board_id + ctx and always `await backend.close()` in finally.
@@ -37,7 +37,6 @@ def _uc_meta_updates(
     screens: list[str] | None,
     actor: str | None,
     context_text: str | None,
-    milestone: str | None,
     satellite: str | None,
 ) -> dict[str, Any]:
     return {
@@ -45,7 +44,6 @@ def _uc_meta_updates(
         "pantallas": screens,
         "actor": actor,
         "context": context_text,
-        "milestone": milestone,
         "satellite": satellite,
     }
 
@@ -54,12 +52,10 @@ def _us_meta_updates(
     *,
     hours: float | None,
     screens: list[str] | None,
-    milestone: str | None,
 ) -> dict[str, Any]:
     return {
         "horas": hours,
         "pantallas": screens,
-        "milestone": milestone,
     }
 
 
@@ -83,7 +79,6 @@ async def update_uc(
     screens: list[str] | None = None,
     actor: str | None = None,
     context_text: str | None = None,
-    milestone: str | None = None,
     satellite: str | None = None,
     items_content: str | None = None,
 ) -> dict[str, Any]:
@@ -93,9 +88,9 @@ async def update_uc(
     call instead of N and keeps token cost proportional to payload size.
     For bulk initial ingest of UCs, use `import_spec`.
 
-    Only non-None fields are updated (merge semantics). `milestone` must be
-    one of H1, H2, H3, H4. `satellite` must match a key declared in the
-    orchestrator's settings.local.json → multirepo.satellites.
+    Only non-None fields are updated (merge semantics). `satellite` must
+    match a key declared in the orchestrator's settings.local.json →
+    multirepo.satellites. (Milestones were removed in v6.23.0: use epics.)
 
     Idempotent: calling twice with the same args returns `reason: "no_change"`
     on the second call.
@@ -109,10 +104,6 @@ async def update_uc(
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        if milestone is not None:
-            ok, err = mh.validate_milestone(milestone)
-            if not ok:
-                return _mk_error("INVALID_MILESTONE", err or "invalid milestone")
         if satellite is not None:
             ok, err = await mh.check_satellite(backend, board_id, satellite)
             if not ok:
@@ -127,7 +118,6 @@ async def update_uc(
             screens=screens,
             actor=actor,
             context_text=context_text,
-            milestone=milestone,
             satellite=satellite,
         )
         merged_meta, meta_changed = mh.merge_meta(uc_item.meta, meta_updates)
@@ -199,8 +189,9 @@ async def update_uc_batch(
     UC like a loop of `update_uc` would).
 
     Each entry in `updates` is a dict with keys: uc_id (required), name,
-    description, hours, screens, actor, context_text, milestone, satellite.
-    Only non-None fields are applied per UC.
+    description, hours, screens, actor, context_text, satellite. Only
+    non-None fields are applied per UC. An entry with ``milestone`` fails
+    with MILESTONES_REMOVED (removed in v6.23.0: use epics).
 
     By default, errors on individual UCs are collected and the batch
     continues (partial success). Set `stop_on_error=True` to abort on first
@@ -230,14 +221,11 @@ async def update_uc_batch(
                     break
                 continue
 
-            milestone = entry.get("milestone")
-            if milestone is not None:
-                ok, err = mh.validate_milestone(milestone)
-                if not ok:
-                    failed.append({"uc_id": uc_id, "error": err, "code": "INVALID_MILESTONE"})
-                    if stop_on_error:
-                        break
-                    continue
+            if "milestone" in entry:
+                failed.append({"uc_id": uc_id, "error": mh.MILESTONES_REMOVED_MESSAGE, "code": "MILESTONES_REMOVED"})
+                if stop_on_error:
+                    break
+                continue
 
             satellite = entry.get("satellite")
             if satellite is not None:
@@ -260,7 +248,6 @@ async def update_uc_batch(
                 screens=entry.get("screens"),
                 actor=entry.get("actor"),
                 context_text=entry.get("context_text"),
-                milestone=milestone,
                 satellite=satellite,
             )
             merged_meta, meta_changed = mh.merge_meta(uc_item.meta, meta_updates)
@@ -325,37 +312,27 @@ async def update_us(
     description: str | None = None,
     hours: float | None = None,
     screens: list[str] | None = None,
-    milestone: str | None = None,
-    propagate_milestone: bool = True,
     items_content: str | None = None,
 ) -> dict[str, Any]:
-    """Update metadata of a User Story.
+    """Update metadata of a User Story (name, description, hours, screens).
 
-    If `milestone` is set and `propagate_milestone=True` (default), the
-    milestone is assigned to all child UCs that do NOT already have a
-    milestone set. UCs that already have a milestone are never overwritten.
+    Milestones were removed in v6.23.0: the story's epic (``set_us_epic``)
+    groups the work now.
 
     There is no `update_us_batch` in v1 — US-level mutations are rare
     (typically 1-5 per project). Use repeated `update_us` calls when
     needed.
 
     Returns:
-        {us_id, updated_fields, propagated_to_ucs, backend_item_url, updated_at}
+        {us_id, updated_fields, backend_item_url, updated_at}
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        if milestone is not None:
-            ok, err = mh.validate_milestone(milestone)
-            if not ok:
-                return _mk_error("INVALID_MILESTONE", err or "invalid milestone")
-
         us_item = await mh.find_us(backend, board_id, us_id)
         if not us_item:
             return _mk_error("US_NOT_FOUND", f"User Story {us_id} not found", us_id=us_id)
 
-        meta_updates = _us_meta_updates(
-            hours=hours, screens=screens, milestone=milestone
-        )
+        meta_updates = _us_meta_updates(hours=hours, screens=screens)
         merged_meta, meta_changed = mh.merge_meta(us_item.meta, meta_updates)
 
         if name is not None:
@@ -363,30 +340,10 @@ async def update_us(
         name_changed = name is not None and name != us_item.name
         desc_changed = description is not None and description != us_item.description
 
-        propagated: list[str] = []
-        if milestone is not None and propagate_milestone:
-            children = await backend.get_item_children(board_id, us_item.id)
-            for child in children:
-                if "UC" not in child.labels:
-                    continue
-                if child.meta.get("milestone"):
-                    continue
-                uc_spec_id = child.meta.get("uc_id") or parse_item_id(child.name, "UC")[0]
-                try:
-                    child_merged, child_changed = mh.merge_meta(
-                        child.meta, {"milestone": milestone}
-                    )
-                    if child_changed:
-                        await backend.update_item(board_id, child.id, meta=child_merged)
-                        propagated.append(uc_spec_id or child.id)
-                except Exception:
-                    logger.exception("propagate_milestone_error", uc=uc_spec_id)
-
-        if not meta_changed and not name_changed and not desc_changed and not propagated:
+        if not meta_changed and not name_changed and not desc_changed:
             return {
                 "us_id": us_id,
                 "updated_fields": [],
-                "propagated_to_ucs": [],
                 "backend_item_url": us_item.url,
                 "updated_at": mh.utc_now_iso(),
                 "reason": "no_change",
@@ -416,7 +373,6 @@ async def update_us(
         return {
             "us_id": us_id,
             "updated_fields": fields,
-            "propagated_to_ucs": propagated,
             "backend_item_url": url,
             "updated_at": mh.utc_now_iso(),
         }
@@ -830,7 +786,6 @@ async def add_uc(
     screens: list[str] | None = None,
     actor: str | None = None,
     context_text: str | None = None,
-    milestone: str | None = None,
     satellite: str | None = None,
     items_content: str | None = None,
 ) -> dict[str, Any]:
@@ -858,10 +813,6 @@ async def add_uc(
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        if milestone is not None:
-            ok, err = mh.validate_milestone(milestone)
-            if not ok:
-                return _mk_error("INVALID_MILESTONE", err or "invalid milestone")
         if satellite is not None:
             ok, err = await mh.check_satellite(backend, board_id, satellite)
             if not ok:
@@ -885,7 +836,6 @@ async def add_uc(
             "pantallas": screens,
             "actor": actor,
             "context": context_text,
-            "milestone": milestone,
             "satellite": satellite,
         }.items():
             if val is not None:
@@ -934,17 +884,17 @@ def register_spec_mutations_tools(mcp_instance) -> None:
     """Register the 8 Tier 1 mutation tools on the given FastMCP instance."""
     mcp_instance.tool(
         description="Update metadata of a single Use Case (name, description, hours, "
-        "screens, actor, context, milestone, satellite). Idempotent. For batch "
+        "screens, actor, context, satellite). Idempotent. For batch "
         "updates on many UCs use update_uc_batch."
-    )(mh.milestone_deprecated(update_uc, when=mh.uses_milestone))
+    )(update_uc)
     mcp_instance.tool(
         description="Update metadata of many Use Cases in a single MCP call. Preferred "
         "when updating more than 2-3 UCs — saves round-trips and calls list_items once."
-    )(mh.milestone_deprecated(update_uc_batch, when=mh.uses_milestone))
+    )(update_uc_batch)
     mcp_instance.tool(
-        description="Update metadata of a User Story. Optionally propagates milestone to "
-        "child UCs without a milestone set (existing milestones never overwritten)."
-    )(mh.milestone_deprecated(update_us, when=mh.uses_milestone))
+        description="Update metadata of a User Story (name, description, hours, screens). "
+        "To group stories use epics (set_us_epic)."
+    )(update_us)
     mcp_instance.tool(
         description="Rewrite an AC's text and/or change its done state. For pure done-flag "
         "toggles use mark_ac/mark_ac_batch. For many AC rewrites use update_ac_batch."
@@ -964,4 +914,4 @@ def register_spec_mutations_tools(mcp_instance) -> None:
     mcp_instance.tool(
         description="Create a single new Use Case under an existing US. Auto-assigns next "
         "uc_id. Use for 1-3 additions; for bulk creation prefer import_spec."
-    )(mh.milestone_deprecated(add_uc, when=mh.uses_milestone))
+    )(add_uc)

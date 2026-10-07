@@ -259,22 +259,21 @@ async def _seed_us_uc(backend: InMemoryBackend, us_id="US-01", uc_id="UC-001"):
 async def test_update_uc_happy_path(backend, ctx):
     _, uc = await _seed_us_uc(backend)
     result = await sm.update_uc(
-        "board", "UC-001", ctx, hours=5.0, milestone="H1", actor="Admin"
+        "board", "UC-001", ctx, hours=5.0, actor="Admin"
     )
     assert result.get("error") is None
-    assert set(result["updated_fields"]) == {"horas", "milestone", "actor"}
+    assert set(result["updated_fields"]) == {"horas", "actor"}
     assert backend.items[uc.id].meta["horas"] == 5.0
-    assert backend.items[uc.id].meta["milestone"] == "H1"
     assert backend.closed
 
 
 async def test_update_uc_idempotent(backend, ctx):
     await _seed_us_uc(backend)
     # First call
-    first = await sm.update_uc("board", "UC-001", ctx, hours=8.0, milestone="H2")
-    assert "H2" not in (first.get("reason") or "")
+    first = await sm.update_uc("board", "UC-001", ctx, hours=8.0, actor="Admin")
+    assert first.get("reason") is None
     # Second call with same args → no_change
-    second = await sm.update_uc("board", "UC-001", ctx, hours=8.0, milestone="H2")
+    second = await sm.update_uc("board", "UC-001", ctx, hours=8.0, actor="Admin")
     assert second["reason"] == "no_change"
     assert second["updated_fields"] == []
 
@@ -284,10 +283,10 @@ async def test_update_uc_not_found(backend, ctx):
     assert result["code"] == "UC_NOT_FOUND"
 
 
-async def test_update_uc_invalid_milestone(backend, ctx):
+async def test_update_uc_no_longer_takes_a_milestone(backend, ctx):
     await _seed_us_uc(backend)
-    result = await sm.update_uc("board", "UC-001", ctx, milestone="H9")
-    assert result["code"] == "INVALID_MILESTONE"
+    with pytest.raises(TypeError):
+        await sm.update_uc("board", "UC-001", ctx, milestone="H1")
 
 
 # ── update_uc_batch ──────────────────────────────────────────────────
@@ -297,15 +296,14 @@ async def test_update_uc_batch_mixed_success(backend, ctx):
     await _seed_us_uc(backend, us_id="US-01", uc_id="UC-001")
     await _seed_us_uc(backend, us_id="US-02", uc_id="UC-002")
     updates = [
-        {"uc_id": "UC-001", "milestone": "H1", "hours": 10.0},
-        {"uc_id": "UC-999", "milestone": "H1"},  # not found
-        {"uc_id": "UC-002", "milestone": "H2"},
+        {"uc_id": "UC-001", "hours": 10.0},
+        {"uc_id": "UC-999", "hours": 1.0},  # not found
+        {"uc_id": "UC-002", "milestone": "H2"},  # milestones removed (UC-7807)
     ]
     result = await sm.update_uc_batch("board", updates, ctx, stop_on_error=False)
     assert result["total"] == 3
-    assert len(result["succeeded"]) == 2
-    assert len(result["failed"]) == 1
-    assert result["failed"][0]["code"] == "UC_NOT_FOUND"
+    assert len(result["succeeded"]) == 1
+    assert [f["code"] for f in result["failed"]] == ["UC_NOT_FOUND", "MILESTONES_REMOVED"]
 
 
 async def test_update_uc_batch_calls_list_items_once(backend, ctx):
@@ -322,33 +320,14 @@ async def test_update_uc_batch_calls_list_items_once(backend, ctx):
 
     backend.list_items = counting_list
     updates = [
-        {"uc_id": "UC-001", "milestone": "H1"},
-        {"uc_id": "UC-002", "milestone": "H2"},
+        {"uc_id": "UC-001", "hours": 1.0},
+        {"uc_id": "UC-002", "hours": 2.0},
     ]
     await sm.update_uc_batch("board", updates, ctx)
     assert call_count["n"] == 1  # AC-23: batch calls list_items at most once
 
 
 # ── update_us ────────────────────────────────────────────────────────
-
-
-async def test_update_us_propagates_milestone_only_to_unassigned(backend, ctx):
-    us, uc1 = await _seed_us_uc(backend)  # UC-001 no milestone
-    # Add UC-002 that already has a milestone → must NOT be overwritten
-    uc2 = await backend.create_item(
-        "board",
-        name="UC-002: Registro",
-        labels=["UC"],
-        parent_id=us.id,
-        meta={"uc_id": "UC-002", "us_id": "US-01", "milestone": "H4"},
-    )
-    result = await sm.update_us(
-        "board", "US-01", ctx, milestone="H1", propagate_milestone=True
-    )
-    assert "UC-001" in result["propagated_to_ucs"]
-    assert "UC-002" not in result["propagated_to_ucs"]
-    assert backend.items[uc1.id].meta["milestone"] == "H1"
-    assert backend.items[uc2.id].meta["milestone"] == "H4"  # preserved
 
 
 # ── update_ac ────────────────────────────────────────────────────────
@@ -443,7 +422,6 @@ async def test_add_uc_assigns_next_uc_id(backend, ctx):
         ["Primer AC gherkin dado cuando entonces debe validar"],
         ctx,
         hours=4.0,
-        milestone="H2",
     )
     assert result["uc_id"] == "UC-028"
     assert result["ac_count"] == 1
@@ -451,5 +429,5 @@ async def test_add_uc_assigns_next_uc_id(backend, ctx):
     new_item = next(
         i for i in backend.items.values() if i.meta.get("uc_id") == "UC-028"
     )
-    assert new_item.meta["milestone"] == "H2"
+    assert "milestone" not in new_item.meta
     assert new_item.meta["horas"] == 4.0

@@ -199,117 +199,6 @@ async def _seed_27_ucs(backend: InMemoryBackend) -> list[ItemDTO]:
     return ucs
 
 
-# ── set_uc_milestone_batch with 27-UC fixture ────────────────────────
-
-
-async def test_batch_milestone_27_ucs(backend, ctx):
-    ucs = await _seed_27_ucs(backend)
-    assignments = [
-        {"uc_id": f"UC-{i:03d}", "milestone": f"H{(i % 4) + 1}"}
-        for i in range(1, 28)
-    ]
-    result = await mm.set_uc_milestone_batch("b", assignments, ctx)
-    assert result["total"] == 27
-    assert len(result["succeeded"]) == 27
-    assert len(result["failed"]) == 0
-    dist = result["final_distribution"]
-    # Every milestone bucket should have UCs
-    for m in ("H1", "H2", "H3", "H4"):
-        assert len(dist[m]["ucs"]) > 0
-
-
-async def test_batch_milestone_mixed_errors(backend, ctx):
-    await _seed_27_ucs(backend)
-    assignments = [
-        {"uc_id": "UC-001", "milestone": "H1"},
-        {"uc_id": "UC-999", "milestone": "H1"},   # not found
-        {"uc_id": "UC-002", "milestone": "H99"},   # invalid
-    ]
-    result = await mm.set_uc_milestone_batch("b", assignments, ctx)
-    assert len(result["succeeded"]) == 1
-    assert len(result["failed"]) == 2
-    codes = {f["code"] for f in result["failed"]}
-    assert "UC_NOT_FOUND" in codes
-    assert "INVALID_MILESTONE" in codes
-
-
-async def test_batch_milestone_idempotent(backend, ctx):
-    await _seed_27_ucs(backend)
-    assignments = [{"uc_id": "UC-001", "milestone": "H1"}]
-    await mm.set_uc_milestone_batch("b", assignments, ctx)
-    result = await mm.set_uc_milestone_batch("b", assignments, ctx)
-    assert result["succeeded"][0].get("reason") == "no_change"
-
-
-# ── set_uc_milestone (single) ────────────────────────────────────────
-
-
-async def test_set_milestone_returns_distribution(backend, ctx):
-    await _seed_27_ucs(backend)
-    result = await mm.set_uc_milestone("b", "UC-005", "H2", ctx)
-    assert result["uc_id"] == "UC-005"
-    assert result["milestone"] == "H2"
-    assert result["previous_milestone"] is None
-    assert "H2" in result["distribution"]
-    assert result["total_acs"] == 378  # 27*28/2
-
-
-# ── rebalance_milestones ─────────────────────────────────────────────
-
-
-async def test_rebalance_dry_run_does_not_apply(backend, ctx):
-    ucs = await _seed_27_ucs(backend)
-    # Assign all to H1 — heavily unbalanced
-    for uc in ucs:
-        uc.meta["milestone"] = "H1"
-    result = await mm.rebalance_milestones("b", ctx, dry_run=True)
-    assert len(result["suggested_moves"]) > 0
-    # Verify nothing actually changed in the backend
-    for uc in backend.items.values():
-        if "UC" in uc.labels:
-            assert uc.meta.get("milestone") == "H1"
-
-
-async def test_rebalance_apply_changes_milestones(backend, ctx):
-    ucs = await _seed_27_ucs(backend)
-    for uc in ucs:
-        uc.meta["milestone"] = "H1"
-    result = await mm.rebalance_milestones("b", ctx, dry_run=False)
-    assert len(result["suggested_moves"]) > 0
-    # Some UCs should have been moved away from H1
-    milestones = {uc.meta.get("milestone") for uc in backend.items.values() if "UC" in uc.labels}
-    assert len(milestones) > 1  # Not all H1 anymore
-
-
-# ── get_milestone_status ─────────────────────────────────────────────
-
-
-async def test_milestone_status_correct_counts(backend, ctx):
-    ucs = await _seed_27_ucs(backend)
-    # Assign first 7 to H1, make 3 done, 2 in_progress, 2 backlog
-    for i, uc in enumerate(ucs[:7]):
-        uc.meta["milestone"] = "H1"
-        if i < 3:
-            uc.state = "done"
-        elif i < 5:
-            uc.state = "in_progress"
-        else:
-            uc.state = "backlog"
-
-    # Mark AC-01 as done on first UC
-    first_uc_id = ucs[0].id
-    await backend.mark_acceptance_criterion("b", first_uc_id, "AC-01", True)
-
-    result = await mm.get_milestone_status("b", "H1", ctx)
-    assert result["milestone"] == "H1"
-    assert result["total_ucs"] == 7
-    assert result["done_ucs"] == 3
-    assert result["in_progress_ucs"] == 2
-    assert result["backlog_ucs"] == 2
-    assert result["passed_acs"] >= 1
-    assert result["ac_pass_rate"] > 0.0
-
-
 # ── get_satellite_queue ──────────────────────────────────────────────
 
 
@@ -317,19 +206,13 @@ async def test_satellite_queue_filters(backend, ctx):
     ucs = await _seed_27_ucs(backend)
     # Assign satellites
     ucs[0].meta["satellite"] = "backend"
-    ucs[0].meta["milestone"] = "H1"
     ucs[1].meta["satellite"] = "backend"
-    ucs[1].meta["milestone"] = "H2"
     ucs[2].meta["satellite"] = "mobile"
-    ucs[2].meta["milestone"] = "H1"
 
     result = await mm.get_satellite_queue("b", "backend", ctx)
     assert result["satellite"] == "backend"
-    assert len(result["queue"]) == 2
-
-    result_h1 = await mm.get_satellite_queue("b", "backend", ctx, milestone="H1")
-    assert len(result_h1["queue"]) == 1
-    assert result_h1["queue"][0]["uc_id"] == "UC-001"
+    assert [q["uc_id"] for q in result["queue"]] == ["UC-001", "UC-002"]
+    assert "milestone" not in result
 
 
 # ── sync_multirepo_state ─────────────────────────────────────────────

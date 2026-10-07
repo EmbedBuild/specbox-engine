@@ -2165,6 +2165,17 @@ de cada UC solo para contarlos.
   tool de una UC lee el board o algo de otra historia, y compara cada respuesta con la de leer el
   board entero; las tres lecturas entran en el inventario de `tests/test_tenant_isolation.py`.
 
+### La extensión pregunta quién eres cada 30 minutos, no cada minuto (UC-8903)
+
+- `vscode-extension/src/identity-schedule.ts` (`IdentityRefresher`, puro, reloj inyectable):
+  consulta `/api/whoami` al activarse, al iniciar o cerrar sesión y al renovar el token
+  (`refreshNow`), al recuperar el foco si han pasado 5 minutos (`onFocus`) y, en segundo plano,
+  30 minutos después de la última consulta. Antes era un `setInterval` de 60 s por ventana: con
+  ocho ventanas abiertas, unas 480 consultas por hora también de madrugada, y cada una costaba
+  cuatro peticiones a Supabase (el cloud las bajó a una en UC-8902).
+- Un token revocado o caducado se ve en la barra como mucho 30 minutos después, o al recuperar el foco.
+- Tests: `vscode-extension/tests/identity-schedule.test.mjs` (16 consultas en 8 horas sin foco).
+
 ## El esquema del board solo es legible por quien tiene permiso (US-40)
 
 US-40 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) versiona y completa

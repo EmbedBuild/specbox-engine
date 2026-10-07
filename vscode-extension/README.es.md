@@ -151,8 +151,10 @@ para una guía detallada.
    servidor MCP para que el token entre en scope.
 5. Si el token se **revoca** en la nube, el engine devuelve
    `UNAUTHENTICATED` en la siguiente llamada a una tool nativa (≤30s
-   gracias al cache TTL del servidor). El sidebar hace polling cada 60s y
-   se actualiza solo — visibilidad total del revoke ≤90s.
+   gracias al cache TTL del servidor). El sidebar y la barra de estado
+   comprueban tu identidad al recuperar el foco (si han pasado 5 minutos) y
+   cada 30 minutos en segundo plano, así que lo enseñan como mucho 30 minutos
+   después.
 
 La parte de la nube se implementa en [`EmbedBuild/specbox_cloud`](https://github.com/EmbedBuild/specbox_cloud)
 (US-09). Consulta [doc/decisions/native_default_oauth.md](https://github.com/EmbedBuild/specbox-engine/blob/main/doc/decisions/native_default_oauth.md)

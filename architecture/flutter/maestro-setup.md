@@ -248,6 +248,11 @@ Esto genera el mismo HTML self-contained que Patrol/Playwright, con screenshots 
 
 ## CI/CD
 
+Las pruebas se pasan en local antes de la PR (`maestro test` contra el emulador o el simulador);
+la CI de GitHub se lanza a mano (`workflow_dispatch`) al cerrar un bloque grande. En un repo
+privado cada ejecución gasta minutos del plan de GitHub, y los runners de macOS (iOS) cuentan por
+diez.
+
 ### GitHub Actions — Android
 
 ```yaml
@@ -280,7 +285,8 @@ Esto genera el mismo HTML self-contained que Patrol/Playwright, con screenshots 
       --output .quality/evidence/${{ env.FEATURE }}/acceptance/e2e-evidence-report.html
 ```
 
-Template completo en `templates/github-actions/maestro-e2e.yml`.
+Template completo en `templates/github-actions/maestro-e2e.yml`: solo `workflow_dispatch`, con el
+UC, la US y la feature como entradas, y el job de iOS solo si se marca `ios`.
 
 ### Maestro Cloud (paralelización)
 

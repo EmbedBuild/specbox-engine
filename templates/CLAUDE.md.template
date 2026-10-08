@@ -237,6 +237,12 @@ Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 /optimize-agents → Validar configuracion agentica
 ```
 
+**CI de GitHub, solo a mano.** Las pruebas (unitarias, lint, aceptación y E2E) se pasan en local
+antes de la PR; la CI de GitHub se lanza a mano (`workflow_dispatch`) al cerrar un bloque grande.
+Ni la PR ni el merge esperan a un check remoto. Las plantillas de workflow del engine
+(`templates/github-actions/`) solo traen `workflow_dispatch`, y una tarea programada (`schedule`)
+corre como mucho una vez al día: en un repo privado cada ejecución gasta minutos del plan de GitHub.
+
 ## Trello — Fuente de Verdad (Spec-Driven)
 
 Si `trello.boardId` está configurado en `.claude/settings.local.json`,

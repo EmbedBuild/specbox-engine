@@ -498,8 +498,17 @@ The `no-bypass-guard.mjs` hook prevents agents from taking shortcuts under press
 `reset --hard` — the agent must fix the root cause, not bypass the quality check.
 
 **Remote enforcement**: `templates/github-actions/e2e-evidence-check.yml` validates evidence
-on PRs to main. Combined with branch protection, this creates server-side enforcement
-that complements client-side hooks. See `templates/github-actions/branch-protection-setup.md`.
+on GitHub, and branch protection (no force push, no deletions, linear history) blocks bypasses
+outside Claude Code. See `templates/github-actions/branch-protection-setup.md`.
+
+**CI de GitHub en los proyectos: solo a mano.** Las plantillas de `templates/github-actions/`
+(`acceptance-gate.yml`, `e2e-evidence-check.yml`, `maestro-e2e.yml`) traen solo
+`workflow_dispatch`: las pruebas se pasan en local antes de la PR; la CI de GitHub se lanza a mano
+al cerrar un bloque grande. En un repo privado cada ejecución gasta minutos del plan de GitHub, así
+que ninguna plantilla vuelve a traer `pull_request` ni `push`, ninguna es status check obligatorio
+de la protección de rama, y una tarea programada (`schedule`) corre como mucho una vez al día.
+Ninguna tool ni skill las instala: se copian a mano. Los workflows propios del engine
+(`.github/workflows/`, repo público) siguen con sus disparadores.
 
 **If /implement skill is unavailable**, the pipeline MUST be executed manually step by step.
 See `rules/GLOBAL_RULES.md` section "Pipeline Integrity" for the full contract.
@@ -653,7 +662,7 @@ Maestro (mobile-dev-inc) es el runner **recomendado por defecto** para Flutter M
 
 - **Adapter de stack**: `architecture/flutter/maestro-setup.md` (instalación, semantics, YAML, troubleshooting)
 - **Generator de evidencia**: `.quality/scripts/maestro-evidence-generator.js` produce el mismo HTML Evidence Report y `results.json` que Patrol — AG-09b no distingue el origen
-- **Template CI**: `templates/github-actions/maestro-e2e.yml` (Android emulator + iOS simulator)
+- **Template CI**: `templates/github-actions/maestro-e2e.yml` (Android emulator + iOS simulator; solo a mano, `workflow_dispatch`, con iOS opcional)
 - **Source en results.json**: `maestro-junit-xml` (registrado en `doc/specs/results-json-spec.md`)
 - **Hook compatibility**: `e2e-gate.mjs` y `validate-results-json.js` aceptan Maestro sin cambios — el contrato es source-agnostic
 
@@ -1082,7 +1091,7 @@ BDD acceptance testing without full /implement pipeline:
 
 - **Skill**: `/acceptance-check` — validates AC from PRD against code
 - **MCP tools**: `run_acceptance_check(project_path, item_id, branch)`, `get_acceptance_report(project_path, uc_id)`, `get_e2e_gap_report(project_path, project)`
-- **GitHub Action**: `templates/github-actions/acceptance-gate.yml`
+- **GitHub Action**: `templates/github-actions/acceptance-gate.yml` (solo a mano, `workflow_dispatch`; comenta en la PR que se le indique)
 - **Output**: PR-comment-ready Markdown with per-AC verdict
 
 ## E2E Gap Detection (v5.12.0)

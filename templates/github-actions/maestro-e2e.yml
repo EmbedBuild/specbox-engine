@@ -9,21 +9,38 @@
 #   .quality/scripts/maestro-evidence-generator.js
 #   .quality/scripts/validate-results-json.js
 #
-# Inputs (matrix or env):
-#   UC_ID:    e.g. UC-001
-#   US_ID:    e.g. US-01
-#   FEATURE:  feature snake_case, e.g. crear_propiedad
+# Inputs (workflow_dispatch):
+#   uc_id:    e.g. UC-001
+#   us_id:    e.g. US-01
+#   feature:  feature snake_case, e.g. crear_propiedad
+#   ios:      también en el simulador de iOS (macOS; por defecto, no)
+#
+# Cuándo corre: solo a mano (`workflow_dispatch`). Las pruebas se pasan en local
+# antes de la PR (`maestro test` contra el emulador o el simulador); la CI de
+# GitHub se lanza a mano al cerrar un bloque grande: Actions → Maestro E2E → Run
+# workflow, o `gh workflow run maestro-e2e.yml --ref <rama> -f uc_id=UC-001
+# -f us_id=US-01 -f feature=crear_propiedad`. En un repo privado cada ejecución
+# gasta minutos del plan de GitHub, y los de macOS cuentan por diez: el job de
+# iOS solo corre si se marca `ios`.
 
 name: Maestro E2E
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'lib/**'
-      - 'test/**'
-      - '.maestro/**'
-      - 'pubspec.yaml'
+  workflow_dispatch:
+    inputs:
+      uc_id:
+        description: "UC a probar (ej.: UC-001)"
+        required: true
+      us_id:
+        description: "US del UC (ej.: US-01)"
+        required: true
+      feature:
+        description: "Feature en snake_case (ej.: crear_propiedad)"
+        required: true
+      ios:
+        description: "Probar también en el simulador de iOS (runner macOS: 10× minutos)"
+        type: boolean
+        default: false
 
 jobs:
   android:
@@ -31,9 +48,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      UC_ID: UC-001
-      US_ID: US-01
-      FEATURE: crear_propiedad
+      UC_ID: ${{ inputs.uc_id }}
+      US_ID: ${{ inputs.us_id }}
+      FEATURE: ${{ inputs.feature }}
 
     steps:
       - uses: actions/checkout@v4
@@ -118,12 +135,13 @@ jobs:
 
   ios:
     name: Maestro · iOS
+    if: inputs.ios
     runs-on: macos-14
     timeout-minutes: 60
     env:
-      UC_ID: UC-001
-      US_ID: US-01
-      FEATURE: crear_propiedad
+      UC_ID: ${{ inputs.uc_id }}
+      US_ID: ${{ inputs.us_id }}
+      FEATURE: ${{ inputs.feature }}
 
     steps:
       - uses: actions/checkout@v4

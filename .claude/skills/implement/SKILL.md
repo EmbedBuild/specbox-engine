@@ -1827,6 +1827,11 @@ su línea con `design-gate:ignore` y el motivo; un fichero de terceros entero, c
 
 ## Paso 8: Crear Pull Request
 
+> **CI de GitHub, solo a mano.** Las pruebas se pasan en local antes de la PR (Pasos 6 a 7.8); la CI
+> de GitHub se lanza a mano (`workflow_dispatch`) al cerrar un bloque grande. Ni este paso ni el
+> merge (8.5) esperan a un check remoto ni lanzan workflows: en un repo privado cada ejecución
+> gasta minutos del plan de GitHub.
+
 ### 8.1 Push de la rama
 
 ```bash

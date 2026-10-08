@@ -1,11 +1,18 @@
 # SpecBox Engine — Acceptance Gate GitHub Action
 #
-# Validates acceptance criteria from PRD against PR changes.
+# Validates acceptance criteria from PRD against the changes of a branch.
 # Runs standalone BDD acceptance check without the full /implement pipeline.
 #
 # Installation:
 #   Copy this file to your project's .github/workflows/acceptance-gate.yml
-#   or run install.sh which offers to copy it automatically.
+#   (nothing in the engine copies it for you).
+#
+# Cuándo corre: solo a mano (`workflow_dispatch`). Las pruebas se pasan en local
+# antes de la PR (/acceptance-check, /implement); la CI de GitHub se lanza a mano
+# al cerrar un bloque grande: Actions → Acceptance Gate → Run workflow, sobre la
+# rama que se quiere validar, o `gh workflow run acceptance-gate.yml --ref <rama>
+# -f base=main -f pr=<número>`. En un repo privado cada ejecución gasta minutos
+# del plan de GitHub; por eso la plantilla no trae `pull_request` ni `push`.
 #
 # Required env vars:
 #   SPECBOX_ENGINE_URL    — URL of the SpecBox Engine MCP server (streamable-http)
@@ -17,8 +24,16 @@
 name: Acceptance Gate
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "Rama contra la que se compara (la base de la PR)"
+        required: true
+        default: main
+      pr:
+        description: "Número de la PR donde comentar el resultado (vacío: sin comentario)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -56,9 +71,11 @@ jobs:
 
       - name: Determine affected UCs from changed files
         id: detect-ucs
+        env:
+          BASE_REF: ${{ inputs.base }}
         run: |
-          # Get files changed in this PR
-          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          # Get files changed against the base branch
+          CHANGED_FILES=$(git diff --name-only "origin/${BASE_REF}...HEAD")
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
@@ -98,7 +115,7 @@ jobs:
         if: steps.detect-ucs.outputs.skip != 'true' && env.SPECBOX_ENGINE_URL == ''
         id: local-check
         run: |
-          BRANCH="${{ github.head_ref }}"
+          BRANCH="${{ github.ref_name }}"
           RESULTS=""
           OVERALL="ACCEPTED"
 
@@ -144,7 +161,7 @@ jobs:
         if: steps.detect-ucs.outputs.skip != 'true' && env.SPECBOX_ENGINE_URL != ''
         id: remote-check
         run: |
-          BRANCH="${{ github.head_ref }}"
+          BRANCH="${{ github.ref_name }}"
           OVERALL="ACCEPTED"
           RESULTS=""
 
@@ -191,8 +208,10 @@ jobs:
           echo "results=$RESULTS" >> "$GITHUB_OUTPUT"
 
       - name: Post PR comment with results
-        if: steps.detect-ucs.outputs.skip != 'true'
+        if: steps.detect-ucs.outputs.skip != 'true' && inputs.pr != ''
         uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ inputs.pr }}
         with:
           script: |
             const overall = '${{ steps.local-check.outputs.overall || steps.remote-check.outputs.overall || 'SKIPPED' }}';
@@ -227,7 +246,7 @@ jobs:
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: Number(process.env.PR_NUMBER),
             });
             const botComment = comments.find(c => c.body.includes('Acceptance Gate:'));
 
@@ -242,7 +261,7 @@ jobs:
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.issue.number,
+                issue_number: Number(process.env.PR_NUMBER),
                 body: body,
               });
             }
@@ -268,4 +287,4 @@ jobs:
       - name: Skip notice
         if: steps.detect-ucs.outputs.skip == 'true'
         run: |
-          echo "::notice::No UCs detected from PR changes — acceptance gate skipped"
+          echo "::notice::No UCs detected from the branch changes — acceptance gate skipped"

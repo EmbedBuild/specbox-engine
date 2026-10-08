@@ -1,18 +1,19 @@
 # E2E Evidence Check — GitHub Action
-# Validates results.json schema + HTML Evidence Report existence on PRs.
-# Required status check for branch protection.
+# Validates results.json schema + HTML Evidence Report existence.
 # SpecBox Engine v5.12.0
+#
+# Cuándo corre: solo a mano (`workflow_dispatch`). Las pruebas se pasan en local
+# antes de la PR (el hook e2e-gate.mjs ya valida la evidencia al hacer commit);
+# la CI de GitHub se lanza a mano al cerrar un bloque grande: Actions → E2E
+# Evidence Check → Run workflow, o `gh workflow run e2e-evidence-check.yml
+# --ref <rama>`. En un repo privado cada ejecución gasta minutos del plan de
+# GitHub; por eso no trae `pull_request` ni `push`, y no debe ser un status
+# check obligatorio de la protección de rama (nunca llegaría en una PR).
 
 name: E2E Evidence Check
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - '.quality/evidence/**'
-      - 'test/acceptance/**'
-      - 'tests/acceptance/**'
-      - 'e2e/**'
+  workflow_dispatch:
 
 jobs:
   validate-evidence:

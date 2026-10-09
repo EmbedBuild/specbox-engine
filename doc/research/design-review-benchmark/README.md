@@ -24,6 +24,16 @@ la verificación entre +7 y +13.
 ² Stitch mejora mucho con el paso de dirección, pero sus dos candidatos quedan muy por debajo del
 resto (5,5 y 12 sobre 40). Ver más abajo.
 
+**Decisiones del owner sobre el resultado (2026-10-09):**
+
+- **Dirección: se construye igualmente**, en contra de lo que daba la regla. El motivo: la dirección
+  está en la variante ganadora de las dos pantallas (V4) cuando va acompañada de verificación. Su
+  efecto negativo en la landing viene de un desbordamiento que la verificación corrige. Condición: la
+  dirección nunca se usa sin verificación detrás.
+- **Pulido: no hay pasada aparte.** Sus reglas medibles (áreas de pulsación, estados deshabilitado y
+  pulsado, movimiento reducido y cifras tabulares) pasan a la rúbrica de la crítica de verificación.
+- **Nuevo criterio en la verificación:** la ronda de corrección no puede inventar datos (ver «Hallazgos»).
+
 **Lectura en una frase:** lo que más mejora una pantalla son dos capas, darle al agente el brief
 (usuario, preguntas y datos reales) y obligarle a mirar el resultado con un revisor que no es él. La
 dirección y el pulido aportan, pero menos de 3 puntos de media. La dirección se reparte de forma

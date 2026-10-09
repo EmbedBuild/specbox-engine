@@ -1,0 +1,14 @@
+puntos medios encadenados · l.6: <title>Participantes de la prueba · ESBK 2026 Ronda 6 · PaddockManager</title>
+fuente por defecto (Inter/Roboto/Arial/Space Grotesk) · l.32: body{margin:0;background:var(--bg);color:var(--ink);font-family:"Archivo",system-ui,-apple-system,"Segoe UI",R
+borde lateral de color > 1px · l.94: .deadline{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) auto;gap:28px;align-items:center;b
+borde lateral de color > 1px · l.248: .eventnav a{border-bottom:0;border-left:3px solid transparent;padding:11px 12px}
+puntos medios encadenados · l.302: <span class="event__name">ESBK 2026 · Ronda 6 · Jerez</span>
+puntos medios encadenados · l.421: <tr class="group"><th scope="colgroup" colspan="6">Superbike <span class="group__meta">9 inscritos · 4 listos 
+puntos medios encadenados · l.533: <tr class="group"><th scope="colgroup" colspan="6">Supersport <span class="group__meta">8 inscritos · 3 listos
+puntos medios encadenados · l.633: <tr class="group"><th scope="colgroup" colspan="6">Supersport 300 <span class="group__meta">7 inscritos · 4 li
+puntos medios encadenados · l.660: <td class="c-rider"><span class="name">Samuel Rey Fuentes</span><span class="meta">ESP · Licencia 107150 · men
+puntos medios encadenados · l.744: <p class="inc__meta">Administrativa · detectada a las 09:02 · rueda a las 15:10</p>
+puntos medios encadenados · l.753: <p class="inc__meta">Administrativa · detectada a las 09:10 · rueda a las 15:55</p>
+puntos medios encadenados · l.762: <p class="inc__meta">Cronometraje · detectada a las 10:39 · rueda a las 15:55</p>
+puntos medios encadenados · l.771: <p class="inc__meta">Administrativa · detectada a las 08:47 · rueda a las 16:40</p>
+puntos medios encadenados · l.780: <p class="inc__meta">Técnica · detectada a las 10:26 · rueda a las 16:40</p>

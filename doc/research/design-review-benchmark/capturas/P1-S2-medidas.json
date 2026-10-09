@@ -1,0 +1,31 @@
+{
+  "390": {
+    "scrollWidth": 795,
+    "bodyScrollWidth": 795,
+    "clientWidth": 390,
+    "height": 2692,
+    "overflowX": "hidden/visible",
+    "sobresalen": [
+      "div.flex@795",
+      "div.flex@471",
+      "button.px-2@422",
+      "button.px-2@468",
+      "button.p-1.5@519",
+      "span.material-symbols-outlined@512",
+      "button.p-1.5@559",
+      "span.material-symbols-outlined@552"
+    ]
+  },
+  "1440": {
+    "scrollWidth": 1511,
+    "bodyScrollWidth": 1511,
+    "clientWidth": 1440,
+    "height": 1153,
+    "overflowX": "hidden/visible",
+    "sobresalen": [
+      "div.flex@1511",
+      "button.flex@1511",
+      "span@1498"
+    ]
+  }
+}

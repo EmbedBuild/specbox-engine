@@ -1,0 +1,645 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Participantes de Navarra I | PaddockManager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+:root {
+  --papel: #FFFFFF;
+  --hormigon: #EDEFF1;
+  --linea: #CDD2D7;
+  --borde: #7D868E;
+  --asfalto: #1E2329;
+  --grafito: #59616A;
+  --naranja: #F25C05;
+  --tinta: #5B3CC4;
+  --rojo: #B3261E;
+  --rojo-suave: #FBECEA;
+  --num: "Saira Condensed", "Arial Narrow", sans-serif;
+  --texto: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { margin: 0; background: var(--papel); color: var(--asfalto); font: 400 16px/1.5 var(--texto); font-variant-numeric: tabular-nums; }
+h1, h2, h3, p, ul, dl, figure { margin: 0; }
+ul { padding: 0; list-style: none; }
+button, input, select { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.sr { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+:focus-visible { outline: 3px solid var(--asfalto); outline-offset: 2px; }
+.i { width: 16px; height: 16px; flex: none; }
+
+.saltar { position: absolute; left: 16px; top: -64px; z-index: 10; padding: 10px 14px; border-radius: 6px; background: var(--asfalto); color: #fff; font-weight: 700; }
+.saltar:focus { top: 12px; }
+
+.pagina { max-width: 1760px; margin: 0 auto; }
+
+.cab { padding: 16px 32px 24px; border-bottom: 1px solid var(--linea); }
+.cab-sup { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; color: var(--grafito); font-size: 14px; }
+.marca { font: 700 21px/1 var(--num); color: var(--asfalto); letter-spacing: .01em; }
+.cab-pri { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 20px 32px; margin-top: 20px; }
+h1 { font: 700 36px/1 var(--num); }
+.contexto { margin-top: 10px; color: var(--grafito); }
+.contexto strong { color: var(--asfalto); }
+.acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.busca { position: relative; width: 272px; }
+.busca .i { position: absolute; left: 12px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); color: var(--grafito); pointer-events: none; }
+.busca input { width: 100%; min-height: 42px; padding: 0 12px 0 40px; border: 1.5px solid var(--borde); border-radius: 6px; background: var(--papel); }
+.busca input::placeholder { color: var(--grafito); opacity: 1; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 0 14px; border: 1.5px solid var(--asfalto); border-radius: 6px; background: var(--papel); font-size: 15px; font-weight: 700; line-height: 1.2; white-space: nowrap; cursor: pointer; }
+.btn:hover { background: var(--hormigon); }
+.btn-pri { background: var(--asfalto); color: #fff; }
+.btn-pri:hover { background: #3A434D; }
+
+.marco { display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-areas: "estado excel" "lista detalle" "estados estados"; }
+.estado { grid-area: estado; padding: 28px 32px 32px; }
+.lista { grid-area: lista; padding: 28px 32px 40px; border-top: 1px solid var(--linea); }
+.excel { grid-area: excel; padding: 28px; background: var(--hormigon); }
+.detalle-celda { grid-area: detalle; padding: 28px; background: var(--hormigon); border-top: 1px solid var(--linea); }
+.estados { grid-area: estados; padding: 32px; border-top: 1px solid var(--linea); }
+h2 { font: 700 24px/1.15 var(--num); }
+
+.estado-sub { margin-top: 8px; max-width: 62ch; color: var(--grafito); }
+.cats { display: grid; gap: 2px; max-width: 820px; margin-top: 20px; }
+.cat { display: grid; grid-template-columns: 150px minmax(0, 1fr) 116px; align-items: center; gap: 16px; width: 100%; min-height: 36px; padding: 4px 10px; border: 0; border-radius: 4px; background: none; text-align: left; cursor: pointer; }
+.cat:hover { background: #F4F5F7; }
+.cat[aria-pressed="true"] { background: var(--hormigon); box-shadow: inset 3px 0 0 var(--asfalto); }
+.cat-nombre { font-size: 15px; font-weight: 700; }
+.cat-cifra { font-size: 15px; text-align: right; color: var(--grafito); }
+.cat-cifra b { color: var(--asfalto); }
+.tira { --u: 11px; --g: 3px; display: flex; height: 20px; }
+.tira span { flex: none; height: 100%; width: calc(var(--n) * (var(--u) + var(--g))); background: repeating-linear-gradient(90deg, var(--c) 0 var(--u), transparent var(--u) calc(var(--u) + var(--g))); }
+.u-ok { --c: var(--borde); }
+.u-pend { --c: var(--naranja); }
+
+.excel-sub { margin-top: 8px; color: var(--grafito); font-size: 15px; }
+.filas-ex { margin-top: 16px; }
+.filas-ex li { display: grid; grid-template-columns: 60px minmax(0, 1fr); gap: 12px; padding: 14px 0 10px; border-top: 1px solid var(--linea); }
+.fila { font: 700 18px/1.25 var(--num); color: var(--tinta); }
+.ex-quien { font-weight: 700; }
+.ex-motivo { margin-top: 2px; font-size: 15px; }
+.enlace { display: inline-flex; align-items: center; min-height: 36px; padding: 0; border: 0; background: none; font-size: 15px; font-weight: 700; text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; cursor: pointer; }
+.enlace:hover { color: var(--tinta); }
+
+.barra-sup { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; }
+.cuenta { color: var(--grafito); font-size: 15px; }
+.filtros { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; margin-top: 16px; }
+.campo { display: grid; gap: 4px; min-width: 0; margin: 0; padding: 0; border: 0; font-size: 14px; color: var(--grafito); }
+.campo legend { padding: 0; margin-bottom: 4px; }
+.campo select { min-height: 42px; padding: 0 38px 0 12px; border: 1.5px solid var(--borde); border-radius: 6px; background: var(--papel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%231E2329' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 13px center; color: var(--asfalto); font-size: 15px; appearance: none; -webkit-appearance: none; }
+.ver { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { position: relative; display: inline-flex; }
+.chip input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.chip span { display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 14px; border: 1.5px solid var(--borde); border-radius: 21px; background: var(--papel); color: var(--asfalto); font-size: 15px; font-weight: 700; }
+.chip input:checked + span { background: var(--asfalto); border-color: var(--asfalto); color: #fff; }
+.chip input:focus-visible + span { outline: 3px solid var(--asfalto); outline-offset: 2px; }
+.chip .m { width: 10px; height: 10px; border-radius: 2px; background: var(--naranja); }
+.chip .m-of { background: var(--tinta); }
+.chip input:checked + span .m-of { box-shadow: 0 0 0 1.5px #fff; }
+
+.tabla { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 15px; }
+.tabla th { position: sticky; top: 0; z-index: 1; padding: 10px 10px 8px; border-bottom: 2px solid var(--asfalto); background: var(--papel); color: var(--grafito); font-size: 14px; font-weight: 700; line-height: 1.25; text-align: left; vertical-align: bottom; }
+.tabla td { padding: 12px 10px; border-bottom: 1px solid var(--linea); vertical-align: top; }
+.tabla tbody tr { cursor: pointer; }
+.tabla tbody tr:hover td { background: #F6F7F8; }
+.tabla tbody tr.sel td { background: var(--hormigon); }
+.tabla tbody tr.sel td:first-child { box-shadow: inset 4px 0 0 var(--asfalto); }
+.c-dorsal { width: 64px; }
+.c-lic, .c-box { width: 96px; }
+.c-vm, .c-ve { width: 104px; }
+.c-avisos { width: 184px; }
+td.c-box { font-weight: 700; }
+.dorsal { display: block; padding-top: 2px; font: 700 28px/1 var(--num); }
+.nombre { padding: 0; border: 0; background: none; font-weight: 700; line-height: 1.35; text-align: left; cursor: pointer; }
+.nombre:hover { text-decoration: underline; text-underline-offset: 3px; }
+.sub { display: block; margin-top: 2px; color: var(--grafito); font-size: 14px; }
+.ok { display: inline-flex; align-items: center; gap: 6px; }
+.ok .i { width: 15px; height: 15px; }
+.pend { display: inline-block; padding: 2px 8px; border-radius: 3px; background: var(--naranja); color: var(--asfalto); font-size: 14px; font-weight: 700; line-height: 1.4; }
+.avisos { display: grid; gap: 4px; font-size: 14px; line-height: 1.35; }
+.of { display: flex; gap: 8px; color: var(--tinta); font-weight: 700; }
+.of::before { content: ""; flex: none; width: 8px; height: 8px; margin-top: .4em; border-radius: 1px; background: var(--tinta); }
+.nota { padding-left: 16px; color: var(--grafito); }
+.of-txt { color: var(--tinta); font-weight: 700; }
+.mas { margin-top: 16px; }
+
+.vacio { display: grid; justify-items: start; gap: 8px; margin-top: 20px; padding: 28px 24px; border: 1.5px dashed var(--borde); border-radius: 6px; }
+.vacio-tit { font: 700 21px/1.2 var(--num); }
+.vacio .btn { margin-top: 6px; }
+
+.detalle { position: sticky; top: 16px; }
+.det-cab { display: flex; align-items: center; gap: 16px; }
+.det-dorsal { flex: none; min-width: 92px; padding: 8px 12px 4px; border: 2px solid var(--asfalto); border-radius: 10px; background: var(--papel); font: 700 64px/1 var(--num); text-align: center; }
+.det-nombre { font: 700 24px/1.1 var(--num); }
+.det-cat { margin-top: 4px; color: var(--grafito); }
+.detalle h3 { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--linea); font-size: 15px; font-weight: 700; }
+.ficha { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 6px 12px; margin-top: 10px; font-size: 15px; }
+.ficha dt { color: var(--grafito); }
+.ficha dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.detalle .avisos { margin-top: 10px; font-size: 15px; }
+.nada { margin-top: 10px; color: var(--grafito); font-size: 15px; }
+.det-acc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.volver { display: none; margin-top: 16px; color: var(--asfalto); font-weight: 700; text-underline-offset: 3px; }
+
+.estados-sub { margin-top: 8px; color: var(--grafito); }
+.muestras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-top: 20px; }
+.muestra { min-width: 0; }
+.muestra figcaption { margin-bottom: 8px; color: var(--grafito); font-size: 14px; font-weight: 700; }
+.muestra .vacio { margin-top: 0; }
+.esqueleto { border-top: 2px solid var(--asfalto); }
+.esq-fila { display: grid; grid-template-columns: 40px minmax(0, 1fr) 72px; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--linea); }
+.esq { display: block; height: 12px; border-radius: 3px; background: linear-gradient(90deg, var(--hormigon) 0 40%, #F8F9FA 50%, var(--hormigon) 60% 100%); background-size: 300% 100%; animation: barrido 1.4s linear infinite; }
+.esq-d { height: 28px; }
+.esq-l { display: grid; gap: 8px; }
+.esq-corta { width: 60%; }
+@keyframes barrido { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.error { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 16px; border-left: 4px solid var(--rojo); border-radius: 6px; background: var(--rojo-suave); }
+.error .i { width: 20px; height: 20px; margin-top: 2px; color: var(--rojo); }
+.error-tit { color: var(--rojo); font-weight: 700; }
+.error p + p { margin-top: 6px; }
+.error .btn { margin-top: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .esq { animation: none; }
+}
+
+@media (max-width: 1239px) {
+  .marco { grid-template-columns: minmax(0, 1fr); grid-template-areas: "estado" "lista" "detalle" "excel" "estados"; }
+  .detalle { position: static; }
+  .detalle-celda, .excel { padding: 28px 32px; }
+  .excel { border-top: 1px solid var(--linea); }
+  .volver { display: inline-block; }
+}
+
+@media (max-width: 899px) {
+  .tabla thead { display: none; }
+  .tabla, .tabla tbody { display: block; }
+  .tabla tbody tr { display: grid; grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "d p p" "d c c" "d l b" "d vm ve" "d a a"; gap: 10px 12px; padding: 16px 12px; border-bottom: 1px solid var(--linea); }
+  .tabla td { display: block; width: auto; padding: 0; border: 0; }
+  .tabla tbody tr:hover td, .tabla tbody tr.sel td { background: transparent; }
+  .tabla tbody tr.sel td:first-child { box-shadow: none; }
+  .tabla tbody tr.sel { background: var(--hormigon); box-shadow: inset 4px 0 0 var(--asfalto); }
+  .c-dorsal { grid-area: d; }
+  .c-piloto { grid-area: p; }
+  .c-cat { grid-area: c; }
+  .c-lic { grid-area: l; }
+  .c-box { grid-area: b; }
+  .c-vm { grid-area: vm; }
+  .c-ve { grid-area: ve; }
+  .c-avisos { grid-area: a; }
+  .c-avisos.sin-avisos { display: none; }
+  .c-lic::before, .c-box::before, .c-vm::before, .c-ve::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--grafito); font-size: 13px; font-weight: 400; }
+}
+
+@media (max-width: 640px) {
+  .cab { padding: 12px 16px 20px; }
+  .cab-pri { margin-top: 16px; }
+  .acciones, .busca { width: 100%; }
+  .acciones .btn-pri { flex: 1; }
+  .btn { min-height: 44px; }
+  .btn-icono { width: 44px; padding: 0; }
+  .btn-icono .etq { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .estado, .lista, .excel, .detalle-celda, .estados { padding-left: 16px; padding-right: 16px; }
+  .cat { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "n c" "t t"; row-gap: 6px; padding: 8px; }
+  .cat-nombre { grid-area: n; }
+  .cat-cifra { grid-area: c; }
+  .tira { grid-area: t; --u: 7px; --g: 3px; height: 16px; }
+  .campo, .campo select { width: 100%; }
+  .muestras { grid-template-columns: minmax(0, 1fr); }
+  .det-dorsal { min-width: 76px; font-size: 48px; }
+}
+
+@media print {
+  .saltar, .acciones, .filtros, .mas, .estados, .det-acc, .volver, .enlace { display: none !important; }
+  .marco { display: block; }
+  .tabla th { position: static; }
+  .detalle { position: static; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-ok" viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-buscar" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-importar" viewBox="0 0 20 20"><path d="M10 13V3M6 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12v4a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="i-imprimir" viewBox="0 0 20 20"><path d="M5.5 8V2.5h9V8" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><rect x="2.5" y="8" width="15" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 12.5h8v5H6z" fill="#fff" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+  <symbol id="i-mas" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-error" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 5.5v5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="14.2" r="1.2" fill="currentColor"/></symbol>
+</svg>
+
+<a class="saltar" href="#lista">Saltar a la lista de participantes</a>
+
+<div class="pagina">
+  <header class="cab">
+    <div class="cab-sup">
+      <span class="marca">PaddockManager</span>
+      <time datetime="2026-05-08T09:40">Viernes 8 de mayo de 2026, 09:40</time>
+    </div>
+    <div class="cab-pri">
+      <div>
+        <h1>Participantes</h1>
+        <p class="contexto"><strong>Navarra I</strong> del ESBK 2026<br>Circuito de Navarra (Los Arcos), 8 y 9 de mayo</p>
+      </div>
+      <div class="acciones">
+        <form class="busca" role="search">
+          <label class="sr" for="q">Buscar por piloto, dorsal o equipo</label>
+          <svg class="i" aria-hidden="true"><use href="#i-buscar"/></svg>
+          <input id="q" type="search" placeholder="Piloto, dorsal o equipo" autocomplete="off">
+        </form>
+        <button class="btn btn-icono" type="button" aria-label="Importar Excel RFME"><svg class="i" aria-hidden="true"><use href="#i-importar"/></svg><span class="etq">Importar Excel RFME</span></button>
+        <button class="btn btn-icono" type="button" aria-label="Imprimir PDF"><svg class="i" aria-hidden="true"><use href="#i-imprimir"/></svg><span class="etq">Imprimir PDF</span></button>
+        <button class="btn btn-pri" type="button"><svg class="i" aria-hidden="true"><use href="#i-mas"/></svg>Añadir participante</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="marco">
+    <section class="estado" aria-labelledby="t-estado">
+      <h2 id="t-estado">Faltan 25 por verificar</h2>
+      <p class="estado-sub">104 de 129 participantes tienen la moto y el equipo verificados (81&nbsp;%). Cada marca es un participante: en gris, verificado; en naranja, pendiente. Pulsa una categoría para filtrar la lista.</p>
+      <ul class="cats">
+        <li><button class="cat" type="button" data-cat="Yamaha R7 Cup" aria-pressed="false"><span class="cat-nombre">Yamaha R7 Cup</span><span class="tira" aria-hidden="true"><span class="u-ok" style="--n:23"></span><span class="u-pend" style="--n:6"></span></span><span class="cat-cifra">faltan <b>6</b> de 29</span></button></li>
+        <li><button class="cat" type="button" data-cat="ESBK Talent" aria-pressed="false"><span class="cat-nombre">ESBK Talent</span><span class="tira" aria-hidden="true"><span class="u-ok" style="--n:21"></span><span class="u-pend" style="--n:4"></span></span><span class="cat-cifra">faltan <b>4</b> de 25</span></button></li>
+        <li><button class="cat" type="button" data-cat="PreTalent" aria-pressed="false"><span class="cat-nombre">PreTalent</span><span class="tira" aria-hidden="true"><span class="u-ok" style="--n:11"></span><span class="u-pend" style="--n:3"></span></span><span class="cat-cifra">faltan <b>3</b> de 14</span></button></li>
+        <li><button class="cat" type="button" data-cat="Supersport 300" aria-pressed="false"><span class="cat-nombre">Supersport 300</span><span class="tira" aria-hidden="true"><span class="u-ok" style="--n:11"></span><span class="u-pend" style="--n:3"></span></span><span class="cat-cifra">faltan <b>3</b> de 14</span></button></li>
+        <li><button class="cat" type="button" data-cat="Sportbike" aria-pressed="false"><span class="cat-nombre">Sportbike</span><span class="tira" aria-hidden="true"><span class="u-ok" style="--n:10"></span><span class="u-pend" style="--n:3"></span></span><span class="cat-cifra">faltan <b>3</b> de 13</span></button></li>
+        <li><button class="cat" type="button" data-cat="Superstock 1000" aria-pressed="false"><span class="cat-nombre">Superstock 1000</span><span class="tira" aria-hidden="true"><span class="u-ok" style="--n:9"></span><span class="u-pend" style="--n:2"></span></span><span class="cat-cifra">faltan <b>2</b> de 11</span></button></li>
+        <li><button class="cat" type="button" data-cat="Superstock 600" aria-pressed="false"><span class="cat-nombre">Superstock 600</span><span class="tira" aria-hidden="true"><span class="u-ok" style="--n:8"></span><span class="u-pend" style="--n:2"></span></span><span class="cat-cifra">faltan <b>2</b> de 10</span></button></li>
+        <li><button class="cat" type="button" data-cat="Supersport" aria-pressed="false"><span class="cat-nombre">Supersport</span><span class="tira" aria-hidden="true"><span class="u-ok" style="--n:8"></span><span class="u-pend" style="--n:1"></span></span><span class="cat-cifra">falta <b>1</b> de 9</span></button></li>
+        <li><button class="cat" type="button" data-cat="Superbike" aria-pressed="false"><span class="cat-nombre">Superbike</span><span class="tira" aria-hidden="true"><span class="u-ok" style="--n:3"></span><span class="u-pend" style="--n:1"></span></span><span class="cat-cifra">falta <b>1</b> de 4</span></button></li>
+      </ul>
+    </section>
+
+    <section class="excel" aria-labelledby="t-excel">
+      <h2 id="t-excel">3 filas del Excel no entraron</h2>
+      <p class="excel-sub">De las 132 filas del Excel de la RFME entraron 129. Estas tres no:</p>
+      <ul class="filas-ex">
+        <li>
+          <span class="fila">Fila 46</span>
+          <div>
+            <p class="ex-quien">Daniel Escartín Moreno, dorsal 52</p>
+            <p class="ex-motivo">Trae la categoría «Supersport NG», un nombre antiguo que ya no existe en el campeonato. Elige la categoría actual y añádelo a mano.</p>
+            <button class="enlace" type="button">Añadir participante</button>
+          </div>
+        </li>
+        <li>
+          <span class="fila">Fila 88</span>
+          <div>
+            <p class="ex-quien">Álvaro Cifuentes Rey, dorsal 33, Superstock 600</p>
+            <p class="ex-motivo">Falta la licencia. Pídela al piloto y añádelo a mano.</p>
+            <button class="enlace" type="button">Añadir participante</button>
+          </div>
+        </li>
+        <li>
+          <span class="fila">Fila 131</span>
+          <div>
+            <p class="ex-quien">Iker Valdemoro Sanz, dorsal 7, Superbike</p>
+            <p class="ex-motivo">Fila repetida: ya está en la lista. No hay que hacer nada.</p>
+            <button class="enlace" type="button" id="ver-dup">Ver a Iker Valdemoro</button>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <section class="lista" id="lista" aria-labelledby="t-lista">
+      <div class="barra-sup">
+        <h2 id="t-lista">Lista de participantes</h2>
+        <p class="cuenta" id="cuenta" aria-live="polite">8 de 129</p>
+      </div>
+      <div class="filtros">
+        <label class="campo">Categoría
+          <select id="f-cat">
+            <option value="">Todas las categorías</option>
+            <option>Yamaha R7 Cup</option>
+            <option>ESBK Talent</option>
+            <option>PreTalent</option>
+            <option>Supersport 300</option>
+            <option>Sportbike</option>
+            <option>Superstock 1000</option>
+            <option>Superstock 600</option>
+            <option>Supersport</option>
+            <option>Superbike</option>
+          </select>
+        </label>
+        <fieldset class="campo">
+          <legend>Mostrar</legend>
+          <div class="ver">
+            <label class="chip"><input type="radio" name="ver" value="todos" checked><span>Todos</span></label>
+            <label class="chip"><input type="radio" name="ver" value="moto"><span><i class="m" aria-hidden="true"></i>Falta verificar moto</span></label>
+            <label class="chip"><input type="radio" name="ver" value="equipo"><span><i class="m" aria-hidden="true"></i>Falta verificar equipo</span></label>
+            <label class="chip"><input type="radio" name="ver" value="oficina"><span><i class="m m-of" aria-hidden="true"></i>Para oficina</span></label>
+          </div>
+        </fieldset>
+        <label class="campo">Orden
+          <select id="f-orden">
+            <option value="asc">Dorsal, de menor a mayor</option>
+            <option value="desc">Dorsal, de mayor a menor</option>
+          </select>
+        </label>
+      </div>
+
+      <table class="tabla" id="tabla">
+        <caption class="sr">Participantes de Navarra I. Pulsa un nombre para ver su ficha.</caption>
+        <thead>
+          <tr>
+            <th class="c-dorsal" id="th-dorsal" scope="col" aria-sort="ascending">Dorsal</th>
+            <th class="c-piloto" scope="col">Piloto y equipo</th>
+            <th class="c-cat" scope="col">Categoría y moto</th>
+            <th class="c-lic" scope="col">Licencia</th>
+            <th class="c-box" scope="col">Box</th>
+            <th class="c-vm" scope="col">Moto verificada</th>
+            <th class="c-ve" scope="col">Equipo verificado</th>
+            <th class="c-avisos" scope="col">Avisos</th>
+          </tr>
+        </thead>
+        <tbody id="filas">
+          <tr data-id="p7" data-cat="Superbike" data-moto="ok" data-equipo="ok" data-oficina="0" data-dorsal="7" data-busca="Iker Valdemoro Sanz Valdemoro Racing">
+            <td class="c-dorsal"><span class="dorsal">7</span></td>
+            <td class="c-piloto"><button class="nombre" type="button" aria-controls="detalle">Iker Valdemoro Sanz</button><span class="sub">Valdemoro Racing</span></td>
+            <td class="c-cat">Superbike<span class="sub">Honda CBR1000RR-R</span></td>
+            <td class="c-lic" data-label="Licencia">Nacional</td>
+            <td class="c-box" data-label="Box">12</td>
+            <td class="c-vm" data-label="Moto verificada"><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg>08:15</span></td>
+            <td class="c-ve" data-label="Equipo verificado"><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg>08:20</span></td>
+            <td class="c-avisos sin-avisos"><span class="sr">Sin avisos</span></td>
+          </tr>
+          <tr class="sel" data-id="p8" data-cat="PreTalent" data-moto="ok" data-equipo="pend" data-oficina="1" data-dorsal="8" data-busca="Mateo Rubial Gaspar">
+            <td class="c-dorsal"><span class="dorsal">8</span></td>
+            <td class="c-piloto"><button class="nombre" type="button" aria-controls="detalle" aria-current="true">Mateo Rubial Gaspar</button><span class="sub">Sin equipo</span></td>
+            <td class="c-cat">PreTalent<span class="sub">Beon (sin modelo)</span></td>
+            <td class="c-lic" data-label="Licencia">Nacional</td>
+            <td class="c-box" data-label="Box">Carpas Paddock</td>
+            <td class="c-vm" data-label="Moto verificada"><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg>09:12</span></td>
+            <td class="c-ve" data-label="Equipo verificado"><span class="pend">Pendiente</span></td>
+            <td class="c-avisos"><ul class="avisos"><li class="of"><span class="sr">Para oficina: </span>Casco sin QR FIM</li></ul></td>
+          </tr>
+          <tr data-id="p15" data-cat="ESBK Talent" data-moto="ok" data-equipo="ok" data-oficina="0" data-dorsal="15" data-busca="Lucía Arranz Peñalver Arranz Academy">
+            <td class="c-dorsal"><span class="dorsal">15</span></td>
+            <td class="c-piloto"><button class="nombre" type="button" aria-controls="detalle">Lucía Arranz Peñalver</button><span class="sub">Arranz Academy</span></td>
+            <td class="c-cat">ESBK Talent<span class="sub">Honda NSF250R</span></td>
+            <td class="c-lic" data-label="Licencia">Nacional</td>
+            <td class="c-box" data-label="Box">25</td>
+            <td class="c-vm" data-label="Moto verificada"><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg>08:31</span></td>
+            <td class="c-ve" data-label="Equipo verificado"><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg>08:35</span></td>
+            <td class="c-avisos"><ul class="avisos"><li class="nota"><span class="sr">Nota: </span>Menor de edad (14 años)</li></ul></td>
+          </tr>
+          <tr data-id="p21a" data-cat="Yamaha R7 Cup" data-moto="pend" data-equipo="pend" data-oficina="1" data-dorsal="21" data-busca="Hugo Cebrián Montaner Montaner Junior Team">
+            <td class="c-dorsal"><span class="dorsal">21</span></td>
+            <td class="c-piloto"><button class="nombre" type="button" aria-controls="detalle">Hugo Cebrián Montaner</button><span class="sub">Montaner Junior Team</span></td>
+            <td class="c-cat">Yamaha R7 Cup (Rookie)<span class="sub">Yamaha R7</span></td>
+            <td class="c-lic" data-label="Licencia">Nacional</td>
+            <td class="c-box" data-label="Box">Carpas Yamaha R7</td>
+            <td class="c-vm" data-label="Moto verificada"><span class="pend">Pendiente</span></td>
+            <td class="c-ve" data-label="Equipo verificado"><span class="pend">Pendiente</span></td>
+            <td class="c-avisos"><ul class="avisos"><li class="of"><span class="sr">Para oficina: </span>Moto sin pegatina</li><li class="nota"><span class="sr">Nota: </span>Dorsal 21 también en Sportbike (válido)</li></ul></td>
+          </tr>
+          <tr data-id="p21b" data-cat="Sportbike" data-moto="ok" data-equipo="pend" data-oficina="1" data-dorsal="21" data-busca="Pau Ferrandis Llobet Llobet Motorsport">
+            <td class="c-dorsal"><span class="dorsal">21</span></td>
+            <td class="c-piloto"><button class="nombre" type="button" aria-controls="detalle">Pau Ferrandis Llobet</button><span class="sub">Llobet Motorsport</span></td>
+            <td class="c-cat">Sportbike<span class="sub">Kawasaki Ninja 400</span></td>
+            <td class="c-lic" data-label="Licencia">Provisional</td>
+            <td class="c-box" data-label="Box">14</td>
+            <td class="c-vm" data-label="Moto verificada"><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg>09:05</span></td>
+            <td class="c-ve" data-label="Equipo verificado"><span class="pend">Pendiente</span></td>
+            <td class="c-avisos"><ul class="avisos"><li class="of"><span class="sr">Para oficina: </span>Licencia provisional</li></ul></td>
+          </tr>
+          <tr data-id="p39" data-cat="Superstock 1000" data-moto="pend" data-equipo="ok" data-oficina="0" data-dorsal="39" data-busca="Bruno Lavín Ortuño Team Ortuño SBK">
+            <td class="c-dorsal"><span class="dorsal">39</span></td>
+            <td class="c-piloto"><button class="nombre" type="button" aria-controls="detalle">Bruno Lavín Ortuño</button><span class="sub">Team Ortuño SBK</span></td>
+            <td class="c-cat">Superstock 1000<span class="sub">BMW M1000RR</span></td>
+            <td class="c-lic" data-label="Licencia">Nacional</td>
+            <td class="c-box" data-label="Box">21</td>
+            <td class="c-vm" data-label="Moto verificada"><span class="pend">Pendiente</span></td>
+            <td class="c-ve" data-label="Equipo verificado"><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg>08:42</span></td>
+            <td class="c-avisos"><ul class="avisos"><li class="nota"><span class="sr">Nota: </span>En la prueba anterior corría en Superbike</li></ul></td>
+          </tr>
+          <tr data-id="p44" data-cat="Supersport 300" data-moto="pend" data-equipo="ok" data-oficina="1" data-dorsal="44" data-busca="Nerea Olmedilla Ruiz Olmedilla Racing">
+            <td class="c-dorsal"><span class="dorsal">44</span></td>
+            <td class="c-piloto"><button class="nombre" type="button" aria-controls="detalle">Nerea Olmedilla Ruiz</button><span class="sub">Olmedilla Racing</span></td>
+            <td class="c-cat">Supersport 300<span class="sub">«SIN MARCA» en el Excel</span></td>
+            <td class="c-lic" data-label="Licencia">Nacional</td>
+            <td class="c-box" data-label="Box">18</td>
+            <td class="c-vm" data-label="Moto verificada"><span class="pend">Pendiente</span></td>
+            <td class="c-ve" data-label="Equipo verificado"><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg>09:30</span></td>
+            <td class="c-avisos"><ul class="avisos"><li class="of"><span class="sr">Para oficina: </span>Marca y modelo por completar</li></ul></td>
+          </tr>
+          <tr data-id="p67" data-cat="Superstock 600" data-moto="ok" data-equipo="pend" data-oficina="1" data-dorsal="67" data-busca="Théo Marchandeau Équipe Lumière">
+            <td class="c-dorsal"><span class="dorsal">67</span></td>
+            <td class="c-piloto"><button class="nombre" type="button" aria-controls="detalle">Théo Marchandeau</button><span class="sub">Équipe Lumière</span></td>
+            <td class="c-cat">Superstock 600<span class="sub">Yamaha R6</span></td>
+            <td class="c-lic" data-label="Licencia">FFM (Francia)</td>
+            <td class="c-box" data-label="Box">3</td>
+            <td class="c-vm" data-label="Moto verificada"><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg>08:58</span></td>
+            <td class="c-ve" data-label="Equipo verificado"><span class="pend">Pendiente</span></td>
+            <td class="c-avisos"><ul class="avisos"><li class="of"><span class="sr">Para oficina: </span>Licencia extranjera (FFM)</li></ul></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="vacio" id="vacio" hidden>
+        <p class="vacio-tit" id="vacio-tit">Ningún participante coincide con estos filtros.</p>
+        <p>Busca por dorsal o por otra parte del nombre, o quita los filtros.</p>
+        <button class="btn" type="button" id="limpiar">Quitar búsqueda y filtros</button>
+      </div>
+
+      <div class="mas" id="mas"><button class="btn" type="button">Mostrar los 121 restantes</button></div>
+    </section>
+
+    <section class="detalle-celda" aria-labelledby="det-nombre">
+      <div class="detalle" id="detalle">
+        <div id="detalle-cuerpo">
+          <div class="det-cab">
+            <span class="det-dorsal"><span class="sr">Dorsal </span>8</span>
+            <div>
+              <h2 class="det-nombre" id="det-nombre">Mateo Rubial Gaspar</h2>
+              <p class="det-cat">PreTalent</p>
+            </div>
+          </div>
+          <h3>Verificaciones</h3>
+          <dl class="ficha">
+            <dt>Moto</dt><dd><span class="ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg>Hoy, 8 de mayo, a las 09:12</span></dd>
+            <dt>Equipo</dt><dd><span class="pend">Pendiente</span></dd>
+          </dl>
+          <h3>Ficha</h3>
+          <dl class="ficha">
+            <dt>Moto</dt><dd>Beon (sin modelo)</dd>
+            <dt>Equipo</dt><dd>Sin equipo</dd>
+            <dt>Box</dt><dd>Carpas Paddock</dd>
+            <dt>Licencia</dt><dd>Nacional</dd>
+            <dt>País</dt><dd>España</dd>
+          </dl>
+          <h3>Casco</h3>
+          <dl class="ficha">
+            <dt>Pegatina</dt><dd>Se pone al verificar el equipo</dd>
+            <dt>QR FIM</dt><dd class="of-txt">No tiene</dd>
+          </dl>
+          <h3>Avisos de oficina</h3>
+          <ul class="avisos">
+            <li class="of"><span class="sr">Para oficina: </span>El casco no tiene QR FIM.</li>
+            <li class="nota"><span class="sr">Nota: </span>Corre sin equipo.</li>
+          </ul>
+        </div>
+        <div class="det-acc">
+          <button class="btn" type="button">Editar participante</button>
+          <button class="btn" type="button">Asignar box</button>
+        </div>
+        <a class="volver" href="#lista">Volver a la lista</a>
+      </div>
+    </section>
+
+    <section class="estados" aria-labelledby="t-estados">
+      <h2 id="t-estados">Otros estados de la lista</h2>
+      <p class="estados-sub">Así se ve la lista cuando una búsqueda no encuentra a nadie, mientras carga y si falla la importación.</p>
+      <div class="muestras">
+        <figure class="muestra">
+          <figcaption>Sin coincidencias</figcaption>
+          <div class="vacio">
+            <p class="vacio-tit">Ningún participante coincide con «Martínez» en Superbike.</p>
+            <p>Busca por dorsal o por otra parte del nombre, o quita el filtro de categoría.</p>
+            <button class="btn" type="button">Quitar búsqueda y filtros</button>
+          </div>
+        </figure>
+        <figure class="muestra">
+          <figcaption>Cargando</figcaption>
+          <div class="esqueleto" aria-busy="true">
+            <span class="sr">Cargando participantes</span>
+            <div class="esq-fila" aria-hidden="true"><span class="esq esq-d"></span><span class="esq-l"><span class="esq"></span><span class="esq esq-corta"></span></span><span class="esq"></span></div>
+            <div class="esq-fila" aria-hidden="true"><span class="esq esq-d"></span><span class="esq-l"><span class="esq"></span><span class="esq esq-corta"></span></span><span class="esq"></span></div>
+            <div class="esq-fila" aria-hidden="true"><span class="esq esq-d"></span><span class="esq-l"><span class="esq"></span><span class="esq esq-corta"></span></span><span class="esq"></span></div>
+            <div class="esq-fila" aria-hidden="true"><span class="esq esq-d"></span><span class="esq-l"><span class="esq"></span><span class="esq esq-corta"></span></span><span class="esq"></span></div>
+          </div>
+        </figure>
+        <figure class="muestra">
+          <figcaption>Error al importar</figcaption>
+          <div class="error">
+            <svg class="i" aria-hidden="true"><use href="#i-error"/></svg>
+            <div>
+              <p class="error-tit">No se ha podido importar el Excel</p>
+              <p>Al archivo «inscritos_navarra_I.xlsx» le falta la columna Licencia. La lista sigue con la importación anterior.</p>
+              <p>Descarga de nuevo el Excel de inscritos de la RFME con todas sus columnas e impórtalo otra vez.</p>
+              <button class="btn" type="button">Importar Excel RFME</button>
+            </div>
+          </div>
+        </figure>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  var OK = '<svg class="i" aria-hidden="true"><use href="#i-ok"></use></svg>';
+  var P = {
+    p7: { d: 7, n: 'Iker Valdemoro Sanz', pais: 'España', cat: 'Superbike', moto: 'Honda CBR1000RR-R', eq: 'Valdemoro Racing', box: '12', lic: 'Nacional', vm: '08:15', ve: '08:20', of: [], no: [] },
+    p8: { d: 8, n: 'Mateo Rubial Gaspar', pais: 'España', cat: 'PreTalent', moto: 'Beon (sin modelo)', eq: 'Sin equipo', box: 'Carpas Paddock', lic: 'Nacional', vm: '09:12', ve: null, qr: false, of: ['El casco no tiene QR FIM.'], no: ['Corre sin equipo.'] },
+    p15: { d: 15, n: 'Lucía Arranz Peñalver', pais: 'España', cat: 'ESBK Talent', moto: 'Honda NSF250R', eq: 'Arranz Academy', box: '25', lic: 'Nacional', vm: '08:31', ve: '08:35', of: [], no: ['Menor de edad: tiene 14 años.'] },
+    p21a: { d: 21, n: 'Hugo Cebrián Montaner', pais: 'España', cat: 'Yamaha R7 Cup (Rookie)', moto: 'Yamaha R7', eq: 'Montaner Junior Team', box: 'Carpas Yamaha R7', lic: 'Nacional', vm: null, ve: null, of: ['La moto no lleva pegatina.'], no: ['El dorsal 21 también está en Sportbike. Es válido.'] },
+    p21b: { d: 21, n: 'Pau Ferrandis Llobet', pais: 'España', cat: 'Sportbike', moto: 'Kawasaki Ninja 400', eq: 'Llobet Motorsport', box: '14', lic: 'Provisional', vm: '09:05', ve: null, of: ['Licencia provisional: falta la de su federación autonómica.'], no: [] },
+    p39: { d: 39, n: 'Bruno Lavín Ortuño', pais: 'España', cat: 'Superstock 1000', moto: 'BMW M1000RR', eq: 'Team Ortuño SBK', box: '21', lic: 'Nacional', vm: null, ve: '08:42', of: [], no: ['En la prueba anterior corría en Superbike.'] },
+    p44: { d: 44, n: 'Nerea Olmedilla Ruiz', pais: 'España', cat: 'Supersport 300', moto: '«SIN MARCA» en el Excel', eq: 'Olmedilla Racing', box: '18', lic: 'Nacional', vm: null, ve: '09:30', of: ['Faltan la marca y el modelo de la moto.'], no: [] },
+    p67: { d: 67, n: 'Théo Marchandeau', pais: 'Francia', cat: 'Superstock 600', moto: 'Yamaha R6', eq: 'Équipe Lumière', box: '3', lic: 'FFM (Francia)', vm: '08:58', ve: null, of: ['Licencia extranjera, de la federación francesa (FFM).'], no: [] }
+  };
+  var $ = function (id) { return document.getElementById(id); };
+  var cuerpo = $('filas');
+  var filas = Array.prototype.slice.call(cuerpo.rows);
+  var q = $('q'), fCat = $('f-cat'), fOrden = $('f-orden');
+  var cats = document.querySelectorAll('.cat');
+  var estrecho = window.matchMedia('(max-width: 1239px)');
+  var quieto = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var mov = function () { return quieto.matches ? 'auto' : 'smooth'; };
+  var norm = function (s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); };
+
+  function filtrar() {
+    var t = norm(q.value), c = fCat.value, v = document.querySelector('input[name="ver"]:checked').value, n = 0;
+    filas.forEach(function (f) {
+      var d = f.dataset;
+      var texto = !t || (/^\d+$/.test(t) ? d.dorsal === t : norm(d.busca).indexOf(t) > -1);
+      var si = texto && (!c || d.cat === c) && (v === 'todos' || (v === 'moto' && d.moto === 'pend') || (v === 'equipo' && d.equipo === 'pend') || (v === 'oficina' && d.oficina === '1'));
+      f.hidden = !si;
+      if (si) n++;
+    });
+    var filtrado = Boolean(t || c || v !== 'todos');
+    $('tabla').hidden = n === 0;
+    $('vacio').hidden = n > 0;
+    $('mas').hidden = filtrado;
+    $('cuenta').textContent = filtrado ? (n === 1 ? '1 coincide' : n + ' coinciden') : '8 de 129';
+    if (!n) $('vacio-tit').textContent = t ? 'Ningún participante coincide con «' + q.value.trim() + '»' + (c ? ' en ' + c : '') + '.' : 'Ningún participante coincide con estos filtros.';
+    cats.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.cat === c)); });
+  }
+
+  function ordenar() {
+    var s = fOrden.value === 'desc' ? -1 : 1;
+    filas.sort(function (a, b) {
+      return (a.dataset.dorsal - b.dataset.dorsal) * s || a.querySelector('.nombre').textContent.localeCompare(b.querySelector('.nombre').textContent, 'es');
+    });
+    filas.forEach(function (f) { cuerpo.appendChild(f); });
+    $('th-dorsal').setAttribute('aria-sort', s === 1 ? 'ascending' : 'descending');
+  }
+
+  function hora(h) {
+    return h ? '<span class="ok">' + OK + 'Hoy, 8 de mayo, a las ' + h + '</span>' : '<span class="pend">Pendiente</span>';
+  }
+
+  function pintar(p) {
+    var eq = Boolean(p.ve);
+    var li = p.of.map(function (x) { return '<li class="of"><span class="sr">Para oficina: </span>' + x + '</li>'; })
+      .concat(p.no.map(function (x) { return '<li class="nota"><span class="sr">Nota: </span>' + x + '</li>'; }));
+    $('detalle-cuerpo').innerHTML =
+      '<div class="det-cab"><span class="det-dorsal"><span class="sr">Dorsal </span>' + p.d + '</span><div><h2 class="det-nombre" id="det-nombre">' + p.n + '</h2><p class="det-cat">' + p.cat + '</p></div></div>' +
+      '<h3>Verificaciones</h3><dl class="ficha"><dt>Moto</dt><dd>' + hora(p.vm) + '</dd><dt>Equipo</dt><dd>' + hora(p.ve) + '</dd></dl>' +
+      '<h3>Ficha</h3><dl class="ficha"><dt>Moto</dt><dd>' + p.moto + '</dd><dt>Equipo</dt><dd>' + p.eq + '</dd><dt>Box</dt><dd>' + p.box + '</dd><dt>Licencia</dt><dd>' + p.lic + '</dd><dt>País</dt><dd>' + p.pais + '</dd></dl>' +
+      '<h3>Casco</h3><dl class="ficha"><dt>Pegatina</dt><dd>' + (eq ? 'Puesta' : 'Se pone al verificar el equipo') + '</dd><dt>QR FIM</dt>' +
+      (p.qr === false ? '<dd class="of-txt">No tiene</dd>' : '<dd>' + (eq ? 'Comprobado' : 'Sin comprobar') + '</dd>') + '</dl>' +
+      '<h3>Avisos de oficina</h3>' + (li.length ? '<ul class="avisos">' + li.join('') + '</ul>' : '<p class="nada">Nada que resolver en oficina.</p>');
+  }
+
+  function elegir(id, mover) {
+    filas.forEach(function (f) {
+      var s = f.dataset.id === id, b = f.querySelector('.nombre');
+      f.classList.toggle('sel', s);
+      if (s) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+    });
+    pintar(P[id]);
+    if (mover && estrecho.matches) $('detalle').scrollIntoView({ behavior: mov(), block: 'start' });
+  }
+
+  function limpiar() {
+    q.value = '';
+    fCat.value = '';
+    document.querySelector('input[name="ver"][value="todos"]').checked = true;
+    filtrar();
+  }
+
+  cuerpo.addEventListener('click', function (e) {
+    var f = e.target.closest('tr');
+    if (f) elegir(f.dataset.id, true);
+  });
+  q.addEventListener('input', filtrar);
+  q.form.addEventListener('submit', function (e) { e.preventDefault(); });
+  fCat.addEventListener('change', filtrar);
+  fOrden.addEventListener('change', ordenar);
+  document.querySelectorAll('input[name="ver"]').forEach(function (r) { r.addEventListener('change', filtrar); });
+  cats.forEach(function (b) {
+    b.addEventListener('click', function () {
+      fCat.value = b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.cat;
+      filtrar();
+    });
+  });
+  $('limpiar').addEventListener('click', limpiar);
+  $('ver-dup').addEventListener('click', function () {
+    limpiar();
+    elegir('p7', false);
+    var f = cuerpo.querySelector('[data-id="p7"]');
+    f.scrollIntoView({ behavior: mov(), block: 'center' });
+    f.querySelector('.nombre').focus({ preventScroll: true });
+  });
+})();
+</script>
+</body>
+</html>

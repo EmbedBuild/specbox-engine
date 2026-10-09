@@ -1,0 +1,5 @@
+puntos medios encadenados · l.6: <title>Participantes · Navarra I · ESBK 2026</title>
+mayúsculas con tracking (eyebrow) · l.72: .eyebrow{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+mayúsculas con tracking (eyebrow) · l.96: .h3{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bot
+borde lateral de color > 1px · l.107: .bar>span{display:block;height:100%;background:var(--ok-bar);border-right:2px solid #fff}
+mayúsculas con tracking (eyebrow) · l.236: .state-cap{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px;border-bott

@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-surface" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PaddockManager · RFME ESBK 2026 - Dirección de Carrera</title>
+<!-- Google Fonts: Chivo, Hanken Grotesk, JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Theme Configuration Verbatim -->
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "secondary": "#0051d5",
+            "secondary-fixed": "#dbe1ff",
+            "primary": "#b70011",
+            "outline-variant": "#e6bdb8",
+            "on-tertiary": "#ffffff",
+            "secondary-container": "#316bf3",
+            "on-primary-fixed": "#410002",
+            "inverse-primary": "#ffb4ab",
+            "on-secondary-container": "#fefcff",
+            "primary-fixed": "#ffdad6",
+            "outline": "#916f6b",
+            "on-tertiary-fixed-variant": "#6e3900",
+            "on-surface": "#131b2e",
+            "surface-container-low": "#f2f3ff",
+            "tertiary-fixed-dim": "#ffb77d",
+            "error": "#ba1a1a",
+            "on-primary": "#ffffff",
+            "surface-variant": "#dae2fd",
+            "surface-bright": "#faf8ff",
+            "secondary-fixed-dim": "#b4c5ff",
+            "on-surface-variant": "#5c403c",
+            "surface-container-lowest": "#ffffff",
+            "tertiary": "#894900",
+            "inverse-on-surface": "#eef0ff",
+            "surface-container-highest": "#dae2fd",
+            "on-secondary-fixed-variant": "#003ea8",
+            "surface-dim": "#d2d9f4",
+            "on-primary-container": "#fff6f5",
+            "tertiary-fixed": "#ffdcc3",
+            "on-secondary-fixed": "#00174b",
+            "tertiary-container": "#ad5d00",
+            "on-error-container": "#93000a",
+            "inverse-surface": "#283044",
+            "primary-container": "#dc2626",
+            "surface": "#faf8ff",
+            "primary-fixed-dim": "#ffb4ab",
+            "background": "#faf8ff",
+            "on-tertiary-fixed": "#2f1500",
+            "on-error": "#ffffff",
+            "surface-tint": "#bf0715",
+            "on-tertiary-container": "#fff6f2",
+            "surface-container-high": "#e2e7ff",
+            "on-secondary": "#ffffff",
+            "surface-container": "#eaedff",
+            "on-background": "#131b2e",
+            "on-primary-fixed-variant": "#93000b",
+            "error-container": "#ffdad6"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-xs": "4px",
+            "space-lg": "16px",
+            "gutter-desktop": "16px",
+            "space-2xl": "32px",
+            "space-sm": "8px",
+            "margin": "16px",
+            "gutter": "12px",
+            "space-md": "12px",
+            "margin-desktop": "24px",
+            "space-xl": "24px"
+          },
+          "fontFamily": {
+            "headline-sm": ["Chivo"],
+            "headline-lg": ["Chivo"],
+            "headline-md": ["Chivo"],
+            "label-mono-lg": ["JetBrains Mono"],
+            "label-mono-md": ["JetBrains Mono"],
+            "headline-xl-mobile": ["Chivo"],
+            "body-md": ["Hanken Grotesk"],
+            "label-mono-sm": ["JetBrains Mono"],
+            "body-lg": ["Hanken Grotesk"],
+            "body-sm": ["Hanken Grotesk"],
+            "label-caps": ["Chivo"],
+            "headline-xl": ["Chivo"]
+          },
+          "fontSize": {
+            "headline-sm": ["15px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "700" }],
+            "headline-lg": ["24px", { "lineHeight": "30px", "letterSpacing": "-0.015em", "fontWeight": "700" }],
+            "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "label-mono-lg": ["14px", { "lineHeight": "18px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "label-mono-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "500" }],
+            "headline-xl-mobile": ["24px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "800" }],
+            "body-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-mono-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "label-caps": ["10px", { "lineHeight": "12px", "letterSpacing": "0.08em", "fontWeight": "800" }],
+            "headline-xl": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "800" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .checkered-motif {
+      background-image: repeating-linear-gradient(90deg, #CBD5E1 0px, #CBD5E1 4px, #FFFFFF 4px, #FFFFFF 8px);
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body class="h-full min-h-screen bg-surface text-on-surface font-body-md antialiased flex flex-col selection:bg-primary selection:text-white">
+<!-- TOP APP BAR / BRAND HEADER -->
+<header class="bg-surface-container-lowest border-b border-surface-container-high w-full z-40 sticky top-0 shadow-sm">
+<div class="flex justify-between items-center w-full px-space-xl h-14">
+<!-- Brand & Event Context Cluster -->
+<div class="flex items-center gap-space-lg">
+<div class="flex items-center gap-space-sm border-r border-surface-container-high pr-space-lg">
+<div class="h-7 w-7 bg-primary flex items-center justify-center rounded text-white font-headline-sm text-headline-sm tracking-wider">
+            RF
+          </div>
+<div class="flex flex-col">
+<span class="text-headline-sm font-headline-sm uppercase tracking-wider text-primary font-bold">PaddockManager · RFME ESBK</span>
+<span class="text-[10px] uppercase font-label-caps text-on-surface-variant font-extrabold tracking-widest">Real Federación Motociclista Española</span>
+</div>
+</div>
+<!-- Selector de Evento -->
+<div class="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded border border-surface-container-high">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">sports_motorsports</span>
+<div class="flex flex-col">
+<span class="font-headline-sm text-[12px] leading-tight text-on-surface font-bold">ESBK 2026 · Navarra I</span>
+<span class="font-body-sm text-[11px] leading-none text-on-surface-variant">Circuito de Navarra, Los Arcos · 8 y 9 de mayo</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant ml-1 cursor-pointer">arrow_drop_down</span>
+</div>
+</div>
+<!-- Reloj GPS & View State Selector -->
+<div class="flex items-center gap-space-md">
+<!-- Live GPS Clock -->
+<div class="flex items-center gap-2 bg-surface-container-highest px-3 py-1 rounded border border-surface-container-high">
+<span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="font-label-mono-md text-label-mono-md tabular-nums text-on-surface font-bold" id="gps-clock">09:42:15 CET</span>
+<span class="font-label-caps text-[9px] bg-primary text-white px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">GPS SYNC</span>
+<span class="text-body-sm text-[11px] text-on-surface-variant">Paddock Activo</span>
+</div>
+<!-- State Toggle Tester (Simulador de Vistas) -->
+<div class="flex items-center bg-surface-container-low p-0.5 rounded border border-surface-container-high text-body-sm">
+<button class="px-2.5 py-1 rounded text-[11px] font-headline-sm uppercase tracking-wide bg-primary text-white transition-colors" id="btn-view-operational" onclick="switchViewState('operational')">
+            Vista Operativa
+          </button>
+<button class="px-2.5 py-1 rounded text-[11px] font-headline-sm uppercase tracking-wide text-on-surface-variant hover:text-on-surface transition-colors" id="btn-view-empty" onclick="switchViewState('empty')">
+            Estado Vacío
+          </button>
+<button class="px-2.5 py-1 rounded text-[11px] font-headline-sm uppercase tracking-wide text-on-surface-variant hover:text-on-surface transition-colors" id="btn-view-skeleton" onclick="switchViewState('skeleton')">
+            Carga &amp; Error
+          </button>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center gap-2 pl-2 border-l border-surface-container-high">
+<button class="bg-primary text-white px-3 py-1.5 rounded flex items-center gap-1.5 hover:bg-primary-container text-[12px] font-headline-sm tracking-wide uppercase border border-primary transition-all active:scale-95 shadow-sm">
+<span class="material-symbols-outlined text-[16px]">upload_file</span>
+<span>Importar Excel RFME</span>
+</button>
+<button class="bg-surface-container-lowest text-on-surface px-2.5 py-1.5 rounded flex items-center gap-1 border border-surface-container-high hover:bg-surface-container-low text-[12px] font-headline-sm transition-colors">
+<span class="material-symbols-outlined text-[16px] text-primary">add</span>
+<span>Añadir</span>
+</button>
+<button class="bg-surface-container-lowest text-on-surface p-1.5 rounded border border-surface-container-high hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface" title="Imprimir Lista PDF">
+<span class="material-symbols-outlined text-[18px]">print</span>
+</button>
+<button class="bg-surface-container-lowest text-on-surface p-1.5 rounded border border-surface-container-high hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface" title="Ajustes de Sincronización">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Micro-checkered Racing Datum Line -->
+<div class="h-[2px] w-full checkered-motif border-b border-surface-container-high"></div>
+</header>
+<!-- WORKSPACE CONTAINER (1440px target centered/responsive) -->
+<main class="flex-1 w-full max-w-[1440px] mx-auto px-space-lg py-3 flex flex-col gap-3">
+<!-- KPI & VERIFICACIONES TÉCNICAS MODULE -->
+<section class="bg-surface-container-lowest border border-surface-container-high rounded p-3 shadow-sm">
+<div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 pb-2.5 border-b border-surface-container-low">
+<!-- Global KPI Summary -->
+<div class="flex items-center gap-4 min-w-[340px]">
+<div class="h-10 w-10 rounded bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+<div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-lg text-headline-lg text-on-surface tracking-tight font-black">104</span>
+<span class="font-body-md text-on-surface-variant font-medium">/ 129 verificados</span>
+<span class="font-label-mono-sm text-[12px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-300">81% COMPLETADO</span>
+</div>
+<div class="font-body-sm text-[11px] text-on-surface-variant flex items-center gap-2 mt-0.5">
+<span>129 inscritos confirmados</span>
+<span class="text-surface-dim">•</span>
+<span class="text-amber-700 font-semibold">25 pendientes técnicos</span>
+</div>
+</div>
+</div>
+<!-- Motorsport Multi-segment Progress Bar -->
+<div class="flex-1 max-w-xl flex flex-col gap-1.5">
+<div class="flex justify-between items-center text-[11px] font-label-mono-sm uppercase text-on-surface-variant">
+<span class="flex items-center gap-1.5 text-emerald-700 font-bold"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Conforme Verificado: 104 (80.6%)</span>
+<span class="flex items-center gap-1.5 text-amber-600 font-bold"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Pendiente Boxes: 25 (19.4%)</span>
+</div>
+<div class="h-3.5 w-full bg-surface-container rounded-sm overflow-hidden flex border border-surface-container-high p-[1px]">
+<div class="h-full bg-emerald-600 rounded-l-sm transition-all duration-500 relative" style="width: 80.6%;">
+<div class="absolute inset-0 bg-white/10 repeating-stripes"></div>
+</div>
+<div class="h-full bg-amber-500 rounded-r-sm transition-all duration-500" style="width: 19.4%;"></div>
+</div>
+</div>
+<!-- Quick Summary Tag -->
+<div class="hidden xl:flex items-center gap-2 text-right">
+<div class="border-l border-surface-container-high pl-4">
+<span class="block text-[10px] font-label-caps uppercase text-on-surface-variant">Cierre Verificaciones</span>
+<span class="font-label-mono-md text-label-mono-md text-primary font-bold">11:00 CET (Restan 1h 17m)</span>
+</div>
+</div>
+</div>
+<!-- Categories Pills Breakdown (9 Categories) -->
+<div class="flex items-center gap-1.5 pt-2.5 overflow-x-auto text-body-sm scrollbar-none" id="categories-pill-bar">
+<button class="category-pill active flex items-center gap-1.5 px-2.5 py-1 rounded bg-on-surface text-white text-[11px] font-headline-sm uppercase tracking-wider shrink-0 transition-all border border-on-surface" onclick="filterCategory('ALL')">
+<span>Todas</span>
+<span class="bg-white/20 text-white px-1.5 py-0.2 rounded font-label-mono-sm text-[10px]">129</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface text-[11px] font-headline-sm uppercase tracking-wider shrink-0 border border-surface-container-high transition-all" onclick="filterCategory('Yamaha R7 Cup')">
+<span class="w-1.5 h-3 bg-secondary rounded-sm"></span>
+<span>Yamaha R7 Cup</span>
+<span class="font-label-mono-sm text-[10px] text-on-surface font-semibold">29</span>
+<span class="text-[9px] font-label-mono-sm bg-amber-100 text-amber-800 px-1 rounded">6 pend.</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface text-[11px] font-headline-sm uppercase tracking-wider shrink-0 border border-surface-container-high transition-all" onclick="filterCategory('ESBK Talent')">
+<span class="w-1.5 h-3 bg-blue-500 rounded-sm"></span>
+<span>ESBK Talent</span>
+<span class="font-label-mono-sm text-[10px] text-on-surface font-semibold">25</span>
+<span class="text-[9px] font-label-mono-sm bg-amber-100 text-amber-800 px-1 rounded">4 pend.</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface text-[11px] font-headline-sm uppercase tracking-wider shrink-0 border border-surface-container-high transition-all" onclick="filterCategory('PreTalent')">
+<span class="w-1.5 h-3 bg-cyan-600 rounded-sm"></span>
+<span>PreTalent</span>
+<span class="font-label-mono-sm text-[10px] text-on-surface font-semibold">14</span>
+<span class="text-[9px] font-label-mono-sm bg-amber-100 text-amber-800 px-1 rounded">3 pend.</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface text-[11px] font-headline-sm uppercase tracking-wider shrink-0 border border-surface-container-high transition-all" onclick="filterCategory('Supersport 300')">
+<span class="w-1.5 h-3 bg-amber-500 rounded-sm"></span>
+<span>Supersport 300</span>
+<span class="font-label-mono-sm text-[10px] text-on-surface font-semibold">14</span>
+<span class="text-[9px] font-label-mono-sm bg-amber-100 text-amber-800 px-1 rounded">3 pend.</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface text-[11px] font-headline-sm uppercase tracking-wider shrink-0 border border-surface-container-high transition-all" onclick="filterCategory('Sportbike')">
+<span class="w-1.5 h-3 bg-violet-600 rounded-sm"></span>
+<span>Sportbike</span>
+<span class="font-label-mono-sm text-[10px] text-on-surface font-semibold">13</span>
+<span class="text-[9px] font-label-mono-sm bg-amber-100 text-amber-800 px-1 rounded">3 pend.</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface text-[11px] font-headline-sm uppercase tracking-wider shrink-0 border border-surface-container-high transition-all" onclick="filterCategory('Superstock 1000')">
+<span class="w-1.5 h-3 bg-orange-600 rounded-sm"></span>
+<span>Superstock 1000</span>
+<span class="font-label-mono-sm text-[10px] text-on-surface font-semibold">11</span>
+<span class="text-[9px] font-label-mono-sm bg-amber-100 text-amber-800 px-1 rounded">2 pend.</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface text-[11px] font-headline-sm uppercase tracking-wider shrink-0 border border-surface-container-high transition-all" onclick="filterCategory('Superstock 600')">
+<span class="w-1.5 h-3 bg-teal-600 rounded-sm"></span>
+<span>Superstock 600</span>
+<span class="font-label-mono-sm text-[10px] text-on-surface font-semibold">10</span>
+<span class="text-[9px] font-label-mono-sm bg-amber-100 text-amber-800 px-1 rounded">2 pend.</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface text-[11px] font-headline-sm uppercase tracking-wider shrink-0 border border-surface-container-high transition-all" onclick="filterCategory('Supersport')">
+<span class="w-1.5 h-3 bg-indigo-600 rounded-sm"></span>
+<span>Supersport</span>
+<span class="font-label-mono-sm text-[10px] text-on-surface font-semibold">9</span>
+<span class="text-[9px] font-label-mono-sm bg-amber-100 text-amber-800 px-1 rounded">1 pend.</span>
+</button>
+<button class="category-pill flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface text-[11px] font-headline-sm uppercase tracking-wider shrink-0 border border-surface-container-high transition-all" onclick="filterCategory('Superbike')">
+<span class="w-1.5 h-3 bg-primary rounded-sm"></span>
+<span>Superbike</span>
+<span class="font-label-mono-sm text-[10px] text-on-surface font-semibold">4</span>
+<span class="text-[9px] font-label-mono-sm bg-amber-100 text-amber-800 px-1 rounded">1 pend.</span>
+</button>
+</div>
+</section>
+<!-- ALERTA OPERATIVA COLAPSABLE: FILAS EXCEL QUE NO ENTRARON -->
+<div class="bg-error-container/40 border border-red-300 rounded p-2.5 transition-all" id="excel-alert-banner">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="bg-primary text-white p-1 rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">warning</span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-[13px] text-error font-bold tracking-tight">Incidencias de Importación: 3 filas del Excel RFME no pudieron incorporarse</span>
+<span class="bg-red-200 text-error font-label-mono-sm text-[10px] font-bold px-1.5 py-0.2 rounded">3 de 132 procesadas</span>
+</div>
+<p class="font-body-sm text-[11px] text-on-surface-variant">Requieren resolución manual en secretaría técnica para formalizar parrilla oficial.</p>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="text-[11px] font-headline-sm text-secondary hover:underline flex items-center gap-0.5" onclick="toggleAlertDetails()">
+<span id="alert-toggle-label">Ver detalles</span>
+<span class="material-symbols-outlined text-[16px]" id="alert-chevron">expand_more</span>
+</button>
+<button class="bg-primary hover:bg-primary-container text-white px-2.5 py-1 rounded font-headline-sm text-[11px] tracking-wide uppercase transition-colors">
+            Resolver incidencias
+          </button>
+<button class="bg-white border border-red-300 text-on-surface hover:bg-red-50 px-2 py-1 rounded font-headline-sm text-[11px] flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">download</span>
+<span>Descargar log</span>
+</button>
+</div>
+</div>
+<!-- Collapsible items list -->
+<div class="hidden mt-2 pt-2 border-t border-red-200/60 grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px]" id="alert-details-content">
+<div class="bg-white/90 p-2 rounded border border-red-200 flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-center mb-1">
+<span class="font-label-mono-sm font-bold text-error">FILA 46 · #52</span>
+<span class="bg-red-100 text-error px-1 rounded text-[9px] font-bold">CATEGORÍA INVÁLIDA</span>
+</div>
+<div class="font-headline-sm text-on-surface font-bold text-[12px]">Daniel Escartín Moreno</div>
+<div class="text-on-surface-variant mt-0.5">Categoría 'Supersport NG' no existe en el reglamento ESBK 2026.</div>
+</div>
+<div class="mt-2 text-right">
+<button class="text-secondary font-headline-sm text-[10px] uppercase hover:underline">Reasignar a Supersport</button>
+</div>
+</div>
+<div class="bg-white/90 p-2 rounded border border-amber-200 flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-center mb-1">
+<span class="font-label-mono-sm font-bold text-amber-800">FILA 88 · #33</span>
+<span class="bg-amber-100 text-amber-800 px-1 rounded text-[9px] font-bold">FALTA LICENCIA</span>
+</div>
+<div class="font-headline-sm text-on-surface font-bold text-[12px]">Álvaro Cifuentes Rey (STK 600)</div>
+<div class="text-on-surface-variant mt-0.5">Sin número de licencia federativa en el formulario de inscripción.</div>
+</div>
+<div class="mt-2 text-right">
+<button class="text-secondary font-headline-sm text-[10px] uppercase hover:underline">Comprobar con RFME</button>
+</div>
+</div>
+<div class="bg-white/90 p-2 rounded border border-red-200 flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-center mb-1">
+<span class="font-label-mono-sm font-bold text-error">FILA 131 · #7</span>
+<span class="bg-red-100 text-error px-1 rounded text-[9px] font-bold">DUPLICADO EXCEL</span>
+</div>
+<div class="font-headline-sm text-on-surface font-bold text-[12px]">Iker Valdemoro Sanz (SBK)</div>
+<div class="text-on-surface-variant mt-0.5">Dorsal y piloto ya asignados en Fila 3. Registro descartado.</div>
+</div>
+<div class="mt-2 text-right">
+<button class="text-on-surface-variant font-headline-sm text-[10px] uppercase hover:underline">Eliminar fila 131</button>
+</div>
+</div>
+</div>
+</div>
+<!-- MAIN OPERATIONAL WORKSPACE (SPLIT: TABLE 8-9 COLS + DETAIL INSPECTOR 3-4 COLS) -->
+<div class="grid grid-cols-12 gap-3 items-start flex-1 min-h-[560px]">
+<!-- LEFT COLUMN: SEARCH, FILTERS & PARTICIPANTS DATA GRID (8 COLS) -->
+<div class="col-span-12 xl:col-span-8 flex flex-col gap-2 bg-surface-container-lowest border border-surface-container-high rounded p-3 shadow-sm">
+<!-- Filter Toolbar -->
+<div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-surface-container-high">
+<!-- Search Bar -->
+<div class="relative flex-1 min-w-[240px]">
+<span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+<input class="w-full h-8 pl-8 pr-3 text-[12px] bg-white border border-surface-container-high rounded focus:border-secondary focus:ring-1 focus:ring-secondary outline-none placeholder:text-surface-dim transition-all" id="search-input" oninput="handleSearch(this.value)" placeholder="Buscar por piloto, dorsal (#), equipo o NIF..." type="text"/>
+</div>
+<!-- Selects & Filters -->
+<div class="flex items-center gap-2">
+<!-- Filter Estado -->
+<select class="h-8 text-[11px] font-body-md bg-white border border-surface-container-high rounded px-2 text-on-surface focus:border-secondary outline-none" id="filter-status" onchange="applyFilters()">
+<option value="ALL">Todos los Estados (129)</option>
+<option value="PEND_MOTO">Pendiente Moto (14)</option>
+<option value="PEND_EQUIP">Pendiente Equipación (18)</option>
+<option value="INCIDENCIAS">Incidencias Oficina (5)</option>
+<option value="VERIFIED">Completos / Verificados (104)</option>
+</select>
+<!-- Filter Ubicación -->
+<select class="h-8 text-[11px] font-body-md bg-white border border-surface-container-high rounded px-2 text-on-surface focus:border-secondary outline-none" id="filter-location" onchange="applyFilters()">
+<option value="ALL">Todos los Boxes / Ubicaciones</option>
+<option value="PADDOCK">Carpas Paddock</option>
+<option value="BOXES">Boxes 1 al 30</option>
+</select>
+<!-- Reset Filters -->
+<button class="h-8 px-2 bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface rounded text-[11px] flex items-center gap-1 border border-surface-container-high" onclick="resetFilters()" title="Limpiar filtros">
+<span class="material-symbols-outlined text-[14px]">filter_alt_off</span>
+</button>
+</div>
+</div>
+<!-- Table Count & Quick Actions Header -->
+<div class="flex items-center justify-between text-[11px] px-1 text-on-surface-variant font-label-mono-sm">
+<div>
+<span class="text-on-surface font-bold" id="showing-count">Mostrando 8 de 129 pilotos</span>
+<span class="text-surface-dim mx-1">|</span>
+<span class="text-emerald-700">Filtro activo: Categorías ESBK</span>
+</div>
+<div class="flex items-center gap-3">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Conforme</span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Pendiente</span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary"></span> Trámite especial</span>
+</div>
+</div>
+<!-- VIEW STATE CONTAINER: OPERATIONAL DATA TABLE -->
+<div class="overflow-x-auto border border-surface-container-high rounded" id="view-operational">
+<table class="w-full text-left border-collapse text-body-sm">
+<thead>
+<tr class="bg-surface-container-low border-b-2 border-surface-container-high text-[10px] font-label-caps uppercase text-on-surface-variant">
+<th class="py-2 px-2.5 w-12 text-center">#</th>
+<th class="py-2 px-2">Piloto &amp; País</th>
+<th class="py-2 px-2">Categoría</th>
+<th class="py-2 px-2">Motocicleta</th>
+<th class="py-2 px-2">Equipo</th>
+<th class="py-2 px-2 text-center">Box</th>
+<th class="py-2 px-2 text-center">Moto</th>
+<th class="py-2 px-2 text-center">Equip.</th>
+<th class="py-2 px-2">Alertas / Trámites</th>
+<th class="py-2 px-2 text-right">Acción</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-high" id="participants-table-body">
+<!-- ROW 1 (DEFAULT SELECTED) -->
+<tr class="cursor-pointer bg-blue-50/80 border-l-4 border-primary hover:bg-blue-100/60 transition-colors" id="row-7" onclick="selectRider(1)">
+<td class="py-2 px-2.5 text-center">
+<span class="inline-flex items-center justify-center w-7 h-7 rounded bg-on-surface text-white font-headline-sm font-black text-[13px] shadow-sm">
+                    7
+                  </span>
+</td>
+<td class="py-2 px-2 font-headline-sm text-on-surface font-bold">
+<div class="flex items-center gap-1.5">
+<span class="text-xs">🇪🇸</span>
+<span>Iker Valdemoro Sanz</span>
+</div>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-red-100 text-primary border border-red-200 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    Superbike
+                  </span>
+</td>
+<td class="py-2 px-2 font-mono text-[11px] text-on-surface">Honda CBR1000RR-R</td>
+<td class="py-2 px-2 text-on-surface-variant text-[11px]">Valdemoro Racing</td>
+<td class="py-2 px-2 text-center font-label-mono-sm font-bold text-on-surface bg-surface-container-low/50">Box 12</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold" title="Verificada a las 08:15">
+<span class="material-symbols-outlined text-[13px] text-emerald-700">check_circle</span>
+                    08:15
+                  </span>
+</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold" title="Verificada a las 08:20">
+<span class="material-symbols-outlined text-[13px] text-emerald-700">check_circle</span>
+                    08:20
+                  </span>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded text-[10px] font-medium">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    OK Pista Libre
+                  </span>
+</td>
+<td class="py-2 px-2 text-right">
+<button class="text-secondary hover:text-primary font-headline-sm text-[11px] p-1 uppercase">Ficha</button>
+</td>
+</tr>
+<!-- ROW 2 -->
+<tr class="cursor-pointer hover:bg-surface-container-low transition-colors" id="row-39" onclick="selectRider(2)">
+<td class="py-2 px-2.5 text-center">
+<span class="inline-flex items-center justify-center w-7 h-7 rounded bg-surface-container-highest text-on-surface font-headline-sm font-black text-[13px]">
+                    39
+                  </span>
+</td>
+<td class="py-2 px-2 font-headline-sm text-on-surface font-bold">
+<div class="flex items-center gap-1.5">
+<span class="text-xs">🇪🇸</span>
+<span>Bruno Lavín Ortuño</span>
+</div>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-orange-100 text-orange-800 border border-orange-200 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-orange-600"></span>
+                    Superstock 1000
+                  </span>
+</td>
+<td class="py-2 px-2 font-mono text-[11px] text-on-surface">BMW M1000RR</td>
+<td class="py-2 px-2 text-on-surface-variant text-[11px]">Team Ortuño SBK</td>
+<td class="py-2 px-2 text-center font-label-mono-sm font-bold text-on-surface bg-surface-container-low/50">Box 21</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold animate-pulse">
+<span class="material-symbols-outlined text-[13px] text-amber-700">schedule</span>
+                    PENDIENTE
+                  </span>
+</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+<span class="material-symbols-outlined text-[13px] text-emerald-700">check_circle</span>
+                    08:45
+                  </span>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] font-medium">
+<span class="material-symbols-outlined text-[12px] text-amber-600">gavel</span>
+                    Citado comisarios 10:00
+                  </span>
+</td>
+<td class="py-2 px-2 text-right">
+<button class="text-secondary hover:text-primary font-headline-sm text-[11px] p-1 uppercase">Ficha</button>
+</td>
+</tr>
+<!-- ROW 3 -->
+<tr class="cursor-pointer hover:bg-surface-container-low transition-colors" id="row-21a" onclick="selectRider(3)">
+<td class="py-2 px-2.5 text-center">
+<span class="inline-flex items-center justify-center w-7 h-7 rounded bg-surface-container-highest text-on-surface font-headline-sm font-black text-[13px]">
+                    21
+                  </span>
+</td>
+<td class="py-2 px-2 font-headline-sm text-on-surface font-bold">
+<div class="flex items-center gap-1.5">
+<span class="text-xs">🇪🇸</span>
+<span>Pau Ferrandis Llobet</span>
+</div>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-violet-100 text-violet-800 border border-violet-200 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-violet-600"></span>
+                    Sportbike
+                  </span>
+</td>
+<td class="py-2 px-2 font-mono text-[11px] text-on-surface">Kawasaki Ninja 400</td>
+<td class="py-2 px-2 text-on-surface-variant text-[11px]">Ferrandis Motorsport</td>
+<td class="py-2 px-2 text-center font-label-mono-sm font-bold text-on-surface bg-surface-container-low/50">Box 14</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+<span class="material-symbols-outlined text-[13px] text-emerald-700">check_circle</span>
+                    07:50
+                  </span>
+</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+<span class="material-symbols-outlined text-[13px] text-amber-700">schedule</span>
+                    PENDIENTE
+                  </span>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-red-50 text-error border border-red-200 px-1.5 py-0.5 rounded text-[10px] font-medium">
+<span class="material-symbols-outlined text-[12px] text-error">badge</span>
+                    ALERTA: Licencia provisional
+                  </span>
+</td>
+<td class="py-2 px-2 text-right">
+<button class="text-secondary hover:text-primary font-headline-sm text-[11px] p-1 uppercase">Ficha</button>
+</td>
+</tr>
+<!-- ROW 4 -->
+<tr class="cursor-pointer hover:bg-surface-container-low transition-colors" id="row-21b" onclick="selectRider(4)">
+<td class="py-2 px-2.5 text-center">
+<span class="inline-flex items-center justify-center w-7 h-7 rounded bg-secondary-fixed text-secondary font-headline-sm font-black text-[13px]">
+                    21
+                  </span>
+</td>
+<td class="py-2 px-2 font-headline-sm text-on-surface font-bold">
+<div class="flex items-center gap-1.5">
+<span class="text-xs">🇪🇸</span>
+<span>Hugo Cebrián Montaner</span>
+</div>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-blue-100 text-secondary border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+                    Yamaha R7 Cup (Rookie)
+                  </span>
+</td>
+<td class="py-2 px-2 font-mono text-[11px] text-on-surface">Yamaha R7</td>
+<td class="py-2 px-2 text-on-surface-variant text-[11px]">Carpas Yamaha R7</td>
+<td class="py-2 px-2 text-center font-label-mono-sm font-bold text-on-surface bg-surface-container-low/50">Carpa #4</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+                    PENDIENTE
+                  </span>
+</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+                    PENDIENTE
+                  </span>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-red-50 text-error border border-red-200 px-1.5 py-0.5 rounded text-[10px] font-medium">
+<span class="material-symbols-outlined text-[12px] text-error">priority_high</span>
+                    ALERTA: Sin adhesivo oficial / Ambos pend.
+                  </span>
+</td>
+<td class="py-2 px-2 text-right">
+<button class="text-secondary hover:text-primary font-headline-sm text-[11px] p-1 uppercase">Ficha</button>
+</td>
+</tr>
+<!-- ROW 5 -->
+<tr class="cursor-pointer hover:bg-surface-container-low transition-colors" id="row-15" onclick="selectRider(5)">
+<td class="py-2 px-2.5 text-center">
+<span class="inline-flex items-center justify-center w-7 h-7 rounded bg-surface-container-highest text-on-surface font-headline-sm font-black text-[13px]">
+                    15
+                  </span>
+</td>
+<td class="py-2 px-2 font-headline-sm text-on-surface font-bold">
+<div class="flex items-center gap-1.5">
+<span class="text-xs">🇪🇸</span>
+<span>Lucía Arranz Peñalver</span>
+</div>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+                    ESBK Talent
+                  </span>
+</td>
+<td class="py-2 px-2 font-mono text-[11px] text-on-surface">Honda NSF250R</td>
+<td class="py-2 px-2 text-on-surface-variant text-[11px]">Arranz Talent Team</td>
+<td class="py-2 px-2 text-center font-label-mono-sm font-bold text-on-surface bg-surface-container-low/50">Box 25</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+<span class="material-symbols-outlined text-[13px] text-emerald-700">check_circle</span>
+                    08:10
+                  </span>
+</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+<span class="material-symbols-outlined text-[13px] text-emerald-700">check_circle</span>
+                    08:35
+                  </span>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-sky-50 text-sky-800 border border-sky-200 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                    Menor edad (14a) - Aut. paterna OK
+                  </span>
+</td>
+<td class="py-2 px-2 text-right">
+<button class="text-secondary hover:text-primary font-headline-sm text-[11px] p-1 uppercase">Ficha</button>
+</td>
+</tr>
+<!-- ROW 6 -->
+<tr class="cursor-pointer hover:bg-surface-container-low transition-colors" id="row-8" onclick="selectRider(6)">
+<td class="py-2 px-2.5 text-center">
+<span class="inline-flex items-center justify-center w-7 h-7 rounded bg-surface-container-highest text-on-surface font-headline-sm font-black text-[13px]">
+                    8
+                  </span>
+</td>
+<td class="py-2 px-2 font-headline-sm text-on-surface font-bold">
+<div class="flex items-center gap-1.5">
+<span class="text-xs">🇪🇸</span>
+<span>Mateo Rubial Gaspar</span>
+</div>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-cyan-100 text-cyan-800 border border-cyan-200 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+                    PreTalent
+                  </span>
+</td>
+<td class="py-2 px-2 font-mono text-[11px] text-on-surface">Beon 250</td>
+<td class="py-2 px-2 text-on-surface-variant text-[11px]">Piloto privado</td>
+<td class="py-2 px-2 text-center font-label-mono-sm font-bold text-on-surface bg-surface-container-low/50">Paddock</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+<span class="material-symbols-outlined text-[13px] text-emerald-700">check_circle</span>
+                    08:00
+                  </span>
+</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+                    PENDIENTE
+                  </span>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-red-100 text-error border border-red-300 px-1.5 py-0.5 rounded text-[10px] font-bold">
+<span class="material-symbols-outlined text-[12px] text-error">dangerous</span>
+                    URGENTE: Casco sin QR FIM
+                  </span>
+</td>
+<td class="py-2 px-2 text-right">
+<button class="text-secondary hover:text-primary font-headline-sm text-[11px] p-1 uppercase">Ficha</button>
+</td>
+</tr>
+<!-- ROW 7 -->
+<tr class="cursor-pointer hover:bg-surface-container-low transition-colors" id="row-67" onclick="selectRider(7)">
+<td class="py-2 px-2.5 text-center">
+<span class="inline-flex items-center justify-center w-7 h-7 rounded bg-surface-container-highest text-on-surface font-headline-sm font-black text-[13px]">
+                    67
+                  </span>
+</td>
+<td class="py-2 px-2 font-headline-sm text-on-surface font-bold">
+<div class="flex items-center gap-1.5">
+<span class="text-xs">🇫🇷</span>
+<span>Théo Marchandeau</span>
+</div>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-teal-100 text-teal-800 border border-teal-200 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+                    Superstock 600
+                  </span>
+</td>
+<td class="py-2 px-2 font-mono text-[11px] text-on-surface">Yamaha YZF-R6</td>
+<td class="py-2 px-2 text-on-surface-variant text-[11px]">French Tech Racing</td>
+<td class="py-2 px-2 text-center font-label-mono-sm font-bold text-on-surface bg-surface-container-low/50">Box 3</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+<span class="material-symbols-outlined text-[13px] text-emerald-700">check_circle</span>
+                    08:30
+                  </span>
+</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+                    PENDIENTE
+                  </span>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-sky-50 text-sky-800 border border-sky-200 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                    Lic. extranjera FFM (Seguro OK)
+                  </span>
+</td>
+<td class="py-2 px-2 text-right">
+<button class="text-secondary hover:text-primary font-headline-sm text-[11px] p-1 uppercase">Ficha</button>
+</td>
+</tr>
+<!-- ROW 8 -->
+<tr class="cursor-pointer hover:bg-surface-container-low transition-colors" id="row-44" onclick="selectRider(8)">
+<td class="py-2 px-2.5 text-center">
+<span class="inline-flex items-center justify-center w-7 h-7 rounded bg-surface-container-highest text-on-surface font-headline-sm font-black text-[13px]">
+                    44
+                  </span>
+</td>
+<td class="py-2 px-2 font-headline-sm text-on-surface font-bold">
+<div class="flex items-center gap-1.5">
+<span class="text-xs">🇪🇸</span>
+<span>Nerea Olmedilla Ruiz</span>
+</div>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+                    Supersport 300
+                  </span>
+</td>
+<td class="py-2 px-2 font-mono text-[11px] text-error font-bold">SIN MARCA (Excel)</td>
+<td class="py-2 px-2 text-on-surface-variant text-[11px]">Olmedilla Competición</td>
+<td class="py-2 px-2 text-center font-label-mono-sm font-bold text-on-surface bg-surface-container-low/50">Box 18</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+                    PENDIENTE
+                  </span>
+</td>
+<td class="py-2 px-2 text-center">
+<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-label-mono-sm font-bold">
+<span class="material-symbols-outlined text-[13px] text-emerald-700">check_circle</span>
+                    08:50
+                  </span>
+</td>
+<td class="py-2 px-2">
+<span class="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] font-medium">
+<span class="material-symbols-outlined text-[12px] text-amber-700">edit_note</span>
+                    Rectificar marca moto en ficha
+                  </span>
+</td>
+<td class="py-2 px-2 text-right">
+<button class="text-secondary hover:text-primary font-headline-sm text-[11px] p-1 uppercase">Ficha</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- VIEW STATE CONTAINER: EMPTY SEARCH RESULT -->
+<div class="hidden p-10 flex flex-col items-center justify-center text-center border border-dashed border-surface-container-high rounded bg-surface-container-lowest" id="view-empty">
+<div class="w-14 h-14 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant mb-3">
+<span class="material-symbols-outlined text-[28px]">person_search</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface font-bold">No se encontraron participantes</h3>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-md mt-1">
+            Ningún piloto coincide con el término de búsqueda o filtros seleccionados en esta categoría. Comprueba la ortografía o restablece los filtros.
+          </p>
+<button class="mt-4 bg-primary text-white px-4 py-2 rounded text-[12px] font-headline-sm tracking-wide uppercase hover:bg-primary-container transition-colors" onclick="resetFilters()">
+            Restablecer todos los filtros
+          </button>
+</div>
+<!-- VIEW STATE CONTAINER: SKELETON & IMPORT ERROR -->
+<div class="hidden flex-col gap-3" id="view-skeleton">
+<!-- Error Banner -->
+<div class="bg-red-50 border-l-4 border-error p-3 rounded flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-error text-[24px]">error</span>
+<div>
+<span class="font-headline-sm text-error font-bold text-[13px]">Fallo en la importación de Excel RFME: Archivo corrupto o cabeceras incompatibles</span>
+<p class="text-[11px] text-on-surface-variant">La columna 'Licencia_Nac' esperada no se localizó en la hoja 'INSCRITOS_NAVARRA_V1'. Revisa el template oficial 2026.</p>
+</div>
+</div>
+<button class="bg-error text-white px-3 py-1 rounded text-[11px] font-headline-sm uppercase">Reintentar</button>
+</div>
+<!-- Skeleton Rows -->
+<div class="border border-surface-container-high rounded divide-y divide-surface-container-high animate-pulse bg-white">
+<div class="h-10 bg-surface-container-low flex items-center px-3 gap-4">
+<div class="h-4 w-6 bg-surface-dim rounded"></div>
+<div class="h-4 w-32 bg-surface-dim rounded"></div>
+<div class="h-4 w-20 bg-surface-dim rounded"></div>
+<div class="h-4 w-24 bg-surface-dim rounded"></div>
+<div class="h-4 w-12 bg-surface-dim rounded"></div>
+</div>
+<div class="h-12 flex items-center px-3 gap-4">
+<div class="h-6 w-6 bg-surface-container rounded"></div>
+<div class="h-4 w-40 bg-surface-container rounded"></div>
+<div class="h-4 w-24 bg-surface-container rounded"></div>
+<div class="h-4 w-28 bg-surface-container rounded"></div>
+<div class="h-4 w-14 bg-surface-container rounded"></div>
+<div class="h-5 w-16 bg-surface-container rounded"></div>
+</div>
+<div class="h-12 flex items-center px-3 gap-4">
+<div class="h-6 w-6 bg-surface-container rounded"></div>
+<div class="h-4 w-36 bg-surface-container rounded"></div>
+<div class="h-4 w-24 bg-surface-container rounded"></div>
+<div class="h-4 w-28 bg-surface-container rounded"></div>
+<div class="h-4 w-14 bg-surface-container rounded"></div>
+<div class="h-5 w-16 bg-surface-container rounded"></div>
+</div>
+<div class="h-12 flex items-center px-3 gap-4">
+<div class="h-6 w-6 bg-surface-container rounded"></div>
+<div class="h-4 w-44 bg-surface-container rounded"></div>
+<div class="h-4 w-24 bg-surface-container rounded"></div>
+<div class="h-4 w-28 bg-surface-container rounded"></div>
+<div class="h-4 w-14 bg-surface-container rounded"></div>
+<div class="h-5 w-16 bg-surface-container rounded"></div>
+</div>
+</div>
+</div>
+<!-- Table Pagination & Fast Quick Status Footnote -->
+<div class="flex items-center justify-between text-[11px] text-on-surface-variant pt-2 border-t border-surface-container-low">
+<div class="flex items-center gap-1 font-label-mono-sm">
+<span>Página 1 de 1</span>
+<span class="text-surface-dim">•</span>
+<span>Autoguardado RFME Cloud Activo</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="px-2 py-0.5 rounded border border-surface-container-high bg-white text-surface-dim cursor-not-allowed">Anterior</button>
+<span class="px-2 py-0.5 rounded bg-primary text-white font-bold font-label-mono-sm">1</span>
+<button class="px-2 py-0.5 rounded border border-surface-container-high bg-white text-surface-dim cursor-not-allowed">Siguiente</button>
+</div>
+</div>
+</div>
+<!-- RIGHT COLUMN: FICHA TÉCNICA OPERATIVA / DETALLE PILOTO (4 COLS) -->
+<aside class="col-span-12 xl:col-span-4 bg-surface-container-lowest border border-surface-container-high rounded shadow-sm flex flex-col overflow-hidden sticky top-20">
+<!-- Inspector Motorsport Header Accent Bar -->
+<div class="h-1 bg-primary w-full"></div>
+<div class="p-3.5 flex flex-col gap-3">
+<!-- Selected Rider Card Header -->
+<div class="flex items-start justify-between border-b border-surface-container-high pb-3">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 bg-on-surface text-white rounded flex items-center justify-center font-headline-xl text-headline-xl font-black shadow-inner">
+<span id="detail-dorsal">7</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5">
+<span class="text-base" id="detail-flag">🇪🇸</span>
+<h2 class="font-headline-md text-headline-md text-on-surface font-extrabold tracking-tight" id="detail-nombre">Iker Valdemoro Sanz</h2>
+</div>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="bg-primary text-white font-label-mono-sm text-[10px] font-bold px-1.5 py-0.2 rounded uppercase" id="detail-categoria-badge">Superbike (SBK)</span>
+<span class="font-label-mono-sm text-[11px] text-on-surface-variant" id="detail-nif">Lic. RFME: 28491-M</span>
+</div>
+</div>
+</div>
+<span class="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-label-mono-sm font-bold px-2 py-1 rounded border border-emerald-300">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+              AUTORIZADO
+            </span>
+</div>
+<!-- Technical & Box Allocation Grid -->
+<div class="grid grid-cols-2 gap-2 text-[12px]">
+<div class="p-2 rounded bg-surface-container-low border border-surface-container-high">
+<span class="block text-[10px] font-label-caps uppercase text-on-surface-variant font-bold">Motocicleta Homologada</span>
+<span class="font-headline-sm text-on-surface font-bold text-[12px]" id="detail-moto">Honda CBR1000RR-R Fireblade SP 2026</span>
+<span class="block text-[10px] font-mono text-on-surface-variant mt-0.5">Bastidor: #RFME-SBK-26-004</span>
+</div>
+<div class="p-2 rounded bg-surface-container-low border border-surface-container-high">
+<span class="block text-[10px] font-label-caps uppercase text-on-surface-variant font-bold">Box / Ubicación Asignada</span>
+<div class="flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-secondary text-[16px]">garage</span>
+<span class="font-headline-sm text-secondary font-black text-[13px]" id="detail-box">Box 12 (Paddock Principal)</span>
+</div>
+<span class="block text-[10px] text-on-surface-variant">Toma 380V activa</span>
+</div>
+<div class="p-2 rounded bg-surface-container-low border border-surface-container-high">
+<span class="block text-[10px] font-label-caps uppercase text-on-surface-variant font-bold">Estructura / Equipo</span>
+<span class="font-headline-sm text-on-surface font-bold text-[12px]" id="detail-equipo">Valdemoro Racing Team</span>
+<span class="block text-[10px] text-on-surface-variant">Jefe Técnico: Carlos Valdemoro</span>
+</div>
+<div class="p-2 rounded bg-surface-container-low border border-surface-container-high">
+<span class="block text-[10px] font-label-caps uppercase text-on-surface-variant font-bold">Transponder Oficial</span>
+<div class="flex items-center gap-1 font-label-mono-sm text-on-surface font-bold">
+<span class="material-symbols-outlined text-[14px] text-emerald-600">sensors</span>
+<span id="detail-transponder">AMB-948201</span>
+</div>
+<span class="block text-[10px] text-emerald-700 font-medium">Señal de loop correcta</span>
+</div>
+</div>
+<!-- Scrutineering Status Checklist -->
+<div class="border border-surface-container-high rounded p-2.5 bg-white">
+<div class="flex items-center justify-between pb-1.5 border-b border-surface-container-low mb-2">
+<span class="text-[11px] font-headline-sm uppercase text-on-surface font-extrabold flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[16px]">fact_check</span>
+                Estado de Verificación Técnica Oficial
+              </span>
+<span class="text-[10px] font-label-mono-sm text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">2 / 2 SELLADAS</span>
+</div>
+<div class="space-y-2 text-[11px]">
+<!-- Step 1: Moto -->
+<div class="flex items-start justify-between p-1.5 rounded bg-emerald-50/60 border border-emerald-200">
+<div class="flex items-start gap-1.5">
+<span class="material-symbols-outlined text-emerald-700 text-[16px] mt-0.5">check_circle</span>
+<div>
+<span class="font-headline-sm text-on-surface font-bold">1. Verificación Mecánica &amp; Peso</span>
+<p class="text-on-surface-variant text-[10px]">Conforme a las 08:15h por Comisario Jefe (J. Gómez). Peso: 168.2 kg (Límite: 168 kg). Sonometría: 104.8 dB.</p>
+</div>
+</div>
+<span class="font-label-mono-sm text-[10px] text-emerald-800 font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">PASS</span>
+</div>
+<!-- Step 2: Equipación -->
+<div class="flex items-start justify-between p-1.5 rounded bg-emerald-50/60 border border-emerald-200">
+<div class="flex items-start gap-1.5">
+<span class="material-symbols-outlined text-emerald-700 text-[16px] mt-0.5">check_circle</span>
+<div>
+<span class="font-headline-sm text-on-surface font-bold">2. Equipamiento Piloto &amp; Airbag</span>
+<p class="text-on-surface-variant text-[10px]">Mono airbag homologado FIM Level 2, guantes y botas verificados a las 08:20h.</p>
+</div>
+</div>
+<span class="font-label-mono-sm text-[10px] text-emerald-800 font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">PASS</span>
+</div>
+<!-- Step 3: Casco Homologado FIM -->
+<div class="flex items-start justify-between p-1.5 rounded bg-surface-container-low border border-surface-container-high">
+<div class="flex items-start gap-1.5">
+<span class="material-symbols-outlined text-secondary text-[16px] mt-0.5">verified</span>
+<div>
+<span class="font-headline-sm text-on-surface font-bold">3. Casco FIM Racing &amp; Adhesivo</span>
+<p class="text-on-surface-variant text-[10px]">HJC RPHA 1 con Adhesivo RFME #042 y código QR FIM verificado en base de datos.</p>
+</div>
+</div>
+<span class="font-label-mono-sm text-[10px] text-secondary font-bold bg-white px-1.5 py-0.5 rounded border border-secondary/30 shrink-0">REGISTRADO</span>
+</div>
+</div>
+</div>
+<!-- Judicial / Administrative Notice -->
+<div class="p-2.5 rounded bg-blue-50 border border-blue-200 text-[11px]">
+<div class="flex items-center gap-1.5 text-secondary font-headline-sm font-bold uppercase text-[10px] mb-0.5">
+<span class="material-symbols-outlined text-[15px]">info</span>
+              Dictamen de Secretaría de Dirección de Carrera
+            </div>
+<p class="text-on-surface font-body-sm text-[11px] leading-relaxed" id="detail-dictamen">
+              Todos los requisitos administrativos, seguro deportivo y técnicos cumplimentados favorablemente. Autorizado para entrar a pista en la tanda libre FP1 (10:15 CET).
+            </p>
+</div>
+<!-- Operational Quick Action Buttons -->
+<div class="grid grid-cols-2 gap-2 pt-1 border-t border-surface-container-high">
+<button class="bg-surface-container-low hover:bg-surface-container text-on-surface border border-surface-container-high py-1.5 px-2 rounded font-headline-sm text-[11px] uppercase tracking-wide flex items-center justify-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">edit</span>
+<span>Editar datos</span>
+</button>
+<button class="bg-surface-container-low hover:bg-surface-container text-on-surface border border-surface-container-high py-1.5 px-2 rounded font-headline-sm text-[11px] uppercase tracking-wide flex items-center justify-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">garage</span>
+<span>Cambiar box</span>
+</button>
+<button class="bg-emerald-600 hover:bg-emerald-700 text-white py-1.5 px-2 rounded font-headline-sm text-[11px] uppercase tracking-wide flex items-center justify-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">done_all</span>
+<span>Revalidar sellado</span>
+</button>
+<button class="bg-primary hover:bg-primary-container text-white py-1.5 px-2 rounded font-headline-sm text-[11px] uppercase tracking-wide flex items-center justify-center gap-1 transition-colors">
+<span class="material-symbols-outlined text-[15px]">print</span>
+<span>Imprimir Ficha</span>
+</button>
+</div>
+</div>
+<!-- Footer Audit Meta -->
+<div class="bg-surface-container-low px-3 py-1.5 border-t border-surface-container-high text-[10px] font-label-mono-sm text-on-surface-variant flex justify-between">
+<span>Última mod: 08:22:04 por Sec. Carrera</span>
+<span>Hash: 9F2A-NAV26</span>
+</div>
+</aside>
+</div>
+</main>
+<!-- BOTTOM RACE CONTROL STATUS FOOTER STRIP -->
+<footer class="bg-surface-container-lowest border-t border-surface-container-high py-2 px-space-xl text-[11px] font-body-sm flex justify-between items-center text-on-surface-variant">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+<strong class="text-on-surface font-headline-sm">CONDICIÓN DE PISTA:</strong> PISTA VERDE (Seco · 21.4°C Asfalto)
+      </span>
+<span class="text-surface-dim">|</span>
+<span>Comisario Deportivo RFME: <strong>M. Álvarez (Lic. CD-019)</strong></span>
+<span class="text-surface-dim">|</span>
+<span>Director de Carrera: <strong>J. L. Sánchez (Lic. DC-004)</strong></span>
+</div>
+<div class="flex items-center gap-3 font-label-mono-sm">
+<span class="text-secondary font-bold">Circuito de Navarra · Longitud: 3.933m</span>
+<span class="text-surface-dim">•</span>
+<span>PaddockManager v4.2.1-esbk</span>
+</div>
+</footer>
+<!-- SCRIPT LOGIC: INTERACTIVE TABS, SEARCH & PILOT SELECTION -->
+<script>
+    // Mock Data for the 8 detailed riders
+    const ridersData = {
+      1: {
+        dorsal: "7",
+        nombre: "Iker Valdemoro Sanz",
+        pais: "🇪🇸",
+        categoria: "Superbike (SBK)",
+        categoriaBadge: "bg-primary text-white",
+        nif: "Lic. RFME: 28491-M (Fed. Madrileña)",
+        moto: "Honda CBR1000RR-R Fireblade SP 2026",
+        equipo: "Valdemoro Racing Team",
+        box: "Box 12 (Paddock Principal)",
+        transponder: "AMB-948201",
+        dictamen: "Todos los requisitos administrativos, seguro deportivo y técnicos cumplimentados favorablemente. Autorizado para entrar a pista en la tanda libre FP1 (10:15 CET)."
+      },
+      2: {
+        dorsal: "39",
+        nombre: "Bruno Lavín Ortuño",
+        pais: "🇪🇸",
+        categoria: "Superstock 1000",
+        categoriaBadge: "bg-orange-600 text-white",
+        nif: "Lic. RFME: 19823-V (Fed. Valenciana)",
+        moto: "BMW M1000RR 2026",
+        equipo: "Team Ortuño SBK",
+        box: "Box 21",
+        transponder: "AMB-883192",
+        dictamen: "Pendiente verificación de peso tras cambio de basculante. Citado ante los Comisarios Técnicos a las 10:00 CET en Báscula 1."
+      },
+      3: {
+        dorsal: "21",
+        nombre: "Pau Ferrandis Llobet",
+        pais: "🇪🇸",
+        categoria: "Sportbike",
+        categoriaBadge: "bg-violet-600 text-white",
+        nif: "Lic. RFME: PROV-9921 (Pendiente Original)",
+        moto: "Kawasaki Ninja 400",
+        equipo: "Ferrandis Motorsport",
+        box: "Box 14",
+        transponder: "AMB-441098",
+        dictamen: "ALERTA ADMINISTRATIVA: Presentada copia telemática de licencia. Requiere cotejo de licencia federativa original en la oficina de secretaría de carrera antes de las 10:30."
+      },
+      4: {
+        dorsal: "21",
+        nombre: "Hugo Cebrián Montaner",
+        pais: "🇪🇸",
+        categoria: "Yamaha R7 Cup (Rookie)",
+        categoriaBadge: "bg-secondary text-white",
+        nif: "Lic. RFME: 31092-CAT",
+        moto: "Yamaha R7 Cup Spec",
+        equipo: "Carpas Yamaha R7",
+        box: "Carpa #4",
+        transponder: "AMB-772109",
+        dictamen: "ALERTA TÉCNICA: Motocicleta sin los dorsales con tipografía y adhesivos oficiales del campeonato. Moto y mono pendientes de pasar por la caseta técnica."
+      },
+      5: {
+        dorsal: "15",
+        nombre: "Lucía Arranz Peñalver",
+        pais: "🇪🇸",
+        categoria: "ESBK Talent",
+        categoriaBadge: "bg-blue-600 text-white",
+        nif: "Lic. RFME: 41209-M (Menor de edad)",
+        moto: "Honda NSF250R",
+        equipo: "Arranz Talent Team",
+        box: "Box 25",
+        transponder: "AMB-332901",
+        dictamen: "Piloto menor de edad (14 años). Autorización paterna y descargo de responsabilidad RFME cotejados con DNI del tutor legal. Trámite conforme."
+      },
+      6: {
+        dorsal: "8",
+        nombre: "Mateo Rubial Gaspar",
+        pais: "🇪🇸",
+        categoria: "PreTalent",
+        categoriaBadge: "bg-cyan-600 text-white",
+        nif: "Lic. RFME: 50192-AND",
+        moto: "Beon 250",
+        equipo: "Sin equipo (Piloto privado)",
+        box: "Carpas Paddock",
+        transponder: "AMB-119280",
+        dictamen: "URGENTE DE SEGURIDAD: El casco presentado no cuenta con el código QR de homologación FIM Racing FRHPhe-01 en vigor. Debe subsanarse antes de salir a pista."
+      },
+      7: {
+        dorsal: "67",
+        nombre: "Théo Marchandeau",
+        pais: "🇫🇷",
+        categoria: "Superstock 600",
+        categoriaBadge: "bg-teal-600 text-white",
+        nif: "Lic. FFM (Francia): #882194",
+        moto: "Yamaha YZF-R6",
+        equipo: "French Tech Racing",
+        box: "Box 3",
+        transponder: "AMB-605912",
+        dictamen: "Piloto con licencia extranjera francesa. Póliza de seguro médico con repatriación internacional validada por RFME. Pendiente pase de mono por comisarios."
+      },
+      8: {
+        dorsal: "44",
+        nombre: "Nerea Olmedilla Ruiz",
+        pais: "🇪🇸",
+        categoria: "Supersport 300",
+        categoriaBadge: "bg-amber-600 text-white",
+        nif: "Lic. RFME: 27811-ARA",
+        moto: "SIN MARCA ESPECIFICADA (En Excel)",
+        equipo: "Olmedilla Competición",
+        box: "Box 18",
+        transponder: "AMB-994120",
+        dictamen: "Incidencia en hoja Excel: Campo marca omitido. La piloto y equipo deben presentar ficha técnica del fabricante en verificación técnica para registrar modelo exacto."
+      }
+    };
+
+    // View state switcher
+    function switchViewState(view) {
+      const op = document.getElementById('view-operational');
+      const em = document.getElementById('view-empty');
+      const sk = document.getElementById('view-skeleton');
+
+      const bOp = document.getElementById('btn-view-operational');
+      const bEm = document.getElementById('btn-view-empty');
+      const bSk = document.getElementById('btn-view-skeleton');
+
+      // Reset buttons
+      [bOp, bEm, bSk].forEach(b => {
+        b.className = "px-2.5 py-1 rounded text-[11px] font-headline-sm uppercase tracking-wide text-on-surface-variant hover:text-on-surface transition-colors";
+      });
+
+      // Hide all
+      op.classList.add('hidden');
+      em.classList.add('hidden');
+      sk.classList.add('hidden');
+
+      if (view === 'operational') {
+        op.classList.remove('hidden');
+        bOp.className = "px-2.5 py-1 rounded text-[11px] font-headline-sm uppercase tracking-wide bg-primary text-white transition-colors";
+      } else if (view === 'empty') {
+        em.classList.remove('hidden');
+        bEm.className = "px-2.5 py-1 rounded text-[11px] font-headline-sm uppercase tracking-wide bg-primary text-white transition-colors";
+      } else if (view === 'skeleton') {
+        sk.classList.remove('hidden');
+        bSk.className = "px-2.5 py-1 rounded text-[11px] font-headline-sm uppercase tracking-wide bg-primary text-white transition-colors";
+      }
+    }
+
+    // Toggle alert details
+    function toggleAlertDetails() {
+      const details = document.getElementById('alert-details-content');
+      const chevron = document.getElementById('alert-chevron');
+      const label = document.getElementById('alert-toggle-label');
+
+      if (details.classList.contains('hidden')) {
+        details.classList.remove('hidden');
+        chevron.textContent = 'expand_less';
+        label.textContent = 'Ocultar detalles';
+      } else {
+        details.classList.add('hidden');
+        chevron.textContent = 'expand_more';
+        label.textContent = 'Ver detalles';
+      }
+    }
+
+    // Select Rider to display in Detail Inspector
+    function selectRider(id) {
+      const data = ridersData[id];
+      if (!data) return;
+
+      // Update Inspector Fields
+      document.getElementById('detail-dorsal').textContent = data.dorsal;
+      document.getElementById('detail-flag').textContent = data.pais;
+      document.getElementById('detail-nombre').textContent = data.nombre;
+      document.getElementById('detail-categoria-badge').textContent = data.categoria;
+      document.getElementById('detail-nif').textContent = data.nif;
+      document.getElementById('detail-moto').textContent = data.moto;
+      document.getElementById('detail-box').textContent = data.box;
+      document.getElementById('detail-equipo').textContent = data.equipo;
+      document.getElementById('detail-transponder').textContent = data.transponder;
+      document.getElementById('detail-dictamen').textContent = data.dictamen;
+
+      // Highlight Table Row
+      const rows = document.querySelectorAll('#participants-table-body tr');
+      rows.forEach(r => {
+        r.classList.remove('bg-blue-50/80', 'border-l-4', 'border-primary');
+      });
+
+      const activeRow = event ? event.currentTarget : document.querySelector('#participants-table-body tr');
+      if (activeRow) {
+        activeRow.classList.add('bg-blue-50/80', 'border-l-4', 'border-primary');
+      }
+    }
+
+    // Search filter simulation
+    function handleSearch(term) {
+      const cleanTerm = term.toLowerCase().trim();
+      const rows = document.querySelectorAll('#participants-table-body tr');
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const text = row.innerText.toLowerCase();
+        if (cleanTerm === '' || text.includes(cleanTerm)) {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      document.getElementById('showing-count').textContent = `Mostrando ${visibleCount} de 129 pilotos`;
+
+      if (visibleCount === 0 && cleanTerm !== '') {
+        switchViewState('empty');
+      } else if (document.getElementById('view-operational').classList.contains('hidden') && visibleCount > 0) {
+        switchViewState('operational');
+      }
+    }
+
+    // Category filter simulation
+    function filterCategory(cat) {
+      // Toggle category pill UI
+      const pills = document.querySelectorAll('.category-pill');
+      pills.forEach(p => {
+        p.classList.remove('bg-on-surface', 'text-white', 'border-on-surface');
+        p.classList.add('bg-surface-container-low', 'text-on-surface');
+      });
+
+      if (event && event.currentTarget) {
+        event.currentTarget.classList.add('bg-on-surface', 'text-white', 'border-on-surface');
+        event.currentTarget.classList.remove('bg-surface-container-low');
+      }
+
+      const rows = document.querySelectorAll('#participants-table-body tr');
+      let visibleCount = 0;
+
+      rows.forEach(row => {
+        const rowText = row.innerText;
+        if (cat === 'ALL' || rowText.includes(cat)) {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      document.getElementById('showing-count').textContent = `Mostrando ${visibleCount} de 129 pilotos`;
+
+      if (visibleCount === 0) {
+        switchViewState('empty');
+      } else {
+        switchViewState('operational');
+      }
+    }
+
+    function resetFilters() {
+      document.getElementById('search-input').value = '';
+      document.getElementById('filter-status').value = 'ALL';
+      document.getElementById('filter-location').value = 'ALL';
+      filterCategory('ALL');
+      switchViewState('operational');
+    }
+
+    function applyFilters() {
+      const status = document.getElementById('filter-status').value;
+      const rows = document.querySelectorAll('#participants-table-body tr');
+      let visible = 0;
+
+      rows.forEach(r => {
+        const text = r.innerText;
+        let match = true;
+        if (status === 'PEND_MOTO' && !text.includes('PENDIENTE')) match = false;
+        if (status === 'VERIFIED' && text.includes('PENDIENTE')) match = false;
+        if (status === 'INCIDENCIAS' && !text.includes('ALERTA') && !text.includes('URGENTE') && !text.includes('Citado')) match = false;
+
+        if (match) {
+          r.style.display = '';
+          visible++;
+        } else {
+          r.style.display = 'none';
+        }
+      });
+
+      document.getElementById('showing-count').textContent = `Mostrando ${visible} de 129 pilotos`;
+      if (visible === 0) switchViewState('empty');
+    }
+
+    // Dynamic GPS Clock updates
+    setInterval(() => {
+      const now = new Date();
+      const hrs = String(now.getHours()).padStart(2, '0');
+      const min = String(now.getMinutes()).padStart(2, '0');
+      const sec = String(now.getSeconds()).padStart(2, '0');
+      const el = document.getElementById('gps-clock');
+      if (el) el.textContent = `${hrs}:${min}:${sec} CET`;
+    }, 1000);
+  </script>
+</body></html>

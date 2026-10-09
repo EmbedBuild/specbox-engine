@@ -1,0 +1,9 @@
+mayúsculas con tracking (eyebrow) · l.85: .eyebrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font-family:var(--font-mono);font-size:.7
+mayúsculas con tracking (eyebrow) · l.103: .tag{position:absolute;top:-12px;left:18px;font-family:var(--font-mono);font-size:.72rem;letter-spacing:.06em;
+mayúsculas con tracking (eyebrow) · l.114: .live-client{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color
+mayúsculas con tracking (eyebrow) · l.138: .answers-k{font-family:var(--font-mono);font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:v
+mayúsculas con tracking (eyebrow) · l.159: .step-n{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(
+mayúsculas con tracking (eyebrow) · l.171: .art-bubble small{display:block;font-family:var(--font-mono);font-size:.62rem;color:var(--ok);letter-spacing:.
+mayúsculas con tracking (eyebrow) · l.190: .panel-client{font-family:var(--font-mono);font-size:.76rem;letter-spacing:.06em;text-transform:uppercase;colo
+mayúsculas con tracking (eyebrow) · l.279: .scr-kicker{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;color:
+mayúsculas con tracking (eyebrow) · l.389: .state-name{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-family:var(--font-mono);font-size:

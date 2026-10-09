@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+
+<html class="h-full bg-[#F9F9F9]" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PaddockManager · RFME Race Control · ESBK 2026 Navarra I</title>
+<!-- Typography: Atkinson Hyperlegible Next + Barlow Condensed (mapped to design tokens) -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&amp;family=Barlow+Condensed:wght@600;700;800&amp;family=Saira+Condensed:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS with Forms and Container Queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-primary-fixed": "#171c22",
+            "on-surface-variant": "#45474b",
+            "secondary": "#575f68",
+            "surface-container-low": "#f3f3f4",
+            "on-secondary-container": "#5d656e",
+            "on-error": "#ffffff",
+            "surface": "#f9f9f9",
+            "primary-fixed": "#dee3eb",
+            "tertiary-fixed-dim": "#c4c7c9",
+            "primary": "#080d12",
+            "on-tertiary-container": "#878a8c",
+            "outline": "#75777b",
+            "surface-container-lowest": "#ffffff",
+            "surface-dim": "#dadada",
+            "background": "#f9f9f9",
+            "tertiary-fixed": "#e1e3e5",
+            "inverse-surface": "#2f3131",
+            "surface-container-highest": "#e2e2e2",
+            "on-background": "#1a1c1c",
+            "tertiary-container": "#202325",
+            "on-tertiary-fixed": "#191c1e",
+            "on-primary-fixed-variant": "#42474e",
+            "on-secondary-fixed": "#141c24",
+            "error": "#ba1a1a",
+            "surface-container": "#eeeeee",
+            "surface-bright": "#f9f9f9",
+            "surface-container-high": "#e8e8e8",
+            "secondary-fixed-dim": "#bfc7d2",
+            "surface-variant": "#e2e2e2",
+            "surface-tint": "#5a5f66",
+            "primary-container": "#1e2329",
+            "on-secondary": "#ffffff",
+            "on-tertiary": "#ffffff",
+            "inverse-primary": "#c2c7cf",
+            "on-secondary-fixed-variant": "#404850",
+            "on-tertiary-fixed-variant": "#444749",
+            "on-surface": "#1a1c1c",
+            "secondary-fixed": "#dbe3ee",
+            "on-error-container": "#93000a",
+            "on-primary-container": "#858a92",
+            "error-container": "#ffdad6",
+            "on-primary": "#ffffff",
+            "secondary-container": "#dbe3ee",
+            "tertiary": "#0a0d0f",
+            "outline-variant": "#c5c6cb",
+            "primary-fixed-dim": "#c2c7cf",
+            "inverse-on-surface": "#f0f1f1",
+            /* Domain-specific strict RFME Utilitarian Palette tokens mapped directly */
+            "rfme-paper": "#FFFFFF",
+            "rfme-concrete": "#EDEFF1",
+            "rfme-asphalt": "#1E2329",
+            "rfme-graphite": "#59616A",
+            "rfme-orange": "#F25C05",
+            "rfme-violet": "#5B3CC4",
+            "rfme-red": "#B3261E"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-xs": "0.25rem",
+            "gutter": "0.75rem",
+            "margin": "1rem",
+            "space-xl": "1.5rem",
+            "space-md": "0.75rem",
+            "space-lg": "1rem",
+            "space-sm": "0.5rem"
+          },
+          "fontFamily": {
+            "headline-xl": ["Barlow Condensed", "Saira Condensed", "sans-serif"],
+            "headline-lg": ["Barlow Condensed", "Saira Condensed", "sans-serif"],
+            "headline-md": ["Barlow Condensed", "Saira Condensed", "sans-serif"],
+            "metric-display": ["Saira Condensed", "Barlow Condensed", "sans-serif"],
+            "metric-table": ["Saira Condensed", "Barlow Condensed", "sans-serif"],
+            "label-md": ["Atkinson Hyperlegible Next", "sans-serif"],
+            "label-sm": ["Atkinson Hyperlegible Next", "sans-serif"],
+            "title-sm": ["Atkinson Hyperlegible Next", "sans-serif"],
+            "body-sm": ["Atkinson Hyperlegible Next", "sans-serif"],
+            "body-md": ["Atkinson Hyperlegible Next", "sans-serif"]
+          },
+          "fontSize": {
+            "headline-xl": ["32px", { "lineHeight": "36px", "letterSpacing": "0.02em", "fontWeight": "700" }],
+            "headline-lg": ["24px", { "lineHeight": "28px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "24px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+            "metric-display": ["28px", { "lineHeight": "28px", "letterSpacing": "0.02em", "fontWeight": "700" }],
+            "metric-table": ["18px", { "lineHeight": "18px", "letterSpacing": "0.03em", "fontWeight": "600" }],
+            "title-sm": ["15px", { "lineHeight": "20px", "fontWeight": "700" }],
+            "label-md": ["13px", { "lineHeight": "16px", "fontWeight": "700" }],
+            "label-sm": ["11px", { "lineHeight": "14px", "fontWeight": "700" }],
+            "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    /* Strict Utilitarian overrides: zero blur, zero decorative shadows, pixel-grid boundaries */
+    * {
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+      font-size: 18px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .material-symbols-outlined.fill-icon {
+      font-variation-settings: 'FILL' 1, 'wght' 600;
+    }
+    /* Discrete grid cell matrix dot */
+    .pip-cell {
+      width: 7px;
+      height: 7px;
+      display: inline-block;
+      margin-right: 2px;
+      margin-bottom: 2px;
+    }
+    /* Custom scrollbar for high-density tabular workbench */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #EDEFF1;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #59616A;
+    }
+  </style>
+</head>
+<body class="h-full text-on-surface bg-surface font-body-sm text-body-sm antialiased overflow-x-hidden selection:bg-rfme-asphalt selection:text-rfme-paper">
+<!-- ========================================================================= -->
+<!-- 1. TOP APP BAR (Shared Component TopNavBar)                               -->
+<!-- ========================================================================= -->
+<header class="w-full h-14 flex items-center justify-between px-gutter bg-surface-container border-b border-outline-variant select-none sticky top-0 z-50">
+<!-- Left: Brand + Official Station Seal + Track Coordinates -->
+<div class="flex items-center space-x-3">
+<div class="flex items-center space-x-2 bg-rfme-asphalt text-rfme-paper px-2 py-1">
+<span class="text-headline-lg font-headline-xl font-bold uppercase tracking-wider">PaddockManager</span>
+<span class="text-[10px] font-mono uppercase bg-rfme-concrete text-rfme-asphalt px-1 py-0.5 font-bold tracking-tight">RFME DIRECCIÓN DE CARRERA</span>
+</div>
+<div class="hidden xl:flex flex-col border-l border-outline-variant pl-3">
+<span class="text-title-sm font-title-sm text-rfme-asphalt tracking-tight">Participantes de la prueba</span>
+<span class="text-body-sm font-body-sm text-rfme-graphite">ESBK 2026 · Navarra I (8 y 9 de mayo) · Circuito de Navarra (Los Arcos) · <span class="font-bold text-rfme-asphalt font-metric-table">11:42 CEST</span></span>
+</div>
+</div>
+<!-- Center/Right: Navigation Links defined in TopNavBar JSON -->
+<nav class="hidden md:flex items-center space-x-6">
+<a class="text-primary border-b-2 border-primary font-bold py-2 text-label-md font-label-md" href="#verificaciones">Verificaciones</a>
+<a class="text-on-surface-variant hover:text-primary font-medium py-2 text-label-md font-label-md" href="#boxes">Boxes</a>
+<a class="text-on-surface-variant hover:text-primary font-medium py-2 text-label-md font-label-md" href="#cronometraje">Cronometraje</a>
+<a class="text-on-surface-variant hover:text-primary font-medium py-2 text-label-md font-label-md" href="#reglamento">Reglamento</a>
+</nav>
+<!-- Operational State View Switcher + Trailing Actions -->
+<div class="flex items-center space-x-2">
+<!-- State View Switcher (Desktop Operational Simulator) -->
+<div class="flex items-center bg-rfme-concrete border border-rfme-graphite p-0.5 mr-2">
+<button class="px-2 py-1 text-label-sm font-label-sm bg-rfme-asphalt text-rfme-paper font-bold transition-none" id="btn-view-main" onclick="switchState('main')">
+          [Vista Principal (Cargada)]
+        </button>
+<button class="px-2 py-1 text-label-sm font-label-sm text-rfme-asphalt hover:bg-surface-container-highest transition-none" id="btn-view-empty" onclick="switchState('empty')">
+          [Vista Vacía (Sin resultados)]
+        </button>
+<button class="px-2 py-1 text-label-sm font-label-sm text-rfme-asphalt hover:bg-surface-container-highest transition-none" id="btn-view-error" onclick="switchState('error')">
+          [Vista Carga &amp; Error]
+        </button>
+</div>
+<!-- Search Input -->
+<div class="relative w-64 hidden lg:block">
+<span class="absolute inset-y-0 left-2 flex items-center pointer-events-none text-rfme-graphite">
+<span class="material-symbols-outlined text-[16px]" data-icon="search">search</span>
+</span>
+<input class="w-full bg-rfme-paper border border-rfme-graphite pl-7 pr-2 py-1 text-body-sm font-body-sm text-rfme-asphalt placeholder-rfme-graphite focus:outline-none focus:border-2 focus:border-rfme-asphalt rounded-none" id="filter-search-input" placeholder="Buscar piloto, dorsal (#) o equipo..." type="text"/>
+</div>
+<!-- Icon Actions -->
+<button class="p-1.5 border border-rfme-graphite bg-rfme-concrete text-rfme-asphalt hover:bg-surface-container-highest transition-none" title="Imprimir listado oficial">
+<span class="material-symbols-outlined" data-icon="print">print</span>
+</button>
+<button class="p-1.5 border border-rfme-graphite bg-rfme-concrete text-rfme-asphalt hover:bg-surface-container-highest transition-none" title="Sincronizar cronometraje">
+<span class="material-symbols-outlined" data-icon="refresh">refresh</span>
+</button>
+<!-- Trailing Action: Importar Excel RFME -->
+<button class="flex items-center space-x-1 bg-rfme-asphalt text-rfme-paper px-3 py-1.5 text-label-md font-label-md border border-rfme-asphalt hover:bg-black transition-none">
+<span class="material-symbols-outlined text-[16px]" data-icon="upload_file">upload_file</span>
+<span>Importar Excel RFME</span>
+</button>
+<!-- Trailing Action: Añadir participante -->
+<button class="flex items-center space-x-1 bg-rfme-paper text-rfme-asphalt px-3 py-1.5 text-label-md font-label-md border border-rfme-asphalt hover:bg-rfme-concrete transition-none">
+<span class="material-symbols-outlined text-[16px]" data-icon="add">add</span>
+<span>Añadir participante</span>
+</button>
+</div>
+</header>
+<!-- ========================================================================= -->
+<!-- MAIN OPERATIONAL WORKSPACE (1440px target layout)                          -->
+<!-- ========================================================================= -->
+<div class="w-full max-w-[1440px] mx-auto p-gutter flex flex-col space-y-gutter">
+<!-- ======================================================================= -->
+<!-- ROW 1: THE SIGNATURE PIECE (Matrix Grid) & EXCEL DISCREPANCY CARD       -->
+<!-- ======================================================================= -->
+<section class="grid grid-cols-12 gap-gutter">
+<!-- Operational Category Scrutineering Matrix (8 Cols) -->
+<div class="col-span-12 xl:col-span-8 bg-rfme-paper border border-rfme-asphalt p-3">
+<!-- Headline & Macro Metric Bar -->
+<div class="flex flex-col md:flex-row md:items-baseline justify-between border-b border-rfme-concrete pb-2 mb-3">
+<div class="flex items-baseline space-x-3">
+<h1 class="text-headline-xl font-headline-xl text-rfme-asphalt tracking-tight uppercase">Faltan 25 por verificar</h1>
+<span class="text-body-md font-body-md text-rfme-graphite">129 inscritos · 104 verificados · 81% completado</span>
+</div>
+<div class="flex items-center space-x-3 text-label-sm font-label-sm text-rfme-graphite mt-1 md:mt-0">
+<span class="flex items-center space-x-1">
+<span class="pip-cell bg-rfme-graphite"></span>
+<span>Técnica &amp; Admin OK</span>
+</span>
+<span class="flex items-center space-x-1">
+<span class="pip-cell bg-rfme-orange"></span>
+<span class="text-rfme-asphalt font-bold">Pendiente Scrutineering</span>
+</span>
+</div>
+</div>
+<!-- Density Matrix: 9 Categories with Visual Pips -->
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3">
+<!-- 1. Yamaha R7 Cup -->
+<div class="border-l-2 border-rfme-asphalt pl-2 py-0.5">
+<div class="flex justify-between items-baseline mb-1">
+<span class="text-label-md font-label-md text-rfme-asphalt">Yamaha R7 Cup</span>
+<span class="text-label-sm font-label-sm text-rfme-orange font-bold">29 (6 pend.)</span>
+</div>
+<div class="flex flex-wrap leading-none">
+<!-- 23 verified (grey), 6 pending (orange) -->
+<span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span>
+<span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span>
+</div>
+</div>
+<!-- 2. ESBK Talent -->
+<div class="border-l-2 border-rfme-asphalt pl-2 py-0.5">
+<div class="flex justify-between items-baseline mb-1">
+<span class="text-label-md font-label-md text-rfme-asphalt">ESBK Talent</span>
+<span class="text-label-sm font-label-sm text-rfme-orange font-bold">25 (4 pend.)</span>
+</div>
+<div class="flex flex-wrap leading-none">
+<!-- 21 verified, 4 pending -->
+<span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span>
+<span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span>
+</div>
+</div>
+<!-- 3. PreTalent -->
+<div class="border-l-2 border-rfme-asphalt pl-2 py-0.5">
+<div class="flex justify-between items-baseline mb-1">
+<span class="text-label-md font-label-md text-rfme-asphalt">PreTalent</span>
+<span class="text-label-sm font-label-sm text-rfme-orange font-bold">14 (3 pend.)</span>
+</div>
+<div class="flex flex-wrap leading-none">
+<span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span>
+<span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span>
+</div>
+</div>
+<!-- 4. Supersport 300 -->
+<div class="border-l-2 border-rfme-asphalt pl-2 py-0.5">
+<div class="flex justify-between items-baseline mb-1">
+<span class="text-label-md font-label-md text-rfme-asphalt">Supersport 300</span>
+<span class="text-label-sm font-label-sm text-rfme-orange font-bold">14 (3 pend.)</span>
+</div>
+<div class="flex flex-wrap leading-none">
+<span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span>
+<span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span>
+</div>
+</div>
+<!-- 5. Sportbike -->
+<div class="border-l-2 border-rfme-asphalt pl-2 py-0.5">
+<div class="flex justify-between items-baseline mb-1">
+<span class="text-label-md font-label-md text-rfme-asphalt">Sportbike</span>
+<span class="text-label-sm font-label-sm text-rfme-orange font-bold">13 (3 pend.)</span>
+</div>
+<div class="flex flex-wrap leading-none">
+<span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span>
+<span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span>
+</div>
+</div>
+<!-- 6. Superstock 1000 -->
+<div class="border-l-2 border-rfme-asphalt pl-2 py-0.5">
+<div class="flex justify-between items-baseline mb-1">
+<span class="text-label-md font-label-md text-rfme-asphalt">Superstock 1000</span>
+<span class="text-label-sm font-label-sm text-rfme-orange font-bold">11 (2 pend.)</span>
+</div>
+<div class="flex flex-wrap leading-none">
+<span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span>
+<span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span>
+</div>
+</div>
+<!-- 7. Superstock 600 -->
+<div class="border-l-2 border-rfme-asphalt pl-2 py-0.5">
+<div class="flex justify-between items-baseline mb-1">
+<span class="text-label-md font-label-md text-rfme-asphalt">Superstock 600</span>
+<span class="text-label-sm font-label-sm text-rfme-orange font-bold">10 (2 pend.)</span>
+</div>
+<div class="flex flex-wrap leading-none">
+<span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span>
+<span class="pip-cell bg-rfme-orange"></span><span class="pip-cell bg-rfme-orange"></span>
+</div>
+</div>
+<!-- 8. Supersport -->
+<div class="border-l-2 border-rfme-asphalt pl-2 py-0.5">
+<div class="flex justify-between items-baseline mb-1">
+<span class="text-label-md font-label-md text-rfme-asphalt">Supersport</span>
+<span class="text-label-sm font-label-sm text-rfme-orange font-bold">9 (1 pend.)</span>
+</div>
+<div class="flex flex-wrap leading-none">
+<span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span>
+<span class="pip-cell bg-rfme-orange"></span>
+</div>
+</div>
+<!-- 9. Superbike -->
+<div class="border-l-2 border-rfme-asphalt pl-2 py-0.5">
+<div class="flex justify-between items-baseline mb-1">
+<span class="text-label-md font-label-md text-rfme-asphalt">Superbike</span>
+<span class="text-label-sm font-label-sm text-rfme-orange font-bold">4 (1 pend.)</span>
+</div>
+<div class="flex flex-wrap leading-none">
+<span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span><span class="pip-cell bg-rfme-graphite"></span>
+<span class="pip-cell bg-rfme-orange"></span>
+</div>
+</div>
+</div>
+</div>
+<!-- Discrepancy Alert Card (4 Cols on Concrete #EDEFF1) -->
+<div class="col-span-12 xl:col-span-4 bg-rfme-concrete border-2 border-rfme-asphalt p-3 flex flex-col justify-between">
+<div>
+<!-- Title with Red Accent -->
+<div class="flex items-center space-x-2 border-b border-rfme-graphite pb-2 mb-2">
+<span class="material-symbols-outlined text-rfme-red" data-icon="report_problem">report_problem</span>
+<span class="text-title-sm font-title-sm text-rfme-red tracking-tight">3 filas del Excel no entraron (129 de 132 importadas)</span>
+</div>
+<!-- Detailed List of Discrepancies -->
+<ul class="space-y-1.5 text-body-sm font-body-sm">
+<li class="bg-rfme-paper p-1.5 border border-rfme-graphite">
+<div class="flex justify-between text-label-sm font-label-sm text-rfme-asphalt">
+<span class="font-bold">Fila 46: Daniel Escartín Moreno (#52)</span>
+<span class="text-rfme-red font-bold">ERROR CATEGORÍA</span>
+</div>
+<p class="text-rfme-graphite text-[11px] mt-0.5">Categoría 'Supersport NG' no existe en el reglamento técnico 2026.</p>
+</li>
+<li class="bg-rfme-paper p-1.5 border border-rfme-graphite">
+<div class="flex justify-between text-label-sm font-label-sm text-rfme-asphalt">
+<span class="font-bold">Fila 88: Álvaro Cifuentes Rey (#33)</span>
+<span class="text-rfme-red font-bold">LICENCIA AUSENTE</span>
+</div>
+<p class="text-rfme-graphite text-[11px] mt-0.5">Superstock 600 · Falta número de licencia federativa RFME en casilla.</p>
+</li>
+<li class="bg-rfme-paper p-1.5 border border-rfme-graphite">
+<div class="flex justify-between text-label-sm font-label-sm text-rfme-asphalt">
+<span class="font-bold">Fila 131: Iker Valdemoro Sanz (#7)</span>
+<span class="text-rfme-red font-bold">DUPLICIDAD</span>
+</div>
+<p class="text-rfme-graphite text-[11px] mt-0.5">Superbike · Entrada repetida en hoja secundaria 'SBK_Tarde'.</p>
+</li>
+</ul>
+</div>
+<!-- Discrepancy Actions -->
+<div class="flex items-center space-x-2 pt-3 border-t border-rfme-graphite mt-2">
+<button class="flex-1 bg-rfme-asphalt text-rfme-paper py-1 px-2 text-label-sm font-label-sm hover:bg-black transition-none text-center">
+            Descargar log de errores (.csv)
+          </button>
+<button class="flex-1 bg-rfme-paper text-rfme-asphalt border border-rfme-asphalt py-1 px-2 text-label-sm font-label-sm hover:bg-rfme-concrete transition-none text-center">
+            Resolver en ventanilla
+          </button>
+</div>
+</div>
+</section>
+<!-- ======================================================================= -->
+<!-- ROW 2: FILTERS BAR + MAIN 8-COLUMN TABLE + DOCKED DETAIL PANEL          -->
+<!-- ======================================================================= -->
+<!-- Filter Control Strip -->
+<div class="bg-rfme-concrete border border-rfme-asphalt p-2 flex flex-wrap items-center justify-between gap-2">
+<!-- Category Buttons -->
+<div class="flex flex-wrap items-center gap-1">
+<button class="bg-rfme-asphalt text-rfme-paper px-2.5 py-1 text-label-sm font-label-sm font-bold border border-rfme-asphalt">Todas (129)</button>
+<button class="bg-rfme-paper text-rfme-asphalt px-2 py-1 text-label-sm font-label-sm hover:bg-surface-container-highest border border-rfme-graphite">Yamaha R7 Cup</button>
+<button class="bg-rfme-paper text-rfme-asphalt px-2 py-1 text-label-sm font-label-sm hover:bg-surface-container-highest border border-rfme-graphite">ESBK Talent</button>
+<button class="bg-rfme-paper text-rfme-asphalt px-2 py-1 text-label-sm font-label-sm hover:bg-surface-container-highest border border-rfme-graphite">PreTalent</button>
+<button class="bg-rfme-paper text-rfme-asphalt px-2 py-1 text-label-sm font-label-sm hover:bg-surface-container-highest border border-rfme-graphite">Supersport 300</button>
+<button class="bg-rfme-paper text-rfme-asphalt px-2 py-1 text-label-sm font-label-sm hover:bg-surface-container-highest border border-rfme-graphite">Sportbike</button>
+<button class="bg-rfme-paper text-rfme-asphalt px-2 py-1 text-label-sm font-label-sm hover:bg-surface-container-highest border border-rfme-graphite">Superstock 1000</button>
+<button class="bg-rfme-paper text-rfme-asphalt px-2 py-1 text-label-sm font-label-sm hover:bg-surface-container-highest border border-rfme-graphite">Superstock 600</button>
+<button class="bg-rfme-paper text-rfme-asphalt px-2 py-1 text-label-sm font-label-sm hover:bg-surface-container-highest border border-rfme-graphite">Supersport</button>
+<button class="bg-rfme-paper text-rfme-asphalt px-2 py-1 text-label-sm font-label-sm hover:bg-surface-container-highest border border-rfme-graphite">Superbike</button>
+</div>
+<!-- Quick Toggles -->
+<div class="flex items-center space-x-2">
+<label class="flex items-center space-x-1.5 bg-rfme-paper border border-rfme-graphite px-2 py-1 cursor-pointer">
+<input class="w-3.5 h-3.5 rounded-none text-rfme-asphalt focus:ring-0 border-rfme-graphite" type="checkbox"/>
+<span class="text-label-sm font-label-sm text-rfme-asphalt font-bold">Solo pendientes de moto o equipo (25)</span>
+</label>
+<label class="flex items-center space-x-1.5 bg-rfme-paper border border-rfme-graphite px-2 py-1 cursor-pointer">
+<input class="w-3.5 h-3.5 rounded-none text-rfme-asphalt focus:ring-0 border-rfme-graphite" type="checkbox"/>
+<span class="text-label-sm font-label-sm text-rfme-violet font-bold">Con incidencias de oficina (5)</span>
+</label>
+</div>
+</div>
+<!-- Active View Container (Toggled via Switcher) -->
+<div class="w-full" id="view-state-container">
+<!-- ===================================================================== -->
+<!-- VIEW 1: MAIN LOADED WORKBENCH (Table + Lateral Detail Inspector)     -->
+<!-- ===================================================================== -->
+<div class="flex flex-col xl:flex-row gap-gutter items-start" id="state-main">
+<!-- Table Frame (Left Pane / Dominant 1080px wide) -->
+<div class="flex-1 w-full bg-rfme-paper border border-rfme-asphalt overflow-x-auto">
+<table class="w-full border-collapse text-left">
+<thead>
+<tr class="bg-rfme-concrete border-b border-rfme-asphalt text-rfme-graphite text-label-sm font-label-sm select-none h-8">
+<th class="py-1 px-2 border-r border-outline-variant w-16 text-left">dorsal</th>
+<th class="py-1 px-3 border-r border-outline-variant text-left">piloto</th>
+<th class="py-1 px-2.5 border-r border-outline-variant text-left">categoría</th>
+<th class="py-1 px-2.5 border-r border-outline-variant text-left">equipo</th>
+<th class="py-1 px-2.5 border-r border-outline-variant text-left">moto</th>
+<th class="py-1 px-2 border-r border-outline-variant w-20 text-left">box</th>
+<th class="py-1 px-2.5 border-r border-outline-variant text-left">verificación moto</th>
+<th class="py-1 px-2.5 text-left">verificación equipamiento</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant font-body-sm text-body-sm text-rfme-asphalt">
+<!-- Row 1: #7 Iker Valdemoro -->
+<tr class="h-8 hover:bg-surface-container-low transition-none cursor-pointer">
+<td class="py-1 px-2 border-r border-outline-variant font-metric-table text-metric-table font-bold">#7</td>
+<td class="py-1 px-3 border-r border-outline-variant font-bold">Iker Valdemoro Sanz</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">Superbike</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">Valdemoro Racing</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">Honda CBR1000RR-R</td>
+<td class="py-1 px-2 border-r border-outline-variant font-mono">Box 12</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">Verificada 08:15</td>
+<td class="py-1 px-2.5 text-rfme-graphite">Verificado 08:20</td>
+</tr>
+<!-- Row 2: #39 Bruno Lavín -->
+<tr class="h-8 hover:bg-surface-container-low transition-none cursor-pointer">
+<td class="py-1 px-2 border-r border-outline-variant font-metric-table text-metric-table font-bold">#39</td>
+<td class="py-1 px-3 border-r border-outline-variant font-bold">Bruno Lavín Ortuño</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">Superstock 1000</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">Team Ortuño SBK</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">BMW M1000RR</td>
+<td class="py-1 px-2 border-r border-outline-variant font-mono">Box 21</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">
+<span class="inline-block bg-rfme-orange text-rfme-asphalt px-1.5 py-0.5 text-[11px] font-bold border border-rfme-asphalt">Moto pendiente</span>
+</td>
+<td class="py-1 px-2.5 text-rfme-graphite">Verificado 08:45</td>
+</tr>
+<!-- Row 3: #21 Pau Ferrandis -->
+<tr class="h-8 hover:bg-surface-container-low transition-none cursor-pointer">
+<td class="py-1 px-2 border-r border-outline-variant font-metric-table text-metric-table font-bold">#21</td>
+<td class="py-1 px-3 border-r border-outline-variant font-bold">Pau Ferrandis Llobet</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">Sportbike</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">Team Ferrandis</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">Kawasaki Ninja 400</td>
+<td class="py-1 px-2 border-r border-outline-variant font-mono">Box 14</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">Verificada 09:10</td>
+<td class="py-1 px-2.5 space-x-1">
+<span class="inline-block bg-rfme-orange text-rfme-asphalt px-1.5 py-0.5 text-[11px] font-bold border border-rfme-asphalt">Equip. pendiente</span>
+<span class="inline-block bg-rfme-violet text-rfme-paper px-1.5 py-0.5 text-[11px] font-bold">Licencia provisional</span>
+</td>
+</tr>
+<!-- Row 4: #21 Hugo Cebrián (SELECTED ROW - Marked in Concrete #EDEFF1 with 3px solid Asphalt indicator) -->
+<tr class="h-8 bg-rfme-concrete border-l-4 border-l-rfme-asphalt transition-none cursor-pointer">
+<td class="py-1 px-2 border-r border-outline-variant font-metric-table text-metric-table font-bold text-rfme-asphalt">#21</td>
+<td class="py-1 px-3 border-r border-outline-variant font-bold text-rfme-asphalt">Hugo Cebrián Montaner</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-asphalt font-bold">Yamaha R7 Cup (Rookie)</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">Carpas Yamaha R7</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">Yamaha R7</td>
+<td class="py-1 px-2 border-r border-outline-variant text-rfme-graphite">Carpas Paddock</td>
+<td class="py-1 px-2.5 border-r border-outline-variant space-x-1">
+<span class="inline-block bg-rfme-orange text-rfme-asphalt px-1.5 py-0.5 text-[11px] font-bold border border-rfme-asphalt">Moto pendiente</span>
+<span class="inline-block bg-rfme-violet text-rfme-paper px-1.5 py-0.5 text-[11px] font-bold">Sin pegatina técnica</span>
+</td>
+<td class="py-1 px-2.5">
+<span class="inline-block bg-rfme-orange text-rfme-asphalt px-1.5 py-0.5 text-[11px] font-bold border border-rfme-asphalt">Equip. pendiente</span>
+</td>
+</tr>
+<!-- Row 5: #15 Lucía Arranz -->
+<tr class="h-8 hover:bg-surface-container-low transition-none cursor-pointer">
+<td class="py-1 px-2 border-r border-outline-variant font-metric-table text-metric-table font-bold">#15</td>
+<td class="py-1 px-3 border-r border-outline-variant font-bold">Lucía Arranz Peñalver</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">ESBK Talent</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">Arranz Motorsport</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">Honda NSF250R</td>
+<td class="py-1 px-2 border-r border-outline-variant font-mono">Box 25</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">Verificada 07:55</td>
+<td class="py-1 px-2.5 space-x-1">
+<span class="text-rfme-graphite text-[11px] mr-1">Verificado 08:05</span>
+<span class="inline-block bg-rfme-violet text-rfme-paper px-1.5 py-0.5 text-[11px] font-bold">Menor (14 años) - Tutor OK</span>
+</td>
+</tr>
+<!-- Row 6: #8 Mateo Rubial -->
+<tr class="h-8 hover:bg-surface-container-low transition-none cursor-pointer">
+<td class="py-1 px-2 border-r border-outline-variant font-metric-table text-metric-table font-bold">#8</td>
+<td class="py-1 px-3 border-r border-outline-variant font-bold">Mateo Rubial Gaspar</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">PreTalent</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite italic">(Sin equipo oficial)</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">Beon PreMoto3</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">Carpas Paddock</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">Verificada 08:30</td>
+<td class="py-1 px-2.5 space-x-1">
+<span class="inline-block bg-rfme-orange text-rfme-asphalt px-1.5 py-0.5 text-[11px] font-bold border border-rfme-asphalt">Equip. pendiente</span>
+<span class="inline-block bg-rfme-violet text-rfme-paper px-1.5 py-0.5 text-[11px] font-bold">Casco sin QR FIM</span>
+</td>
+</tr>
+<!-- Row 7: #67 Théo Marchandeau -->
+<tr class="h-8 hover:bg-surface-container-low transition-none cursor-pointer">
+<td class="py-1 px-2 border-r border-outline-variant font-metric-table text-metric-table font-bold">#67</td>
+<td class="py-1 px-3 border-r border-outline-variant font-bold">Théo Marchandeau (FRA)</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">Superstock 600</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">French Junior Team</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">Yamaha R6</td>
+<td class="py-1 px-2 border-r border-outline-variant font-mono">Box 3</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">Verificada 09:00</td>
+<td class="py-1 px-2.5 space-x-1">
+<span class="inline-block bg-rfme-orange text-rfme-asphalt px-1.5 py-0.5 text-[11px] font-bold border border-rfme-asphalt">Equip. pendiente</span>
+<span class="inline-block bg-rfme-violet text-rfme-paper px-1.5 py-0.5 text-[11px] font-bold">Licencia FFM (Francia)</span>
+</td>
+</tr>
+<!-- Row 8: #44 Nerea Olmedilla -->
+<tr class="h-8 hover:bg-surface-container-low transition-none cursor-pointer">
+<td class="py-1 px-2 border-r border-outline-variant font-metric-table text-metric-table font-bold">#44</td>
+<td class="py-1 px-3 border-r border-outline-variant font-bold">Nerea Olmedilla Ruiz</td>
+<td class="py-1 px-2.5 border-r border-outline-variant text-rfme-graphite">Supersport 300</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">Olmedilla Racing</td>
+<td class="py-1 px-2.5 border-r border-outline-variant font-mono text-rfme-red">SIN MARCA (en Excel)</td>
+<td class="py-1 px-2.5 border-r border-outline-variant font-mono">Box 18</td>
+<td class="py-1 px-2.5 border-r border-outline-variant">
+<span class="inline-block bg-rfme-orange text-rfme-asphalt px-1.5 py-0.5 text-[11px] font-bold border border-rfme-asphalt">Moto pendiente</span>
+</td>
+<td class="py-1 px-2.5 text-rfme-graphite">Verificado 08:50</td>
+</tr>
+</tbody>
+</table>
+<!-- Tabular Status Bar -->
+<div class="bg-rfme-concrete p-2 border-t border-rfme-asphalt flex items-center justify-between text-body-sm font-body-sm text-rfme-graphite">
+<span class="text-label-sm font-label-sm">Mostrando 8 de 129 inscritos filtrados · Orden: Registro oficial RFME</span>
+<div class="flex items-center space-x-1">
+<span class="font-mono text-xs">PÁG 1 / 17</span>
+</div>
+</div>
+</div>
+<!-- Sticky Lateral Detail Inspector Panel (360px wide, on Concrete #EDEFF1) -->
+<aside class="w-full xl:w-[360px] bg-rfme-concrete border-2 border-rfme-asphalt flex flex-col justify-between shrink-0 sticky top-16">
+<!-- Panel Header with Big Saira Plate -->
+<div class="p-3 border-b border-rfme-asphalt bg-rfme-paper">
+<div class="flex items-center justify-between">
+<div>
+<span class="text-[11px] font-mono uppercase bg-rfme-asphalt text-rfme-paper px-1.5 py-0.5 font-bold">FICHA DE SCRUTINEERING</span>
+<h2 class="text-headline-md font-headline-md text-rfme-asphalt mt-1">Hugo Cebrián Montaner</h2>
+<p class="text-body-sm font-body-sm text-rfme-graphite">Yamaha R7 Cup (Rookie) · Dorsal #21</p>
+</div>
+<!-- Big Race Plate Graphic -->
+<div class="bg-rfme-asphalt text-rfme-paper px-3 py-1 flex flex-col items-center justify-center border-2 border-rfme-asphalt min-w-[56px]">
+<span class="text-[9px] font-mono tracking-widest leading-none text-rfme-concrete">ESBK</span>
+<span class="text-headline-xl font-headline-xl font-bold leading-none">21</span>
+</div>
+</div>
+</div>
+<!-- Inspector Content Body -->
+<div class="p-3 space-y-3 font-body-sm text-body-sm">
+<!-- Details Group -->
+<div class="bg-rfme-paper p-2.5 border border-rfme-graphite space-y-1">
+<div class="flex justify-between border-b border-rfme-concrete pb-1">
+<span class="text-rfme-graphite text-[11px]">Categoría:</span>
+<span class="font-bold text-rfme-asphalt">Yamaha R7 Cup</span>
+</div>
+<div class="flex justify-between border-b border-rfme-concrete py-1">
+<span class="text-rfme-graphite text-[11px]">Motocicleta:</span>
+<span class="font-bold text-rfme-asphalt">Yamaha YZF-R7 (689 cc)</span>
+</div>
+<div class="flex justify-between border-b border-rfme-concrete py-1">
+<span class="text-rfme-graphite text-[11px]">Equipo oficial:</span>
+<span class="font-bold text-rfme-asphalt">Carpas Yamaha R7</span>
+</div>
+<div class="flex justify-between border-b border-rfme-concrete py-1">
+<span class="text-rfme-graphite text-[11px]">Ubicación asignada:</span>
+<span class="font-bold text-rfme-asphalt">Carpas Paddock (Sin box)</span>
+</div>
+<div class="flex justify-between pt-1">
+<span class="text-rfme-graphite text-[11px]">Licencia RFME:</span>
+<span class="font-mono text-rfme-asphalt font-bold text-[11px]">2026-ESP-88219 (Válida)</span>
+</div>
+</div>
+<!-- Technical Scrutineering Status -->
+<div class="space-y-2">
+<span class="text-label-sm font-label-sm text-rfme-asphalt uppercase tracking-wider block">Estado Verificación Técnica</span>
+<!-- Moto State -->
+<div class="bg-rfme-paper p-2 border-l-4 border-l-rfme-orange border-t border-r border-b border-rfme-graphite">
+<div class="flex justify-between items-center mb-1">
+<span class="font-bold text-rfme-asphalt">Técnica Motocicleta</span>
+<span class="bg-rfme-orange text-rfme-asphalt px-1.5 py-0.2 text-[10px] font-bold border border-rfme-asphalt">PENDIENTE</span>
+</div>
+<p class="text-[11px] text-rfme-graphite">Observación comisario técnico: <strong class="text-rfme-asphalt">Falta pegatina de verificación en chasis</strong> tras control de pesaje inicial.</p>
+</div>
+<!-- Equipamiento State -->
+<div class="bg-rfme-paper p-2 border-l-4 border-l-rfme-orange border-t border-r border-b border-rfme-graphite">
+<div class="flex justify-between items-center mb-1">
+<span class="font-bold text-rfme-asphalt">Equipamiento Piloto</span>
+<span class="bg-rfme-orange text-rfme-asphalt px-1.5 py-0.2 text-[10px] font-bold border border-rfme-asphalt">PENDIENTE</span>
+</div>
+<p class="text-[11px] text-rfme-graphite">Mono cuero y sotocasco homologado presentados. <strong class="text-rfme-asphalt">Faltan guantes FIM y botas para sellado</strong>.</p>
+</div>
+</div>
+<!-- Administrative Warnings & Paperwork -->
+<div class="space-y-1.5">
+<span class="text-label-sm font-label-sm text-rfme-asphalt uppercase tracking-wider block">Avisos de Oficina y Trámites</span>
+<div class="bg-rfme-violet text-rfme-paper p-2">
+<div class="flex items-center space-x-1.5 mb-0.5">
+<span class="material-symbols-outlined text-[15px]" data-icon="assignment_late">assignment_late</span>
+<span class="font-bold text-[11px]">Sin pegatina técnica</span>
+</div>
+<p class="text-[11px] leading-snug">Reclamar en Verificaciones Técnicas antes de la salida a Warm-Up.</p>
+</div>
+<div class="bg-rfme-paper border border-rfme-graphite p-2 text-[11px] text-rfme-graphite">
+<span class="text-rfme-asphalt font-bold">Ficha médica federativa &amp; Fianza de transponder:</span> Abonada y depositada en ventanilla (11:15 CEST).
+              </div>
+</div>
+</div>
+<!-- Inspector Action Triggers -->
+<div class="p-3 bg-rfme-paper border-t border-rfme-asphalt space-y-2">
+<button class="w-full bg-rfme-orange text-rfme-asphalt py-2 px-3 text-label-md font-label-md font-bold border border-rfme-asphalt hover:bg-opacity-95 transition-none text-center">
+              Marcar verificado manualmente
+            </button>
+<div class="grid grid-cols-2 gap-2">
+<button class="bg-rfme-concrete text-rfme-asphalt border border-rfme-graphite py-1.5 px-2 text-label-sm font-label-sm hover:bg-surface-container-highest transition-none text-center">
+                Asignar box / carpa
+              </button>
+<button class="bg-rfme-concrete text-rfme-asphalt border border-rfme-graphite py-1.5 px-2 text-label-sm font-label-sm hover:bg-surface-container-highest transition-none text-center">
+                Editar participante
+              </button>
+</div>
+</div>
+</aside>
+</div>
+<!-- ===================================================================== -->
+<!-- VIEW 2: EMPTY STATE (Filtered / No Results)                          -->
+<!-- ===================================================================== -->
+<div class="hidden w-full bg-rfme-paper border border-rfme-asphalt p-12 text-center" id="state-empty">
+<div class="max-w-md mx-auto space-y-3">
+<span class="material-symbols-outlined text-4xl text-rfme-graphite" data-icon="search_off">search_off</span>
+<h3 class="text-headline-md font-headline-md text-rfme-asphalt">No hay participantes que coincidan con la búsqueda</h3>
+<p class="text-body-sm font-body-sm text-rfme-graphite">
+            No se han encontrado registros con los filtros de categoría activos o los términos introducidos en la barra superior.
+          </p>
+<div class="pt-2">
+<button class="bg-rfme-asphalt text-rfme-paper px-4 py-2 text-label-md font-label-md hover:bg-black transition-none" onclick="switchState('main')">
+              Restablecer filtros y ver todos (129)
+            </button>
+</div>
+</div>
+</div>
+<!-- ===================================================================== -->
+<!-- VIEW 3: LOADING SKELETON & IMPORT CORRUPTION ERROR BANNER            -->
+<!-- ===================================================================== -->
+<div class="hidden w-full space-y-gutter" id="state-error">
+<!-- Red #B3261E Import Error Alert Banner -->
+<div class="bg-rfme-paper border-2 border-rfme-red p-3 flex items-start space-x-3">
+<span class="material-symbols-outlined text-rfme-red text-2xl" data-icon="error">error</span>
+<div class="flex-1">
+<div class="flex items-center space-x-2">
+<span class="text-title-sm font-title-sm text-rfme-red">Fallo al procesar archivo Excel RFME_Inscripciones_Navarra.xlsx: Formato corrupto en fila 132</span>
+<span class="bg-rfme-red text-rfme-paper text-[10px] font-mono px-1 py-0.2 font-bold uppercase">Import Aborted</span>
+</div>
+<p class="text-body-sm font-body-sm text-rfme-graphite mt-1">
+              El motor de importación detectó celdas con fórmulas no evaluadas o codificación UTF-16 incompatible en los dorsales de Moto4/PreMoto3. Se han cargado 129 inscritos válidos anteriores al fallo estructural.
+            </p>
+<div class="mt-2 flex items-center space-x-2">
+<button class="bg-rfme-red text-rfme-paper px-3 py-1 text-label-sm font-label-sm font-bold hover:bg-opacity-90">
+                Reintentar importación forzada
+              </button>
+<button class="bg-rfme-concrete text-rfme-asphalt border border-rfme-graphite px-3 py-1 text-label-sm font-label-sm hover:bg-surface-container-highest">
+                Descargar registro de depuración (.txt)
+              </button>
+</div>
+</div>
+</div>
+<!-- Skeleton Density Matrix (Loading Simulation) -->
+<div class="bg-rfme-paper border border-rfme-asphalt p-4">
+<div class="flex justify-between items-center mb-4">
+<div class="h-6 bg-rfme-concrete w-64 animate-pulse"></div>
+<div class="h-4 bg-rfme-concrete w-32 animate-pulse"></div>
+</div>
+<div class="space-y-2">
+<div class="h-8 bg-rfme-concrete w-full animate-pulse"></div>
+<div class="h-8 bg-rfme-concrete w-full animate-pulse opacity-80"></div>
+<div class="h-8 bg-rfme-concrete w-full animate-pulse opacity-60"></div>
+<div class="h-8 bg-rfme-concrete w-full animate-pulse opacity-40"></div>
+<div class="h-8 bg-rfme-concrete w-full animate-pulse opacity-20"></div>
+</div>
+<p class="text-[11px] font-mono text-rfme-graphite mt-3">PROCESANDO MATRIZ DE TELEMETRÍA Y TRANSPONDERS RFME · ESPERE POR FAVOR...</p>
+</div>
+</div>
+</div>
+<!-- ======================================================================= -->
+<!-- FOOTER TECHNICAL STRIP                                                  -->
+<!-- ======================================================================= -->
+<footer class="w-full bg-rfme-concrete border border-rfme-asphalt p-2 flex flex-col md:flex-row items-center justify-between text-body-sm font-body-sm text-rfme-graphite">
+<div class="flex items-center space-x-3">
+<span class="font-bold text-rfme-asphalt">PaddockManager v4.2.1-esbk</span>
+<span>· Servidor Local Race Control Circuito de Navarra (IP 192.168.10.45)</span>
+<span>· Transponders MyLaps X2 Active Sincronizados</span>
+</div>
+<div class="flex items-center space-x-2 mt-1 md:mt-0 font-mono text-xs">
+<span class="inline-block w-2 h-2 bg-rfme-asphalt"></span>
+<span class="text-rfme-asphalt font-bold">ONLINE · COMISARIOS CONECTADOS: 14</span>
+</div>
+</footer>
+</div>
+<!-- State Switcher Micro-Script -->
+<script>
+    function switchState(stateName) {
+      const stateMain = document.getElementById('state-main');
+      const stateEmpty = document.getElementById('state-empty');
+      const stateError = document.getElementById('state-error');
+
+      const btnMain = document.getElementById('btn-view-main');
+      const btnEmpty = document.getElementById('btn-view-empty');
+      const btnError = document.getElementById('btn-view-error');
+
+      // Reset all buttons to default concrete style
+      [btnMain, btnEmpty, btnError].forEach(btn => {
+        btn.className = "px-2 py-1 text-label-sm font-label-sm text-rfme-asphalt hover:bg-surface-container-highest transition-none";
+      });
+
+      // Hide all state views
+      stateMain.classList.add('hidden');
+      stateEmpty.classList.add('hidden');
+      stateError.classList.add('hidden');
+
+      // Activate selected state
+      if (stateName === 'main') {
+        stateMain.classList.remove('hidden');
+        btnMain.className = "px-2 py-1 text-label-sm font-label-sm bg-rfme-asphalt text-rfme-paper font-bold transition-none";
+      } else if (stateName === 'empty') {
+        stateEmpty.classList.remove('hidden');
+        btnEmpty.className = "px-2 py-1 text-label-sm font-label-sm bg-rfme-asphalt text-rfme-paper font-bold transition-none";
+      } else if (stateName === 'error') {
+        stateError.classList.remove('hidden');
+        btnError.className = "px-2 py-1 text-label-sm font-label-sm bg-rfme-asphalt text-rfme-paper font-bold transition-none";
+      }
+    }
+  </script>
+</body></html>

@@ -1,0 +1,764 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Participantes · Navarra I · ESBK 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F3EF;
+  --surface:#FFFFFF;
+  --surface-2:#F9F8F5;
+  --ink:#15171C;
+  --ink-2:#3B404B;
+  --muted:#5D6371;
+  --line:#E3E1DA;
+  --line-strong:#C8C5BC;
+  --focus:#1F5FD1;
+  --sel:#EDF2FC;
+  --ok:#1B6B3A;
+  --ok-bg:#E4F2E8;
+  --ok-bar:#2E7D4F;
+  --pend:#874A00;
+  --pend-bg:#FFF2D4;
+  --pend-line:#EAC679;
+  --pend-bar:#C27C0E;
+  --off:#5A32A8;
+  --off-bg:#F1ECFB;
+  --off-line:#D3C4F2;
+  --info-bg:#EFEEE9;
+  --info-line:#DAD7CE;
+  --err:#A3231A;
+  --err-bg:#FDEDEA;
+  --err-line:#EDB5AD;
+  --r:10px;
+  --f:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --fm:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --fn:"Barlow Condensed","IBM Plex Sans",sans-serif;
+  color-scheme:light;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 14px/1.45 var(--f);font-variant-numeric:tabular-nums;overflow-wrap:break-word}
+h1,h2,h3,p,ul,ol,dl,dd{margin:0}
+ul,ol{padding:0;list-style:none}
+a{color:inherit}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.skip{position:absolute;left:16px;top:-60px;z-index:10;background:var(--ink);color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:600}
+.skip:focus{top:12px}
+.ic{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+.checker{height:6px;background:repeating-conic-gradient(var(--ink) 0 25%,#fff 0 50%) 0 0/6px 6px}
+.appbar{background:var(--surface);border-bottom:1px solid var(--line)}
+.appbar-in{max-width:1440px;margin:0 auto;padding:10px 32px;display:flex;align-items:center;gap:20px;min-height:52px}
+.brand{font-weight:700;font-size:15px;letter-spacing:-.01em;white-space:nowrap}
+.crumbs ol{display:flex;flex-wrap:wrap;gap:6px;color:var(--muted)}
+.crumbs li+li::before{content:"/";margin-right:6px;color:var(--line-strong)}
+.crumbs a{text-decoration:none}
+.crumbs a:hover{color:var(--ink);text-decoration:underline}
+.crumbs [aria-current]{color:var(--ink);font-weight:600}
+.now{margin-left:auto;display:flex;align-items:center;gap:10px;color:var(--ink-2);white-space:nowrap}
+.now .t-short{display:none}
+.live{width:8px;height:8px;border-radius:50%;background:var(--ok-bar);box-shadow:0 0 0 3px var(--ok-bg)}
+
+.wrap{max-width:1440px;margin:0 auto;padding:0 32px}
+.event{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px 24px;padding-top:24px;padding-bottom:20px}
+.event-id{flex:1 1 360px;min-width:0}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+h1{font-size:30px;line-height:1.1;font-weight:700;letter-spacing:-.02em;margin:4px 0 8px}
+.event-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;color:var(--ink-2)}
+.event-meta>span{display:inline-flex;align-items:center;gap:6px}
+.event-meta .ic{width:16px;height:16px;color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:99px;background:var(--ok-bg);color:var(--ok);font-size:12.5px;font-weight:600}
+.event-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:0 1 auto;min-width:0}
+.search{position:relative;flex:1 1 300px;min-width:260px}
+.search .ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.search input{width:100%;height:40px;padding:0 12px 0 40px;border:1px solid var(--line-strong);border-radius:8px;background:#fff}
+.search input::placeholder{color:var(--muted)}
+.search input:focus-visible{outline-offset:0;border-color:var(--focus)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border-radius:8px;border:1px solid var(--line-strong);background:#fff;color:var(--ink);font-weight:600;font-size:14px;line-height:1;cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{background:var(--surface-2);border-color:#ABA79C}
+.btn-primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn-primary:hover{background:#2C3039;border-color:#2C3039}
+.btn-sm{height:32px;padding:0 12px;font-size:13px}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+.btn-ghost:hover{background:var(--info-bg);border-color:transparent}
+.btn-icon{width:32px;height:32px;padding:0}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.h2{font-size:16px;line-height:1.3;font-weight:600;letter-spacing:-.005em}
+.h3{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.sec-sub{color:var(--muted);margin-top:4px;max-width:70ch}
+.count{display:inline-flex;align-items:center;padding:3px 9px;border-radius:99px;background:var(--info-bg);color:var(--ink-2);font-size:12.5px;font-weight:600;white-space:nowrap}
+.count-off{background:var(--off-bg);color:var(--off)}
+
+.status{display:grid;grid-template-columns:300px minmax(0,1fr)}
+.status-sum{padding:20px 24px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:12px}
+.big-line{display:flex;align-items:baseline;gap:10px}
+.big{font-family:var(--fn);font-weight:700;font-size:64px;line-height:.85;letter-spacing:-.01em}
+.big-sub{color:var(--ink-2);font-weight:500}
+.bar{display:flex;height:8px;border-radius:99px;background:var(--pend-bar);overflow:hidden}
+.bar>span{display:block;height:100%;background:var(--ok-bar);border-right:2px solid #fff}
+.bar-lg{height:10px}
+.sum-dl{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sum-dl dt{font-size:12px;color:var(--muted)}
+.sum-dl dd{font-family:var(--fn);font-weight:700;font-size:28px;line-height:1}
+.t-pend{color:var(--pend)}
+.hint{font-size:12.5px;color:var(--muted)}
+.office-link{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;color:var(--off);font-weight:600;text-decoration:none;padding:6px 10px;margin-left:-10px;border-radius:8px}
+.office-link:hover{background:var(--off-bg);text-decoration:underline}
+.cats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:12px}
+.cat{display:block;padding:12px 14px;border-radius:8px;text-decoration:none;color:inherit}
+.cat:hover{background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--line)}
+.cat-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.cat-name{font-weight:600}
+.cat-pend{flex:none;font-size:12.5px;font-weight:600;color:var(--pend);background:var(--pend-bg);border:1px solid var(--pend-line);border-radius:6px;padding:1px 7px}
+.cat .bar{margin:9px 0 6px}
+.cat-num{font-size:12.5px;color:var(--muted)}
+.cat-num strong{color:var(--ink);font-weight:600}
+
+.work{display:grid;grid-template-columns:minmax(0,1fr) 380px;grid-template-areas:"list side" "excel side";gap:20px;align-items:start;margin-top:20px}
+.list{grid-area:list;overflow:hidden}
+.side{grid-area:side;align-self:start}
+.excel{grid-area:excel}
+
+.list-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:16px 20px 12px}
+.legend{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted)}
+.legend li{display:inline-flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:3px;border:1px solid}
+.dot-pend{background:var(--pend-bg);border-color:var(--pend-bar)}
+.dot-off{background:var(--off-bg);border-color:var(--off)}
+.dot-info{background:var(--info-bg);border-color:var(--muted)}
+.toolbar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 16px;padding:0 20px 14px;border-bottom:1px solid var(--line)}
+.seg{display:flex;flex-wrap:wrap;gap:6px;border:0;margin:0;padding:0;min-width:0}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg label{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border:1px solid var(--line-strong);border-radius:99px;background:#fff;font-weight:500;font-size:13px;cursor:pointer;white-space:nowrap}
+.seg label:hover{border-color:#ABA79C}
+.seg .n{font-size:12px;font-weight:600;color:var(--muted)}
+.seg input:checked+label{background:var(--ink);border-color:var(--ink);color:#fff}
+.seg input:checked+label .n{color:#D3D6DE}
+.seg input:focus-visible+label{outline:3px solid var(--focus);outline-offset:2px}
+.seg .dot{width:8px;height:8px}
+.selects{display:flex;flex-wrap:wrap;gap:10px;margin-left:auto}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:12px;color:var(--muted);font-weight:500}
+select{height:32px;min-width:0;border:1px solid var(--line-strong);border-radius:8px;padding:0 32px 0 10px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235D6371' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 9px center/14px;appearance:none;-webkit-appearance:none;font-size:13px;cursor:pointer}
+
+.ptable{width:100%;border-collapse:collapse;table-layout:fixed}
+.w-d{width:7%}.w-p{width:20%}.w-c{width:18%}.w-l{width:9%}.w-b{width:9%}.w-v{width:12%}.w-o{width:13%}
+.ptable th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:8px 10px;background:var(--surface-2);border-bottom:1px solid var(--line);vertical-align:bottom}
+.ptable thead tr:first-child th{padding-top:10px}
+.ptable .th-group{text-align:left;border-bottom:1px solid var(--line);padding-bottom:4px;color:var(--ink-2)}
+.ptable thead tr:first-child th:first-child,.ptable td:first-child{padding-left:20px}
+.ptable td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.ptable tbody tr:hover{background:#FBFAF7}
+.ptable tbody tr.is-sel{background:var(--sel)}
+.ptable tbody tr.is-sel td:first-child{box-shadow:inset 4px 0 0 var(--focus)}
+.sort{display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:0;font-weight:600;color:var(--ink);cursor:pointer;font-size:12px}
+.sort .ic{width:14px;height:14px}
+.plate{display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:32px;padding:0 6px;border-radius:5px;background:var(--ink);color:#fff;font-family:var(--fn);font-weight:700;font-size:20px;line-height:1;letter-spacing:.01em}
+.pname{font-weight:600;text-decoration:none}
+.pname:hover{text-decoration:underline}
+.cc{font-family:var(--fm);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 4px;margin-left:4px;white-space:nowrap}
+.sub{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.catl{font-weight:500}
+.tag{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--ink-2);border:1px solid var(--line-strong);border-radius:4px;padding:0 5px;margin-left:2px;vertical-align:1px}
+.mono{font-family:var(--fm);font-size:12px}
+.lic-off{color:var(--off);font-weight:600}
+.boxv{font-family:var(--fm);font-weight:500;font-size:13.5px}
+.boxv-txt{font-family:var(--f);font-size:13px;font-weight:500}
+.vok{display:inline-flex;align-items:flex-start;gap:5px;font-size:13px;color:var(--ink-2)}
+.vok .ic{width:16px;height:16px;color:var(--ok-bar);stroke-width:2.4;margin-top:1px}
+.vok b{font-weight:600;color:var(--ink)}
+.chip{display:inline-flex;align-items:flex-start;gap:5px;padding:3px 8px;border-radius:6px;border:1px solid transparent;font-size:12.5px;font-weight:500;line-height:1.35}
+.chip .ic{width:14px;height:14px;margin-top:1px}
+.chip-pend{background:var(--pend-bg);color:var(--pend);border-color:var(--pend-line)}
+.chip-off{background:var(--off-bg);color:var(--off);border-color:var(--off-line)}
+.chip-info{background:var(--info-bg);color:var(--ink-2);border-color:var(--info-line)}
+.chip-ok{background:var(--ok-bg);color:var(--ok);border-color:#BFDFC9}
+.c-off .chip{display:flex;width:fit-content;max-width:100%}
+.c-off .chip+.chip{margin-top:4px}
+.none{color:var(--muted)}
+.list-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:12px 20px;color:var(--muted);font-size:13px}
+
+.side{overflow:hidden}
+.det-head{padding:14px 20px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--surface-2),var(--surface))}
+.det-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.det-nav{display:flex;gap:4px}
+.det-id{display:flex;align-items:center;gap:14px}
+.plate-lg{min-width:64px;height:56px;font-size:38px;border-radius:7px;padding:0 10px}
+.det-name{font-size:20px;line-height:1.2;font-weight:700;letter-spacing:-.01em}
+.det-cat{color:var(--ink-2);margin-top:2px}
+.det-sum{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.det-sec{padding:16px 20px;border-bottom:1px solid var(--line)}
+.det-sec:last-child{border-bottom:0}
+.vlist li{display:grid;grid-template-columns:72px minmax(0,1fr);gap:4px 12px;align-items:start;padding:8px 0}
+.vlist li+li{border-top:1px dashed var(--line)}
+.vlab{font-weight:600;padding-top:3px}
+.vwhen{display:block;font-size:12.5px;color:var(--muted);margin-top:4px}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+.kv dt{font-size:12px;color:var(--muted)}
+.kv dd{font-weight:500;margin-top:1px}
+.kv .wide{grid-column:1 / -1}
+.helmet{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.helmet-t{font-weight:600;margin-bottom:8px}
+.helmet dl{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+.helmet dt{font-size:12px;color:var(--muted);margin-bottom:3px}
+.alerts li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;padding:10px 12px;border-radius:8px;border:1px solid}
+.alerts li+li{margin-top:8px}
+.alerts .ic{width:18px;height:18px;margin-top:1px}
+.a-off{background:var(--off-bg);border-color:var(--off-line)}
+.a-off .ic{color:var(--off)}
+.a-info{background:var(--surface-2);border-color:var(--line)}
+.a-info .ic{color:var(--muted)}
+.a-t{font-weight:600}
+.a-d{font-size:13px;color:var(--ink-2);margin-top:2px}
+.det-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.det-actions .btn{flex:1 1 auto}
+
+.sec-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px 16px;padding:16px 20px 14px}
+.rej li{display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:8px 16px;align-items:start;padding:14px 20px;border-top:1px solid var(--line)}
+.rownum{font-family:var(--fm);font-size:12.5px;font-weight:500;color:var(--ink-2);background:var(--info-bg);border-radius:5px;padding:3px 7px;justify-self:start}
+.rej-who strong{font-weight:600}
+.rej-who span{color:var(--muted);margin-left:6px}
+.rej-why{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:6px;color:var(--ink-2)}
+
+.states{margin:36px 0 48px}
+.states-head{margin-bottom:14px}
+.states-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.state{display:flex;flex-direction:column;overflow:hidden}
+.state-cap{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+.state-body{padding:16px;flex:1}
+.ctx{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.ctx span{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:99px;background:var(--ink);color:#fff;font-size:12.5px;font-weight:500}
+.ctx .ic{width:14px;height:14px}
+.empty{text-align:center;padding:12px 8px 6px}
+.empty-ic{display:inline-grid;place-items:center;width:44px;height:44px;border-radius:50%;background:var(--info-bg);color:var(--ink-2);margin-bottom:10px}
+.empty-t{font-weight:600;font-size:15px}
+.empty-d{color:var(--muted);margin:4px auto 14px;max-width:34ch}
+.empty-a{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.sk-row{display:grid;grid-template-columns:40px minmax(0,1fr) 84px;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.sk-row:last-child{border-bottom:0}
+.sk{display:block;border-radius:5px;background:linear-gradient(90deg,#ECEAE4 0%,#F7F6F2 50%,#ECEAE4 100%);background-size:200% 100%;animation:sh 1.4s linear infinite}
+.sk-plate{height:32px}
+.sk-l1{height:12px;width:78%}
+.sk-l2{height:10px;width:52%;margin-top:7px}
+.sk-chip{height:22px}
+@keyframes sh{from{background-position:200% 0}to{background-position:-200% 0}}
+.alert{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;padding:14px;border-radius:8px;background:var(--err-bg);border:1px solid var(--err-line);color:var(--ink)}
+.alert>.ic{color:var(--err);width:20px;height:20px;margin-top:1px}
+.alert-t{font-weight:600;color:var(--err)}
+.alert-d{margin-top:4px;color:var(--ink-2)}
+.alert-a{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.after-alert{margin-top:14px;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.after-alert .ic{width:16px;height:16px}
+
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}
+
+@media (max-width:1180px){
+  .work{grid-template-columns:minmax(0,1fr);grid-template-areas:"list" "side" "excel"}
+}
+@media (max-width:1040px){
+  .status{grid-template-columns:minmax(0,1fr)}
+  .status-sum{border-right:0;border-bottom:1px solid var(--line)}
+  .states-grid{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:860px){
+  .cats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  body{font-size:15px}
+  .wrap{padding:0 16px}
+  .appbar-in{padding:10px 16px;gap:12px}
+  .crumbs{display:none}
+  .now .t-long{display:none}
+  .now .t-short{display:inline}
+  .event{padding-top:18px;padding-bottom:16px}
+  h1{font-size:26px}
+  .event-tools{width:100%}
+  .search{flex-basis:100%;min-width:0}
+  .search input{height:44px;font-size:16px}
+  .event-tools .btn{height:44px}
+  .event-tools .btn-primary{flex:1 1 auto}
+  .btn-collapse{width:44px;padding:0}
+  .btn-collapse .btn-label{display:none}
+  .status-sum{padding:16px}
+  .cats{grid-template-columns:minmax(0,1fr);padding:6px}
+  .cat{padding:10px}
+  .list-head{padding:14px 16px 10px}
+  .legend{margin-left:0;width:100%}
+  .toolbar{padding:0 16px 14px}
+  .seg label{height:36px}
+  .selects{display:grid;grid-template-columns:1fr 1fr;width:100%;margin-left:0}
+  select{width:100%;height:40px;font-size:15px}
+  .ptable,.ptable tbody{display:block}
+  .ptable colgroup,.ptable thead{display:none}
+  .ptable tbody tr{display:grid;grid-template-columns:44px minmax(0,1fr) minmax(0,1fr);column-gap:12px;row-gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .ptable td{display:block;padding:0;border:0;min-width:0}
+  .ptable td:first-child{padding-left:0}
+  .ptable tbody tr.is-sel td:first-child{box-shadow:none}
+  .ptable tbody tr.is-sel{box-shadow:inset 4px 0 0 var(--focus)}
+  .ptable .c-dorsal{grid-column:1;grid-row:1 / span 2}
+  .ptable .c-pilot{grid-column:2 / 4;grid-row:1}
+  .ptable .c-cat{grid-column:2 / 4;grid-row:2}
+  .ptable .c-lic{grid-column:2;grid-row:3}
+  .ptable .c-box{grid-column:3;grid-row:3}
+  .ptable .c-vm{grid-column:2;grid-row:4}
+  .ptable .c-ve{grid-column:3;grid-row:4}
+  .ptable .c-off{grid-column:2 / 4;grid-row:5}
+  .ptable td[data-label]::before{content:attr(data-label);display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:3px}
+  .plate{min-width:40px}
+  .list-foot{padding:12px 16px}
+  .list-foot .btn{width:100%;height:44px}
+  .det-head,.det-sec{padding-left:16px;padding-right:16px}
+  .det-actions .btn{height:44px}
+  .btn-icon{width:40px;height:40px}
+  .sec-head{padding:14px 16px}
+  .rej li{grid-template-columns:minmax(0,1fr);padding:14px 16px}
+  .rej li .btn{justify-self:start;height:40px}
+  .rej-who span{display:block;margin-left:0}
+}
+@media print{
+  .checker,.event-tools,.toolbar,.states,.det-actions,.list-foot .btn,.rej .btn,.det-nav{display:none}
+  body{background:#fff}
+  .work{grid-template-columns:minmax(0,1fr);grid-template-areas:"list" "side" "excel"}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+  <symbol id="i-import" viewBox="0 0 24 24"><path d="M12 3v11"/><path d="M7.5 9.5L12 14l4.5-4.5"/><path d="M4 15.5V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+  <symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3.5h10V9"/><path d="M7 17.5H5a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4.5a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v7H7z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5L21.5 20h-19z"/><path d="M12 10v4.5"/><path d="M12 17.3v.2"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><path d="M12 7.8v.2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11"/><path d="M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-xc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6"/><path d="M15 9l-6 6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5.5"/><path d="M6.5 11L12 5.5 17.5 11"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.8-6.5-10.8a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21z"/><circle cx="12" cy="10.2" r="2.3"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></symbol>
+  <symbol id="i-box" viewBox="0 0 24 24"><path d="M3.5 9.5L12 4l8.5 5.5V20h-17z"/><path d="M8.5 20v-6h7v6"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z"/><path d="M14 3.5v5h5"/></symbol>
+</svg>
+
+<a class="skip" href="#participantes">Saltar a la lista de participantes</a>
+
+<header>
+  <div class="checker" aria-hidden="true"></div>
+  <div class="appbar">
+    <div class="appbar-in">
+      <span class="brand">PaddockManager</span>
+      <nav class="crumbs" aria-label="Ruta">
+        <ol>
+          <li><a href="#">ESBK 2026</a></li>
+          <li><a href="#">Navarra I</a></li>
+          <li aria-current="page">Participantes</li>
+        </ol>
+      </nav>
+      <p class="now"><span class="live" aria-hidden="true"></span><time datetime="2026-05-08T09:40"><span class="t-long">Viernes 8 de mayo, 09:40</span><span class="t-short">Vie 8 may, 09:40</span></time></p>
+    </div>
+  </div>
+
+  <div class="wrap event">
+    <div class="event-id">
+      <p class="eyebrow">ESBK 2026 · Campeonato de España de Superbike</p>
+      <h1>Navarra I</h1>
+      <p class="event-meta">
+        <span><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg>Circuito de Navarra, Los Arcos</span>
+        <span><svg class="ic" aria-hidden="true"><use href="#i-cal"/></svg>8 y 9 de mayo de 2026</span>
+        <span class="pill">En curso · día 1 de 2</span>
+      </p>
+    </div>
+    <div class="event-tools">
+      <div class="search" role="search">
+        <label class="sr-only" for="q">Buscar participante por piloto, dorsal o equipo</label>
+        <svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>
+        <input id="q" type="search" placeholder="Buscar piloto, dorsal o equipo" autocomplete="off">
+      </div>
+      <button class="btn btn-collapse" type="button" aria-label="Imprimir PDF" title="Imprimir PDF"><svg class="ic" aria-hidden="true"><use href="#i-print"/></svg><span class="btn-label">Imprimir PDF</span></button>
+      <button class="btn btn-collapse" type="button" aria-label="Añadir participante" title="Añadir participante"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg><span class="btn-label">Añadir participante</span></button>
+      <button class="btn btn-primary" type="button"><svg class="ic" aria-hidden="true"><use href="#i-import"/></svg>Importar Excel RFME</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+
+  <section class="card status" aria-labelledby="estado-t">
+    <div class="status-sum">
+      <h2 id="estado-t" class="h2">Estado de la verificación</h2>
+      <p class="big-line"><span class="big">81&nbsp;%</span><span class="big-sub">verificados</span></p>
+      <div class="bar bar-lg" role="img" aria-label="104 de 129 participantes verificados"><span style="width:80.6%"></span></div>
+      <dl class="sum-dl">
+        <div><dt>Verificados</dt><dd>104</dd></div>
+        <div><dt>Pendientes</dt><dd class="t-pend">25</dd></div>
+        <div><dt>Participantes</dt><dd>129</dd></div>
+      </dl>
+      <p class="hint">Un participante cuenta como verificado cuando ha pasado la verificación de moto y la de equipo.</p>
+      <a class="office-link" href="#excel"><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg>3 filas del Excel no entraron</a>
+    </div>
+    <ul class="cats" aria-label="Verificación por categoría">
+      <li><a class="cat" href="#participantes"><span class="cat-top"><span class="cat-name">Yamaha R7 Cup</span><span class="cat-pend">6 pendientes</span></span><span class="bar" aria-hidden="true"><span style="width:79.3%"></span></span><span class="cat-num"><strong>23</strong> de 29 verificados · 79&nbsp;%</span></a></li>
+      <li><a class="cat" href="#participantes"><span class="cat-top"><span class="cat-name">ESBK Talent</span><span class="cat-pend">4 pendientes</span></span><span class="bar" aria-hidden="true"><span style="width:84%"></span></span><span class="cat-num"><strong>21</strong> de 25 verificados · 84&nbsp;%</span></a></li>
+      <li><a class="cat" href="#participantes"><span class="cat-top"><span class="cat-name">PreTalent</span><span class="cat-pend">3 pendientes</span></span><span class="bar" aria-hidden="true"><span style="width:78.6%"></span></span><span class="cat-num"><strong>11</strong> de 14 verificados · 79&nbsp;%</span></a></li>
+      <li><a class="cat" href="#participantes"><span class="cat-top"><span class="cat-name">Supersport 300</span><span class="cat-pend">3 pendientes</span></span><span class="bar" aria-hidden="true"><span style="width:78.6%"></span></span><span class="cat-num"><strong>11</strong> de 14 verificados · 79&nbsp;%</span></a></li>
+      <li><a class="cat" href="#participantes"><span class="cat-top"><span class="cat-name">Sportbike</span><span class="cat-pend">3 pendientes</span></span><span class="bar" aria-hidden="true"><span style="width:76.9%"></span></span><span class="cat-num"><strong>10</strong> de 13 verificados · 77&nbsp;%</span></a></li>
+      <li><a class="cat" href="#participantes"><span class="cat-top"><span class="cat-name">Superstock 1000</span><span class="cat-pend">2 pendientes</span></span><span class="bar" aria-hidden="true"><span style="width:81.8%"></span></span><span class="cat-num"><strong>9</strong> de 11 verificados · 82&nbsp;%</span></a></li>
+      <li><a class="cat" href="#participantes"><span class="cat-top"><span class="cat-name">Superstock 600</span><span class="cat-pend">2 pendientes</span></span><span class="bar" aria-hidden="true"><span style="width:80%"></span></span><span class="cat-num"><strong>8</strong> de 10 verificados · 80&nbsp;%</span></a></li>
+      <li><a class="cat" href="#participantes"><span class="cat-top"><span class="cat-name">Supersport</span><span class="cat-pend">1 pendiente</span></span><span class="bar" aria-hidden="true"><span style="width:88.9%"></span></span><span class="cat-num"><strong>8</strong> de 9 verificados · 89&nbsp;%</span></a></li>
+      <li><a class="cat" href="#participantes"><span class="cat-top"><span class="cat-name">Superbike</span><span class="cat-pend">1 pendiente</span></span><span class="bar" aria-hidden="true"><span style="width:75%"></span></span><span class="cat-num"><strong>3</strong> de 4 verificados · 75&nbsp;%</span></a></li>
+    </ul>
+  </section>
+
+  <div class="work">
+
+    <section class="card list" id="participantes" aria-labelledby="part-t">
+      <div class="list-head">
+        <h2 id="part-t" class="h2">Participantes</h2>
+        <span class="count">129</span>
+        <ul class="legend" aria-label="Leyenda de colores">
+          <li><span class="dot dot-pend" aria-hidden="true"></span>Pendiente de verificar</li>
+          <li><span class="dot dot-off" aria-hidden="true"></span>Resolver en oficina</li>
+          <li><span class="dot dot-info" aria-hidden="true"></span>Información</li>
+        </ul>
+      </div>
+
+      <div class="toolbar">
+        <fieldset class="seg">
+          <legend class="sr-only">Mostrar participantes</legend>
+          <input type="radio" name="f" id="f-all" checked><label for="f-all">Todos <span class="n">129</span></label>
+          <input type="radio" name="f" id="f-pend"><label for="f-pend">Sin verificar <span class="n">25</span></label>
+          <input type="radio" name="f" id="f-moto"><label for="f-moto">Moto pendiente</label>
+          <input type="radio" name="f" id="f-equipo"><label for="f-equipo">Equipo pendiente</label>
+          <input type="radio" name="f" id="f-off"><label for="f-off"><span class="dot dot-off" aria-hidden="true"></span>Con aviso de oficina</label>
+        </fieldset>
+        <div class="selects">
+          <div class="field">
+            <label for="f-cat">Categoría</label>
+            <select id="f-cat">
+              <option>Todas las categorías</option>
+              <option>Yamaha R7 Cup (29)</option>
+              <option>ESBK Talent (25)</option>
+              <option>PreTalent (14)</option>
+              <option>Supersport 300 (14)</option>
+              <option>Sportbike (13)</option>
+              <option>Superstock 1000 (11)</option>
+              <option>Superstock 600 (10)</option>
+              <option>Supersport (9)</option>
+              <option>Superbike (4)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="f-sort">Ordenar por</label>
+            <select id="f-sort">
+              <option>Dorsal, de menor a mayor</option>
+              <option>Dorsal, de mayor a menor</option>
+              <option>Box</option>
+              <option>Piloto, de la A a la Z</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <table class="ptable">
+        <caption class="sr-only">Participantes de Navarra I ordenados por dorsal, de menor a mayor. Se muestran 8 de 129.</caption>
+        <colgroup><col class="w-d"><col class="w-p"><col class="w-c"><col class="w-l"><col class="w-b"></colgroup>
+        <colgroup><col class="w-v"><col class="w-v"></colgroup>
+        <colgroup><col class="w-o"></colgroup>
+        <thead>
+          <tr>
+            <th scope="col" rowspan="2" aria-sort="ascending"><button class="sort" type="button">Dorsal<svg class="ic" aria-hidden="true"><use href="#i-up"/></svg></button></th>
+            <th scope="col" rowspan="2">Piloto y equipo</th>
+            <th scope="col" rowspan="2">Categoría y moto</th>
+            <th scope="col" rowspan="2">Licencia</th>
+            <th scope="col" rowspan="2">Box</th>
+            <th scope="colgroup" colspan="2" class="th-group">Verificación técnica</th>
+            <th scope="col" rowspan="2">Oficina</th>
+          </tr>
+          <tr>
+            <th scope="col">Moto</th>
+            <th scope="col">Equipo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr id="p-7">
+            <td class="c-dorsal"><span class="plate">7</span></td>
+            <td class="c-pilot"><a class="pname" href="#detalle">Iker Valdemoro Sanz</a><span class="cc">ESP</span><span class="sub">Valdemoro Racing</span></td>
+            <td class="c-cat"><span class="catl">Superbike</span><span class="sub">Honda CBR1000RR-R</span></td>
+            <td class="c-lic" data-label="Licencia">RFME</td>
+            <td class="c-box" data-label="Box"><span class="boxv">12</span></td>
+            <td class="c-vm" data-label="Verificación de moto"><span class="vok"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span><span class="sr-only">Verificada el </span>8 may <b>08:15</b></span></span></td>
+            <td class="c-ve" data-label="Verificación de equipo"><span class="vok"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span><span class="sr-only">Verificado el </span>8 may <b>08:20</b></span></span></td>
+            <td class="c-off" data-label="Oficina"><span class="none">Sin avisos</span></td>
+          </tr>
+          <tr id="p-8" class="is-sel">
+            <td class="c-dorsal"><span class="plate">8</span></td>
+            <td class="c-pilot"><a class="pname" href="#detalle" aria-current="true">Mateo Rubial Gaspar</a><span class="cc">ESP</span><span class="sub">Sin equipo</span></td>
+            <td class="c-cat"><span class="catl">PreTalent</span><span class="sub">Beon (sin modelo)</span></td>
+            <td class="c-lic" data-label="Licencia">RFME</td>
+            <td class="c-box" data-label="Box"><span class="boxv boxv-txt">Carpas Paddock</span></td>
+            <td class="c-vm" data-label="Verificación de moto"><span class="vok"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span><span class="sr-only">Verificada el </span>8 may <b>09:12</b></span></span></td>
+            <td class="c-ve" data-label="Verificación de equipo"><span class="chip chip-pend"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Pendiente</span></td>
+            <td class="c-off" data-label="Oficina"><span class="chip chip-off"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>Casco sin QR FIM</span><span class="chip chip-info">Sin equipo</span></td>
+          </tr>
+          <tr id="p-15">
+            <td class="c-dorsal"><span class="plate">15</span></td>
+            <td class="c-pilot"><a class="pname" href="#detalle">Lucía Arranz Peñalver</a><span class="cc">ESP</span><span class="sub">Arranz Academy</span></td>
+            <td class="c-cat"><span class="catl">ESBK Talent</span><span class="sub">Honda NSF250R</span></td>
+            <td class="c-lic" data-label="Licencia">RFME</td>
+            <td class="c-box" data-label="Box"><span class="boxv">25</span></td>
+            <td class="c-vm" data-label="Verificación de moto"><span class="vok"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span><span class="sr-only">Verificada el </span>8 may <b>08:31</b></span></span></td>
+            <td class="c-ve" data-label="Verificación de equipo"><span class="vok"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span><span class="sr-only">Verificado el </span>8 may <b>08:35</b></span></span></td>
+            <td class="c-off" data-label="Oficina"><span class="chip chip-info">Menor de edad (14 años)</span></td>
+          </tr>
+          <tr id="p-21-sb">
+            <td class="c-dorsal"><span class="plate">21</span></td>
+            <td class="c-pilot"><a class="pname" href="#detalle">Pau Ferrandis Llobet</a><span class="cc">ESP</span><span class="sub">Llobet Motorsport</span></td>
+            <td class="c-cat"><span class="catl">Sportbike</span><span class="sub">Kawasaki Ninja 400</span></td>
+            <td class="c-lic" data-label="Licencia"><span class="lic-off">Provisional</span></td>
+            <td class="c-box" data-label="Box"><span class="boxv">14</span></td>
+            <td class="c-vm" data-label="Verificación de moto"><span class="vok"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span><span class="sr-only">Verificada el </span>8 may <b>09:05</b></span></span></td>
+            <td class="c-ve" data-label="Verificación de equipo"><span class="chip chip-pend"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Pendiente</span></td>
+            <td class="c-off" data-label="Oficina"><span class="chip chip-off"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>Licencia provisional</span></td>
+          </tr>
+          <tr id="p-21-r7">
+            <td class="c-dorsal"><span class="plate">21</span></td>
+            <td class="c-pilot"><a class="pname" href="#detalle">Hugo Cebrián Montaner</a><span class="cc">ESP</span><span class="sub">Montaner Junior Team</span></td>
+            <td class="c-cat"><span class="catl">Yamaha R7 Cup</span> <span class="tag">Rookie</span><span class="sub">Yamaha R7</span></td>
+            <td class="c-lic" data-label="Licencia">RFME</td>
+            <td class="c-box" data-label="Box"><span class="boxv boxv-txt">Carpas Yamaha R7</span></td>
+            <td class="c-vm" data-label="Verificación de moto"><span class="chip chip-pend"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Pendiente</span></td>
+            <td class="c-ve" data-label="Verificación de equipo"><span class="chip chip-pend"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Pendiente</span></td>
+            <td class="c-off" data-label="Oficina"><span class="chip chip-off"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>Moto sin pegatina</span><span class="chip chip-info">Dorsal 21 también en Sportbike</span></td>
+          </tr>
+          <tr id="p-39">
+            <td class="c-dorsal"><span class="plate">39</span></td>
+            <td class="c-pilot"><a class="pname" href="#detalle">Bruno Lavín Ortuño</a><span class="cc">ESP</span><span class="sub">Team Ortuño SBK</span></td>
+            <td class="c-cat"><span class="catl">Superstock 1000</span><span class="sub">BMW M1000RR</span></td>
+            <td class="c-lic" data-label="Licencia">RFME</td>
+            <td class="c-box" data-label="Box"><span class="boxv">21</span></td>
+            <td class="c-vm" data-label="Verificación de moto"><span class="chip chip-pend"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Pendiente</span></td>
+            <td class="c-ve" data-label="Verificación de equipo"><span class="vok"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span><span class="sr-only">Verificado el </span>8 may <b>08:42</b></span></span></td>
+            <td class="c-off" data-label="Oficina"><span class="chip chip-info">Corría en Superbike la prueba anterior</span></td>
+          </tr>
+          <tr id="p-44">
+            <td class="c-dorsal"><span class="plate">44</span></td>
+            <td class="c-pilot"><a class="pname" href="#detalle">Nerea Olmedilla Ruiz</a><span class="cc">ESP</span><span class="sub">Olmedilla Racing</span></td>
+            <td class="c-cat"><span class="catl">Supersport 300</span><span class="sub"><span class="mono">«SIN MARCA»</span> en el Excel</span></td>
+            <td class="c-lic" data-label="Licencia">RFME</td>
+            <td class="c-box" data-label="Box"><span class="boxv">18</span></td>
+            <td class="c-vm" data-label="Verificación de moto"><span class="chip chip-pend"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Pendiente</span></td>
+            <td class="c-ve" data-label="Verificación de equipo"><span class="vok"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span><span class="sr-only">Verificado el </span>8 may <b>09:30</b></span></span></td>
+            <td class="c-off" data-label="Oficina"><span class="chip chip-off"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>Marca y modelo por completar</span></td>
+          </tr>
+          <tr id="p-67">
+            <td class="c-dorsal"><span class="plate">67</span></td>
+            <td class="c-pilot"><a class="pname" href="#detalle">Théo Marchandeau</a><span class="cc">FRA</span><span class="sub">Équipe Lumière</span></td>
+            <td class="c-cat"><span class="catl">Superstock 600</span><span class="sub">Yamaha R6</span></td>
+            <td class="c-lic" data-label="Licencia"><span class="lic-off">FFM (Francia)</span></td>
+            <td class="c-box" data-label="Box"><span class="boxv">3</span></td>
+            <td class="c-vm" data-label="Verificación de moto"><span class="vok"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg><span><span class="sr-only">Verificada el </span>8 may <b>08:58</b></span></span></td>
+            <td class="c-ve" data-label="Verificación de equipo"><span class="chip chip-pend"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Pendiente</span></td>
+            <td class="c-off" data-label="Oficina"><span class="chip chip-off"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>Licencia de la FFM</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="list-foot">
+        <p>Mostrando 8 de 129 participantes</p>
+        <button class="btn btn-sm" type="button">Mostrar 20 más</button>
+      </div>
+    </section>
+
+    <aside class="card side" id="detalle" aria-labelledby="det-name">
+      <div class="det-head">
+        <div class="det-bar">
+          <p class="eyebrow">Participante seleccionado</p>
+          <div class="det-nav">
+            <a class="btn btn-ghost btn-icon" href="#p-7" aria-label="Participante anterior: dorsal 7" title="Participante anterior"><svg class="ic" aria-hidden="true"><use href="#i-left"/></svg></a>
+            <a class="btn btn-ghost btn-icon" href="#p-15" aria-label="Participante siguiente: dorsal 15" title="Participante siguiente"><svg class="ic" aria-hidden="true"><use href="#i-right"/></svg></a>
+            <button class="btn btn-ghost btn-icon" type="button" aria-label="Cerrar el detalle" title="Cerrar"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button>
+          </div>
+        </div>
+        <div class="det-id">
+          <span class="plate plate-lg"><span class="sr-only">Dorsal </span>8</span>
+          <div>
+            <h2 id="det-name" class="det-name">Mateo Rubial Gaspar</h2>
+            <p class="det-cat">PreTalent · España</p>
+          </div>
+        </div>
+        <p class="det-sum">
+          <span class="chip chip-pend"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Falta la verificación de equipo</span>
+          <span class="chip chip-off"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>1 aviso de oficina</span>
+        </p>
+        <div class="det-actions">
+          <button class="btn" type="button"><svg class="ic" aria-hidden="true"><use href="#i-edit"/></svg>Editar participante</button>
+          <button class="btn btn-primary" type="button"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>Asignar box</button>
+        </div>
+      </div>
+
+      <section class="det-sec" aria-labelledby="det-ver">
+        <h3 id="det-ver" class="h3">Verificación técnica</h3>
+        <ul class="vlist">
+          <li>
+            <span class="vlab">Moto</span>
+            <span><span class="chip chip-ok"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Verificada</span><span class="vwhen"><time datetime="2026-05-08T09:12">Viernes 8 de mayo de 2026, 09:12</time></span></span>
+          </li>
+          <li>
+            <span class="vlab">Equipo</span>
+            <span><span class="chip chip-pend"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Pendiente</span><span class="vwhen">Aún no ha pasado. Está en Carpas Paddock.</span></span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="det-sec" aria-labelledby="det-dat">
+        <h3 id="det-dat" class="h3">Datos de la inscripción</h3>
+        <dl class="kv">
+          <div><dt>Dorsal</dt><dd>8</dd></div>
+          <div><dt>Categoría</dt><dd>PreTalent</dd></div>
+          <div><dt>Moto</dt><dd>Beon (sin modelo)</dd></div>
+          <div><dt>Equipo</dt><dd>Sin equipo</dd></div>
+          <div><dt>Box</dt><dd>Carpas Paddock</dd></div>
+          <div><dt>Licencia</dt><dd>RFME</dd></div>
+          <div class="wide"><dt>País</dt><dd>España (ESP)</dd></div>
+        </dl>
+      </section>
+
+      <section class="det-sec" aria-labelledby="det-cas">
+        <h3 id="det-cas" class="h3">Cascos</h3>
+        <div class="helmet">
+          <p class="helmet-t">Casco 1</p>
+          <dl>
+            <div><dt>Pegatina</dt><dd><span class="chip chip-pend"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Sin poner</span></dd></div>
+            <div><dt>QR FIM</dt><dd><span class="chip chip-off"><svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>No tiene</span></dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="det-sec" aria-labelledby="det-avi">
+        <h3 id="det-avi" class="h3">Avisos de oficina</h3>
+        <ul class="alerts">
+          <li class="a-off">
+            <svg class="ic" aria-hidden="true"><use href="#i-alert"/></svg>
+            <div><p class="a-t">Casco sin QR FIM</p><p class="a-d">Resolver en oficina antes de que salga a pista.</p></div>
+          </li>
+          <li class="a-info">
+            <svg class="ic" aria-hidden="true"><use href="#i-info"/></svg>
+            <div><p class="a-t">Sin equipo</p><p class="a-d">El Excel de la RFME no trae equipo para este piloto.</p></div>
+          </li>
+        </ul>
+      </section>
+
+    </aside>
+
+    <section class="card excel" id="excel" aria-labelledby="excel-t">
+      <div class="sec-head">
+        <div>
+          <h2 id="excel-t" class="h2">Filas del Excel que no entraron</h2>
+          <p class="sec-sub">La importación del Excel oficial de la RFME dejó fuera estas filas. Corrígelas en el Excel y vuelve a importarlo, o da de alta al participante a mano.</p>
+        </div>
+        <span class="count count-off">3 de 132 filas</span>
+      </div>
+      <ol class="rej">
+        <li>
+          <span class="rownum">Fila 46</span>
+          <div>
+            <p class="rej-who"><strong>Daniel Escartín Moreno</strong><span>Dorsal 52 · «Supersport NG»</span></p>
+            <p class="rej-why"><span class="chip chip-off">Categoría que no existe</span>«Supersport NG» es el nombre antiguo; no está en el campeonato.</p>
+          </div>
+          <button class="btn btn-sm" type="button">Añadir a mano</button>
+        </li>
+        <li>
+          <span class="rownum">Fila 88</span>
+          <div>
+            <p class="rej-who"><strong>Álvaro Cifuentes Rey</strong><span>Dorsal 33 · Superstock 600</span></p>
+            <p class="rej-why"><span class="chip chip-off">Sin licencia</span>La fila no trae la licencia.</p>
+          </div>
+          <button class="btn btn-sm" type="button">Añadir a mano</button>
+        </li>
+        <li>
+          <span class="rownum">Fila 131</span>
+          <div>
+            <p class="rej-who"><strong>Iker Valdemoro Sanz</strong><span>Dorsal 7 · Superbike</span></p>
+            <p class="rej-why"><span class="chip chip-info">Fila duplicada</span>Ya está importado como participante.</p>
+          </div>
+          <a class="btn btn-sm" href="#p-7">Ver dorsal 7</a>
+        </li>
+      </ol>
+    </section>
+
+  </div>
+
+  <section class="states" aria-labelledby="states-t">
+    <div class="states-head">
+      <h2 id="states-t" class="h2">Estados de la lista</h2>
+      <p class="sec-sub">Qué ve el organizador cuando nada coincide con la búsqueda o el filtro, mientras se cargan los participantes y si falla la importación del Excel.</p>
+    </div>
+    <div class="states-grid">
+
+      <div class="card state">
+        <h3 class="state-cap">Sin resultados</h3>
+        <div class="state-body">
+          <div class="ctx" role="group" aria-label="Filtros aplicados">
+            <span><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>«Gonzalo»</span>
+            <span>Superstock 600</span>
+            <span>Equipo pendiente</span>
+          </div>
+          <div class="empty">
+            <span class="empty-ic" aria-hidden="true"><svg class="ic"><use href="#i-search"/></svg></span>
+            <p class="empty-t">Ningún participante coincide</p>
+            <p class="empty-d">No hay nadie con «Gonzalo» en Superstock 600 que tenga pendiente la verificación de equipo.</p>
+            <div class="empty-a">
+              <button class="btn btn-sm" type="button">Quitar filtros</button>
+              <button class="btn btn-sm btn-ghost" type="button">Borrar la búsqueda</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card state">
+        <h3 class="state-cap">Cargando</h3>
+        <div class="state-body" aria-busy="true">
+          <p class="sr-only">Cargando participantes…</p>
+          <div class="sk-row" aria-hidden="true"><span class="sk sk-plate"></span><span><span class="sk sk-l1"></span><span class="sk sk-l2"></span></span><span class="sk sk-chip"></span></div>
+          <div class="sk-row" aria-hidden="true"><span class="sk sk-plate"></span><span><span class="sk sk-l1" style="width:64%"></span><span class="sk sk-l2" style="width:40%"></span></span><span class="sk sk-chip"></span></div>
+          <div class="sk-row" aria-hidden="true"><span class="sk sk-plate"></span><span><span class="sk sk-l1" style="width:86%"></span><span class="sk sk-l2"></span></span><span class="sk sk-chip"></span></div>
+          <div class="sk-row" aria-hidden="true"><span class="sk sk-plate"></span><span><span class="sk sk-l1" style="width:70%"></span><span class="sk sk-l2" style="width:46%"></span></span><span class="sk sk-chip"></span></div>
+        </div>
+      </div>
+
+      <div class="card state">
+        <h3 class="state-cap">Error al importar</h3>
+        <div class="state-body">
+          <div class="alert">
+            <svg class="ic" aria-hidden="true"><use href="#i-xc"/></svg>
+            <div>
+              <p class="alert-t">No se ha podido importar el Excel</p>
+              <p class="alert-d">Al fichero «Inscritos Navarra I.xlsx» le falta la columna «Licencia». No se ha cambiado nada.</p>
+              <div class="alert-a">
+                <button class="btn btn-sm" type="button"><svg class="ic" aria-hidden="true"><use href="#i-import"/></svg>Elegir otro fichero</button>
+                <button class="btn btn-sm btn-ghost" type="button">Ver columnas necesarias</button>
+              </div>
+            </div>
+          </div>
+          <p class="after-alert"><svg class="ic" aria-hidden="true"><use href="#i-info"/></svg>La lista sigue con los 129 participantes de la importación anterior.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+</body>
+</html>

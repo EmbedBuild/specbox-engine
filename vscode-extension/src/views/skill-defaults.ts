@@ -7,7 +7,7 @@ export interface SkillDefaults {
 
 // Static fallback content used when a SKILL.md frontmatter doesn't expose
 // a structured description matching our 4-block layout. Hand-curated for
-// the 25 canonical SpecBox engine skills.
+// the 26 canonical SpecBox engine skills.
 //
 // IMPORTANT: when adding a new skill to the engine, add an entry here too.
 // Missing entries surface as "(no description available)" placeholders.
@@ -111,6 +111,15 @@ export const SKILL_DEFAULTS: Record<string, SkillDefaults> = {
 		],
 		command: '/check-designs',
 		example: '/check-designs',
+	},
+	'design-review': {
+		whatItDoes: 'Prepares the design criteria for each screen: a brief grounded in the real users, questions and data, and a visual direction checked against the generic defaults of AI-made UI.',
+		whenToUse: [
+			'Before generating a screen with Stitch, Claude Design or code.',
+			'When a design looks generic and needs a brief and a direction it can be checked against.',
+		],
+		command: '/design-review brief|direction <screen>',
+		example: '/design-review brief participants',
 	},
 	'switch-backend': {
 		whatItDoes: 'Migrates a project between tracking backends (FreeForm, Trello, Plane, Native) preserving US/UC/AC/comments/state.',

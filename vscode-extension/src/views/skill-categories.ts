@@ -46,6 +46,7 @@ const SKILL_TO_CATEGORY: Record<string, SkillCategory> = {
 	'visual-setup': 'visual',
 	'adapt-ui': 'visual',
 	'check-designs': 'visual',
+	'design-review': 'visual',
 	// Tracking
 	'switch-backend': 'tracking',
 	'app-init': 'tracking',

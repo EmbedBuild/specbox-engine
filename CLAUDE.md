@@ -212,6 +212,7 @@ specbox-engine/
 │   │   ├── audit/SKILL.md
 │   │   ├── check-designs/SKILL.md
 │   │   ├── compliance/SKILL.md
+│   │   ├── design-review/SKILL.md
 │   │   ├── discovery/SKILL.md
 │   │   ├── explore/SKILL.md
 │   │   ├── feedback/SKILL.md
@@ -407,6 +408,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /explore | "analyze codebase", "explore code", "understand architecture" | fork:Explore | Read-only | |
 | /feedback | "report feedback", "found a bug", "this doesn't work" | direct | Full | AG-10 + GitHub issue + invalida acceptance |
 | /check-designs | "check designs", "design compliance", "verify designs" | fork:Explore | Read-only | Retroactive Stitch compliance scan |
+| /design-review | "design review", "brief de pantalla", "dirección visual", "anti AI slop" | direct | Full | US-90 — brief y dirección por pantalla; sin brief no hay diseño; rúbrica para criticar candidatos y pantallas |
 | /acceptance-check | "check acceptance", "validate AC", "acceptance gate" | direct | Full | v5.0 — Standalone BDD acceptance without /implement |
 | /quickstart | "quickstart", "tutorial", "getting started" | direct | Full | v5.0 — Interactive onboarding tutorial (< 5 min) |
 | /release | "release", "bump version", "sube version", "prepara release" | direct | Full | v5.8 — Audit residuals + update version/changelog/docs + push |

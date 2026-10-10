@@ -165,7 +165,7 @@ def test_parse_skills_inline_and_block_description(fake_engine):
 
 def test_parse_skills_real_repo():
     skills = parse_skills(ENGINE_ROOT / ".claude" / "skills")
-    assert len(skills) == 25
+    assert len(skills) == 26
     assert all(s.description for s in skills)
     assert all(s.command.startswith("/") for s in skills)
 

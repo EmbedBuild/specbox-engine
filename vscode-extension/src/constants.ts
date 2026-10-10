@@ -28,7 +28,7 @@ export function howToConnectUrl(language: string | undefined): string {
 // TreeView displays.
 export const KNOWN_SKILLS = [
 	'acceptance-check', 'adapt-ui', 'app-init', 'app-sync', 'audit',
-	'check-designs', 'compliance', 'discovery', 'explore', 'feedback',
+	'check-designs', 'compliance', 'design-review', 'discovery', 'explore', 'feedback',
 	'handoff', 'implement', 'manual-test', 'optimize-agents', 'plan',
 	'prd', 'quality-gate', 'queue-review', 'quickstart', 'release',
 	'stripe-connect', 'stripe-standard', 'stripe-switch-account',

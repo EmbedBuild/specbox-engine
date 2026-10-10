@@ -5,15 +5,15 @@
 
 ## Proposito
 
-Crear y mantener componentes de interfaz reutilizables, aplicar el sistema de diseno del proyecto y garantizar layouts responsivos en todas las pantallas. Trabaja a partir de los disenos generados por AG-06 (Stitch MCP), interpretandolos fielmente y traduciendolos a codigo del stack correspondiente.
+Crear y mantener componentes de interfaz reutilizables, aplicar el sistema de diseno del proyecto y garantizar layouts responsivos en todas las pantallas. Trabaja a partir de los disenos candidatos de AG-06 (Stitch o Claude Design) y los traduce a codigo del stack correspondiente con los valores del sistema de diseno.
 
-**Filosofia**: El estilo visual lo define Stitch a partir del PRD y el contexto del proyecto. Este agente NO impone estilos predeterminados — su rol es implementar fielmente lo que Stitch diseña, garantizando calidad tecnica y consistencia.
+**Filosofia (D18)**: un diseno de Stitch o Claude Design es un **candidato**: decide disposicion, jerarquia, componentes y flujo. **Nunca es fuente de valores.** Colores, tipografia, espaciado, radios y sombras salen de los tokens del sistema (`design-system.tokens.json`) cuando existen y, si no, del theme del proyecto y de `doc/design/DESIGN.md`. Este agente no copia los valores del HTML candidato ni impone un estilo propio.
 
 ---
 
 ## Responsabilidades
 
-1. Implementar componentes a partir de los disenos HTML de Stitch (AG-06)
+1. Implementar componentes a partir de los disenos HTML candidatos (AG-06): su estructura, no sus valores
 2. Crear widgets/componentes reutilizables en la carpeta compartida
 3. Aplicar el sistema de diseno del proyecto (colores, tipografia, espaciado) segun lo definido en el theme
 4. Implementar layouts responsivos (mobile, tablet, desktop)
@@ -25,7 +25,9 @@ Crear y mantener componentes de interfaz reutilizables, aplicar el sistema de di
 ## Flujo de Trabajo
 
 ```
-AG-06 (Stitch) genera HTML → AG-02 analiza el diseno
+AG-06 (Stitch / Claude Design) genera el candidato → AG-02 toma disposicion, jerarquia y flujo
+  ↓
+Traduce cada valor visual al token del sistema (o al theme, sin tokens)
   ↓
 Verifica si hay VEG Motion Catalog → Carga catalogo de animaciones
   ↓
@@ -38,12 +40,16 @@ Valida responsividad
 
 ### Antes de implementar cualquier pantalla
 
-1. Revisar los HTMLs en `doc/design/{feature}/`
-2. **Verificar si existe VEG activo** en `doc/veg/{feature}/`
-3. **Si hay VEG**: cargar el Motion Catalog (Pilar 2) del resumen compacto
-4. Identificar componentes que ya existen en la biblioteca del proyecto
-5. Si un componente similar existe, extenderlo (no duplicar)
-6. Si no existe, crearlo en la carpeta compartida con props genericas
+1. Revisar los HTMLs en `doc/design/{feature}/` (llevan `specbox:design-role=candidate`) y, si
+   existen, el brief y la direccion de cada pantalla (`{pantalla}.brief.md`, `.direction.md`)
+2. Localizar la fuente de valores: `design-system.tokens.json` (o, sin tokens, el theme y
+   `doc/design/DESIGN.md`). Un color, una fuente o un espaciado del HTML que no este ahi se
+   sustituye por el token mas cercano y se anota; nunca se copia
+3. **Verificar si existe VEG activo** en `doc/veg/{feature}/`
+4. **Si hay VEG**: cargar el Motion Catalog (Pilar 2) del resumen compacto
+5. Identificar componentes que ya existen en la biblioteca del proyecto
+6. Si un componente similar existe, extenderlo (no duplicar)
+7. Si no existe, crearlo en la carpeta compartida con props genericas
 
 ## VEG Motion Integration
 
@@ -185,20 +191,21 @@ core/widgets/          (o components/ui/)
 - NO crear layouts de una sola dimension (mobile-only o desktop-only)
 - NO ignorar estados vacios, de carga y de error
 - NO usar tamanios fijos (px) sin alternativa responsiva
-- NO imponer un estilo visual predeterminado; respetar el diseno de Stitch
+- NO copiar colores, fuentes, espaciados ni radios del HTML candidato: salen de los tokens del sistema (D18)
+- NO imponer un estilo visual predeterminado; respetar la disposicion y el flujo del candidato
 
 ---
 
 ## Checklist
 
-- [ ] Disenos HTML de Stitch revisados (`doc/design/{feature}/`)
+- [ ] Disenos candidatos revisados (`doc/design/{feature}/`), con su brief y direccion si existen
 - [ ] Componentes existentes revisados antes de crear nuevos
 - [ ] Todos los widgets nuevos en carpeta compartida
 - [ ] Regla Widget-as-Class / Component Pattern cumplida
 - [ ] Layouts responsivos con 3 breakpoints minimo
 - [ ] Estados: loaded, empty, loading, error cubiertos
 - [ ] Colores y tipografia del theme (no hardcoded)
-- [ ] Disenos de AG-06 (Stitch) convertidos fielmente
+- [ ] Disposicion y flujo del candidato respetados; ningun valor visual copiado del HTML (todos de tokens o theme)
 
 ---
 
@@ -213,7 +220,8 @@ core/widgets/          (o components/ui/)
 
 ## Referencia
 
-- Disenos Stitch: `doc/design/{feature}/`
+- Disenos candidatos: `doc/design/{feature}/`
+- Fuente de valores: `design-system.tokens.json` (D18); sin tokens, el theme y `doc/design/DESIGN.md`
 - Patrones Stitch: `specbox-engine/design/stitch/`
 - Arquitectura Flutter: `specbox-engine/architecture/flutter/`
 - Arquitectura React: `specbox-engine/architecture/react/`

@@ -667,30 +667,34 @@ ls doc/design/{feature}/*.html 2>/dev/null
 
 ### 3.2 Detectar configuracion Stitch
 
-1. Buscar `stitch.projectId` en `.claude/settings.local.json`
-2. Si no existe, buscar en `~/.claude/settings.local.json`
-3. Si no se encuentra → Preguntar al usuario o usar `mcp__stitch__list_projects`
+Igual que `/plan` 6.0: `stitch.projectId` en `.claude/settings.local.json` (o en el global) y,
+antes de la primera tool `stitch_*` de la sesión, `stitch_set_api_key` con la clave de esos mismos
+settings. Si no hay proyecto, `/plan` 6.0a (Stitch Config Gate): preguntar, nunca inventarlo.
 
-### 3.3 Generar pantallas faltantes
+### 3.3 Generar pantallas faltantes (misma cadena que `/plan`, US-91 · UC-9103)
 
-Para cada pantalla referenciada en el plan que no tenga HTML:
+Las pantallas que faltan se generan **con la cadena del Paso 6 de `/plan`**, no llamando a Stitch
+directamente. Esa cadena valida el prompt, lleva el DESIGN.md del proyecto como contexto y marca el
+resultado como candidato (D18). Para cada pantalla del plan que no tenga HTML:
 
-1. Construir prompt siguiendo la plantilla del engine (ver `design/stitch/prompt-template.md`)
-2. **SIEMPRE Light Mode** en los prompts
-3. Ejecutar generacion:
+1. **Brief y dirección.** Si faltan `doc/design/{feature}/{pantalla}.brief.md` o `.direction.md`,
+   ejecutar antes `/design-review brief` y `direction`: sin brief no hay diseño.
+2. **Prompt** como en `/plan` 6.2 (siempre Light Mode, sin valores de diseño inventados), con el
+   bloque «Visual Direction» de la dirección y, si hay VEG activo, sus directivas (abajo).
+3. **Validar** con `validate_stitch_prompt` (`/plan` 6.3.1; con MCP remoto,
+   `design_md_content=<doc/design/DESIGN.md>`) y actuar según su resultado: `normalized_prompt` con
+   avisos, `split_prompts` si hay que dividir.
+4. **Generar** con `stitch_generate_screen_v2` (`/plan` 6.3.2), una pantalla a la vez. El pipeline
+   ya reintenta (`edit_baseline → variants_refine → regenerate`): no se reintenta a mano.
+5. **Guardar** con `stitch_fetch_screen_code` en `doc/design/{feature}/{screen_name}.html`, con el
+   `html_banner` de la respuesta como **primera línea** (`/plan` 6.4): el fichero es un candidato
+   para decidir disposición y flujo, nunca fuente de producción.
+6. **Revisar el candidato** con la crítica de candidatos de `/plan` (6.4b): revisor aislado, una
+   sola edición y se queda la mejor versión. En autopilot avisa y sigue.
+7. **Registrar** el prompt en `doc/design/{feature}/{feature}_stitch_prompts.md` (`/plan` 6.5).
 
-```
-mcp__stitch__generate_screen_from_text(
-  projectId: "[stitch.projectId]",
-  prompt: "[prompt construido]",
-  deviceType: "[stitch.deviceType]",
-  modelId: "[stitch.modelId]"
-)
-```
-
-4. Obtener HTML con `mcp__stitch__get_screen`
-5. Guardar en `doc/design/{feature}/{screen_name}.html`
-6. Registrar prompts en `doc/design/{feature}/{feature}_stitch_prompts.md`
+**Prohibido aquí:** `mcp__stitch__generate_screen_from_text` y `mcp__stitch__get_screen`
+directos. Se saltan la validación del prompt, el DESIGN.md y la marca de candidato.
 
 **Si hay VEG activo**: Enriquecer cada prompt Stitch con las directivas del Pilar 3 (Diseno):
 
@@ -711,8 +715,8 @@ Image Placeholders (generate with placeholder boxes):
 **Reglas:**
 - Una pantalla a la vez (la API tarda minutos)
 - NO preguntar entre pantallas (modo autopilot) — generar todas las que falten
-- Si falla una pantalla, registrar el error y continuar con las demas
-- Reintentar una vez si hay timeout
+- Si una pantalla sale con `outcome: "failed"`, registrar sus `attempts[]` y continuar con las
+  demas; con `ok_degraded`, avisar de que salio en Flash
 
 ---
 
@@ -909,7 +913,13 @@ Si el MCP no estaba disponible, fallo, o el usuario eligio `skip`:
 
 ## Paso 4: Design-to-Code (si hay disenos)
 
-> Convertir los HTML de Stitch a codigo del stack del proyecto.
+> Convertir los HTML candidatos de Stitch o Claude Design a codigo del stack del proyecto.
+>
+> **Fuente de valores (D18):** del HTML candidato se toman disposicion, jerarquia, componentes y
+> flujo. **Ningun valor visual se copia del HTML.** Colores, tipografia, espaciado, radios y
+> sombras salen de los tokens del sistema (`design-system.tokens.json`) cuando existen y, si no,
+> del theme del proyecto y de `doc/design/DESIGN.md`. Un valor del HTML que no este en el sistema
+> se sustituye por el token mas cercano y se anota en el resumen de la fase.
 
 ### 4.0 Instalar dependencias VEG Motion (si hay VEG activo)
 
@@ -963,7 +973,9 @@ Motion level rules:
 Para cada HTML de diseno:
 
 #### Flutter
-1. Leer HTML y extraer: layout, componentes, colores, espaciado, tipografia
+1. Leer el HTML candidato y extraer: layout, jerarquia, componentes y estados. Colores,
+   espaciado y tipografia **no** se extraen: se usan los del sistema (tokens → `AppColors`,
+   `AppSpacing`, `TextTheme`)
 2. Crear widgets en la estructura del feature:
    - `lib/presentation/features/{feature}/widgets/` para widgets especificos
    - `lib/core/widgets/` para widgets reutilizables (si se identifican)
@@ -982,7 +994,9 @@ Para cada HTML de diseno:
      - Si se necesita hover en desktop: usar LayoutBuilder para detectar plataforma
 
 #### React
-1. Leer HTML y extraer: estructura JSX, clases CSS, componentes
+1. Leer el HTML candidato y extraer: estructura JSX, jerarquia y componentes. Las clases de
+   color, fuente, espaciado o radio del candidato (hex, valores arbitrarios de Tailwind) se
+   sustituyen por las utilidades o variables de los tokens del sistema
 2. Crear componentes en:
    - `src/components/features/{feature}/` para componentes especificos
    - `src/components/ui/` para primitivos reutilizables

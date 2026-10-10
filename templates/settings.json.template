@@ -228,19 +228,6 @@
           },
           {
             "type": "command",
-            "if": "Write(presentation/pages/.*)",
-            "command": "node .claude/hooks/design-gate.mjs",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "if": "Write(src/pages/.*)",
-            "command": "node .claude/hooks/design-gate.mjs",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "if": "Write(app/.*)",
             "command": "node .claude/hooks/design-gate.mjs",
             "timeout": 10
           }
@@ -263,19 +250,6 @@
           },
           {
             "type": "command",
-            "if": "Edit(presentation/pages/.*)",
-            "command": "node .claude/hooks/design-gate.mjs",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "if": "Edit(src/pages/.*)",
-            "command": "node .claude/hooks/design-gate.mjs",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "if": "Edit(app/.*)",
             "command": "node .claude/hooks/design-gate.mjs",
             "timeout": 10
           }

@@ -127,7 +127,7 @@ salvo para corregir a mano.
 | `spec-guard.mjs` | Write/Edit en `src/` o `lib/` | Verifica UC activo + rama no es main | **BLOQUEANTE** |
 | `branch-guard.mjs` | Write/Edit en `src/` o `lib/` | Verifica rama no es main/master | **BLOQUEANTE** |
 | `commit-spec-guard.mjs` | git commit | Bloquea commits en main; warning UC/checkpoint/tamano | **BLOQUEANTE** (rama) + WARNING (resto) |
-| `design-gate.mjs` | Write/Edit en pages/ | Verifica que existe HTML de diseno Stitch | **BLOQUEANTE** |
+| `design-gate.mjs` | Write/Edit de una pagina de UI | Avisa al agente en la misma sesion si la feature no tiene HTML de diseno; la escritura ya esta hecha y el aviso dice que hacer | **AVISO** (exit 2 al modelo) |
 | `pre-commit-lint.mjs` | git commit | Zero-tolerance lint | **BLOQUEANTE** |
 
 ### Que activa el marker
@@ -149,7 +149,7 @@ verifica E2E, y solo entonces mueve a **Done** manualmente (o via complete_uc de
 
 1. **NUNCA** implementar codigo en main/master — cada UC tiene su rama feature/
 2. **NUNCA** implementar multiples UCs en un solo commit — un commit por UC
-3. **NUNCA** crear UI sin diseno Stitch — design-gate.mjs bloquea
+3. **NUNCA** crear UI sin diseno previo (candidato de Stitch o Claude Design) — design-gate.mjs avisa en la misma sesion
 4. **NUNCA** mover UC a Done directamente — solo a Review (humano aprueba Done)
 5. **NUNCA** marcar ACs post-facto sin validacion real — mark_ac_batch DURANTE implementacion
 6. **NUNCA** priorizar velocidad sobre trazabilidad — el board refleja la realidad o no sirve

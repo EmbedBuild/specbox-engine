@@ -80,7 +80,9 @@ Referencias compartidas, que se cargan solo cuando hacen falta:
 1. **Comprueba que existe el brief.** Sin brief, el revisor no sabe qué tenía que resolver.
 2. Mide desde la raíz del proyecto con `scripts/verify.mjs` (destino: la URL con el servidor de
    desarrollo levantado o el HTML del candidato). Usa el Playwright del proyecto y no instala nada;
-   si no lo hay, sale con código 2 y se sigue sin capturas, diciéndolo.
+   si no lo hay, sale con código 2 y se sigue sin capturas, diciéndolo. **En Flutter** (hay
+   `pubspec.yaml`), el destino es la prueba de captura de la pantalla y las reglas son las de
+   [reference/flutter.md](reference/flutter.md): capturas a 390 y 820 sin simulador, 48 dp.
 3. Pasa brief, rúbrica, capturas, JSON y código a un **subagente aislado** con el encargo de
    [reference/verify.md](reference/verify.md). Quien diseñó no se revisa.
 4. Escribe `{pantalla}.verify.md`: veredicto (Block, Needs changes o Approve), tres problemas

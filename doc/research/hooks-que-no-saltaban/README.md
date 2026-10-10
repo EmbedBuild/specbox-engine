@@ -1,7 +1,9 @@
 # Los hooks que no saltaban
 
-> UC-9301 (US-93, EP-13) · 2026-10-10 · Claude Code 2.1.288
-> Material: [sesion-real/](sesion-real/) (pasos, configuraciones y disparos de la prueba).
+> UC-9301 y UC-9302 (US-93, EP-13) · 2026-10-10 · Claude Code 2.1.288
+> Material: [sesion-real/](sesion-real/) (condiciones, UC-9301) y [sesion-real-canales.md](sesion-real-canales.md) (canales, UC-9302).
+>
+> **Estado tras UC-9302:** ver [Después de UC-9302](#después-de-uc-9302). Las secciones siguientes describen cómo estaban los hooks al arreglar las condiciones.
 
 ## Resumen
 
@@ -54,8 +56,9 @@ decisión aparte: abajo está, hook a hook, qué haría falta.
 | Salida del hook | PreToolUse (antes de la acción) | PostToolUse (después) |
 |---|---|---|
 | `exit 0` y texto por stdout | Nadie lo ve | Nadie lo ve |
-| `exit 0` y JSON con `hookSpecificOutput.additionalContext` | No comprobado | El modelo lo recibe (**comprobado**) |
+| `exit 0` y JSON con `hookSpecificOutput.additionalContext` | El modelo lo recibe y la acción sigue (**comprobado** en UC-9302) | El modelo lo recibe (**comprobado**) |
 | `exit 1` | No bloquea (**comprobado**); el usuario ve «non-blocking status code» | Igual; la acción ya ocurrió |
+| `exit 0` y `permissionDecision: allow` con motivo | El modelo no ve el motivo (**comprobado** en UC-9302) | — |
 | `exit 2` y motivo por stderr | Bloquea la acción y el modelo recibe el motivo (según la documentación) | El modelo recibe el motivo (**comprobado**); la acción ya ocurrió |
 
 ## Hook por hook: qué cambia al fusionar esto y qué haría falta
@@ -105,3 +108,68 @@ Dos hallazgos más:
    del commit o fuera).
 3. **Después, una UC por satélite** para propagar la plantilla. De paso, declarar el board en el
    manager y en site.
+
+## Después de UC-9302
+
+Cada hook registrado avisa o bloquea por un canal que llega. Ninguno sale ya con `exit 1` ni escribe
+avisos por stdout; lo comprueba, hook a hook, `tests/hooks/hook-channels.test.mjs` (29 escenarios).
+Decisiones del owner: los guardias que decían bloquear bloquean de verdad, y el lint antes del commit
+es el linter del proyecto sobre los ficheros del commit, no la revisión con IA de `gga`.
+
+| Hook | Evento | Ahora |
+|---|---|---|
+| `no-bypass-guard` | PreToolUse | **Bloquea** `--no-verify`, el push forzado (`--force`, `-f`, `+rama`) y `reset --hard`; deja pasar `--force-with-lease` y `--force-if-includes` |
+| `commit-spec-guard` | PreToolUse `git commit` | **Bloquea** el commit en main/master de un proyecto spec-driven antes de que exista; sin UC activa, sin checkpoint o con más de 15 ficheros, nota |
+| `pre-commit-lint` | PreToolUse `git commit` | **Bloquea** si el linter del proyecto (ruff, eslint, dart analyze) falla en los ficheros del commit, incluidos los de un `git add` en la misma orden y los de `commit -a`. Sin linter, en silencio |
+| `e2e-gate` | PreToolUse `git commit` | **Bloquea** evidencia de aceptación inválida antes del commit (antes miraba un área de preparación ya vacía) |
+| `app-docs-sync-guard` | PreToolUse `git commit` | Nota con la deriva de `doc/app/`; con `block_on_drift`, **bloquea** el commit |
+| `checkpoint-freshness-guard` | PostToolUse `git commit` | Nota |
+| `uc-lifecycle-guard` | PostToolUse `git push` | Nota |
+| `spec-guard` | PostToolUse Write/Edit en `src/`, `lib/` | Código en main o con una reserva que ya no es tuya: `exit 2`, el agente recibe el motivo. Sin UC activa: nota |
+| `quality-first-guard` + `read-tracker` | PreToolUse Write/Edit + PostToolUse Read | **Bloquea** editar un fichero existente sin leerlo. Leen `tool_input` (antes nunca registraban ni comprobaban nada), un fichero que crea el agente cuenta como conocido, y la ruta se compara entera (antes bastaba con el nombre: cualquier `README.md`) |
+| `healing-budget-guard` | PreToolUse Write/Edit | **Bloquea** tras 8 reparaciones de la feature activa |
+| `pipeline-phase-guard` | PreToolUse Write/Edit | **Bloquea** código de una fase cuyas fases previas no están hechas (con UC activa y `pipeline_state.json`) |
+| `stripe-safety-guard` | PreToolUse Write/Edit | Bloqueaba sin decir por qué (el motivo iba a stdout): ahora el motivo llega |
+| `design-system-gate` | PreToolUse | En modo aviso, nota (antes stdout) |
+| `pre-read-budget-guard`, `context-budget-guard`, `file-ownership-guard` | PreToolUse | Avisos como nota (antes stderr con `exit 0`); los modos estrictos siguen bloqueando |
+| `pre-prd-discovery-check` | PreToolUse Skill | Aviso como nota; en modo `block`, **bloquea** `/prd` (antes `exit 1`) |
+
+Los hooks que miran git lo hacen en el repo al que va la orden (`cd <dir> && git commit`,
+`git -C <dir> commit`), no en el directorio de la sesión: si no, un commit en una rama de trabajo se
+habría bloqueado por la rama de la sesión.
+
+### Comprobado en sesiones reales
+
+En un proyecto spec-driven en main, con los hooks reales y el registro de la plantilla
+([sesion-real-canales.md](sesion-real-canales.md)):
+
+| Orden | Resultado | Lo que recibe el agente |
+|---|---|---|
+| `git reset --hard HEAD` | No se ejecuta; el cambio sin guardar sigue ahí | GUARDIA DE CALIDAD: orden bloqueada |
+| `git commit -am "en main"` | No hay commit | COMMIT BLOQUEADO: no se hace commit en main |
+| `git add malo.py && git commit` (import sin usar) | No hay commit | LINT: el commit no pasa el linter del proyecto |
+| `git push --force-with-lease origin feature/UC-1` | Se ejecuta; la rama llega al remoto | Nada |
+| `git commit -am "sin UC"` en la rama | Se hace el commit | SPEC GUARD: el commit sigue, pero conviene arreglar esto |
+
+### Qué impediría hoy en cada repo
+
+Simulación con los hooks de UC-9302 y la configuración actual de cada repo, sin escribir en ellos:
+
+| Repo (rama del clon) | Lo que bloquea | Lo que avisa |
+|---|---|---|
+| engine (rama de trabajo) | `reset --hard`, push forzado, `--no-verify`; editar un fichero sin leerlo | Commit sin UC activa; deriva de `doc/app/` (en modo aviso); código sin UC |
+| manager (`docs/marca-de-autor`) | Lo mismo que el engine en órdenes y lecturas | Nada: no es spec-driven para los hooks |
+| cloud (`main`) | Lo anterior, más cualquier commit en main y el código escrito en main | — |
+| site (`main`) | Órdenes destructivas y editar sin leer | Nada: no es spec-driven para los hooks |
+| projects (`main`) | Igual que cloud | — |
+
+En los cinco, `--force-with-lease` pasa. Un repo cuyo clon esté en main (cloud y projects) solo puede
+hacer commits en una rama de trabajo, como ya pedía su documentación.
+
+### Antes de propagar
+
+- **Una UC por satélite** para llevar la plantilla. Antes de activarla en cloud y projects, sus clones
+  locales tienen que trabajar en ramas, no en main.
+- **Declarar el board** en el manager y en site para que las guardias de UC se les apliquen.
+- En el engine, `.quality/read_tracker.jsonl` deja de versionarse (`.quality/.gitignore`): ahora se
+  escribe en cada lectura.

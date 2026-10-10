@@ -1,67 +1,57 @@
 #!/usr/bin/env node
 /**
- * no-bypass-guard.mjs — PreToolUse hook
- * BLOCKING: Prevents the agent from accidentally bypassing quality hooks
- * or performing destructive git operations.
+ * no-bypass-guard.mjs — PreToolUse hook for Bash
+ * BLOCKING: stops the agent from skipping the quality checks or rewriting history
+ * before the command runs (exit 2: the command does not run and the agent gets the reason).
  *
- * v5.12.0 — Agent Quality Guardrails
+ *   --no-verify               skips the git hooks of the project
+ *   push --force / -f / +ref  overwrites the remote branch; --force-with-lease and
+ *                             --force-if-includes are allowed (they refuse to overwrite work
+ *                             the agent has not seen, and the rebase flow needs them)
+ *   reset --hard              throws away uncommitted changes
+ *
+ * v5.12.0 — Agent Quality Guardrails · US-93/UC-9302: blocks for real (it exited 1, which
+ * Claude Code treats as a non-blocking error) and lets --force-with-lease through.
  */
 
-import { readStdin } from './lib/utils.mjs';
+import { readHookInput } from './lib/utils.mjs';
+import { blockWith } from './lib/output.mjs';
 
-const input = readStdin();
+const { toolInput } = readHookInput();
+const command = String(toolInput.command || '');
+if (!command) process.exit(0);
 
-// Extract command from tool input
-let command = '';
-try {
-  const parsed = JSON.parse(input);
-  // Claude Code sends the tool's arguments in tool_input; the top level is the old test format.
-  command = (parsed.tool_input ?? parsed).command || '';
-} catch {
-  const match = input.match(/"command"\s*:\s*"([^"]*)"/);
-  command = match ? match[1] : '';
+/** The arguments of each `git push` in the command (a compound command can have several). */
+function pushArgs(cmd) {
+  const out = [];
+  for (const m of cmd.matchAll(/\bpush\b([^;&|]*)/g)) out.push(m[1].trim().split(/\s+/).filter(Boolean));
+  return out;
 }
 
-if (!command) {
-  process.exit(0);
+/** Whether a push rewrites the remote without a safety check. */
+function isForcePush(cmd) {
+  return pushArgs(cmd).some((args) =>
+    args.some((a) =>
+      a === '--force'
+      || (a.startsWith('--force') && !/^--force-(with-lease|if-includes)\b/.test(a))
+      || /^-[a-zA-Z]*f[a-zA-Z]*$/.test(a)
+      || /^\+[^\s]/.test(a)));
 }
 
-let blocked = false;
 let reason = '';
-let guidance = '';
-
-// Check for --no-verify (hook bypass)
-if (command.includes('--no-verify')) {
-  blocked = true;
-  reason = '--no-verify skips quality hooks (e2e-gate, spec-guard, lint).';
-  guidance = 'Fix the issue that the hook is catching instead of bypassing it.';
+let instead = '';
+if (/(^|\s)--no-verify(\s|$)/.test(command)) {
+  reason = '--no-verify se salta las comprobaciones del proyecto (lint, evidencia, guardias de spec).';
+  instead = 'Corrige lo que la comprobación señala en vez de saltártela. Si de verdad hay que saltarla, pídeselo a la persona.';
+} else if (isForcePush(command)) {
+  reason = 'Un push forzado sobrescribe la rama remota, también el trabajo que otras sesiones han subido.';
+  instead = 'Usa --force-with-lease (se niega si el remoto tiene algo que no has visto) o un commit nuevo.';
+} else if (/\breset\s+(.*\s)?--hard\b/.test(command)) {
+  reason = 'reset --hard tira los cambios sin guardar y no se pueden recuperar.';
+  instead = "Guarda antes con un commit o con 'git stash', o pídele a la persona que lo haga ella.";
 }
 
-// Check for push --force or push -f (destructive push)
-if (/push\s+.*(-f\b|--force)/.test(command)) {
-  blocked = true;
-  reason = 'Force push can overwrite branch history that other sessions depend on.';
-  guidance = 'Use a new commit to fix the issue instead of rewriting history.';
+if (reason) {
+  blockWith('GUARDIA DE CALIDAD: orden bloqueada', [`Orden: ${command}`, `Por qué: ${reason}`, `En su lugar: ${instead}`]);
 }
-
-// Check for reset --hard (destructive reset)
-if (command.includes('reset --hard')) {
-  blocked = true;
-  reason = 'Hard reset loses uncommitted changes without recovery.';
-  guidance = "Use 'git stash' to save changes, or commit first, then fix.";
-}
-
-if (blocked) {
-  console.log('');
-  console.log('============================================================');
-  console.log('  QUALITY GUARD: Operation blocked');
-  console.log('============================================================');
-  console.log(`  Command: ${command}`);
-  console.log(`  Why: ${reason}`);
-  console.log(`  Instead: ${guidance}`);
-  console.log('============================================================');
-  console.log('');
-  process.exit(1);
-}
-
 process.exit(0);

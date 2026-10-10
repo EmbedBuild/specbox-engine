@@ -24,6 +24,7 @@
 
 import { statSync, existsSync } from 'fs';
 import { readStdin, readJsonFile } from './lib/utils.mjs';
+import { noteWith } from './lib/output.mjs';
 
 const DEFAULT_CONFIG = {
   window_tokens: 1_000_000,
@@ -66,10 +67,11 @@ function main() {
 
   if (pct >= cfg.warn_pct) {
     const pctRounded = pct >= 10 ? Math.round(pct) : pct.toFixed(1);
-    console.error(
-      `[BUDGET] Heavy Read detected: ${filePath} (~${tokensEst.toLocaleString()} tokens, ${pctRounded}% of ${cfg.window_tokens.toLocaleString()}-token window).\n` +
-      `         Consider using Grep, Explore agent, or Read with offset/limit instead of full read.`,
-    );
+    // A note to the agent (US-93/UC-9302: stderr with exit 0 reaches nobody).
+    noteWith('PreToolUse', `[BUDGET] Lectura pesada: ${filePath}`, [
+      `~${tokensEst.toLocaleString()} tokens, ${pctRounded}% de una ventana de ${cfg.window_tokens.toLocaleString()}.`,
+      'Mejor Grep, un agente Explore o Read con offset/limit que leerlo entero.',
+    ]);
   }
   process.exit(0);
 }

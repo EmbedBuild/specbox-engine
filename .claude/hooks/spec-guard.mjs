@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 /**
  * spec-guard.mjs — PostToolUse hook for Write/Edit on source files (src/, lib/)
- * BLOCKING: Prevents writing source code without an active UC in the project manager.
+ *
+ * After the write (PostToolUse cannot undo it), in a spec-driven project:
+ *   - code on main/master, or under a native reservation that is no longer yours → exit 2: the
+ *     agent gets the reason and has to move the work (US-93/UC-9302; it exited 1, unseen);
+ *   - code with no active UC (or a stale marker) → a note to the agent (additionalContext).
  *
  * This hook enforces the SpecBox Engine contract:
  * "No code without traceability. No implementation without an active UC."
@@ -11,6 +15,8 @@
 
 import { execFileSync } from 'node:child_process';
 import { readStdin, fileExists, fileAge, git } from './lib/utils.mjs';
+import { blockWith, noteWith } from './lib/output.mjs';
+import { dirname, isAbsolute } from 'node:path';
 import { getProjectConfig, getActiveUC, getActiveUCReservation, getStaleUC } from './lib/config.mjs';
 import { decideNativeReservation } from './lib/native-reservation-revalidate.mjs';
 
@@ -83,6 +89,14 @@ if (/(test\/|tests\/|\.test\.|\.spec\.|_test\.dart|\.g\.dart|\.freezed\.dart|\.c
   process.exit(0);
 }
 
+// The repo the file lives in (a write to another worktree is checked against that worktree).
+if (isAbsolute(filePath)) {
+  try {
+    const top = execFileSync('git', ['-C', dirname(filePath), 'rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    if (top) process.chdir(top);
+  } catch { /* not in a git repo: keep the session's directory */ }
+}
+
 // --- Check if project is spec-driven ---
 const { boardId, backendType, isSpecDriven } = getProjectConfig();
 
@@ -95,18 +109,11 @@ if (!isSpecDriven) {
 const currentBranch = git('branch --show-current');
 
 if (currentBranch === 'main' || currentBranch === 'master') {
-  console.log('');
-  console.log('============================================================');
-  console.log(`  SPEC GUARD: Writing source code on ${currentBranch} blocked`);
-  console.log('============================================================');
-  console.log(`  File: ${filePath}`);
-  console.log(`  Branch: ${currentBranch}`);
-  console.log('');
-  console.log('  Spec-driven projects require ALL code on feature branches.');
-  console.log('  Create a branch first: git checkout -b feature/{name} main');
-  console.log('============================================================');
-  console.log('');
-  process.exit(1);
+  blockWith(`SPEC GUARD: código escrito en ${currentBranch}`, [
+    `Fichero: ${filePath}`,
+    'Es un proyecto spec-driven: el código va en una rama de la UC, nunca en main ni en master.',
+    'La escritura ya está hecha. Antes de seguir: git checkout -b feature/{uc}-{nombre} (los cambios se van contigo).',
+  ]);
 }
 
 // --- Spec-driven project: verify active UC ---
@@ -121,71 +128,25 @@ if (activeUC) {
     const decision = decideNativeReservation(reservation, probeNativeReservation(reservation));
     if (!decision.allow) {
       const actual = decision.conflict?.actual;
-      console.log('');
-      console.log('============================================================');
-      console.log('  ⛔ SPEC GUARD: Native UC reservation no longer yours');
-      console.log('============================================================');
-      console.log(`  File: ${filePath}`);
-      console.log(`  UC: ${reservation.ucId}`);
-      if (decision.reason === 'reservation-released') {
-        console.log(`  The reservation was released remotely (you were ${reservation.developerId}).`);
-        console.log('  Re-run start_uc to re-reserve before writing code.');
-      } else {
-        console.log(`  The reservation is now held by '${actual}' (you are '${reservation.developerId}').`);
-        console.log('  Another developer took over this UC. Coordinate or pick another UC.');
-      }
-      console.log('============================================================');
-      console.log('');
-      process.exit(1);
+      blockWith('SPEC GUARD: la reserva de la UC ya no es tuya', [
+        `Fichero: ${filePath}`,
+        `UC: ${reservation.ucId}`,
+        decision.reason === 'reservation-released'
+          ? `La reserva se liberó en remoto (eras ${reservation.developerId}). Vuelve a llamar a start_uc antes de seguir escribiendo.`
+          : `Ahora la tiene '${actual}' (tú eres '${reservation.developerId}'). Coordínate con esa persona o elige otra UC.`,
+      ]);
     }
   }
   // Active UC exists and is fresh (and reservation still valid / offline) → allow
   process.exit(0);
 }
 
-// Check if stale
+// No active UC (or a stale marker) → a note: the agent should start the UC.
 const staleUC = getStaleUC();
-if (staleUC) {
-  console.log('');
-  console.log('============================================================');
-  console.log('  ⛔ SPEC GUARD: Active UC marker is stale (>24h)');
-  console.log('============================================================');
-  console.log(`  File: ${filePath}`);
-  console.log('  The active UC marker at .quality/active_uc.json is older than 24 hours.');
-  console.log('  This likely means the previous implementation session ended');
-  console.log('  without completing the UC.');
-  console.log('');
-  console.log('  To proceed:');
-  console.log('    1. Run start_uc(board_id, uc_id) to activate a UC');
-  console.log('    2. Or use /implement to start the pipeline properly');
-  console.log('============================================================');
-  console.log('');
-  process.exit(1);
-}
-
-// No active UC marker → BLOCK
-console.log('');
-console.log('============================================================');
-console.log('  ⛔ SPEC GUARD: No active UC — implementation blocked');
-console.log('============================================================');
-console.log(`  File: ${filePath}`);
-console.log(`  Board: ${boardId}`);
-console.log('');
-console.log('  This project uses spec-driven development (Trello/Plane).');
-console.log('  You MUST have an active UC before writing source code.');
-console.log('');
-console.log('  The SpecBox Engine contract is non-negotiable:');
-console.log('  No code without traceability. No implementation without pipeline.');
-console.log('');
-console.log('  To proceed:');
-console.log('    1. find_next_uc(board_id) → identify the next UC');
-console.log('    2. start_uc(board_id, uc_id) → move to In Progress');
-console.log('    3. Then implement the code');
-console.log('    4. mark_ac_batch(...) → check acceptance criteria');
-console.log('    5. complete_uc(board_id, uc_id) → move to Done');
-console.log('');
-console.log('  If /implement skill is unavailable, execute these steps');
-console.log('  MANUALLY. The pipeline is the contract, not the skill.');
-console.log('============================================================');
-console.log('');
-process.exit(1);
+noteWith('PostToolUse', staleUC ? 'SPEC GUARD: la UC activa lleva más de 24 h sin tocarse' : 'SPEC GUARD: código sin UC activa', [
+  `Fichero: ${filePath} · board ${boardId}`,
+  staleUC
+    ? 'El marcador .quality/active_uc.json tiene más de 24 h: la sesión anterior terminó sin cerrar la UC.'
+    : 'En un proyecto spec-driven todo código va asociado a una UC.',
+  'Recorrido: find_next_uc → start_uc → implementar → mark_ac_batch → complete_uc (o /implement).',
+]);

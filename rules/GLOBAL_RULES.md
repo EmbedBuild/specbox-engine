@@ -126,9 +126,9 @@ salvo para corregir a mano.
 |------|--------|---------------|------|
 | `spec-guard.mjs` | Write/Edit en `src/` o `lib/` | Verifica UC activo + rama no es main | **BLOQUEANTE** |
 | `branch-guard.mjs` | Write/Edit en `src/` o `lib/` | Verifica rama no es main/master | **BLOQUEANTE** |
-| `commit-spec-guard.mjs` | git commit | Bloquea commits en main; warning UC/checkpoint/tamano | **BLOQUEANTE** (rama) + WARNING (resto) |
+| `commit-spec-guard.mjs` | antes de git commit | Bloquea commits en main; warning UC/checkpoint/tamano | **BLOQUEANTE** (rama) + WARNING (resto) |
 | `design-gate.mjs` | Write/Edit de una pagina de UI | Avisa al agente en la misma sesion si la feature no tiene HTML de diseno; la escritura ya esta hecha y el aviso dice que hacer | **AVISO** (exit 2 al modelo) |
-| `pre-commit-lint.mjs` | git commit | Zero-tolerance lint | **BLOQUEANTE** |
+| `pre-commit-lint.mjs` | antes de git commit | Linter del proyecto sobre los ficheros del commit, tolerancia cero | **BLOQUEANTE** (exit 2) |
 
 ### Que activa el marker
 

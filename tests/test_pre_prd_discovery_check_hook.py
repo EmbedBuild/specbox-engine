@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -75,12 +74,13 @@ class TestGateMode:
         assert "new_feature" in combined
         assert "/discovery" in combined  # the suggestion
 
-    def test_block_mode_exits_1_when_missing(self, project_with_settings):
+    def test_block_mode_exits_2_when_missing(self, project_with_settings):
         project = project_with_settings("block")
         rc, stdout, stderr = _run_hook(
             project, {"tool_input": {"command": "/prd new_feature"}}
         )
-        assert rc == 1
+        # exit 2 stops /prd and the agent gets the reason (US-93/UC-9302: exit 1 did not stop it).
+        assert rc == 2
         combined = stdout + stderr
         assert "BLOCKED" in combined
         assert "new_feature" in combined

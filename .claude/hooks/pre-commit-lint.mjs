@@ -1,88 +1,71 @@
 #!/usr/bin/env node
 /**
- * pre-commit-lint.mjs — PostToolUse hook for git commit
- * BLOCKING: Runs lint validation before each commit.
- * Uses GGA (Gentleman Guardian Angel) for cached validation.
- * Falls back to direct lint if GGA not installed.
+ * pre-commit-lint.mjs — PreToolUse hook for `git commit`
+ * BLOCKING (exit 2, before the commit exists): the project's own linter fails on the files that go
+ * into the commit. Zero tolerance on those files, not on the whole repo.
  *
- * v5.7.0
+ * Files: the staged ones, plus the tracked changes with `git commit -a`, plus what a `git add` in
+ * the same command will add (the hook runs before that `git add`).
+ * Linters, only if the project or the machine already has them (never `npx`, which can download):
+ *   .py                          ruff check (.venv/bin/ruff or ruff on PATH)
+ *   .ts .tsx .js .jsx .mjs .cjs  eslint --max-warnings=0 (node_modules/.bin/eslint of the project)
+ *   .dart                        dart analyze --no-fatal-infos (dart or fvm dart)
+ * Nothing to lint, or no linter for those files → silent.
+ *
+ * v5.7.0 · US-93/UC-9302: runs before the commit (it ran after it, on an empty staging area) and
+ * uses the project's linter on the committed files. GGA, an AI review, is no longer run here: it
+ * cost a review per commit attempt; whoever wants it installs it as a git hook (`gga install`).
  */
 
-import { commandExists, fileExists } from './lib/utils.mjs';
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
+import { existsSync } from 'fs';
+import { join } from 'path';
+import { readHookInput, gitDirForCommand, git, commandExists, commitFiles } from './lib/utils.mjs';
+import { blockWith } from './lib/output.mjs';
 
-function runCommand(cmd) {
-  try {
-    execSync(cmd, { stdio: 'inherit', encoding: 'utf-8' });
-    return 0;
-  } catch (e) {
-    return e.status || 1;
-  }
-}
-
-// --- GGA (cached validation) ---
-if (commandExists('gga')) {
-  console.log('[QG] Running GGA cached validation...');
-  const result = runCommand('gga run');
-
-  if (result !== 0) {
-    console.log('');
-    console.log('[QUALITY GATE] GGA validation failed. Fix errors before committing.');
-    console.log('   Policy: zero-tolerance (0 errors, 0 warnings)');
-    console.log('   Tip: only modified files were checked (cache active)');
-    process.exit(1);
-  }
-
-  console.log('[QUALITY GATE] GGA passed (cached — unmodified files skipped)');
+const { toolInput, cwd } = readHookInput();
+const command = String(toolInput.command || '');
+if (command && !/\bgit\b[^;&|]*\bcommit\b/.test(command)) process.exit(0);
+const repo = gitDirForCommand(command, cwd);
+try {
+  process.chdir(repo);
+} catch {
   process.exit(0);
 }
+if (!git('rev-parse --show-toplevel')) process.exit(0);
 
-// --- Fallback: lint directo (sin cache) ---
-console.log('[QG] GGA not found, falling back to direct lint...');
+const existing = commitFiles(command).filter((f) => existsSync(f));
 
-// Detect OS for install suggestion
-let installCmd;
-switch (process.platform) {
-  case 'darwin':
-    installCmd = 'brew install gentleman-programming/tap/gga';
-    break;
-  case 'linux':
-    installCmd = 'brew install gentleman-programming/tap/gga  OR  git clone + ./install.sh';
-    break;
-  default:
-    installCmd = 'git clone https://github.com/Gentleman-Programming/gentleman-guardian-angel.git && cd gga && ./install.sh';
-    break;
+const byExt = (re) => existing.filter((f) => re.test(f));
+const runs = [];
+const py = byExt(/\.py$/);
+if (py.length) {
+  const ruff = existsSync('.venv/bin/ruff') ? '.venv/bin/ruff' : commandExists('ruff') ? 'ruff' : null;
+  if (ruff) runs.push({ name: 'ruff', cmd: ruff, args: ['check', ...py] });
 }
-console.log(`[QG] Install GGA for cached validation: ${installCmd}`);
+const js = byExt(/\.(ts|tsx|js|jsx|mjs|cjs)$/);
+const eslint = join('node_modules', '.bin', 'eslint');
+if (js.length && existsSync(eslint)) runs.push({ name: 'eslint', cmd: eslint, args: ['--max-warnings=0', ...js] });
+const dart = byExt(/\.dart$/);
+if (dart.length) {
+  if (commandExists('dart')) runs.push({ name: 'dart analyze', cmd: 'dart', args: ['analyze', '--no-fatal-infos', ...dart] });
+  else if (commandExists('fvm')) runs.push({ name: 'dart analyze', cmd: 'fvm', args: ['dart', 'analyze', '--no-fatal-infos', ...dart] });
+}
 
-// Detect stack and run appropriate linter
-let result;
-if (fileExists('pubspec.yaml')) {
-  console.log('[QG] Running dart analyze...');
-  result = runCommand('dart analyze --no-fatal-infos');
-} else if (fileExists('package.json')) {
-  if (commandExists('eslint')) {
-    console.log('[QG] Running eslint...');
-    result = runCommand('npx eslint . --max-warnings=0');
-  } else {
-    console.log('[QG] Running npm run lint...');
-    result = runCommand('npm run lint');
+const failures = [];
+for (const r of runs) {
+  const res = spawnSync(r.cmd, r.args, { encoding: 'utf-8', timeout: 50_000 });
+  if (res.error || res.status !== 0) {
+    const out = `${res.stdout || ''}\n${res.stderr || ''}`.trim().split('\n').filter(Boolean);
+    failures.push(`${r.name}:`, ...out.slice(-25).map((l) => `  ${l}`));
   }
-} else if (fileExists('pyproject.toml') || fileExists('requirements.txt')) {
-  console.log('[QG] Running ruff check...');
-  result = runCommand('ruff check .');
-} else {
-  console.log('[QG] No linter detected, skipping');
-  process.exit(0);
 }
 
-if (result !== 0) {
-  console.log('');
-  console.log('[QUALITY GATE] Lint failed. Fix errors before committing.');
-  console.log('   Policy: zero-tolerance (0 errors, 0 warnings)');
-  console.log('   Note: install GGA for cached validation (skips unmodified files)');
-  process.exit(1);
+if (failures.length) {
+  blockWith('LINT: el commit no pasa el linter del proyecto', [
+    ...failures,
+    '',
+    'Corrige estos errores en los ficheros del commit y vuelve a intentarlo. Tolerancia cero: también los avisos.',
+  ]);
 }
-
-console.log('[QUALITY GATE] Lint passed (no cache — install GGA for faster runs)');
 process.exit(0);

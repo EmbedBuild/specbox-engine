@@ -1,104 +1,61 @@
 #!/usr/bin/env node
 /**
- * commit-spec-guard.mjs — PostToolUse hook for git commit
- * MIXED: Some checks BLOCK, others WARN.
+ * commit-spec-guard.mjs — PreToolUse hook for `git commit`
  *
- * BLOCKING checks:
- *   1. Commit on main/master in a spec-driven project → BLOCKED
+ * BLOCKING (exit 2, before the commit exists):
+ *   1. Commit on main/master in a spec-driven project.
+ * NOTE to the agent (additionalContext, the commit goes ahead):
+ *   2. No active UC.
+ *   3. No checkpoint saved for the active feature.
+ *   4. Large commit (more than 15 staged files).
  *
- * WARNING checks:
- *   2. No active UC → WARNING
- *   3. No checkpoint saved → WARNING
- *   4. Large commit (>15 files) → WARNING
+ * Checks the repo the command acts on (`cd <dir> && git commit`, `git -C <dir> commit`), not the
+ * session's directory.
  *
- * v5.10.0 — Branch discipline enforcement added (BLOCKING)
+ * v5.10.0 — Branch discipline · US-93/UC-9302: runs before the commit (it ran after it, so its
+ * «blocked» commit already existed) and its warnings reach the agent.
  */
 
-import { git, fileExists, readJsonFile } from './lib/utils.mjs';
+import { readHookInput, gitDirForCommand, git, fileExists, readJsonFile } from './lib/utils.mjs';
 import { getProjectConfig } from './lib/config.mjs';
+import { blockWith, noteWith } from './lib/output.mjs';
 
-// --- Check if project is spec-driven ---
-const { boardId, isSpecDriven } = getProjectConfig();
-
-// Not spec-driven → skip all checks
-if (!isSpecDriven) {
+const { toolInput, cwd } = readHookInput();
+const command = String(toolInput.command || '');
+if (command && !/\bgit\b[^;&|]*\bcommit\b/.test(command)) process.exit(0);
+try {
+  process.chdir(gitDirForCommand(command, cwd));
+} catch {
   process.exit(0);
 }
 
-// --- BLOCKING Check: Branch discipline ---
-const currentBranch = git('branch --show-current');
+const { boardId, isSpecDriven } = getProjectConfig();
+if (!isSpecDriven) process.exit(0);
 
-if (currentBranch === 'main' || currentBranch === 'master') {
-  console.log('');
-  console.log('============================================================');
-  console.log(`  COMMIT BLOCKED: Cannot commit to ${currentBranch}`);
-  console.log('============================================================');
-  console.log('  This is a spec-driven project. ALL implementation commits');
-  console.log('  MUST be on a feature branch, never on main/master.');
-  console.log('');
-  console.log('  To fix:');
-  console.log('    1. git stash');
-  console.log('    2. git checkout -b feature/{nombre}');
-  console.log('    3. git stash pop');
-  console.log('    4. Then commit on the feature branch');
-  console.log('============================================================');
-  console.log('');
-  process.exit(1);
+const branch = git('branch --show-current');
+if (branch === 'main' || branch === 'master') {
+  blockWith(`COMMIT BLOQUEADO: no se hace commit en ${branch}`, [
+    'Es un proyecto spec-driven: el trabajo va en una rama de la UC, nunca en main ni en master.',
+    'Para seguir: git checkout -b feature/{uc}-{nombre} (los cambios se van contigo) y haz el commit ahí.',
+  ]);
 }
 
-let warnings = 0;
-
-// --- WARNING Check: Active UC exists ---
-const ACTIVE_UC_FILE = '.quality/active_uc.json';
-if (!fileExists(ACTIVE_UC_FILE)) {
-  console.log('');
-  console.log('WARNING: Committing in a spec-driven project without an active UC.');
-  console.log(`  Board: ${boardId}`);
-  console.log('  Expected: start_uc() should have been called before implementation.');
-  console.log('  Action: Call start_uc() NOW, then mark_ac_batch() after commit.');
-  warnings++;
-} else {
-  const activeUC = readJsonFile(ACTIVE_UC_FILE);
-  const ucId = activeUC?.uc_id || '';
-  if (ucId) {
-    console.log(`[SPEC] Active UC: ${ucId} | Branch: ${currentBranch}`);
-  }
+const notes = [];
+const activeUC = fileExists('.quality/active_uc.json') ? readJsonFile('.quality/active_uc.json') : null;
+if (!activeUC) {
+  notes.push(`- No hay UC activa (board ${boardId}): llama a start_uc antes de implementar y a mark_ac_batch al terminar.`);
+} else if (activeUC.feature && !fileExists(`.quality/evidence/${activeUC.feature}/checkpoint.json`)) {
+  notes.push(`- La feature «${activeUC.feature}» no tiene checkpoint: llama a report_checkpoint para poder retomarla.`);
+}
+const staged = git('diff --cached --name-only').split('\n').filter(Boolean).length;
+if (staged > 15) {
+  notes.push(`- Commit grande (${staged} ficheros): mejor un commit por UC, para poder seguirlo y deshacerlo.`);
 }
 
-// --- WARNING Check: Checkpoint freshness ---
-let feature = '';
-if (fileExists(ACTIVE_UC_FILE)) {
-  const activeUC = readJsonFile(ACTIVE_UC_FILE);
-  feature = activeUC?.feature || '';
+if (notes.length) {
+  noteWith('PreToolUse', 'SPEC GUARD: el commit sigue, pero conviene arreglar esto', [
+    ...notes,
+    'Recorrido: find_next_uc → start_uc → implementar → mark_ac_batch → complete_uc.',
+  ]);
 }
-
-if (feature) {
-  const checkpointFile = `.quality/evidence/${feature}/checkpoint.json`;
-  if (!fileExists(checkpointFile)) {
-    console.log(`WARNING: No checkpoint saved for feature '${feature}'.`);
-    console.log('  Action: Call report_checkpoint() to enable session recovery.');
-    warnings++;
-  }
-}
-
-// --- WARNING Check: File count ---
-const stagedOutput = git('diff --cached --name-only');
-const filesInCommit = stagedOutput ? stagedOutput.split('\n').filter(Boolean).length : 0;
-
-if (filesInCommit > 15) {
-  console.log(`WARNING: Large commit (${filesInCommit} files). Consider splitting by UC.`);
-  console.log('  Each UC should have its own commit on a feature branch.');
-  console.log('  Monolithic commits break traceability and make rollback harder.');
-  warnings++;
-}
-
-// --- Summary ---
-if (warnings > 0) {
-  console.log('');
-  console.log(`[SPEC GUARD] ${warnings} warning(s) detected. Pipeline integrity at risk.`);
-  console.log('  Remember: find_next_uc -> start_uc -> implement -> mark_ac_batch -> complete_uc');
-  console.log('');
-}
-
-// Warnings don't block — only the branch check blocks
 process.exit(0);

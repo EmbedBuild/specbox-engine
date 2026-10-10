@@ -104,22 +104,22 @@ test(
   'no-bypass-guard: blocks --no-verify',
   'no-bypass-guard.mjs',
   '{"command":"git commit --no-verify -m test"}',
-  1,
-  'QUALITY GUARD'
+  2,
+  'GUARDIA DE CALIDAD'
 );
 test(
   'no-bypass-guard: blocks push --force',
   'no-bypass-guard.mjs',
   '{"command":"git push origin main --force"}',
-  1,
-  'QUALITY GUARD'
+  2,
+  'GUARDIA DE CALIDAD'
 );
 test(
   'no-bypass-guard: blocks reset --hard',
   'no-bypass-guard.mjs',
   '{"command":"git reset --hard HEAD~1"}',
-  1,
-  'QUALITY GUARD'
+  2,
+  'GUARDIA DE CALIDAD'
 );
 
 // ---- branch-guard.mjs ----
@@ -176,8 +176,8 @@ test(
   'commit-spec-guard: spec-driven project on main → blocks',
   'commit-spec-guard.mjs',
   '{}',
-  1,
-  'COMMIT BLOCKED',
+  2,
+  'COMMIT BLOQUEADO',
   { cwd: scratchRepo('main', { specDriven: true }) }
 );
 test(
@@ -204,16 +204,14 @@ test(
 );
 
 // ---- pre-commit-lint.mjs ----
-// pre-commit-lint runs whatever linter the computer has (gga, ruff, eslint...) on
-// the project, so it runs in an empty folder whose PATH only has node: the same
-// result on any computer (UC-7204; in the engine repo it ran ruff on CI and gga
-// on a laptop).
+// pre-commit-lint runs the project's linter on the files of the commit (UC-9302), so it runs in an
+// empty folder whose PATH only has node: the same result on any computer (UC-7204).
 test(
-  'pre-commit-lint: no project and no linters → skips',
+  'pre-commit-lint: no repo and no linters → skips in silence',
   'pre-commit-lint.mjs',
   '{}',
   0,
-  'No linter detected',
+  undefined,
   { cwd: mkdtempSync(join(tmpdir(), 'pre-commit-lint-')), env: { ...process.env, PATH: dirname(process.execPath) } }
 );
 

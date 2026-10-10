@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
  * quality-first-guard.mjs — PreToolUse hook for Write and Edit tools
- * BLOCKING: Prevents modifying existing files without reading them first.
+ * BLOCKING (exit 2, before the write): modifying an existing file the agent has not read in this
+ * session. A file the agent creates counts as known, so it can edit it afterwards.
+ * US-93/UC-9302: it read the path from the top level (so it never checked a real write) and
+ * exited 1, which does not block.
  *
  * Philosophy: the LLM brings the speed; SpecBox brings the control and guarantees
  * the quality (UC-7006: the block message no longer says the opposite).
@@ -11,139 +14,72 @@
  * v5.15.0 — Quality First Enforcement
  */
 
-import { readStdin, fileExists, fileAge } from './lib/utils.mjs';
-import { readFileSync } from 'fs';
-import { basename } from 'path';
+import { readHookInput, fileExists, appendLine, mkdir } from './lib/utils.mjs';
+import { blockWith } from './lib/output.mjs';
+import { readFileSync, realpathSync } from 'fs';
 import { resolve } from 'path';
 
-const input = readStdin();
+const { toolInput } = readHookInput();
+const filePath = String(toolInput.file_path || '');
+if (!filePath) process.exit(0);
 
-// Extract file path from tool input
-let filePath = '';
-try {
-  const parsed = JSON.parse(input);
-  filePath = parsed.file_path || '';
-} catch {
-  // Fallback: regex parse for non-JSON input
-  const match = input.match(/"file_path"\s*:\s*"([^"]*)"/);
-  filePath = match ? match[1] : '';
-}
-
-if (!filePath) {
-  process.exit(0);
-}
-
-// If the file doesn't exist yet, it's a new file creation — allow
-if (!fileExists(filePath)) {
-  process.exit(0);
-}
-
-// Skip files that don't need read-before-write protection
-// Generated files, lock files, config files, docs, etc.
-if (/(\\.g\\.dart|\\.freezed\\.dart|\\.lock$|package-lock\\.json|pubspec\\.lock|poetry\\.lock|\\.min\\.js|\\.min\\.css|node_modules\/|\\.dart_tool\/|build\/|dist\/|\\.next\/)/.test(filePath)) {
-  process.exit(0);
-}
-
-// Skip non-source artifacts that are frequently auto-generated
-if (/(\\.quality\/|\\.claude\/|results\\.json|baseline\\.json|active_uc\\.json|hint_counters\\.json)/.test(filePath)) {
-  process.exit(0);
-}
-
-// --- Check read tracker ---
 const TRACKER_FILE = '.quality/read_tracker.jsonl';
 
-function blockWithMessage(file) {
-  console.log('');
-  console.log('============================================================');
-  console.log('  QUALITY FIRST: Read before you write');
-  console.log('============================================================');
-  console.log(`  File: ${file}`);
-  console.log('');
-  console.log('  You are trying to modify an existing file without reading');
-  console.log('  it first. This is the #1 cause of wasted tokens and');
-  console.log('  technical debt.');
-  console.log('');
-  console.log('  To proceed:');
-  console.log('    1. Use the Read tool to read this file');
-  console.log('    2. Understand what\'s already there');
-  console.log('    3. Then make your changes');
-  console.log('');
-  console.log('  Think before you act. Read before you write.');
-  console.log('============================================================');
-  console.log('');
-  process.exit(1);
+// A new file: the agent is writing it, so from now on it knows it.
+if (!fileExists(filePath)) {
+  try {
+    mkdir('.quality');
+    appendLine(TRACKER_FILE, JSON.stringify({ file: filePath, ts: Math.floor(Date.now() / 1000), created: true }));
+  } catch { /* no .quality: nothing to record */ }
+  process.exit(0);
 }
 
-function blockWithSessionMessage(file) {
-  console.log('');
-  console.log('============================================================');
-  console.log('  QUALITY FIRST: Read before you write');
-  console.log('============================================================');
-  console.log(`  File: ${file}`);
-  console.log('');
-  console.log('  You are trying to modify an existing file without reading');
-  console.log('  it first in this session.');
-  console.log('');
-  console.log('  The Quality First contract requires understanding existing');
-  console.log('  code before changing it. This prevents:');
-  console.log('    - Breaking existing functionality');
-  console.log('    - Duplicating code that already exists');
-  console.log('    - Introducing inconsistencies with surrounding code');
-  console.log('    - Wasting tokens on iterations that could be avoided');
-  console.log('');
-  console.log('  To proceed:');
-  console.log(`    1. Use the Read tool to read '${file}'`);
-  console.log('    2. Understand the existing code');
-  console.log('    3. Then make your changes');
-  console.log('============================================================');
-  console.log('');
-  process.exit(1);
+// Files that do not need read-before-write: generated, lock files, build output, SpecBox internals.
+if (/(\.g\.dart$|\.freezed\.dart$|\.lock$|package-lock\.json$|pubspec\.lock$|poetry\.lock$|\.min\.js$|\.min\.css$|node_modules\/|\.dart_tool\/|(^|\/)build\/|(^|\/)dist\/|\.next\/)/.test(filePath)) {
+  process.exit(0);
+}
+if (/(\.quality\/|\.claude\/|results\.json$|baseline\.json$|active_uc\.json$|hint_counters\.json$)/.test(filePath)) {
+  process.exit(0);
 }
 
-// If no tracker exists, the agent hasn't read anything — block
-if (!fileExists(TRACKER_FILE)) {
-  blockWithMessage(filePath);
+function block(file, inSession) {
+  blockWith('QUALITY FIRST: Read before you write', [
+    `File: ${file}`,
+    '',
+    inSession
+      ? 'You are trying to modify an existing file without reading it first in this session.'
+      : 'You are trying to modify an existing file without reading it first.',
+    'Reading first avoids breaking what is there, duplicating it or leaving it inconsistent.',
+    '',
+    'To proceed:',
+    `  1. Use the Read tool to read '${file}'`,
+    '  2. Understand the existing code',
+    '  3. Then make your changes',
+  ]);
 }
 
-// Read tracker content
-let trackerContent;
+let tracker = '';
 try {
-  trackerContent = readFileSync(TRACKER_FILE, 'utf-8');
+  tracker = readFileSync(TRACKER_FILE, 'utf-8');
 } catch {
-  blockWithMessage(filePath);
+  block(filePath, false);
 }
 
-// Normalize the file path for comparison
-let normalizedPath = filePath;
-if (!filePath.startsWith('/')) {
-  normalizedPath = resolve(process.cwd(), filePath);
-}
-
-let fileWasRead = false;
-
-// Check exact match
-if (trackerContent.includes(`"${filePath}"`)) {
-  fileWasRead = true;
-}
-
-// Check normalized path
-if (!fileWasRead && trackerContent.includes(`"${normalizedPath}"`)) {
-  fileWasRead = true;
-}
-
-// Check basename match (handles cases where path format differs)
-if (!fileWasRead) {
-  const base = basename(filePath);
-  // Match the basename within a full path to avoid false positives
-  const regex = new RegExp(`"[^"]*/${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`);
-  if (regex.test(trackerContent)) {
-    fileWasRead = true;
+// The same file, whatever the spelling: resolved against the cwd and through symlinks (on macOS
+// /tmp is /private/tmp). No more matching by basename: any README.md read anywhere counted.
+const canonical = (p) => {
+  const abs = resolve(process.cwd(), p);
+  try { return realpathSync(abs); } catch { return abs; }
+};
+const target = canonical(filePath);
+const wasRead = tracker.split('\n').some((line) => {
+  try {
+    const entry = JSON.parse(line);
+    return entry.file && canonical(entry.file) === target;
+  } catch {
+    return false;
   }
-}
+});
 
-if (!fileWasRead) {
-  blockWithSessionMessage(filePath);
-}
-
-// File was read — allow the write/edit
+if (!wasRead) block(filePath, true);
 process.exit(0);

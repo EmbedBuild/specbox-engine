@@ -83,7 +83,10 @@ function runHook(payload, cwd) {
     cwd,
     encoding: 'utf-8',
   });
-  return { code: result.status, stderr: result.stderr };
+  // A warning reaches the agent as additionalContext (US-93/UC-9302), not on stderr.
+  let note = '';
+  try { note = JSON.parse(result.stdout || '{}').hookSpecificOutput?.additionalContext || ''; } catch { /* not a note */ }
+  return { code: result.status, stderr: result.stderr, note };
 }
 
 function testHookNoOpForNonTask() {
@@ -120,8 +123,9 @@ function testHookWarnsOverBudget() {
       cwd
     );
     assert.equal(r.code, 0); // warn mode is non-blocking
-    assert.match(r.stderr, /WARNING/);
-    assert.match(r.stderr, /budget 16000/);
+    assert.equal(r.stderr, '');
+    assert.match(r.note, /se pasa de presupuesto/);
+    assert.match(r.note, /presupuesto 16000/);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

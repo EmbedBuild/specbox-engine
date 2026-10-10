@@ -56,7 +56,7 @@ test('sin registro de lecturas, bloquea y explica qué, por qué y qué hacer, s
   withProject(undefined, (dir) => {
     const file = join(dir, 'app.ts');
     const { code, out } = runHook(dir, file);
-    assert.equal(code, 1);
+    assert.equal(code, 2, 'bloquea de verdad (UC-9302): exit 1 no bloqueaba');
     assertExplains(out, file);
   });
 });
@@ -65,7 +65,7 @@ test('con registro de lecturas pero sin ese fichero, bloquea con el mismo criter
   withProject(`${JSON.stringify({ file: '/otro/sitio/otro.ts' })}\n`, (dir) => {
     const file = join(dir, 'app.ts');
     const { code, out } = runHook(dir, file);
-    assert.equal(code, 1);
+    assert.equal(code, 2, 'bloquea de verdad (UC-9302): exit 1 no bloqueaba');
     assertExplains(out, file);
   });
 });
@@ -84,4 +84,24 @@ test('ni el hook ni su versión bash anterior llevan el lema invertido', async (
   for (const f of ['.claude/hooks/quality-first-guard.mjs', '.claude/hooks/legacy-bash/quality-first-guard.sh']) {
     assert.doesNotMatch(readFileSync(join(repoRoot, f), 'utf8'), INVERTED, f);
   }
+});
+
+test('un fichero con el mismo nombre leído en otro sitio no cuenta (UC-9302)', () => {
+  withProject(`${JSON.stringify({ file: '/otro/proyecto/app.ts' })}\n`, (dir) => {
+    const file = join(dir, 'app.ts');
+    const { code, out } = runHook(dir, file);
+    assert.equal(code, 2, 'antes bastaba con el nombre: cualquier app.ts leído en cualquier sitio');
+    assertExplains(out, file);
+  });
+});
+
+test('el mismo fichero escrito con otra ruta sí cuenta (relativa, o /tmp frente a /private/tmp)', async () => {
+  const { realpathSync } = await import('node:fs');
+  withProject(undefined, (dir) => {
+    mkdirSync(join(dir, '.quality'));
+    writeFileSync(join(dir, '.quality/read_tracker.jsonl'), `${JSON.stringify({ file: 'app.ts' })}\n`);
+    assert.equal(runHook(dir, join(dir, 'app.ts')).code, 0, 'relativa frente a absoluta');
+    writeFileSync(join(dir, '.quality/read_tracker.jsonl'), `${JSON.stringify({ file: join(realpathSync(dir), 'app.ts') })}\n`);
+    assert.equal(runHook(dir, join(dir, 'app.ts')).code, 0, 'con el enlace simbólico resuelto');
+  });
 });

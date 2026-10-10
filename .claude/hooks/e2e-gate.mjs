@@ -1,170 +1,86 @@
 #!/usr/bin/env node
 /**
- * e2e-gate.mjs — PostToolUse hook for git commit
- * BLOCKING: Ensures acceptance evidence meets quality standards before commit.
- *
- * What it checks (only when committing acceptance/evidence files):
+ * e2e-gate.mjs — PreToolUse hook for `git commit`
+ * BLOCKING (exit 2, before the commit exists): acceptance tests or evidence go into the commit and
+ * the evidence does not meet the contract:
  *   1. results.json exists and passes schema validation
  *   2. e2e-evidence-report.html exists and has real content
  *   3. Evidence files referenced in results.json actually exist
+ * Acceptance tests committed before running them (no evidence yet) pass.
  *
- * v5.12.0 — E2E Evidence Quality Gate
+ * v5.12.0 — E2E Evidence Quality Gate · US-93/UC-9302: runs before the commit (after it, the
+ * staging area was empty and the gate never acted) and its reason reaches the agent.
  */
 
-import { readStdin, git, fileExists, findFiles, readJsonFile } from './lib/utils.mjs';
+import { readHookInput, gitDirForCommand, git, commitFiles, fileExists, findFiles, readJsonFile } from './lib/utils.mjs';
 import { getProjectConfig } from './lib/config.mjs';
-import { execSync } from 'child_process';
+import { blockWith } from './lib/output.mjs';
+import { spawnSync } from 'child_process';
 import { dirname, join } from 'path';
 import { readFileSync } from 'fs';
 
-const input = readStdin();
-
-// Extract staged files
-const stagedOutput = git('diff --cached --name-only');
-if (!stagedOutput) {
+const { toolInput, cwd } = readHookInput();
+const command = String(toolInput.command || '');
+if (command && !/\bgit\b[^;&|]*\bcommit\b/.test(command)) process.exit(0);
+try {
+  process.chdir(gitDirForCommand(command, cwd));
+} catch {
   process.exit(0);
 }
+if (!git('rev-parse --show-toplevel')) process.exit(0);
 
-const stagedFiles = stagedOutput.split('\n').filter(Boolean);
+const files = commitFiles(command);
+const hasAcceptanceFiles = files.some((f) => /(test\/acceptance\/|tests\/acceptance\/|e2e\/acceptance\/|e2e\/.*\.spec\.)/.test(f));
+const hasEvidenceFiles = files.some((f) => /\.quality\/evidence\/.*\/acceptance\//.test(f));
+if (!hasAcceptanceFiles && !hasEvidenceFiles) process.exit(0);
 
-// Check if this commit includes acceptance test files
-const hasAcceptanceFiles = stagedFiles.some(f =>
-  /(test\/acceptance\/|tests\/acceptance\/|e2e\/acceptance\/|e2e\/.*\.spec\.)/.test(f)
-);
-
-// Also check if it includes evidence files
-const hasEvidenceFiles = stagedFiles.some(f =>
-  /\.quality\/evidence\/.*\/acceptance\//.test(f)
-);
-
-// If no acceptance or evidence files → this is a normal commit, allow
-if (!hasAcceptanceFiles && !hasEvidenceFiles) {
-  process.exit(0);
-}
-
-// --- Acceptance files detected: validate evidence ---
-
-// Find the active UC
-const activeUCData = readJsonFile('.quality/active_uc.json');
-const activeUC = activeUCData?.uc_id || '';
-const activeFeature = activeUCData?.feature || '';
-
-// Find results.json files in evidence directories
+const activeUC = readJsonFile('.quality/active_uc.json')?.uc_id || '';
 const resultsFiles = findFiles('.quality/evidence', /^results\.json$/, 'acceptance');
 
 if (resultsFiles.length === 0) {
-  // No results.json found — check if this is a partial commit (just .feature files)
-  if (!hasEvidenceFiles) {
-    // Only acceptance test files (no evidence) — AG-09a generating tests
-    // Allow: tests can be committed before running them
-    process.exit(0);
-  }
-
-  console.log('');
-  console.log('============================================================');
-  console.log('  E2E GATE: Evidence files without results.json');
-  console.log('============================================================');
-  console.log('  Commit includes evidence files but no results.json found.');
-  console.log('');
-  console.log('  Expected: .quality/evidence/{feature}/acceptance/results.json');
-  console.log('');
-  console.log('  To fix:');
-  console.log('    1. Run acceptance tests to generate results.json');
-  console.log('    2. For Playwright: results are generated automatically');
-  console.log('    3. For Patrol: run patrol-evidence-generator.js');
-  console.log('    4. For Python: run api-evidence-generator.js');
-  console.log('============================================================');
-  console.log('');
-  process.exit(1);
+  // Only acceptance tests, no evidence yet (AG-09a writing tests before running them): allowed.
+  if (!hasEvidenceFiles) process.exit(0);
+  blockWith('E2E GATE: evidencia sin results.json', [
+    'El commit lleva ficheros de evidencia pero no hay ningún results.json.',
+    'Se espera: .quality/evidence/{feature}/acceptance/results.json',
+    'Para arreglarlo: ejecuta las pruebas de aceptación (Playwright lo genera solo; Patrol y Python,',
+    'con patrol-evidence-generator.js o api-evidence-generator.js).',
+  ]);
 }
 
-// Validate each results.json found
-// Multi-repo: validator script may live in the orchestrator repo
+// Multi-repo: the validator may live in the orchestrator repo.
 const { orchestratorRoot } = getProjectConfig();
-const VALIDATOR = [
-  '.quality/scripts/validate-results-json.js',
-  join(orchestratorRoot, '.quality/scripts/validate-results-json.js'),
-].find(p => fileExists(p)) || '.quality/scripts/validate-results-json.js';
-
-if (!fileExists(VALIDATOR)) {
-  console.log('');
-  console.log('============================================================');
-  console.log('  E2E GATE: Validator not found');
-  console.log('============================================================');
-  console.log(`  Expected: ${VALIDATOR}`);
-  console.log('');
-  console.log('  To fix: run install.sh to restore quality scripts,');
-  console.log('  or copy validate-results-json.js from the engine repo.');
-  console.log('============================================================');
-  console.log('');
-  process.exit(1);
+const VALIDATOR = ['.quality/scripts/validate-results-json.js', join(orchestratorRoot, '.quality/scripts/validate-results-json.js')]
+  .find((p) => fileExists(p));
+if (!VALIDATOR) {
+  blockWith('E2E GATE: no está el validador', [
+    'Falta .quality/scripts/validate-results-json.js: ejecuta install.sh o cópialo del engine.',
+  ]);
 }
 
-let validationFailed = false;
-let validationErrors = '';
-
+const errors = [];
 for (const resultsFile of resultsFiles) {
   const evidenceDir = dirname(resultsFile);
-
-  // Only validate results.json that match the active UC or staged evidence
-  let relevant = false;
-
-  // Check if any staged file is in this evidence directory
-  if (stagedFiles.some(f => f.includes(evidenceDir))) {
-    relevant = true;
-  }
-
-  // Or if the active UC matches
-  if (activeUC) {
+  let relevant = files.some((f) => f.includes(evidenceDir));
+  if (!relevant && activeUC) {
     try {
-      const content = readFileSync(resultsFile, 'utf-8');
-      if (content.includes(activeUC)) {
-        relevant = true;
-      }
-    } catch { /* ignore */ }
+      relevant = readFileSync(resultsFile, 'utf-8').includes(activeUC);
+    } catch { /* unreadable: not relevant */ }
   }
-
   if (!relevant) continue;
-
-  // Run schema validation
-  try {
-    execSync(`node ${VALIDATOR} ${resultsFile} --check-evidence`, {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-  } catch (e) {
-    validationFailed = true;
-    const output = (e.stdout || '') + (e.stderr || '');
-    validationErrors += `\n  ${resultsFile}:\n${output}`;
-  }
-
-  // Check HTML report exists
+  const res = spawnSync(process.execPath, [VALIDATOR, resultsFile, '--check-evidence'], { encoding: 'utf-8' });
+  if (res.status !== 0) errors.push(`${resultsFile}:`, ...`${res.stdout || ''}${res.stderr || ''}`.trim().split('\n').slice(-15).map((l) => `  ${l}`));
   const htmlReport = join(evidenceDir, 'e2e-evidence-report.html');
-  if (!fileExists(htmlReport)) {
-    validationFailed = true;
-    validationErrors += `\n  Missing HTML Evidence Report: ${htmlReport}`;
-  }
+  if (!fileExists(htmlReport)) errors.push(`Falta el HTML Evidence Report: ${htmlReport}`);
 }
 
-if (validationFailed) {
-  console.log('');
-  console.log('============================================================');
-  console.log('  E2E GATE: Evidence validation FAILED');
-  console.log('============================================================');
-  console.log('');
-  console.log('  Acceptance files or evidence staged for commit, but');
-  console.log('  evidence validation failed:');
-  console.log('');
-  console.log(validationErrors);
-  console.log('');
-  console.log('  To fix:');
-  console.log('    1. Ensure results.json follows doc/specs/results-json-spec.md');
-  console.log('    2. Ensure e2e-evidence-report.html exists');
-  console.log('    3. Ensure evidence files referenced in results.json exist');
-  console.log('    4. Run: node .quality/scripts/validate-results-json.js <path>');
-  console.log('============================================================');
-  console.log('');
-  process.exit(1);
+if (errors.length) {
+  blockWith('E2E GATE: la evidencia de aceptación no es válida', [
+    ...errors,
+    '',
+    'Para arreglarlo: results.json según doc/specs/results-json-spec.md, e2e-evidence-report.html presente',
+    'y los ficheros de evidencia que cita results.json existentes. Comprueba con:',
+    'node .quality/scripts/validate-results-json.js <results.json> --check-evidence',
+  ]);
 }
-
 process.exit(0);

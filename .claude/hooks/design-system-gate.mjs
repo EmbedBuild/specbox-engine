@@ -28,6 +28,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { readStdin, git, readJsonFile } from './lib/utils.mjs';
 import { findSystemTokens, fixFor, isUiSource, scanFiles } from './lib/design-gaps.mjs';
+import { blockWith, noteWith } from './lib/output.mjs';
 
 const MAX_LISTED = 40;
 const KIND_LABELS = {
@@ -72,10 +73,9 @@ if (mode === 'off') process.exit(0);
 const system = findSystemTokens(root);
 if (!system) process.exit(0);
 if (!system.rules) {
-  process.stdout.write(
-    `\nWARNING: design gate — ${system.path} no es JSON válido; no se puede comprobar el diseño.\n`,
-  );
-  process.exit(0);
+  noteWith('PreToolUse', 'DESIGN GATE (aviso): no se puede comprobar el diseño', [
+    `${system.path} no es JSON válido. Arréglalo para que el gate compare la UI con el sistema.`,
+  ]);
 }
 
 function changedFiles() {
@@ -128,10 +128,7 @@ const title =
   mode === 'block'
     ? 'DESIGN GATE: la implementación se sale del sistema — paso a revisión bloqueado'
     : 'DESIGN GATE (aviso): la implementación se sale del sistema';
-const out = mode === 'block' ? process.stderr : process.stdout;
-out.write('\n============================================================\n');
-out.write(`  ${title}\n`);
-out.write('============================================================\n');
-for (const line of lines) out.write(`  ${line}\n`);
-out.write('============================================================\n\n');
-process.exit(mode === 'block' ? 2 : 0);
+// Block: the transition does not happen and the agent gets the reason. Warn: a note to the agent
+// (it was written to stdout, which nobody sees — US-93/UC-9302).
+if (mode === 'block') blockWith(title, lines);
+noteWith('PreToolUse', title, lines);

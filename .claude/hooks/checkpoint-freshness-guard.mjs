@@ -1,15 +1,26 @@
 #!/usr/bin/env node
 /**
  * checkpoint-freshness-guard.mjs — PostToolUse hook for git commit
- * WARNING (non-blocking): Warns if active UC exists but checkpoint is stale (>30min)
- * or missing entirely. Reminds the agent to save checkpoints for recovery.
+ * NOTE to the agent (additionalContext, US-93/UC-9302): active UC with a stale (>30min) or
+ * missing checkpoint. Reminds the agent to save checkpoints for recovery.
  *
  * v5.19.0 — Compliance Enforcement
  */
 
 import { fileExists, fileAge, readJsonFile } from './lib/utils.mjs';
 import { getActiveUC } from './lib/config.mjs';
-import { printWarning } from './lib/output.mjs';
+import { noteWith } from './lib/output.mjs';
+import { readHookInput, gitDirForCommand } from './lib/utils.mjs';
+
+// The repo the commit went to (`cd <dir> && git commit`, `git -C <dir> commit`).
+{
+  const { toolInput, cwd } = readHookInput();
+  try {
+    process.chdir(gitDirForCommand(String(toolInput.command || ''), cwd));
+  } catch {
+    process.exit(0);
+  }
+}
 
 // Only check if there's an active UC (implementation in progress)
 const activeUC = getActiveUC();
@@ -21,12 +32,10 @@ const feature = activeUC.feature;
 const checkpointFile = `.quality/evidence/${feature}/checkpoint.json`;
 
 if (!fileExists(checkpointFile)) {
-  printWarning(
-    `[CHECKPOINT] No checkpoint found for feature "${feature}". ` +
-    `If the session is interrupted, progress will be lost. ` +
-    `Save checkpoint: node .claude/hooks/implement-checkpoint.mjs ${feature} {N} {phase_name}`
-  );
-  process.exit(0);
+  noteWith('PostToolUse', `[CHECKPOINT] La feature «${feature}» no tiene checkpoint`, [
+    'Si la sesión se corta, el avance se pierde.',
+    `Guárdalo: node .claude/hooks/implement-checkpoint.mjs ${feature} {N} {phase_name}`,
+  ]);
 }
 
 // Check freshness — warn if older than 30 minutes
@@ -38,11 +47,10 @@ if (age > MAX_FRESHNESS_SECONDS) {
   const checkpoint = readJsonFile(checkpointFile);
   const phase = checkpoint ? `Phase ${checkpoint.phase} (${checkpoint.phase_name || 'unknown'})` : 'unknown phase';
 
-  printWarning(
-    `[CHECKPOINT] Last checkpoint for "${feature}" is ${minutesAgo}min old (${phase}). ` +
-    `Consider saving a fresh checkpoint to protect progress. ` +
-    `Save: node .claude/hooks/implement-checkpoint.mjs ${feature} {N} {phase_name}`
-  );
+  noteWith('PostToolUse', `[CHECKPOINT] El último checkpoint de «${feature}» tiene ${minutesAgo} min (${phase})`, [
+    'Guarda uno nuevo para no perder lo hecho desde entonces:',
+    `node .claude/hooks/implement-checkpoint.mjs ${feature} {N} {phase_name}`,
+  ]);
 }
 
 process.exit(0);

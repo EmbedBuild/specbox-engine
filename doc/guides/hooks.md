@@ -74,13 +74,28 @@ Un JSON por stdin. Los argumentos de la herramienta van **dentro de `tool_input`
 
 | Quiero… | Evento | Salida |
 |---|---|---|
-| Impedir la acción y que el agente sepa por qué | PreToolUse | `exit 2` y el motivo por stderr |
-| Que el agente sepa algo después de la acción (un aviso que debe corregir) | PostToolUse | `exit 2` y el motivo por stderr (**comprobado**; la acción ya ocurrió) |
-| Una nota para el agente, sin tono de error | PostToolUse | `exit 0` y `{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": "…"}}` por stdout (**comprobado**) |
-| — | — | **No uses** `exit 1` para bloquear: no bloquea (**comprobado**) y el agente no ve el mensaje. Tampoco `exit 0` con texto por stdout para avisar: no lo ve nadie |
+| Impedir la acción y que el agente sepa por qué | PreToolUse | `exit 2` y el motivo por stderr (**comprobado**) |
+| Que el agente sepa algo después de la acción (algo que tiene que corregir) | PostToolUse | `exit 2` y el motivo por stderr (**comprobado**; la acción ya ocurrió) |
+| Una nota para el agente, sin impedir nada | PreToolUse o PostToolUse | `exit 0` y `{"hookSpecificOutput": {"hookEventName": "<evento>", "additionalContext": "…"}}` por stdout (**comprobado** en los dos) |
+| — | — | **No uses** `exit 1`: no bloquea (**comprobado**) y el agente no ve el mensaje. Tampoco `exit 0` con texto por stdout o stderr, ni el motivo de un `permissionDecision: allow`: no los ve nadie |
 
 Un PostToolUse corre después de la acción: un «pre-commit» registrado ahí se ejecuta con el commit ya
 hecho. Lo que debe impedir algo va en PreToolUse.
+
+### Las piezas comunes (`.claude/hooks/lib/`)
+
+- `readHookInput()` (`utils.mjs`): `{ event, toolName, toolInput, cwd, payload }`, con `tool_input` y,
+  de respaldo, el nivel superior de las pruebas antiguas.
+- `blockWith(título, líneas)` (`output.mjs`): stderr y `exit 2`.
+- `noteWith(evento, título, líneas)` (`output.mjs`): nota por `additionalContext` y `exit 0`.
+- `gitDirForCommand(orden, cwd, verbo)` (`utils.mjs`): el repo al que va una orden de git
+  (`cd <dir> && git commit`, `git -C <dir> commit`). Un hook que mira la rama o lo preparado tiene que
+  mirar ahí, no en el directorio de la sesión.
+- `commitFiles(orden)` (`utils.mjs`): los ficheros que entrarán en un commit visto desde PreToolUse
+  (los preparados, los de `commit -a` y los de un `git add` en la misma orden).
+
+`tests/hooks/hook-channels.test.mjs` comprueba hook a hook que todo lo registrado usa estos canales:
+un hook nuevo necesita su escenario ahí (o una exención con motivo).
 
 ## Cómo se prueba un hook
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * app-docs-sync-guard.mjs — PostToolUse hook for git commit (v5.29.0 PR-13)
+ * app-docs-sync-guard.mjs — PreToolUse hook for git commit (v5.29.0 PR-13; before the commit
+ * since US-93/UC-9302, so `block_on_drift` stops the commit and the warning reaches the agent)
  *
  * Mode: warning-only in v5.29.0.x. Detects drift between canonical docs
  * (doc/app/app_prd.md, app_spec.md, and v6.0 app_market.md) and the
@@ -41,10 +42,19 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash } from 'crypto';
 import { getActiveUC } from './lib/config.mjs';
-import { printWarning } from './lib/output.mjs';
+import { blockWith, noteWith } from './lib/output.mjs';
+import { readHookInput, gitDirForCommand } from './lib/utils.mjs';
 
-function printError(message) {
-  process.stderr.write(`\nERROR: ${message}\n`);
+// The repo the commit goes to (`cd <dir> && git commit`, `git -C <dir> commit`).
+{
+  const { toolInput, cwd } = readHookInput();
+  const command = String(toolInput.command || '');
+  if (command && !/\bgit\b[^;&|]*\bcommit\b/.test(command)) process.exit(0);
+  try {
+    process.chdir(gitDirForCommand(command, cwd));
+  } catch {
+    process.exit(0);
+  }
 }
 import { appendLine, readJsonFile } from './lib/utils.mjs';
 
@@ -307,14 +317,10 @@ const message =
   `Telemetry: ${TELEMETRY_PATH}`;
 
 if (blocking) {
-  printError(message);
-  process.exit(1);
+  blockWith('APP-DOCS-SYNC: commit bloqueado por deriva de los documentos canónicos', message.split('\n'));
 }
 
-printWarning(
-  `${message}\n` +
-    `(Warning-only mode — v5.29.0 default. Set ` +
-    `specbox.app_docs_sync.block_on_drift = true in .claude/settings.local.json ` +
-    `to make this BLOCKING from v5.29.1.)`
-);
-process.exit(0);
+noteWith('PreToolUse', 'APP-DOCS-SYNC: el commit sigue, pero los documentos canónicos se han movido', [
+  ...message.split('\n'),
+  'Modo aviso. Con specbox.app_docs_sync.block_on_drift = true en .claude/settings.local.json, bloquea.',
+]);

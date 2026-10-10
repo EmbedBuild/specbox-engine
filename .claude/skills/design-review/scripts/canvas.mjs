@@ -7,6 +7,8 @@
 //                   [--boards Main,Movil] [--runtime <dc-runtime.js>] [--blobs <carpeta>]
 //                   [--out doc/design/<f>] [--playwright <ruta>] [--states estado=vacía,cargando,error]
 //   node canvas.mjs status --feature <f> [--out doc/design/<f>]
+//   node canvas.mjs comment-record --feature <f> --thread <id> --tipo diseño|alcance --artboard <fichero>
+//                   --accion <qué se hizo> [--feedback FB-NNN] [--version <id>] [--out doc/design/<f>]
 //   node canvas.mjs scaffold --feature <f> --title <T> --url <lienzo> --screens <json | fichero.json>
 //                   --root <carpeta> [--ds-url <sistema> --ds-namespace <Ns> --ds-version <id>
 //                   --ds-title <T> --ds-files tokens.json,tokens.css,components/bundle.css]
@@ -551,6 +553,7 @@ export function status({ feature, out }) {
       pantalla: a.pantalla ?? manifest.pantallas?.[b]?.pantalla ?? null, ucs: a.ucs ?? manifest.pantallas?.[b]?.ucs ?? [],
     }])),
     pantallas: manifest.pantallas || {},
+    comentarios: manifest.comentarios || {},
   };
 }
 
@@ -682,6 +685,39 @@ export function scaffold({ feature, title, url, screens, root, ds, out, now }) {
   };
 }
 
+// ── Comentarios del lienzo (UC-9203) ─────────────────────────────────────
+
+export const COMMENT_TYPES = ['diseño', 'alcance'];
+
+// Apunta en el manifiesto qué se hizo con un hilo, para no volver a proponerlo: una corrección en el
+// lienzo (diseño) o un feedback del AC afectado (alcance).
+export function recordComment({ feature, out, thread, tipo, artboard, accion, feedback, version, now = new Date().toISOString() }) {
+  if (!feature || !thread || !tipo || !accion) throw fail('Faltan --feature, --thread, --tipo o --accion', 'USO');
+  if (!COMMENT_TYPES.includes(tipo)) throw fail(`--tipo es «diseño» o «alcance», no «${tipo}»`, 'USO');
+  if (tipo === 'alcance' && !feedback) throw fail('Un comentario de alcance se registra como feedback: falta --feedback FB-NNN', 'USO');
+  if (artboard && boardPathError(artboard)) throw fail(`--artboard no es un artboard: ${artboard}`, 'RUTA');
+  const outDir = resolve(out || join('doc', 'design', feature));
+  const manifestFile = join(outDir, MANIFEST);
+  const manifest = readJson(manifestFile);
+  if (!manifest) throw fail(`No hay ${MANIFEST} en ${outDir}: el lienzo de la feature no está registrado`, 'USO');
+  const pantalla = artboard ? manifest.pantallas?.[artboard] : null;
+  manifest.comentarios = {
+    ...(manifest.comentarios || {}),
+    [thread]: {
+      tipo,
+      artboard: artboard || null,
+      pantalla: pantalla?.pantalla ?? null,
+      ucs: pantalla?.ucs ?? [],
+      accion,
+      ...(feedback ? { feedback } : {}),
+      ...(version ? { lienzo_version: version } : {}),
+      tratado: now,
+    },
+  };
+  writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
+  return manifest.comentarios[thread];
+}
+
 // ── CLI ──────────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
@@ -704,6 +740,16 @@ async function main() {
     const s = status(args);
     console.log(JSON.stringify(s ?? { error: `No hay ${MANIFEST} en doc/design/${args.feature}` }, null, 2));
     process.exit(s ? 0 : 1);
+  }
+  if (args.cmd === 'comment-record') {
+    if (args.out && !isAbsolute(args.out)) args.out = resolve(args.out);
+    try {
+      console.log(JSON.stringify(recordComment(args), null, 2));
+    } catch (e) {
+      console.error(`comment-record: ${e.message}`);
+      process.exit(1);
+    }
+    return;
   }
   if (args.cmd === 'scaffold') {
     for (const k of ['root', 'out']) if (args[k] && !isAbsolute(args[k])) args[k] = resolve(args[k]);

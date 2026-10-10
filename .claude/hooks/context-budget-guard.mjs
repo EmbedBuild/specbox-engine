@@ -24,6 +24,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { estimatePromptTokens } from './lib/token-counter.mjs';
+import { noteWith } from './lib/output.mjs';
 
 const DEFAULT_BUDGET = 16000;
 const DEFAULT_MODE = 'warn';
@@ -78,13 +79,11 @@ if (mode === 'strict') {
   process.exit(2);
 }
 
-// warn
-console.error(
-  `[context-budget-guard] WARNING — Task prompt is ~${total} tokens ` +
-    `(budget ${budget}, overshoot ${overshoot}). Breakdown: ${breakdownStr}. ` +
-    `Consider trimming. Run will proceed.`
-);
-process.exit(0);
+// warn: a note to the agent (US-93/UC-9302: stderr with exit 0 reaches nobody).
+noteWith('PreToolUse', '[context-budget-guard] El encargo del subagente se pasa de presupuesto', [
+  `~${total} tokens (presupuesto ${budget}, ${overshoot} de más). Reparto: ${breakdownStr}.`,
+  'Recórtalo o pasa el contexto común a .quality/evidence/{feature}/execution_context.json. La tarea sigue.',
+]);
 
 // ── Helpers ───────────────────────────────────────────────────────────
 

@@ -22,6 +22,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { parseOwnershipMap, pathAllowedForAgent, isSuspiciousPath } from './lib/ownership-map.mjs';
 import { readActiveAgent } from './lib/execution-context.mjs';
+import { noteWith } from './lib/output.mjs';
 
 const SETTINGS_PATH = '.claude/settings.local.json';
 const TASK_ISOLATION_CACHE = '.quality/task_isolation.json';
@@ -73,12 +74,10 @@ if (allowed === true) {
 
 if (allowed === null) {
   // Unknown agent or empty ownership → fail-open with a hint.
-  console.error(
-    `[file-ownership-guard] WARNING — agent ${active.agent} is not in ` +
-      `the ownership map (or the map is empty). Path ${filePath} allowed by default. ` +
-      `Update .claude/skills/implement/file-ownership.md if this is unexpected.`
-  );
-  process.exit(0);
+  noteWith('PreToolUse', '[file-ownership-guard] Agente sin mapa de propiedad', [
+    `${active.agent} no está en el mapa de propiedad (o el mapa está vacío): ${filePath} se permite.`,
+    'Si no es lo esperado, actualiza .claude/skills/implement/file-ownership.md.',
+  ]);
 }
 
 // allowed === false → mismatch
@@ -96,8 +95,8 @@ if (mode === 'strict') {
   process.exit(2);
 }
 
-console.error(`[file-ownership-guard] WARNING — ${message} Run will proceed.`);
-process.exit(0);
+// warn: a note to the agent (US-93/UC-9302: stderr with exit 0 reaches nobody).
+noteWith('PreToolUse', '[file-ownership-guard] Escritura fuera de lo que le toca a este agente', [message, 'La escritura sigue (modo aviso).']);
 
 // ── Helpers ───────────────────────────────────────────────────────────
 

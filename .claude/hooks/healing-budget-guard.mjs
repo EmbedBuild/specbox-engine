@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * healing-budget-guard.mjs — PreToolUse hook for Write/Edit during /implement healing
- * BLOCKING: Prevents the agent from exceeding the healing budget (max 8 attempts per feature).
+ * BLOCKING (exit 2; US-93/UC-9302 — it exited 1 and read the path from the wrong place, so it
+ * never blocked): prevents the agent from exceeding the healing budget (max 8 attempts per feature).
  *
  * The healing budget is defined in GLOBAL_RULES.md as a HARD limit.
  * Previously this was instructional-only — the LLM had to count and stop.
@@ -10,24 +11,15 @@
  * v5.19.0 — Mechanical Enforcement
  */
 
-import { readStdin, fileExists, readJsonFile } from './lib/utils.mjs';
-import { printBlock } from './lib/output.mjs';
+import { readHookInput, fileExists, readJsonFile } from './lib/utils.mjs';
+import { blockWith } from './lib/output.mjs';
 import { getActiveUC } from './lib/config.mjs';
 import { readFileSync } from 'fs';
 
 const MAX_HEALING_ATTEMPTS = 8;
 
-const input = readStdin();
-
-// Extract file path
-let filePath = '';
-try {
-  const parsed = JSON.parse(input);
-  filePath = parsed.file_path || '';
-} catch {
-  const match = input.match(/"file_path"\s*:\s*"([^"]*)"/);
-  filePath = match ? match[1] : '';
-}
+// Claude Code sends the path in tool_input (US-93/UC-9302: it was read from the top level).
+const filePath = String(readHookInput().toolInput.file_path || '');
 
 if (!filePath) {
   process.exit(0);
@@ -69,7 +61,7 @@ try {
 }
 
 if (healingCount >= MAX_HEALING_ATTEMPTS) {
-  printBlock('HEALING BUDGET EXCEEDED — Implementation BLOCKED', [
+  blockWith('HEALING BUDGET EXCEEDED — Implementation BLOCKED', [
     `Feature: ${feature}`,
     `Healing attempts: ${healingCount} / ${MAX_HEALING_ATTEMPTS}`,
     `Log: ${healingLog}`,
@@ -85,7 +77,6 @@ if (healingCount >= MAX_HEALING_ATTEMPTS) {
     '',
     'This limit is NON-NEGOTIABLE. See GLOBAL_RULES.md.',
   ]);
-  process.exit(1);
 }
 
 // Allow — budget not yet exhausted

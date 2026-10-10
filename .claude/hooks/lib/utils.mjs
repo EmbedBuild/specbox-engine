@@ -24,6 +24,70 @@ export function readStdin() {
  * Execute a git command and return trimmed stdout.
  * Returns '' on any error (not a git repo, command fails, etc.)
  */
+/**
+ * La entrada de un hook tal como la manda Claude Code: { event, toolName, toolInput, cwd, payload }.
+ * Los argumentos de la herramienta van en tool_input; el nivel superior es el formato antiguo de
+ * las pruebas de humo y se acepta como respaldo.
+ */
+export function readHookInput(raw = readStdin()) {
+  let payload = {};
+  try {
+    payload = JSON.parse(raw || '{}');
+  } catch {
+    payload = {};
+  }
+  const toolInput = payload.tool_input ?? payload.toolInput ?? payload;
+  return {
+    event: payload.hook_event_name || '',
+    toolName: payload.tool_name || payload.toolName || '',
+    toolInput: toolInput && typeof toolInput === 'object' ? toolInput : {},
+    cwd: payload.cwd || process.cwd(),
+    payload,
+  };
+}
+
+/**
+ * The repo a git command acts on: the directory of `git -C <dir>` or of the last `cd <dir>` before
+ * the git command, resolved against the session's cwd; otherwise the cwd. A hook that checks the
+ * branch or the staged files must look there, not at the session's directory.
+ */
+export function gitDirForCommand(command, cwd = process.cwd(), gitVerb = 'commit') {
+  const unquote = (s) => s.replace(/^["']|["']$/g, '');
+  const at = command.search(new RegExp(`\\bgit\\b[^;&|]*\\b${gitVerb}\\b`));
+  if (at < 0) return cwd;
+  const gitPart = command.slice(at).match(/^git\s+-C\s+("[^"]+"|'[^']+'|\S+)/);
+  let dir = cwd;
+  const before = command.slice(0, at);
+  for (const m of before.matchAll(/(?:^|&&|;|\|\|)\s*cd\s+("[^"]+"|'[^']+'|\S+)/g)) dir = resolve(dir, unquote(m[1]));
+  if (gitPart) dir = resolve(dir, unquote(gitPart[1]));
+  return dir;
+}
+
+/**
+ * The files a `git commit` command will commit, seen from a PreToolUse hook (before it runs): the
+ * staged ones, the tracked changes with `commit -a`/`--all`, and what a `git add` earlier in the
+ * same command will stage. Paths relative to the repo; run it after chdir to the repo.
+ */
+export function commitFiles(command) {
+  const lines = (out) => out.split('\n').map((s) => s.trim()).filter(Boolean);
+  const files = new Set(lines(git('diff --cached --name-only --diff-filter=ACMR')));
+  const at = command.search(/\bgit\b[^;&|]*\bcommit\b/);
+  const commitPart = at >= 0 ? command.slice(at) : '';
+  if (/\scommit\b[^;&|]*\s(-[a-zA-Z]*a[a-zA-Z]*|--all)\b/.test(commitPart)) {
+    for (const f of lines(git('diff --name-only --diff-filter=ACMR HEAD'))) files.add(f);
+  }
+  for (const m of command.matchAll(/\bgit\s+add\s+([^;&|]*)/g)) {
+    const args = m[1].trim().split(/\s+/).filter(Boolean);
+    if (args.some((a) => ['-A', '--all', '.', '-u', '--update'].includes(a))) {
+      for (const f of lines(git('diff --name-only --diff-filter=ACMR HEAD'))) files.add(f);
+      for (const f of lines(git('ls-files --others --exclude-standard'))) files.add(f);
+    } else {
+      for (const a of args.filter((x) => !x.startsWith('-'))) files.add(a.replace(/^["']|["']$/g, ''));
+    }
+  }
+  return [...files];
+}
+
 export function git(cmd) {
   try {
     return execSync(`git ${cmd}`, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();

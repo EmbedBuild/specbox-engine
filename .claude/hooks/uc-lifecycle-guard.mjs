@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * uc-lifecycle-guard.mjs — PostToolUse hook for git push
- * WARNING (non-blocking): Warns if pushing a feature branch without having
+ * NOTE to the agent (additionalContext, US-93/UC-9302): pushing a feature branch without having
  * called move_uc to move the UC to Review. Ensures the board stays in sync.
  *
  * Also warns if mark_ac_batch hasn't been called (no ACs marked).
@@ -9,25 +9,21 @@
  * v5.19.0 — Compliance Enforcement
  */
 
-import { readStdin, git, fileExists, readJsonFile } from './lib/utils.mjs';
+import { readHookInput, gitDirForCommand, git, fileExists, readJsonFile } from './lib/utils.mjs';
 import { getProjectConfig, getActiveUC } from './lib/config.mjs';
-import { printWarning, printBlock } from './lib/output.mjs';
+import { noteWith } from './lib/output.mjs';
 
-const input = readStdin();
-
-// Extract command to verify it's a git push
-let command = '';
-try {
-  const parsed = JSON.parse(input);
-  // Claude Code sends the tool's arguments in tool_input; the top level is the old test format.
-  command = (parsed.tool_input ?? parsed).command || '';
-} catch {
-  const match = input.match(/"command"\s*:\s*"([^"]*)"/);
-  command = match ? match[1] : '';
-}
+const { toolInput, cwd } = readHookInput();
+const command = String(toolInput.command || '');
 
 // Only check git push commands
 if (!command.includes('git push')) {
+  process.exit(0);
+}
+// The repo the push comes from (`cd <dir> && git push`, `git -C <dir> push`).
+try {
+  process.chdir(gitDirForCommand(command, cwd, 'push'));
+} catch {
   process.exit(0);
 }
 
@@ -81,15 +77,10 @@ if (!fileExists(moveMarkerFile)) {
 }
 
 if (warnings.length > 0) {
-  printBlock('UC LIFECYCLE — Board may be out of sync', [
-    `Feature: ${feature}`,
-    `UC: ${activeUC.ucId}`,
-    `Branch: ${branch}`,
-    '',
-    ...warnings.map(w => `WARNING: ${w}`),
-    '',
-    'These are non-blocking warnings. The push will proceed.',
-    'But the board should always reflect reality.',
+  noteWith('PostToolUse', 'UC LIFECYCLE: el board puede no reflejar lo que hay', [
+    `Feature: ${feature} · UC: ${activeUC.ucId} · rama: ${branch}`,
+    ...warnings.map((w) => `- ${w}`),
+    'El push ya está hecho; pon el board al día ahora.',
   ]);
 }
 

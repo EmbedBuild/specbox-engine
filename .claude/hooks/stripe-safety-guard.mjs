@@ -25,6 +25,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { readStdin } from './lib/utils.mjs';
+import { blockWith } from './lib/output.mjs';
 
 const input = readStdin();
 
@@ -249,16 +250,13 @@ process.exit(0);
 
 // ===== helpers =====
 function block(title, body) {
-  console.log('');
-  console.log('============================================================');
-  console.log(`  ⛔ STRIPE SAFETY GUARD: ${title}`);
-  console.log('============================================================');
-  console.log(body);
-  console.log('');
-  console.log('Escape hatch (use sparingly, document why):');
-  console.log('  Add `// stripe-safety-guard:ignore` on the line ABOVE the pattern');
-  console.log('  Or `// stripe-safety-guard:disable-file` at the top of the file');
-  console.log('============================================================');
-  console.log('');
-  process.exit(2);
+  // stderr + exit 2: the write does not happen and the agent gets the reason (US-93/UC-9302: the
+  // reason went to stdout, so the agent was blocked without knowing why).
+  blockWith(`STRIPE SAFETY GUARD: ${title}`, [
+    ...String(body).split('\n'),
+    '',
+    'Escape hatch (use sparingly, document why):',
+    '  Add `// stripe-safety-guard:ignore` on the line ABOVE the pattern',
+    '  Or `// stripe-safety-guard:disable-file` at the top of the file',
+  ]);
 }

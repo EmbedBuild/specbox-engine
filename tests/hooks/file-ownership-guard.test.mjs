@@ -150,7 +150,10 @@ function runHook(payload, cwd) {
     cwd,
     encoding: 'utf-8',
   });
-  return { code: result.status, stderr: result.stderr };
+  // A warning reaches the agent as additionalContext (US-93/UC-9302), not on stderr.
+  let note = '';
+  try { note = JSON.parse(result.stdout || '{}').hookSpecificOutput?.additionalContext || ''; } catch { /* not a note */ }
+  return { code: result.status, stderr: result.stderr, note };
 }
 
 function testHookNoOpWithoutActiveAgent() {
@@ -191,8 +194,8 @@ function testHookWarnsOnMismatch() {
       cwd
     );
     assert.equal(r.code, 0);
-    assert.match(r.stderr, /WARNING/);
-    assert.match(r.stderr, /AG-04/); // suggestion
+    assert.match(r.note, /fuera de lo que le toca/);
+    assert.match(r.note, /AG-04/); // suggestion
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -241,7 +244,7 @@ function testHookFailsOpenForUnknownAgent() {
       cwd
     );
     assert.equal(r.code, 0);
-    assert.match(r.stderr, /WARNING/);
+    assert.match(r.note, /sin mapa de propiedad/);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

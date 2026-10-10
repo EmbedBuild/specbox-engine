@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * pipeline-phase-guard.mjs — PreToolUse hook for Write/Edit during /implement
- * BLOCKING: Prevents the agent from writing code that belongs to a phase
+ * BLOCKING (exit 2; US-93/UC-9302 — it exited 1 and read the path from the wrong place, so it
+ * never blocked): prevents the agent from writing code that belongs to a phase
  * whose dependencies haven't been completed yet.
  *
  * Reads .quality/evidence/{feature}/checkpoint.json to determine current phase.
@@ -20,21 +21,12 @@
  * v5.19.0 — Mechanical Enforcement
  */
 
-import { readStdin, fileExists, readJsonFile } from './lib/utils.mjs';
-import { printBlock } from './lib/output.mjs';
+import { readHookInput, fileExists, readJsonFile } from './lib/utils.mjs';
+import { blockWith } from './lib/output.mjs';
 import { getActiveUC } from './lib/config.mjs';
 
-const input = readStdin();
-
-// Extract file path
-let filePath = '';
-try {
-  const parsed = JSON.parse(input);
-  filePath = parsed.file_path || '';
-} catch {
-  const match = input.match(/"file_path"\s*:\s*"([^"]*)"/);
-  filePath = match ? match[1] : '';
-}
+// Claude Code sends the path in tool_input (US-93/UC-9302: it was read from the top level).
+const filePath = String(readHookInput().toolInput.file_path || '');
 
 if (!filePath) {
   process.exit(0);
@@ -71,7 +63,7 @@ if (!detectedPhase) {
 const missingDeps = getMissingDependencies(detectedPhase, completedPhases, pipelineState);
 
 if (missingDeps.length > 0) {
-  printBlock(`PIPELINE PHASE GUARD — Phase "${detectedPhase}" blocked`, [
+  blockWith(`PIPELINE PHASE GUARD — Phase "${detectedPhase}" blocked`, [
     `Feature: ${feature}`,
     `File: ${filePath}`,
     `Detected phase: ${detectedPhase}`,
@@ -84,7 +76,6 @@ if (missingDeps.length > 0) {
     '',
     'Phase order: DB/Infra → Designs → Design-to-Code → Features → Integration → Tests',
   ]);
-  process.exit(1);
 }
 
 process.exit(0);

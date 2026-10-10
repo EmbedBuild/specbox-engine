@@ -42,8 +42,8 @@ function specDrivenOnMain() {
 test('no-bypass-guard ve el comando en tool_input', () => {
   for (const command of ['git commit --no-verify -m x', 'git push --force origin rama', 'git reset --hard HEAD~1']) {
     const res = run('no-bypass-guard', { hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command } });
-    assert.notEqual(res.status, 0, command);
-    assert.match(res.stdout + res.stderr, /QUALITY GUARD/, command);
+    assert.equal(res.status, 2, command);
+    assert.match(res.stderr, /GUARDIA DE CALIDAD/, command);
   }
   const ok = run('no-bypass-guard', { tool_name: 'Bash', tool_input: { command: 'git push origin rama' } });
   assert.equal(ok.status, 0);
@@ -53,8 +53,8 @@ test('spec-guard ve la ruta absoluta en tool_input', () => {
   const p = specDrivenOnMain();
   try {
     const res = run('spec-guard', { hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: { file_path: join(p.dir, 'src', 'app.ts'), content: 'x' } }, p.dir);
-    assert.notEqual(res.status, 0);
-    assert.match(res.stdout + res.stderr, /SPEC GUARD/);
+    assert.equal(res.status, 2, 'código en main: el agente recibe el motivo');
+    assert.match(res.stderr, /SPEC GUARD/);
     const docs = run('spec-guard', { tool_name: 'Write', tool_input: { file_path: join(p.dir, 'docs', 'nota.md') } }, p.dir);
     assert.equal(docs.status, 0);
   } finally {
@@ -72,7 +72,7 @@ test('uc-lifecycle-guard ve el comando en tool_input', () => {
     writeFileSync(join(p.dir, '.quality/active_uc.json'), JSON.stringify({ uc_id: 'UC-1', feature: 'demo' }));
     const res = run('uc-lifecycle-guard', { hook_event_name: 'PostToolUse', tool_name: 'Bash', tool_input: { command: 'git push origin feature/UC-1' } }, p.dir);
     assert.equal(res.status, 0, 'avisa, no bloquea');
-    assert.match(res.stdout, /UC LIFECYCLE/, 'con el comando real, revisa la UC y avisa');
+    assert.match(JSON.parse(res.stdout).hookSpecificOutput.additionalContext, /UC LIFECYCLE/, 'con el comando real, revisa la UC y avisa al agente');
   } finally {
     p.done();
   }
@@ -80,5 +80,5 @@ test('uc-lifecycle-guard ve el comando en tool_input', () => {
 
 test('el formato antiguo de las pruebas de humo sigue funcionando', () => {
   const res = run('no-bypass-guard', { command: 'git push --force origin rama' });
-  assert.notEqual(res.status, 0);
+  assert.equal(res.status, 2);
 });

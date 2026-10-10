@@ -30,13 +30,9 @@
 import { existsSync, readFileSync } from 'fs';
 import { spawnSync } from 'child_process';
 import { appendLine, readJsonFile } from './lib/utils.mjs';
-import { printWarning } from './lib/output.mjs';
+import { blockWith, noteWith } from './lib/output.mjs';
 
 const TELEMETRY_PATH = '.quality/discovery_gate_events.jsonl';
-
-function printError(message) {
-  process.stderr.write(`\nERROR: ${message}\n`);
-}
 
 function readGateMode() {
   const settings = readJsonFile('.claude/settings.local.json') || {};
@@ -213,14 +209,12 @@ recordEvent({
   detected_at: new Date().toISOString(),
 });
 
+// US-93/UC-9302: block with exit 2 (exit 1 did not stop /prd) and warn with a note to the agent.
 if (gateMode === 'block') {
-  printError(message);
-  process.exit(1);
+  blockWith('[DISCOVERY-GATE] /prd bloqueado: falta el discovery', message.split('\n'));
 }
-
-printWarning(
-  `${message}\n\n(Warning mode — gate_mode=warn. Set ` +
-    `specbox.discovery.gate_mode="block" in .claude/settings.local.json to ` +
-    `block /prd when Discovery is incomplete.)`
-);
-process.exit(0);
+noteWith('PreToolUse', '[DISCOVERY-GATE] /prd sigue, pero falta el discovery', [
+  ...message.split('\n'),
+  '',
+  'Modo aviso (gate_mode=warn). Con specbox.discovery.gate_mode="block" en .claude/settings.local.json, /prd se para.',
+]);

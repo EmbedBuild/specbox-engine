@@ -431,39 +431,40 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 Automatic enforcement — no need to remember running these manually:
 
 > **How to register, condition and test a hook:** [doc/guides/hooks.md](doc/guides/hooks.md). An `if`
-> is a permission rule (`Bash(*git commit*)`, `Write(src/**)`), never a regex. Until UC-9301 the
-> conditioned hooks below never ran in a real session, and the ones marked BLOCKING that exit with 1
-> still do not block: see [doc/research/hooks-que-no-saltaban/](doc/research/hooks-que-no-saltaban/README.md).
+> is a permission rule (`Bash(*git commit*)`, `Write(src/**)`), never a regex. Every registered hook
+> blocks with exit 2 + stderr or leaves a note through `additionalContext` (US-93 · UC-9301/9302;
+> `tests/hooks/hook-channels.test.mjs`): before that, the conditioned hooks never ran and the BLOCKING
+> ones exited 1, which does not block. History: [doc/research/hooks-que-no-saltaban/](doc/research/hooks-que-no-saltaban/README.md).
 
 | Hook | Event | Behavior |
 |------|-------|----------|
-| **quality-first-guard** | PreToolUse (Write/Edit) | **BLOCKING**: verifies the agent read the file before modifying it. Enforces "read before write." |
-| **read-tracker** | PostToolUse (Read) | Non-blocking: records which files the agent reads. Used by quality-first-guard. |
-| **spec-guard** | PostToolUse (Write/Edit on src/ or lib/) | **BLOCKING**: verifies active UC exists + branch is not main. No UC or main branch = no code writes. |
+| **quality-first-guard** | PreToolUse (Write/Edit) | **BLOCKING** (exit 2): editing an existing file the agent has not read in the session (whole path compared; a file the agent creates counts as known). US-93 · UC-9302: it never acted before (wrong input, exit 1). |
+| **read-tracker** | PostToolUse (Read) | Silent: records which files the agent reads in `.quality/read_tracker.jsonl` (kept out of git by `.quality/.gitignore`). Used by quality-first-guard. |
+| **spec-guard** | PostToolUse (Write/Edit on src/ or lib/) | Code written on main or under a native reservation that is no longer yours → exit 2, the agent must move it; code with no active UC → note to the agent (additionalContext). |
 | branch-guard | Not wired | Superseded: `spec-guard` already blocks writing code on main/master. The file stays for projects that wired it by hand. |
-| **commit-spec-guard** | PostToolUse (git commit) | **BLOCKING** (branch) + WARNING (rest): blocks commits on main; warns UC/checkpoint/size. |
-| pre-commit-lint | PostToolUse (git commit) | **BLOCKING**: runs `gga run` (cached lint, skips unmodified files). Falls back to direct lint if GGA not installed |
-| **e2e-gate** | PostToolUse (git commit) | **BLOCKING**: validates results.json schema + HTML Evidence Report exists + evidence integrity when committing acceptance files. Uses `validate-results-json.js`. |
-| **no-bypass-guard** | PreToolUse (--no-verify, push --force, reset --hard) | **BLOCKING**: prevents agent shortcuts under pressure — must fix root cause, not bypass quality checks. |
+| **commit-spec-guard** | PreToolUse (git commit) | **BLOCKING** (exit 2, before the commit): commits on main/master of a spec-driven project. No active UC, no checkpoint or more than 15 files → note. Checks the repo the command acts on. |
+| **pre-commit-lint** | PreToolUse (git commit) | **BLOCKING** (exit 2, before the commit): the project's linter (ruff, eslint, dart analyze) fails on the files of the commit, including a `git add` in the same command and `commit -a`. No linter → silent. GGA (AI review) is no longer run here. |
+| **e2e-gate** | PreToolUse (git commit) | **BLOCKING** (exit 2, before the commit): acceptance evidence in the commit without a valid results.json, HTML Evidence Report or referenced files. Uses `validate-results-json.js`. |
+| **no-bypass-guard** | PreToolUse (`--no-verify`, push `--force`/`-f`/`+ref`, `reset --hard`) | **BLOCKING** (exit 2): the command does not run and the agent gets the reason. `--force-with-lease` and `--force-if-includes` pass. |
 | **design-gate** | PostToolUse (any Write/Edit; the hook filters UI pages) | Warns the agent in the same session (exit 2, stderr) when a UI page is written and its feature has no design HTML in doc/design/{feature}/; the write already happened, the warning says what to do (`/design-review`, `/plan` chain). With a design, a missing traceability comment gets a note (additionalContext). US-91 · UC-9103 |
 | on-session-end | Stop | Logs session telemetry to .quality/logs/ + persists summary to Engram |
 | implement-checkpoint | Manual (called by /implement) | Saves phase progress for resume |
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |
 | post-implement-validate | Manual | Checks baseline regression after implementation (run by hand; no skill calls it today) |
-| **healing-budget-guard** | PreToolUse (Write/Edit) | **BLOCKING**: counts healing.jsonl entries per feature. Blocks at 8 attempts (HARD limit). Prevents infinite healing loops. |
-| **pipeline-phase-guard** | PreToolUse (Write/Edit) | **BLOCKING**: reads pipeline_state.json to verify phase dependencies are met. Prevents out-of-order execution (e.g., feature code before DB). |
+| **healing-budget-guard** | PreToolUse (Write/Edit) | **BLOCKING** (exit 2): counts healing.jsonl entries per feature and blocks at 8 attempts (HARD limit). |
+| **pipeline-phase-guard** | PreToolUse (Write/Edit) | **BLOCKING** (exit 2): reads pipeline_state.json and blocks code of a phase whose prerequisites are not done (e.g., feature code before design-to-code). |
 | **stripe-safety-guard** | PreToolUse (Write/Edit on billing paths) | **BLOCKING**: scans `src/billing/`, `lib/billing/`, `supabase/functions/stripe-*`. Blocks 5 anti-patterns: sk_live_* hardcoded, webhook sin firma, webhook sin idempotencia (`stripe_processed_events`), `redirectToCheckout`/`ui_mode:hosted`, Payment Links. Escape hatches: `// stripe-safety-guard:ignore` / `:disable-file`. v5.25 — scaffoldeado por `/stripe-connect`. |
-| checkpoint-freshness-guard | PostToolUse (git commit) | Non-blocking WARNING: warns if checkpoint is stale (>30min) or missing during active UC implementation. |
-| uc-lifecycle-guard | PostToolUse (git push) | Non-blocking WARNING: warns if pushing feature branch without calling move_uc (board out of sync). |
+| checkpoint-freshness-guard | PostToolUse (git commit) | Note to the agent: checkpoint stale (>30min) or missing during active UC implementation. |
+| uc-lifecycle-guard | PostToolUse (git push) | Note to the agent: pushing a feature branch without calling move_uc or marking ACs (board out of sync). |
 | **session-start** | SessionStart | Non-blocking: injects `.quality/handoff.md` (if fresh), active UC + checkpoint, and auto zones from `app_spec.md` as `additionalContext` for the new session. Capped at 14k chars. v5.30. |
-| **pre-read-budget-guard** | PreToolUse (Read) | Non-blocking WARNING: estimates tokens for the file being read; warns if ≥ `specbox.context_budget.warn_pct` of the window (default 5% of 1M). v5.30. |
+| **pre-read-budget-guard** | PreToolUse (Read) | Note to the agent: estimates tokens for the file being read; notes when ≥ `specbox.context_budget.warn_pct` of the window (default 5% of 1M). v5.30. |
 | **design-system-gate** | PreToolUse (mcp__SpecBox-MCP__move_uc → review/done, mcp__SpecBox-MCP__complete_uc, `gh pr create`) | **BLOCKING in autopilot** (exit 2): scans the UI files changed on the branch against the project's `design-system.tokens.json` — colours written directly, fonts outside the system, weights above the system maximum, gradients — and lists each with `file:line` and what to do. Warns outside autopilot; `specbox.design_gate.mode` overrides. US-49 · UC-4902. |
 | **design-review-gate** | PreToolUse (mcp__SpecBox-MCP__move_uc → review/done, mcp__SpecBox-MCP__complete_uc, `gh pr create`) | Reads the verdict of each `doc/design/{feature}/{screen}.verify.md` changed on the branch. With `specbox.design_review.mode = "block"`, a «Block» stops the transition (exit 2) with the screens and their three priority problems; with `warn` (default) or `off` it passes and the verdict goes to the PR and the evidence. US-91 · UC-9102. |
 | **freeform-path-guard** | PreToolUse (mcp__SpecBox-MCP__set_auth_token, mcp__SpecBox-MCP__onboard_project) | Auto-rewrites relative FreeForm `root_path` / `freeform_root_absolute` to an absolute path resolved against `git rev-parse --show-toplevel` via `hookSpecificOutput.updatedInput`. Covers the implicit-default case (`onboard_project` with no `backend_type` AND no `trello_board_name`). **BLOCKING** (exit 2) only when CWD is not a git repo and resolution is ambiguous. Logs every rewrite to `.quality/logs/freeform-path-rewrites.jsonl`. Defense in depth on top of the v5.29 server-side guard. v5.33. |
-| context-budget-guard | PreToolUse (Task) | Non-blocking by default: estimates the tokens of a subagent's prompt and warns when it exceeds the budget; `specbox.implement.task_isolation.task_budget_mode: strict` blocks. v5.32. |
-| file-ownership-guard | PreToolUse (Write/Edit) | Non-blocking by default: warns when an /implement subagent writes outside the files its role owns (`.claude/skills/implement/file-ownership.md`); `ownership_mode: strict` blocks. v5.32. |
-| pre-prd-discovery-check | PreToolUse (Skill) | Off unless `specbox.discovery.gate_mode` in `.claude/settings.local.json` is `warn` or `block`: then `/prd` without a discovery for the feature warns or blocks; spec-driven invocations (`US-XX`, `UC-XXX`) pass. v6.0. |
-| app-docs-sync-guard | PostToolUse (git commit) | Non-blocking WARNING: detects drift between the canonical docs in `doc/app/` and their signatures in `.quality/app_docs_sync.lock`; `specbox.app_docs_sync` can make it block. v5.29/v6.0. |
+| context-budget-guard | PreToolUse (Task) | Note to the agent by default: estimates the tokens of a subagent's prompt and notes when it exceeds the budget; `specbox.implement.task_isolation.task_budget_mode: strict` blocks. v5.32. |
+| file-ownership-guard | PreToolUse (Write/Edit) | Note to the agent by default when an /implement subagent writes outside the files its role owns (`.claude/skills/implement/file-ownership.md`); `ownership_mode: strict` blocks. v5.32. |
+| pre-prd-discovery-check | PreToolUse (Skill) | Off unless `specbox.discovery.gate_mode` in `.claude/settings.local.json` is `warn` or `block`: then `/prd` without a discovery for the feature gets a note or is blocked (exit 2); spec-driven invocations (`US-XX`, `UC-XXX`) pass. v6.0. |
+| app-docs-sync-guard | PreToolUse (git commit) | Note to the agent when the canonical docs in `doc/app/` drift from their signatures in `.quality/app_docs_sync.lock`; with `specbox.app_docs_sync.block_on_drift` it blocks the commit (exit 2). v5.29/v6.0 · UC-9302. |
 | test-hooks | — | Not a hook: smoke tests for the hooks (`node .claude/hooks/test-hooks.mjs`, run by CI `hooks.yml`). |
 
 ### Compliance Audit (v5.20.1)

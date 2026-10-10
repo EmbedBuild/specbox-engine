@@ -8,12 +8,9 @@ behaviour matches what the harness will see in practice.
 from __future__ import annotations
 
 import json
-import os
-import shutil
 import subprocess
 from pathlib import Path
 
-import pytest
 
 
 HOOK_PATH = Path(__file__).resolve().parent.parent / ".claude" / "hooks" / "app-docs-sync-guard.mjs"
@@ -80,7 +77,7 @@ class TestSkipCases:
     def test_active_uc_defers_enforcement(self, tmp_path):
         app = tmp_path / "doc" / "app"
         app.mkdir(parents=True)
-        content = _seed_app_prd(app / "app_prd.md")
+        _seed_app_prd(app / "app_prd.md")
         _write_lock(tmp_path, prd_sig="0" * 64)  # mismatch on purpose
         # active UC marker present → hook must skip
         active_path = tmp_path / ".quality" / "active_uc.json"
@@ -112,8 +109,9 @@ class TestDriftDetection:
         _write_lock(tmp_path, prd_sig="abcd" * 16)  # wrong signature
         result = _run_hook(tmp_path)
         assert result.returncode == 0  # warning-only does not block
-        assert "WARNING" in result.stdout
-        assert "drifted" in result.stdout
+        # The warning reaches the agent as a note (US-93/UC-9302), not as plain stdout.
+        note = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+        assert "drifted" in note and "Modo aviso" in note
         # telemetry was written
         telemetry = tmp_path / ".quality" / "app_docs_drift.jsonl"
         assert telemetry.exists()
@@ -132,8 +130,9 @@ class TestDriftDetection:
             json.dumps({"specbox": {"app_docs_sync": {"block_on_drift": True}}})
         )
         result = _run_hook(tmp_path)
-        assert result.returncode == 1
-        assert "ERROR" in result.stderr
+        # exit 2 before the commit: the commit does not happen and the agent gets the reason.
+        assert result.returncode == 2
+        assert "APP-DOCS-SYNC" in result.stderr
         assert "drifted" in result.stderr
 
 

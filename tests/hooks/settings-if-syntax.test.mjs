@@ -68,7 +68,7 @@ const OTHER = ['git add -A', 'git log --oneline -1', 'echo commit push'];
 const EXPECTED = {
   'no-bypass-guard': {
     Bash: {
-      yes: ['git commit --allow-empty --no-verify -m dos', 'git push --force origin HEAD:main', 'git push -f origin HEAD:main', 'git reset --hard HEAD'],
+      yes: ['git commit --allow-empty --no-verify -m dos', 'git push --force origin HEAD:main', 'git push -f origin HEAD:main', 'git reset --hard HEAD', 'git push origin main -f', 'git push origin +main'],
       no: ['git commit -m uno', 'git push origin HEAD:main', 'git reset --soft HEAD~1', ...OTHER],
     },
   },
@@ -92,7 +92,8 @@ for (const path of SETTINGS) {
     for (const c of all) {
       assert.match(c.rule, /^(Bash|Write|Edit|Read)\(.+\)$/, `${c.hook}: «${c.rule}» no es una regla de permisos`);
       assert.ok(!c.rule.includes('.*'), `${c.hook}: «${c.rule}» usa «.*» de regex; en una regla es «*»`);
-      assert.ok(!/[\\^$|+?]|\(\?/.test(c.rule.slice(c.rule.indexOf('(') + 1, -1)), `${c.hook}: «${c.rule}» lleva sintaxis de regex`);
+      // `+` es literal en una regla (el refspec `+rama` de un push forzado); `\\ ^ $ | ?` y `(?` son de regex.
+      assert.ok(!/[\\^$|?]|\(\?/.test(c.rule.slice(c.rule.indexOf('(') + 1, -1)), `${c.hook}: «${c.rule}» lleva sintaxis de regex`);
       if (/^\w+$/.test(c.matcher)) assert.equal(c.rule.split('(')[0], c.matcher, `${c.hook}: la regla no es de la herramienta de su grupo`);
     }
   });

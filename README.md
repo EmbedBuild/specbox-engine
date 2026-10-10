@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.24.0 — "Criterio" (sobre v6.23.0 "Poda")<br/>
+  v 6.25.0 — "Lienzo" (sobre v6.24.0 "Criterio")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,23 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.25
+
+**v6.25.0 — "Lienzo"** trae al proyecto lo que se diseña en Claude Design:
+
+- **`/plan` crea un lienzo por feature**, con dos artboards por pantalla (1440 y 390) a partir del
+  brief, el sistema de diseño del proyecto instalado y sus componentes reales.
+- **`/design-review import`** trae los artboards aprobados a `doc/design/`, como HTML que funciona sin
+  el motor del lienzo y que dice de qué lienzo y versión sale. Si nada cambió, no escribe nada.
+- **`/design-review comments`** convierte cada comentario del lienzo en una corrección o, si pide
+  otra cosa, en feedback del criterio afectado.
+- **`/visual-setup` publica el sistema de diseño** desde los tokens del proyecto, para que el lienzo
+  pinte con él sin declarar nada.
+- **Los hooks avisan o bloquean de verdad**: las guardias paran la acción antes de que ocurra y los
+  avisos llegan al agente como nota.
 
 ---
 
@@ -667,7 +684,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.24.0 — "Criterio" (over v6.23.0 "Poda")
+> v 6.25.0 — "Lienzo" (over v6.24.0 "Criterio")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -680,6 +697,22 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.25
+
+**v6.25.0 — "Lienzo"** ("canvas") brings what is designed in Claude Design into the project:
+
+- **`/plan` creates one canvas per feature**, with two artboards per screen (1440 and 390) from the
+  brief, the project's design system installed and its real components.
+- **`/design-review import`** brings the approved artboards to `doc/design/` as HTML that works
+  without the canvas engine and says which canvas and version it comes from. If nothing changed,
+  nothing is written.
+- **`/design-review comments`** turns every canvas comment into a fix or, when it asks for
+  something else, into feedback on the affected criterion.
+- **`/visual-setup` publishes the design system** from the project's tokens, so the canvas paints
+  with it without declaring anything.
+- **Hooks warn or block for real**: guards stop the action before it happens and notes reach the
+  agent.
 
 ## What's new in v6.24
 

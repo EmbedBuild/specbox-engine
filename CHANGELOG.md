@@ -2,6 +2,63 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.25.0] - 2026-10-10 — "Lienzo"
+
+Las pantallas que se diseñan en Claude Design llegan al proyecto. `/plan` crea un lienzo por feature
+con el sistema de diseño del proyecto instalado. `/design-review import` trae los artboards aprobados
+como HTML que funciona sin el motor del lienzo, y `/design-review comments` convierte los comentarios
+del lienzo en correcciones o en feedback de un criterio. Además, cada hook avisa o bloquea por el
+canal que llega al agente. Cierra la épica EP-16 (US-92) y la US-93 en el engine.
+
+### Security
+
+- Las guardias bloquean de verdad, antes de la acción y con el motivo para el agente (`exit 2`):
+  `no-bypass-guard` para `--no-verify`, los push forzados que no son `--force-with-lease` y
+  `reset --hard`, y `commit-spec-guard` para un commit en main de un proyecto spec-driven (#265).
+- `pre-commit-lint` pasa el linter del repositorio a los ficheros del commit antes de hacerlo, y los
+  avisos que no bloquean llegan al agente como nota (`additionalContext`); una prueba recorre todos
+  los hooks registrados (#265).
+- La puerta de diseño bloquea una página que lleve piezas del motor del lienzo (`support.js`,
+  `<x-dc>`, `DCLogic`, `/_blob/`…) (#266).
+
+### Added
+
+- **`/design-review import <feature> <artboard…>`** trae los artboards aprobados de un lienzo a
+  `doc/design/<feature>/`: su fuente, una vista HTML congelada (pintada con el motor del propio lienzo
+  y guardada sin él, que se abre sin conexión y da 0 píxeles distintos frente a la viva), una vista
+  del lienzo con dirección y versión, y el manifiesto `claude-design.json`. Si nada cambió, no escribe
+  nada, y `--states` congela cada estado de una pantalla como vista aparte (#266, #268).
+- **Lienzo por feature en `/plan`** (Paso 6.0b), con la herramienta `Artifact` y el tipo Design:
+  `canvas.mjs scaffold` coloca dos artboards por pantalla (1440 y 390) desde el brief, con el sistema
+  del proyecto instalado y sus componentes reales. Sin la herramienta, la plantilla o la sesión de
+  claude.ai, dice cuál falta y sigue con Stitch. La crítica de 6.4b revisa la copia congelada (#268).
+- **Sistema del proyecto para el lienzo** (`/visual-setup` 2.9.3, `ds-artifact.mjs`): publica
+  `design-system.tokens.json` como Artifact del tipo Design System, con tokens validados, un
+  `tokens.css` compilado que la página adopta, Google Fonts y los componentes compilados si los hay.
+  El lienzo pinta con sus valores sin declarar variables y su editor ofrece los colores y estilos del
+  sistema (#267).
+- **`/design-review comments <feature>`** convierte cada hilo del lienzo en una corrección en su
+  artboard o, si es un cambio de alcance, en un feedback del AC afectado (pasos de `/feedback`) sin
+  tocar el lienzo; contesta en el hilo, lo resuelve y lo apunta con `canvas.mjs comment-record` (#269).
+- Informes de las pruebas reales en `doc/research/claude-design-import/` (#266-#269).
+
+### Changed
+
+- `/plan` deja de usar `DesignSync` para el lienzo: un proyecto de claude.ai/design sincronizado no se
+  puede instalar en un lienzo, según la prueba real de `sistema-instalable.md` (#267, #268).
+- `/implement` (Paso 4) parte de la vista congelada cuando la pantalla viene de un lienzo (#266).
+- `claude_design_status` devuelve la dirección del sistema publicado (`design_system_artifact`) y el
+  siguiente paso del lienzo (#268).
+- La ficha de `/design-review` en la extensión explica `import` y `comments`.
+
+### Compatibility
+
+- Los proyectos que reciban la plantilla nueva de hooks con `upgrade_project` pasan a ver bloqueados
+  los commits en main si son spec-driven, los push forzados, `reset --hard` y los commits que no pasan
+  su linter; la propagación a los satélites va en UC aparte.
+- El motor del lienzo (`artifact-type/dc-runtime.js`) se lee de cada lienzo solo para pintar: no se
+  copia al proyecto ni se versiona en el engine.
+
 ## [6.24.0] - 2026-10-10 — "Criterio"
 
 El engine generaba diseño (Stitch, Claude Design, tokens, DESIGN.md), pero no lo juzgaba ni lo

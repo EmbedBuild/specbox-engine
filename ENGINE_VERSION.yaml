@@ -1,5 +1,5 @@
-version: 6.24.0
-codename: "Criterio"
+version: 6.25.0
+codename: "Lienzo"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-10-10
@@ -537,7 +537,23 @@ features:
   - design-gate-warns
   - hook-conditions-permission-rules
 
+  # New (v6.25.0) — Lienzo
+  - hooks-block-or-note
+  - claude-design-canvas-import
+  - claude-design-design-system-artifact
+  - plan-claude-design-canvas
+  - claude-design-canvas-comments
+
 changelog:
+  6.25.0:
+    date: 2026-10-10
+    codename: "Lienzo"
+    changes:
+      - "fix: every hook warns or blocks through the channel that reaches the agent — guards exit 2 before the action (no-bypass-guard stops --no-verify, forced pushes other than --force-with-lease and reset --hard; commit-spec-guard stops commits on main in spec-driven projects; pre-commit-lint runs the repo's linter before the commit), notes go through additionalContext, and a test checks every registered hook (UC-9302, PR #265)"
+      - "feat: /design-review import brings the approved artboards of a Claude Design canvas to doc/design/<feature>/ — the source, a frozen HTML view rendered with the canvas's own engine and saved without it (0 px different, opens offline), a canvas view with address and version, and claude-design.json; nothing is rewritten when the canvas did not change; the design gate ignores a bare .dc.html and blocks a page carrying canvas-engine pieces (UC-9202, PR #266)"
+      - "feat: /visual-setup 2.9.3 publishes the project's design system as a Design System Artifact from design-system.tokens.json (ds-artifact.mjs: validated tokens, compiled tokens.css the page adopts, Google Fonts, compiled components with their @ds-bundle header); a canvas installs it and its artboards paint with the system without declaring variables; a real test shows DesignSync projects are not installable in a canvas (UC-9204, PR #267)"
+      - "feat: /plan 6.0b creates one Claude Design canvas per feature with the Artifact tool — canvas.mjs scaffold lays two artboards per screen (1440 and 390) from the /design-review brief with the project's system installed and its real components mounted; falls back to Stitch saying what is missing; 6.4b critiques the frozen copy and import --states freezes every screen state (UC-9201, PR #268)"
+      - "feat: /design-review comments turns canvas comment threads into a fix on their artboard or, for a change of scope, a feedback ticket on the affected AC without touching the canvas; replies in the thread, resolves it and records it with canvas.mjs comment-record (UC-9203, PR #269)"
   6.24.0:
     date: 2026-10-10
     codename: "Criterio"

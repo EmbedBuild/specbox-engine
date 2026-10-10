@@ -8,6 +8,14 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.25.0] — "Lienzo"
+
+### Changed
+
+- **The `/design-review` skill card** now explains `import` (approved Claude Design artboards brought
+  to `doc/design/` without the canvas engine) and `comments` (canvas threads turned into fixes or
+  feedback on the affected criterion). The skill itself ships with the engine.
+
 ## [6.24.0] — "Criterio"
 
 ### Changed

@@ -439,7 +439,7 @@ Automatic enforcement — no need to remember running these manually:
 | pre-commit-lint | PostToolUse (git commit) | **BLOCKING**: runs `gga run` (cached lint, skips unmodified files). Falls back to direct lint if GGA not installed |
 | **e2e-gate** | PostToolUse (git commit) | **BLOCKING**: validates results.json schema + HTML Evidence Report exists + evidence integrity when committing acceptance files. Uses `validate-results-json.js`. |
 | **no-bypass-guard** | PreToolUse (--no-verify, push --force, reset --hard) | **BLOCKING**: prevents agent shortcuts under pressure — must fix root cause, not bypass quality checks. |
-| **design-gate** | PostToolUse (Write/Edit on pages/) | **BLOCKING**: blocks UI page creation/modification without Stitch HTML design in doc/design/. |
+| **design-gate** | PostToolUse (any Write/Edit; the hook filters UI pages) | Warns the agent in the same session (exit 2, stderr) when a UI page is written and its feature has no design HTML in doc/design/{feature}/; the write already happened, the warning says what to do (`/design-review`, `/plan` chain). With a design, a missing traceability comment gets a note (additionalContext). US-91 · UC-9103 |
 | on-session-end | Stop | Logs session telemetry to .quality/logs/ + persists summary to Engram |
 | implement-checkpoint | Manual (called by /implement) | Saves phase progress for resume |
 | implement-healing | Manual (called by /implement) | Logs self-healing events to evidence |

@@ -4,6 +4,35 @@ Un lienzo de Claude Design es un Artifact del tipo **Design**: un índice (`proj
 fichero `.dc.html` por artboard, que solo se pinta con el motor del lienzo. `/design` crea lienzos,
 pero no los importa. Por eso esta skill trae al proyecto lo que se aprueba, con su origen (US-92).
 
+## El lienzo de una feature (UC-9201)
+
+Lo crea `/plan` (Paso 6.0b) cuando el proyecto usa Claude Design: **un lienzo por feature**, con el
+sistema de diseño del proyecto instalado y dos artboards por pantalla. `canvas.mjs scaffold` hace la
+parte que no se improvisa:
+
+- `project/canvas.json`:
+  - por pantalla, un artboard a 1440 y otro a 390, en una fila, a 80 px uno del otro y con 120 px entre
+    filas;
+  - un título por fila y, al lado, una nota con las tres preguntas de su brief;
+  - el registro del sistema en `designSystems`;
+  - el artboard de escritorio de la primera pantalla se llama `Main.dc.html`, la entrada que pide el
+    tipo.
+- La **cabecera** de cada artboard: `support.js`, `tokens.css`, las hojas y el script del sistema, en ese
+  orden.
+- Las **copias del sistema** para la llamada a `Artifact`: entradas `{artifact, path}` que copia el
+  servidor.
+- En `claude-design.json`, `pantallas`: de qué pantalla y de qué UC es cada artboard, con su brief. La
+  importación lo conserva y `status` lo enseña.
+
+Cada pantalla de `--screens` (JSON en línea o en fichero):
+`{"slug": "cola", "titulo": "Cola de aceptación", "ucs": ["UC-7601"], "brief": "doc/design/<f>/cola.brief.md"}`.
+Una pantalla sin brief sale en `sin_brief`: se escribe el brief antes de dibujarla.
+
+Al dibujar:
+- los artboards pintan con `var(--token)` y las clases de los estilos de texto, sin declarar variables;
+- los componentes del sistema se montan con `<x-import>`;
+- el de 390 puede montar el de 1440 con `<dc-import>`.
+
 ## `/design-review import <feature> [artboard…]` (UC-9202)
 
 Trae los artboards aprobados a `doc/design/<feature>/`:
@@ -42,6 +71,11 @@ Trae los artboards aprobados a `doc/design/<feature>/`:
 
    Usa el Playwright del proyecto (o `--playwright <ruta>`) y no instala nada. El motor solo sirve
    para pintar: no se copia al proyecto.
+
+   **Estados.** Con `--states estado=vacía,cargando,error` congela también cada valor de esa opción
+   del artboard, declarada en su `data-props`, como vista aparte (`<artboard>@vacia.html`…). Lo hace
+   con un artboard auxiliar que monta el original con `<dc-import>` y que se borra al terminar. Sin
+   esto, la copia solo enseña el estado por defecto, y ni la crítica ni el design-to-code ven los demás.
 5. **Según la salida:**
 
    | Código | Qué pasó | Qué hacer |

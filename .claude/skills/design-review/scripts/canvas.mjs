@@ -5,8 +5,19 @@
 // Uso:
 //   node canvas.mjs import --from <carpeta leída> --url <lienzo> --version <id> --feature <f>
 //                   [--boards Main,Movil] [--runtime <dc-runtime.js>] [--blobs <carpeta>]
-//                   [--out doc/design/<f>] [--playwright <ruta>]
+//                   [--out doc/design/<f>] [--playwright <ruta>] [--states estado=vacía,cargando,error]
 //   node canvas.mjs status --feature <f> [--out doc/design/<f>]
+//   node canvas.mjs scaffold --feature <f> --title <T> --url <lienzo> --screens <json | fichero.json>
+//                   --root <carpeta> [--ds-url <sistema> --ds-namespace <Ns> --ds-version <id>
+//                   --ds-title <T> --ds-files tokens.json,tokens.css,components/bundle.css]
+//                   [--out doc/design/<f>]
+//
+// `scaffold` (UC-9201) prepara el lienzo de una feature para /plan: escribe <carpeta>/project/canvas.json
+// con dos artboards por pantalla (1440 y 390; el de escritorio de la primera es Main.dc.html, la entrada
+// del lienzo), un título por fila y una nota con las tres preguntas de su
+// brief, y el registro del sistema de diseño; devuelve la cabecera de cada artboard y las copias del
+// sistema para la llamada a Artifact; y apunta en claude-design.json qué pantalla y qué UC son de cada
+// artboard. Cada pantalla de --screens: {"slug", "titulo", "ucs": [...], "brief": "<ruta del brief>"}.
 //
 // `--from` es la carpeta donde la herramienta Artifact guardó lo leído del lienzo (`project/canvas.json`,
 // los `project/*.dc.html`, `project/ds/**` y `artifact-type/dc-runtime.js`). El script no habla con
@@ -19,7 +30,9 @@
 //                              assets/. Se abre sin conexión y es la entrada del design-to-code;
 //   canvas.html                la vista del lienzo: cabecera con dirección y versión, y cada artboard a
 //                              su ancho real;
-//   claude-design.json         el manifiesto: lienzo, versión y huella de cada artboard.
+//   claude-design.json         el manifiesto: lienzo, versión y huella de cada artboard;
+//   <artboard>@<valor>.html    con --states, cada estado del artboard (una opción declarada en su
+//                              data-props) congelado aparte: la crítica y el design-to-code los ven.
 //
 // Para pintar usa el motor que sirve el propio lienzo (`artifact-type/dc-runtime.js`, en su versión) en
 // el lugar de `support.js`, con el Playwright del proyecto. El motor solo se usa para pintar: no se copia
@@ -32,7 +45,7 @@
 
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -138,7 +151,8 @@ export function canvasView(manifest) {
   const items = boards.map(([b, a]) => `
 <section>
   <h2>${esc(a.titulo || b)} <span>${String(a.titulo || '').includes(String(a.ancho)) ? '' : `${a.ancho} px · `}${esc(b)}</span></h2>
-  <div class="marco"><iframe src="${esc(a.vista)}" title="${esc(a.titulo || b)}" width="${a.ancho}" height="${a.alto || 900}" loading="lazy"></iframe></div>
+  <div class="marco"><iframe src="${esc(a.vista)}" title="${esc(a.titulo || b)}" width="${a.ancho}" height="${a.alto || 900}" loading="lazy"></iframe></div>${a.estados ? `
+  <p class="estados">Estados: ${Object.entries(a.estados).map(([v, f]) => `<a href="${esc(f)}">${esc(v)}</a>`).join(' · ')}</p>` : ''}
 </section>`).join('');
   return `<!doctype html>
 <html lang="es">
@@ -160,6 +174,7 @@ main{padding:24px 32px;display:flex;flex-direction:column;gap:32px}
 h2{margin:0 0 8px;font-size:16px}h2 span{font-weight:400;color:#5c5c58;font-size:14px}
 .marco{overflow-x:auto;max-width:100%}
 iframe{display:block;border:0;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.estados{margin:8px 0 0;font-size:14px}
 </style>
 </head>
 <body>
@@ -358,7 +373,42 @@ export function fail(message, code, extra = {}) {
   return err;
 }
 
-export async function importCanvas({ from, url, version, feature, boards, runtime, blobs, out, playwright, renderer, fetchImpl, now = () => new Date().toISOString() }) {
+// ── Estados de una pantalla ──────────────────────────────────────────────
+
+// `estado=vacía,cargando,error` → { prop, values }.
+export function parseStates(spec) {
+  if (!spec) return null;
+  if (typeof spec === 'object') return spec;
+  const m = String(spec).match(/^([A-Za-z_$][\w$]*)=(.+)$/);
+  if (!m) throw fail(`--states no válido: ${spec} (prop=valor,valor)`, 'USO');
+  return { prop: m[1], values: m[2].split(',').map((v) => v.trim()).filter(Boolean) };
+}
+
+export const stateSlug = (v) => String(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'estado';
+
+// ¿El artboard declara esa opción en su data-props?
+export function declaresProp(source, prop) {
+  const m = source.match(/data-props='([^']*)'/);
+  if (!m) return false;
+  try {
+    return Object.prototype.hasOwnProperty.call(JSON.parse(m[1].replace(/&#39;/g, "'").replace(/&amp;/g, '&')), prop);
+  } catch { return false; }
+}
+
+const kebab = (s) => s.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+
+// Un artboard que monta el original con esa opción: la misma cabecera y un <dc-import>.
+export function stateWrapper(source, board, prop, value) {
+  const head = (source.match(/<head[^>]*>([\s\S]*?)<\/head>/i)?.[1] || '<meta charset="utf-8"><script src="./support.js"></script>');
+  const stem = basename(board).replace(/\.dc\.html$/, '');
+  return `<!doctype html>\n<html lang="es">\n<head>${head}</head>\n<body>\n<x-dc>\n<helmet>\n<style>\nbody{margin:0}\n</style>\n</helmet>\n`
+    + `<dc-import name="${esc(stem)}" ${kebab(prop)}="${esc(value)}" hint-size="100%,844px"></dc-import>\n</x-dc>\n`
+    + `<script type="text/x-dc" data-dc-script data-props='{}'>\nclass Component extends DCLogic {\n  renderVals() { return {}; }\n}\n</script>\n</body>\n</html>\n`;
+}
+
+export async function importCanvas({ from, url, version, feature, boards, runtime, blobs, out, playwright, renderer, fetchImpl, states, now = () => new Date().toISOString() }) {
+  const st = parseStates(states);
   if (!from || !url || !version || !feature) throw fail('Faltan --from, --url, --version o --feature', 'USO');
   const projectDir = resolve(from, 'project');
   const canvas = readJson(join(projectDir, 'canvas.json'));
@@ -385,7 +435,8 @@ export async function importCanvas({ from, url, version, feature, boards, runtim
   }));
   const dsFiles = filesUnder(join(projectDir, 'ds'));
   const dsHash = sha256(dsFiles.map((f) => `${relative(projectDir, f)}:${sha256(readFileSync(f))}`).join('\n'));
-  const prints = Object.fromEntries(approved.map((b) => [b, fingerprint({ source: sources[b], entry: canvas.boards[b], dsHash })]));
+  const statesKey = st ? `${st.prop}=${st.values.join(',')}` : '';
+  const prints = Object.fromEntries(approved.map((b) => [b, fingerprint({ source: sources[b], entry: canvas.boards[b], dsHash: `${dsHash}|${statesKey}` })]));
   const plan = planImport({ boards: canvas.boards, approved, prints, previous, exists: (p) => p && existsSync(join(outDir, p)) });
   const result = { lienzo: url, version, version_anterior: previous?.lienzo_version ?? null, carpeta: outDir, estados: plan.estados, escritos: [], avisos: [] };
   if (plan.sinCambios) {
@@ -452,6 +503,24 @@ export async function importCanvas({ from, url, version, feature, boards, runtim
         if (restos.length) result.avisos.push(`${vista} conserva restos del motor: ${restos.join(', ')}`);
         write(vista, final);
         Object.assign(record, { vista, alto, huella_vista: sha256(final) });
+        // Cada estado, congelado aparte. El artboard auxiliar vive solo mientras se pinta.
+        if (st && declaresProp(sources[b], st.prop)) {
+          record.estados = {};
+          for (const value of st.values) {
+            const aux = join(dirname(b), `_estado-${stateSlug(value)}--${basename(b)}`).replace(/^\.\//, '');
+            const auxFile = join(projectDir, aux);
+            writeFileSync(auxFile, stateWrapper(sources[b], b, st.prop, value));
+            try {
+              const r2 = await render.render(aux, entry);
+              const local2 = await localize(r2.html, { boardDir, projectDir, outDir, blobs: blobDir, fetchImpl, fontCache, avisos: result.avisos, escritos: result.escritos });
+              const vista2 = `${vista.replace(/\.html$/, '')}@${stateSlug(value)}.html`;
+              write(vista2, stampView(local2, { url, version, board: `${b} · ${st.prop}=${value}`, importado: stamp }));
+              record.estados[value] = vista2;
+            } finally {
+              rmSync(auxFile, { force: true });
+            }
+          }
+        }
       } else {
         Object.assign(record, { vista: null, alto: null, huella_vista: null });
       }
@@ -478,8 +547,138 @@ export function status({ feature, out }) {
     lienzo_version: manifest.lienzo_version,
     importado: manifest.importado,
     artboards: Object.fromEntries(Object.entries(manifest.artboards || {}).map(([b, a]) => [b, {
-      vista: a.vista, ancho: a.ancho, importado: a.importado, retirado: !!a.retirado, pantalla: a.pantalla ?? null, ucs: a.ucs ?? [],
+      vista: a.vista, ancho: a.ancho, importado: a.importado, retirado: !!a.retirado,
+      pantalla: a.pantalla ?? manifest.pantallas?.[b]?.pantalla ?? null, ucs: a.ucs ?? manifest.pantallas?.[b]?.ucs ?? [],
     }])),
+    pantallas: manifest.pantallas || {},
+  };
+}
+
+// ── Esqueleto del lienzo (UC-9201) ───────────────────────────────────────
+
+export const WIDTHS = { escritorio: 1440, movil: 390 };
+const GAP_X = 80;
+const ROW_GAP = 120;
+const TITLE_SPACE = 260; // un título de fila va al menos 223 px por encima de su fila
+const DESKTOP_H = 900;
+const MOBILE_H = 844;
+const NOTE_W = 360;
+
+// Las tres preguntas de un brief de /design-review: la lista numerada tras «Tiene que responder».
+export function briefQuestions(text) {
+  if (!text) return [];
+  const lines = text.split('\n');
+  const at = lines.findIndex((l) => /tiene que responder/i.test(l));
+  if (at < 0) return [];
+  const out = [];
+  for (const l of lines.slice(at + 1)) {
+    const m = l.match(/^\s*\d+\.\s+(.+)$/);
+    if (m) out.push(m[1].trim());
+    else if (out.length && l.trim() && !/^\s/.test(l)) break;
+    if (out.length === 3) break;
+  }
+  return out;
+}
+
+// La carpeta del sistema dentro del lienzo: su namespace en minúsculas, sin otros caracteres.
+export function dsFolder(namespace) {
+  const f = String(namespace || 'sistema').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^[-_]+|-+$/g, '').slice(0, 64);
+  return /^[a-z0-9][a-z0-9_-]{0,63}$/.test(f) ? f : 'sistema';
+}
+
+const SLUG = /^[a-z0-9][a-z0-9-]{0,48}$/;
+
+export function scaffoldCanvas({ title, screens, ds, now = new Date().toISOString(), readBrief = () => null }) {
+  if (!title) throw fail('Falta --title', 'USO');
+  if (!Array.isArray(screens) || !screens.length) throw fail('--screens no trae ninguna pantalla', 'USO');
+  const seen = new Set();
+  const boards = {};
+  const order = [];
+  const notes = {};
+  const artboards = [];
+  const sinBrief = [];
+  const folder = ds?.url ? dsFolder(ds.namespace) : null;
+  const dsFiles = {};
+  const head = [];
+  if (ds?.url) {
+    if (!/^https:\/\/(preview\.)?claude\.(ai|com)\/(code\/)?artifact\/[A-Za-z0-9-]+$/.test(ds.url)) throw fail(`--ds-url no es la dirección de un sistema: ${ds.url}`, 'USO');
+    const files = ds.files?.length ? ds.files : ['tokens.json', 'tokens.css', 'components/bundle.css'];
+    for (const f of files) {
+      if (f.includes('..') || f.startsWith('/') || /[\\%:;]/.test(f)) throw fail(`fichero del sistema no válido: ${f}`, 'RUTA');
+      dsFiles[`project/ds/${folder}/${f}`] = { artifact: ds.url, path: `project/${f}` };
+    }
+    // Primero las variables, después las hojas y al final los scripts, como dice el README del sistema.
+    if (files.includes('tokens.css')) head.push(`<link rel="stylesheet" href="ds/${folder}/tokens.css">`);
+    for (const f of files.filter((x) => x.endsWith('.css') && x !== 'tokens.css')) head.push(`<link rel="stylesheet" href="ds/${folder}/${f}">`);
+    for (const f of files.filter((x) => x.endsWith('.js'))) head.push(`<script src="ds/${folder}/${f}"></script>`);
+  }
+  let y = TITLE_SPACE;
+  for (const [i, sc] of screens.entries()) {
+    const slug = String(sc.slug || '');
+    if (!SLUG.test(slug)) throw fail(`slug de pantalla no válido: «${slug}» (minúsculas, cifras y guiones)`, 'USO');
+    if (seen.has(slug)) throw fail(`pantalla repetida: ${slug}`, 'USO');
+    seen.add(slug);
+    const titulo = sc.titulo || slug;
+    // El tipo Design pide que el primer artboard sea la entrada, Main.dc.html; el manifiesto dice de
+    // qué pantalla es cada uno.
+    const desk = i === 0 ? 'Main.dc.html' : `${slug}.dc.html`;
+    const mob = `${slug}-390.dc.html`;
+    boards[desk] = { x: 0, y, w: WIDTHS.escritorio, h: DESKTOP_H, title: `${titulo} · 1440 px`, expand: 'fill' };
+    boards[mob] = { x: WIDTHS.escritorio + GAP_X, y, w: WIDTHS.movil, h: MOBILE_H, title: `${titulo} · 390 px`, expand: 'fill' };
+    order.push(desk, mob);
+    notes[`titulo-${slug}`] = { x: 0, y: y - TITLE_SPACE, text: titulo, kind: 'title1', maxW: WIDTHS.escritorio + GAP_X + WIDTHS.movil };
+    const preguntas = briefQuestions(sc.brief ? readBrief(sc.brief) : null);
+    if (!preguntas.length) sinBrief.push(slug);
+    else {
+      notes[`brief-${slug}`] = {
+        x: WIDTHS.escritorio + GAP_X + WIDTHS.movil + GAP_X, y, w: NOTE_W, fill: 'orange',
+        text: `Tiene que responder:\n${preguntas.map((q, i) => `${i + 1}. ${q}`).join('\n')}${sc.ucs?.length ? `\n\n${sc.ucs.join(', ')}` : ''}`,
+      };
+    }
+    for (const [file, w] of [[desk, WIDTHS.escritorio], [mob, WIDTHS.movil]]) {
+      artboards.push({ file, ancho: w, pantalla: slug, titulo, ucs: sc.ucs || [], brief: sc.brief || null, preguntas });
+    }
+    y += Math.max(DESKTOP_H, MOBILE_H) + ROW_GAP + TITLE_SPACE;
+  }
+  const canvas = {
+    v: 3,
+    createdOnFiles: { v: 1, at: now },
+    title,
+    launch: { view: 'canvas' },
+    pages: [],
+    boards,
+    order,
+    notes,
+    designSystems: ds?.url ? [{ title: ds.title || ds.namespace || folder, namespace: folder, artifact: ds.url, version: ds.version ?? null, copiedAt: now }] : [],
+  };
+  const headLines = ['<script src="./support.js"></script>', ...head];
+  return { canvas, artboards, dsFiles, headLines, sinBrief, carpetaSistema: folder };
+}
+
+export function scaffold({ feature, title, url, screens, root, ds, out, now }) {
+  if (!feature || !url || !root) throw fail('Faltan --feature, --url o --root', 'USO');
+  const list = typeof screens === 'string' ? JSON.parse(existsSync(screens) ? readFileSync(screens, 'utf8') : screens) : screens;
+  const r = scaffoldCanvas({ title, screens: list, ds, now, readBrief: (p) => (existsSync(p) ? readFileSync(p, 'utf8') : null) });
+  const canvasFile = join(root, 'project', 'canvas.json');
+  mkdirSync(dirname(canvasFile), { recursive: true });
+  writeFileSync(canvasFile, `${JSON.stringify(r.canvas, null, 2)}\n`);
+  // El manifiesto sabe de qué pantalla y de qué UC es cada artboard; la importación lo conserva.
+  const outDir = resolve(out || join('doc', 'design', feature));
+  const manifestFile = join(outDir, MANIFEST);
+  const previous = readJson(manifestFile);
+  if (previous?.url && previous.url !== url) throw fail(`${MANIFEST} es de otro lienzo (${previous.url}).`, 'USO');
+  const pantallas = { ...(previous?.pantallas || {}) };
+  for (const a of r.artboards) pantallas[a.file] = { pantalla: a.pantalla, titulo: a.titulo, ancho: a.ancho, ucs: a.ucs, brief: a.brief };
+  const manifest = { version: 1, proveedor: 'claude_design', ...(previous || {}), url, titulo: title, pantallas };
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`);
+  return {
+    canvas_json: canvasFile,
+    manifiesto: manifestFile,
+    artboards: r.artboards.map(({ preguntas, ...a }) => ({ ...a, preguntas: preguntas.length })),
+    cabecera: r.headLines,
+    copias_del_sistema: r.dsFiles,
+    sin_brief: r.sinBrief,
   };
 }
 
@@ -505,6 +704,17 @@ async function main() {
     const s = status(args);
     console.log(JSON.stringify(s ?? { error: `No hay ${MANIFEST} en doc/design/${args.feature}` }, null, 2));
     process.exit(s ? 0 : 1);
+  }
+  if (args.cmd === 'scaffold') {
+    for (const k of ['root', 'out']) if (args[k] && !isAbsolute(args[k])) args[k] = resolve(args[k]);
+    const ds = args['ds-url'] ? { url: args['ds-url'], namespace: args['ds-namespace'], version: args['ds-version'], title: args['ds-title'], files: args['ds-files']?.split(',').map((x) => x.trim()).filter(Boolean) } : null;
+    try {
+      console.log(JSON.stringify(scaffold({ ...args, ds }), null, 2));
+    } catch (e) {
+      console.error(`scaffold: ${e.message}`);
+      process.exit(1);
+    }
+    return;
   }
   if (args.cmd !== 'import') {
     console.error('Uso: node canvas.mjs import --from <carpeta> --url <lienzo> --version <id> --feature <f> [--boards a,b] [--runtime f] [--blobs d] [--out d]\n     node canvas.mjs status --feature <f>');

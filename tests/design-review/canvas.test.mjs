@@ -6,6 +6,9 @@
  * - AC-03: sin cambios no se escribe nada; con cambios se dice qué artboards cambiaron.
  * - AC-04: la vista congelada no lleva piezas del motor del lienzo.
  *
+ * UC-9201: `scaffold`, el esqueleto del lienzo de una feature que crea /plan (dos artboards por
+ * pantalla, notas del brief y el sistema de diseño instalado).
+ *
  * La importación se prueba con un pintor simulado. El congelado real necesita Playwright y el motor que
  * sirve cada lienzo (`artifact-type/dc-runtime.js`), que no es nuestro y no entra en el repositorio:
  * se toma de SPECBOX_PLAYWRIGHT y SPECBOX_DC_RUNTIME, y se salta si no están.
@@ -23,11 +26,19 @@ import {
   BANNER_MARK,
   boardKey,
   boardPathError,
+  briefQuestions,
+  declaresProp,
+  parseStates,
+  stateSlug,
+  stateWrapper,
   canvasView,
+  dsFolder,
   engineTraces,
   importCanvas,
   offlineFontCss,
   planImport,
+  scaffold,
+  scaffoldCanvas,
   stampView,
   status,
   viewName,
@@ -381,6 +392,126 @@ class Component extends DCLogic { renderVals() { return { titulo: 'Propuestas', 
     }
   } finally {
     rmSync(from, { recursive: true, force: true });
+    rmSync(out, { recursive: true, force: true });
+  }
+});
+
+// ── UC-9201: el esqueleto del lienzo de una feature ──────────────────────
+
+
+const BRIEF = '# Brief: cola (Operate)\n\n## Quién la usa y para qué\nEl responsable.\n\nTiene que responder en segundos a:\n1. ¿Qué UC esperan mi aceptación?\n2. ¿Tienen evidencia?\n3. ¿Qué he aceptado hoy?\n\n## Pantalla a construir\n1. Cabecera\n';
+const DS = { url: 'https://claude.ai/artifact/RdNh3zEkgd71XiR2TMR23M', namespace: 'TintaPrueba', version: '17-ab', title: 'Tinta prueba', files: ['tokens.json', 'tokens.css', 'components/bundle.css', 'components/bundle.js'] };
+
+test('UC-9201: las tres preguntas salen del brief de /design-review', () => {
+  assert.deepEqual(briefQuestions(BRIEF), ['¿Qué UC esperan mi aceptación?', '¿Tienen evidencia?', '¿Qué he aceptado hoy?']);
+  assert.deepEqual(briefQuestions('# Brief sin preguntas'), []);
+  assert.equal(dsFolder('TintaPrueba'), 'tintaprueba');
+  assert.equal(dsFolder('Acme UI 2'), 'acme-ui-2');
+});
+
+test('UC-9201 AC-01: dos artboards por pantalla, a 1440 y a 390, y el primero es Main', () => {
+  const r = scaffoldCanvas({
+    title: 'Cola',
+    screens: [{ slug: 'cola', titulo: 'Cola de aceptación', ucs: ['UC-1'], brief: 'cola.md' }, { slug: 'detalle', titulo: 'Detalle', ucs: ['UC-2'], brief: 'detalle.md' }],
+    ds: DS,
+    now: '2026-10-10T12:00:00Z',
+    readBrief: (p) => (p === 'cola.md' ? BRIEF : null),
+  });
+  const b = r.canvas.boards;
+  assert.deepEqual(r.canvas.order, ['Main.dc.html', 'cola-390.dc.html', 'detalle.dc.html', 'detalle-390.dc.html']);
+  assert.deepEqual([b['Main.dc.html'].w, b['cola-390.dc.html'].w, b['detalle.dc.html'].w, b['detalle-390.dc.html'].w], [1440, 390, 1440, 390]);
+  assert.equal(b['cola-390.dc.html'].x, 1440 + 80, '80 px entre artboards de una fila');
+  assert.equal(b['cola-390.dc.html'].y, b['Main.dc.html'].y, 'la misma fila');
+  assert.ok(b['detalle.dc.html'].y - (b['Main.dc.html'].y + 900) >= 120 + 223, 'filas separadas y sitio para el título');
+  for (const k of Object.keys(b)) assert.equal(b[k].expand, 'fill', `${k} es una página fluida`);
+  assert.deepEqual(r.canvas.createdOnFiles, { v: 1, at: '2026-10-10T12:00:00Z' });
+  assert.equal(r.canvas.notes['titulo-cola'].kind, 'title1');
+  assert.match(r.canvas.notes['brief-cola'].text, /1\. ¿Qué UC esperan mi aceptación\?/);
+  assert.deepEqual(r.sinBrief, ['detalle'], 'una pantalla sin brief se dice');
+  assert.equal(r.artboards.filter((a) => a.pantalla === 'cola').length, 2);
+});
+
+test('UC-9201 AC-02: el sistema del proyecto queda instalado y la cabecera lo carga en orden', () => {
+  const r = scaffoldCanvas({ title: 'Cola', screens: [{ slug: 'cola' }], ds: DS, now: 'x' });
+  assert.deepEqual(r.canvas.designSystems, [{ title: 'Tinta prueba', namespace: 'tintaprueba', artifact: DS.url, version: '17-ab', copiedAt: 'x' }]);
+  assert.deepEqual(r.dsFiles['project/ds/tintaprueba/tokens.json'], { artifact: DS.url, path: 'project/tokens.json' });
+  assert.ok(r.dsFiles['project/ds/tintaprueba/components/bundle.js']);
+  assert.deepEqual(r.headLines, [
+    '<script src="./support.js"></script>',
+    '<link rel="stylesheet" href="ds/tintaprueba/tokens.css">',
+    '<link rel="stylesheet" href="ds/tintaprueba/components/bundle.css">',
+    '<script src="ds/tintaprueba/components/bundle.js"></script>',
+  ]);
+  assert.throws(() => scaffoldCanvas({ title: 'x', screens: [{ slug: 'a' }], ds: { ...DS, url: 'https://evil.example/artifact/x' } }), /no es la dirección de un sistema/);
+  assert.throws(() => scaffoldCanvas({ title: 'x', screens: [{ slug: 'a' }], ds: { ...DS, files: ['../fuera.css'] } }), /no válido/);
+  assert.throws(() => scaffoldCanvas({ title: 'x', screens: [{ slug: 'Con Espacio' }] }), /slug/);
+  assert.throws(() => scaffoldCanvas({ title: 'x', screens: [{ slug: 'a' }, { slug: 'a' }] }), /repetida/);
+});
+
+test('UC-9201: scaffold apunta pantallas y UC en el manifiesto, y la importación lo conserva', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'scaffold-'));
+  const out = mkdtempSync(join(tmpdir(), 'diseno-'));
+  try {
+    writeFileSync(join(out, 'cola.brief.md'), BRIEF);
+    const r = scaffold({ feature: 'cola', title: 'Cola', url: URL_LIENZO, root, out, ds: DS, screens: JSON.stringify([{ slug: 'cola', titulo: 'Cola', ucs: ['UC-1'], brief: join(out, 'cola.brief.md') }]) });
+    assert.ok(existsSync(join(root, 'project/canvas.json')));
+    assert.deepEqual(r.sin_brief, []);
+    const m = JSON.parse(readFileSync(join(out, 'claude-design.json'), 'utf8'));
+    assert.equal(m.url, URL_LIENZO);
+    assert.deepEqual(m.pantallas['Main.dc.html'].ucs, ['UC-1']);
+    assert.equal(m.pantallas['cola-390.dc.html'].ancho, 390);
+    assert.equal(m.artboards, undefined, 'nada se da por aprobado al crear el lienzo');
+    assert.equal(status({ feature: 'cola', out }).pantallas['Main.dc.html'].pantalla, 'cola');
+    // Otro lienzo para la misma feature: no.
+    assert.throws(() => scaffold({ feature: 'cola', title: 'Cola', url: 'https://claude.ai/artifact/otro', root, out, screens: '[{"slug":"cola"}]' }), /otro lienzo/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(out, { recursive: true, force: true });
+  }
+});
+
+// ── UC-9201: cada estado de una pantalla, congelado aparte ───────────────
+
+test('UC-9201: --states congela cada estado declarado en el artboard como vista aparte', async () => {
+  assert.deepEqual(parseStates('estado=vacía, cargando,error'), { prop: 'estado', values: ['vacía', 'cargando', 'error'] });
+  assert.throws(() => parseStates('sin-igual'), /no válido/);
+  assert.equal(stateSlug('vacía'), 'vacia');
+  assert.equal(stateSlug('sin aceptar'), 'sin-aceptar');
+  const conEstado = board('Cola').replace("data-props='{}'", `data-props='{"estado":{"editor":"enum","options":["con datos","vacía"],"default":"con datos"}}'`);
+  assert.equal(declaresProp(conEstado, 'estado'), true);
+  assert.equal(declaresProp(board('Cola'), 'estado'), false);
+  const w = stateWrapper(conEstado, 'Main.dc.html', 'estado', 'vacía');
+  assert.match(w, /<dc-import name="Main" estado="vacía"/);
+  assert.match(w, /<script src="\.\/support\.js"><\/script>/, 'misma cabecera que el original');
+
+  const c = canvasFolder({ 'Main.dc.html': 'Cola', 'Movil.dc.html': 'Sin estados' });
+  c.put('project/Main.dc.html', conEstado);
+  const out = mkdtempSync(join(tmpdir(), 'diseno-'));
+  const rendered = [];
+  const renderer = {
+    async render(name) {
+      rendered.push(name);
+      const src = readFileSync(join(c.from, 'project', name), 'utf8');
+      const estado = src.match(/estado="([^"]+)"/)?.[1] || 'por defecto';
+      return { html: `<!doctype html>\n<html><head></head><body><main>${estado}</main></body></html>`, alto: 600 };
+    },
+    async close() {},
+  };
+  try {
+    const r = await importCanvas({ from: c.from, url: URL_LIENZO, version: '1', feature: 'cola', out, boards: ['Main', 'Movil'], renderer, fetchImpl: fakeFetch().impl, states: 'estado=vacía,error' });
+    assert.ok(r.escritos.includes('Main@vacia.html') && r.escritos.includes('Main@error.html'));
+    assert.ok(!r.escritos.some((e) => e.startsWith('Movil@')), 'un artboard sin esa opción no tiene estados');
+    assert.match(readFileSync(join(out, 'Main@vacia.html'), 'utf8'), /<main>vacía<\/main>/);
+    assert.ok(readFileSync(join(out, 'Main@vacia.html'), 'utf8').split('\n')[0].includes('artboard=Main.dc.html · estado=vacía'));
+    const m = JSON.parse(readFileSync(join(out, 'claude-design.json'), 'utf8'));
+    assert.deepEqual(m.artboards['Main.dc.html'].estados, { 'vacía': 'Main@vacia.html', error: 'Main@error.html' });
+    assert.ok(!readdirSync(join(c.from, 'project')).some((f) => f.startsWith('_estado-')), 'el artboard auxiliar se borra');
+    assert.match(readFileSync(join(out, 'canvas.html'), 'utf8'), /Estados: <a href="Main@vacia\.html">vacía<\/a>/);
+    // Pedir otros estados cambia lo que se congela: no cuenta como «igual».
+    const again = await importCanvas({ from: c.from, url: URL_LIENZO, version: '1', feature: 'cola', out, renderer, fetchImpl: fakeFetch().impl, states: 'estado=vacía' });
+    assert.equal(again.estados['Main.dc.html'], 'cambiado');
+  } finally {
+    rmSync(c.from, { recursive: true, force: true });
     rmSync(out, { recursive: true, force: true });
   }
 });

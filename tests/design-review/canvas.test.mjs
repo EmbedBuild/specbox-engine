@@ -37,6 +37,7 @@ import {
   importCanvas,
   offlineFontCss,
   planImport,
+  recordComment,
   scaffold,
   scaffoldCanvas,
   stampView,
@@ -513,5 +514,29 @@ test('UC-9201: --states congela cada estado declarado en el artboard como vista 
   } finally {
     rmSync(c.from, { recursive: true, force: true });
     rmSync(out, { recursive: true, force: true });
+  }
+});
+
+// ── UC-9203: los hilos tratados quedan apuntados ─────────────────────────
+
+test('UC-9203: comment-record apunta cada hilo con su artboard, su pantalla y lo que se hizo', () => {
+  const out = mkdtempSync(join(tmpdir(), 'diseno-'));
+  const root = mkdtempSync(join(tmpdir(), 'scaffold-'));
+  try {
+    scaffold({ feature: 'cola', title: 'Cola', url: URL_LIENZO, root, out, screens: '[{"slug":"cola","titulo":"Cola","ucs":["UC-7601"]}]' });
+    const d = recordComment({ feature: 'cola', out, thread: 't1', tipo: 'diseño', artboard: 'Main.dc.html', accion: 'El recuento ya no dice 0 mientras carga', version: '19-ab', now: '2026-10-10T20:00:00Z' });
+    assert.deepEqual(d, { tipo: 'diseño', artboard: 'Main.dc.html', pantalla: 'cola', ucs: ['UC-7601'], accion: 'El recuento ya no dice 0 mientras carga', lienzo_version: '19-ab', tratado: '2026-10-10T20:00:00Z' });
+    const a = recordComment({ feature: 'cola', out, thread: 't2', tipo: 'alcance', artboard: 'cola-390.dc.html', accion: 'Feedback del AC-02', feedback: 'FB-001' });
+    assert.equal(a.feedback, 'FB-001');
+    const st = status({ feature: 'cola', out });
+    assert.deepEqual(Object.keys(st.comentarios), ['t1', 't2']);
+    assert.ok(st.pantallas['Main.dc.html'], 'no pisa las pantallas');
+    assert.throws(() => recordComment({ feature: 'cola', out, thread: 't3', tipo: 'alcance', accion: 'x' }), /falta --feedback/);
+    assert.throws(() => recordComment({ feature: 'cola', out, thread: 't3', tipo: 'otro', accion: 'x' }), /«diseño» o «alcance»/);
+    assert.throws(() => recordComment({ feature: 'cola', out, thread: 't3', tipo: 'diseño', artboard: '../x.dc.html', accion: 'x' }), /no es un artboard/);
+    assert.throws(() => recordComment({ feature: 'otra', out: join(out, 'nada'), thread: 't', tipo: 'diseño', accion: 'x' }), /no está registrado/);
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true });
   }
 });

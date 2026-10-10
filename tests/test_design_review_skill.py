@@ -48,7 +48,11 @@ class TestEstructura:
 
     def test_una_referencia_por_subcomando(self):
         content = SKILL_MD.read_text(encoding="utf-8")
-        for sub, ref in (("brief", "reference/brief.md"), ("direction", "reference/direction.md")):
+        for sub, ref in (
+            ("brief", "reference/brief.md"),
+            ("direction", "reference/direction.md"),
+            ("verify", "reference/verify.md"),
+        ):
             assert f"`{sub} <pantalla>`" in content, f"falta el subcomando {sub}"
             assert f"]({ref})" in content, f"SKILL.md no enlaza {ref}"
             assert (SKILL_DIR / ref).is_file(), f"no existe {ref}"
@@ -88,7 +92,7 @@ class TestAtribucion:
     def test_cada_fuente_tiene_autor_origen_y_licencia(self):
         notices = _text("THIRD_PARTY_NOTICES.md")
         for proyecto, (licencia, fichero) in SOURCES.items():
-            fila = next((l for l in notices.splitlines() if l.startswith(f"| {proyecto}")), None)
+            fila = next((linea for linea in notices.splitlines() if linea.startswith(f"| {proyecto}")), None)
             assert fila, f"falta {proyecto} en la tabla de THIRD_PARTY_NOTICES.md"
             assert "https://github.com/" in fila, f"{proyecto}: falta el origen"
             assert licencia in fila and fichero in fila, f"{proyecto}: falta la licencia"

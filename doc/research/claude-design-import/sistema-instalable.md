@@ -51,8 +51,18 @@ calculados son los de los tokens:
 | Dato | IBM Plex Mono 12 px | clase `data-sm` |
 | Tipografías cargadas | IBM Plex Sans 400/500/600 e IBM Plex Mono 400 | — |
 
-Falta comprobar en el editor que el menú de tema enseña los colores y los estilos de texto del
-sistema. Lo comprueba el owner abriendo el lienzo.
+En el editor del lienzo, con el título del artboard seleccionado (comprobado por el owner a las 19:00):
+
+- **Estilos de texto:** el desplegable «Text style» marca `display-lg` como el actual y ofrece los del
+  sistema bajo «Tinta prueba», agrupados como en los tokens («Títulos»: `display-xl` 30px,
+  `display-lg` 24px…; «Texto»: `body-lg` 16px…).
+- **Colores:** la pestaña «Theme» del selector enseña, por su nombre de token, los colores usados en el
+  artboard (`ink-700`, `ink-900`, `status-review-text`, `status-done-text`, `status-progress-text`,
+  `on-accent`) y la paleta «Tinta prueba».
+
+![Estilos de texto del sistema en el editor](editor-estilos-de-texto.jpg)
+
+![Colores del sistema en el selector del editor](editor-colores.jpg)
 
 ## AC-02: el lienzo monta los componentes compilados
 

@@ -16,7 +16,7 @@ que use el Playwright que el proyecto ya tiene para sus e2e:
 
 ```bash
 node <skill>/scripts/verify.mjs <URL o fichero.html> \
-  --out .quality/evidence/{feature}/design-review --name {pantalla}
+  --out doc/design/{feature}/verify --name {pantalla} --format jpeg
 ```
 
 - **Destino:** la URL de la pantalla con el servidor de desarrollo levantado (el `webServer` o la
@@ -27,8 +27,11 @@ node <skill>/scripts/verify.mjs <URL o fichero.html> \
 - **Pantalla quieta:** antes de medir recorre la página (para que aparezca lo que entra al hacer
   scroll) y espera a las fuentes y al final de las animaciones, como mucho 5 s. Así la captura no
   sale a mitad de una animación de carga.
-- **Salida:** `{pantalla}-1440.png`, `{pantalla}-390.png` (página completa) y `{pantalla}-verify.json`.
-  Tarda segundos por pantalla.
+- **Salida:** `{pantalla}-1440.jpg`, `{pantalla}-390.jpg` (página completa; sin `--format jpeg`,
+  PNG) y `{pantalla}-verify.json`. Se versionan con la pantalla para que la PR y la evidencia de los
+  AC puedan enlazarlas. Tarda segundos por pantalla.
+- **Móvil de verdad:** el ancho de 390 se mide como un móvil táctil (`pointer: coarse`), así que
+  cuentan las reglas que la página pone para pantallas táctiles.
 - **Código de salida:** `0` informe escrito; `2` el proyecto no tiene Playwright; `1` error. Con `2`
   se sigue sin capturas: el revisor trabaja sobre el código y la revisión dice que no hubo medición.
 
@@ -43,10 +46,14 @@ Qué mide en los dos anchos:
 | `transition-all` | `transition-property: all` |
 | `emoji-icono` | Pictogramas Unicode como icono de un botón, un enlace o un icono |
 | `contraste` | Texto por debajo de 4,5:1, o de 3:1 si es grande, contra su fondo efectivo |
-| `area-pulsacion` | A 390 px, controles de menos de 40 px, salvo enlaces dentro de un texto |
+| `area-pulsacion` | A 390 px (táctil), controles de menos de 44 px, salvo enlaces dentro de un texto |
+| `cifras-tabulares` | Cifras que se comparan (en una tabla o repetidas con la misma forma) sin `tabular-nums` |
+| `estados-controles` | Hojas de estilo sin `:active`, `:focus-visible` o `:disabled` para los controles que hay |
+| `movimiento-reducido` | Animaciones que siguen activas al cargar con `prefers-reduced-motion: reduce` |
 
 Cada hallazgo trae `selector`, un fragmento del texto, el ancho donde aparece y, con un fichero, la
-`linea`. Hay un tope de 40 por regla; los que pasan se cuentan en `resumen.omitidos`.
+`linea`. Hay un tope de 40 por regla; los que pasan se cuentan en `resumen.omitidos`. Las cuatro
+últimas son el pulido medible de la rúbrica (criterios 6 y 8): no hay una pasada de pulido aparte.
 
 **Son mediciones, no veredictos.** El revisor las confirma en la captura o en el código antes de
 usarlas, y una puede estar justificada por el brief. Límites conocidos: el contraste se calcula
@@ -124,7 +131,7 @@ En `doc/design/{feature}/`, junto al brief y la dirección:
 | Defecto | Aplicado | Si no, por qué |
 Cifras sin fuente tras la corrección: ninguna | lista
 
-Capturas e informe: `.quality/evidence/{feature}/design-review/{pantalla}-*`
+Capturas e informe: `doc/design/{feature}/verify/{pantalla}-*`
 ```
 
 ## 4. Una ronda de corrección, como mucho

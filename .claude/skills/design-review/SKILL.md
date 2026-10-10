@@ -90,13 +90,13 @@ Referencias compartidas, que se cargan solo cuando hacen falta:
 
 ## Cómo encaja en el resto del flujo
 
-Esta skill es la base de EP-16. Otras piezas, en construcción, la consumen:
-- `/plan` (UC-9004): crítica de cada candidato de Stitch o Claude Design con
-  [reference/rubric.md](reference/rubric.md), en un subagente aislado y con una sola ronda de
-  corrección. Mientras tanto, antes de generar una pantalla, ejecuta aquí `brief` y `direction` y
-  construye el prompt con los dos ficheros.
-- `/implement` (UC-9102): `verify` de cada pantalla implementada después del design-to-code.
-  Mientras tanto, ejecútalo aquí antes de cerrar una UC con pantallas.
+Esta skill es la base de EP-16 y la consumen:
+- `/plan` (Pasos 6.1 y 6.4b, UC-9004): pide el brief y la dirección antes de construir el prompt, y
+  critica cada candidato de Stitch o Claude Design con [reference/rubric.md](reference/rubric.md) en
+  un subagente aislado, con una sola ronda de corrección.
+- `/implement` (Paso 6.5, UC-9102): `verify` de cada pantalla implementada, con una ronda de
+  corrección y el veredicto en la PR y en la evidencia. `specbox.design_review.mode` decide si un
+  «Block» solo avisa (`warn`, por defecto) o para el paso a revisión (`block`).
 - `/visual-setup` (UC-9002): proceso de dirección y lista de lo que se rehúsa, a nivel de proyecto.
 
 ## Lo que esta skill no hace

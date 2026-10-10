@@ -30,6 +30,9 @@ RULES = (
     "emoji-icono",
     "contraste",
     "area-pulsacion",
+    "cifras-tabulares",
+    "estados-controles",
+    "movimiento-reducido",
 )
 
 

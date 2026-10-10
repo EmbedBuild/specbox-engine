@@ -13,6 +13,8 @@
   .tenue { color: #bbbbbb; }
   .peque { min-height: 0; height: 24px; width: 24px; padding: 0; }
   .ancha { width: 600px; }
+  .cargando { width: 24px; height: 24px; border: 3px solid #111; border-top-color: transparent; border-radius: 50%; animation: gira 1s linear infinite; }
+  @keyframes gira { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -26,5 +28,10 @@
   <button class="peque" aria-label="Cerrar">x</button>
   <div class="ancha">Una tabla que no se reconvierte</div>
   <p>Ingresos del mes: 12.400 € y 81 % de aceptación</p>
+  <table>
+    <tr><td>Reforma cocina</td><td class="importe">1.250 €</td></tr>
+    <tr><td>Baño</td><td class="importe">980 €</td></tr>
+  </table>
+  <div class="cargando" role="status" aria-label="Cargando"></div>
 </body>
 </html>

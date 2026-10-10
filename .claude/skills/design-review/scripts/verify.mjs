@@ -3,11 +3,16 @@
 //
 // Uso:
 //   node verify.mjs <fichero.html | URL> --out <dir> [--name <pantalla>] [--widths 1440,390]
-//                   [--previous <verify.json>] [--sources <brief.md,prd.md>] [--playwright <ruta>]
+//                   [--previous <verify.json>] [--sources <brief.md,prd.md>] [--format png|jpeg]
+//                   [--playwright <ruta>]
 //
 // No trae dependencias: usa el Playwright que el proyecto ya tiene para sus e2e (`playwright`,
 // `@playwright/test` o `playwright-core`). Prueba primero el Chrome del sistema y después el
-// Chromium de Playwright. Escribe <name>-<ancho>.png y <name>-verify.json en --out.
+// Chromium de Playwright. Escribe <name>-<ancho>.png (o .jpg) y <name>-verify.json en --out.
+//
+// Los anchos de 480 px o menos se miden como un móvil táctil (pointer: coarse). El pulido medible
+// (UC-9102) va en las mismas reglas: áreas de 44 px, cifras tabulares, estados de los controles y
+// movimiento con prefers-reduced-motion.
 //
 // Salida: 0 informe escrito · 2 el proyecto no tiene Playwright (no se instala nada) · 1 error.
 
@@ -18,7 +23,8 @@ import { pathToFileURL } from 'node:url';
 
 export const RULES = [
   'desbordamiento', 'texto-degradado', 'borde-lateral', 'eyebrow', 'transition-all',
-  'emoji-icono', 'contraste', 'area-pulsacion',
+  'emoji-icono', 'contraste', 'area-pulsacion', 'cifras-tabulares', 'estados-controles',
+  'movimiento-reducido',
 ];
 
 // ── Funciones puras (también las usan los tests) ─────────────────────────
@@ -95,7 +101,7 @@ export function numbersWithoutSource(previous, current, sourcesText) {
 
 // ── Lo que se ejecuta dentro de la página (autocontenido) ────────────────
 
-function inPage({ width, tap }) {
+function inPage({ width, tap, states, motion }) {
   const MAX = 40;
   const out = [];
   // Lo que mide 1 px o menos (sr-only, entradas ocultas con clip) no se ve: no cuenta.
@@ -126,11 +132,13 @@ function inPage({ width, tap }) {
     className: typeof el.className === 'string' ? el.className : '',
     text: (ownText(el) || el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60),
   });
-  // Tope de MAX hallazgos por regla; los que pasan se cuentan en `omitidos`.
+  // Tope de MAX hallazgos por regla; los que pasan se cuentan en `omitidos`. Los estados de los
+  // controles se cuentan por estado, aunque señalen el mismo elemento.
   const omitidos = {};
   const push = (regla, el, detalle) => {
     const sel = selector(el);
-    if (out.some((f) => f.regla === regla && f.selector === sel)) return;
+    const same = (f) => f.regla === regla && f.selector === sel && (regla !== 'estados-controles' || f.detalle === detalle);
+    if (out.some(same)) return;
     if (out.filter((f) => f.regla === regla).length >= MAX) { omitidos[regla] = (omitidos[regla] || 0) + 1; return; }
     out.push({ regla, selector: sel, detalle, ancho: width, ...hint(el) });
   };
@@ -170,11 +178,25 @@ function inPage({ width, tap }) {
   };
   const ratio = (a, b) => { const x = lum(a); const y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
 
+  // Movimiento con prefers-reduced-motion: reduce (la página se carga ya con esa preferencia).
+  if (motion) {
+    for (const a of document.getAnimations()) {
+      const el = a.effect && a.effect.target;
+      if (!el || el.nodeType !== 1 || ['finished', 'idle'].includes(a.playState)) continue;
+      const t = a.effect.getComputedTiming();
+      const ms = Number(t.duration) || 0;
+      if (ms <= 10 && Number.isFinite(t.iterations)) continue;
+      const kind = a.animationName ? `animation ${a.animationName}` : a.transitionProperty ? `transition ${a.transitionProperty}` : 'animación';
+      push('movimiento-reducido', el, `${kind} de ${Math.round(ms)} ms${t.iterations === Infinity ? ' en bucle' : ''} sigue activa con prefers-reduced-motion: reduce`);
+    }
+    return { hallazgos: out, omitidos, texto: '' };
+  }
+
   const all = [...document.querySelectorAll('body *')].filter((el) => !['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE'].includes(el.tagName) && visible(el));
 
-  // Áreas de pulsación: solo en el ancho de móvil, donde se pulsa con el dedo.
+  // Áreas de pulsación: solo en el ancho de móvil, donde se pulsa con el dedo (44 px).
   if (tap) {
-    const TAP = 40;
+    const TAP = 44;
     const interactive = all.filter((el) => el.matches('a[href], button, input:not([type=hidden]), select, textarea, summary, [role=button], [role=link], [role=tab], [tabindex]:not([tabindex="-1"])'));
     for (const el of interactive) {
       if (el.disabled) continue;
@@ -191,13 +213,45 @@ function inPage({ width, tap }) {
         if ([t, rr, b, l].every(Number.isFinite)) { w = Math.max(w, r.width - l - rr); h = Math.max(h, r.height - t - b); }
         else { const pw = parseFloat(ps.width); const ph = parseFloat(ps.height); if (Number.isFinite(pw)) w = Math.max(w, pw); if (Number.isFinite(ph)) h = Math.max(h, ph); }
       }
-      if (w < TAP || h < TAP) push('area-pulsacion', el, `${Math.round(w)}×${Math.round(h)} px (mínimo ${TAP}; recomendado 44 en táctil)`);
+      if (w < TAP || h < TAP) push('area-pulsacion', el, `${Math.round(w)}×${Math.round(h)} px (mínimo ${TAP} en táctil)`);
     }
   }
+
+  // Estados de los controles: la hoja de estilos tiene que definir :active, :focus-visible y
+  // :disabled. Una hoja de otro origen no se puede leer: si hay alguna (salvo las de fuentes) y no
+  // se encuentra el estado, no se afirma nada.
+  if (states) {
+    const controls = all.filter((el) => el.matches('button, a[href], input:not([type=hidden]), select, textarea, [role=button]'));
+    if (controls.length) {
+      const selectors = [];
+      let unreadable = false;
+      const collect = (rules) => {
+        for (const r of rules) {
+          if (r.selectorText) selectors.push(r.selectorText);
+          if (r.cssRules) collect(r.cssRules);
+        }
+      };
+      for (const sheet of document.styleSheets) {
+        try { collect(sheet.cssRules); } catch { if (!/fonts\.(googleapis|bunny)\.|typekit/.test(sheet.href || '')) unreadable = true; }
+      }
+      const has = (re) => selectors.some((x) => re.test(x));
+      const check = (re, msg, list) => { if (list.length && !has(re) && !unreadable) push('estados-controles', list[0], msg); };
+      check(/:active\b/, 'ningún estilo :active: los controles no responden al pulsarlos', controls);
+      check(/:focus-visible\b|:focus\b/, 'ningún estilo :focus-visible: el foco con teclado no se ve', controls);
+      check(/:disabled\b|\[disabled\]|\[aria-disabled/, 'ningún estilo :disabled: un control desactivado parece activo',
+        controls.filter((el) => el.matches('button, input, select, textarea')));
+    }
+  }
+
+  // Cifras: las que se comparan (en una tabla, o repetidas con la misma forma) van tabulares.
+  const FIGURE = /^[^\p{L}\d]*\d[\d\s.,:/%€$£+\-−]*(?:\s?(?:€|%|h|min|s|ms|k|K|M))?[^\p{L}\d]*$/u;
+  const figures = [];
 
   for (const el of all) {
     const cs = getComputedStyle(el);
     const text = ownText(el);
+    if (text && FIGURE.test(text) && (text.match(/\d/g) || []).length >= 2
+      && !/tabular-nums/.test(cs.fontVariantNumeric) && !/mono/i.test(cs.fontFamily)) figures.push(el);
     const clip = cs.backgroundClip || cs.webkitBackgroundClip;
     if ((clip === 'text' || cs.webkitBackgroundClip === 'text') && /gradient/.test(cs.backgroundImage)) push('texto-degradado', el, cs.backgroundImage.slice(0, 80));
 
@@ -240,6 +294,12 @@ function inPage({ width, tap }) {
         if (r < need) push('contraste', el, `${r.toFixed(2).replace('.', ',')}:1 (necesita ${String(need).replace('.', ',')}:1, ${Math.round(size)} px)`);
       }
     }
+  }
+  const shape = (el) => `${el.tagName}.${(typeof el.className === 'string' ? el.className.trim().split(/\s+/)[0] : '')}|${el.parentElement ? el.parentElement.tagName : ''}`;
+  const count = {};
+  for (const el of figures) count[shape(el)] = (count[shape(el)] || 0) + 1;
+  for (const el of figures) {
+    if (el.closest('td, th') || count[shape(el)] >= 2) push('cifras-tabulares', el, `«${ownText(el)}» sin font-variant-numeric: tabular-nums`);
   }
   return { hallazgos: out, omitidos, texto: document.body.innerText };
 }
@@ -312,7 +372,9 @@ async function launch(pw) {
   throw last;
 }
 
-export async function verify({ target, out, name = 'pantalla', widths = [1440, 390], previous, sources = [], playwright }) {
+const findingKey = (f) => `${f.regla}|${f.selector}${f.regla === 'estados-controles' ? `|${f.detalle}` : ''}`;
+
+export async function verify({ target, out, name = 'pantalla', widths = [1440, 390], previous, sources = [], format = 'png', playwright }) {
   const started = Date.now();
   const pw = loadPlaywright(playwright);
   if (!pw) {
@@ -330,9 +392,20 @@ export async function verify({ target, out, name = 'pantalla', widths = [1440, 3
 
   const browser = await launch(pw);
   const report = { version: 1, objetivo: target, fecha: new Date().toISOString(), anchos: {}, capturas: {}, hallazgos: [] };
+  const jpeg = format === 'jpeg' || format === 'jpg';
+  const add = (list, w) => {
+    // Una regla en el mismo elemento se cuenta una vez, aunque aparezca en los dos anchos.
+    for (const f of list) {
+      const seen = report.hallazgos.find((g) => findingKey(g) === findingKey(f));
+      if (seen) seen.anchos = [...new Set([...(seen.anchos || [seen.ancho]), w])];
+      else report.hallazgos.push(f);
+    }
+  };
   try {
-    for (const w of widths) {
-      const page = await browser.newPage({ viewport: { width: w, height: 900 }, deviceScaleFactor: 1 });
+    for (const [i, w] of widths.entries()) {
+      // Por debajo de 480 px, un móvil táctil: pointer coarse y la etiqueta viewport de la página.
+      const touch = w <= 480 ? { isMobile: true, hasTouch: true } : {};
+      const page = await browser.newPage({ viewport: { width: w, height: 900 }, deviceScaleFactor: 1, ...touch });
       await page.goto(url, { waitUntil: 'load', timeout: 60000 });
       await page.evaluate(settle);
       const medidas = await page.evaluate(measure, w);
@@ -340,20 +413,20 @@ export async function verify({ target, out, name = 'pantalla', widths = [1440, 3
       if (medidas.desborda) {
         report.hallazgos.push({ regla: 'desbordamiento', selector: 'html', ancho: w, detalle: `el documento mide ${medidas.scrollWidth} px en una ventana de ${w}`, sobresalen: medidas.sobresalen });
       }
-      const png = `${name}-${w}.png`;
-      await page.screenshot({ path: join(out, png), fullPage: true });
-      report.capturas[w] = png;
-      const res = await page.evaluate(inPage, { width: w, tap: w <= 480 });
-      // Una regla en el mismo elemento se cuenta una vez, aunque aparezca en los dos anchos.
-      for (const f of res.hallazgos) {
-        const seen = report.hallazgos.find((g) => g.regla === f.regla && g.selector === f.selector);
-        if (seen) seen.anchos = [...new Set([...(seen.anchos || [seen.ancho]), w])];
-        else report.hallazgos.push(f);
-      }
+      const shot = `${name}-${w}.${jpeg ? 'jpg' : 'png'}`;
+      await page.screenshot({ path: join(out, shot), fullPage: true, ...(jpeg ? { type: 'jpeg', quality: 75 } : {}) });
+      report.capturas[w] = shot;
+      const res = await page.evaluate(inPage, { width: w, tap: w <= 480, states: i === 0 });
+      add(res.hallazgos, w);
       report.numeros = [...new Set([...(report.numeros || []), ...numbersIn(res.texto)])];
       for (const [regla, n] of Object.entries(res.omitidos)) report.omitidos = { ...report.omitidos, [regla]: Math.max(n, report.omitidos?.[regla] || 0) };
       await page.close();
     }
+    // Movimiento: la misma página cargada con prefers-reduced-motion: reduce, recién cargada.
+    const still = await browser.newPage({ viewport: { width: widths[0], height: 900 }, deviceScaleFactor: 1, reducedMotion: 'reduce' });
+    await still.goto(url, { waitUntil: 'load', timeout: 60000 });
+    add((await still.evaluate(inPage, { width: widths[0], motion: true })).hallazgos, widths[0]);
+    await still.close();
   } finally {
     await browser.close();
   }
@@ -387,6 +460,7 @@ function parseArgs(argv) {
     else if (a === '--widths') args.widths = next().split(',').map(Number);
     else if (a === '--previous') args.previous = next();
     else if (a === '--sources') args.sources = next().split(',').filter(Boolean);
+    else if (a === '--format') args.format = next();
     else if (a === '--playwright') args.playwright = next();
     else rest.push(a);
   }
@@ -397,7 +471,7 @@ function parseArgs(argv) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.target || !args.out) {
-    console.error('Uso: node verify.mjs <fichero.html | URL> --out <dir> [--name pantalla] [--widths 1440,390] [--previous verify.json] [--sources brief.md,prd.md]');
+    console.error('Uso: node verify.mjs <fichero.html | URL> --out <dir> [--name pantalla] [--widths 1440,390] [--previous verify.json] [--sources brief.md,prd.md] [--format png|jpeg]');
     process.exit(1);
   }
   if (!isAbsolute(args.out)) args.out = resolve(args.out);

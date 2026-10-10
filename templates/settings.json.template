@@ -105,6 +105,12 @@
             "if": "Bash(.*gh pr create.*)",
             "command": "node .claude/hooks/design-system-gate.mjs",
             "timeout": 20
+          },
+          {
+            "type": "command",
+            "if": "Bash(*gh pr create*)",
+            "command": "node .claude/hooks/design-review-gate.mjs",
+            "timeout": 20
           }
         ]
       },
@@ -114,6 +120,11 @@
           {
             "type": "command",
             "command": "node .claude/hooks/design-system-gate.mjs",
+            "timeout": 20
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/design-review-gate.mjs",
             "timeout": 20
           }
         ]

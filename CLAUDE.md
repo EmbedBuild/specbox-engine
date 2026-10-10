@@ -240,6 +240,7 @@ specbox-engine/
 │   │   ├── commit-spec-guard.mjs
 │   │   ├── context-budget-guard.mjs
 │   │   ├── design-gate.mjs
+│   │   ├── design-review-gate.mjs
 │   │   ├── design-system-gate.mjs
 │   │   ├── e2e-gate.mjs
 │   │   ├── file-ownership-guard.mjs
@@ -452,6 +453,7 @@ Automatic enforcement — no need to remember running these manually:
 | **session-start** | SessionStart | Non-blocking: injects `.quality/handoff.md` (if fresh), active UC + checkpoint, and auto zones from `app_spec.md` as `additionalContext` for the new session. Capped at 14k chars. v5.30. |
 | **pre-read-budget-guard** | PreToolUse (Read) | Non-blocking WARNING: estimates tokens for the file being read; warns if ≥ `specbox.context_budget.warn_pct` of the window (default 5% of 1M). v5.30. |
 | **design-system-gate** | PreToolUse (mcp__SpecBox-MCP__move_uc → review/done, mcp__SpecBox-MCP__complete_uc, `gh pr create`) | **BLOCKING in autopilot** (exit 2): scans the UI files changed on the branch against the project's `design-system.tokens.json` — colours written directly, fonts outside the system, weights above the system maximum, gradients — and lists each with `file:line` and what to do. Warns outside autopilot; `specbox.design_gate.mode` overrides. US-49 · UC-4902. |
+| **design-review-gate** | PreToolUse (mcp__SpecBox-MCP__move_uc → review/done, mcp__SpecBox-MCP__complete_uc, `gh pr create`) | Reads the verdict of each `doc/design/{feature}/{screen}.verify.md` changed on the branch. With `specbox.design_review.mode = "block"`, a «Block» stops the transition (exit 2) with the screens and their three priority problems; with `warn` (default) or `off` it passes and the verdict goes to the PR and the evidence. US-91 · UC-9102. |
 | **freeform-path-guard** | PreToolUse (mcp__SpecBox-MCP__set_auth_token, mcp__SpecBox-MCP__onboard_project) | Auto-rewrites relative FreeForm `root_path` / `freeform_root_absolute` to an absolute path resolved against `git rev-parse --show-toplevel` via `hookSpecificOutput.updatedInput`. Covers the implicit-default case (`onboard_project` with no `backend_type` AND no `trello_board_name`). **BLOCKING** (exit 2) only when CWD is not a git repo and resolution is ambiguous. Logs every rewrite to `.quality/logs/freeform-path-rewrites.jsonl`. Defense in depth on top of the v5.29 server-side guard. v5.33. |
 | context-budget-guard | PreToolUse (Task) | Non-blocking by default: estimates the tokens of a subagent's prompt and warns when it exceeds the budget; `specbox.implement.task_isolation.task_budget_mode: strict` blocks. v5.32. |
 | file-ownership-guard | PreToolUse (Write/Edit) | Non-blocking by default: warns when an /implement subagent writes outside the files its role owns (`.claude/skills/implement/file-ownership.md`); `ownership_mode: strict` blocks. v5.32. |

@@ -15,6 +15,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -97,6 +98,12 @@ test('pantalla con tells: cada regla aparece con su ubicación y el desbordamien
     const tap = of('area-pulsacion');
     assert.ok(tap.some((f) => f.linea === lineOf('class="peque"') && f.ancho === 390));
     assert.ok(!tap.some((f) => f.selector.includes('boton')), 'un botón de 44 px no es un hallazgo');
+
+    // UC-9102 AC-01: el pulido medible va en las mismas reglas, con su ubicación.
+    assert.ok(of('cifras-tabulares').some((f) => f.linea === lineOf('1.250 €')), 'importes de una tabla sin tabular-nums');
+    assert.ok(of('movimiento-reducido').some((f) => f.linea === lineOf('class="cargando"') && /en bucle/.test(f.detalle)));
+    const estados = of('estados-controles').map((f) => f.detalle).join(' | ');
+    for (const estado of [':active', ':focus-visible', ':disabled']) assert.match(estados, new RegExp(estado));
     for (const f of r.hallazgos) assert.ok(f.selector, `${f.regla} sin selector`);
   } finally {
     rmSync(out, { recursive: true, force: true });
@@ -122,6 +129,25 @@ test('pantalla quieta: espera a que acabe la animación de entrada antes de medi
     const r = await verify({ target: join(fixtures, 'animada.html'), out, name: 'animada', playwright: process.env.SPECBOX_PLAYWRIGHT });
     assert.ok(r.hallazgos.some((f) => f.regla === 'borde-lateral' && f.selector.includes('nota')));
   } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('por URL, como lo llama /implement con la app servida: mide y captura en JPEG', needsPlaywright, async () => {
+  const html = readFileSync(join(fixtures, 'tells.html'));
+  const server = createServer((_, res) => res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(html));
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const out = mkdtempSync(join(tmpdir(), 'verify-'));
+  try {
+    const url = `http://127.0.0.1:${server.address().port}/propuestas`;
+    const r = await verify({ target: url, out, name: 'propuestas', format: 'jpeg', playwright: process.env.SPECBOX_PLAYWRIGHT });
+    assert.deepEqual(r.capturas, { 390: 'propuestas-390.jpg', 1440: 'propuestas-1440.jpg' });
+    assert.ok(existsSync(join(out, 'propuestas-390.jpg')));
+    assert.equal(r.anchos[390].desborda, true);
+    assert.ok(r.hallazgos.some((f) => f.regla === 'contraste'));
+    assert.ok(r.hallazgos.every((f) => f.linea === undefined), 'sin fichero no hay línea');
+  } finally {
+    server.close();
     rmSync(out, { recursive: true, force: true });
   }
 });

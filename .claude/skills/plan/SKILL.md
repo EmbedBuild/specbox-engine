@@ -931,7 +931,15 @@ Para cada pantalla generada:
    (`specbox:design-role=candidate`) y nadie lo toma por fuente de producción
 3. Crear carpeta `doc/design/{feature}/` si no existe
 
-Lo mismo con los diseños de Claude Design: se guardan con su `html_banner`.
+Los diseños de Claude Design llegan con `/design-review import <feature> <artboard…>` (US-92 ·
+UC-9202). Por cada artboard aprobado deja:
+- su fuente (`canvas/<artboard>.dc.html`);
+- su **vista congelada** (`<artboard>.html`), que es HTML sin el motor del lienzo, con el banner de
+  candidato y su origen (lienzo, versión y artboard) en la primera línea;
+- la vista del lienzo (`canvas.html`);
+- el manifiesto (`claude-design.json`).
+
+Si el lienzo no cambió, no escribe nada. Detalle en `.claude/skills/design-review/reference/canvas.md`.
 
 ### 6.4b Criticar el candidato antes de darlo por bueno (US-90 · UC-9004)
 

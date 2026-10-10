@@ -153,3 +153,64 @@ test('registro: salta en cualquier Write o Edit, sin una condición que no casa 
     }
   }
 });
+
+// ── UC-9202 (US-92): pantallas traídas de un lienzo de Claude Design ─────
+
+const IMPORTED_VIEW = '<!-- specbox:design-role=candidate · Diseño candidato de Claude Design · proveedor=claude_design · lienzo=https://claude.ai/artifact/abc · version=1-a · artboard=Listado.dc.html -->\n<!doctype html>\n<html><head><meta name="specbox:canvas" content="https://claude.ai/artifact/abc"></head><body><main>Propuestas</main></body></html>\n';
+
+test('UC-9202 AC-02: una pantalla importada del lienzo satisface la puerta igual que una de Stitch', () => {
+  const p = project();
+  try {
+    p.write('doc/design/propuestas/Listado.html', IMPORTED_VIEW);
+    p.write('doc/design/propuestas/canvas/Listado.dc.html', '<x-dc><div>{{titulo}}</div></x-dc>\n');
+    p.write('doc/design/propuestas/claude-design.json', '{"url":"https://claude.ai/artifact/abc"}\n');
+    const page = p.write('app/propuestas/page.tsx', '// Generated from: doc/design/propuestas/Listado.html\nexport default function P() { return null }\n');
+    const r = afterWrite(p, page);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout, '');
+    assert.equal(r.stderr, '');
+    // Sin trazabilidad, la misma nota que con Stitch.
+    const r2 = afterWrite(p, p.write('app/propuestas/page.tsx', 'export default function P() { return null }\n'));
+    assert.equal(r2.status, 0);
+    assert.match(JSON.parse(r2.stdout).hookSpecificOutput.additionalContext, /Generated from: doc\/design\/propuestas\//);
+  } finally {
+    p.done();
+  }
+});
+
+test('UC-9202: la fuente del lienzo sola (.dc.html) no cuenta como diseño, porque necesita el motor', () => {
+  const p = project();
+  try {
+    p.write('doc/design/propuestas/canvas/Listado.dc.html', '<x-dc><div>{{titulo}}</div></x-dc>\n');
+    const r = afterWrite(p, p.write('app/propuestas/page.tsx', 'export default function P() { return null }\n'));
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /no tiene diseño/);
+  } finally {
+    p.done();
+  }
+});
+
+test('UC-9202 AC-04: una página con piezas del motor del lienzo se bloquea con exit 2', () => {
+  const cases = [
+    ['<script src="./support.js"></script>', 'support.js'],
+    ['<x-dc><div>{{titulo}}</div></x-dc>', '<x-dc>'],
+    ['class Component extends DCLogic {}', 'DCLogic'],
+    ['<sc-for list="{{items}}" as="it"></sc-for>', '<sc-for>'],
+    ['<x-import component-from-global-scope="Cds.Button"></x-import>', '<x-import>'],
+    ['<img src="/_blob/0123456789abcdef0123456789abcdef">', '/_blob/'],
+  ];
+  for (const [snippet, name] of cases) {
+    const p = project();
+    try {
+      p.write('doc/design/propuestas/Listado.html', IMPORTED_VIEW);
+      const page = p.write('src/pages/propuestas.astro', `---\n// Generated from: doc/design/propuestas/Listado.html\n---\n${snippet}\n`);
+      const r = afterWrite(p, page);
+      assert.equal(r.status, 2, name);
+      assert.match(r.stderr, /piezas del motor del lienzo de Claude Design/, name);
+      assert.ok(r.stderr.includes(name), name);
+      assert.match(r.stderr, /vista congelada/, name);
+    } finally {
+      p.done();
+    }
+  }
+});

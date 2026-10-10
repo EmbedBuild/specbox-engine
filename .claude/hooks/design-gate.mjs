@@ -10,6 +10,12 @@
  * With a design, a page without its traceability comment gets a note through `additionalContext`
  * (exit 0: informs, does not block).
  *
+ * Claude Design (US-92 · UC-9202): what counts as a design is the frozen view `/design-review import`
+ * leaves (`{artboard}.html`), not the canvas source (`canvas/*.dc.html`), which needs the canvas
+ * engine to render. A page that carries pieces of that engine (`support.js`, `<x-dc>`, `DCLogic`,
+ * `<sc-for>`, `<sc-if>`, `<dc-import>`, `<x-import>`, `/_blob/`) gets exit 2: the design-to-code has
+ * to start from the frozen view and produce code of the stack.
+ *
  * Registered without `if`: the path filter lives here. `if` takes permission-rule globs, not
  * regexes, so the old `Write(src/pages/.*)` only matched dotfiles and the gate never ran. The input
  * is Claude Code's PostToolUse payload: the path comes absolute in `tool_input.file_path`.
@@ -61,6 +67,36 @@ function pageFeature(path) {
 const feature = pageFeature(rel);
 if (!feature) process.exit(0);
 
+// Pieces of the Claude Design canvas engine: the page would not work outside the canvas.
+const ENGINE_TRACES = [
+  ['support.js', /\bsupport\.js\b/],
+  ['<x-dc>', /<x-dc[\s>]/i],
+  ['DCLogic', /\bDCLogic\b/],
+  ['<sc-for>', /<sc-for[\s>]/i],
+  ['<sc-if>', /<sc-if[\s>]/i],
+  ['<dc-import>', /<dc-import[\s>]/i],
+  ['<x-import>', /<x-import[\s>]/i],
+  ['/_blob/', /\/_blob\/[0-9a-f]{8,}/],
+];
+const written = resolve(root, rel);
+if (fileExists(written)) {
+  let text = '';
+  try { text = readFileSync(written, 'utf-8'); } catch { /* unreadable: nothing to say */ }
+  const traces = ENGINE_TRACES.filter(([, re]) => re.test(text)).map(([name]) => name);
+  if (traces.length) {
+    process.stderr.write(
+      [
+        `PUERTA DE DISEÑO: ${rel} lleva piezas del motor del lienzo de Claude Design (${traces.join(', ')}).`,
+        'Esa página solo funciona dentro del lienzo. El design-to-code parte de la vista congelada',
+        `(doc/design/${feature}/{artboard}.html, de /design-review import) y produce código del stack,`,
+        'con los valores de los tokens del sistema. Quita esas piezas antes de seguir.',
+        '',
+      ].join('\n'),
+    );
+    process.exit(2);
+  }
+}
+
 // Multi-repo: the designs may live in the orchestrator repo.
 const { orchestratorRoot } = getProjectConfig();
 const designDir = resolve(root, orchestratorRoot, 'doc', 'design', feature);
@@ -69,7 +105,8 @@ const shownDir = relative(root, designDir).split(sep).join('/') || '.';
 const stem = basename(rel, extname(rel));
 const screen = ['page', 'index'].includes(stem) ? feature : stem;
 
-if (findFiles(designDir, /\.html$/).length === 0) {
+// A canvas source (`.dc.html`) is not a design on its own: it needs the canvas engine.
+if (findFiles(designDir, /\.html$/).filter((f) => !f.endsWith('.dc.html')).length === 0) {
   process.stderr.write(
     [
       `PUERTA DE DISEÑO: ${rel} es una página de interfaz y la feature «${feature}» no tiene diseño`,
@@ -86,10 +123,9 @@ if (findFiles(designDir, /\.html$/).length === 0) {
 }
 
 // Design exists: the page should say which design it comes from (AG-08 Check 6). A note, not a block.
-const absolute = resolve(root, rel);
-if (fileExists(absolute)) {
+if (fileExists(written)) {
   try {
-    const head = readFileSync(absolute, 'utf-8').split('\n').slice(0, 10).join('\n');
+    const head = readFileSync(written, 'utf-8').split('\n').slice(0, 10).join('\n');
     if (!head.includes('Generated from: doc/design/')) {
       process.stdout.write(
         JSON.stringify({

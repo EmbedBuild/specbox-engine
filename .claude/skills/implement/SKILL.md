@@ -920,6 +920,15 @@ Si el MCP no estaba disponible, fallo, o el usuario eligio `skip`:
 > sombras salen de los tokens del sistema (`design-system.tokens.json`) cuando existen y, si no,
 > del theme del proyecto y de `doc/design/DESIGN.md`. Un valor del HTML que no este en el sistema
 > se sustituye por el token mas cercano y se anota en el resumen de la fase.
+>
+> **Pantallas de un lienzo de Claude Design (US-92 · UC-9202):**
+> - La entrada es la vista congelada `doc/design/{feature}/{artboard}.html`, que deja
+>   `/design-review import`. La fuente `canvas/{artboard}.dc.html` solo se lee para entender
+>   estados e interaccion.
+> - El codigo no lleva nada del motor del lienzo (`support.js`, `<x-dc>`, `DCLogic`, `<sc-for>`,
+>   `<sc-if>`, `<dc-import>`, `<x-import>`, `/_blob/`). La puerta de diseño bloquea la pagina que
+>   lo lleve.
+> - Si falta la vista congelada, se importa antes.
 
 ### 4.0 Instalar dependencias VEG Motion (si hay VEG activo)
 

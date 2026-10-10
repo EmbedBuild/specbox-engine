@@ -349,7 +349,7 @@ export function loadPlaywright(explicit) {
 // Se mide la pantalla quieta: recorre la página para que aparezca lo que entra al hacer scroll y
 // espera a las fuentes y a que acaben las animaciones finitas (como mucho 5 s). Sin esto, la captura
 // sale a mitad de una animación de carga y lo que empieza oculto no se mide.
-async function settle() {
+export async function settle() {
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   if (document.fonts) await document.fonts.ready;
   const step = Math.max(window.innerHeight, 300);
@@ -363,7 +363,7 @@ async function settle() {
   await wait(150);
 }
 
-async function launch(pw) {
+export async function launch(pw) {
   const attempts = [];
   if (process.env.CHROME_PATH) attempts.push(() => pw.chromium.launch({ executablePath: process.env.CHROME_PATH, headless: true }));
   attempts.push(() => pw.chromium.launch({ channel: 'chrome', headless: true }));

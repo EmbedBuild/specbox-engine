@@ -115,6 +115,21 @@ El sync usa el ancla `_ds_sync.json` para no re-subir componentes sin cambios.
 Si el `dist/` no cambió desde el último sync, un nuevo sync no emite escrituras
 (`status="skip"`).
 
+## Traer las pantallas del lienzo al proyecto (US-92 · UC-9202)
+
+`/design` crea lienzos, pero no importa. Para importar se usa `/design-review import <feature>
+<artboard…>`:
+1. lee el lienzo con la herramienta `Artifact`;
+2. lo congela en local con el motor que sirve el propio lienzo;
+3. deja en `doc/design/<feature>/`:
+   - la fuente;
+   - una vista HTML sin motor, que se abre sin conexión;
+   - la vista del lienzo con su dirección y versión;
+   - el manifiesto `claude-design.json`.
+
+Si nada cambió, no escribe nada. Procedimiento y códigos de salida:
+`.claude/skills/design-review/reference/canvas.md`. Evidencia: `doc/research/claude-design-import/`.
+
 ## Referencia rápida de tools
 
 | Tool | Uso |

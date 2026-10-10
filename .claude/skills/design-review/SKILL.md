@@ -35,6 +35,7 @@ sale» ni se rellena con datos inventados.
 | `brief <pantalla>` | Usuario, las tres preguntas que la pantalla responde, datos reales y superficie | `doc/design/{feature}/{pantalla}.brief.md` | [reference/brief.md](reference/brief.md) |
 | `direction <pantalla>` | Dirección visual revisada contra lo que saldría por defecto | `doc/design/{feature}/{pantalla}.direction.md` | [reference/direction.md](reference/direction.md) |
 | `verify <pantalla>` | Capturas a 1440 y 390, reglas deterministas y revisor aislado | `doc/design/{feature}/{pantalla}.verify.md` | [reference/verify.md](reference/verify.md) |
+| `import <feature> [artboard…]` | Trae los artboards aprobados de un lienzo de Claude Design, congelados y con su origen | `doc/design/{feature}/{artboard}.html`, `canvas/`, `canvas.html`, `claude-design.json` | [reference/canvas.md](reference/canvas.md) |
 
 Referencias compartidas, que se cargan solo cuando hacen falta:
 - [reference/surfaces.md](reference/surfaces.md): reglas por superficie (Operate, Persuade, Read).
@@ -89,6 +90,14 @@ Referencias compartidas, que se cargan solo cuando hacen falta:
    prioritarios, notas, mediciones y hallazgos con su ubicación.
 5. Como mucho una ronda de corrección. Después, otra medición con `--previous` y `--sources`:
    una cifra nueva sin fuente es un defecto.
+
+## `/design-review import <feature> [artboard…]`
+
+1. Aprobar es nombrar el artboard. Sin nombres, enseña los del lienzo y pregunta.
+2. Lee el lienzo con la herramienta `Artifact` (índice, artboards, copia del sistema y motor) y
+   ejecuta `scripts/canvas.mjs import`. Pasos, ficheros y códigos de salida en
+   [reference/canvas.md](reference/canvas.md).
+3. Enseña qué artboards cambiaron y la vista del lienzo. Si nada cambió, no se ha escrito nada.
 
 ## Cómo encaja en el resto del flujo
 

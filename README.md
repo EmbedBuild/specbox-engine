@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.23.0 — "Poda" (sobre v6.22.2 "Mesura")<br/>
+  v 6.24.0 — "Criterio" (sobre v6.23.0 "Poda")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,20 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.24
+
+**v6.24.0 — "Criterio"** enseña al engine a juzgar lo que diseña, no solo a generarlo:
+
+- **`/design-review`** — antes de dibujar una pantalla, un brief (para quién, qué tres preguntas responde y con qué datos reales) y una dirección visual revisada contra lo que saldría por defecto. Sin brief no hay diseño.
+- **`/design-review verify`** — capturas a 1440 y 390, el scroll horizontal medido y reglas que dicen dónde está cada fallo (contraste, áreas de pulsación, `transition: all`, movimiento reducido…), y un revisor que no diseñó la pantalla con su veredicto. También en Flutter, con capturas de las pruebas de widgets y sin simulador.
+- **`/implement` verifica cada pantalla** y deja el veredicto en la PR y en la evidencia. Por defecto avisa; con `specbox.design_review.mode: "block"`, un «Block» para el paso a revisión.
+- **`/plan` critica cada candidato** de Stitch o Claude Design antes de guardarlo, y **`/visual-setup`** propone una dirección propia en vez de estéticas prefabricadas.
+- **Los hooks vuelven a ejecutarse** — sus condiciones eran expresiones regulares que Claude Code nunca casaba. La guía de hooks explica cómo se escriben.
+
+Todo avisa por defecto: ningún proyecto se bloquea sin pedirlo.
 
 ---
 
@@ -653,7 +667,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.23.0 — "Poda" (over v6.22.2 "Mesura")
+> v 6.24.0 — "Criterio" (over v6.23.0 "Poda")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -667,7 +681,18 @@ A system that turns Claude Code into a serious teammate:
 
 > The LLM provides speed. SpecBox provides quality and traceability.
 
-## What's new in v6.23
+## What's new in v6.24
+
+**v6.24.0 — "Criterio"** ("judgement") teaches the engine to judge what it designs, not just to generate it:
+
+- **`/design-review`** — before a screen is drawn, a brief (who it is for, which three questions it answers and with what real data) and a visual direction checked against what would come out by default. No brief, no design.
+- **`/design-review verify`** — screenshots at 1440 and 390, horizontal scroll measured and rules that say where each problem is (contrast, tap areas, `transition: all`, reduced motion…), plus a reviewer who did not design the screen and gives a verdict. Also on Flutter, with widget-test screenshots and no simulator.
+- **`/implement` verifies every screen** and leaves the verdict in the PR and in the evidence. It warns by default; with `specbox.design_review.mode: "block"`, a Block stops the move to review.
+- **`/plan` critiques every candidate** from Stitch or Claude Design before keeping it, and **`/visual-setup`** proposes its own direction instead of preset aesthetics.
+- **Hooks run again** — their conditions were regular expressions that Claude Code never matched. The hooks guide explains how to write them.
+
+Everything warns by default: no project is blocked unless it asks to be.
+
 
 **v6.23.0 — "Poda"** ("pruning") cuts what it had already announced would go:
 

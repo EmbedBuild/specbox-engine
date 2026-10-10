@@ -16,6 +16,7 @@ on:
       - "tests/hooks/**"
       - "tests/docs/**"
       - "tests/design-review/**"
+      - "tests/visual-setup/**"
       - "CLAUDE.md"
       - "agents/**"
       - ".claude/skills/**"
@@ -31,6 +32,7 @@ on:
       - "tests/hooks/**"
       - "tests/docs/**"
       - "tests/design-review/**"
+      - "tests/visual-setup/**"
       - "CLAUDE.md"
       - "agents/**"
       - ".claude/skills/**"
@@ -57,7 +59,7 @@ jobs:
           node-version: "22"
 
       - name: Hook tests, settings template parity and CLAUDE.md inventory
-        run: node --test tests/hooks/*.test.mjs tests/docs/*.test.mjs tests/design-review/*.test.mjs .claude/hooks/lib/*.test.mjs
+        run: node --test tests/hooks/*.test.mjs tests/docs/*.test.mjs tests/design-review/*.test.mjs tests/visual-setup/*.test.mjs .claude/hooks/lib/*.test.mjs
 
       - name: Hook smoke tests
         run: node .claude/hooks/test-hooks.mjs

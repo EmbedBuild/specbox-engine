@@ -707,38 +707,87 @@ resuelto — orquestador en multirepo, repo en monorepo), `role`, `site` y `logi
 
 ```
 ¿Qué proveedor visual quieres para este proyecto?
-├── [1] Claude Design — diseña con tus componentes reales (1:1 a código).
-│        Requiere design-system compilado. RECOMENDADO si gate_ready=true.
+├── [1] Claude Design — lienzo con el sistema de diseño del proyecto (sus tokens y,
+│        si los hay, sus componentes compilados). RECOMENDADO si hay tokens del sistema.
 ├── [2] Stitch — text-to-mockup. Útil en fase temprana sin código.
-└── [3] Ambos — Claude Design preferido cuando hay design-system; Stitch fallback.
+└── [3] Ambos — Claude Design preferido cuando hay sistema; Stitch fallback.
 ```
 
-- Si `gate_ready=true`, **recomendar Claude Design por defecto** (JR-CD.6). Si `false`,
-  recomendar Stitch y explicar que Claude Design quedará `pending` hasta que exista el
-  design-system compilado (no bloquea).
+- Si el proyecto tiene tokens del sistema (`design-system.tokens.json`), **recomendar Claude
+  Design** (JR-CD.6). Con componentes compilados (`gate_ready=true`), el lienzo además los monta.
+  Sin tokens, recomendar Stitch y explicar que Claude Design queda `pending` hasta que existan
+  (no bloquea).
 - Escribir el resultado en `veg.providers` con **MERGE** (no sobrescribir el resto del
   JSON), p. ej. `["claude_design"]`, `["stitch"]` o `["stitch","claude_design"]`.
 
-### 2.9.3 Configurar Claude Design (si se eligió)
+### 2.9.3 Publicar el sistema del proyecto para el lienzo (US-92 · UC-9204)
 
-> Claude Design usa el **login de claude.ai de esta máquina** (vía la tool `DesignSync`).
-> **No** se pide ni se guarda ninguna API key; el consumo se factura a la **suscripción
-> del usuario logueado**. Respeta los prompts de permiso de DesignSync (`create_project`,
-> `finalize_plan`, `write_files`) — **no** asumir auto-aprobación.
+> Un lienzo de Claude Design solo usa un sistema de diseño publicado como Artifact del tipo
+> **Design System**: lo instala copiando sus ficheros y su editor ofrece sus colores y estilos de
+> texto. Este paso lo publica desde los **tokens del proyecto** con la herramienta `Artifact`. Usa
+> el login de claude.ai de esta máquina y su suscripción, y no pide ni guarda ninguna clave.
+>
+> Basta con `design-system.tokens.json`. Si además hay componentes compilados, se publican y el
+> lienzo los monta.
 
-```
-Si veg.providers incluye "claude_design":
-1. Verificar login activo (claude_design_status → login_active). Si no hay login,
-   informar que la capacidad queda pending hasta iniciar sesión en claude.ai.
-2. Si no hay veg.claude_design.projectId y el usuario quiere crearlo ahora:
-   mcp__SpecBox-MCP__claude_design_create_project(project, project_root, name)
-   → el agente ejecuta DesignSync.create_project (PROMPT de permiso) y el engine
-     ancla el projectId devuelto en veg.claude_design.projectId.
-3. Si solo se eligió Claude Design, se puede SALTAR el Paso 3 (Stitch).
-```
+Si `veg.providers` incluye `"claude_design"`:
 
-> **Borrado**: no hay borrado programático de proyectos Claude Design. Para eliminar uno,
-> hazlo manualmente en claude.ai.
+1. **Precondiciones.** Si falta alguna, Claude Design queda `pending` con el motivo, y Stitch, si
+   está activo, sigue:
+   - la herramienta `Artifact` en la sesión;
+   - el tipo «Design System» en `Artifact list` con `scope: "types"`;
+   - los tokens del sistema (`design-system.tokens.json`, en las rutas del Paso 5.5.1 de `/plan`).
+2. **Componentes compilados (opcional).** Si el proyecto tiene una librería de componentes y la
+   persona acepta compilarla (es su código: se pregunta antes), se empaqueta en **un script clásico**
+   que asigna `window.<Ns>` y usa el React de la página:
+
+   ```bash
+   echo 'module.exports = window.React;' > react-global.cjs
+   npx esbuild <entrada> --bundle --format=iife --global-name=<Ns> --minify --jsx=transform \
+     --alias:react=./react-global.cjs --define:process.env.NODE_ENV='"production"' --outfile=<dist>/bundle.js
+   ```
+
+   La hoja que genere va como `--bundle-css` y los tipos (`.d.ts`, con una interfaz `<Comp>Props`
+   por componente) como `--types`.
+3. **Construir** en una carpeta del scratchpad:
+
+   ```bash
+   node .claude/skills/visual-setup/scripts/ds-artifact.mjs build --tokens <design-system.tokens.json> \
+     --out <scratch>/ds --title "<nombre del proyecto>" [--namespace <Ns>] [--design-md doc/design/DESIGN.md] \
+     [--bundle-js <dist>/bundle.js --bundle-css <dist>/bundle.css --types <dist>/index.d.ts] \
+     --by "<persona>" --via "Claude Code · <repo>"
+   ```
+
+   Escribe en `project/`:
+   - `tokens.json`: validado; lo que se cae se lista en `caidos`, con el motivo;
+   - `tokens.css`, con la forma «compilada» del tipo y la primera línea que la página adopta;
+   - `components/bundle.css`, que carga las tipografías de Google y la hoja del proyecto;
+   - con componentes: `bundle.js` con su cabecera `@ds-bundle`, más un README y una vista previa por
+     componente;
+   - `README.md` con «Consuming this system»;
+   - la portada;
+   - el índice.
+
+   Enseña `caidos` y `avisos`.
+4. **Publicar.**
+   - **Sin `veg.claude_design.designSystem`**: crea el sistema con una llamada que lleva el `type_url`
+     del tipo, un `title` y ningún fichero. Después, **una** publicación a la dirección que devuelve:
+     `root` = `<scratch>/ds`, `file_path` = su `project/design-system.json` y `files` = los demás.
+   - **Con dirección**: el sistema ya existe. `read` su `project/design-system.json` justo antes:
+     la página lo vuelve a guardar cuando alguien la abre. Repite el paso 3 con `--index <fichero
+     leído>` y publica solo lo que cambió, con el índice.
+   - Los tipos van con `contentType: "text/plain"`, porque `.d.ts` no es un tipo servido:
+     `"project/components/index.d.ts": {"from": "project/components/index.d.ts", "contentType": "text/plain"}`.
+5. **Guardar la dirección** en `.claude/settings.local.json` → `veg.claude_design.designSystem`
+   (MERGE). `/plan` la usa para instalar el sistema en cada lienzo.
+6. Si solo se eligió Claude Design, se puede **saltar el Paso 3** (Stitch).
+
+> **`DesignSync` no lleva el sistema al lienzo.** Un proyecto de claude.ai/design sincronizado con
+> `claude_design_sync_design_system` no es un Artifact y el lienzo no puede instalarlo. Lo dice la prueba
+> real de `doc/research/claude-design-import/sistema-instalable.md`. Ese sync queda solo para quien
+> diseñe directamente en claude.ai/design: este paso no lo necesita.
+>
+> **Borrado**: no hay borrado programático. Un sistema o un lienzo se borra a mano en claude.ai.
 
 ---
 
@@ -957,8 +1006,8 @@ stitch_create_design_system_from_design_md(project, stitch_project_id,
 ```
 
 Si el proyecto Stitch ya tiene Design System, actualizarlo con
-`stitch_update_design_system(..., theme=material3.theme)`. Con Claude Design, el
-sync del Paso 2.9.3 sube los componentes y tokens del sistema. En los dos casos
+`stitch_update_design_system(..., theme=material3.theme)`. Con Claude Design, la
+publicación del Paso 2.9.3 deja el sistema (tokens y componentes) listo para el lienzo. En los dos casos
 **lo que generen son candidatos** (`design_role: "candidate"`): nunca fuente de
 producción.
 

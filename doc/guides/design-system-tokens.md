@@ -118,6 +118,37 @@ qué enviar.
 Desde ese momento, cambiar el diseño es cambiar los tokens y volver a generar; el DESIGN.md no se
 edita a mano.
 
+## Usarlos desde un lienzo de Claude Design (US-92 · UC-9204)
+
+Un lienzo de Claude Design usa un sistema publicado como Artifact del tipo Design System. Al
+instalarlo, copia sus ficheros: su editor ofrece los colores y estilos de texto, y los artboards cargan
+sus hojas y sus componentes. `/visual-setup` (Paso 2.9.3) lo publica desde estos tokens con
+`.claude/skills/visual-setup/scripts/ds-artifact.mjs build`:
+
+- **`tokens.css`** declara todas las variables (`:root` para el primer tema y `[data-theme="<id>"]` para
+  los demás) y una clase por estilo de texto (`.display-lg`, `.body-md`…). Un artboard lo enlaza y
+  pinta con `var(--<token>)` sin declarar variables. La primera línea,
+  `/* <título> — generated from tokens.json */`, es la que la página del sistema reconoce para
+  regenerarlo cuando alguien edita un token.
+- **`components/bundle.css`** carga las tipografías de Google (las familias sin fichero propio) y la
+  hoja de los componentes del proyecto.
+- **Componentes compilados**: un único script clásico que asigna `window.<Ns>` y usa el React 18 de la
+  página. Con esbuild:
+
+  ```bash
+  echo 'module.exports = window.React;' > react-global.cjs
+  npx esbuild src/index.tsx --bundle --format=iife --global-name=<Ns> --minify --jsx=transform \
+    --alias:react=./react-global.cjs --define:process.env.NODE_ENV='"production"' --outfile=dist/bundle.js
+  ```
+
+  Con `--bundle-js`, `--bundle-css` y `--types`, el sistema publica `components/bundle.js` con su
+  cabecera `@ds-bundle`, más una guía y una vista previa por componente. El lienzo los monta con
+  `<x-import component-from-global-scope="<Ns>.Button" variant="primary">…</x-import>`.
+- El README del sistema termina con «Consuming this system»: el namespace y qué cargar, en qué orden.
+
+La dirección del sistema queda en `.claude/settings.local.json` → `veg.claude_design.designSystem`.
+Prueba real con su resultado: `doc/research/claude-design-import/sistema-instalable.md`.
+
 ## El gate de diseño
 
 Con tokens del sistema, el código de UI tampoco puede salirse de ellos. Antes de que una

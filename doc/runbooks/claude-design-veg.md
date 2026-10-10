@@ -10,8 +10,11 @@ El VEG puede diseñar con **dos proveedores**, elegibles por proyecto en
 `.claude/settings.local.json` → `veg.providers`:
 
 - **`stitch`** (default) — text-to-mockup. Útil en fase temprana, sin código.
-- **`claude_design`** — diseña con los **componentes reales compilados** de tu
-  design-system (1:1 a código). Vía la tool `DesignSync` del harness.
+- **`claude_design`** — diseña en un **lienzo de Claude Design** con el sistema de diseño del
+  proyecto: sus tokens y, si los hay, sus componentes compilados. `/visual-setup` publica el
+  sistema como Artifact del tipo Design System (US-92 · UC-9204). Un proyecto de claude.ai/design
+  sincronizado con `DesignSync` no se puede instalar en un lienzo
+  (`doc/research/claude-design-import/sistema-instalable.md`).
 
 Un proyecto **sin** `veg.providers` se comporta **exactamente como hoy** (solo
 Stitch). No se rompe nada.

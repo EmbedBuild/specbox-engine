@@ -56,5 +56,8 @@ def test_sin_brief_no_hay_prompt_y_el_lote_tambien_se_critica():
     assert "pasa por la crítica de 6.4b" in PLAN
 
 
-def test_claude_design_solo_a_peticion():
-    assert "Claude Design solo se critica cuando el usuario" in CRITICA
+def test_claude_design_se_critica_sobre_la_copia_congelada():
+    # UC-9201 (US-92): el lienzo ya no se critica solo a petición; se critica su copia congelada,
+    # sin abrirlo ni capturarlo.
+    assert "todo artboard de un lienzo de Claude Design" in CRITICA
+    assert "copia congelada" in CRITICA

@@ -47,7 +47,8 @@ def test_ac04_el_script_y_la_puerta_buscan_las_mismas_piezas_del_motor():
 
 
 def test_ac04_el_motor_no_entra_en_el_proyecto_ni_en_el_engine():
-    assert "no se copia" in " ".join(line.lstrip("/ ") for line in CANVAS.splitlines()[:30])
+    cabecera = CANVAS[: CANVAS.index("\nimport ")]
+    assert "no se copia" in " ".join(line.lstrip("/ ") for line in cabecera.splitlines())
     assert not list(ENGINE_ROOT.rglob("dc-runtime.js")), "el motor del lienzo no es nuestro: no se versiona"
 
 

@@ -455,6 +455,13 @@ solo avisa).
   registro de componentes del sistema, si el proyecto lo tiene).
 - **Diseños de Stitch / Claude Design de este plan**: son **candidatos**. Sirven para decidir
   disposición, jerarquía y flujo; nunca son fuente de producción y el código no copia sus valores.
+- **Lienzo de Claude Design** (si se usó, Paso 6.0b): [dirección del lienzo]. Una fila por pantalla:
+
+  | Pantalla | Artboard 1440 | Artboard 390 | Brief |
+  |---|---|---|---|
+  | [pantalla] | `[artboard].dc.html` | `[pantalla]-390.dc.html` | `doc/design/[feature]/[pantalla].brief.md` |
+
+  Las pantallas aprobadas llegan al proyecto con `/design-review import`.
 - **DESIGN.md**: generado desde los tokens (`values_outside_system` vacío); no se edita a mano.
 - *Si el proyecto no tiene tokens del sistema*: [mensaje del aviso `SYSTEM_TOKENS_MISSING`, con
   su enlace a la guía]. Mientras tanto la fuente es el Brand Kit / DESIGN.md, y los diseños
@@ -673,47 +680,72 @@ legado `inline_prefix_v1`, pasar `design_md_content` en cada
                  Continuar sin generar
 ```
 
-### 6.0b Claude Design Gate (US-29 — si `veg.providers` incluye `claude_design`)
+### 6.0b Lienzo de Claude Design (US-92 · UC-9201 — si `veg.providers` incluye `claude_design`)
 
-> Claude Design diseña con los componentes reales del design-system compilado.
-> `decision_key`: `claude_design_config_check`. Respeta los prompts de permiso de
-> DesignSync (`create_project`, `finalize_plan`, `write_files`) — **no** auto-aprobar.
+> Con Claude Design, cada feature tiene **un lienzo**: un Artifact del tipo **Design**, con dos
+> artboards por pantalla (1440 y 390) y el sistema de diseño del proyecto instalado. El lienzo se
+> hace con la herramienta `Artifact`, igual que `/design`. **No** se usa `DesignSync`: un proyecto de
+> claude.ai/design no se puede instalar en un lienzo
+> (`doc/research/claude-design-import/sistema-instalable.md`). Lo que se dibuja es un **candidato**
+> (D18).
 
 ```
 ¿veg.providers incluye "claude_design"?
-├── NO → omitir 6.0b (seguir solo con Stitch según 6.0a)
-└── SI → Evaluar el gate de precondición por topología:
-
-    mcp__SpecBox-MCP__claude_design_status(project, project_root)
-    → gate_ready, role, site, projectId, login_active
-    # MCP remoto (UC-8604): añade files_content con .claude/settings.local.json,
-    # el package.json del design-system y un fichero de su dist/ (o su config de
-    # Storybook); en un satélite, los del orquestador. Igual en sync_design_system.
-
-    ¿gate_ready == true (hay design-system compilado en el sitio resuelto)?
-    ├── SI → Ejecutar/guiar el sync ANTES de construir pantallas:
-    │        mcp__SpecBox-MCP__claude_design_sync_design_system(
-    │          project, project_root, session_projects=<DesignSync.list_projects>)
-    │        - El agente corre DesignSync en orden list/read → finalize_plan →
-    │          write/delete (prompts de permiso respetados).
-    │        - Idempotente: si _ds_sync.json coincide, no re-sube (status="skip").
-    │        - Multi-cuenta: si el projectId lo creó otra cuenta pero la sesión
-    │          activa es writable, procede y avisa; el consumo va a la suscripción
-    │          del usuario logueado.
-    └── NO (not-ready: no hay design-system todavía) →
-            Registrar en plan: claude_design_veg: PENDING (reason del gate)
-            NO fallar — /plan continúa. Si Stitch también está activo, usarlo;
-            si solo estaba claude_design, las pantallas quedan pending con motivo.
+├── NO → omitir 6.0b (seguir con Stitch según 6.0a)
+└── SI → 1. Precondiciones. Si falta una, se dice CUÁL y se sigue con Stitch (6.0a), sin fallar:
+         - la herramienta Artifact en esta sesión
+           → «Esta sesión no tiene la herramienta Artifact (Claude Code 2.1.265 o posterior)»
+         - la plantilla Design: Artifact list con scope "types" incluye «Design»
+           → «La plantilla Design no está disponible para esta cuenta»
+         - sesión de claude.ai: la creación del lienzo (paso 3) falla por autorización
+           → «No hay sesión de claude.ai en esta máquina: inicia sesión y vuelve a /plan»
+         - el sistema del proyecto: veg.claude_design.designSystem (su dirección)
+           → si falta y hay design-system.tokens.json: publicarlo ahora con /visual-setup 2.9.3
+           → si no hay tokens: claude_design_veg: PENDING («sin tokens del sistema») y Stitch
+         Registrar en el plan: claude_design_veg: PENDING (motivo) cuando no se use el lienzo.
 ```
 
-> **Caso "no design-system todavía → pending"**: el gate devuelve `ready=false` con un
-> motivo legible (p. ej. "missing dist/"). El VEG de Claude Design se marca `pending` y
-> el plan NO se interrumpe (JR-CD.3).
+2. **Brief y dirección de cada pantalla** (6.1): `/design-review brief` y `direction`. **Sin brief no
+   hay artboard**: cada artboard parte de su brief (usuario, las tres preguntas y datos reales) y lo
+   que falta va como `[DATO REAL: …]`.
+3. **Un lienzo por feature.** Si `doc/design/{feature}/claude-design.json` ya tiene una dirección, se
+   usa ese lienzo: se revisa, nunca se crea otro. Si no, una llamada a `Artifact` con el `type_url` del
+   tipo Design (de `list` con `scope: "types"`), `title` = la feature y `auto_open:
+   "after_first_write"`, sin ficheros. La respuesta trae la dirección y la guía del tipo: síguela para
+   los ficheros.
+4. **Esqueleto** en una carpeta del scratchpad:
 
-> **Entrada y salida (UC-4901)**: la respuesta `ok` del sync nombra lo que Claude Design
-> recibe del sistema (`system_input`: componentes y tokens) y marca lo que diseñe como
-> candidato (`design_role: "candidate"`, `html_banner`). Igual que con Stitch, sus
-> pantallas nunca son fuente de producción.
+   ```bash
+   node .claude/skills/design-review/scripts/canvas.mjs scaffold --feature {feature} --title "{feature}" \
+     --url <lienzo> --screens <pantallas.json> --root <scratch>/lienzo \
+     --ds-url <veg.claude_design.designSystem> --ds-namespace <Ns> --ds-version <versión> \
+     --ds-files tokens.json,tokens.css,components/bundle.css[,components/bundle.js]
+   ```
+
+   - `<pantallas.json>`: `[{"slug", "titulo", "ucs": [...], "brief": "doc/design/{feature}/{pantalla}.brief.md"}]`,
+     una entrada por pantalla de las UC.
+   - El namespace y los ficheros salen de «Consuming this system» del README del sistema; la versión,
+     de `Artifact list` con `scope: "files"`.
+
+   El script escribe `project/canvas.json`:
+   - dos artboards por pantalla, a 1440 y 390 (el de escritorio de la primera es `Main.dc.html`);
+   - un título por fila y una nota con las tres preguntas del brief;
+   - el registro del sistema.
+
+   Devuelve la `cabecera` de cada artboard y las `copias_del_sistema`, y apunta en
+   `doc/design/{feature}/claude-design.json` qué pantalla y qué UC son de cada artboard.
+5. **Artboards**, según la guía del tipo:
+   - La primera llamada lleva `canvas.json`, `Main.dc.html` y las `copias_del_sistema`, entradas
+     `{artifact, path}` que copia el servidor. Después, un artboard por llamada.
+   - Cada artboard abre con la `cabecera`. Pinta con `var(--token)` y las clases de los estilos de
+     texto del sistema, **sin declarar variables**.
+   - Si el sistema publica componentes (`window.<Ns>`), monta los reales con
+     `<x-import component-from-global-scope="<Ns>.<Comp>">`; nunca imitaciones.
+   - El artboard de 390 puede montar la página fluida de 1440 con `<dc-import>`: es la misma pantalla
+     a otro ancho, no una copia.
+6. **Anotar en el plan** («Fuente de diseño»): la dirección del lienzo y, por pantalla, sus dos
+   artboards.
+7. **Crítica**: 6.4b, sobre la copia congelada del lienzo.
 
 ### 6.0 Detectar Proyecto Stitch
 
@@ -947,8 +979,13 @@ Si el lienzo no cambió, no escribe nada. Detalle en `.claude/skills/design-revi
 > escritorio, datos del brief alterados y tells. La verificación con un revisor aislado fue la capa
 > que más subió las pantallas (+5,75/40). Un candidato no se guarda sin pasar por aquí.
 >
-> **Alcance.** Toda pantalla de Stitch. Un lienzo de Claude Design solo se critica cuando el usuario
-> lo pide, porque la guía del tipo Design prohíbe renderizarlo o capturarlo sin que se pida.
+> **Alcance.** Toda pantalla de Stitch y todo artboard de un lienzo de Claude Design (US-92 · UC-9201).
+> El lienzo no se abre ni se captura: se critica la **copia congelada**. `/design-review import`
+> (UC-9202), con `--out <scratch>/critica`, todos los artboards de la feature y `--states` con los
+> estados del brief (vacío, carga, error…), la deja sin motor. A esa copia se le pasa `verify` (1440 y
+> 390) y el revisor aislado, que recibe también las vistas de cada estado. La «edición» de Needs changes es
+> una revisión de ese artboard en el lienzo, siguiendo la guía del tipo. Después se vuelve a importar y
+> a revisar. Si la edición puntúa menos, se vuelve a publicar la fuente anterior.
 > **Rúbrica:** `.claude/skills/design-review/reference/rubric.md`.
 
 1. **Captura.** `stitch_fetch_screen_image(project, stitch_project_id, screen_id)` y guardar

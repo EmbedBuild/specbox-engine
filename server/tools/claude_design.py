@@ -439,6 +439,12 @@ def register_claude_design_tools(mcp: FastMCP, state_path: Path):
         active claude.ai login is present on this machine (so it's auditable
         whose subscription would be consumed). Read-only; never raises.
 
+        Canvas route (US-92 · UC-9201): ``design_system_artifact`` is the
+        project's design system published as a Design System Artifact
+        (``veg.claude_design.designSystem``) — what /plan installs in the
+        feature's canvas. ``gate_ready`` only says whether compiled components
+        exist to publish with it; the canvas needs the tokens, not a build.
+
         Remote MCP: send ``files_content`` with ``.claude/settings.local.json``,
         the design-system's ``package.json`` and one file of its ``dist/`` (or
         its Storybook config) — a satellite sends the orchestrator's (UC-8604).
@@ -462,6 +468,12 @@ def register_claude_design_tools(mcp: FastMCP, state_path: Path):
             "gate_ready": gate.ready,
             "gate_reason": gate.reason,
             "login_active": identity["ok"],
+            "design_system_artifact": cd_cfg.get("designSystem"),
+            "canvas_next": (
+                "Install the design system in the feature canvas (/plan 6.0b)."
+                if cd_cfg.get("designSystem")
+                else "Publish the design system first: /visual-setup 2.9.3 (needs design-system.tokens.json)."
+            ),
             "no_delete_project": (
                 "DesignSync exposes no delete_project; removing a Claude Design "
                 "project is a manual action in claude.ai."

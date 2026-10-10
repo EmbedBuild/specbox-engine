@@ -578,7 +578,8 @@ del proyecto.
 1. Buscar los tokens del sistema: el primer `design-system.tokens.json` en
    `doc/design/`, `src/styles/tokens/`, `apps/web/src/styles/tokens/`,
    `web/src/styles/tokens/`, `packages/tokens/dist/` o la raíz del repo.
-2. Leer también, si existen: `doc/brand/brand_kit.md`, el VEG activo y
+2. Leer también, si existen: el brand kit (`doc/brand/brand_kit/SKILL.md`, el que escribe
+   `/visual-setup`, o `doc/brand/brand_kit.md` en proyectos antiguos), el VEG activo y
    `doc/app/app_prd.md` / `doc/app/app_spec.md`.
 3. Llamar (pasar solo los contenidos que existan):
 
@@ -587,7 +588,7 @@ generate_design_md_tool(
   project="{project_slug}",
   system_tokens_content=<design-system.tokens.json>,
   system_tokens_path="<ruta relativa del fichero>",
-  brand_kit_content=<brand_kit.md>,
+  brand_kit_content=<brand kit>,
   veg_content=<VEG activo>,
   app_prd_content=<app_prd.md>,
   app_spec_content=<app_spec.md>

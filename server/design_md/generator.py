@@ -21,6 +21,7 @@ sections so the user sees what came from where.
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -117,7 +118,9 @@ def generate_design_md(inputs: GeneratorInputs) -> DesignMd:
     elevation = base.elevation_guidance
     shapes = base.shapes_guidance
     components_md = base.components_guidance
-    dos_and_donts = _build_dos_and_donts(base.dos, base.donts, veg)
+    dos_and_donts = _build_dos_and_donts(
+        base.dos, base.donts, veg, refusals=_extract_refusals(brand_kit)
+    )
 
     return DesignMd(
         front_matter=fm,
@@ -155,6 +158,34 @@ def _detect_archetype(inputs: GeneratorInputs) -> ArchetypeId | None:
 
 _HEX_LINE_RE = re.compile(r"#([0-9A-Fa-f]{6,8})")
 _KV_RE = re.compile(r"^[-*]?\s*([A-Za-z][\w \-]+?)\s*[:=]\s*(.+?)\s*$", re.M)
+# Fila de la tabla «Paleta» del brand kit de /visual-setup: | Rol | #hex | Función |
+_TABLE_ROW_RE = re.compile(r"^\|\s*([^|]+?)\s*\|\s*`?(#[0-9A-Fa-f]{6,8})\b", re.M)
+
+# Rol (en inglés o en español, sin tildes) → clave del DESIGN.md. Las claves que no
+# están en el esquema (secondary, accent, neutral) viajan como extra: Colors las admite.
+_ROLE_KEYS = {
+    "primary": "primary", "primary_color": "primary", "accion": "primary", "action": "primary",
+    "primario": "primary",
+    "primary_hover": "primary_hover", "hover": "primary_hover",
+    "background": "background", "bg": "background", "fondo": "background",
+    "surface": "surface", "superficie": "surface",
+    "text": "text_primary", "text_primary": "text_primary", "texto": "text_primary",
+    "text_secondary": "text_secondary", "muted": "text_secondary",
+    "texto_secundario": "text_secondary",
+    "border": "border", "borde": "border",
+    "error": "error", "danger": "error",
+    "success": "success", "exito": "success",
+    "warning": "warning", "aviso": "warning",
+    "secondary": "secondary", "secundario": "secondary",
+    "accent": "accent", "acento": "accent",
+    "neutral": "neutral",
+}
+
+
+def _role_key(raw: str) -> str | None:
+    plain = unicodedata.normalize("NFKD", raw).encode("ascii", "ignore").decode()
+    key = re.sub(r"[*`]", "", plain).strip().lower().replace(" ", "_").replace("-", "_")
+    return _ROLE_KEYS.get(key)
 
 
 def _extract_palette(text: str | None) -> dict | None:
@@ -162,52 +193,52 @@ def _extract_palette(text: str | None) -> dict | None:
         return None
     palette: dict[str, str] = {}
     for m in _KV_RE.finditer(text):
-        key = m.group(1).strip().lower().replace(" ", "_").replace("-", "_")
-        val = m.group(2).strip()
-        hex_match = _HEX_LINE_RE.search(val)
-        if not hex_match:
-            continue
-        hex_val = "#" + hex_match.group(1).upper()
-        if key in {"primary", "primary_color"}:
-            palette["primary"] = hex_val
-        elif key in {"primary_hover"}:
-            palette["primary_hover"] = hex_val
-        elif key in {"background", "bg"}:
-            palette["background"] = hex_val
-        elif key in {"surface"}:
-            palette["surface"] = hex_val
-        elif key in {"text", "text_primary"}:
-            palette["text_primary"] = hex_val
-        elif key in {"text_secondary", "muted"}:
-            palette["text_secondary"] = hex_val
-        elif key in {"border"}:
-            palette["border"] = hex_val
-        elif key in {"error", "danger"}:
-            palette["error"] = hex_val
-        elif key in {"success"}:
-            palette["success"] = hex_val
-        elif key in {"warning"}:
-            palette["warning"] = hex_val
+        key = _role_key(m.group(1))
+        hex_match = _HEX_LINE_RE.search(m.group(2).strip())
+        if key and hex_match:
+            palette[key] = "#" + hex_match.group(1).upper()
+    for m in _TABLE_ROW_RE.finditer(text):
+        key = _role_key(m.group(1))
+        if key and key not in palette:
+            palette[key] = m.group(2).upper()
     if not {"primary", "background", "text_primary"} <= palette.keys():
         return None
     return palette
 
 
+_FONT_ROLE_RE = re.compile(
+    r"^[-*]\s*\*\*(heading|headline|titulos|títulos|body|texto)\*\*\s*:\s*([A-Za-z][A-Za-z0-9 \-]+)",
+    re.I | re.M,
+)
+
+
 def _extract_typography(brand_kit: str | None, app_spec: str | None) -> dict | None:
-    """Pull font family from brand kit; sizes default to archetype."""
+    """Pull font families from brand kit; sizes default to archetype.
+
+    Reads the brand kit of /visual-setup («- **Heading**: Familia (…)» and
+    «- **Body**: …») and, failing that, a «font-family: …» line.
+    """
     text = (brand_kit or "") + "\n" + (app_spec or "")
     if not text.strip():
         return None
-    fam_match = re.search(
-        r"(?:font[_ -]?family|tipografia|typography)\s*[:=]\s*['\"]?([A-Za-z][A-Za-z0-9 ,\-]+)",
-        text,
-        re.I,
-    )
-    if not fam_match:
-        return None
-    family = fam_match.group(1).strip().rstrip(",")
+    roles: dict[str, str] = {}
+    for m in _FONT_ROLE_RE.finditer(brand_kit or ""):
+        role = "heading" if m.group(1).lower() in {"heading", "headline", "titulos", "títulos"} else "body"
+        roles.setdefault(role, m.group(2).strip())
+    if roles:
+        heading = roles.get("heading") or roles["body"]
+        body = roles.get("body") or heading
+    else:
+        fam_match = re.search(
+            r"(?:font[_ -]?family|tipografia|typography)\s*[:=]\s*['\"]?([A-Za-z][A-Za-z0-9 ,\-]+)",
+            text,
+            re.I,
+        )
+        if not fam_match:
+            return None
+        heading = body = fam_match.group(1).strip().rstrip(",")
     return {
-        "fontFamily": {"heading": family, "body": family},
+        "fontFamily": {"heading": heading, "body": body},
         "fontSize": {"h1": "32px", "h2": "24px", "h3": "20px", "body": "16px", "caption": "13px"},
         "fontWeight": {"regular": 400, "medium": 500, "semibold": 600, "bold": 700},
         "lineHeight": {"tight": 1.2, "normal": 1.5, "relaxed": 1.75},
@@ -280,7 +311,31 @@ def _build_typography_md(typo: dict, guidance: str) -> str:
     return "\n".join(parts)
 
 
-def _build_dos_and_donts(dos: list[str], donts: list[str], veg: str | None) -> str:
+_REFUSALS_HEADING_RE = re.compile(
+    r"^#{2,4}\s*(?:lo que se rehúsa|lo que se rehusa|refuse|what we refuse)\b[^\n]*$", re.I | re.M
+)
+
+
+def _extract_refusals(brand_kit: str | None) -> list[str]:
+    """Bullets of the «Lo que se rehúsa» section the direction writes (US-90 · UC-9002)."""
+    if not brand_kit:
+        return []
+    m = _REFUSALS_HEADING_RE.search(brand_kit)
+    if not m:
+        return []
+    items: list[str] = []
+    for line in brand_kit[m.end():].splitlines():
+        if re.match(r"^#{1,4}\s", line):
+            break
+        bullet = re.match(r"^\s*[-*]\s+(.+?)\s*$", line)
+        if bullet:
+            items.append(bullet.group(1))
+    return items
+
+
+def _build_dos_and_donts(
+    dos: list[str], donts: list[str], veg: str | None, refusals: list[str] | None = None
+) -> str:
     lines = ["**Do's**"]
     for d in dos:
         lines.append(f"- {d}")
@@ -288,6 +343,12 @@ def _build_dos_and_donts(dos: list[str], donts: list[str], veg: str | None) -> s
     lines.append("**Don'ts**")
     for d in donts:
         lines.append(f"- {d}")
+    if refusals:
+        # La dirección del proyecto (UC-9002): manda sobre los don'ts genéricos del arquetipo.
+        lines.append("")
+        lines.append("**Lo que se rehúsa (dirección del proyecto)**")
+        for r in refusals:
+            lines.append(f"- {r}")
     if veg:
         # Surface VEG-specific overrides if present (≤120 chars, single line).
         m = re.search(r"(?:^|\n)#+\s*(?:override|do)s?[^\n]*\n+(.+?)(?:\n#|$)", veg, re.I | re.S)

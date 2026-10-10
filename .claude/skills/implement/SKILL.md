@@ -1513,7 +1513,11 @@ node ~/.claude/skills/design-review/scripts/verify.mjs <url> \
   `movimiento-reducido` y `cifras-tabulares`) y en los criterios 6 y 8 de la rúbrica.
 - Las capturas en JPEG se versionan con la UC: así la PR y la evidencia las pueden enlazar.
 - Código de salida 2 = el proyecto no tiene Playwright: seguir sin capturas y decirlo en el veredicto.
-- Flutter: la medición la añade UC-9104; mientras, el revisor trabaja sobre el código y lo dice.
+- **Flutter** (`pubspec.yaml`): la pantalla no se sirve; se pinta con las pruebas de widgets. Una
+  vez por pantalla, `verify-flutter.mjs init` crea su prueba de captura con el tema y los datos de
+  prueba del proyecto, y el destino de `verify.mjs` pasa a ser esa prueba (`…_design_review_test.dart`):
+  capturas a 390 y 820, desbordamientos con su línea y las reglas en Dart (48 dp, escala de texto,
+  movimiento). Ver `design-review/reference/flutter.md`.
 
 ### 6.5.3 Revisar en un subagente aislado
 

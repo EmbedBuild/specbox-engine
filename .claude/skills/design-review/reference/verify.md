@@ -6,7 +6,8 @@ prueba UC-9001 fue, con el brief, la capa que más subió la nota (+5,75/40), y 
 fue una medición: el `scrollWidth` a 390 px.
 
 Sirve para una pantalla implementada (lo llama `/implement`) y para un candidato en HTML de Stitch o
-Claude Design.
+Claude Design. En una app Flutter, las capturas salen de las pruebas de widgets y las reglas se leen
+en el código Dart: ver [flutter.md](flutter.md).
 
 ## 1. Medir
 

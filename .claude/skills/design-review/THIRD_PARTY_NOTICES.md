@@ -42,11 +42,14 @@ Versiones revisadas el 2026-10-09, a partir de copias locales de cada repositori
 **make-interfaces-feel-better (Jakub Krehel, MIT).** Los principios medibles de pulido (áreas de
 pulsación de 44 y 40 px, radios concéntricos, `tabular-nums`, nada de `transition: all`) →
 criterio 6 y criterio 8 de `reference/rubric.md`, y las reglas `area-pulsacion` y `transition-all`
-de `scripts/verify.mjs`.
+de `scripts/verify.mjs`. Su versión para Flutter (48 dp en vez de 44 px, que es la medida de
+Material) está en `reference/flutter.md` y `scripts/flutter-rules.mjs`, con código propio.
 
 **emil-design-eng (Emil Kowalski, MIT).** Las reglas de movimiento (menos de 300 ms, `ease-out` en
 las respuestas, nunca `ease-in`, nada desde `scale(0)`, sin animación en interacciones de alta
-frecuencia, `prefers-reduced-motion`) → criterio 8 de `reference/rubric.md` y `reference/defaults.md`.
+frecuencia, `prefers-reduced-motion`) → criterio 8 de `reference/rubric.md` y `reference/defaults.md`,
+y su versión para Flutter (`Durations`, `Curves`, `MediaQuery.disableAnimationsOf`) en
+`reference/flutter.md` y las reglas `movimiento` y `movimiento-reducido` de `scripts/flutter-rules.mjs`.
 
 **taste-skill (Leonxlnx, MIT).** Las prohibiciones concretas de paleta y tipografía por defecto (beige
 con latón u ocre, Fraunces e Instrument Serif como display, la raya como recurso de estilo) →

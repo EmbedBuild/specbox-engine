@@ -1,0 +1,95 @@
+// /design-review verify para Flutter (US-91 · UC-9104): pinta {{NAME}} a 390 x 844 y 820 x 1180
+// sin simulador ni dispositivo, solo con flutter_test:
+//
+//   flutter test --update-goldens test/design_review/{{NAME}}_design_review_test.dart
+//
+// Deja las capturas en test/design_review/goldens/ y anota cada desbordamiento (RenderFlex
+// overflowed…) con su línea. Los datos, los del brief o los fixtures de las pruebas: nunca inventados.
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+{{IMPORTS}}
+
+/// La pantalla tal como la ve la persona: tema, proveedores y datos de prueba incluidos.
+Widget buildScreen() => {{SCREEN}};
+
+const _name = '{{NAME}}';
+const _sizes = <String, Size>{'390': Size(390, 844), '820': Size(820, 1180)};
+final _shot = GlobalKey();
+
+/// Las fuentes de la app (pubspec) y, de respaldo, Roboto e iconos de Material del SDK. Sin esto,
+/// flutter_test pinta cada letra como un cuadro.
+Future<void> _loadFonts() async {
+  final manifest = json.decode(await rootBundle.loadString('FontManifest.json')) as List<dynamic>;
+  for (final entry in manifest.cast<Map<String, dynamic>>()) {
+    final loader = FontLoader(entry['family'] as String);
+    for (final font in (entry['fonts'] as List<dynamic>).cast<Map<String, dynamic>>()) {
+      loader.addFont(rootBundle.load(font['asset'] as String));
+    }
+    await loader.load();
+  }
+  final root = Platform.environment['FLUTTER_ROOT'];
+  if (root == null) return;
+  final dir = Directory('$root/bin/cache/artifacts/material_fonts');
+  if (!dir.existsSync()) return;
+  final roboto = FontLoader('Roboto');
+  for (final file in dir.listSync().whereType<File>()) {
+    final name = file.uri.pathSegments.last;
+    if (RegExp(r'^Roboto-[A-Za-z]+\.ttf$').hasMatch(name)) {
+      roboto.addFont(Future.value(ByteData.sublistView(file.readAsBytesSync())));
+    }
+  }
+  await roboto.load();
+}
+
+void main() {
+  setUpAll(_loadFonts);
+
+  for (final size in _sizes.entries) {
+    testWidgets('$_name a ${size.key}', (tester) async {
+      tester.view.physicalSize = size.value;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      // Un desbordamiento no rompe la prueba: se anota con su línea para el informe.
+      final previous = FlutterError.onError;
+      FlutterError.onError = (details) {
+        final text = details.toString();
+        if (text.contains('overflowed')) {
+          final where = RegExp(r'file://(\S+?\.dart):(\d+):\d+').firstMatch(text);
+          // ignore: avoid_print
+          print('DESIGN_REVIEW ${json.encode({
+            'regla': 'desbordamiento',
+            'ancho': int.parse(size.key),
+            'detalle': details.exceptionAsString().split('\n').first,
+            'fichero': where?.group(1),
+            'linea': where == null ? null : int.parse(where.group(2)!),
+          })}');
+        } else {
+          previous?.call(details);
+        }
+      };
+      try {
+        await tester.pumpWidget(RepaintBoundary(key: _shot, child: buildScreen()));
+        try {
+          await tester.pumpAndSettle(const Duration(milliseconds: 100), EnginePhase.sendSemanticsUpdate,
+              const Duration(seconds: 5));
+        } on FlutterError {
+          // Una animación en bucle no termina nunca: se captura como esté a los 5 s.
+          await tester.pump(const Duration(seconds: 1));
+        }
+        await expectLater(find.byKey(_shot), matchesGoldenFile('goldens/$_name-${size.key}.png'));
+        // El texto visible, para comprobar tras una corrección que no aparecen cifras sin fuente.
+        final text = find.byType(RichText).evaluate().map((e) => (e.widget as RichText).text.toPlainText());
+        // ignore: avoid_print
+        print('DESIGN_REVIEW_TEXT ${json.encode({'ancho': int.parse(size.key), 'texto': text.join('\n')})}');
+      } finally {
+        FlutterError.onError = previous;
+      }
+    });
+  }
+}

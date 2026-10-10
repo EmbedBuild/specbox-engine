@@ -14,7 +14,10 @@
 // (UC-9102) va en las mismas reglas: áreas de 44 px, cifras tabulares, estados de los controles y
 // movimiento con prefers-reduced-motion.
 //
-// Salida: 0 informe escrito · 2 el proyecto no tiene Playwright (no se instala nada) · 1 error.
+// Flutter: si el destino es la prueba de captura (`…_design_review_test.dart`), delega en
+// verify-flutter.mjs (capturas a 390 y 820 con las pruebas de widgets y reglas del código Dart).
+//
+// Salida: 0 informe escrito · 2 el proyecto no tiene Playwright (o flutter), no se instala nada · 1 error.
 
 import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -475,6 +478,18 @@ async function main() {
     process.exit(1);
   }
   if (!isAbsolute(args.out)) args.out = resolve(args.out);
+  // Flutter (UC-9104): el destino es la prueba de captura de la pantalla.
+  if (args.target.endsWith('.dart')) {
+    const { verifyFlutter, printReport } = await import('./verify-flutter.mjs');
+    try {
+      const r = await verifyFlutter(args);
+      printReport(r, args.target, args.out, args.name || Object.values(r.capturas)[0]?.replace(/-\d+\.png$/, '') || 'pantalla');
+    } catch (e) {
+      console.error(`verify: ${e.message}`);
+      process.exit(e.code === 'NO_FLUTTER' ? 2 : 1);
+    }
+    return;
+  }
   try {
     const r = await verify(args);
     const lines = [`verify · ${args.target} · ${(r.duracion_ms / 1000).toFixed(1)} s`];

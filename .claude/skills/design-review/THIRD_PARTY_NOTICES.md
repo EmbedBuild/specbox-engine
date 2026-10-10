@@ -33,12 +33,16 @@ Versiones revisadas el 2026-10-09, a partir de copias locales de cada repositori
 - La lista «Refuse» y las verificaciones del craft-floor → `reference/defaults.md` y
   `reference/rubric.md`.
 - La idea de un contrato de dirección que se escribe antes de construir → `reference/direction.md`.
+- Qué detectar en una pantalla ya hecha (texto con degradado, franja en un solo lado, eyebrows) → las
+  reglas de `scripts/verify.mjs` y `reference/verify.md`. El código del script es de SpecBox: no se
+  copió código de Impeccable.
 - El fichero NOTICE de Impeccable atribuye a terceros solo sus referencias de iOS y Android, que esta
   skill no usa.
 
 **make-interfaces-feel-better (Jakub Krehel, MIT).** Los principios medibles de pulido (áreas de
 pulsación de 44 y 40 px, radios concéntricos, `tabular-nums`, nada de `transition: all`) →
-criterio 6 y criterio 8 de `reference/rubric.md`.
+criterio 6 y criterio 8 de `reference/rubric.md`, y las reglas `area-pulsacion` y `transition-all`
+de `scripts/verify.mjs`.
 
 **emil-design-eng (Emil Kowalski, MIT).** Las reglas de movimiento (menos de 300 ms, `ease-out` en
 las respuestas, nunca `ease-in`, nada desde `scale(0)`, sin animación en interacciones de alta

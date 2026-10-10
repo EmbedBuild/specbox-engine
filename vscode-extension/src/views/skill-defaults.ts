@@ -113,12 +113,13 @@ export const SKILL_DEFAULTS: Record<string, SkillDefaults> = {
 		example: '/check-designs',
 	},
 	'design-review': {
-		whatItDoes: 'Prepares the design criteria for each screen: a brief grounded in the real users, questions and data, and a visual direction checked against the generic defaults of AI-made UI.',
+		whatItDoes: 'Prepares the design criteria for each screen (a brief grounded in the real users, questions and data, and a visual direction checked against the generic defaults of AI-made UI) and verifies the result with screenshots at 1440 and 390 px, deterministic rules and an isolated reviewer.',
 		whenToUse: [
 			'Before generating a screen with Stitch, Claude Design or code.',
 			'When a design looks generic and needs a brief and a direction it can be checked against.',
+			'Before closing a UC with screens: verify measures overflow, contrast and tap targets and gets a verdict.',
 		],
-		command: '/design-review brief|direction <screen>',
+		command: '/design-review brief|direction|verify <screen>',
 		example: '/design-review brief participants',
 	},
 	'switch-backend': {

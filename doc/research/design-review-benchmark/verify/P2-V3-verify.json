@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "objetivo": "doc/research/design-review-benchmark/variantes/P2-V3.html",
+  "fecha": "2026-10-10T10:40:12.794Z",
+  "anchos": {
+    "390": {
+      "viewport": 390,
+      "scrollWidth": 399,
+      "clientWidth": 390,
+      "alto": 8593,
+      "desborda": true,
+      "sobresalen": [
+        {
+          "selector": "section#lo-que-ve-tu-cliente > div.envoltura > div.dos-col__texto",
+          "right": 399
+        },
+        {
+          "selector": "h2#t-cliente",
+          "right": 399
+        },
+        {
+          "selector": "section#lo-que-ve-tu-cliente > div.envoltura > div.dos-col__texto > p",
+          "right": 399
+        },
+        {
+          "selector": "section#lo-que-ve-tu-cliente > div.envoltura > div.dos-col__texto > ol.lista-cliente",
+          "right": 399
+        },
+        {
+          "selector": "div.envoltura > div.dos-col__texto > ol.lista-cliente > li",
+          "right": 399
+        },
+        {
+          "selector": "div.envoltura > div.dos-col__texto > ol.lista-cliente > li",
+          "right": 399
+        },
+        {
+          "selector": "div.envoltura > div.dos-col__texto > ol.lista-cliente > li",
+          "right": 399
+        },
+        {
+          "selector": "section#lo-que-ve-tu-cliente > div.envoltura > div.dos-col__texto > p.texto__nota",
+          "right": 399
+        },
+        {
+          "selector": "section#lo-que-ve-tu-cliente > div.envoltura > figure.escena",
+          "right": 399
+        }
+      ]
+    },
+    "1440": {
+      "viewport": 1440,
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "alto": 6208,
+      "desborda": false,
+      "sobresalen": []
+    }
+  },
+  "capturas": {
+    "390": "P2-V3-390.png",
+    "1440": "P2-V3-1440.png"
+  },
+  "hallazgos": [
+    {
+      "regla": "desbordamiento",
+      "selector": "html",
+      "ancho": 390,
+      "detalle": "el documento mide 399 px en una ventana de 390",
+      "sobresalen": [
+        {
+          "selector": "section#lo-que-ve-tu-cliente > div.envoltura > div.dos-col__texto",
+          "right": 399
+        },
+        {
+          "selector": "h2#t-cliente",
+          "right": 399
+        },
+        {
+          "selector": "section#lo-que-ve-tu-cliente > div.envoltura > div.dos-col__texto > p",
+          "right": 399
+        },
+        {
+          "selector": "section#lo-que-ve-tu-cliente > div.envoltura > div.dos-col__texto > ol.lista-cliente",
+          "right": 399
+        },
+        {
+          "selector": "div.envoltura > div.dos-col__texto > ol.lista-cliente > li",
+          "right": 399
+        },
+        {
+          "selector": "div.envoltura > div.dos-col__texto > ol.lista-cliente > li",
+          "right": 399
+        },
+        {
+          "selector": "div.envoltura > div.dos-col__texto > ol.lista-cliente > li",
+          "right": 399
+        },
+        {
+          "selector": "section#lo-que-ve-tu-cliente > div.envoltura > div.dos-col__texto > p.texto__nota",
+          "right": 399
+        },
+        {
+          "selector": "section#lo-que-ve-tu-cliente > div.envoltura > figure.escena",
+          "right": 399
+        }
+      ]
+    },
+    {
+      "regla": "borde-lateral",
+      "selector": "figure.escena > div.hoja > div.hoja__sec:nth-of-type(3) > p.comentario",
+      "detalle": "border-left: 2px rgb(28, 42, 110)",
+      "ancho": 390,
+      "tag": "p",
+      "id": null,
+      "className": "comentario comentario--anim",
+      "text": "Aquí se frenó de los 9 min de lectura",
+      "linea": 348
+    }
+  ],
+  "numeros": [
+    "4800€",
+    "4",
+    "35",
+    "9",
+    "3",
+    "5",
+    "11",
+    "2026",
+    "1",
+    "05",
+    "2",
+    "10",
+    "50",
+    "20",
+    "19",
+    "06",
+    "6",
+    "8",
+    "14",
+    "22",
+    "31"
+  ],
+  "resumen": {
+    "desborda": {
+      "390": true,
+      "1440": false
+    },
+    "por_regla": {
+      "desbordamiento": 1,
+      "texto-degradado": 0,
+      "borde-lateral": 1,
+      "eyebrow": 0,
+      "transition-all": 0,
+      "emoji-icono": 0,
+      "contraste": 0,
+      "area-pulsacion": 0
+    }
+  },
+  "duracion_ms": 5175
+}

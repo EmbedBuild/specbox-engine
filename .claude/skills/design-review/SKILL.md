@@ -2,10 +2,11 @@
 name: design-review
 description: >
   Design criteria for each screen before it is drawn or coded: a brief grounded in the
-  project's real users, questions and data, and a visual direction checked against the
-  generic defaults of AI-made UI. Use when the user says "design review", "brief de
-  pantalla", "dirección visual", "diseña con criterio", "anti AI slop", or before
-  generating a screen with Stitch, Claude Design or code.
+  project's real users, questions and data, a visual direction checked against the
+  generic defaults of AI-made UI, and a verification of the result with real screenshots,
+  deterministic rules and an isolated reviewer. Use when the user says "design review", "brief
+  de pantalla", "dirección visual", "verifica la pantalla", "diseña con criterio", "anti AI
+  slop", or before generating a screen with Stitch, Claude Design or code.
 context: direct
 ---
 
@@ -13,7 +14,7 @@ context: direct
 
 Criterio de diseño por pantalla. SpecBox ya genera diseño (Stitch, Claude Design, tokens,
 DESIGN.md); esta skill decide **para quién y con qué datos** se diseña y **qué dirección** se
-toma, antes de dibujar o escribir código.
+toma, antes de dibujar o escribir código, y **comprueba el resultado** con capturas y mediciones.
 
 Por qué existe, con datos (prueba comparativa UC-9001, `doc/research/design-review-benchmark/`):
 - el **brief** sube la pantalla +5,75/40: sin él, el agente diseña otra pantalla con otros datos;
@@ -33,6 +34,7 @@ sale» ni se rellena con datos inventados.
 |---|---|---|---|
 | `brief <pantalla>` | Usuario, las tres preguntas que la pantalla responde, datos reales y superficie | `doc/design/{feature}/{pantalla}.brief.md` | [reference/brief.md](reference/brief.md) |
 | `direction <pantalla>` | Dirección visual revisada contra lo que saldría por defecto | `doc/design/{feature}/{pantalla}.direction.md` | [reference/direction.md](reference/direction.md) |
+| `verify <pantalla>` | Capturas a 1440 y 390, reglas deterministas y revisor aislado | `doc/design/{feature}/{pantalla}.verify.md` | [reference/verify.md](reference/verify.md) |
 
 Referencias compartidas, que se cargan solo cuando hacen falta:
 - [reference/surfaces.md](reference/surfaces.md): reglas por superficie (Operate, Persuade, Read).
@@ -70,9 +72,21 @@ Referencias compartidas, que se cargan solo cuando hacen falta:
 5. Guarda `{pantalla}.direction.md` con una sección «Lo que se rehúsa».
 6. Si la pantalla va a Stitch o a Claude Design, traduce la dirección a un bloque «Visual
    Direction» que va antes del prompt (ver [reference/direction.md](reference/direction.md)).
-7. **La dirección no se da por buena sin verificación.** Lo siguiente es mirar el resultado:
-   capturas reales a 1440 y 390 px y revisión con [reference/rubric.md](reference/rubric.md) por
-   un revisor que no sea quien diseñó.
+7. **La dirección no se da por buena sin verificación.** Cuando haya resultado (candidato o
+   código), se pasa por `verify`.
+
+## `/design-review verify <pantalla>`
+
+1. **Comprueba que existe el brief.** Sin brief, el revisor no sabe qué tenía que resolver.
+2. Mide desde la raíz del proyecto con `scripts/verify.mjs` (destino: la URL con el servidor de
+   desarrollo levantado o el HTML del candidato). Usa el Playwright del proyecto y no instala nada;
+   si no lo hay, sale con código 2 y se sigue sin capturas, diciéndolo.
+3. Pasa brief, rúbrica, capturas, JSON y código a un **subagente aislado** con el encargo de
+   [reference/verify.md](reference/verify.md). Quien diseñó no se revisa.
+4. Escribe `{pantalla}.verify.md`: veredicto (Block, Needs changes o Approve), tres problemas
+   prioritarios, notas, mediciones y hallazgos con su ubicación.
+5. Como mucho una ronda de corrección. Después, otra medición con `--previous` y `--sources`:
+   una cifra nueva sin fuente es un defecto.
 
 ## Cómo encaja en el resto del flujo
 
@@ -81,13 +95,14 @@ Esta skill es la base de EP-16. Otras piezas, en construcción, la consumen:
   [reference/rubric.md](reference/rubric.md), en un subagente aislado y con una sola ronda de
   corrección. Mientras tanto, antes de generar una pantalla, ejecuta aquí `brief` y `direction` y
   construye el prompt con los dos ficheros.
-- `/implement` (US-91): verificación de cada pantalla implementada con la misma rúbrica, con
-  capturas y mediciones.
+- `/implement` (UC-9102): `verify` de cada pantalla implementada después del design-to-code.
+  Mientras tanto, ejecútalo aquí antes de cerrar una UC con pantallas.
 - `/visual-setup` (UC-9002): proceso de dirección y lista de lo que se rehúsa, a nivel de proyecto.
 
 ## Lo que esta skill no hace
 
-- No genera pantallas ni código: prepara el criterio con el que otros los generan.
+- No genera pantallas ni código: prepara el criterio con el que otros los generan y comprueba
+  lo que sale.
 - No sustituye al sistema de diseño: con tokens, manda el sistema.
 - No inventa datos para que una pantalla «quede completa»: marca lo que falta.
 - No instala skills de terceros: su contenido está incorporado aquí, con atribución.

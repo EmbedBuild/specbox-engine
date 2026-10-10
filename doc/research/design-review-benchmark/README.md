@@ -232,3 +232,5 @@ Coste por pantalla de cada capa, en una implantación real:
   - las cuatro revisiones ciegas (`P1-revisor-A.md`…);
   - las críticas aisladas de la verificación (`P*-V4-critica.md`);
   - los mapas ciegos.
+- `verify/`: la prueba de punta a punta de `/design-review verify` (UC-9101) sobre `P2-V3`, con su
+  medición y la revisión del subagente aislado.

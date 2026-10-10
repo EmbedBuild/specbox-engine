@@ -76,10 +76,23 @@ clases y los colores de los tokens:
 
 ## AC-03: ¿sirve el camino de `DesignSync`?
 
-Pendiente: la prueba necesita que el owner arranque `/design-sync`. `DesignSync` solo se usa dentro de
-esa skill.
+**No sirve para el lienzo.** Prueba real del 2026-10-10 con `/design-sync`, arrancado por el owner, y
+solo con lecturas (no se creó ni se subió nada):
 
-Lo que ya se sabe:
-- ningún proyecto local ancla hoy un proyecto de claude.ai/design (`veg.claude_design.projectId`);
-- `Artifact list` con el tipo Design System enseña solo artifacts;
-- la instalación en un lienzo pide una dirección `https://claude.ai/artifact/<id>`.
+| Comprobación | Resultado |
+|---|---|
+| `DesignSync list_projects` | 6 proyectos de sistema de diseño de la cuenta del owner, sincronizados con `DesignSync` entre junio y septiembre de 2026 |
+| `DesignSync get_project` + `list_files` (el más reciente) | `PROJECT_TYPE_DESIGN_SYSTEM`, sincronizado entero: `_ds_bundle.js`, `styles.css`, `tokens/tokens.css`, tipografías, `_ds_manifest.json` y 80 tarjetas de componentes |
+| `Artifact list` del tipo Design System, `scope: "all"` | 3 sistemas, todos Artifact (embed.build, SpecBox, Tinta prueba). **Ninguno de los 6 proyectos aparece** |
+| `Artifact` con el identificador del proyecto (`claude.ai/code/artifact/<uuid>`) | «artifact not found»: un proyecto de claude.ai/design no es un Artifact |
+
+Un lienzo instala un sistema copiando los ficheros de un Artifact del tipo Design System:
+- su dirección tiene que ser `https://claude.ai/artifact/<id>`;
+- el editor ofrece los sistemas que da ese listado.
+
+Un proyecto sincronizado con `DesignSync` no entra por ningún lado: sirve al diseñador de
+claude.ai/design, no a los lienzos.
+
+**Decisión.** `/visual-setup` publica el sistema del proyecto como Artifact del tipo Design System (Paso
+2.9.3). `DesignSync` deja de ser la forma de llevar el sistema al lienzo y deja de ser precondición de
+`/plan`. Queda para quien diseñe directamente en claude.ai/design.

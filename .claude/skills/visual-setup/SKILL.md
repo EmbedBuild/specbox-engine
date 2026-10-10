@@ -782,9 +782,10 @@ Si `veg.providers` incluye `"claude_design"`:
    (MERGE). `/plan` la usa para instalar el sistema en cada lienzo.
 6. Si solo se eligió Claude Design, se puede **saltar el Paso 3** (Stitch).
 
-> **El camino de `DesignSync`** (`claude_design_sync_design_system`, un proyecto de claude.ai/design
-> que sincroniza un sistema compilado) queda según la prueba real de
-> `doc/research/claude-design-import/sistema-instalable.md`.
+> **`DesignSync` no lleva el sistema al lienzo.** Un proyecto de claude.ai/design sincronizado con
+> `claude_design_sync_design_system` no es un Artifact y el lienzo no puede instalarlo. Lo dice la prueba
+> real de `doc/research/claude-design-import/sistema-instalable.md`. Ese sync queda solo para quien
+> diseñe directamente en claude.ai/design: este paso no lo necesita.
 >
 > **Borrado**: no hay borrado programático. Un sistema o un lienzo se borra a mano en claude.ai.
 

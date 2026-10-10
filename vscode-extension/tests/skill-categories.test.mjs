@@ -25,7 +25,7 @@ const { KNOWN_SKILLS } = require(path.join(outDir, 'constants.js'));
 const CANONICAL_SKILLS = {
 	pipeline: ['prd', 'plan', 'implement', 'feedback'],
 	quality: ['audit', 'compliance', 'quality-gate', 'acceptance-check'],
-	visual: ['visual-setup', 'adapt-ui', 'check-designs'],
+	visual: ['visual-setup', 'adapt-ui', 'check-designs', 'design-review'],
 	tracking: ['switch-backend', 'app-init', 'app-sync', 'queue-review'],
 	stripe: ['stripe-connect', 'stripe-standard', 'stripe-switch-account'],
 	lifecycle: ['release', 'handoff', 'discovery', 'quickstart', 'manual-test', 'optimize-agents', 'explore'],

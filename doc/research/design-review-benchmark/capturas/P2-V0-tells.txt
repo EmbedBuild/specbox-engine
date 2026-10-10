@@ -1,0 +1,9 @@
+mayúsculas con tracking (eyebrow) · l.125: .stamp{position:absolute;right:2px;bottom:0;transform:rotate(-9deg);border:2.5px solid var(--ok);color:var(--o
+mayúsculas con tracking (eyebrow) · l.128: .float-label{display:flex;align-items:center;gap:8px;font-family:var(--f-mono);font-size:11.5px;color:var(--mu
+mayúsculas con tracking (eyebrow) · l.141: .kicker{display:flex;align-items:center;gap:12px;font-family:var(--f-mono);font-size:13px;letter-spacing:.06em
+borde lateral de color > 1px · l.151: .callout{margin-top:28px;padding:20px 22px;background:var(--mark-soft);border-left:4px solid var(--ink);border
+mayúsculas con tracking (eyebrow) · l.236: .tag{display:inline-flex;align-items:center;gap:6px;font-family:var(--f-mono);font-size:11.5px;text-transform:
+mayúsculas con tracking (eyebrow) · l.250: .badge{display:inline-block;margin-left:6px;font-family:var(--f-mono);font-size:10.5px;font-weight:500;text-tr
+mayúsculas con tracking (eyebrow) · l.254: .done-stamp{position:absolute;top:22px;right:-8px;transform:rotate(8deg);border:3px solid var(--ok);color:var(
+mayúsculas con tracking (eyebrow) · l.291: .compare thead th{font-family:var(--f-mono);font-size:12.5px;font-weight:500;text-transform:uppercase;letter-s
+mayúsculas con tracking (eyebrow) · l.380: .compare td::before{content:attr(data-label);display:block;margin-bottom:2px;font-family:var(--f-mono);font-si

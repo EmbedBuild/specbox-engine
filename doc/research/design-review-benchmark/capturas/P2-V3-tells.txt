@@ -1,0 +1,2 @@
+glass decorativo · l.59: @supports (backdrop-filter:blur(1px)){.cabecera{background:rgba(255,255,255,.86);backdrop-filter:saturate(1.4)
+borde lateral de color > 1px · l.113: .comentario{margin-top:.9rem;padding-left:.85rem;border-left:2px solid var(--tinta);font-size:.9375rem;font-st

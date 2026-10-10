@@ -1,0 +1,1 @@
+borde lateral de color > 1px · l.167: .error { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 16px; border-left: 4px

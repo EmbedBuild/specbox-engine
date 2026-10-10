@@ -1,0 +1,36 @@
+{
+  "390": {
+    "scrollWidth": 1106,
+    "bodyScrollWidth": 1106,
+    "clientWidth": 390,
+    "height": 2436,
+    "overflowX": "visible/visible",
+    "sobresalen": [
+      "div.flex@1106",
+      "div.flex@581",
+      "span.inline-block@398",
+      "span.font-label-mono-md@464",
+      "span.font-label-caps@511",
+      "span.text-body-sm@568",
+      "div.flex@803",
+      "button.px-2.5@679"
+    ]
+  },
+  "1440": {
+    "scrollWidth": 1440,
+    "bodyScrollWidth": 1440,
+    "clientWidth": 1440,
+    "height": 1057,
+    "overflowX": "visible/visible",
+    "sobresalen": [
+      "button.category-pill@1542",
+      "span@1456",
+      "span.font-label-mono-sm@1475",
+      "span.text-[9px]@1531",
+      "button.category-pill@1726",
+      "span.w-1.5@1565",
+      "span@1647",
+      "span.font-label-mono-sm@1660"
+    ]
+  }
+}

@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propuestas de embed.build</title>
+<meta name="description" content="Envía tus propuestas comerciales como una página privada con enlace y PIN, y mira cuándo se abren, qué se lee y si se aceptan. Acceso anticipado gratuito.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=Literata:ital,opsz,wght@0,7..72,200..900;1,7..72,200..900&amp;display=swap">
+<style>
+:root{
+  --papel:#ffffff;
+  --mesa:#eef1f7;
+  --mesa-2:#e2e7f1;
+  --tinta:#1c2a6e;
+  --tinta-fuerte:#111a4d;
+  --tinta-2:#4e5880;
+  --linea:#d3d9e8;
+  --borde-campo:#7d85a6;
+  --fluor:#ffe45c;
+  --acepta:#17694a;
+  --acepta-fondo:#e4f3eb;
+  --error:#b42318;
+  --error-fondo:#fdecea;
+  --serif:"Literata", "Iowan Old Style", Georgia, serif;
+  --sans:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --ancho:75rem;
+  --margen:clamp(1rem, 4vw, 3rem);
+  --sombra-objeto:0 1px 2px rgba(28,42,110,.08), 0 18px 40px -22px rgba(28,42,110,.38);
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none !important}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+body{margin:0;background:var(--papel);color:var(--tinta);font-family:var(--serif);font-size:1.125rem;line-height:1.6;font-variant-numeric:lining-nums;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p,ul,ol,dl,dd,figure,fieldset{margin:0}
+h1,h2,h3{font-weight:600;line-height:1.15;text-wrap:balance}
+p{text-wrap:pretty}
+a{color:inherit}
+::selection{background:var(--fluor);color:var(--tinta)}
+:focus-visible{outline:3px solid var(--tinta);outline-offset:3px}
+[id]{scroll-margin-top:5rem}
+
+.envoltura{max-width:var(--ancho);margin-inline:auto;padding-inline:var(--margen)}
+.saltar{position:absolute;left:1rem;top:-4rem;z-index:30;padding:.6rem 1rem;border-radius:.4rem;background:var(--tinta);color:#fff;font-family:var(--sans);font-weight:600;text-decoration:none}
+.saltar:focus{top:1rem}
+
+.cabecera{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.96);border-bottom:1px solid var(--linea)}
+@supports (backdrop-filter:blur(1px)){.cabecera{background:rgba(255,255,255,.86);backdrop-filter:saturate(1.4) blur(10px)}}
+.cabecera__in{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-height:4rem}
+.producto{display:inline-flex;align-items:center;gap:.6rem;font-family:var(--serif);font-size:1.25rem;font-weight:600;letter-spacing:-.01em;line-height:1;text-decoration:none}
+.producto svg{flex:none}
+@media (max-width:28rem){.producto svg{display:none}.cabecera__in{gap:.75rem}}
+
+.boton{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:3rem;padding:.8rem 1.35rem;border:2px solid var(--tinta);border-radius:.5rem;background:var(--tinta);color:#fff;font-family:var(--sans);font-size:1rem;font-weight:600;line-height:1.2;text-align:center;text-decoration:none;cursor:pointer;transition:background-color .15s ease,border-color .15s ease}
+.boton:hover{background:var(--tinta-fuerte);border-color:var(--tinta-fuerte)}
+.boton:disabled{cursor:progress;opacity:.75}
+.boton--peque{min-height:2.5rem;padding:.5rem .85rem;font-size:.875rem}
+.boton--claro{background:#fff;color:var(--tinta)}
+.boton--claro:hover{background:var(--mesa);border-color:var(--tinta)}
+.boton--ancho{width:100%}
+.enlace{font-family:var(--sans);font-size:1rem;font-weight:600;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:.22em}
+.enlace:hover{text-decoration-thickness:2.5px}
+
+.hero{padding-block:clamp(2.5rem,6vw,4.5rem) clamp(4rem,8vw,6.5rem)}
+.hero__rejilla{display:grid;gap:2rem}
+.hero__titulo{font-size:clamp(2.125rem,1.2rem + 3.5vw,3.75rem);line-height:1.05;letter-spacing:-.022em}
+.hero__titulo span{display:block}
+.hero__entradilla{font-size:clamp(1.125rem,1rem + .45vw,1.3125rem);line-height:1.5;max-width:30em}
+.hero__acciones{display:flex;flex-wrap:wrap;align-items:center;gap:1rem 1.5rem;margin-top:1.75rem}
+.hero__nota{margin-top:1rem;font-family:var(--sans);font-size:.9375rem;line-height:1.45;color:var(--tinta-2)}
+@media (min-width:60rem){
+  .hero__rejilla{grid-template-columns:repeat(12,minmax(0,1fr));column-gap:2rem;row-gap:3rem}
+  .hero__titulo{grid-column:1/span 10}
+  .hero__texto{grid-column:1/span 5;padding-top:2.5rem}
+  .hero__escena{grid-column:6/span 7}
+}
+
+.escena{background:var(--mesa);border-radius:1.5rem;padding:clamp(1rem,3.2vw,2.5rem)}
+.escena__pie{margin-top:1.1rem;font-family:var(--sans);font-size:.875rem;line-height:1.45;color:var(--tinta-2)}
+
+.hoja{position:relative;background:#fff;border-radius:3px;box-shadow:var(--sombra-objeto);padding:1.4rem 1.25rem 1.6rem}
+@media (min-width:40rem){.hoja{padding:2.25rem 12rem 2.5rem 2.25rem}}
+.hoja__para{font-family:var(--sans);font-size:.8125rem;color:var(--tinta-2)}
+.hoja__titulo{margin-top:.25rem;padding-bottom:1rem;border-bottom:1px solid var(--linea);font-size:1.375rem;font-weight:600;line-height:1.2;letter-spacing:-.01em}
+.hoja__sec{position:relative;padding-top:1rem}
+.hoja__h{font-size:1rem;font-weight:600;line-height:1.35}
+.hoja__t{font-size:.875rem;line-height:1.55;color:var(--tinta-2)}
+.hoja__precio{font-size:1.75rem;font-weight:600;line-height:1.2;letter-spacing:-.01em}
+
+.fluor{position:relative;isolation:isolate}
+.fluor::before{content:"";position:absolute;z-index:-1;inset:-.35rem -.6rem;background:var(--fluor);border-radius:.3rem .9rem .4rem .8rem / .7rem .3rem .8rem .35rem;transform:rotate(-.5deg)}
+.fluor--linea{display:inline-block}
+.fluor--linea::before{inset:-.12rem -.35rem}
+.fluor--linea .hoja__t{color:var(--tinta)}
+
+.comentario{margin-top:.9rem;padding-left:.85rem;border-left:2px solid var(--tinta);font-size:.9375rem;font-style:italic;line-height:1.4}
+.comentario strong{display:block;font-family:var(--sans);font-size:1.125rem;font-style:normal;font-weight:650;font-variant-numeric:tabular-nums}
+@media (min-width:40rem){
+  .comentario{position:absolute;top:.85rem;left:calc(100% + 2rem);width:8.75rem;margin:0;padding-left:0;border-left:0}
+  .comentario::before{content:"";position:absolute;top:.65em;right:calc(100% + .45rem);width:1.6rem;border-top:1.5px solid var(--tinta)}
+}
+@media (prefers-reduced-motion:no-preference){
+  .fluor--anim::before{animation:barrido .9s cubic-bezier(.65,0,.35,1) .6s both}
+  .comentario--anim{animation:aparece .5s ease 1.45s both}
+  .aceptacion--hecha{animation:sello .45s cubic-bezier(.2,.9,.3,1.2) both}
+}
+@keyframes barrido{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes aparece{from{opacity:0;transform:translateX(-.4rem)}to{opacity:1;transform:none}}
+@keyframes sello{from{opacity:0;transform:scale(1.12) rotate(-2deg)}to{opacity:1;transform:none}}
+
+.banda{padding-block:clamp(4rem,9vw,7rem);border-top:1px solid var(--linea)}
+.titulo-seccion{font-size:clamp(1.875rem,1.5rem + 1.1vw,2.25rem);letter-spacing:-.018em;line-height:1.12}
+:where(.texto) > * + *{margin-top:1.1rem}
+.texto__nota{font-family:var(--sans);font-size:.9375rem;line-height:1.45;color:var(--tinta-2)}
+
+.pasos{display:grid;gap:2.75rem;margin-top:3rem;padding:0;list-style:none;counter-reset:paso}
+.paso{counter-increment:paso;padding-top:1.25rem;border-top:2px solid var(--tinta)}
+.paso::before{content:counter(paso);display:block;margin-bottom:1rem;font-size:3rem;font-weight:500;line-height:1;font-variant-numeric:lining-nums}
+.paso__t{margin-bottom:.6rem;font-size:1.3125rem;line-height:1.25}
+.paso p{font-size:1.0625rem;max-width:30em}
+@media (min-width:54rem){.pasos{grid-template-columns:repeat(3,minmax(0,1fr));gap:2.5rem}}
+
+.dos-col{display:grid;gap:2.5rem}
+@media (min-width:60rem){
+  .dos-col{grid-template-columns:repeat(12,minmax(0,1fr));column-gap:2rem;align-items:start}
+  .dos-col--panel .dos-col__texto{grid-column:1/span 4;padding-top:.5rem}
+  .dos-col--panel .escena{grid-column:5/span 8}
+  .dos-col--cliente .dos-col__texto{grid-column:8/span 5;grid-row:1;padding-top:.5rem}
+  .dos-col--cliente .escena{grid-column:1/span 7;grid-row:1}
+  .dos-col--acceso .dos-col__texto{grid-column:1/span 5;padding-top:.5rem}
+  .dos-col--acceso .formulario-zona{grid-column:7/span 6}
+}
+
+.conmutador{margin-top:2rem}
+.conmutador__et{font-family:var(--sans);font-size:.875rem;color:var(--tinta-2)}
+.conmutador__grupo{display:inline-flex;gap:.2rem;margin-top:.5rem;padding:.2rem;border:1.5px solid var(--tinta);border-radius:.55rem;background:#fff}
+.conmutador__boton{min-height:2.5rem;padding:.5rem 1rem;border:0;border-radius:.35rem;background:transparent;color:var(--tinta);font-family:var(--sans);font-size:.9375rem;font-weight:600;cursor:pointer}
+.conmutador__boton[aria-pressed="true"]{background:var(--tinta);color:#fff}
+
+.panel{container-type:inline-size;overflow:hidden;background:#fff;border:1px solid var(--linea);border-radius:.875rem;box-shadow:var(--sombra-objeto);font-family:var(--sans);font-size:.9375rem;line-height:1.4}
+.panel__cab{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:1rem 2rem;padding:1.15rem 1rem;border-bottom:1px solid var(--linea)}
+.panel__titulo{font-family:var(--serif);font-size:1.25rem;font-weight:600;line-height:1.25}
+.panel__cliente{margin-top:.15rem;font-size:.875rem;color:var(--tinta-2)}
+.panel__datos{display:flex;gap:1.5rem}
+.panel__datos dt{font-size:.8125rem;color:var(--tinta-2)}
+.panel__datos dd{font-weight:650;font-variant-numeric:tabular-nums}
+.panel__cuerpo{display:grid}
+.bloque{padding:1.15rem 1rem;border-bottom:1px solid var(--linea)}
+.bloque__cab{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:.85rem}
+.bloque__t{font-weight:650}
+.bloque__dato{font-size:.875rem;color:var(--tinta-2);font-variant-numeric:tabular-nums}
+.lectura{display:grid;gap:.6rem;padding:0;list-style:none}
+.lectura__fila{display:grid;grid-template-columns:6rem minmax(0,1fr) 4.75rem;align-items:center;gap:.75rem;font-variant-numeric:tabular-nums}
+.lectura__t{text-align:right}
+.lectura__fila--freno .lectura__t{font-weight:700}
+.lectura__nota{grid-column:2/-1;margin-top:-.2rem;font-family:var(--serif);font-size:.875rem;font-style:italic}
+.barra{height:.625rem;border-radius:999px;background:var(--mesa-2);overflow:hidden}
+.barra span{display:block;width:calc(var(--v) * 100%);height:100%;border-radius:inherit;background:var(--tinta)}
+.aperturas{padding:0;list-style:none}
+.apertura{display:grid;grid-template-columns:minmax(0,1fr) auto 5.75rem;align-items:center;gap:.75rem;padding:.55rem 0;border-top:1px solid var(--mesa-2);font-variant-numeric:tabular-nums}
+.apertura:first-child{border-top:0;padding-top:0}
+.dispositivo{display:inline-flex;align-items:center;gap:.4rem;color:var(--tinta-2)}
+.dispositivo svg{flex:none;width:1.1rem;height:1.1rem;color:var(--tinta)}
+.aceptacion{display:flex;align-items:flex-start;gap:.55rem;padding:.8rem .9rem;border-radius:.5rem;line-height:1.35}
+.aceptacion--pendiente{border:1.5px dashed var(--borde-campo);color:var(--tinta-2)}
+.aceptacion--hecha{border:1.5px solid var(--acepta);background:var(--acepta-fondo);color:var(--acepta);font-weight:650}
+.aceptacion svg{flex:none;width:1.2rem;height:1.2rem;margin-top:.05rem}
+.panel[data-estado="pendiente"] .aceptacion--hecha{display:none}
+.panel[data-estado="aceptada"] .aceptacion--pendiente{display:none}
+.panel__acciones{display:flex;flex-wrap:wrap;gap:.5rem;padding:.9rem 1rem;background:#fafbfd}
+.accion{display:inline-block;padding:.4rem .7rem;border:1px solid var(--linea);border-radius:.4rem;background:#fff;font-size:.8125rem;font-weight:600}
+.accion--peligro{color:var(--error)}
+@container (min-width:34rem){
+  .panel__cab,.bloque,.panel__acciones{padding-inline:1.5rem}
+  .panel__cuerpo{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}
+  .bloque--lectura{grid-column:1/-1}
+  .bloque--aperturas{border-right:1px solid var(--linea)}
+  .lectura__fila{grid-template-columns:7rem minmax(0,1fr) 5.25rem;gap:1rem}
+}
+
+.moviles{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-start;gap:1.5rem}
+.movil{position:relative;display:flex;flex-direction:column;width:min(16.5rem,100%);height:33.5rem;overflow:hidden;background:#fff;border:.55rem solid var(--tinta);border-radius:2.5rem;box-shadow:var(--sombra-objeto);font-family:var(--sans);font-size:.875rem;line-height:1.4}
+.movil::before{content:"";position:absolute;top:.5rem;left:50%;width:4.5rem;height:1.15rem;margin-left:-2.25rem;border-radius:1rem;background:var(--tinta)}
+@media (min-width:60rem){.movil--bajo{margin-top:3.5rem}}
+.movil__url{display:flex;align-items:center;justify-content:center;gap:.35rem;margin:2.3rem .8rem 0;padding:.4rem .6rem;border-radius:.6rem;background:var(--mesa);font-size:.75rem;color:var(--tinta-2)}
+.movil__url svg{width:.8rem;height:.8rem;color:var(--tinta)}
+.movil__cuerpo{display:flex;flex:1;flex-direction:column;padding:1.2rem 1.1rem 1.1rem}
+.movil__pre{font-size:.8125rem;color:var(--tinta-2)}
+.movil__titulo{margin-top:.2rem;font-family:var(--serif);font-size:1.25rem;font-weight:600;line-height:1.2}
+.movil__para{margin-top:.3rem;font-size:.8125rem;color:var(--tinta-2)}
+.pin{margin-top:auto}
+.pin__et{font-size:.875rem;font-weight:650}
+.pin__cajas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.45rem;margin-top:.55rem}
+.pin__caja{display:grid;place-items:center;height:3.1rem;border:2px solid var(--linea);border-radius:.55rem;font-size:1.5rem;font-stretch:115%;font-weight:650;font-variant-numeric:tabular-nums}
+.pin__caja--llena{border-color:var(--tinta)}
+.pin__caja--activa{border-color:var(--tinta);box-shadow:0 0 0 3px var(--mesa-2)}
+.pin__caja--activa::after{content:"";width:2px;height:1.4rem;background:var(--tinta)}
+.pin__ayuda{margin-top:.6rem;font-size:.8125rem;line-height:1.4;color:var(--tinta-2)}
+.movil .boton{margin-top:1rem;min-height:2.75rem;font-size:.9375rem;pointer-events:none}
+.movil__nota{margin-top:.75rem;font-size:.75rem;text-align:center;color:var(--tinta-2)}
+.movil__cab{padding:1rem 1.1rem 0}
+.movil__cab .movil__titulo{margin-top:0;font-size:1rem}
+.pestanas{margin-top:.7rem;overflow:hidden;border-bottom:1px solid var(--linea);font-size:.8125rem;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,transparent,#000 14%,#000 80%,transparent);mask-image:linear-gradient(90deg,transparent,#000 14%,#000 80%,transparent)}
+.pestanas__fila{display:flex;gap:1rem;transform:translateX(-2.6rem)}
+.pestanas__fila span{padding:.55rem 0;color:var(--tinta-2)}
+.pestanas__fila .activa{color:var(--tinta);font-weight:650;box-shadow:inset 0 -2px 0 var(--tinta)}
+.movil__sec{font-family:var(--serif);font-size:1.125rem;font-weight:600}
+.movil__precio{margin-top:.1rem;font-family:var(--serif);font-size:2.125rem;font-weight:600;line-height:1.1;letter-spacing:-.01em}
+.movil__lista{display:grid;gap:.5rem;margin-top:1rem;padding:0;list-style:none;font-size:.8125rem;line-height:1.4}
+.movil__lista li{position:relative;padding-left:.95rem}
+.movil__lista li::before{content:"";position:absolute;left:0;top:.5em;width:.35rem;height:.35rem;border-radius:1px;background:var(--tinta)}
+.movil__barra{margin-top:auto;padding:.2rem .9rem .9rem;border-top:1px solid var(--linea)}
+
+.lista-cliente{display:grid;gap:.5rem;padding-left:1.4rem}
+.lista-cliente li{padding-left:.3rem}
+.lista-cliente li::marker{font-family:var(--sans);font-weight:650}
+
+.faq{display:grid;gap:2.25rem 4rem;margin-top:2.75rem}
+@media (min-width:54rem){.faq{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.faq__p{margin-bottom:.5rem;font-size:1.3125rem;line-height:1.3}
+.faq__r{font-size:1.0625rem;max-width:32em}
+.dato{display:inline-block;padding:0 .3em;border:1px dashed var(--tinta-2);border-radius:.25rem;background:var(--mesa);font-family:var(--sans);font-size:.875em;font-weight:650;line-height:1.5;white-space:nowrap}
+
+.formulario-zona{background:var(--mesa);border-radius:1.5rem;padding:clamp(1rem,3.2vw,2.5rem)}
+.formulario{display:grid;gap:1.35rem;padding:clamp(1.25rem,3vw,2rem);background:#fff;border:1px solid var(--linea);border-radius:.875rem;font-family:var(--sans);font-size:1rem;line-height:1.4}
+.campo__et{display:block;margin-bottom:.4rem;font-size:.9375rem;font-weight:650}
+.campo__entrada{display:block;width:100%;min-height:3rem;padding:.75rem .9rem;border:1.5px solid var(--borde-campo);border-radius:.45rem;background:#fff;color:var(--tinta);font:inherit}
+.campo__entrada:focus-visible{outline:3px solid var(--tinta);outline-offset:1px;border-color:var(--tinta)}
+.campo__entrada[aria-invalid="true"]{border-color:var(--error);border-width:2px}
+.campo__error{display:flex;align-items:flex-start;gap:.4rem;margin-top:.45rem;font-size:.875rem;line-height:1.4;color:var(--error)}
+.campo__error svg{flex:none;width:1rem;height:1rem;margin-top:.1rem}
+.opciones-grupo{min-width:0;padding:0;border:0}
+.opciones-grupo legend{padding:0}
+.opciones{display:flex;flex-wrap:wrap;gap:.5rem}
+.opcion{position:relative;display:inline-flex}
+.opcion input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.opcion span{display:inline-flex;align-items:center;min-height:2.75rem;padding:.5rem 1rem;border:1.5px solid var(--borde-campo);border-radius:999px;font-weight:500}
+.opcion input:checked + span{background:var(--tinta);border-color:var(--tinta);color:#fff;font-weight:600}
+.opcion input:focus-visible + span{outline:3px solid var(--tinta);outline-offset:3px}
+.opcion:hover span{border-color:var(--tinta)}
+.aviso{display:grid;gap:.7rem;padding:.9rem 1rem;border:1.5px solid var(--error);border-radius:.5rem;background:var(--error-fondo)}
+.aviso__t{display:flex;align-items:flex-start;gap:.45rem;font-weight:650;color:var(--error)}
+.aviso__t svg{flex:none;width:1.1rem;height:1.1rem;margin-top:.1rem}
+.aviso .boton{justify-self:start}
+.formulario__legal{font-size:.8125rem;color:var(--tinta-2)}
+.exito{display:grid;gap:.5rem;padding:clamp(1.25rem,3vw,2rem);background:#fff;border:2px solid var(--acepta);border-radius:.875rem;font-family:var(--sans);line-height:1.45}
+.exito:focus{outline:none}
+.exito__t{display:flex;align-items:center;gap:.55rem;font-family:var(--serif);font-size:1.5rem;font-weight:600;line-height:1.2}
+.exito__t svg{flex:none;width:1.5rem;height:1.5rem;color:var(--acepta)}
+
+.estados{margin-top:clamp(3rem,6vw,4.5rem);padding-top:2rem;border-top:1px dashed var(--borde-campo)}
+.estados__t{font-family:var(--sans);font-size:1rem;font-weight:650}
+.estados__intro{margin-top:.25rem;font-family:var(--sans);font-size:.9375rem;color:var(--tinta-2)}
+.estados__rejilla{display:grid;gap:1rem;margin-top:1.25rem}
+@media (min-width:54rem){.estados__rejilla{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.estado{padding:1rem;background:#fff;border:1px solid var(--linea);border-radius:.75rem;font-family:var(--sans);font-size:.9375rem;line-height:1.4}
+.estado__nombre{margin-bottom:.75rem;font-size:.8125rem;font-weight:650;color:var(--tinta-2)}
+.estado .exito{padding:1rem;border-width:1.5px}
+.estado .exito__t{font-size:1.125rem}
+.estado .exito__t svg{width:1.25rem;height:1.25rem}
+.falso-campo{display:block;width:100%;min-height:3rem;padding:.75rem .9rem;border:2px solid var(--error);border-radius:.45rem;color:var(--tinta)}
+
+.pie{padding-block:2.5rem;border-top:1px solid var(--linea);font-family:var(--sans);font-size:.875rem;line-height:1.5;color:var(--tinta-2)}
+.pie__in{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.75rem 2rem}
+</style>
+</head>
+<body>
+<a class="saltar" href="#principal">Saltar al contenido</a>
+
+<header class="cabecera">
+  <div class="envoltura cabecera__in">
+    <a class="producto" href="#principal">
+      <svg width="30" height="14" viewBox="0 0 30 14" aria-hidden="true" focusable="false">
+        <rect x=".75" y=".75" width="5.5" height="12.5" rx="1.5" fill="currentColor"/>
+        <rect x="8.25" y=".75" width="5.5" height="12.5" rx="1.5" fill="currentColor"/>
+        <rect x="15.75" y=".75" width="5.5" height="12.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="23.25" y=".75" width="5.5" height="12.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+      <span>Propuestas</span>
+    </a>
+    <a class="boton boton--peque" href="#acceso">Pedir acceso anticipado</a>
+  </div>
+</header>
+
+<main id="principal">
+
+  <section class="hero" aria-labelledby="t-hero">
+    <div class="envoltura hero__rejilla">
+      <h1 class="hero__titulo" id="t-hero"><span>Envía la propuesta.</span> <span>Mira qué se lee y cuándo se acepta.</span></h1>
+
+      <div class="hero__texto">
+        <p class="hero__entradilla">Tu oferta deja de ser un PDF adjunto: es una página privada que tu cliente abre con un enlace y un PIN, sin crear cuenta. Tú ves cuántas veces la abre, dónde se detiene y si la acepta.</p>
+        <div class="hero__acciones">
+          <a class="boton" href="#acceso">Pedir acceso anticipado</a>
+          <a class="enlace" href="#como-funciona">Ver cómo funciona</a>
+        </div>
+        <p class="hero__nota">Acceso anticipado gratuito. Los precios aún no están decididos.</p>
+      </div>
+
+      <figure class="escena hero__escena">
+        <div class="hoja">
+          <p class="hoja__para">Para Taller Hermanos Ríos</p>
+          <p class="hoja__titulo">Web de citas para el taller</p>
+          <div class="hoja__sec">
+            <p class="hoja__h">Resumen</p>
+            <p class="hoja__t">Una web para que vuestros clientes pidan cita sin tener que llamar al taller.</p>
+          </div>
+          <div class="hoja__sec">
+            <p class="hoja__h">Alcance</p>
+            <p class="hoja__t">Calendario de citas, recordatorios y un panel para organizar el trabajo del día.</p>
+          </div>
+          <div class="hoja__sec">
+            <div class="fluor fluor--anim fluor--linea">
+              <p class="hoja__h">Inversión</p>
+              <p class="hoja__precio">4.800&nbsp;€</p>
+              <p class="hoja__t">Desglose por fases y forma de pago.</p>
+            </div>
+            <p class="comentario comentario--anim">Aquí se frenó <strong>4&nbsp;min 35&nbsp;s</strong> de los 9&nbsp;min de lectura</p>
+          </div>
+          <div class="hoja__sec">
+            <p class="hoja__h">Plazos</p>
+            <p class="hoja__t">Fases de trabajo y fecha de entrega de cada una.</p>
+          </div>
+          <div class="hoja__sec">
+            <p class="hoja__h">Condiciones</p>
+            <p class="hoja__t">Validez de la oferta, garantía y propiedad del código.</p>
+          </div>
+        </div>
+        <figcaption class="escena__pie">La propuesta a Taller Hermanos Ríos con su lectura encima: abierta 3 veces, 9&nbsp;min en total y sin aceptar todavía.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="banda" id="como-funciona" aria-labelledby="t-como">
+    <div class="envoltura">
+      <h2 class="titulo-seccion" id="t-como">Cómo funciona</h2>
+      <ol class="pasos">
+        <li class="paso">
+          <h3 class="paso__t">Preparas la propuesta</h3>
+          <p>Resumen, alcance, inversión, plazos y condiciones. Se publica como página web y como PDF con el mismo contenido. Si te encaja, le añades una calculadora de retorno para que tu cliente pruebe con sus cifras.</p>
+        </li>
+        <li class="paso">
+          <h3 class="paso__t">La envías con enlace y PIN</h3>
+          <p>Mandas el enlace como siempre y el PIN de 4 cifras por otro canal, por WhatsApp o por teléfono. Tu cliente no crea ninguna cuenta.</p>
+        </li>
+        <li class="paso">
+          <h3 class="paso__t">Ves qué se lee y cuándo se acepta</h3>
+          <p>Cada apertura queda registrada con fecha, hora y dispositivo, y cada sección con su tiempo de lectura. Si tu cliente acepta online, lo ves en el panel.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="banda" id="lo-que-ves" aria-labelledby="t-ves">
+    <div class="envoltura dos-col dos-col--panel">
+      <div class="dos-col__texto texto">
+        <h2 class="titulo-seccion" id="t-ves">Lo que ves tú</h2>
+        <p>Cada propuesta tiene su seguimiento: cuándo se abre, desde qué dispositivo, cuánto se lee cada sección y si se ha aceptado.</p>
+        <p>En el ejemplo, Taller Hermanos Ríos pasó más de la mitad de su lectura en la Inversión. Ya sabes de qué hablar cuando le llames.</p>
+        <p>Desde el mismo panel amplías la validez, generas un PIN nuevo o revocas el acceso.</p>
+        <div class="conmutador">
+          <p class="conmutador__et" id="et-estado">Cambia el estado del ejemplo</p>
+          <div class="conmutador__grupo" role="group" aria-labelledby="et-estado">
+            <button class="conmutador__boton" type="button" aria-pressed="true" data-valor="pendiente">Pendiente</button>
+            <button class="conmutador__boton" type="button" aria-pressed="false" data-valor="aceptada">Aceptada</button>
+          </div>
+        </div>
+      </div>
+
+      <figure class="escena">
+        <div class="panel" id="panel" data-estado="pendiente">
+          <div class="panel__cab">
+            <div>
+              <p class="panel__titulo">Web de citas para el taller</p>
+              <p class="panel__cliente">Taller Hermanos Ríos</p>
+            </div>
+            <dl class="panel__datos">
+              <div><dt>Importe</dt><dd>4.800&nbsp;€</dd></div>
+              <div><dt>Válida hasta</dt><dd>5/11/2026</dd></div>
+            </dl>
+          </div>
+
+          <div class="panel__cuerpo">
+            <div class="bloque bloque--lectura">
+              <div class="bloque__cab">
+                <p class="bloque__t">Lectura por sección</p>
+                <p class="bloque__dato">9&nbsp;min en total</p>
+              </div>
+              <ul class="lectura">
+                <li class="lectura__fila"><span>Resumen</span><span class="barra"><span style="--v:.236"></span></span><span class="lectura__t">1&nbsp;min 05&nbsp;s</span></li>
+                <li class="lectura__fila"><span>Alcance</span><span class="barra"><span style="--v:.473"></span></span><span class="lectura__t">2&nbsp;min 10&nbsp;s</span></li>
+                <li class="lectura__fila lectura__fila--freno"><span><span class="fluor fluor--linea">Inversión</span></span><span class="barra"><span style="--v:1"></span></span><span class="lectura__t">4&nbsp;min 35&nbsp;s</span><span class="lectura__nota">Aquí se frenó: más de la mitad de la lectura.</span></li>
+                <li class="lectura__fila"><span>Plazos</span><span class="barra"><span style="--v:.182"></span></span><span class="lectura__t">50&nbsp;s</span></li>
+                <li class="lectura__fila"><span>Condiciones</span><span class="barra"><span style="--v:.073"></span></span><span class="lectura__t">20&nbsp;s</span></li>
+              </ul>
+            </div>
+
+            <div class="bloque bloque--aperturas">
+              <div class="bloque__cab">
+                <p class="bloque__t">Aperturas</p>
+                <p class="bloque__dato">3</p>
+              </div>
+              <ul class="aperturas">
+                <li class="apertura"><span>lun. 5 oct.</span><span>19:06</span><span class="dispositivo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg>Portátil</span></li>
+                <li class="apertura"><span>mar. 6 oct.</span><span>8:14</span><span class="dispositivo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg>Móvil</span></li>
+                <li class="apertura"><span>jue. 8 oct.</span><span>22:31</span><span class="dispositivo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></svg>Portátil</span></li>
+              </ul>
+            </div>
+
+            <div class="bloque bloque--aceptacion">
+              <div class="bloque__cab">
+                <p class="bloque__t">Aceptación</p>
+              </div>
+              <div aria-live="polite">
+                <p class="aceptacion aceptacion--pendiente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Todavía no la ha aceptado. Cuando la acepte online, lo verás aquí.</p>
+                <p class="aceptacion aceptacion--hecha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Aceptada online por Taller Hermanos Ríos.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel__acciones">
+            <span class="accion">Ampliar validez</span>
+            <span class="accion">Generar PIN nuevo</span>
+            <span class="accion accion--peligro">Revocar acceso</span>
+          </div>
+        </div>
+        <figcaption class="escena__pie">El seguimiento de la misma propuesta, tal como lo ves en el panel.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="banda" id="lo-que-ve-tu-cliente" aria-labelledby="t-cliente">
+    <div class="envoltura dos-col dos-col--cliente">
+      <div class="dos-col__texto texto">
+        <h2 class="titulo-seccion" id="t-cliente">Lo que ve tu cliente</h2>
+        <p>Un enlace y un PIN. Nada de registrarse ni de recordar contraseñas: la propuesta se abre en el navegador, en el móvil o en el portátil.</p>
+        <ol class="lista-cliente">
+          <li>Abre el enlace que le has mandado.</li>
+          <li>Escribe el PIN de 4 cifras que le has dado por WhatsApp o por teléfono.</li>
+          <li>Lee la propuesta por secciones y, si está de acuerdo, la acepta ahí mismo.</li>
+        </ol>
+        <p class="texto__nota">La propuesta también existe en PDF, con el mismo contenido que la página.</p>
+      </div>
+
+      <figure class="escena">
+        <div class="moviles">
+          <div class="movil">
+            <p class="movil__url"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>propuestas.embed.build</p>
+            <div class="movil__cuerpo">
+              <p class="movil__pre">Te han enviado una propuesta</p>
+              <p class="movil__titulo">Web de citas para el taller</p>
+              <p class="movil__para">Para Taller Hermanos Ríos</p>
+              <div class="pin">
+                <p class="pin__et">Escribe el PIN de 4 cifras</p>
+                <div class="pin__cajas">
+                  <span class="pin__caja pin__caja--llena">4</span>
+                  <span class="pin__caja pin__caja--llena">8</span>
+                  <span class="pin__caja pin__caja--activa"></span>
+                  <span class="pin__caja"></span>
+                </div>
+                <p class="pin__ayuda">Te lo han mandado por WhatsApp o por teléfono.</p>
+                <span class="boton boton--ancho">Abrir propuesta</span>
+                <p class="movil__nota">Sin cuenta ni contraseña.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="movil movil--bajo">
+            <p class="movil__url"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>propuestas.embed.build</p>
+            <div class="movil__cab">
+              <p class="movil__titulo">Web de citas para el taller</p>
+            </div>
+            <div class="pestanas" aria-hidden="true">
+              <div class="pestanas__fila"><span>Resumen</span><span>Alcance</span><span class="activa">Inversión</span><span>Plazos</span><span>Condiciones</span></div>
+            </div>
+            <div class="movil__cuerpo">
+              <p class="movil__sec">Inversión</p>
+              <p class="movil__precio">4.800&nbsp;€</p>
+              <ul class="movil__lista">
+                <li>Diseño de la web y del calendario de citas</li>
+                <li>Recordatorios de cita para vuestros clientes</li>
+                <li>Panel para organizar el trabajo del taller</li>
+              </ul>
+            </div>
+            <div class="movil__barra">
+              <span class="boton boton--ancho">Aceptar propuesta</span>
+            </div>
+          </div>
+        </div>
+        <figcaption class="escena__pie">La misma propuesta en el móvil de tu cliente: primero el PIN, después la propuesta con su botón para aceptarla.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="banda" id="preguntas" aria-labelledby="t-preguntas">
+    <div class="envoltura">
+      <h2 class="titulo-seccion" id="t-preguntas">Preguntas frecuentes</h2>
+      <div class="faq">
+        <div>
+          <h3 class="faq__p">¿Mi cliente necesita cuenta?</h3>
+          <p class="faq__r">No. Abre la propuesta con el enlace y el PIN de 4 cifras que le mandas por WhatsApp o por teléfono. No se registra ni elige contraseña.</p>
+        </div>
+        <div>
+          <h3 class="faq__p">¿Puedo usar mi marca?</h3>
+          <p class="faq__r">La propuesta es tuya y tu cliente la recibe de ti. Qué se puede personalizar hoy, como el logo, los colores o el dominio: <span class="dato">[DATO REAL]</span></p>
+        </div>
+        <div>
+          <h3 class="faq__p">¿Dónde están los datos y qué pasa con el RGPD?</h3>
+          <p class="faq__r">De tu cliente se registra cuándo abre la propuesta, desde qué tipo de dispositivo, cuánto tiempo lee cada sección y si la acepta. Dónde se alojan esos datos y cómo se cumple el RGPD: <span class="dato">[DATO REAL]</span></p>
+        </div>
+        <div>
+          <h3 class="faq__p">¿Cuánto cuesta?</h3>
+          <p class="faq__r">Nada durante el acceso anticipado. Los precios todavía no están decididos, así que no hay ningún plan de pago que elegir.</p>
+        </div>
+        <div>
+          <h3 class="faq__p">¿Y si mi cliente prefiere un PDF?</h3>
+          <p class="faq__r">Cada propuesta tiene también su PDF, con el mismo contenido que la página.</p>
+        </div>
+        <div>
+          <h3 class="faq__p">¿Puedo cortar el acceso a una propuesta enviada?</h3>
+          <p class="faq__r">Sí. Puedes revocar el acceso, generar un PIN nuevo o ampliar la validez cuando lo necesites.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="banda" id="acceso" aria-labelledby="t-acceso">
+    <div class="envoltura dos-col dos-col--acceso">
+      <div class="dos-col__texto texto">
+        <h2 class="titulo-seccion" id="t-acceso">Pide acceso anticipado</h2>
+        <p>Propuestas todavía no está abierta a otros estudios. Si vendes proyectos a pymes y quieres probarla con tus próximas propuestas, déjanos tus datos y te escribimos.</p>
+        <p class="texto__nota">Gratis durante el acceso anticipado. Los precios aún no están decididos.</p>
+      </div>
+
+      <div class="formulario-zona">
+        <form class="formulario" id="form-acceso" action="#acceso" method="post" novalidate>
+          <div>
+            <label class="campo__et" for="f-nombre">Nombre</label>
+            <input class="campo__entrada" id="f-nombre" name="nombre" type="text" autocomplete="name" required aria-describedby="e-nombre">
+            <p class="campo__error" id="e-nombre" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></svg><span></span></p>
+          </div>
+          <div>
+            <label class="campo__et" for="f-email">Email</label>
+            <input class="campo__entrada" id="f-email" name="email" type="email" inputmode="email" autocomplete="email" required aria-describedby="e-email">
+            <p class="campo__error" id="e-email" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></svg><span></span></p>
+          </div>
+          <fieldset class="opciones-grupo" aria-describedby="e-dedicacion">
+            <legend class="campo__et">A qué te dedicas</legend>
+            <div class="opciones">
+              <label class="opcion"><input type="radio" name="dedicacion" value="diseno"><span>Diseño</span></label>
+              <label class="opcion"><input type="radio" name="dedicacion" value="desarrollo"><span>Desarrollo</span></label>
+              <label class="opcion"><input type="radio" name="dedicacion" value="marketing"><span>Marketing</span></label>
+              <label class="opcion"><input type="radio" name="dedicacion" value="otra"><span>Otra cosa</span></label>
+            </div>
+            <p class="campo__error" id="e-dedicacion" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></svg><span></span></p>
+          </fieldset>
+
+          <div class="aviso" id="aviso-envio" role="alert" hidden>
+            <p class="aviso__t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></svg>No se ha podido enviar la solicitud.</p>
+            <p>Tus datos siguen en el formulario. Comprueba la conexión y vuelve a intentarlo.</p>
+            <button class="boton boton--claro boton--peque" type="button" id="reintentar">Reintentar</button>
+          </div>
+
+          <button class="boton boton--ancho" type="submit" id="enviar">Pedir acceso anticipado</button>
+          <p class="formulario__legal">Tratamiento de tus datos: <span class="dato">[DATO REAL]</span></p>
+        </form>
+
+        <div class="exito" id="exito" tabindex="-1" hidden>
+          <p class="exito__t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Has pedido acceso anticipado</p>
+          <p>Te escribiremos a <strong id="exito-email"></strong> con los siguientes pasos.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="envoltura">
+      <div class="estados" aria-labelledby="t-estados">
+        <h3 class="estados__t" id="t-estados">Así responde el formulario</h3>
+        <p class="estados__intro">Los tres mensajes que puede devolver al pulsar «Pedir acceso anticipado».</p>
+        <div class="estados__rejilla">
+          <div class="estado">
+            <p class="estado__nombre">Enviado</p>
+            <div class="exito">
+              <p class="exito__t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Has pedido acceso anticipado</p>
+              <p>Te escribiremos a <strong>nombre@tuestudio.es</strong> con los siguientes pasos.</p>
+            </div>
+          </div>
+          <div class="estado">
+            <p class="estado__nombre">Email no válido</p>
+            <p class="campo__et">Email</p>
+            <span class="falso-campo">nombre@tuestudio</span>
+            <p class="campo__error"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></svg><span>Este email no es válido. Escríbelo completo, por ejemplo nombre@tuestudio.es.</span></p>
+          </div>
+          <div class="estado">
+            <p class="estado__nombre">Error de envío</p>
+            <div class="aviso" id="demo-error">
+              <p class="aviso__t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></svg>No se ha podido enviar la solicitud.</p>
+              <p>Tus datos siguen en el formulario. Comprueba la conexión y vuelve a intentarlo.</p>
+              <button class="boton boton--claro boton--peque" type="button" id="demo-reintentar">Reintentar</button>
+            </div>
+            <div class="exito" id="demo-error-ok" hidden>
+              <p class="exito__t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Has pedido acceso anticipado</p>
+              <p>El segundo intento ha llegado bien.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="pie">
+  <div class="envoltura pie__in">
+    <p>Propuestas es una herramienta de embed.build, estudio de software de Jerez de la Frontera.</p>
+    <p>propuestas.embed.build</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var panel = document.getElementById('panel');
+  var conmutadores = Array.prototype.slice.call(document.querySelectorAll('.conmutador__boton'));
+  conmutadores.forEach(function (boton) {
+    boton.addEventListener('click', function () {
+      panel.setAttribute('data-estado', boton.getAttribute('data-valor'));
+      conmutadores.forEach(function (otro) {
+        otro.setAttribute('aria-pressed', otro === boton ? 'true' : 'false');
+      });
+    });
+  });
+
+  var form = document.getElementById('form-acceso');
+  var nombre = document.getElementById('f-nombre');
+  var email = document.getElementById('f-email');
+  var eNombre = document.getElementById('e-nombre');
+  var eEmail = document.getElementById('e-email');
+  var eDedicacion = document.getElementById('e-dedicacion');
+  var aviso = document.getElementById('aviso-envio');
+  var reintentar = document.getElementById('reintentar');
+  var enviar = document.getElementById('enviar');
+  var exito = document.getElementById('exito');
+  var exitoEmail = document.getElementById('exito-email');
+  var patron = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  var textoBoton = enviar.textContent;
+
+  function marcar(campo, error, mensaje) {
+    error.querySelector('span').textContent = mensaje;
+    error.hidden = !mensaje;
+    if (campo) {
+      if (mensaje) { campo.setAttribute('aria-invalid', 'true'); }
+      else { campo.removeAttribute('aria-invalid'); }
+    }
+  }
+
+  function errorEmail() {
+    var valor = email.value.trim();
+    if (!valor) { return 'Escribe tu email para que podamos contestarte.'; }
+    if (!patron.test(valor)) { return 'Este email no es válido. Escríbelo completo, por ejemplo nombre@tuestudio.es.'; }
+    return '';
+  }
+
+  function validar() {
+    var primero = null;
+    var mNombre = nombre.value.trim() ? '' : 'Escribe tu nombre.';
+    marcar(nombre, eNombre, mNombre);
+    if (mNombre) { primero = nombre; }
+    var mEmail = errorEmail();
+    marcar(email, eEmail, mEmail);
+    if (mEmail && !primero) { primero = email; }
+    var elegida = form.querySelector('input[name="dedicacion"]:checked');
+    var mDedicacion = elegida ? '' : 'Elige a qué te dedicas.';
+    marcar(null, eDedicacion, mDedicacion);
+    if (mDedicacion && !primero) { primero = form.querySelector('input[name="dedicacion"]'); }
+    return primero;
+  }
+
+  email.addEventListener('blur', function () {
+    if (email.value.trim()) { marcar(email, eEmail, errorEmail()); }
+  });
+  email.addEventListener('input', function () {
+    if (email.getAttribute('aria-invalid') === 'true') { marcar(email, eEmail, errorEmail()); }
+  });
+  nombre.addEventListener('input', function () {
+    if (nombre.value.trim()) { marcar(nombre, eNombre, ''); }
+  });
+  form.addEventListener('change', function (evento) {
+    if (evento.target.name === 'dedicacion') { marcar(null, eDedicacion, ''); }
+  });
+
+  function mandar() {
+    aviso.hidden = true;
+    enviar.disabled = true;
+    enviar.textContent = 'Enviando solicitud…';
+    window.setTimeout(function () {
+      enviar.disabled = false;
+      enviar.textContent = textoBoton;
+      if (navigator.onLine === false) {
+        aviso.hidden = false;
+        reintentar.focus();
+        return;
+      }
+      exitoEmail.textContent = email.value.trim();
+      form.hidden = true;
+      exito.hidden = false;
+      exito.focus();
+    }, 900);
+  }
+
+  form.addEventListener('submit', function (evento) {
+    evento.preventDefault();
+    var primero = validar();
+    if (primero) { primero.focus(); return; }
+    mandar();
+  });
+  reintentar.addEventListener('click', mandar);
+
+  var demoBoton = document.getElementById('demo-reintentar');
+  demoBoton.addEventListener('click', function () {
+    demoBoton.disabled = true;
+    demoBoton.textContent = 'Enviando…';
+    window.setTimeout(function () {
+      document.getElementById('demo-error').hidden = true;
+      document.getElementById('demo-error-ok').hidden = false;
+    }, 800);
+  });
+})();
+</script>
+</body>
+</html>

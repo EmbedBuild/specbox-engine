@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Participantes de la prueba · ESBK 2026 Ronda 6 · PaddockManager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
+<style>
+:root{
+  --bg:#F4F3EF;
+  --surface:#FFFFFF;
+  --surface-2:#F8F7F3;
+  --ink:#15171C;
+  --ink-2:#3B404A;
+  --muted:#5B6170;
+  --line:#E4E2DC;
+  --line-strong:#C9C6BE;
+  --control:#8F8C85;
+  --accent:#C4161C;
+  --focus:#1F5FD6;
+  --ok:#116432;--ok-bg:#E7F4EC;
+  --warn:#8A5A00;--warn-bg:#FFF4D6;--warn-dot:#C98A00;
+  --err:#B42318;--err-bg:#FDECEA;
+  --off:#4B5563;--off-bg:#EEF0F3;
+  --radius:12px;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p,ul,ol{margin:0}
+ul,ol{padding:0;list-style:none}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit}
+.vh{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.topbar :focus-visible{outline-color:#8DB4FF}
+.skip{position:absolute;left:16px;top:-100px;z-index:20;background:var(--ink);color:#fff;padding:10px 14px;border-radius:8px;font-weight:600;text-decoration:none}
+.skip:focus{top:10px;outline-color:#8DB4FF}
+.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.topbar{background:var(--ink);color:#fff}
+.topbar__in{max-width:1440px;margin:0 auto;padding:0 32px;height:60px;display:flex;align-items:center;gap:24px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-size:18px;font-weight:500;font-stretch:87.5%;letter-spacing:.01em;border-radius:6px}
+.brand strong{font-weight:800}
+.brand__mark{width:28px;height:28px;flex:none}
+.event{display:flex;flex-direction:column;padding-left:24px;border-left:1px solid #353A45;line-height:1.25}
+.event__label{font-size:12px;color:#B3B8C2}
+.event__name{font-size:14px;font-weight:600}
+.topbar__actions{margin-left:auto;display:flex;align-items:center;gap:6px}
+.live{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;background:#23272F;color:#E9EBEF;margin-right:10px;white-space:nowrap}
+.live__dot{width:8px;height:8px;border-radius:50%;background:#3DD68C;animation:pulse 2.4s ease-out infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(61,214,140,.55)}70%{box-shadow:0 0 0 7px rgba(61,214,140,0)}100%{box-shadow:0 0 0 0 rgba(61,214,140,0)}}
+@media (prefers-reduced-motion:reduce){.live__dot{animation:none}}
+.tbtn{position:relative;width:40px;height:40px;border:0;border-radius:8px;background:transparent;color:#fff;display:grid;place-items:center}
+.tbtn:hover{background:#23272F}
+.tbtn .i{width:20px;height:20px}
+.tbtn__badge{position:absolute;top:5px;right:5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--accent);border:2px solid var(--ink);font-size:10.5px;font-weight:700;line-height:13px;text-align:center}
+.user{display:flex;align-items:center;gap:10px;border:0;background:transparent;color:#fff;padding:4px 10px 4px 4px;border-radius:8px;text-align:left}
+.user:hover{background:#23272F}
+.avatar{width:32px;height:32px;border-radius:50%;background:#ECE9E2;color:var(--ink);display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+.user__txt{display:flex;flex-direction:column;line-height:1.2;font-size:14px;font-weight:600}
+.user__txt small{font-size:12px;font-weight:400;color:#B3B8C2}
+.menu-toggle{display:none}
+
+.eventnav{background:var(--surface);border-bottom:1px solid var(--line)}
+.eventnav ul{max-width:1440px;margin:0 auto;padding:0 32px;display:flex;gap:4px}
+.eventnav a{display:block;padding:14px 12px 11px;text-decoration:none;color:var(--ink-2);font-size:14px;font-weight:500;border-bottom:3px solid transparent}
+.eventnav a:hover{color:var(--ink);background:var(--surface-2)}
+.eventnav a[aria-current="page"]{color:var(--ink);font-weight:700;border-bottom-color:var(--accent)}
+
+.page{max-width:1440px;margin:0 auto;padding:24px 32px 48px;display:grid;gap:20px}
+.page>*{min-width:0}
+.pagehead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.crumbs ol{display:flex;flex-wrap:wrap;gap:2px 8px;font-size:13px;color:var(--muted)}
+.crumbs li+li::before{content:"/";margin-right:8px;color:var(--line-strong)}
+.crumbs a{color:var(--muted);text-decoration:none;border-radius:4px}
+.crumbs a:hover{color:var(--ink);text-decoration:underline}
+.crumbs [aria-current]{color:var(--ink-2);font-weight:600}
+h1{margin-top:6px;font-size:34px;line-height:1.1;font-weight:800;font-stretch:87.5%;letter-spacing:-.01em}
+.sub{margin-top:6px;color:var(--muted)}
+.pagehead__actions{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 16px;border-radius:8px;border:1px solid var(--control);background:var(--surface);color:var(--ink);font-size:14px;font-weight:600;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#F0EEE9}
+.btn--primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn--primary:hover{background:#2B2F38}
+.btn--sm{height:32px;padding:0 12px;font-size:13px;gap:6px}
+.btn--sm .i{width:16px;height:16px}
+.btn[aria-disabled="true"]{background:var(--ok-bg);border-color:transparent;color:var(--ok);cursor:default}
+
+.deadline{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) auto;gap:28px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--ink);border-radius:var(--radius);padding:16px 22px}
+.deadline__main{display:flex;gap:14px;align-items:flex-start}
+.deadline__icon{width:36px;height:36px;border-radius:50%;background:var(--warn-bg);color:var(--warn);display:grid;place-items:center;flex:none}
+.deadline__title{font-size:16px;font-weight:700;line-height:1.3}
+.deadline__left{display:inline-block;margin-left:6px;font-size:13px;font-weight:700;color:var(--warn);background:var(--warn-bg);border-radius:999px;padding:1px 8px;vertical-align:1px}
+.deadline__text{margin-top:2px;font-size:14px;color:var(--ink-2)}
+.tl__bar{position:relative;height:8px;border-radius:4px;background:#ECEAE4}
+.tl__fill{position:absolute;inset:0 auto 0 0;width:40%;border-radius:4px;background:var(--ink)}
+.tl__now{position:absolute;left:40%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:var(--surface);border:3px solid var(--ink)}
+.tl__labels{position:relative;display:flex;justify-content:space-between;margin-top:8px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tl__nowlbl{position:absolute;left:40%;transform:translateX(-50%);color:var(--ink);font-weight:700;white-space:nowrap}
+.deadline__next{display:flex;flex-direction:column;text-align:right;font-size:13px;color:var(--muted)}
+.deadline__next strong{color:var(--ink);font-size:15px}
+
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;display:grid;gap:8px;align-content:start}
+.kpi__label{font-size:13px;font-weight:600;color:var(--muted)}
+.kpi__value{font-size:38px;line-height:1;font-weight:800;font-stretch:75%;font-variant-numeric:tabular-nums}
+.kpi__value small{font-size:20px;font-weight:600;color:var(--muted);margin-left:2px}
+.bar{height:6px;border-radius:3px;background:#ECEAE4;overflow:hidden}
+.bar span{display:block;height:100%;border-radius:inherit;background:var(--ink)}
+.p46{width:46%}.p63{width:63%}.p79{width:79%}
+.kpi__foot{font-size:13px;color:var(--ink-2)}
+.kpi--hero{background:var(--ink);border-color:var(--ink);color:#fff}
+.kpi--hero .kpi__label,.kpi--hero .kpi__value small{color:#C3C8D1}
+.kpi--hero .kpi__foot{color:#E3E6EB}
+.kpi--hero .bar{background:#30353F}
+.kpi--hero .bar span{background:#3DD68C}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start}
+.layout>*{min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+h2{font-size:18px;font-weight:700;font-stretch:87.5%;line-height:1.25}
+.list__head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px 12px;padding:18px 20px 0}
+.results{font-size:13px;color:var(--muted)}
+.results strong{color:var(--ink-2);font-weight:600}
+.toolbar{display:grid;grid-template-columns:auto minmax(240px,340px);justify-content:space-between;gap:12px 16px;padding:14px 20px 16px;border-bottom:1px solid var(--line)}
+.toolbar>*{min-width:0}
+.seg{display:inline-flex;justify-self:start;gap:2px;padding:3px;border-radius:10px;background:#EEECE6}
+.seg button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;border-radius:8px;background:transparent;padding:7px 12px;font-size:14px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.seg button:hover{color:var(--ink);background:#E4E1DA}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(21,23,28,.14),0 0 0 1px var(--line-strong)}
+.count{font-size:12px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.short{display:none}
+.search{position:relative}
+.search .i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.search input{width:100%;min-width:0;height:40px;border:1px solid var(--control);border-radius:8px;background:var(--surface);padding:0 12px 0 38px;font-size:15px}
+.search input::placeholder{color:#6B7080}
+.chips{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);font-size:13px;font-weight:600;color:var(--ink-2)}
+.chip:hover{border-color:var(--control);color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip[aria-pressed="true"] .count{color:#D2D6DD}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot--ok{background:var(--ok)}.dot--warn{background:var(--warn-dot)}.dot--err{background:var(--err)}.dot--off{background:#8A909C}
+
+.grid{width:100%;border-collapse:collapse;table-layout:fixed}
+.w-plate{width:84px}.w-checks{width:250px}.w-status{width:224px}.w-act{width:64px}
+.grid th,.grid td{padding:12px;text-align:left;vertical-align:middle;border-bottom:1px solid var(--line)}
+.grid th:first-child,.grid td:first-child{padding-left:20px}
+.grid td:last-child{padding-right:16px;text-align:right}
+.grid thead th{padding-top:10px;padding-bottom:10px;background:var(--surface-2);font-size:12.5px;font-weight:600;color:var(--muted)}
+.grid tr.group th{padding:10px 20px;background:var(--surface-2);font-size:14px;font-weight:700;color:var(--ink)}
+.group__meta{margin-left:10px;font-size:13px;font-weight:500;color:var(--muted)}
+.grid tbody tr[data-cat]:hover{background:#FBFAF7}
+.plate{display:inline-flex;align-items:center;justify-content:center;min-width:48px;height:36px;padding:0 6px;border:2px solid var(--ink);border-radius:7px;background:#fff;font-size:22px;line-height:1;font-weight:800;font-stretch:75%;font-variant-numeric:tabular-nums}
+.plate--sm{min-width:40px;height:30px;font-size:18px;border-radius:6px}
+.name{display:block;font-weight:700;overflow-wrap:anywhere}
+.team{display:block;font-weight:500;overflow-wrap:anywhere}
+.meta{display:block;margin-top:1px;font-size:13px;color:var(--muted)}
+.checks{display:flex;flex-wrap:wrap;gap:6px 10px}
+.chk{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:var(--ink-2);padding:2px 0}
+.chk .i{width:16px;height:16px;stroke-width:2.4}
+.chk--ok .i{color:var(--ok)}
+.chk--wait{color:var(--warn)}
+.chk--err{color:var(--err);background:var(--err-bg);border-radius:6px;padding:2px 8px 2px 6px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 8px;border-radius:999px;font-size:13px;font-weight:700;white-space:nowrap}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.badge--ok{color:var(--ok);background:var(--ok-bg)}
+.badge--warn{color:var(--warn);background:var(--warn-bg)}
+.badge--err{color:var(--err);background:var(--err-bg)}
+.badge--off{color:var(--off);background:var(--off-bg)}
+.detail{display:block;margin-top:5px;font-size:13px;color:var(--muted);line-height:1.35}
+.detail--err{color:var(--err);font-weight:600}
+.rowbtn{display:inline-grid;place-items:center;width:36px;height:36px;border-radius:8px;border:1px solid transparent;color:var(--ink-2)}
+.rowbtn:hover{background:#F0EEE9;border-color:var(--line-strong);color:var(--ink)}
+.empty{display:grid;justify-items:center;gap:8px;padding:48px 20px;text-align:center;border-bottom:1px solid var(--line)}
+.empty .i{width:32px;height:32px;color:var(--muted);stroke-width:1.6}
+.empty p{max-width:36ch;color:var(--ink-2)}
+.empty__title{font-weight:700;color:var(--ink)}
+.list__foot{padding:12px 20px 14px;font-size:12.5px;color:var(--muted)}
+
+.side{display:grid;gap:20px;align-items:start}
+.side>*{min-width:0}
+.side .panel{padding:18px 20px 6px}
+.side__head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.side h3{display:flex;align-items:center;gap:8px;margin-top:16px;font-size:14px;font-weight:700}
+.side__sub{margin-top:2px;font-size:13px;color:var(--muted)}
+.n{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;font-size:12px;font-weight:700}
+.n--err{color:var(--err);background:var(--err-bg)}
+.n--off{color:var(--off);background:var(--off-bg)}
+.inc-list{margin-top:8px}
+.inc{display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;padding:14px 0;border-top:1px solid var(--line)}
+.inc__who{font-weight:700;line-height:1.3}
+.inc__cat{font-weight:500;color:var(--muted)}
+.inc__what{margin-top:3px;font-size:14px;font-weight:600;color:var(--err);line-height:1.35}
+.inc__meta{margin-top:3px;font-size:12.5px;color:var(--muted)}
+.inc__body .btn{margin-top:10px}
+.agenda{margin-top:10px}
+.agenda li{display:grid;grid-template-columns:104px minmax(0,1fr);gap:12px;padding:11px 0;border-top:1px solid var(--line);font-size:14px}
+.agenda .when{font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.agenda .what{font-weight:600}
+.agenda .where{display:block;font-size:12.5px;font-weight:400;color:var(--muted)}
+.tag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--ink);color:#fff;font-size:11.5px;font-weight:700;vertical-align:1px}
+.tag--line{background:transparent;color:var(--ink);border:1px solid var(--ink);padding:0 6px}
+
+@media (min-width:1360px){
+  .layout{grid-template-columns:minmax(0,1fr) 320px}
+}
+@media (min-width:640px) and (max-width:1359px){
+  .side{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:1180px){
+  .live{display:none}
+  .deadline{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .deadline__next{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;gap:4px 8px;text-align:left;align-items:baseline}
+}
+@media (max-width:1023px){
+  .toolbar{grid-template-columns:minmax(0,1fr)}
+  .grid,.grid tbody{display:block;width:100%}
+  .grid colgroup{display:none}
+  .grid thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%)}
+  .grid tr.group{display:block}
+  .grid tr.group th{display:block;padding:10px 16px}
+  .group__meta{display:block;margin-left:0;margin-top:1px}
+  .grid tr[data-cat]{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"plate rider act" "plate team act" "status status status" "checks checks checks";column-gap:12px;row-gap:2px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .grid td,.grid td:first-child,.grid td:last-child{display:block;padding:0;border:0;text-align:left}
+  .c-plate{grid-area:plate}
+  .c-rider{grid-area:rider}
+  .c-team{grid-area:team;margin-top:4px}
+  .c-act{grid-area:act;align-self:start}
+  .c-status{grid-area:status;margin-top:10px}
+  .c-checks{grid-area:checks;margin-top:8px}
+  .c-status .detail{display:inline;margin:0 0 0 8px}
+}
+@media (max-width:860px){
+  .topbar__in{padding:0 16px;gap:12px}
+  .event,.live{display:none}
+  .user{padding:4px}
+  .user__txt{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+  .menu-toggle{display:grid}
+  .eventnav{display:none}
+  .eventnav.is-open{display:block}
+  .eventnav ul{flex-direction:column;gap:0;padding:6px 16px 10px}
+  .eventnav a{border-bottom:0;border-left:3px solid transparent;padding:11px 12px}
+  .eventnav a[aria-current="page"]{border-left-color:var(--accent)}
+  .page{padding:20px 16px 40px;gap:16px}
+}
+@media (max-width:719px){
+  h1{font-size:27px}
+  .pagehead{flex-direction:column;align-items:stretch}
+  .pagehead__actions .btn--primary{flex:1}
+  .hide-sm{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+  .pagehead__actions .btn:not(.btn--primary){width:40px;padding:0}
+  .deadline{grid-template-columns:minmax(0,1fr);gap:16px;padding:14px 16px}
+  .deadline__left{display:table;margin:4px 0 0}
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .kpi{padding:14px}
+  .kpi__value{font-size:32px}
+  .list__head{padding:16px 16px 0}
+  .toolbar{padding:12px 16px 14px}
+  .seg{display:grid;justify-self:stretch;grid-template-columns:repeat(4,minmax(0,1fr))}
+  .seg button{padding:8px 4px;font-size:13px;gap:4px}
+  .long{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+  .short{display:inline}
+  .search input{font-size:16px}
+  .list__foot{padding:12px 16px}
+  .side .panel{padding:16px 16px 4px}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-ok" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.8 2.9 19.5h18.2z"/><path d="M12 10v4.2M12 17v.2"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 1.5h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5"/><path d="M5 19.5h14"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+    <symbol id="i-megaphone" viewBox="0 0 24 24"><path d="M4 10v4h3l7 4.5v-13L7 10z"/><path d="M17.5 9a4 4 0 0 1 0 6"/></symbol>
+    <symbol id="i-empty" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5M8.8 8.8l4.4 4.4M13.2 8.8l-4.4 4.4"/></symbol>
+  </defs>
+</svg>
+
+<a class="skip" href="#lista">Saltar a la lista de participantes</a>
+
+<header class="topbar">
+  <div class="topbar__in">
+    <a class="brand" href="#inicio">
+      <svg class="brand__mark" viewBox="0 0 28 28" aria-hidden="true" focusable="false"><rect width="28" height="28" rx="7" fill="#C4161C"/><g fill="#fff"><rect x="6" y="6" width="5.34" height="5.34"/><rect x="16.66" y="6" width="5.34" height="5.34"/><rect x="11.33" y="11.33" width="5.34" height="5.34"/><rect x="6" y="16.66" width="5.34" height="5.34"/><rect x="16.66" y="16.66" width="5.34" height="5.34"/></g></svg>
+      <span>Paddock<strong>Manager</strong></span>
+    </a>
+    <div class="event">
+      <span class="event__label">Prueba activa</span>
+      <span class="event__name">ESBK 2026 · Ronda 6 · Jerez</span>
+    </div>
+    <div class="topbar__actions">
+      <span class="live"><span class="live__dot" aria-hidden="true"></span>Verificaciones abiertas</span>
+      <button class="tbtn" type="button" aria-label="Notificaciones: 3 sin leer"><svg class="i" aria-hidden="true"><use href="#i-bell"/></svg><span class="tbtn__badge" aria-hidden="true">3</span></button>
+      <button class="user" type="button"><span class="avatar" aria-hidden="true">LS</span><span class="user__txt">Lucía Serrano <small>Secretaría de la prueba</small></span></button>
+      <button class="tbtn menu-toggle" type="button" aria-expanded="false" aria-controls="secciones" aria-label="Abrir el menú de secciones"><svg class="i" aria-hidden="true"><use href="#i-menu"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<nav class="eventnav" id="secciones" aria-label="Secciones de la prueba">
+  <ul>
+    <li><a href="#resumen">Resumen</a></li>
+    <li><a href="#lista" aria-current="page">Participantes</a></li>
+    <li><a href="#verificaciones">Verificaciones</a></li>
+    <li><a href="#horarios">Horarios</a></li>
+    <li><a href="#cronometraje">Cronometraje</a></li>
+    <li><a href="#comunicados">Comunicados</a></li>
+  </ul>
+</nav>
+
+<main class="page">
+  <div class="pagehead">
+    <div>
+      <nav class="crumbs" aria-label="Ruta de navegación">
+        <ol>
+          <li><a href="#campeonato">ESBK 2026</a></li>
+          <li><a href="#ronda">Ronda 6 de 7</a></li>
+          <li><span aria-current="page">Participantes</span></li>
+        </ol>
+      </nav>
+      <h1>Participantes de la prueba</h1>
+      <p class="sub">Circuito de Jerez – Ángel Nieto · del 9 al 11 de octubre de 2026</p>
+    </div>
+    <div class="pagehead__actions">
+      <button class="btn" type="button"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg><span class="hide-sm">Exportar lista</span></button>
+      <button class="btn btn--primary" type="button"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>Añadir participante</button>
+    </div>
+  </div>
+
+  <section class="deadline" aria-labelledby="plazo-titulo">
+    <div class="deadline__main">
+      <span class="deadline__icon" aria-hidden="true"><svg class="i"><use href="#i-clock"/></svg></span>
+      <div>
+        <h2 id="plazo-titulo" class="deadline__title">La verificación técnica cierra hoy a las 14:00 <span class="deadline__left">Quedan 3 h 18 min</span></h2>
+        <p class="deadline__text">9 motos aún no la han superado: 8 pendientes y 1 con incidencia.</p>
+      </div>
+    </div>
+    <div class="tl" role="img" aria-label="Ventana de verificación técnica de 08:30 a 14:00. Son las 10:42.">
+      <div class="tl__bar"><span class="tl__fill"></span><span class="tl__now"></span></div>
+      <div class="tl__labels"><span>08:30</span><span class="tl__nowlbl">Ahora · 10:42</span><span>14:00</span></div>
+    </div>
+    <p class="deadline__next"><span>Primera salida a pista</span><strong>15:10 · Libres 1 Supersport 300</strong></p>
+  </section>
+
+  <section class="kpis" aria-labelledby="kpis-titulo">
+    <h2 id="kpis-titulo" class="vh">Resumen de verificaciones</h2>
+    <div class="kpi kpi--hero">
+      <p class="kpi__label">Listos para pista</p>
+      <p class="kpi__value">11<small><span class="vh"> de </span><span aria-hidden="true">/</span>24</small></p>
+      <div class="bar" aria-hidden="true"><span class="p46"></span></div>
+      <p class="kpi__foot">13 aún no pueden rodar</p>
+    </div>
+    <div class="kpi">
+      <p class="kpi__label">Verificación administrativa</p>
+      <p class="kpi__value">19<small><span class="vh"> de </span><span aria-hidden="true">/</span>24</small></p>
+      <div class="bar" aria-hidden="true"><span class="p79"></span></div>
+      <p class="kpi__foot">2 pendientes · 3 con incidencia</p>
+    </div>
+    <div class="kpi">
+      <p class="kpi__label">Verificación técnica</p>
+      <p class="kpi__value">15<small><span class="vh"> de </span><span aria-hidden="true">/</span>24</small></p>
+      <div class="bar" aria-hidden="true"><span class="p63"></span></div>
+      <p class="kpi__foot">8 pendientes · 1 no superada</p>
+    </div>
+    <div class="kpi">
+      <p class="kpi__label">Transpondedores operativos</p>
+      <p class="kpi__value">19<small><span class="vh"> de </span><span aria-hidden="true">/</span>24</small></p>
+      <div class="bar" aria-hidden="true"><span class="p79"></span></div>
+      <p class="kpi__foot">4 sin asignar · 1 sin señal</p>
+    </div>
+  </section>
+
+  <div class="layout">
+    <section class="panel" id="lista" aria-labelledby="lista-titulo">
+      <div class="list__head">
+        <h2 id="lista-titulo">Lista de inscritos</h2>
+        <p class="results"><strong id="resultados" aria-live="polite">24 participantes</strong> · actualizado a las 10:42</p>
+      </div>
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Filtrar por categoría">
+          <button type="button" data-cat-filter="all" aria-pressed="true">Todas <span class="count">24</span></button>
+          <button type="button" data-cat-filter="sbk" aria-pressed="false"><span class="long">Superbike</span><span class="short" aria-hidden="true">SBK</span> <span class="count">9</span></button>
+          <button type="button" data-cat-filter="ssp" aria-pressed="false"><span class="long">Supersport</span><span class="short" aria-hidden="true">SSP</span> <span class="count">8</span></button>
+          <button type="button" data-cat-filter="ssp300" aria-pressed="false"><span class="long">Supersport 300</span><span class="short" aria-hidden="true">SSP300</span> <span class="count">7</span></button>
+        </div>
+        <div class="search">
+          <label class="vh" for="buscar">Buscar por dorsal, piloto, equipo o moto</label>
+          <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
+          <input id="buscar" type="search" placeholder="Dorsal, piloto, equipo o moto" autocomplete="off">
+        </div>
+        <div class="chips" role="group" aria-label="Filtrar por estado">
+          <button class="chip" type="button" data-status-filter="all" aria-pressed="true">Todos los estados</button>
+          <button class="chip" type="button" data-status-filter="listo" aria-pressed="false"><span class="dot dot--ok" aria-hidden="true"></span>Listos <span class="count">11</span></button>
+          <button class="chip" type="button" data-status-filter="pendiente" aria-pressed="false"><span class="dot dot--warn" aria-hidden="true"></span>Pendientes <span class="count">6</span></button>
+          <button class="chip" type="button" data-status-filter="incidencia" aria-pressed="false"><span class="dot dot--err" aria-hidden="true"></span>Con incidencia <span class="count">5</span></button>
+          <button class="chip" type="button" data-status-filter="ausente" aria-pressed="false"><span class="dot dot--off" aria-hidden="true"></span>Sin presentar <span class="count">2</span></button>
+        </div>
+      </div>
+
+      <table class="grid" id="tabla">
+        <caption class="vh">Participantes inscritos en la Ronda 6 del ESBK 2026, agrupados por categoría</caption>
+        <colgroup><col class="w-plate"><col><col><col class="w-checks"><col class="w-status"><col class="w-act"></colgroup>
+        <thead>
+          <tr><th scope="col">Dorsal</th><th scope="col">Piloto</th><th scope="col">Equipo y moto</th><th scope="col">Verificaciones</th><th scope="col">Estado</th><th scope="col"><span class="vh">Ficha</span></th></tr>
+        </thead>
+
+        <tbody>
+          <tr class="group"><th scope="colgroup" colspan="6">Superbike <span class="group__meta">9 inscritos · 4 listos · Libres 1 a las 16:40</span></th></tr>
+          <tr data-cat="sbk" data-status="listo" data-dorsal="7">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>7</span></td>
+            <td class="c-rider"><span class="name">Álvaro Romero Vidal</span><span class="meta">ESP · Licencia 104512</span></td>
+            <td class="c-team"><span class="team">Escudería Levante Competición</span><span class="meta">Ducati Panigale V4 R</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--ok">Listo para pista</span><span class="detail">Técnica superada a las 09:12</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-7" aria-label="Abrir la ficha de Álvaro Romero Vidal"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="sbk" data-status="listo" data-dorsal="11">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>11</span></td>
+            <td class="c-rider"><span class="name">Iker Etxeberria Salaberria</span><span class="meta">ESP · Licencia 104377</span></td>
+            <td class="c-team"><span class="team">Navarra Speed Team</span><span class="meta">BMW M 1000 RR</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--ok">Listo para pista</span><span class="detail">Técnica superada a las 09:35</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-11" aria-label="Abrir la ficha de Iker Etxeberria Salaberria"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="sbk" data-status="pendiente" data-dorsal="21">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>21</span></td>
+            <td class="c-rider"><span class="name">Marc Puigdomènech Soler</span><span class="meta">ESP · Licencia 105020</span></td>
+            <td class="c-team"><span class="team">Montjuïc Racing</span><span class="meta">Yamaha YZF-R1</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: pendiente</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--warn">Pendiente</span><span class="detail">En cola de la zona técnica desde las 10:30</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-21" aria-label="Abrir la ficha de Marc Puigdomènech Soler"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="sbk" data-status="incidencia" data-dorsal="27">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>27</span></td>
+            <td class="c-rider"><span class="name">Daniel Ferreira Costa</span><span class="meta">POR · Licencia 108113</span></td>
+            <td class="c-team"><span class="team">Atlântico Motorsport</span><span class="meta">Honda CBR1000RR-R Fireblade SP</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--err"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: con incidencia</span></li>
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: pendiente</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--err">Incidencia</span><span class="detail detail--err">Licencia caducada el 30/09/2026</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-27" aria-label="Abrir la ficha de Daniel Ferreira Costa"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="sbk" data-status="listo" data-dorsal="33">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>33</span></td>
+            <td class="c-rider"><span class="name">Hugo Sánchez Barroso</span><span class="meta">ESP · Licencia 103981</span></td>
+            <td class="c-team"><span class="team">Talleres Moreno Racing</span><span class="meta">Kawasaki ZX-10RR</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--ok">Listo para pista</span><span class="detail">Técnica superada a las 10:05</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-33" aria-label="Abrir la ficha de Hugo Sánchez Barroso"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="sbk" data-status="listo" data-dorsal="44">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>44</span></td>
+            <td class="c-rider"><span class="name">Lucas Mendoza Ibarra</span><span class="meta">ARG · Licencia 106233</span></td>
+            <td class="c-team"><span class="team">Bahía Racing</span><span class="meta">Aprilia RSV4 Factory</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--ok">Listo para pista</span><span class="detail">Técnica superada a las 10:20</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-44" aria-label="Abrir la ficha de Lucas Mendoza Ibarra"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="sbk" data-status="incidencia" data-dorsal="52">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>52</span></td>
+            <td class="c-rider"><span class="name">Raúl Gallardo Pineda</span><span class="meta">ESP · Licencia 104790</span></td>
+            <td class="c-team"><span class="team">Cántabra Racing Team</span><span class="meta">BMW M 1000 RR</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--err"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: no superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--err">Incidencia</span><span class="detail detail--err">Sonómetro: 109 dB (límite 107 dB)</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-52" aria-label="Abrir la ficha de Raúl Gallardo Pineda"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="sbk" data-status="ausente" data-dorsal="66">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>66</span></td>
+            <td class="c-rider"><span class="name">Thomas Lefèvre</span><span class="meta">FRA · Licencia 107845</span></td>
+            <td class="c-team"><span class="team">Team Pirineo Motorsport</span><span class="meta">Yamaha YZF-R1</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: pendiente</span></li>
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: pendiente</span></li>
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: sin asignar</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--off">Sin presentar</span><span class="detail">No ha pasado por la oficina de la prueba</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-66" aria-label="Abrir la ficha de Thomas Lefèvre"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="sbk" data-status="pendiente" data-dorsal="88">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>88</span></td>
+            <td class="c-rider"><span class="name">Sergio Domínguez Lara</span><span class="meta">ESP · Licencia 105544</span></td>
+            <td class="c-team"><span class="team">Ruta 340 Motorsport</span><span class="meta">Ducati Panigale V4 R</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: pendiente</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--warn">Pendiente</span><span class="detail">Falta pasar la verificación técnica</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-88" aria-label="Abrir la ficha de Sergio Domínguez Lara"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+        </tbody>
+
+        <tbody>
+          <tr class="group"><th scope="colgroup" colspan="6">Supersport <span class="group__meta">8 inscritos · 3 listos · Libres 1 a las 15:55</span></th></tr>
+          <tr data-cat="ssp" data-status="listo" data-dorsal="4">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>4</span></td>
+            <td class="c-rider"><span class="name">Pablo Herrera Cuesta</span><span class="meta">ESP · Licencia 104118</span></td>
+            <td class="c-team"><span class="team">Galicia Moto Racing</span><span class="meta">Yamaha YZF-R6</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--ok">Listo para pista</span><span class="detail">Técnica superada a las 09:05</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-4" aria-label="Abrir la ficha de Pablo Herrera Cuesta"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp" data-status="listo" data-dorsal="9">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>9</span></td>
+            <td class="c-rider"><span class="name">Nerea Ortiz Aranda</span><span class="meta">ESP · Licencia 105307</span></td>
+            <td class="c-team"><span class="team">Escudería Levante Competición</span><span class="meta">Triumph Street Triple 765 RS</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--ok">Listo para pista</span><span class="detail">Técnica superada a las 09:48</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-9" aria-label="Abrir la ficha de Nerea Ortiz Aranda"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp" data-status="incidencia" data-dorsal="14">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>14</span></td>
+            <td class="c-rider"><span class="name">Mario Castillo Rubio</span><span class="meta">ESP · Licencia 104655</span></td>
+            <td class="c-team"><span class="team">Moto Club Sierra Sur</span><span class="meta">Kawasaki ZX-6R</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--err"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: con incidencia</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--err">Incidencia</span><span class="detail detail--err">Falta el justificante del seguro de accidentes</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-14" aria-label="Abrir la ficha de Mario Castillo Rubio"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp" data-status="pendiente" data-dorsal="19">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>19</span></td>
+            <td class="c-rider"><span class="name">Giovanni Rinaldi</span><span class="meta">ITA · Licencia 107412</span></td>
+            <td class="c-team"><span class="team">Squadra Corse Adriatica</span><span class="meta">Ducati Panigale V2</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: pendiente</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--warn">Pendiente</span><span class="detail">Falta pasar la verificación técnica</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-19" aria-label="Abrir la ficha de Giovanni Rinaldi"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp" data-status="listo" data-dorsal="23">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>23</span></td>
+            <td class="c-rider"><span class="name">Javier Lozano Prieto</span><span class="meta">ESP · Licencia 103876</span></td>
+            <td class="c-team"><span class="team">Talleres Moreno Racing</span><span class="meta">Honda CBR600RR</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--ok">Listo para pista</span><span class="detail">Técnica superada a las 10:12</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-23" aria-label="Abrir la ficha de Javier Lozano Prieto"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp" data-status="pendiente" data-dorsal="31">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>31</span></td>
+            <td class="c-rider"><span class="name">Adrián Navas Molina</span><span class="meta">ESP · Licencia 105861</span></td>
+            <td class="c-team"><span class="team">Team Guadalquivir Racing</span><span class="meta">MV Agusta F3 800 RR</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: sin asignar</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--warn">Pendiente</span><span class="detail">Falta asignar el transpondedor</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-31" aria-label="Abrir la ficha de Adrián Navas Molina"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp" data-status="incidencia" data-dorsal="61">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>61</span></td>
+            <td class="c-rider"><span class="name">Bruno Teixeira Lopes</span><span class="meta">POR · Licencia 107968</span></td>
+            <td class="c-team"><span class="team">Atlântico Motorsport</span><span class="meta">Yamaha YZF-R6</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--err"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: sin señal</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--err">Incidencia</span><span class="detail detail--err">El transpondedor no da señal</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-61" aria-label="Abrir la ficha de Bruno Teixeira Lopes"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp" data-status="ausente" data-dorsal="77">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>77</span></td>
+            <td class="c-rider"><span class="name">Elena Marín Robles</span><span class="meta">ESP · Licencia 106020</span></td>
+            <td class="c-team"><span class="team">Cántabra Racing Team</span><span class="meta">Kawasaki ZX-6R</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: pendiente</span></li>
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: pendiente</span></li>
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: sin asignar</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--off">Sin presentar</span><span class="detail">No ha pasado por la oficina de la prueba</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-77" aria-label="Abrir la ficha de Elena Marín Robles"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+        </tbody>
+
+        <tbody>
+          <tr class="group"><th scope="colgroup" colspan="6">Supersport 300 <span class="group__meta">7 inscritos · 4 listos · Libres 1 a las 15:10</span></th></tr>
+          <tr data-cat="ssp300" data-status="listo" data-dorsal="3">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>3</span></td>
+            <td class="c-rider"><span class="name">Daniela Vázquez Moya</span><span class="meta">ESP · Licencia 106781</span></td>
+            <td class="c-team"><span class="team">Moto Club Sierra Sur</span><span class="meta">Kawasaki Ninja 400</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--ok">Listo para pista</span><span class="detail">Técnica superada a las 09:20</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-3" aria-label="Abrir la ficha de Daniela Vázquez Moya"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp300" data-status="listo" data-dorsal="12">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>12</span></td>
+            <td class="c-rider"><span class="name">Óscar Benítez Ramos</span><span class="meta">ESP · Licencia 106902</span></td>
+            <td class="c-team"><span class="team">Bahía Racing</span><span class="meta">Yamaha YZF-R3</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--ok">Listo para pista</span><span class="detail">Técnica superada a las 09:27</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-12" aria-label="Abrir la ficha de Óscar Benítez Ramos"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp300" data-status="incidencia" data-dorsal="17">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>17</span></td>
+            <td class="c-rider"><span class="name">Samuel Rey Fuentes</span><span class="meta">ESP · Licencia 107150 · menor de edad</span></td>
+            <td class="c-team"><span class="team">Galicia Moto Racing</span><span class="meta">KTM RC 390</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--err"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: con incidencia</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--err">Incidencia</span><span class="detail detail--err">Falta la autorización del tutor legal</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-17" aria-label="Abrir la ficha de Samuel Rey Fuentes"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp300" data-status="pendiente" data-dorsal="26">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>26</span></td>
+            <td class="c-rider"><span class="name">Leo Garrido Santos</span><span class="meta">ESP · Licencia 106455</span></td>
+            <td class="c-team"><span class="team">Navarra Speed Team</span><span class="meta">Kawasaki Ninja 400</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: pendiente</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--warn">Pendiente</span><span class="detail">En cola de la zona técnica desde las 10:35</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-26" aria-label="Abrir la ficha de Leo Garrido Santos"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp300" data-status="listo" data-dorsal="38">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>38</span></td>
+            <td class="c-rider"><span class="name">Martina Calvo Esteban</span><span class="meta">ESP · Licencia 106588</span></td>
+            <td class="c-team"><span class="team">Team Guadalquivir Racing</span><span class="meta">Yamaha YZF-R3</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--ok">Listo para pista</span><span class="detail">Técnica superada a las 10:16</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-38" aria-label="Abrir la ficha de Martina Calvo Esteban"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp300" data-status="pendiente" data-dorsal="45">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>45</span></td>
+            <td class="c-rider"><span class="name">Yeray Suárez Afonso</span><span class="meta">ESP · Licencia 107033</span></td>
+            <td class="c-team"><span class="team">Ruta 340 Motorsport</span><span class="meta">KTM RC 390</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: pendiente</span></li>
+              <li class="chk chk--wait"><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: sin asignar</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--warn">Pendiente</span><span class="detail">Faltan la técnica y el transpondedor</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-45" aria-label="Abrir la ficha de Yeray Suárez Afonso"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+          <tr data-cat="ssp300" data-status="listo" data-dorsal="95">
+            <td class="c-plate"><span class="plate"><span class="vh">Dorsal </span>95</span></td>
+            <td class="c-rider"><span class="name">Noah Girard</span><span class="meta">FRA · Licencia 107561</span></td>
+            <td class="c-team"><span class="team">Team Pirineo Motorsport</span><span class="meta">Kawasaki Ninja 400</span></td>
+            <td class="c-checks"><ul class="checks">
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Adm.</span><span class="vh">Administrativa: correcta</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Téc.</span><span class="vh">Técnica: superada</span></li>
+              <li class="chk chk--ok"><svg class="i" aria-hidden="true"><use href="#i-ok"/></svg><span aria-hidden="true">Transp.</span><span class="vh">Transpondedor: operativo</span></li>
+            </ul></td>
+            <td class="c-status"><span class="badge badge--ok">Listo para pista</span><span class="detail">Técnica superada a las 10:40</span></td>
+            <td class="c-act"><a class="rowbtn" href="#piloto-95" aria-label="Abrir la ficha de Noah Girard"><svg class="i" aria-hidden="true"><use href="#i-chev"/></svg></a></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="empty" id="vacio" hidden>
+        <svg class="i" aria-hidden="true"><use href="#i-empty"/></svg>
+        <p class="empty__title">Ningún participante coincide</p>
+        <p>Revisa el dorsal o el nombre que has escrito, o quita los filtros de categoría y estado.</p>
+        <button class="btn btn--sm" type="button" id="limpiar">Quitar filtros</button>
+      </div>
+
+      <p class="list__foot">Verificación técnica según la zona técnica y transpondedores según Cronometraje. Última sincronización: viernes 9/10/2026, 10:42.</p>
+    </section>
+
+    <aside class="side" aria-label="Seguimiento del día">
+      <section class="panel" aria-labelledby="atencion-titulo">
+        <div class="side__head">
+          <h2 id="atencion-titulo">Requieren atención</h2>
+        </div>
+        <h3 id="inc-titulo">Incidencias abiertas <span class="n n--err">5</span></h3>
+        <p class="side__sub">Ordenadas por la primera salida a pista</p>
+        <ul class="inc-list" aria-labelledby="inc-titulo">
+          <li class="inc">
+            <span class="plate plate--sm"><span class="vh">Dorsal </span>17</span>
+            <div class="inc__body">
+              <p class="inc__who">Samuel Rey Fuentes <span class="inc__cat">· Supersport 300</span></p>
+              <p class="inc__what">Falta la autorización del tutor legal (piloto menor de edad)</p>
+              <p class="inc__meta">Administrativa · detectada a las 09:02 · rueda a las 15:10</p>
+              <a class="btn btn--sm" href="#piloto-17" aria-label="Resolver la incidencia de Samuel Rey Fuentes">Resolver</a>
+            </div>
+          </li>
+          <li class="inc">
+            <span class="plate plate--sm"><span class="vh">Dorsal </span>14</span>
+            <div class="inc__body">
+              <p class="inc__who">Mario Castillo Rubio <span class="inc__cat">· Supersport</span></p>
+              <p class="inc__what">Falta el justificante del seguro de accidentes</p>
+              <p class="inc__meta">Administrativa · detectada a las 09:10 · rueda a las 15:55</p>
+              <a class="btn btn--sm" href="#piloto-14" aria-label="Resolver la incidencia de Mario Castillo Rubio">Resolver</a>
+            </div>
+          </li>
+          <li class="inc">
+            <span class="plate plate--sm"><span class="vh">Dorsal </span>61</span>
+            <div class="inc__body">
+              <p class="inc__who">Bruno Teixeira Lopes <span class="inc__cat">· Supersport</span></p>
+              <p class="inc__what">El transpondedor no da señal en el lazo de pruebas</p>
+              <p class="inc__meta">Cronometraje · detectada a las 10:39 · rueda a las 15:55</p>
+              <a class="btn btn--sm" href="#piloto-61" aria-label="Resolver la incidencia de Bruno Teixeira Lopes">Resolver</a>
+            </div>
+          </li>
+          <li class="inc">
+            <span class="plate plate--sm"><span class="vh">Dorsal </span>27</span>
+            <div class="inc__body">
+              <p class="inc__who">Daniel Ferreira Costa <span class="inc__cat">· Superbike</span></p>
+              <p class="inc__what">Licencia caducada el 30/09/2026</p>
+              <p class="inc__meta">Administrativa · detectada a las 08:47 · rueda a las 16:40</p>
+              <a class="btn btn--sm" href="#piloto-27" aria-label="Resolver la incidencia de Daniel Ferreira Costa">Resolver</a>
+            </div>
+          </li>
+          <li class="inc">
+            <span class="plate plate--sm"><span class="vh">Dorsal </span>52</span>
+            <div class="inc__body">
+              <p class="inc__who">Raúl Gallardo Pineda <span class="inc__cat">· Superbike</span></p>
+              <p class="inc__what">Sonómetro: 109 dB, por encima del límite de 107 dB</p>
+              <p class="inc__meta">Técnica · detectada a las 10:26 · rueda a las 16:40</p>
+              <a class="btn btn--sm" href="#piloto-52" aria-label="Resolver la incidencia de Raúl Gallardo Pineda">Resolver</a>
+            </div>
+          </li>
+        </ul>
+
+        <h3 id="aus-titulo">Sin presentar <span class="n n--off">2</span></h3>
+        <p class="side__sub">La verificación administrativa cierra a las 13:00</p>
+        <ul class="inc-list" aria-labelledby="aus-titulo">
+          <li class="inc">
+            <span class="plate plate--sm"><span class="vh">Dorsal </span>77</span>
+            <div class="inc__body">
+              <p class="inc__who">Elena Marín Robles <span class="inc__cat">· Supersport</span></p>
+              <p class="inc__meta">Cántabra Racing Team · rueda a las 15:55</p>
+              <button class="btn btn--sm" type="button" data-avisar="Elena Marín Robles" aria-label="Avisar al equipo de Elena Marín Robles"><svg class="i" aria-hidden="true"><use href="#i-megaphone"/></svg><span>Avisar al equipo</span></button>
+            </div>
+          </li>
+          <li class="inc">
+            <span class="plate plate--sm"><span class="vh">Dorsal </span>66</span>
+            <div class="inc__body">
+              <p class="inc__who">Thomas Lefèvre <span class="inc__cat">· Superbike</span></p>
+              <p class="inc__meta">Team Pirineo Motorsport · rueda a las 16:40</p>
+              <button class="btn btn--sm" type="button" data-avisar="Thomas Lefèvre" aria-label="Avisar al equipo de Thomas Lefèvre"><svg class="i" aria-hidden="true"><use href="#i-megaphone"/></svg><span>Avisar al equipo</span></button>
+            </div>
+          </li>
+        </ul>
+        <p class="vh" role="status" id="aviso-estado"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="agenda-titulo">
+        <h2 id="agenda-titulo">Agenda de hoy</h2>
+        <p class="side__sub">Viernes, 9 de octubre de 2026</p>
+        <ol class="agenda">
+          <li><span class="when"><time datetime="2026-10-09T08:00">08:00</time>–<time datetime="2026-10-09T13:00">13:00</time></span><span class="what">Verificación administrativa<span class="tag">En curso</span><span class="where">Oficina de la prueba</span></span></li>
+          <li><span class="when"><time datetime="2026-10-09T08:30">08:30</time>–<time datetime="2026-10-09T14:00">14:00</time></span><span class="what">Verificación técnica<span class="tag">En curso</span><span class="where">Zona técnica, junto al box 1</span></span></li>
+          <li><span class="when"><time datetime="2026-10-09T13:30">13:30</time></span><span class="what">Reunión de pilotos<span class="tag tag--line">Siguiente</span><span class="where">Sala de prensa · asistencia obligatoria</span></span></li>
+          <li><span class="when"><time datetime="2026-10-09T15:10">15:10</time>–<time datetime="2026-10-09T15:40">15:40</time></span><span class="what">Libres 1 · Supersport 300</span></li>
+          <li><span class="when"><time datetime="2026-10-09T15:55">15:55</time>–<time datetime="2026-10-09T16:25">16:25</time></span><span class="what">Libres 1 · Supersport</span></li>
+          <li><span class="when"><time datetime="2026-10-09T16:40">16:40</time>–<time datetime="2026-10-09T17:20">17:20</time></span><span class="what">Libres 1 · Superbike</span></li>
+        </ol>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<script>
+(() => {
+  const all = (s, c = document) => Array.from(c.querySelectorAll(s));
+  const rows = all('#tabla tr[data-cat]');
+  const groups = all('#tabla tbody');
+  const catBtns = all('[data-cat-filter]');
+  const statusBtns = all('[data-status-filter]');
+  const input = document.getElementById('buscar');
+  const out = document.getElementById('resultados');
+  const table = document.getElementById('tabla');
+  const empty = document.getElementById('vacio');
+  const state = { cat: 'all', status: 'all' };
+  const norm = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+
+  rows.forEach((r) => {
+    r.dataset.text = norm(all('.name, .c-team', r).map((n) => n.textContent).join(' '));
+  });
+
+  function apply() {
+    const term = norm(input.value).replace(/^#/, '');
+    const byNumber = /^\d+$/.test(term);
+    let shown = 0;
+    rows.forEach((r) => {
+      const match = (state.cat === 'all' || r.dataset.cat === state.cat)
+        && (state.status === 'all' || r.dataset.status === state.status)
+        && (!term || (byNumber ? r.dataset.dorsal.startsWith(term) : r.dataset.text.includes(term)));
+      r.hidden = !match;
+      if (match) shown += 1;
+    });
+    groups.forEach((g) => { g.hidden = !g.querySelector('tr[data-cat]:not([hidden])'); });
+    table.hidden = shown === 0;
+    empty.hidden = shown !== 0;
+    out.textContent = shown === rows.length ? `${shown} participantes` : `${shown} de ${rows.length} participantes`;
+  }
+
+  function bind(btns, key, attr) {
+    btns.forEach((b) => b.addEventListener('click', () => {
+      state[key] = b.getAttribute(attr);
+      btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      apply();
+    }));
+  }
+  bind(catBtns, 'cat', 'data-cat-filter');
+  bind(statusBtns, 'status', 'data-status-filter');
+  input.addEventListener('input', apply);
+
+  document.getElementById('limpiar').addEventListener('click', () => {
+    state.cat = 'all';
+    state.status = 'all';
+    input.value = '';
+    catBtns.forEach((x, i) => x.setAttribute('aria-pressed', String(i === 0)));
+    statusBtns.forEach((x, i) => x.setAttribute('aria-pressed', String(i === 0)));
+    apply();
+    input.focus();
+  });
+
+  const toggle = document.querySelector('.menu-toggle');
+  const nav = document.getElementById('secciones');
+  toggle.addEventListener('click', () => {
+    const open = toggle.getAttribute('aria-expanded') !== 'true';
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? 'Cerrar el menú de secciones' : 'Abrir el menú de secciones');
+    nav.classList.toggle('is-open', open);
+  });
+
+  const status = document.getElementById('aviso-estado');
+  all('[data-avisar]').forEach((b) => b.addEventListener('click', () => {
+    if (b.getAttribute('aria-disabled') === 'true') return;
+    const who = b.dataset.avisar;
+    b.setAttribute('aria-disabled', 'true');
+    b.setAttribute('aria-label', `Aviso enviado al equipo de ${who}`);
+    b.querySelector('use').setAttribute('href', '#i-ok');
+    b.querySelector('span').textContent = 'Aviso enviado · 10:43';
+    status.textContent = `Aviso enviado al equipo de ${who} a las 10:43.`;
+  }));
+})();
+</script>
+</body>
+</html>

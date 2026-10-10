@@ -1,0 +1,22 @@
+{
+  "390": {
+    "scrollWidth": 390,
+    "bodyScrollWidth": 390,
+    "clientWidth": 390,
+    "height": 7812,
+    "overflowX": "visible/visible",
+    "sobresalen": [
+      "tr@404",
+      "th@404",
+      "span.vh@392"
+    ]
+  },
+  "1440": {
+    "scrollWidth": 1440,
+    "bodyScrollWidth": 1440,
+    "clientWidth": 1440,
+    "height": 2836,
+    "overflowX": "visible/visible",
+    "sobresalen": []
+  }
+}

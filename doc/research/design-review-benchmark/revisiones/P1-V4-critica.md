@@ -1,0 +1,37 @@
+# Crítica de P1 / V3: «Participantes de la prueba»
+
+## 1. Tabla de notas
+
+| # | Criterio | Nota | Motivo |
+|---|---|---|---|
+| 1 | Especificidad | 5 | La pantalla es de PaddockManager y no serviría para otro producto: dorsal en condensada de carrera, box y carpas, licencia FFM, filas del Excel con su acción («Añadir participante», «Ver a Iker Valdemoro»), casco con pegatina y QR FIM, y la fecha en el panel («Hoy, 8 de mayo, a las 09:12»). La copy es del oficio y no tiene relleno. |
+| 2 | Jerarquía y escaneabilidad (Operate) | 3 | La pregunta 3 se responde de un vistazo con la tira por categoría. Las preguntas 1 y 2 piden bajar: a 1440 px la lista empieza hacia y≈900 y su primera fila hacia y≈1150, así que en un portátil de 900 px de alto no se ve ningún participante al abrir. Además, los filtros «Falta verificar…» y «Para oficina» no dicen cuántos hay. |
+| 3 | Tells de IA | 4 | Encuentro un tell: el borde lateral de color de 4 px en el error (l.167). Las marcas de selección con `inset` de 3-4 px en asfalto (l.77, l.116, l.205) son neutras y tienen función, así que no las cuento. No hay eyebrows, métrica hero, gradientes, Inter/Roboto, flechas `→`, puntos medios encadenados, emojis ni lorem. |
+| 4 | Tipografía | 4 | El par es deliberado: Saira Condensed para cifras y títulos y Atkinson Hyperlegible para el texto. La escala es clara, `tabular-nums` está en la tabla, la ficha y los contadores, y no hay mayúsculas innecesarias. Le resto un punto porque la fecha del panel parte mal a 1440 px («a / las 09:12»). |
+| 5 | Color | 4 | La paleta está comprometida: el asfalto es la acción, el naranja es el pendiente y el violeta es lo de oficina. Los neutros están entonados en frío y todo pasa AA (cuerpo 6,3:1, pastilla «Pendiente» 4,75:1, violeta 7,3:1, error 5,7:1). Le resto un punto porque los hovers usan hexadecimales sueltos fuera de los tokens y el de fila casi no se ve. |
+| 6 | Estados y craft | 4 | El vacío enseña qué hacer y tiene botón de recuperación. Hay skeleton (no spinner), el error es inline con reimportación y causa concreta, el foco es visible (3 px) y las áreas de pulsación miden 42-44 px. Falta el estado deshabilitado y la fecha del panel queda mal partida. |
+| 7 | Responsive | 4 | Medido: 390/390 y 1440/1440, sin nada que sobresalga. La tabla pasa a tarjetas con etiquetas, el panel de detalle baja tras la lista con desplazamiento automático y enlace «Volver a la lista», y los chips saltan de línea bien. Le resto un punto porque a 390 px «Importar Excel RFME» e «Imprimir PDF» se quedan en dos iconos sin texto. |
+| 8 | Movimiento | 4 | No hay `transition: all`, las duraciones van de 100 a 150 ms, el `scale` lleva ease-out y el desplazamiento respeta `prefers-reduced-motion`. Le resto un punto porque también se transicionan colores de fondo y borde (l.61, l.76, l.103, l.113) y porque, con movimiento reducido, el skeleton sigue latiendo sin fin (l.185). |
+| | **Total** | **32 / 40** | |
+
+## 2. Veredicto
+
+**Needs changes.** No hay nada roto. No hay desbordamiento a ninguno de los dos anchos, todo pasa el contraste AA y el brief se cumple entero: cabecera, estado por categoría, lista con búsqueda, filtros y orden, detalle, filas del Excel y los tres estados. Lo que falla es la prioridad de una herramienta de trabajo: al abrirla en el portátil no se ve a ningún participante, y los filtros clave no dan su recuento. Ambas cosas se arreglan en una ronda.
+
+## 3. Defectos (por severidad)
+
+1. **Media · La lista queda fuera del primer pantallazo a 1440 px.** Está en la captura de 1440 px, bloque «Faltan 25 por verificar», CSS l.67, l.74-76 y l.86-88. Las 9 filas de categoría (mínimo 40 px cada una), los tres renglones del texto de ayuda y el bloque del Excel ocupan unos 680 px, y la primera fila de participantes aparece hacia y≈1150. En un portátil de 900 px de alto no se ve a nadie sin bajar. **Qué hacer:** compactar `.cat` (filas de 28-32 px y padding vertical de 2 px), dejar `.estado-sub` en una línea y reducir el padding de `.estado` y `.excel`. La cabecera de la lista y al menos tres filas tienen que caber en los primeros 900 px.
+
+2. **Media · Los filtros de pendientes y de oficina no dan cifra.** Están en l.353-356 y en la captura de 1440 px, en los chips sobre la tabla. Para saber cuántos faltan por verificar la moto o el equipo, o cuántos tienen algo en oficina, hay que pulsar el chip y leer el contador; ninguna parte de la pantalla da el total de oficina. **Qué hacer:** añadir el recuento en cada chip, en `tabular-nums` («Falta verificar moto (N)», «Para oficina (N)», con el dato real de los 129) y que se actualice con la búsqueda y la categoría.
+
+3. **Media · A 390 px, «Importar Excel RFME» e «Imprimir PDF» se quedan solo en icono.** Está en l.226-227 y en la captura de 390 px, en la cabecera. Son dos iconos de 44 px sin texto visible, y la flecha hacia arriba sobre una bandeja se lee también como «compartir» o «exportar». El `aria-label` ayuda al lector de pantalla, pero no a quien mira la pantalla en el paddock. **Qué hacer:** mantener una etiqueta corta visible («Importar», «PDF») junto al icono, aunque los dos botones bajen a una segunda fila a ese ancho.
+
+4. **Baja · Tell: borde lateral de color de 4 px en el error de importación.** Está en l.167 y en la zona «Error al importar» de las dos capturas. **Qué hacer:** quitar `border-left: 4px` y el radio asimétrico `0 6px 6px 0`, y dejar fondo rojo suave con borde completo de 1 px en `--rojo` y radio uniforme de 6 px. El icono y el título rojo ya marcan el error.
+
+5. **Baja · La fecha de verificación del panel parte mal a 1440 px.** Está en el panel de detalle de la captura de 1440 px, «Moto ✓ Hoy, 8 de mayo, a / las 09:12», con CSS l.125 y l.145 y texto en l.496 y l.622. La columna `dd` mide unos 200 px, el texto salta de línea en «a / las» y la marca ✓ queda centrada entre las dos líneas. **Qué hacer:** acortar el texto a «Hoy, 09:12» o «8 may, 09:12», o poner `white-space: nowrap` y `align-items: flex-start` en `.ficha .ok`.
+
+6. **Baja · No hay estado deshabilitado.** No existe ninguna regla `:disabled` en el CSS (l.61-63, l.103-106). Los botones de acción («Asignar box», «Importar Excel RFME» durante una carga, «Mostrar los 120 restantes») y los chips no tienen aspecto definido cuando no se pueden usar. **Qué hacer:** definir `.btn:disabled` y `.chip input:disabled + span` con texto `--grafito`, borde `--linea`, `cursor: not-allowed` y sin `scale` en `:active`.
+
+7. **Baja · El hover de fila casi no se ve y los hovers salen de los tokens.** Está en l.175-179. `#F6F7F8` sobre blanco apenas se distingue, así que con el ratón no se nota qué fila se va a abrir. `#F4F5F7` y `#3A434D` también están escritos a mano. **Qué hacer:** declarar en `:root` un token de hover con diferencia perceptible frente al papel (en la línea de `--hormigon` pero algo más claro) y usarlo en `.tabla tbody tr:hover`, `.cat:hover` y `.btn-pri:hover`.
+
+8. **Baja · A 1440 px la cifra de cada categoría queda lejos de su barra.** Está en el bloque de categorías de la captura de 1440 px y en l.75-76. La rejilla `150px 1fr 116px` con `max-width: 820px` empuja «falta 1 de 4» unos 500 px a la derecha de la barra de Superbike, y la vista tiene que cruzar ese hueco en cada fila. **Qué hacer:** bajar `max-width` de `.cats` hasta que la pista ronde la longitud de la barra mayor (29 marcas), o pasar la columna de la tira a `auto` para que la cifra quede pegada a cada barra.

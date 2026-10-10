@@ -1,0 +1,27 @@
+{
+  "390": {
+    "scrollWidth": 399,
+    "bodyScrollWidth": 399,
+    "clientWidth": 390,
+    "height": 8622,
+    "overflowX": "visible/visible",
+    "sobresalen": [
+      "div.dos-col__texto@399",
+      "h2.titulo-seccion@399",
+      "p@399",
+      "ol.lista-cliente@399",
+      "li@399",
+      "li@399",
+      "li@399",
+      "p.texto__nota@399"
+    ]
+  },
+  "1440": {
+    "scrollWidth": 1440,
+    "bodyScrollWidth": 1440,
+    "clientWidth": 1440,
+    "height": 6241,
+    "overflowX": "visible/visible",
+    "sobresalen": []
+  }
+}

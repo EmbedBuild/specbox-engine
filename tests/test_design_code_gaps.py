@@ -271,6 +271,6 @@ class TestHook:
             assert mcp and "design-system-gate.mjs" in mcp[0]["hooks"][0]["command"], path
             bash = next(e for e in pre if e.get("matcher") == "Bash")
             assert any(
-                h.get("if") == "Bash(.*gh pr create.*)" and "design-system-gate.mjs" in h["command"]
+                h.get("if") == "Bash(*gh pr create*)" and "design-system-gate.mjs" in h["command"]
                 for h in bash["hooks"]
             ), path

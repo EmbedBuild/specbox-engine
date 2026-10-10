@@ -62,7 +62,8 @@ const input = readStdin();
 let filePath = '';
 try {
   const parsed = JSON.parse(input);
-  filePath = parsed.file_path || '';
+  // Claude Code sends the tool's arguments in tool_input; the top level is the old test format.
+  filePath = (parsed.tool_input ?? parsed).file_path || '';
 } catch {
   const match = input.match(/"file_path"\s*:\s*"([^"]*)"/);
   filePath = match ? match[1] : '';

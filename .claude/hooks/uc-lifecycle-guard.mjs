@@ -19,7 +19,8 @@ const input = readStdin();
 let command = '';
 try {
   const parsed = JSON.parse(input);
-  command = parsed.command || '';
+  // Claude Code sends the tool's arguments in tool_input; the top level is the old test format.
+  command = (parsed.tool_input ?? parsed).command || '';
 } catch {
   const match = input.match(/"command"\s*:\s*"([^"]*)"/);
   command = match ? match[1] : '';

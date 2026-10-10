@@ -1,0 +1,21 @@
+spec-guard	PostToolUse	Write	src/app.ts
+spec-guard	PostToolUse	Edit	src/app.ts
+spec-guard	PostToolUse	Write	lib/util.dart
+e2e-gate	PostToolUse	Bash	git commit -m uno
+app-docs-sync-guard	PostToolUse	Bash	git commit -m uno
+commit-spec-guard	PostToolUse	Bash	git commit -m uno
+checkpoint-freshness-guard	PostToolUse	Bash	git commit -m uno
+pre-commit-lint	PostToolUse	Bash	git commit -m uno
+no-bypass-guard	PreToolUse	Bash	git commit --allow-empty --no-verify -m dos
+app-docs-sync-guard	PostToolUse	Bash	git commit --allow-empty --no-verify -m dos
+pre-commit-lint	PostToolUse	Bash	git commit --allow-empty --no-verify -m dos
+e2e-gate	PostToolUse	Bash	git commit --allow-empty --no-verify -m dos
+commit-spec-guard	PostToolUse	Bash	git commit --allow-empty --no-verify -m dos
+checkpoint-freshness-guard	PostToolUse	Bash	git commit --allow-empty --no-verify -m dos
+uc-lifecycle-guard	PostToolUse	Bash	git push origin HEAD:main
+no-bypass-guard	PreToolUse	Bash	git push --force origin HEAD:main
+uc-lifecycle-guard	PostToolUse	Bash	git push --force origin HEAD:main
+no-bypass-guard	PreToolUse	Bash	git push -f origin HEAD:main
+uc-lifecycle-guard	PostToolUse	Bash	git push -f origin HEAD:main
+no-bypass-guard	PreToolUse	Bash	git reset --hard HEAD
+design-system-gate	PreToolUse	Bash	gh pr create --help

@@ -78,31 +78,31 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(.*--no-verify.*)",
+            "if": "Bash(*--no-verify*)",
             "command": "node .claude/hooks/no-bypass-guard.mjs",
             "timeout": 5
           },
           {
             "type": "command",
-            "if": "Bash(.*push.*--force.*)",
+            "if": "Bash(*push*--force*)",
             "command": "node .claude/hooks/no-bypass-guard.mjs",
             "timeout": 5
           },
           {
             "type": "command",
-            "if": "Bash(.*push.*-f .*)",
+            "if": "Bash(*push*-f *)",
             "command": "node .claude/hooks/no-bypass-guard.mjs",
             "timeout": 5
           },
           {
             "type": "command",
-            "if": "Bash(.*reset --hard.*)",
+            "if": "Bash(*reset --hard*)",
             "command": "node .claude/hooks/no-bypass-guard.mjs",
             "timeout": 5
           },
           {
             "type": "command",
-            "if": "Bash(.*gh pr create.*)",
+            "if": "Bash(*gh pr create*)",
             "command": "node .claude/hooks/design-system-gate.mjs",
             "timeout": 20
           },
@@ -186,37 +186,37 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Bash(.*git commit.*)",
+            "if": "Bash(*git commit*)",
             "command": "node .claude/hooks/commit-spec-guard.mjs",
             "timeout": 10
           },
           {
             "type": "command",
-            "if": "Bash(.*git commit.*)",
+            "if": "Bash(*git commit*)",
             "command": "node .claude/hooks/pre-commit-lint.mjs",
             "timeout": 60
           },
           {
             "type": "command",
-            "if": "Bash(.*git commit.*)",
+            "if": "Bash(*git commit*)",
             "command": "node .claude/hooks/e2e-gate.mjs",
             "timeout": 15
           },
           {
             "type": "command",
-            "if": "Bash(.*git commit.*)",
+            "if": "Bash(*git commit*)",
             "command": "node .claude/hooks/checkpoint-freshness-guard.mjs",
             "timeout": 5
           },
           {
             "type": "command",
-            "if": "Bash(.*git commit.*)",
+            "if": "Bash(*git commit*)",
             "command": "node .claude/hooks/app-docs-sync-guard.mjs",
             "timeout": 10
           },
           {
             "type": "command",
-            "if": "Bash(.*git push.*)",
+            "if": "Bash(*git push*)",
             "command": "node .claude/hooks/uc-lifecycle-guard.mjs",
             "timeout": 10
           }
@@ -227,13 +227,13 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Write(src/.*)",
+            "if": "Write(src/**)",
             "command": "node .claude/hooks/spec-guard.mjs",
             "timeout": 10
           },
           {
             "type": "command",
-            "if": "Write(lib/.*)",
+            "if": "Write(lib/**)",
             "command": "node .claude/hooks/spec-guard.mjs",
             "timeout": 10
           },
@@ -249,13 +249,13 @@
         "hooks": [
           {
             "type": "command",
-            "if": "Edit(src/.*)",
+            "if": "Edit(src/**)",
             "command": "node .claude/hooks/spec-guard.mjs",
             "timeout": 10
           },
           {
             "type": "command",
-            "if": "Edit(lib/.*)",
+            "if": "Edit(lib/**)",
             "command": "node .claude/hooks/spec-guard.mjs",
             "timeout": 10
           },

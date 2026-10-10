@@ -430,6 +430,11 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 
 Automatic enforcement — no need to remember running these manually:
 
+> **How to register, condition and test a hook:** [doc/guides/hooks.md](doc/guides/hooks.md). An `if`
+> is a permission rule (`Bash(*git commit*)`, `Write(src/**)`), never a regex. Until UC-9301 the
+> conditioned hooks below never ran in a real session, and the ones marked BLOCKING that exit with 1
+> still do not block: see [doc/research/hooks-que-no-saltaban/](doc/research/hooks-que-no-saltaban/README.md).
+
 | Hook | Event | Behavior |
 |------|-------|----------|
 | **quality-first-guard** | PreToolUse (Write/Edit) | **BLOCKING**: verifies the agent read the file before modifying it. Enforces "read before write." |

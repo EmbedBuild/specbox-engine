@@ -1,0 +1,118 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(.*--no-verify.*)",
+            "command": "node log.mjs \"no-bypass-guard\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*push.*--force.*)",
+            "command": "node log.mjs \"no-bypass-guard\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*push.*-f .*)",
+            "command": "node log.mjs \"no-bypass-guard\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*reset --hard.*)",
+            "command": "node log.mjs \"no-bypass-guard\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*gh pr create.*)",
+            "command": "node log.mjs \"design-system-gate\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(.*git commit.*)",
+            "command": "node log.mjs \"commit-spec-guard\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*git commit.*)",
+            "command": "node log.mjs \"pre-commit-lint\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*git commit.*)",
+            "command": "node log.mjs \"e2e-gate\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*git commit.*)",
+            "command": "node log.mjs \"checkpoint-freshness-guard\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*git commit.*)",
+            "command": "node log.mjs \"app-docs-sync-guard\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(.*git push.*)",
+            "command": "node log.mjs \"uc-lifecycle-guard\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Write(src/.*)",
+            "command": "node log.mjs \"spec-guard\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Write(lib/.*)",
+            "command": "node log.mjs \"spec-guard\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(src/.*)",
+            "command": "node log.mjs \"spec-guard\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Edit(lib/.*)",
+            "command": "node log.mjs \"spec-guard\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

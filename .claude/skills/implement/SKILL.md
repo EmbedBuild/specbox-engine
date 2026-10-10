@@ -1047,6 +1047,9 @@ Cada archivo de pagina/pantalla generado por design-to-code DEBE incluir un come
 
 **Regla**: Si el archivo no tiene este comentario, AG-08 lo reportara como violacion de trazabilidad en el Check 6 (Design Traceability).
 
+> La verificación de cada pantalla (capturas, reglas, revisor aislado y una ronda de corrección)
+> se hace en el **Paso 6.5**, cuando la pantalla ya está integrada y se puede servir.
+
 ### 4.4 Commit parcial de diseños
 
 ```bash
@@ -1468,6 +1471,106 @@ git commit -m "chore({feature}): integration and wiring"
 
 ---
 
+## Paso 6.5: Verificación de pantallas (US-91 · UC-9102)
+
+> Solo si la UC tiene pantallas (hubo design-to-code en el Paso 4). Va aquí y no al final del
+> Paso 4 porque la pantalla ya está integrada y se puede servir; lo que se corrija pasa después por
+> los tests (Paso 7) y por las puertas 7.7 y 7.8. Usa `/design-review verify`
+> (`design-review/reference/verify.md`).
+
+### 6.5.0 Modo
+
+`.claude/settings.local.json` → `specbox.design_review.mode`. Cambiarlo no exige tocar esta skill.
+
+| Modo | Qué pasa con un «Block» o un «Needs changes» |
+|------|----------------------------------------------|
+| `warn` (por defecto) | Va a la descripción de la PR y a la evidencia de la UC; no impide el merge |
+| `block` | Un «Block» para antes de crear la PR o de pasar la UC a revisión (lo hace cumplir el hook `design-review-gate.mjs`) |
+| `off` | No se verifica |
+
+### 6.5.1 Servir la pantalla
+
+1. **Brief.** Si no existe `doc/design/{feature}/{pantalla}.brief.md`, ejecutar antes
+   `/design-review brief {pantalla}`: sin brief, el revisor no sabe qué tenía que resolver.
+2. **Levantar la app como la levantan las e2e del proyecto:** el `webServer` de
+   `playwright.config` (su `command` y su `url`) o, sin él, el servidor de desarrollo. En segundo
+   plano, esperando a que la URL responda.
+3. **URL de la pantalla:** la `baseURL` más la ruta registrada en el Paso 6.1. Si necesita sesión o
+   datos, los mismos que usan las e2e (su `storageState` o su semilla), nunca datos inventados.
+
+### 6.5.2 Medir
+
+Desde la raíz del proyecto, para que use su Playwright:
+
+```bash
+node ~/.claude/skills/design-review/scripts/verify.mjs <url> \
+  --out doc/design/{feature}/verify --name {pantalla} --format jpeg
+```
+
+- Capturas a 1440 y 390 (este, como móvil táctil), desbordamiento y reglas con su ubicación.
+- El **pulido medible** no es una pasada aparte: va en las mismas reglas (`area-pulsacion` a 44 px
+  en táctil, `estados-controles` para `:active`, `:focus-visible` y `:disabled`,
+  `movimiento-reducido` y `cifras-tabulares`) y en los criterios 6 y 8 de la rúbrica.
+- Las capturas en JPEG se versionan con la UC: así la PR y la evidencia las pueden enlazar.
+- Código de salida 2 = el proyecto no tiene Playwright: seguir sin capturas y decirlo en el veredicto.
+- Flutter: la medición la añade UC-9104; mientras, el revisor trabaja sobre el código y lo dice.
+
+### 6.5.3 Revisar en un subagente aislado
+
+Lanzar el revisor con el encargo de `design-review/reference/verify.md` (brief, rúbrica, capturas,
+JSON y código), sin el razonamiento de quien implementó. Cada hallazgo de las reglas que el revisor
+confirme va a la tabla de defectos con su ubicación. Escribir
+`doc/design/{feature}/{pantalla}.verify.md` con la plantilla de la referencia.
+
+### 6.5.4 Una ronda de corrección (si el veredicto no es «Approve»)
+
+1. AG-02 aplica los defectos con las reglas de la ronda de `design-review/reference/rubric.md`:
+   - **sin datos inventados:** si un defecto pide un dato que ni el brief ni el PRD dan, la pantalla
+     lo muestra como pendiente con un marcador visible (`[DATO REAL: …]`) y se avisa al usuario;
+   - los valores, de los tokens del sistema (D18);
+   - lo que no se aplique queda en el `.verify.md` con su motivo.
+2. Medir otra vez, con la medición anterior y las fuentes:
+
+```bash
+node ~/.claude/skills/design-review/scripts/verify.mjs <url> \
+  --out doc/design/{feature}/verify --name {pantalla}-r1 --format jpeg \
+  --previous doc/design/{feature}/verify/{pantalla}-verify.json \
+  --sources doc/design/{feature}/{pantalla}.brief.md,<ruta del PRD>
+```
+
+   Cada cifra de `dato_sin_fuente` es un defecto del criterio 1 hasta que se diga de dónde sale.
+3. Revisión nueva en otro subagente aislado y `.verify.md` actualizado con la ronda 1. **No hay
+   ronda 2:** lo que quede va al veredicto y a la evidencia.
+
+### 6.5.5 Evidencia
+
+1. **En los AC de la UC que tocan la pantalla**, al marcarlos en el Paso 7.7, una evidencia por
+   pantalla:
+
+```
+mark_ac(board_id, uc_id, ac_id, passed, evidence={
+  "type": "screenshot",
+  "label": "Verificación de {pantalla}: {veredicto} · {N}/40",
+  "link": "https://github.com/{owner}/{repo}/blob/main/doc/design/{feature}/verify/{pantalla}-390.jpg",
+  "detail": "{tres problemas prioritarios}; hallazgos: {regla: n, ...}; informe: doc/design/{feature}/{pantalla}.verify.md"
+})
+```
+
+   El enlace apunta a `main`: vale en cuanto se fusiona la PR.
+2. **En la UC:** `attach_evidence(board_id, uc_id, "uc", "ag09", <los .verify.md de la UC>,
+   summary="Verificación de pantallas: {veredictos}")`.
+3. **En la PR:** la sección «Design Review» del Paso 8.3. Con `warn`, un «Block» o un «Needs changes»
+   también va ahí, a la vista, sin impedir el merge.
+
+### 6.5.6 Commit
+
+```bash
+git add doc/design/{feature}/
+git commit -m "design({feature}): verificación de pantallas"
+```
+
+---
+
 ## Paso 7: QA y Validacion
 
 ### 7.1 Ejecutar tests
@@ -1882,6 +1985,17 @@ gh pr create \
 
 {Si aplica: lista de pantallas generadas con links a HTMLs}
 
+## Design Review
+
+{Si hubo Paso 6.5: una fila por pantalla. Con modo warn, un Block o Needs changes también va aquí.
+Si la UC no tiene pantallas, omitir sección.}
+
+| Pantalla | Veredicto | Nota | Tres problemas prioritarios | Informe |
+|----------|-----------|------|-----------------------------|---------|
+| {pantalla} | {Approve / Needs changes / Block} | {N}/40 | {1; 2; 3} | [verify.md](doc/design/{feature}/{pantalla}.verify.md) · [390](doc/design/{feature}/verify/{pantalla}-390.jpg) · [1440](doc/design/{feature}/verify/{pantalla}-1440.jpg) |
+
+Modo: `{warn / block}` · Cifras sin fuente tras la corrección: {ninguna / lista}
+
 ## Acceptance Evidence
 
 {Generar tabla desde acceptance-report.json de AG-09b. Si no hay PRD/AC-XX, omitir sección.}
@@ -2268,6 +2382,7 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 - [ ] Todas las fases del plan implementadas
 - [ ] Commits parciales por fase
 - [ ] Integracion completada (DI, routing, config)
+- [ ] Pantallas verificadas (Paso 6.5): `.verify.md` con veredicto, capturas versionadas y, como mucho, una ronda de corrección sin datos inventados
 - [ ] Build sin errores
 - [ ] Tests con 85%+ coverage
 - [ ] Lint sin errores
@@ -2276,7 +2391,7 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 - [ ] Evidencia visual capturada (screenshots/traces)
 - [ ] AG-08 veredicto GO o CONDITIONAL GO
 - [ ] AG-09 veredicto ACCEPTED
-- [ ] PR creada con sección Acceptance Evidence
+- [ ] PR creada con secciones Design Review (si hay pantallas) y Acceptance Evidence
 - [ ] Work item actualizado (si aplica)
 - [ ] Self-healing log limpio (0 level 3+ events)
 - [ ] Healing budget no excedido (≤8 auto-heals total)

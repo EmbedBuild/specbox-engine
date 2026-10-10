@@ -750,12 +750,23 @@ Del análisis del PRD (Paso 2), identificar las pantallas únicas necesarias.
 
 Para cada pantalla, definir:
 - **Nombre**: Título descriptivo (ej: "Staff Management - Main View")
+- **Brief y dirección (US-90)**: `doc/design/{feature}/{pantalla}.brief.md` y
+  `{pantalla}.direction.md`, escritos por `/design-review brief <pantalla>` y
+  `/design-review direction <pantalla>`. **Sin brief no se construye el prompt**: si falta,
+  ejecutar esos dos subcomandos antes de 6.2.
 - **Prompt**: Descripción detallada para Stitch
 - **Device**: DESKTOP o MOBILE (según proyecto)
 
 ### 6.2 Construir prompts por pantalla
 
 > ⚠️ **IMPORTANTE:** SIEMPRE generar prompts en **LIGHT MODE**. NO usar dark mode.
+
+**El prompt sale del brief y de la dirección (US-90):**
+- La descripción funcional, los datos reales y los estados salen del brief.
+- El bloque «Visual Direction» de la dirección va **antes** del prompt (formato en
+  `.claude/skills/design-review/reference/direction.md`). En la prueba UC-9001, ese bloque subió el
+  candidato de Stitch de 5,5 a 12 sobre 40.
+- Con un Design System aplicado en Stitch, el bloque no lleva colores, fuentes ni radios.
 
 Cada prompt DEBE incluir:
 
@@ -902,8 +913,10 @@ parcial y consume menos cuota.
 
 #### 6.3.4 Confirmación entre pantallas
 
-- Presentar el resultado de la pantalla generada al usuario.
-- Esperar confirmación antes de la siguiente pantalla.
+- Presentar el resultado de la pantalla generada al usuario, **junto al veredicto de la crítica
+  de 6.4b** (total, veredicto y defectos principales).
+- Esperar confirmación antes de la siguiente pantalla. En autopilot, el veredicto no detiene el
+  plan (ver 6.4b).
 
 ### 6.4 Obtener y guardar HTML
 
@@ -918,6 +931,60 @@ Para cada pantalla generada:
 3. Crear carpeta `doc/design/{feature}/` si no existe
 
 Lo mismo con los diseños de Claude Design: se guardan con su `html_banner`.
+
+### 6.4b Criticar el candidato antes de darlo por bueno (US-90 · UC-9004)
+
+> **Por qué.** En la prueba UC-9001, los candidatos de Stitch sacaron 5,5 y 12 sobre 40: solo
+> escritorio, datos del brief alterados y tells. La verificación con un revisor aislado fue la capa
+> que más subió las pantallas (+5,75/40). Un candidato no se guarda sin pasar por aquí.
+>
+> **Alcance.** Toda pantalla de Stitch. Un lienzo de Claude Design solo se critica cuando el usuario
+> lo pide, porque la guía del tipo Design prohíbe renderizarlo o capturarlo sin que se pida.
+> **Rúbrica:** `.claude/skills/design-review/reference/rubric.md`.
+
+1. **Captura.** `stitch_fetch_screen_image(project, stitch_project_id, screen_id)` y guardar
+   `result.image_base64` en `doc/design/{feature}/{screen_name}.png`. Si el proyecto tiene Playwright,
+   capturar además el HTML de 6.4 al ancho del dispositivo del candidato (1440 px en DESKTOP, 390 px en
+   MOBILE) y medir `scrollWidth` («Mediciones antes de opinar» en la rúbrica).
+2. **Revisor aislado.** Lanzar un subagente (herramienta Agent, `general-purpose`) que **no** reciba el
+   prompt de Stitch ni el razonamiento de este plan. Encargo:
+
+   ```
+   Eres el revisor de diseño de un proceso de verificación. Revisas un candidato que ha hecho otra
+   herramienta; no ves cómo se hizo. Lee ÚNICAMENTE:
+   - el brief: doc/design/{feature}/{screen_name}.brief.md
+   - la rúbrica: .claude/skills/design-review/reference/rubric.md (y defaults.md, que enlaza)
+   - el candidato: doc/design/{feature}/{screen_name}.html y su captura {screen_name}.png
+   - las mediciones, si las hay
+   Puntúa los 8 criterios (0-5) y da total sobre 40 y veredicto (Block, Needs changes o Approve).
+   El responsive se juzga al ancho del dispositivo del candidato (DESKTOP: 1440 px); que un
+   candidato DESKTOP no se adapte a 390 px se anota, no se suspende.
+   Lista hasta 8 defectos por severidad, cada uno con dónde, qué está mal y qué hacer, aplicables en
+   una sola ronda. Marca como defecto cualquier dato que no salga del brief.
+   Escribe el resultado en el formato de la rúbrica y no modifiques nada.
+   ```
+3. **Veredicto.**
+   - **Approve:** seguir.
+   - **Needs changes:** **una sola** edición. Llamar a `stitch_edit_screen(project,
+     stitch_project_id, screen_id, prompt=<los defectos concretos, uno por línea>)`. El prompt de
+     edición no pide datos que el brief no da: lo que falte se pide como marcador visible. Después,
+     traer el HTML y la captura de la versión editada y pasarla por un revisor aislado nuevo con el
+     mismo encargo. **Se conserva la versión con mejor total**, que queda en `{screen_name}.html`; la
+     otra, con su `screen_id`, se anota en la revisión.
+   - **Block:** no se edita a ciegas. En modo interactivo, se propone al usuario regenerar con el
+     prompt corregido. En autopilot, se avisa y se anota (paso 6).
+4. **Guardar la revisión junto al diseño**: `doc/design/{feature}/{screen_name}.review.md`, con:
+   - las notas de los 8 criterios, el total y el veredicto;
+   - los defectos;
+   - si hubo edición, los totales antes y después y qué versión se conservó (con su `screen_id`).
+5. **Anotar en el plan** de la feature la tabla «Revisión de candidatos»:
+
+   | Pantalla | Screen ID conservado | Total | Veredicto | Edición (antes → después) |
+   |---|---|---|---|---|
+
+6. **Autopilot.** El veredicto **avisa y no detiene el plan** (modo `warn`): queda en la tabla del
+   paso 5 y en el resumen final. Un «Block» se lista además en el resumen como pendiente de decisión
+   del usuario.
 
 ### 6.5 Registrar prompts usados
 
@@ -990,6 +1057,8 @@ stitch_build_site_batched_v2(
   `total_screens`, `total_batches`, `unified_pass_applied`.
 - Para descargar el HTML de cada pantalla generada por el batched build,
   seguir usando `mcp__stitch__get_screen` (Paso 6.4) screen-by-screen.
+- Cada pantalla del lote, una vez descargada, pasa por la crítica de 6.4b como cualquier otra
+  (con su brief, su revisor aislado y una sola edición). El lote no se da por bueno en bloque.
 
 ---
 
@@ -1056,6 +1125,15 @@ Usar `plane:create_work_item_comment`:
 **HTMLs guardados en**: `doc/design/[feature]/` (todos **candidatos**: la fuente de
 producción son los tokens del sistema; ver «Fuente de diseño» en el plan)
 **Prompts registrados en**: `doc/design/[feature]/[feature]_stitch_prompts.md`
+
+### Revisión de candidatos (6.4b):
+
+| Pantalla | Total | Veredicto | Edición (antes → después) |
+|----------|-------|-----------|---------------------------|
+| [nombre] | [N]/40 | Approve / Needs changes / Block | [—, o 18 → 26] |
+
+> Los «Block» quedan pendientes de tu decisión: regenerar con el prompt corregido o seguir.
+> Revisiones completas en `doc/design/[feature]/[pantalla].review.md`.
 
 > Si `stitch_designs: PENDING` — /implement bloqueará la implementación hasta que
 > los diseños se generen manualmente o se re-ejecute /plan con config Stitch.

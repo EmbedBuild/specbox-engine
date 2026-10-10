@@ -39,3 +39,8 @@ def test_hilos_no_enviados_a_claude_y_registro():
     assert "enviado a Claude" in COMMENTS
     assert "comment-record" in COMMENTS
     assert "En autopilot no se aplica nada" in COMMENTS
+
+
+def test_la_respuesta_automatica_no_decide_el_tipo():
+    assert "Respuestas automáticas" in COMMENTS
+    assert "acknowledge_duplicate" in COMMENTS

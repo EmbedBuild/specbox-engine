@@ -155,10 +155,15 @@ olvido.
      - `report_feedback`.
    - Se contesta en el hilo «Registrado como feedback FB-NNN del AC-XX de UC-YYYY: es un cambio de
      alcance, no de diseño» y se resuelve.
-7. **Hilos no enviados a Claude**: se leen y se proponen igual, y la corrección o el feedback se hacen.
+7. **Respuestas automáticas.** La sesión que creó o publicó el lienzo queda suscrita a él. Con las
+   respuestas automáticas activas, contesta a cada hilo enviado a Claude **antes** de que `comments`
+   lo clasifique, y puede prometer un cambio, por ejemplo dibujar algo que en realidad es alcance.
+   Esa respuesta no toca el lienzo. La de `comments` la corrige si hace falta, como respuesta nueva
+   que añade lo que se hizo (`acknowledge_duplicate: true`).
+8. **Hilos no enviados a Claude**: se leen y se proponen igual, y la corrección o el feedback se hacen.
    Pero `reply` y `resolve` solo funcionan en hilos que una persona ha enviado a Claude («Send to
    Claude» o una mención a @claude). Se dice qué hilos quedan abiertos por eso.
-8. **Registrar cada hilo tratado**:
+9. **Registrar cada hilo tratado**:
 
    ```bash
    node .claude/skills/design-review/scripts/canvas.mjs comment-record --feature <f> --thread <id> \
@@ -166,4 +171,4 @@ olvido.
    ```
 
    Un hilo de alcance sin `--feedback` se rechaza. Así una segunda pasada no vuelve a proponerlo.
-9. Si el artboard corregido ya estaba importado, `/design-review import` trae la versión nueva.
+10. Si el artboard corregido ya estaba importado, `/design-review import` trae la versión nueva.

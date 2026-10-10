@@ -16,7 +16,6 @@ Configura la identidad visual completa de un proyecto ANTES de empezar a desarro
 
 ```
 /visual-setup                          # Modo interactivo completo
-/visual-setup calm-enterprise          # Preset de estetica
 /visual-setup --from doc/brand/        # Parsear brand kit existente
 ```
 
@@ -181,43 +180,57 @@ Preguntar al usuario en este orden. Mostrar las opciones como tabla para facilit
 Ejemplo: "McProfit — fintech para gestion de inversiones"
 ```
 
-**Pregunta 2: Estetica**
+**Pregunta 2: Dirección visual (US-90 · UC-9002)**
 
-Mostrar tabla de presets disponibles:
+> No se ofrecen estéticas prefabricadas. Los presets que había (índigo con violeta y Geist, violeta
+> con rosa, Inter, Space Grotesk…) eran justo los valores por defecto que hacen que una interfaz
+> parezca generada. La dirección sale de la audiencia del proyecto y se revisa antes de presentarla.
+> El proceso es el de `/design-review` aplicado a nivel de proyecto:
+> `.claude/skills/design-review/reference/direction.md` y `.../reference/defaults.md`.
 
-| # | Estetica | Primary | Secondary | Font | Roundness | Referentes |
-|---|----------|---------|-----------|------|-----------|------------|
-| 1 | Calm Enterprise | #4F46E5 (Indigo) | #8B5CF6 (Violet) | GEIST | Rounded (12px) | Linear, Stripe |
-| 2 | Bold Startup | #7C3AED (Violet) | #EC4899 (Pink) | DM_SANS | Medium (8px) | Notion, Figma |
-| 3 | Minimal Tool | #171717 (Neutral) | #525252 (Gray) | INTER | Sharp (4px) | GitHub, Vercel |
-| 4 | Financial Pro | #0F172A (Slate) | #0EA5E9 (Sky) | PLUS_JAKARTA_SANS | Medium (8px) | Stripe, Wise |
-| 5 | Health & Care | #059669 (Emerald) | #14B8A6 (Teal) | MANROPE | Full/Pill | Calm, Headspace |
-| 6 | Developer DX | #F97316 (Orange) | #EAB308 (Yellow) | SPACE_GROTESK | Medium (8px) | Vercel, Railway |
-| 7 | Custom | (preguntar) | (preguntar) | (preguntar) | (preguntar) | — |
+1. **Reunir audiencia y JTBD sin repreguntar.** Leer la audiencia de `doc/app/app_prd.md` (Paso 0.0),
+   los ICP y JTBD de `doc/app/app_market.md` si existe, y el dominio de la Pregunta 1. Preguntar solo
+   lo que falte: quién usa el producto, en qué situación y qué tiene que sentir (JTBD emocional).
+2. **Proponer la dirección** con la pasada 1 de `direction.md`:
+   - **Tema:** una frase sacada del dominio.
+   - **Paleta de 4 a 6 colores con su función:** fondo, superficie, texto, acción y uno o dos
+     significados (por ejemplo, pendiente o error). Un color, un significado.
+   - **Tipografía:** familias con su papel (titulares y texto), elegidas de la tabla de la
+     Pregunta 5 si el proyecto usa Stitch.
+   - **Concepto de composición:** densidad, alineación y radios por función.
+   - **Principios:** 2 o 3.
+3. **Revisar contra lo que saldría por defecto**, con la pasada 2 y `defaults.md`. Como mínimo:
+   Inter, Roboto, Arial o Space Grotesk como única voz; degradado violeta o índigo; crema con
+   terracota; negro con verde ácido; beige con latón. Cada coincidencia se **sustituye**, o se
+   **justifica con la audiencia**, y el motivo queda escrito.
+4. **Presentar**:
+   - la tabla de paleta con función y la tipografía con papel;
+   - el tema y el concepto;
+   - la tabla «Default que aparecía | Qué hice | Por qué»;
+   - la lista «Lo que se rehúsa».
 
-```
-¿Que estetica se acerca mas a tu producto? (1-7)
-```
+   El usuario confirma o ajusta cualquier campo.
 
-**Si elige 1-6** → cargar preset completo, confirmar con usuario, permitir override de cualquier campo.
+**Si el usuario trae su propia paleta o tipografía**, se usa la suya: es la marca. Aun así pasa por
+la revisión del punto 3, que avisa de las coincidencias sin imponer el cambio.
 
-**Si elige 7 (Custom)** → continuar con preguntas 3-7.
+Las Preguntas 3-7 solo se hacen si la dirección no fijó ese valor o el usuario quiere cambiarlo.
 
-**Pregunta 3: Color primario** (solo si Custom)
+**Pregunta 3: Color primario** (solo si la dirección no lo fijó)
 
 ```
 ¿Color primario? (hex, ej: #4F46E5)
 Puedo sugerir uno si me dices el sector del producto.
 ```
 
-**Pregunta 4: Color secundario** (solo si Custom)
+**Pregunta 4: Color secundario** (solo si la dirección no lo fijó)
 
 ```
 ¿Color secundario? (hex, ej: #8B5CF6)
 Si no tienes uno, puedo derivarlo del primario (complementario o analogo).
 ```
 
-**Pregunta 5: Tipografia** (solo si Custom)
+**Pregunta 5: Tipografia** (solo si la dirección no lo fijó)
 
 Mostrar tabla de fuentes soportadas por Stitch:
 
@@ -240,7 +253,10 @@ Mostrar tabla de fuentes soportadas por Stitch:
 ¿Tipografia? (1-12, o nombre directamente)
 ```
 
-**Pregunta 6: Roundness** (solo si Custom)
+> INTER y SPACE_GROTESK como única voz están en la lista de lo que se rehúsa por defecto. Si se
+> eligen, la revisión de la Pregunta 2 deja escrito por qué la audiencia lo justifica.
+
+**Pregunta 6: Roundness** (solo si la dirección no lo fijó)
 
 | # | Nombre | CSS radius | Stitch enum | Efecto |
 |---|--------|------------|-------------|--------|
@@ -253,7 +269,7 @@ Mostrar tabla de fuentes soportadas por Stitch:
 ¿Roundness? (1-4)
 ```
 
-**Pregunta 7: Dispositivo principal** (solo si Custom)
+**Pregunta 7: Dispositivo principal** (solo si la dirección no lo fijó)
 
 ```
 ¿Desktop-first o mobile-first?
@@ -291,7 +307,7 @@ Mapeo de fuentes:
 └── monoFont: "JetBrains Mono" o "Fira Code" (para code blocks — solo CSS, no Stitch)
 ```
 
-**REGLA**: Las 3 fuentes de Stitch (headline, body, label) usan la MISMA familia por defecto. Solo separar si el usuario lo pide explicitamente o si la estetica lo requiere (ej: serif para headlines + sans para body).
+**REGLA**: Las 3 fuentes de Stitch (headline, body, label) usan la MISMA familia por defecto. Solo separar si el usuario lo pide explicitamente o si la dirección lo requiere (ej: serif para titulares y sans para el texto).
 
 ### 1.5 Confirmar tokens con el usuario
 
@@ -304,7 +320,8 @@ Antes de generar cualquier artefacto, mostrar resumen completo:
 |-------|-------|
 | Nombre | {nombre} |
 | Dominio | {dominio} |
-| Estetica | {nombre preset o "Custom"} |
+| Dirección | {tema en una frase} |
+| Lo que se rehúsa | {N elementos: lista corta} |
 | Primary | {hex} ████ |
 | Secondary | {hex} ████ |
 | Accent | {hex} ████ |
@@ -337,7 +354,7 @@ Archivo con CSS custom properties para light y dark mode:
 ```css
 /* Brand Kit — {Nombre del Producto}
  * Generated by /visual-setup
- * Estetica: {estetica}
+ * Dirección: {tema}
  */
 
 :root {
@@ -539,16 +556,32 @@ Este archivo es lo que los sub-agentes (AG-02, AG-06) reciben en su contexto. Ma
 ```markdown
 # Brand: {Nombre del Producto}
 
-> {Dominio} — Estetica: {nombre estetica}
+> {Dominio}. Dirección: {tema en una frase}
 
 ## Paleta
 
-| Rol | Hex | Uso |
-|-----|-----|-----|
-| Primary | {hex} | CTAs, links, focus rings, active states |
-| Secondary | {hex} | Secondary buttons, tags, badges |
-| Accent | {hex} | Highlights, notifications, progress |
-| Neutral | {neutral-500} | Borders, dividers, disabled states |
+<!-- Los nombres de la columna «Rol» los lee generate_design_md_tool: Fondo, Superficie, Texto,
+     Texto secundario, Acción, Secundario, Acento, Borde, Éxito, Aviso, Error. -->
+
+| Rol | Hex | Función |
+|-----|-----|---------|
+| Fondo | {hex} | Fondo de página |
+| Superficie | {hex} | Paneles, tarjetas y filas elevadas |
+| Texto | {hex} | Texto principal y títulos |
+| Texto secundario | {hex} | Metadatos y descripciones (AA sobre fondo y superficie) |
+| Acción | {hex} | Botón principal, enlaces y foco |
+| {Significado} | {hex} | {qué marca: por ejemplo, «pendiente»} |
+| Borde | {hex} | Separadores y bordes de control |
+
+## Dirección
+
+- **Tema:** {una frase del dominio}
+- **Composición:** {densidad, alineación, radios por función}
+- **Principios:** {2-3}
+
+## Lo que se rehúsa
+
+- {cada default rechazado en la revisión de la Pregunta 2, con lo que se usa en su lugar}
 
 ## Tipografia
 
@@ -777,17 +810,9 @@ mcp__stitch__create_design_system(
 )
 ```
 
-**Mapeo de estetica a colorVariant:**
-
-| Estetica | colorVariant | Razon |
-|----------|-------------|-------|
-| Calm Enterprise | TONAL_SPOT | Palette armonica, profesional |
-| Bold Startup | VIBRANT | Colores saturados, energeticos |
-| Minimal Tool | NEUTRAL | Palette restringida, funcional |
-| Financial Pro | FIDELITY | Fidelidad al color elegido |
-| Health & Care | TONAL_SPOT | Armonia natural, confianza |
-| Developer DX | EXPRESSIVE | Colores distintos, personalidad |
-| Custom | TONAL_SPOT | Default seguro |
+**colorVariant:** `FIDELITY` por defecto, para que Stitch respete los colores de la dirección tal
+cual. Solo con otro valor si la dirección lo pide de forma explícita: `NEUTRAL` (paleta casi
+monocroma), `VIBRANT` (saturación alta) o `TONAL_SPOT` (armónicos derivados del color de acción).
 
 **Contenido del `designMd`** (~2000 palabras max):
 
@@ -798,7 +823,7 @@ Generar un Markdown denso que incluya:
 
 ## Brand Identity
 - Product: {nombre} — {dominio}
-- Aesthetic: {estetica} ({referentes})
+- Direction: {tema de la dirección, en una frase}
 - Visual tone: {profesional/energetico/minimal/calido/tecnico}
 
 ## Color System
@@ -850,6 +875,7 @@ Generar un Markdown denso que incluya:
 - Stack more than 3 CTAs in one viewport
 - Use shadows heavier than shadow-md on cards
 - Mix rounded and sharp corners in the same view
+- {each item of «Lo que se rehúsa» from the brand kit, translated}
 ```
 
 ### 3.4 Guardar asset ID del Design System
@@ -901,7 +927,7 @@ generate_design_md_tool(
   project_name="{Nombre Visible}",
   system_tokens_content=<design-system.tokens.json>,
   system_tokens_path="<ruta relativa del fichero>",
-  brand_kit_content=<doc/brand/brand_kit.md>,
+  brand_kit_content=<doc/brand/brand_kit/SKILL.md>,  # el que escribe el Paso 2.4
   veg_content=<VEG si ya existe>,
   app_prd_content=<doc/app/app_prd.md>,
   app_spec_content=<doc/app/app_spec.md>,
@@ -978,8 +1004,8 @@ Crear `doc/veg/base/veg-{project-slug}.md` derivando TODAS las directivas del br
 ## Contexto del Target
 
 - **Quien**: {derivar del dominio — ej: "Profesionales financieros que gestionan inversiones"}
-- **Referentes visuales**: {referentes de la estetica elegida}
-- **Tolerancia visual**: {minimal / balanced / expressive — derivar de estetica}
+- **Referentes visuales**: {referentes que dio el usuario o el PRD, si los hay}
+- **Tolerancia visual**: {minimal / balanced / expressive — derivar de la dirección}
 - **Plataforma primaria**: {desktop-first / mobile-first}
 
 ## Pilar 1: Imagenes
@@ -988,8 +1014,8 @@ Crear `doc/veg/base/veg-{project-slug}.md` derivando TODAS las directivas del br
 
 | Campo | Valor |
 |-------|-------|
-| Tipo | {derivar de estetica y dominio} |
-| Mood | {derivar de estetica} |
+| Tipo | {derivar de la dirección y el dominio} |
+| Mood | {derivar de la dirección} |
 | Paleta | {derivar de colores elegidos} |
 | Sujetos | {derivar de dominio} |
 
@@ -997,7 +1023,7 @@ Crear `doc/veg/base/veg-{project-slug}.md` derivando TODAS las directivas del br
 
 | Seccion | Tipo | Prompt |
 |---------|------|--------|
-| Hero | {tipo} | "{prompt contextualizado al dominio y estetica}" |
+| Hero | {tipo} | "{prompt contextualizado al dominio y la dirección}" |
 | Features | {tipo} | "{prompt}" |
 | Empty states | {tipo} | "{prompt}" |
 | Backgrounds | {tipo} | "{prompt}" |
@@ -1008,8 +1034,8 @@ Crear `doc/veg/base/veg-{project-slug}.md` derivando TODAS las directivas del br
 
 | Campo | Valor |
 |-------|-------|
-| Nivel | {derivar de estetica: calm→subtle, bold→moderate, minimal→subtle} |
-| Personalidad | {derivar de estetica} |
+| Nivel | {derivar de la dirección: tranquila→subtle, enérgica→moderate} |
+| Personalidad | {derivar de la dirección} |
 
 ### Catalogo de animaciones
 
@@ -1036,9 +1062,9 @@ Crear `doc/veg/base/veg-{project-slug}.md` derivando TODAS las directivas del br
 
 | Campo | Valor |
 |-------|-------|
-| Densidad | {derivar de estetica} |
-| Whitespace | {derivar de estetica} |
-| Separacion de secciones | {derivar de estetica} |
+| Densidad | {derivar de la dirección} |
+| Whitespace | {derivar de la dirección} |
+| Separacion de secciones | {derivar de la dirección} |
 
 ### Tipografia
 
@@ -1052,7 +1078,7 @@ Crear `doc/veg/base/veg-{project-slug}.md` derivando TODAS las directivas del br
 
 | Campo | Valor |
 |-------|-------|
-| Estilo | {derivar de estetica y dominio} |
+| Estilo | {derivar de la dirección y el dominio} |
 | CTA prominence | {derivar} |
 | Data presentation | {derivar de dominio} |
 
@@ -1093,16 +1119,15 @@ Form factors: {desktop-first|mobile-first}, breakpoints 640/768/1024/1280
 Brand: {primary} + {secondary}, font {font-name}, radius {N}px
 ```
 
-**Reglas de derivacion por estetica:**
+**Reglas de derivación desde la dirección:**
 
-| Estetica | Densidad | Whitespace | Motion Level | Hierarchy | CTA |
-|----------|----------|------------|--------------|-----------|-----|
-| Calm Enterprise | balanced | generous | subtle | card-based | medium |
-| Bold Startup | balanced | moderate | moderate | full-bleed | high |
-| Minimal Tool | compact | moderate | subtle | minimal | subtle |
-| Financial Pro | compact | moderate | subtle | dashboard | medium |
-| Health & Care | spacious | generous | moderate | card-based | medium |
-| Developer DX | compact | moderate | subtle | dashboard | medium |
+- **Densidad, whitespace y jerarquía:** los fija el concepto de composición de la dirección. Una
+  herramienta de uso diario (superficie Operate) tiende a `compact` y `dashboard`; una página
+  comercial (Persuade), a `spacious` y `full-bleed`. Ver `.claude/skills/design-review/reference/surfaces.md`.
+- **Motion level:** `subtle` por defecto. Solo `moderate` si la dirección pide un momento de
+  movimiento concreto, y siempre por debajo de 300 ms y respetando `prefers-reduced-motion`.
+- **CTA:** una sola acción principal por vista; su prominencia sale del principio de la dirección
+  que la regula.
 
 ---
 
@@ -1256,7 +1281,7 @@ Insertar:
 
 | Campo | Valor |
 |-------|-------|
-| Estetica | {nombre estetica} ({referentes}) |
+| Dirección | {tema de la dirección} |
 | Dominio | {dominio} |
 | Primary | `{primary_hex}` |
 | Secondary | `{secondary_hex}` |

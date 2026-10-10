@@ -218,7 +218,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
             inputs = GeneratorInputs(
                 project_root=root,
                 project_name=project_name or project,
-                brand_kit_path=root / "doc" / "brand" / "brand_kit.md" if root else None,
+                brand_kit_path=_pick_brand_kit_path(root) if root else None,
                 veg_path=_pick_veg_path(root) if root else None,
                 app_prd_path=root / "doc" / "app" / "app_prd.md" if root else None,
                 app_spec_path=root / "doc" / "app" / "app_spec.md" if root else None,
@@ -883,6 +883,19 @@ def _content_required_error(project: str, project_root: str | None) -> dict:
             "write": "save design_md_content to suggested_relpath (doc/design/DESIGN.md)",
         },
     }
+
+
+def _pick_brand_kit_path(root: Path) -> Path:
+    """The brand kit /visual-setup writes (``doc/brand/brand_kit/SKILL.md``).
+
+    Older projects keep a flat ``doc/brand/brand_kit.md``: it wins when it exists,
+    so their DESIGN.md does not change.
+    """
+
+    flat = root / "doc" / "brand" / "brand_kit.md"
+    if flat.exists():
+        return flat
+    return root / "doc" / "brand" / "brand_kit" / "SKILL.md"
 
 
 def _pick_veg_path(root: Path) -> Path | None:

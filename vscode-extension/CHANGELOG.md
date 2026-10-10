@@ -8,6 +8,14 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.24.0] — "Criterio"
+
+### Changed
+
+- **The `/design-review` skill card** now explains all three steps — brief, direction and `verify`
+  (screenshots at 1440 and 390, deterministic rules and an isolated reviewer) — and suggests running
+  `verify` before closing a use case with screens. The skill itself ships with the engine.
+
 ## [6.23.0] — "Poda"
 
 ### Changed

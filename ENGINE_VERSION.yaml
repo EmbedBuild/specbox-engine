@@ -1,8 +1,8 @@
-version: 6.23.0
-codename: "Poda"
+version: 6.24.0
+codename: "Criterio"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-10-07
+release_date: 2026-10-10
 min_claude_code: "1.0.0"
 
 stacks:
@@ -527,7 +527,30 @@ features:
   - board-diff-content-mode
   - remote-cwd-read-inventory
 
+  # New (v6.24.0) — Criterio
+  - design-review-skill
+  - plan-candidate-critique
+  - visual-setup-direction
+  - design-review-verify
+  - implement-screen-verification
+  - design-review-flutter
+  - design-gate-warns
+  - hook-conditions-permission-rules
+
 changelog:
+  6.24.0:
+    date: 2026-10-10
+    codename: "Criterio"
+    changes:
+      - "docs: comparative test of the design layers behind /design-review — brief +5.75/40, verification +5.75/40, direction +2.25/40 (more in app screens when verified), polish into the review; Stitch candidates scored 5.5 and 12 (UC-9001, PR #255)"
+      - "feat: /design-review skill (brief and direction per screen, no design without a brief), with third-party content from frontend-design, Impeccable, make-interfaces-feel-better, emil-design-eng and taste-skill attributed under their licences (UC-9003, PR #256)"
+      - "feat: /plan requires a brief and a direction before building a Stitch prompt and critiques every candidate in an isolated subagent with the 8-criterion rubric, with one edit at most and the best version kept (UC-9004, PR #257)"
+      - "feat: /visual-setup proposes a direction derived from the audience and JTBD instead of preset aesthetics, checks it against the category defaults and writes what it refuses; DESIGN.md now reads the brand kit /visual-setup writes and carries that list (UC-9002, PR #258)"
+      - "feat: /design-review verify — full-page screenshots at 1440 and 390 (as a touch device), overflow with the elements that stick out, deterministic rules with selector and line (gradient text, side stripe, eyebrow, transition all, emoji icon, contrast, 44 px tap area, tabular figures, control states, reduced motion) and an isolated reviewer that returns Block / Needs changes / Approve with three priority problems; uses the project's own Playwright (UC-9101, PR #259)"
+      - "feat: /implement Paso 6.5 verifies every implemented screen, applies one correction round without invented data (dato_sin_fuente on the second measurement) and puts the verdict in the PR and in the AC evidence; specbox.design_review.mode (warn by default, block, off) and the design-review-gate hook stop a Block only in block mode (UC-9102, PR #261)"
+      - "fix: the design gate actually warns the agent (exit 2 on stderr, page paths read from tool_input, registered without a condition that never matched); /implement generates missing screens with the /plan chain and the UI agent takes values from the system tokens, never from the candidate HTML (UC-9103, PR #260)"
+      - "feat: /design-review verify on Flutter apps — widget-test screenshots at 390x844 and 820x1180 with no simulator and no new dependency, RenderFlex overflows with their line, and Dart rules for 48 dp tap areas, disabled text scaling, motion, reduced motion, Material 3 and emoji icons (UC-9104, PR #263)"
+      - "fix: hook conditions are permission rules, not regexes — the 15 conditioned hooks never fired in a real session and now do (0 vs 21 of 21 expected); no-bypass-guard, spec-guard and uc-lifecycle-guard read tool_input; impact report and hooks guide (UC-9301, PR #262)"
   6.23.0:
     date: 2026-10-07
     codename: "Poda"

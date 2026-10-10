@@ -2,6 +2,80 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.24.0] - 2026-10-10 — "Criterio"
+
+El engine generaba diseño (Stitch, Claude Design, tokens, DESIGN.md), pero no lo juzgaba ni lo
+verificaba. Esta versión le da criterio: un brief y una dirección por pantalla antes de dibujar, una
+crítica de cada candidato y una verificación con capturas y reglas de cada pantalla implementada, en
+web y en Flutter. De paso arregla las puertas que no avisaban: ni la de diseño ni los hooks
+condicionados se ejecutaban en una sesión real. Es la épica EP-16 (US-90 y US-91) y la US-93 del
+board del orquestador.
+
+### Security
+
+- Los hooks condicionados se ejecutan en las sesiones reales. Sus condiciones estaban escritas como
+  expresiones regulares (`Bash(.*git commit.*)`, `Write(src/.*)`) y, para Claude Code, son reglas de
+  permisos: ninguna se disparaba. Ahora `no-bypass-guard` ve `--no-verify`, `push --force` y
+  `reset --hard`; `spec-guard`, la escritura de código sin UC o en main; y los hooks de `git commit`
+  y `git push`, cada commit y cada push. Todavía avisan sin bloquear: el bloqueo llega con UC-9302
+  (#262).
+- `design-system-gate` comprueba también `gh pr create`: en autopilot, una PR con código que se sale
+  de los tokens del sistema no se crea (#262).
+- La puerta de diseño avisa al agente cuando escribe una página de interfaz sin diseño, en vez de
+  callar (#260).
+
+### Added
+
+- **`/design-review`**: brief (usuario, tres preguntas, datos reales y superficie) y dirección visual
+  revisada contra lo que saldría por defecto, por pantalla. Sin brief no hay diseño. Incorpora
+  contenido de frontend-design, Impeccable, make-interfaces-feel-better, emil-design-eng y
+  taste-skill con su atribución y sus licencias (#256).
+- **`/design-review verify`**: capturas de página completa a 1440 y 390 (este como móvil táctil),
+  desbordamiento con los elementos que sobresalen y reglas con selector, texto y línea (texto con
+  degradado, borde lateral, eyebrow, `transition: all`, emoji como icono, contraste, áreas de 44 px,
+  cifras tabulares, estados de los controles y movimiento reducido). Un revisor aislado puntúa con la
+  rúbrica de 8 criterios y devuelve Block, Needs changes o Approve con los tres problemas
+  prioritarios. Usa el Playwright del proyecto y no instala nada (#259).
+- **Flutter**: capturas a 390 y 820 con las pruebas de widgets, sin simulador ni dependencias nuevas;
+  desbordamientos con su línea y reglas del código Dart (48 dp, escala de texto, movimiento,
+  Material 3) (#263).
+- **Paso 6.5 de `/implement`**: verifica cada pantalla implementada, con una ronda de corrección que no
+  inventa datos y el veredicto en la PR y en la evidencia de los AC. `specbox.design_review.mode`
+  (`warn` por defecto, `block` u `off`) y el hook `design-review-gate.mjs` deciden si un «Block» para
+  el paso a revisión (#261).
+- **Crítica de candidatos en `/plan`** (Paso 6.4b): cada pantalla de Stitch o Claude Design la revisa
+  un subagente aislado, con una sola edición y quedándose con la mejor versión (#257).
+- **Guía de hooks** (`doc/guides/hooks.md`) e informe de impacto de los hooks que no saltaban
+  (`doc/research/hooks-que-no-saltaban/`) (#262).
+- La prueba comparativa de las capas de diseño (`doc/research/design-review-benchmark/`) (#255).
+
+### Changed
+
+- `/visual-setup` propone una dirección propia a partir de la audiencia y los JTBD, en vez de
+  estéticas prefabricadas, y deja escrito lo que se rehúsa; el DESIGN.md lee el brand kit que escribe
+  y lleva esa lista (#258).
+- `/implement` genera las pantallas que faltan con la cadena de `/plan` (validación del prompt, marca
+  de candidato y crítica), no llamando a Stitch directamente; el agente de interfaz toma colores,
+  tipografía y espaciado de los tokens del sistema, nunca del HTML candidato (#260).
+- `no-bypass-guard`, `spec-guard` y `uc-lifecycle-guard` leen la entrada que manda Claude Code
+  (`tool_input`) (#262).
+
+### Compatibility
+
+- En proyectos con `design-system.tokens.json`, `design-system-gate` puede parar ahora un
+  `gh pr create` en autopilot; `specbox.design_gate.mode` lo cambia.
+- En el engine, `pre-commit-lint` empieza a ejecutarse después de cada commit (`gga run` o el linter
+  del repo). Los proyectos reciben la plantilla nueva de hooks con `upgrade_project`.
+- La verificación de pantallas avisa por defecto: ningún proyecto se bloquea sin pasar a `block`.
+
+### Tests
+
+- `tests/design-review/verify.test.mjs` y `flutter.test.mjs` (con Playwright y Flutter reales si
+  están; si no, se saltan), `tests/hooks/design-gate.test.mjs`, `design-review-gate.test.mjs`,
+  `settings-if-syntax.test.mjs` y `hook-input-shape.test.mjs`, y sus envoltorios en pytest.
+- Sesiones reales de Claude Code para las condiciones de los hooks: antes 0 disparos, ahora 21 de 21
+  esperados y ninguno de más.
+
 ## [6.23.0] - 2026-10-07 — "Poda"
 
 La 6.21.0 anunció que los milestones se irían en la 6.23.0 y lo avisó en cada respuesta durante

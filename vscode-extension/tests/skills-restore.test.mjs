@@ -49,9 +49,13 @@ const { KNOWN_SKILLS, CLAUDE_SKILLS_DIR } = require(path.join(root, 'out', 'cons
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf-8' });
 
 /** Una copia del engine versionada en git con las 26 skills, en `dir`. */
-function engineRepo(dir) {
+function engineRepo(dir, { autocrlf } = {}) {
 	fs.rmSync(dir, { recursive: true, force: true });
 	fs.mkdirSync(dir, { recursive: true });
+	if (autocrlf !== undefined) {
+		git(dir, 'init', '-q');
+		git(dir, 'config', 'core.autocrlf', String(autocrlf));
+	}
 	fs.writeFileSync(path.join(dir, 'ENGINE_VERSION.yaml'), 'version: 6.25.0\n');
 	fs.writeFileSync(path.join(dir, 'README.md'), '# engine\n');
 	for (const name of KNOWN_SKILLS) {
@@ -98,6 +102,16 @@ test('AC-01 · repone los ficheros borrados de la copia gestionada y deja como e
 	assert.equal(r.restored.length, 4);
 	assert.equal(git(engine, 'status', '--porcelain'), ' M README.md\n', 'solo queda el fichero modificado');
 	assert.equal(fs.readFileSync(path.join(engine, 'README.md'), 'utf-8'), '# engine con cambios\n');
+});
+
+test('AC-01 · con core.autocrlf (lo normal en Windows) lo repuesto no queda como modificado', async () => {
+	// Sin `checkout-index -u` git da por modificados todos los ficheros repuestos y el `git pull
+	// --ff-only` del actualizador se negaría a avanzar la copia (lo vio la CI de Windows).
+	const engine = engineRepo(managedEnginePath(), { autocrlf: true });
+	loseSkills(engine);
+	const r = await restoreManagedEngine(engine);
+	assert.equal(r.skills.length, 26);
+	assert.equal(git(engine, 'status', '--porcelain'), '', 'git status limpio');
 });
 
 test('AC-01 · sin nada borrado no hace nada', async () => {

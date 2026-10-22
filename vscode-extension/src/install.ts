@@ -231,7 +231,9 @@ export async function cloneManagedEngine(deps: CloneDeps = {}): Promise<CloneRes
 // Before UC-9601, installing twice on Windows could delete, through the junctions of
 // ~/.claude/skills, every skill file of the managed clone (git status: " D"). Only the managed
 // clone is touched, and only the files git lists as deleted: `git checkout-index` writes them from
-// the index and never overwrites a file that exists, so a modified file stays as it is.
+// the index and never overwrites a file that exists, so a modified file stays as it is. `-u`
+// refreshes their entries in the index: without it, with core.autocrlf (the Windows default) git
+// takes every written file as modified, and the updater's `git pull --ff-only` would refuse.
 
 /** What restoreManagedEngine did; `skipped` says why it did nothing. */
 export interface RestoreResult {
@@ -259,7 +261,7 @@ export async function restoreManagedEngine(
 	const restored: string[] = [];
 	for (let i = 0; i < deleted.length; i += RESTORE_BATCH) {
 		const batch = deleted.slice(i, i + RESTORE_BATCH);
-		const res = await gitRunner(['checkout-index', '--', ...batch], enginePath);
+		const res = await gitRunner(['checkout-index', '-u', '--', ...batch], enginePath);
 		if (res.code !== 0) { return { restored, skills: skillsIn(restored), skipped: 'git_failed' }; }
 		restored.push(...batch);
 	}

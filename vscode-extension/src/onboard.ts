@@ -4,7 +4,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { InstallManager } from './install';
 import { McpConfigurator } from './mcp';
-import { HealthChecker } from './health';
+import { HealthChecker, specboxSkillsCount } from './health';
 import { exec } from './util';
 import { markDone } from './design';
 
@@ -135,7 +135,8 @@ export class OnboardWizard {
 		if (h.engineInstalled) {
 			lines.push(markDone(vscode.l10n.t('SpecBox Engine v{0} installed', h.engineVersion ?? '')));
 		}
-		lines.push(markDone(vscode.l10n.t('Skills: {0} installed', h.skills.installed.length)));
+		// UC-9604 — the SpecBox skills, not every folder in ~/.claude/skills.
+		lines.push(markDone(vscode.l10n.t('Skills: {0} installed', specboxSkillsCount(h))));
 		lines.push(markDone(vscode.l10n.t('Hooks: {0} active', h.hooks.count)));
 
 		const warnings: string[] = [];

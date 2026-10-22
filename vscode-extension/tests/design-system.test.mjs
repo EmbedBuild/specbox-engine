@@ -140,7 +140,7 @@ test('AC-02 · la barra de estado lleva siempre la palabra; hecho = [x] SpecBox'
 	bar.update(HEALTH_ISSUES);
 	assert.equal(bar.item.text, '$(alert) SpecBox v6.14.2 · 2 pending');
 	assert.match(bar.item.tooltip.value, /\[ \] Engram missing/);
-	bar.update({ ...HEALTH_OK, engineInstalled: false });
+	bar.update({ ...HEALTH_OK, engineInstalled: false, enginePath: null });
 	assert.equal(bar.item.text, '$(warning) SpecBox · not installed');
 	// La barra conserva los iconos nativos de VSCode ($(…)); nunca un SVG ni un emoji.
 	assert.equal(/<svg|\p{Extended_Pictographic}/u.test(bar.item.text), false);

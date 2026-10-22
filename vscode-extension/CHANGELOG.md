@@ -24,6 +24,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
   skills whose `SKILL.md` Claude Code can read, not the links it created. If any of the 26 SpecBox
   skills is missing, it names them and offers to open the Health Check instead of reporting success.
   A skill that cannot be linked no longer stops the others (UC-9603).
+- **The diagnosis says what is missing.** With the engine found, the Engine row shows its version and
+  only the Skills row is pending (no more «Engine: Not installed», also in the status bar). The Skills
+  count is only the 26 SpecBox skills (0/26 … 26/26), not every folder in `~/.claude/skills` (one
+  person saw 28/54 with 0 of 26). The report and the sidebar name the missing skills and the action that
+  puts them back («SpecBox: Install Engine»), and «SpecBox: Health Check» refreshes the sidebar with the
+  same figures as the report (UC-9604).
 
 ## [6.25.0] — "Lienzo"
 

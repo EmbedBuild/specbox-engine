@@ -76,12 +76,16 @@ export class StatusBarManager {
 		if (!health) {
 			this.item.text = `$(loading~spin) SpecBox · ${t('checking')}${who}`;
 			lines.push(t('SpecBox Engine — checking…'));
-		} else if (!health.engineInstalled) {
+		} else if (!health.enginePath) {
 			this.item.text = `$(warning) SpecBox · ${t('not installed')}${who}`;
 			this.item.command = 'specbox.onboard';
 			lines.push(`[ ] ${t('SpecBox Engine — not installed. Click to run setup.')}`);
 		} else {
+			// UC-9604 — with the engine found, missing skills are one more pending item, not "not installed".
 			const issues: string[] = [];
+			const skillsMissing = health.skills.missing.length;
+			if (skillsMissing === 1) { issues.push(t('1 SpecBox skill missing')); }
+			if (skillsMissing > 1) { issues.push(t('{0} SpecBox skills missing', String(skillsMissing))); }
 			if (!health.engram.ok) { issues.push(t('Engram missing')); }
 			if (!health.mcpSpecbox.configured) { issues.push(t('MCP not configured')); }
 			if (!health.mcpEngram.configured) { issues.push(t('Engram MCP not configured')); }

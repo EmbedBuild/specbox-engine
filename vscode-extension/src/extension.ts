@@ -69,7 +69,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.commands.registerCommand('specbox.healthCheck', async () => {
 			const result = await health.run();
 			statusBar?.update(result);
-			statusTree.refresh();
+			// UC-9604 AC-04 — the sidebar shows this same result and reads the skills from disk again.
+			statusTree.show(result);
+			skillsTree.refresh();
+			await updateSkillsContext(skillsTree);
 			health.showReport(result);
 		}),
 

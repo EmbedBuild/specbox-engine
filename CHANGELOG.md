@@ -2,6 +2,21 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.26.1] - 2026-10-22 — "Extensión"
+
+La extensión de la 6.26.0 no llegó al Marketplace: rechazó su icono, de 1200×1200, porque ahora admite
+como mucho 1024×1024. Esta versión es la 6.26.0 con el icono reescalado (UC-9606).
+
+### Fixed
+
+- **El icono de la extensión mide 1024×1024**: el mismo dibujo, reescalado, para que el Marketplace
+  acepte la publicación (#286).
+
+### Tests
+
+- `vscode-extension/tests/marketplace-icon.test.mjs` falla si el icono que declara `package.json` pasa
+  de 1024×1024 (202 pruebas en la extensión, todas verdes).
+
 ## [6.26.0] - 2026-10-22 — "Extensión"
 
 La extensión de VSCode deja de borrar las skills en Windows y dice qué falta. Una persona de la

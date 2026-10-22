@@ -5,10 +5,10 @@ import * as os from 'os';
 import * as cp from 'child_process';
 import {
 	CLAUDE_SKILLS_DIR, CLAUDE_HOOKS_DIR, CLAUDE_HOOKS_LIB_DIR,
-	CLAUDE_COMMANDS_DIR, CLAUDE_SETTINGS
+	CLAUDE_COMMANDS_DIR, CLAUDE_SETTINGS, KNOWN_SKILLS
 } from './constants';
 import { ensureDir, symlinkOrCopy, copyFile, readJson, writeJson } from './util';
-import { HealthChecker } from './health';
+import { HealthChecker, isReadableFile, specboxSkillsState } from './health';
 
 import { markDone } from './design';
 // US-VSCODE-AUTOCLONE / UC-109 — managed-engine pure helpers.
@@ -277,6 +277,54 @@ function skillsIn(paths: string[]): string[] {
 	return [...names].sort();
 }
 
+// UC-9603 (US-96) — the final notice of «Install Engine» checks the skills it leaves.
+
+export interface InstallSummaryInput {
+	engineVersion: string | null;
+	/** Skills installed from the engine whose SKILL.md opens through their entry. */
+	readableSkills: number;
+	/** SpecBox skills Claude Code cannot read after installing. */
+	missingSkills: string[];
+	hooks: number;
+	/** Engram and MCP servers still missing, already in the person's language. */
+	missingPieces: string[];
+}
+
+export interface InstallSummary {
+	level: 'info' | 'warning';
+	text: string;
+	/** Buttons to offer, in order. */
+	actions: Array<'healthCheck' | 'configureMcp'>;
+}
+
+/**
+ * The final notice. With a SpecBox skill missing it never says the install went well: it names
+ * the skills and offers the Health Check. Pure apart from l10n (stubbed in tests).
+ */
+export function buildInstallSummary(i: InstallSummaryInput): InstallSummary {
+	const t = vscode.l10n.t;
+	if (i.missingSkills.length > 0) {
+		const also = i.missingPieces.length > 0 ? ` ${t('Also missing: {0}.', i.missingPieces.join(', '))}` : '';
+		return {
+			level: 'warning',
+			text: t('SpecBox could not install {0} of {1} SpecBox skills: {2}.', i.missingSkills.length, KNOWN_SKILLS.length, i.missingSkills.join(', ')) + also,
+			actions: i.missingPieces.length > 0 ? ['healthCheck', 'configureMcp'] : ['healthCheck'],
+		};
+	}
+	if (i.missingPieces.length > 0) {
+		return {
+			level: 'warning',
+			text: t('SpecBox installed ({0} skills, {1} hooks). Missing: {2}. Configure now?', i.readableSkills, i.hooks, i.missingPieces.join(', ')),
+			actions: ['configureMcp'],
+		};
+	}
+	return {
+		level: 'info',
+		text: markDone(t('SpecBox Engine v{0} installed: {1} skills, {2} hooks, MCP configured.', i.engineVersion ?? '', i.readableSkills, i.hooks)),
+		actions: [],
+	};
+}
+
 export class InstallManager {
 	private context: vscode.ExtensionContext;
 
@@ -341,25 +389,31 @@ export class InstallManager {
 
 			progress.report({ message: vscode.l10n.t('Done!'), increment: 100 });
 
-			// Summary
+			// Summary — UC-9603: what Claude Code can read, not the links created.
 			const missing: string[] = [];
 			if (!result.engram.ok) { missing.push('Engram'); }
 			if (!result.mcpSpecbox.configured) { missing.push(vscode.l10n.t('MCP SpecBox server')); }
 			if (!result.mcpEngram.configured) { missing.push(vscode.l10n.t('MCP Engram server')); }
+			const summary = buildInstallSummary({
+				engineVersion: result.engineVersion,
+				readableSkills: skillsResult.count,
+				missingSkills: specboxSkillsState(CLAUDE_SKILLS_DIR).missing,
+				hooks: hooksResult.count,
+				missingPieces: missing,
+			});
 
-			if (missing.length > 0) {
-				const configureMcp = vscode.l10n.t('Configure MCP');
-				const action = await vscode.window.showWarningMessage(
-					vscode.l10n.t('SpecBox installed ({0} skills, {1} hooks). Missing: {2}. Configure now?', skillsResult.count, hooksResult.count, missing.join(', ')),
-					configureMcp, vscode.l10n.t('Skip')
-				);
-				if (action === configureMcp) {
-					vscode.commands.executeCommand('specbox.configureMcp');
-				}
-			} else {
-				vscode.window.showInformationMessage(
-					markDone(vscode.l10n.t('SpecBox Engine v{0} installed: {1} skills, {2} hooks, MCP configured.', result.engineVersion ?? '', skillsResult.count, hooksResult.count))
-				);
+			if (summary.level === 'info') {
+				vscode.window.showInformationMessage(summary.text);
+				return;
+			}
+			const openHealth = vscode.l10n.t('Open Health Check');
+			const configureMcp = vscode.l10n.t('Configure MCP');
+			const buttons = summary.actions.map((a) => (a === 'healthCheck' ? openHealth : configureMcp));
+			const action = await vscode.window.showWarningMessage(summary.text, ...buttons, vscode.l10n.t('Skip'));
+			if (action === openHealth) {
+				vscode.commands.executeCommand('specbox.healthCheck');
+			} else if (action === configureMcp) {
+				vscode.commands.executeCommand('specbox.configureMcp');
 			}
 		});
 	}
@@ -477,16 +531,22 @@ export class InstallManager {
 	private installSkills(enginePath: string): { count: number } {
 		const srcDir = path.join(enginePath, '.claude', 'skills');
 		ensureDir(CLAUDE_SKILLS_DIR);
-		let count = 0;
+		const names: string[] = [];
 
 		for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
 			if (!entry.isDirectory()) { continue; }
 			const src = path.join(srcDir, entry.name);
 			const dest = path.join(CLAUDE_SKILLS_DIR, entry.name);
-			symlinkOrCopy(src, dest, 'dir');
-			count++;
+			// One skill that cannot be linked does not stop the rest: the final notice names it (UC-9603).
+			try {
+				symlinkOrCopy(src, dest, 'dir');
+			} catch (err) {
+				console.warn(`[specbox] could not install the skill ${entry.name}:`, err);
+			}
+			names.push(entry.name);
 		}
-		return { count };
+		// UC-9603 — count the skills whose SKILL.md opens through their entry, not the entries created.
+		return { count: names.filter((n) => isReadableFile(path.join(CLAUDE_SKILLS_DIR, n, 'SKILL.md'))).length };
 	}
 
 	private installHooks(enginePath: string): { count: number } {

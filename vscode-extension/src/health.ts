@@ -51,6 +51,33 @@ export function missingHookScripts(
 	return [...missing];
 }
 
+/** A file that exists and can be read (through links, which open their target). */
+export function isReadableFile(p: string): boolean {
+	try {
+		fs.accessSync(p, fs.constants.R_OK);
+		return fs.statSync(p).isFile();
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * UC-9603 — the SpecBox skills Claude Code can use: those whose SKILL.md opens through their entry
+ * in `skillsDir` (a link to the engine or a copy). Counting the entries created is not enough: a
+ * link to an emptied folder (UC-9601) exists and gives Claude Code nothing.
+ */
+export function specboxSkillsState(
+	skillsDir: string = CLAUDE_SKILLS_DIR,
+	canRead: (p: string) => boolean = isReadableFile,
+): { present: string[]; missing: string[] } {
+	const present: string[] = [];
+	const missing: string[] = [];
+	for (const name of KNOWN_SKILLS) {
+		(canRead(path.join(skillsDir, name, 'SKILL.md')) ? present : missing).push(name);
+	}
+	return { present, missing };
+}
+
 export interface HealthResult {
 	engineInstalled: boolean;
 	engineVersion: string | null;
@@ -184,11 +211,12 @@ export class HealthChecker {
 			} catch { /* swallow — report empty */ }
 		}
 
-		// "missing" is the canonical engine list minus what's on disk;
+		// "missing" is the canonical engine list minus what Claude Code can read
+		// (UC-9603: a SKILL.md that does not open counts as missing);
 		// "installed" is everything actually present, including skills from
-		// other sources (so the count in the sidebar reflects reality).
+		// other sources.
 		const installed = [...onDisk].sort();
-		const missing = KNOWN_SKILLS.filter(s => !onDisk.has(s));
+		const missing = specboxSkillsState(CLAUDE_SKILLS_DIR).missing;
 		return { installed, missing };
 	}
 

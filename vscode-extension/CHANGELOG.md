@@ -20,6 +20,10 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
   missing from the managed engine copy and says how many skills it recovered. Only files git lists as
   deleted are written: a modified file stays as it is, and an engine copy in a folder you chose is
   never touched (UC-9602).
+- **«SpecBox: Install Engine» only says it finished when the skills work.** The final notice counts the
+  skills whose `SKILL.md` Claude Code can read, not the links it created. If any of the 26 SpecBox
+  skills is missing, it names them and offers to open the Health Check instead of reporting success.
+  A skill that cannot be linked no longer stops the others (UC-9603).
 
 ## [6.25.0] — "Lienzo"
 

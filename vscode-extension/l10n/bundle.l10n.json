@@ -109,8 +109,6 @@
   "Your MCP transport config was switched to the hosted endpoint automatically. Your tracking data in doc/tracking/ was not touched.": "Your MCP transport config was switched to the hosted endpoint automatically. Your tracking data in doc/tracking/ was not touched.",
   "Nothing required — reload the window if Claude Code does not pick up the new MCP config. To undo, run \"SpecBox: Revert last migration\".": "Nothing required — reload the window if Claude Code does not pick up the new MCP config. To undo, run \"SpecBox: Revert last migration\".",
   "SpecBox updated to v{0}.": "SpecBox updated to v{0}.",
-  "No migration ran — this project has not finished onboarding yet.": "No migration ran — this project has not finished onboarding yet.",
-  "Run the SpecBox setup wizard to finish onboarding.": "Run the SpecBox setup wizard to finish onboarding.",
   "Updated to v{0} — no changes needed for your configuration.": "Updated to v{0} — no changes needed for your configuration.",
   "Nothing to migrate.": "Nothing to migrate.",
   "Nothing to do.": "Nothing to do.",
@@ -198,5 +196,8 @@
   "Run \"SpecBox: Install Engine\" to restore them.": "Run \"SpecBox: Install Engine\" to restore them.",
   "Run \"SpecBox: Install Engine\" to restore them": "Run \"SpecBox: Install Engine\" to restore them",
   "1 SpecBox skill missing": "1 SpecBox skill missing",
-  "{0} SpecBox skills missing": "{0} SpecBox skills missing"
+  "{0} SpecBox skills missing": "{0} SpecBox skills missing",
+  "Nothing was migrated: the SpecBox MCP server is not configured in Claude Code yet (global configuration of this computer).": "Nothing was migrated: the SpecBox MCP server is not configured in Claude Code yet (global configuration of this computer).",
+  "Run \"SpecBox: Onboard Project\" to finish setting it up.": "Run \"SpecBox: Onboard Project\" to finish setting it up.",
+  "SpecBox: Onboard Project": "SpecBox: Onboard Project"
 }

@@ -13,6 +13,7 @@ import {
 	fetchRemote, remoteEngineVersion, compareSemver, isDivergedFromRemote,
 	DEFAULT_REMOTE_BRANCH, shouldReinstallExtension, parseInstalledVersion,
 } from './install';
+import { HealthChecker } from './health';
 
 /** Outcome of pulling the managed clone. `skipped` means the engine is a user clone (untouched). */
 export interface PullResult { ok: boolean; skipped?: boolean; error?: string; }
@@ -131,7 +132,9 @@ export class ExtensionUpdater {
 		try {
 			const settingsPath = settingsLocalPath();
 			const settings = readClientSettings(settingsPath);
-			detected = detectClientConfigCase(settings);
+			// UC-9605 — the same MCP check as the «MCP SpecBox» row of the panel.
+			const mcpConfigured = new HealthChecker().checkMcpConfigured('specbox-engine').configured;
+			detected = detectClientConfigCase(settings, { mcpConfigured });
 			plan = planMigration(detected, this.extensionVersion);
 		} catch (err) {
 			console.warn('[specbox] updater: detect phase failed:', err);
@@ -173,11 +176,13 @@ export class ExtensionUpdater {
 			vscode.window.showInformationMessage(text);
 			return;
 		}
-		// Actionable case: offer revert as a button (non-blocking).
-		const revert = vscode.l10n.t('Revert');
-		vscode.window.showInformationMessage(text, revert).then((choice) => {
-			if (choice === revert) {
-				vscode.commands.executeCommand('specbox.revertMigration');
+		// Actionable case: offer its button (non-blocking) — undo the migration, or run the
+		// command that finishes the setup, with the title VSCode shows for it (UC-9605).
+		const label = summary.button === 'onboard' ? vscode.l10n.t('SpecBox: Onboard Project') : vscode.l10n.t('Revert');
+		const command = summary.button === 'onboard' ? 'specbox.onboard' : 'specbox.revertMigration';
+		vscode.window.showInformationMessage(text, label).then((choice) => {
+			if (choice === label) {
+				vscode.commands.executeCommand(command);
 			}
 		});
 	}

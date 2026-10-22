@@ -255,7 +255,8 @@ export class HealthChecker {
 		return { ok: fs.existsSync(CLAUDE_SETTINGS) };
 	}
 
-	private checkMcpConfigured(serverName: string): { configured: boolean } {
+	/** The «MCP SpecBox» / «MCP Engram» rows; the post-update notice uses it too (UC-9605). */
+	checkMcpConfigured(serverName: string): { configured: boolean } {
 		// Aliases: the server may be registered under different names
 		const aliases: Record<string, string[]> = {
 			'specbox-engine': ['specbox-engine', 'SpecBox-MCP', 'specbox-mcp', 'specbox'],

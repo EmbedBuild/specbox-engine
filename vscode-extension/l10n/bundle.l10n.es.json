@@ -191,5 +191,8 @@
   "{0} configured but missing: {1}": "{0} configurados que no existen: {1}",
   "SpecBox recovered 1 skill that an earlier install had deleted from its engine copy.": "SpecBox ha recuperado 1 skill que una instalación anterior había borrado de su copia del engine.",
   "SpecBox recovered {0} skills that an earlier install had deleted from its engine copy.": "SpecBox ha recuperado {0} skills que una instalación anterior había borrado de su copia del engine.",
-  "SpecBox restored {0} files missing from its engine copy.": "SpecBox ha repuesto {0} ficheros que faltaban en su copia del engine."
+  "SpecBox restored {0} files missing from its engine copy.": "SpecBox ha repuesto {0} ficheros que faltaban en su copia del engine.",
+  "SpecBox could not install {0} of {1} SpecBox skills: {2}.": "SpecBox no ha podido instalar {0} de los {1} skills de SpecBox: {2}.",
+  "Also missing: {0}.": "Falta también: {0}.",
+  "Open Health Check": "Abrir la comprobación de salud"
 }

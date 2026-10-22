@@ -38,31 +38,84 @@ export function copyFile(src: string, dest: string): void {
 	fs.copyFileSync(src, dest);
 }
 
-/** Create a symlink (file or dir). Falls back to copy on Windows if symlink fails. */
-export function symlinkOrCopy(src: string, dest: string, type: 'file' | 'dir' = 'dir'): void {
-	ensureDir(path.dirname(dest));
-	// Remove existing
-	if (fs.existsSync(dest) || isSymlink(dest)) {
-		fs.rmSync(dest, { recursive: true, force: true });
+/** The filesystem calls symlinkOrCopy makes; tests pass a simulated one (UC-9601 AC-04). */
+export interface LinkFs {
+	lstatSync(p: string): { isSymbolicLink(): boolean };
+	readlinkSync(p: string): string;
+	unlinkSync(p: string): void;
+	rmdirSync(p: string): void;
+	rmSync(p: string, opts: fs.RmOptions): void;
+	mkdirSync(p: string, opts: fs.MakeDirectoryOptions): void;
+	symlinkSync(target: string, p: string, type: 'junction' | 'file'): void;
+	cpSync(src: string, dest: string, opts: fs.CopySyncOptions): void;
+	copyFileSync(src: string, dest: string): void;
+}
+
+/**
+ * Create a symlink (file or dir) — a junction for directories on Windows. Falls back to copy on
+ * Windows if the link fails. Returns what it did: `kept` (the link already pointed at `src`),
+ * `linked` or `copied`.
+ *
+ * UC-9601 — an existing link or junction is never deleted recursively: on Windows that goes
+ * through the junction and empties the folder it points to (the managed engine clone lost all its
+ * skills that way on the second install). A link pointing elsewhere is removed on its own; only a
+ * real directory or file (an earlier copy) is deleted recursively.
+ */
+export function symlinkOrCopy(src: string, dest: string, type: 'file' | 'dir' = 'dir', lfs: LinkFs = fs): 'kept' | 'linked' | 'copied' {
+	lfs.mkdirSync(path.dirname(dest), { recursive: true });
+	const existing = lstatOrNull(lfs, dest);
+	if (existing?.isSymbolicLink()) {
+		if (linkPointsTo(lfs, dest, src)) { return 'kept'; }
+		removeLinkOnly(lfs, dest);
+	} else if (existing) {
+		lfs.rmSync(dest, { recursive: true, force: true });
 	}
 	try {
-		fs.symlinkSync(src, dest, type === 'dir' ? 'junction' : 'file');
+		lfs.symlinkSync(src, dest, type === 'dir' ? 'junction' : 'file');
+		return 'linked';
 	} catch {
 		// Fallback: copy (Windows without dev mode / elevated)
 		log(`Symlink failed for ${src}, falling back to copy`);
 		if (type === 'dir') {
-			fs.cpSync(src, dest, { recursive: true });
+			lfs.cpSync(src, dest, { recursive: true });
 		} else {
-			fs.copyFileSync(src, dest);
+			lfs.copyFileSync(src, dest);
 		}
+		return 'copied';
 	}
 }
 
-function isSymlink(p: string): boolean {
+function lstatOrNull(lfs: LinkFs, p: string): { isSymbolicLink(): boolean } | null {
 	try {
-		return fs.lstatSync(p).isSymbolicLink();
+		return lfs.lstatSync(p);
+	} catch {
+		return null;
+	}
+}
+
+/** Does the link at `link` point at `target`? Relative targets resolve against the link's folder. */
+function linkPointsTo(lfs: LinkFs, link: string, target: string): boolean {
+	let raw: string;
+	try {
+		raw = lfs.readlinkSync(link);
 	} catch {
 		return false;
+	}
+	const resolved = path.resolve(path.dirname(link), raw.replace(/^\\\\\?\\/, ''));
+	const wanted = path.resolve(target);
+	return os.platform() === 'win32' ? resolved.toLowerCase() === wanted.toLowerCase() : resolved === wanted;
+}
+
+/**
+ * Remove a link without following it. unlink removes a symlink and, on Windows, a junction too
+ * (libuv removes directory reparse points with RemoveDirectory); rmdir is the non-recursive
+ * fallback for a directory link. Neither ever deletes what the link points to.
+ */
+function removeLinkOnly(lfs: LinkFs, p: string): void {
+	try {
+		lfs.unlinkSync(p);
+	} catch {
+		lfs.rmdirSync(p);
 	}
 }
 

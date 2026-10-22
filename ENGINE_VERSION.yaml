@@ -1,8 +1,8 @@
-version: 6.25.0
-codename: "Lienzo"
+version: 6.26.0
+codename: "Extensión"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-10-10
+release_date: 2026-10-22
 min_claude_code: "1.0.0"
 
 stacks:
@@ -543,8 +543,23 @@ features:
   - claude-design-design-system-artifact
   - plan-claude-design-canvas
   - claude-design-canvas-comments
+  # New (v6.26.0) — Extensión
+  - extension-skill-links-without-recursive-delete
+  - extension-managed-clone-self-repair
+  - extension-install-checks-skills
+  - extension-health-specbox-skills-count
+  - extension-update-notice-same-mcp-check
 
 changelog:
+  6.26.0:
+    date: 2026-10-22
+    codename: "Extensión"
+    changes:
+      - "fix: reinstalling on Windows no longer deletes the skills — symlinkOrCopy leaves a link that already points at its engine folder, removes a link pointing elsewhere on its own (unlink, else non-recursive rmdir) and only deletes real folders recursively; a simulated filesystem test fails on any recursive delete of a link, and the new extension-windows.yml workflow installs twice with real junctions on windows-latest (Node 20/22/24) (UC-9601, PR #279)"
+      - "feat: the managed engine copy repairs itself — on activation and before «Install Engine» links the skills, git ls-files --deleted + git checkout-index -u write back the versioned files missing from ~/.specbox/specbox-engine (never a modified file, never a copy elsewhere) and a notice says how many skills came back; -u keeps them clean under core.autocrlf, so the updater's pull still fast-forwards (UC-9602, PR #281)"
+      - "feat: «Install Engine» only reports success when the skills work — the final notice counts the skills whose SKILL.md opens through their link (specboxSkillsState) and, with any of the 26 missing, names them and offers the Health Check; one skill that cannot be linked no longer stops the rest (UC-9603, PR #282)"
+      - "feat: the diagnosis says what is missing — the Engine row depends on the engine being found (report, sidebar and status bar), the Skills count is only the 26 SpecBox skills (0/26 … 26/26), report and sidebar name the missing skills and the action that restores them, and Health Check hands its result to the sidebar and rereads the skills (UC-9604, PR #283)"
+      - "fix: the post-update notice uses the same MCP check as the «MCP SpecBox» row (new case hosted_mcp_ok when ~/.claude.json has it), says it checked the global configuration and names «SpecBox: Onboard Project» / «SpecBox: Inicializar Proyecto» with a button that runs it (UC-9605, PR #284)"
   6.25.0:
     date: 2026-10-10
     codename: "Lienzo"

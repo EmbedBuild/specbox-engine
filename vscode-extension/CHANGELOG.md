@@ -8,6 +8,14 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+### Fixed
+
+- **Installing on Windows no longer deletes the skills.** Running «SpecBox: Install Engine» or
+  «SpecBox: Onboard Project» a second time deleted, through the junction in `~/.claude/skills`, every
+  skill file in the managed engine copy (`~/.specbox/specbox-engine`). A link that already points at
+  its engine folder is now left as it is, a link pointing elsewhere is removed on its own (that folder
+  keeps its files), and only a real folder from an earlier copy is deleted (UC-9601).
+
 ## [6.25.0] — "Lienzo"
 
 ### Changed

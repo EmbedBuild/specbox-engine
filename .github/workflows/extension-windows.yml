@@ -1,9 +1,11 @@
 name: Extension on Windows
 
-# US-96 — la instalación de skills de la extensión, con junctions de verdad. En Windows,
-# borrar en recursivo un junction vacía la carpeta a la que apunta (UC-9601): estas pruebas
-# instalan dos veces sobre una copia del engine versionada en git y comprueban que no falta nada.
-# En macOS y Linux las mismas pruebas usan enlaces simbólicos (npm test en oauth-e2e.yml).
+# US-96 — la instalación de skills de la extensión, con junctions de verdad. Un borrado recursivo
+# sobre un junction puede vaciar la carpeta a la que apunta (UC-9601): estas pruebas instalan dos
+# veces sobre una copia del engine versionada en git y comprueban que no falta nada. En los runners
+# rmSync quita el junction limpio, así que no reproducen aquel borrado (lo cubren las pruebas con el
+# sistema de ficheros simulado); comprueban el resultado con junctions reales. En macOS y Linux las
+# mismas pruebas usan enlaces simbólicos (npm test en oauth-e2e.yml).
 
 on:
   pull_request:

@@ -93,8 +93,10 @@ export class ExtensionUpdater {
 			}
 		}
 
-		// Phase 0 — pull the managed clone up to date before reinstalling skills/hooks
-		// (UC-111). Only touches the managed dir; a user clone is skipped. A failed
+		// Phase 0 — pull the managed clone up to date (UC-111). The skills follow it
+		// through their links; this flow does not reinstall skills or hooks (only
+		// «SpecBox: Install Engine» and «SpecBox: Onboard Project» do). Only touches
+		// the managed dir; a user clone is skipped. A failed
 		// pull (no network, diverged history) is a non-blocking warning — the flow
 		// continues with the local copy and never aborts activation (AC-07,
 		// fire-and-forget pattern of v6.6.2).

@@ -6,10 +6,13 @@
 // AC-04 · Con el sistema de ficheros simulado, la prueba falla si se borra en recursivo un enlace.
 //
 // Origen (2026-10-22, un usuario en Windows): symlinkOrCopy hacía fs.rmSync(dest, {recursive: true})
-// sobre el junction que ya existía en ~/.claude/skills/<skill>; en Windows ese borrado atraviesa el
-// junction y vacía la carpeta de la skill en ~/.specbox/specbox-engine. En macOS y Linux rm no sigue
-// enlaces. Las pruebas con disco real usan junctions en Windows (CI extension-windows.yml) y enlaces
-// simbólicos en macOS y Linux.
+// sobre el junction que ya existía en ~/.claude/skills/<skill>, y la copia gestionada del engine
+// (~/.specbox/specbox-engine) se quedó sin los ficheros de sus 26 skills. En los runners de Windows
+// (Node 20, 22 y 24) rmSync quita el junction limpio: el borrado a través de él llega por el camino de
+// reserva de rmSync en Windows (si no puede quitar el enlace, vacía lo que hay debajo), que depende de
+// la máquina. Por eso la garantía es no borrar nunca en recursivo un enlace (pruebas simuladas) y las
+// pruebas con disco real comprueban el resultado: junctions en Windows (CI extension-windows.yml) y
+// enlaces simbólicos en macOS y Linux.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Module from 'node:module';
@@ -52,7 +55,7 @@ const { KNOWN_SKILLS, CLAUDE_SKILLS_DIR } = require(path.join(root, 'out', 'cons
  * Un árbol en memoria con ficheros, carpetas y enlaces. Como en Windows, un borrado recursivo sobre un
  * enlace vacía la carpeta a la que apunta; además lo anota en `recursiveOnLink` para que la prueba falle.
  */
-function simulatedFs() {
+function simulatedFs({ linksInUse = false } = {}) {
 	const nodes = new Map(); // ruta → { kind: 'dir' | 'file' | 'link', target? }
 	const recursiveOnLink = [];
 	const norm = (p) => path.resolve(p);
@@ -80,6 +83,8 @@ function simulatedFs() {
 			const n = nodes.get(norm(p));
 			if (!n) { throw enoent(p); }
 			if (n.kind === 'dir') { throw Object.assign(new Error('EPERM'), { code: 'EPERM' }); }
+			// Un junction que otro proceso tiene abierto: unlink falla y solo rmdir lo quita.
+			if (n.kind === 'link' && linksInUse) { throw Object.assign(new Error('EPERM'), { code: 'EPERM' }); }
 			nodes.delete(norm(p));
 		},
 		rmdirSync(p) {
@@ -156,6 +161,21 @@ test('AC-03 · un acceso que apunta a otra carpeta se quita sin tocarla y se cre
 	assert.equal(sim.readlinkSync(dest), src, 'el acceso apunta ahora a la skill del engine');
 	assert.equal(sim.filesUnder(other).length, 2, 'la otra carpeta conserva todos sus ficheros');
 	assert.equal(sim.filesUnder(src).length, 3);
+});
+
+test('AC-03 · si unlink no puede quitar el acceso, lo quita rmdir sin recursión y la otra carpeta queda entera', () => {
+	const sim = simulatedFs({ linksInUse: true });
+	engineWithPlan(sim);
+	const other = path.resolve('/sim/home/mis-skills/plan');
+	sim.file(path.join(other, 'SKILL.md'));
+	const src = path.join(ENGINE, 'plan');
+	const dest = path.join(SKILLS, 'plan');
+	sim.symlinkSync(other, dest, 'junction');
+
+	assert.equal(symlinkOrCopy(src, dest, 'dir', sim), 'linked');
+	assert.deepEqual(sim.recursiveOnLink, []);
+	assert.equal(sim.filesUnder(other).length, 1);
+	assert.equal(sim.readlinkSync(dest), src);
 });
 
 test('AC-03 · el mismo destino escrito de otra forma cuenta como el mismo (relativo, separador final)', () => {

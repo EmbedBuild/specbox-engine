@@ -8,6 +8,14 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.26.1] — "Extensión"
+
+### Fixed
+
+- **The extension reaches the Marketplace.** 6.26.0 was refused because its icon was 1200×1200 and the
+  Marketplace now accepts up to 1024×1024. Same icon, rescaled; everything listed under 6.26.0 ships
+  with this version.
+
 ## [6.26.0] — "Extensión"
 
 ### Fixed

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.26.0 — "Extensión" (sobre v6.25.0 "Lienzo")<br/>
+  v 6.26.1 — "Extensión" (sobre v6.25.0 "Lienzo")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -39,6 +39,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
   solo las 26 de SpecBox (0/26 … 26/26), con las que faltan y cómo reponerlas.
 - **El aviso tras actualizar no contradice al panel** y nombra el comando real, «SpecBox: Inicializar
   Proyecto», con un botón.
+
+**v6.26.1** publica la extensión en el Marketplace con un icono de 1024×1024, el máximo que ahora admite.
 
 ---
 
@@ -701,7 +703,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.26.0 — "Extensión" (over v6.25.0 "Lienzo")
+> v 6.26.1 — "Extensión" (over v6.25.0 "Lienzo")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -730,6 +732,8 @@ missing:
   the 26 SpecBox skills (0/26 … 26/26), with the missing ones and how to restore them.
 - **The notice after an update no longer contradicts the panel** and names the real command, «SpecBox:
   Onboard Project», with a button.
+
+**v6.26.1** publishes the extension on the Marketplace with a 1024×1024 icon, the largest it now accepts.
 
 ---
 

@@ -1,4 +1,4 @@
-version: 6.26.0
+version: 6.26.1
 codename: "Extensión"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
@@ -551,6 +551,11 @@ features:
   - extension-update-notice-same-mcp-check
 
 changelog:
+  6.26.1:
+    date: 2026-10-22
+    codename: "Extensión"
+    changes:
+      - "fix: the extension icon is 1024×1024 — the Marketplace started rejecting icons above that size and refused to publish 6.26.0 (vscode-extension/media/icon.png was 1200×1200 since 5.21.0); same drawing, rescaled, and a test fails if the declared icon grows past the limit (UC-9606, PR #286)"
   6.26.0:
     date: 2026-10-22
     codename: "Extensión"

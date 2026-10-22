@@ -2792,6 +2792,38 @@ Los clientes se mudan solos:
 - Una instalación sin actualizar sigue funcionando con el nombre anterior.
 - Tests: `packages/specbox-cli/test/mudanza.test.mjs` y `vscode-extension/tests/mcp.test.mjs`.
 
+## La extensión en Windows conserva las skills y el diagnóstico dice qué falta (US-96)
+
+Un usuario en Windows (2026-10-22) instaló e inicializó un proyecto y la copia gestionada del
+engine (`~/.specbox/specbox-engine`) se quedó sin los ficheros de sus 26 skills: la segunda
+instalación borró en recursivo, a través del junction de `~/.claude/skills/<skill>`, lo que había
+detrás. El diagnóstico decía «Engine: Not installed» y «Skills 28/54».
+
+- **Accesos sin borrado recursivo** (UC-9601, `util.ts::symlinkOrCopy`): un acceso que ya apunta
+  a su carpeta se deja; uno que apunta a otra se quita solo (`unlink` o `rmdir`, sin recursión);
+  el borrado recursivo queda para carpetas reales. El sistema de ficheros es inyectable
+  (`LinkFs`).
+- **La copia gestionada se repara sola** (UC-9602, `install.ts::restoreManagedEngine`): al
+  activarse y antes de enlazar las skills, `git ls-files --deleted` + `git checkout-index -u`
+  reponen lo borrado, solo en `~/.specbox/specbox-engine`. `checkout-index` no pisa ficheros
+  modificados, y `-u` evita que con `core.autocrlf` (lo normal en Windows) lo repuesto quede como
+  modificado y el `git pull --ff-only` del actualizador se niegue.
+- **El aviso final de la instalación comprueba las skills** (UC-9603): cuenta las cuyo `SKILL.md`
+  se abre (`health.ts::specboxSkillsState`) y, si falta alguna de las 26, las nombra y ofrece el
+  Health Check.
+- **Diagnóstico** (UC-9604): la fila Engine depende de que el engine se encuentre; el contador
+  Skills son solo las 26 de SpecBox (`specboxSkillsCount`); informe y panel nombran las que faltan
+  y la acción («SpecBox: Install Engine»), y el Health Check pasa su resultado al panel lateral.
+  `engineInstalled` sigue significando engine + skills (habilita comandos).
+- **Aviso tras actualizar** (UC-9605, `migration.ts`): usa la misma comprobación de MCP que la
+  fila «MCP SpecBox» (`HealthChecker.checkMcpConfigured`, que lee `~/.claude.json`; caso nuevo
+  `hosted_mcp_ok`), dice que comprueba la configuración global y nombra «SpecBox: Onboard
+  Project» / «SpecBox: Inicializar Proyecto» con un botón que lo ejecuta.
+- Tests: `vscode-extension/tests/skills-{junction,restore,install-summary,diagnosis}.test.mjs`
+  (también en `windows-latest` con junctions reales, Node 20/22/24: `.github/workflows/extension-windows.yml`)
+  y `update-notice.test.mjs`. En esos runners `rmSync` quita el junction limpio, así que no
+  reproducen el borrado original: lo cubre el sistema de ficheros simulado.
+
 ## Engine Version
 
 Current: v6.25.0 "Lienzo"

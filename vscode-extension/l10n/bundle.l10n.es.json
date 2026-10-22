@@ -109,8 +109,6 @@
   "Your MCP transport config was switched to the hosted endpoint automatically. Your tracking data in doc/tracking/ was not touched.": "La configuración de conexión MCP se ha cambiado sola al servidor alojado. Tus datos de seguimiento de doc/tracking/ no se han tocado.",
   "Nothing required — reload the window if Claude Code does not pick up the new MCP config. To undo, run \"SpecBox: Revert last migration\".": "No tienes que hacer nada: recarga la ventana si Claude Code no toma la nueva configuración MCP. Para deshacerlo, ejecuta «SpecBox: Revertir la última migración».",
   "SpecBox updated to v{0}.": "SpecBox actualizado a la v{0}.",
-  "No migration ran — this project has not finished onboarding yet.": "No se ha migrado nada: este proyecto aún no ha terminado la configuración inicial.",
-  "Run the SpecBox setup wizard to finish onboarding.": "Ejecuta el asistente de configuración de SpecBox para terminarla.",
   "Updated to v{0} — no changes needed for your configuration.": "Actualizado a la v{0}: tu configuración no necesita cambios.",
   "Nothing to migrate.": "Nada que migrar.",
   "Nothing to do.": "Nada que hacer.",
@@ -198,5 +196,8 @@
   "Run \"SpecBox: Install Engine\" to restore them.": "Ejecuta «SpecBox: Instalar Engine» para reponerlos.",
   "Run \"SpecBox: Install Engine\" to restore them": "Ejecuta «SpecBox: Instalar Engine» para reponerlos",
   "1 SpecBox skill missing": "Falta 1 skill de SpecBox",
-  "{0} SpecBox skills missing": "Faltan {0} skills de SpecBox"
+  "{0} SpecBox skills missing": "Faltan {0} skills de SpecBox",
+  "Nothing was migrated: the SpecBox MCP server is not configured in Claude Code yet (global configuration of this computer).": "No se ha migrado nada: el servidor MCP de SpecBox aún no está configurado en Claude Code (configuración global de este ordenador).",
+  "Run \"SpecBox: Onboard Project\" to finish setting it up.": "Ejecuta «SpecBox: Inicializar Proyecto» para terminar de configurarlo.",
+  "SpecBox: Onboard Project": "SpecBox: Inicializar Proyecto"
 }

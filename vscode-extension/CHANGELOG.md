@@ -30,6 +30,11 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
   person saw 28/54 with 0 of 26). The report and the sidebar name the missing skills and the action that
   puts them back («SpecBox: Install Engine»), and «SpecBox: Health Check» refreshes the sidebar with the
   same figures as the report (UC-9604).
+- **The notice after an update no longer contradicts the panel.** It uses the same check as the
+  «MCP SpecBox» row, so with the SpecBox MCP configured in Claude Code (`~/.claude.json`) it no longer
+  says onboarding is unfinished. When the MCP is missing it says it checked the global configuration
+  of this computer (not «this project»), names the real command — «SpecBox: Onboard Project», or
+  «SpecBox: Inicializar Proyecto» in Spanish — and offers a button that runs it (UC-9605).
 
 ## [6.25.0] — "Lienzo"
 

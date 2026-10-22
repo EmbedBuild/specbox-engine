@@ -20,12 +20,13 @@ import { markDone } from './design';
 
 // --- Domain types ---
 
-/** The 5 canonical client-config cases (AC-01 of UC-664). */
+/** The canonical client-config cases (AC-01 of UC-664, plus `hosted_mcp_ok` from UC-9605). */
 export type ClientConfigCase =
   | 'freeform_local_obsolete'   // FreeForm but MCP still points at a local/legacy server → migrate transport
   | 'freeform_remote_ok'        // FreeForm already on the hosted endpoint → nothing to do
   | 'trello_plane_unchanged'    // Trello/Plane backend → transport not affected, nothing to do
   | 'native_oauth_unchanged'    // Native + OAuth → nothing to do
+  | 'hosted_mcp_ok'             // No backend here, but Claude Code has the SpecBox MCP (e.g. ~/.claude.json) → nothing to do
   | 'onboarding_incomplete';    // No backend / no MCP configured yet → defer to onboarding
 
 /** Minimal shape of ~/.claude/settings.local.json the detector reads. */
@@ -88,17 +89,26 @@ function isLocalMcp(settings: ClaudeSettingsLocal): boolean {
 }
 
 /**
- * Classify the client config into one of the 5 canonical cases. Pure: takes the
+ * Classify the client config into one of the canonical cases. Pure: takes the
  * parsed settings (and the parsed MCP config when stored separately). Deterministic
  * and total — every input maps to exactly one case.
+ *
+ * UC-9605 — `mcpConfigured` is the result of the same check as the «MCP SpecBox» row
+ * of the panel (HealthChecker.checkMcpConfigured, which also reads ~/.claude.json): with
+ * the server configured there, nothing is "incomplete" even if settings.local.json says nothing.
  */
-export function detectClientConfigCase(settings: ClaudeSettingsLocal | null): ClientConfigCase {
+export function detectClientConfigCase(
+  settings: ClaudeSettingsLocal | null,
+  opts: { mcpConfigured?: boolean } = {},
+): ClientConfigCase {
   const s = settings ?? {};
   const backend = s.specbox?.backend_type;
   const hasMcp = Boolean(s.mcpServers?.['SpecBox-MCP']);
+  const mcpConfigured = opts.mcpConfigured ?? false;
 
-  // No backend declared AND no MCP server → the project never finished onboarding.
-  if (!backend && !hasMcp) { return 'onboarding_incomplete'; }
+  // No backend declared AND no MCP server → onboarding unfinished, unless Claude Code
+  // already has the SpecBox MCP elsewhere.
+  if (!backend && !hasMcp) { return mcpConfigured ? 'hosted_mcp_ok' : 'onboarding_incomplete'; }
 
   switch (backend) {
     case 'trello':
@@ -110,12 +120,13 @@ export function detectClientConfigCase(settings: ClaudeSettingsLocal | null): Cl
       if (isRemoteMcp(s)) { return 'freeform_remote_ok'; }
       if (isLocalMcp(s)) { return 'freeform_local_obsolete'; }
       // FreeForm with no usable MCP entry → treat as obsolete so we reconfigure transport.
-      return hasMcp ? 'freeform_local_obsolete' : 'onboarding_incomplete';
+      if (hasMcp) { return 'freeform_local_obsolete'; }
+      return mcpConfigured ? 'freeform_remote_ok' : 'onboarding_incomplete';
     default:
       // Backend missing but an MCP entry exists: if it's the stale local one,
       // it needs migrating; otherwise onboarding is still incomplete.
       if (isLocalMcp(s)) { return 'freeform_local_obsolete'; }
-      return 'onboarding_incomplete';
+      return mcpConfigured ? 'hosted_mcp_ok' : 'onboarding_incomplete';
   }
 }
 
@@ -202,6 +213,8 @@ export interface MigrationSummary {
   action: string;
   /** True for the "nothing changed" minimal message (AC-02 of UC-666). */
   minimal: boolean;
+  /** The button the notice offers: undo the migration, or run «SpecBox: Onboard Project» (UC-9605). */
+  button: 'revert' | 'onboard' | null;
 }
 
 /**
@@ -222,6 +235,7 @@ export function buildMigrationSummary(
         backup: ctx.backupPath,
         action: vscode.l10n.t('Nothing required — reload the window if Claude Code does not pick up the new MCP config. To undo, run "SpecBox: Revert last migration".'),
         minimal: false,
+        button: 'revert',
       };
     case 'freeform_remote_ok':
       return minimalSummary(v, 'FreeForm (already on the hosted endpoint)');
@@ -229,13 +243,18 @@ export function buildMigrationSummary(
       return minimalSummary(v, 'Trello/Plane');
     case 'native_oauth_unchanged':
       return minimalSummary(v, 'Native (GitHub OAuth)');
+    case 'hosted_mcp_ok':
+      return minimalSummary(v, 'SpecBox MCP configured in Claude Code');
     case 'onboarding_incomplete':
+      // UC-9605 — it checks Claude Code's configuration on this computer, not the open project,
+      // so it says so; and it names the real command (in VSCode's language) with a button.
       return {
         changed: vscode.l10n.t('SpecBox updated to v{0}.', v),
-        migrated: vscode.l10n.t('No migration ran — this project has not finished onboarding yet.'),
+        migrated: vscode.l10n.t('Nothing was migrated: the SpecBox MCP server is not configured in Claude Code yet (global configuration of this computer).'),
         backup: null,
-        action: vscode.l10n.t('Run the SpecBox setup wizard to finish onboarding.'),
+        action: vscode.l10n.t('Run "SpecBox: Onboard Project" to finish setting it up.'),
         minimal: false,
+        button: 'onboard',
       };
   }
 }
@@ -247,6 +266,7 @@ function minimalSummary(version: string, _backendLabel: string): MigrationSummar
     backup: null,
     action: vscode.l10n.t('Nothing to do.'),
     minimal: true,
+    button: null,
   };
 }
 

@@ -194,5 +194,9 @@
   "SpecBox restored {0} files missing from its engine copy.": "SpecBox ha repuesto {0} ficheros que faltaban en su copia del engine.",
   "SpecBox could not install {0} of {1} SpecBox skills: {2}.": "SpecBox no ha podido instalar {0} de los {1} skills de SpecBox: {2}.",
   "Also missing: {0}.": "Falta también: {0}.",
-  "Open Health Check": "Abrir la comprobación de salud"
+  "Open Health Check": "Abrir la comprobación de salud",
+  "Run \"SpecBox: Install Engine\" to restore them.": "Ejecuta «SpecBox: Instalar Engine» para reponerlos.",
+  "Run \"SpecBox: Install Engine\" to restore them": "Ejecuta «SpecBox: Instalar Engine» para reponerlos",
+  "1 SpecBox skill missing": "Falta 1 skill de SpecBox",
+  "{0} SpecBox skills missing": "Faltan {0} skills de SpecBox"
 }

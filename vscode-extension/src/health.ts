@@ -79,6 +79,10 @@ export function specboxSkillsState(
 }
 
 export interface HealthResult {
+	/**
+	 * The engine was found AND none of its SpecBox skills is missing: gates the commands
+	 * (`specbox.installed`) and the setup prompt. The Engine row only needs `enginePath` (UC-9604).
+	 */
 	engineInstalled: boolean;
 	engineVersion: string | null;
 	enginePath: string | null;
@@ -338,15 +342,14 @@ export function healthRows(r: HealthResult): HealthRow[] {
 	});
 	const brokenHooks = r.hooks.broken ?? [];
 	return [
-		row(t('Engine'), r.engineInstalled, `v${r.engineVersion}`, t('Not installed')),
+		// UC-9604 — the engine is there when it was found; missing skills are the Skills row.
+		row(t('Engine'), !!r.enginePath, `v${r.engineVersion}`, t('Not installed')),
 		row(t('Engine Path'), !!r.enginePath, r.enginePath ?? '', t('Not found')),
 		row('Node.js', r.node.ok, r.node.version ?? '', t('Missing (need {0}+)', REQUIRED_NODE_VERSION)),
 		row('Claude Code', r.claudeCode.ok, r.claudeCode.version ?? '', t('Missing')),
 		row('Engram', r.engram.ok, r.engram.version ?? '', t('Not installed')),
 		row('GGA', r.gga.ok, r.gga.version ?? '', t('Not installed (optional)'), true),
-		row('Skills', r.skills.missing.length === 0,
-			`${r.skills.installed.length}/${r.skills.installed.length + r.skills.missing.length}`,
-			`${r.skills.installed.length}/${r.skills.installed.length + r.skills.missing.length}`),
+		row('Skills', r.skills.missing.length === 0, specboxSkillsCount(r), specboxSkillsCount(r)),
 		row('Hooks', r.hooks.ok, `${r.hooks.count} ${t('installed')}`, brokenHooks.length
 			? t('{0} configured but missing: {1}', String(brokenHooks.length),
 				brokenHooks.map((b) => `${b.project}/${b.script} (${b.source})`).join(', '))
@@ -355,6 +358,11 @@ export function healthRows(r: HealthResult): HealthRow[] {
 		row('MCP SpecBox', r.mcpSpecbox.configured, t('Configured'), t('Not configured')),
 		row('MCP Engram', r.mcpEngram.configured, t('Configured'), t('Not configured')),
 	];
+}
+
+/** UC-9604 — only the SpecBox skills: 0/26 … 26/26; the person's own skills do not count. */
+export function specboxSkillsCount(r: { skills: { missing: string[] } }): string {
+	return `${KNOWN_SKILLS.length - r.skills.missing.length}/${KNOWN_SKILLS.length}`;
 }
 
 /**
@@ -396,7 +404,8 @@ export function renderHealthReport(r: HealthResult, theme: PageTheme = pageTheme
 		+ `<td class="state ${x.state} data-md">${escapeHtml(stateLabel(x.state))}</td>`
 		+ `<td class="detail data-md">${escapeHtml(x.detail)}</td></tr>`).join('');
 	const missing = r.skills.missing.length > 0
-		? `<p class="missing body-md">${escapeHtml(t('Missing skills:'))} <span class="data-md">${escapeHtml(r.skills.missing.join(', '))}</span></p>`
+		? `<p class="missing body-md">${escapeHtml(t('Missing skills:'))} <span class="data-md">${escapeHtml(r.skills.missing.join(', '))}</span>. `
+			+ `${escapeHtml(t('Run "SpecBox: Install Engine" to restore them.'))}</p>`
 		: '';
 	return renderPage({
 		title: t('SpecBox Health Check'),

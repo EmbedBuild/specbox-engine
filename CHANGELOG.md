@@ -2,6 +2,64 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.26.0] - 2026-10-22 — "Extensión"
+
+La extensión de VSCode deja de borrar las skills en Windows y dice qué falta. Una persona de la
+comunidad instaló el engine, inicializó un proyecto y se quedó sin las 26 skills de SpecBox: la
+segunda instalación borró, a través de los junctions de `~/.claude/skills`, lo que había en la copia
+gestionada del engine. El diagnóstico decía «Engine: Not installed» y «Skills 28/54», y el aviso tras
+actualizar pedía un asistente que no existe. Cierra la US-96 (EP-03).
+
+### Security
+
+- La extensión ya no puede borrar ficheros fuera de su carpeta a través de un acceso de
+  `~/.claude/skills`: si un acceso apunta a otra carpeta (la copia del engine o una carpeta propia de
+  la persona), se quita el acceso y lo que hay detrás no se toca (#279).
+- La reparación de la copia del engine solo escribe en `~/.specbox/specbox-engine` y solo los ficheros
+  que git da por borrados: nunca descarta un cambio ni toca una copia en otra carpeta (#281).
+
+### Fixed
+
+- **Reinstalar no borra a través de los enlaces.** Un acceso de `~/.claude/skills` que ya apunta a su
+  carpeta del engine se deja como está; uno que apunta a otra se quita solo (`unlink` o `rmdir` sin
+  recursión) y esa carpeta conserva sus ficheros; el borrado recursivo queda para carpetas reales
+  (UC-9601, #279).
+- **El aviso tras actualizar no contradice al panel.** Usa la misma comprobación de MCP que la fila
+  «MCP SpecBox» (también `~/.claude.json`), dice que comprueba la configuración global de este
+  ordenador y nombra «SpecBox: Inicializar Proyecto» con un botón que lo ejecuta (UC-9605, #284).
+
+### Added
+
+- **La copia gestionada se repara sola.** Al arrancar la extensión, y antes de que «Instalar Engine»
+  enlace las skills, `git ls-files --deleted` + `git checkout-index -u` reponen lo borrado en
+  `~/.specbox/specbox-engine` y un aviso dice cuántas skills ha recuperado. Nunca pisa un fichero
+  modificado ni toca una copia del engine en otra carpeta (UC-9602, #281).
+- **Workflow `extension-windows.yml`**: las pruebas de skills con junctions reales en `windows-latest`
+  (Node 20, 22 y 24) en cada PR que toca la instalación o el diagnóstico.
+
+### Changed
+
+- **«Instalar Engine» comprueba las skills que deja.** El aviso final cuenta las skills cuyo `SKILL.md`
+  se puede leer, no los accesos creados, y si falta alguna de las 26 las nombra y ofrece la
+  comprobación de salud en vez de dar la instalación por buena (UC-9603, #282).
+- **El diagnóstico separa engine y skills.** La fila Engine enseña la versión cuando el engine se
+  encuentra (también en el panel lateral y la barra de estado); el contador de skills cuenta solo las
+  26 de SpecBox (0/26 … 26/26); el informe y el panel nombran las que faltan y la acción que las
+  repone, y «Comprobar Salud» actualiza el panel con sus mismas cifras (UC-9604, #283).
+
+### Compatibility
+
+- Quien perdió las skills las recupera al actualizar la extensión, sin ejecutar nada.
+- `engineInstalled` sigue significando «engine y skills completas»: los comandos que habilitaba se
+  habilitan igual.
+- Los runners de Windows no reproducen el borrado original (allí `rmSync` quita el junction limpio);
+  lo cubren las pruebas con un sistema de ficheros simulado, que fallan con el código anterior.
+
+### Tests
+
+- 39 pruebas nuevas en la extensión (201 en total, todas verdes): `skills-junction` (10),
+  `skills-restore` (8), `skills-install-summary` (7), `skills-diagnosis` (7) y `update-notice` (7).
+
 ## [6.25.0] - 2026-10-10 — "Lienzo"
 
 Las pantallas que se diseñan en Claude Design llegan al proyecto. `/plan` crea un lienzo por feature

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.25.0 — "Lienzo" (sobre v6.24.0 "Criterio")<br/>
+  v 6.26.0 — "Extensión" (sobre v6.25.0 "Lienzo")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,23 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.26
+
+**v6.26.0 — "Extensión"** arregla la extensión de VSCode en Windows y hace que diga qué falta:
+
+- **Instalar ya no borra las skills en Windows.** Instalar e inicializar un proyecto podía vaciar, a
+  través de los junctions de `~/.claude/skills`, las 26 skills de la copia del engine.
+- **La copia del engine se repara sola**: al arrancar, la extensión repone desde git lo que se borró y
+  dice cuántas skills ha recuperado. Nunca toca un fichero modificado ni una copia en otra carpeta.
+- **«Instalar Engine» solo dice que ha terminado si las skills funcionan**; si falta alguna, la nombra
+  y ofrece la comprobación de salud.
+- **El diagnóstico separa engine y skills**: la fila Engine enseña la versión y el contador cuenta
+  solo las 26 de SpecBox (0/26 … 26/26), con las que faltan y cómo reponerlas.
+- **El aviso tras actualizar no contradice al panel** y nombra el comando real, «SpecBox: Inicializar
+  Proyecto», con un botón.
 
 ---
 
@@ -684,7 +701,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.25.0 — "Lienzo" (over v6.24.0 "Criterio")
+> v 6.26.0 — "Extensión" (over v6.25.0 "Lienzo")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -697,6 +714,24 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.26
+
+**v6.26.0 — "Extensión"** ("extension") fixes the VSCode extension on Windows and makes it say what is
+missing:
+
+- **Installing no longer deletes the skills on Windows.** Installing and then onboarding a project
+  could empty, through the junctions in `~/.claude/skills`, the 26 skills of the engine copy.
+- **The engine copy repairs itself**: on startup the extension writes back from git what was deleted
+  and says how many skills came back. It never touches a modified file or a copy in another folder.
+- **«Install Engine» only says it finished when the skills work**; if one is missing, it names it and
+  offers the Health Check.
+- **The diagnosis separates engine and skills**: the Engine row shows the version and the count is only
+  the 26 SpecBox skills (0/26 … 26/26), with the missing ones and how to restore them.
+- **The notice after an update no longer contradicts the panel** and names the real command, «SpecBox:
+  Onboard Project», with a button.
+
+---
 
 ## What's new in v6.25
 

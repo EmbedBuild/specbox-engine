@@ -8,6 +8,8 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.26.0] — "Extensión"
+
 ### Fixed
 
 - **Installing on Windows no longer deletes the skills.** Running «SpecBox: Install Engine» or

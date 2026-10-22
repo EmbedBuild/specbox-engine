@@ -1,0 +1,42 @@
+name: Extension on Windows
+
+# US-96 — la instalación de skills de la extensión, con junctions de verdad. En Windows,
+# borrar en recursivo un junction vacía la carpeta a la que apunta (UC-9601): estas pruebas
+# instalan dos veces sobre una copia del engine versionada en git y comprueban que no falta nada.
+# En macOS y Linux las mismas pruebas usan enlaces simbólicos (npm test en oauth-e2e.yml).
+
+on:
+  pull_request:
+    paths:
+      - 'vscode-extension/src/util.ts'
+      - 'vscode-extension/src/install.ts'
+      - 'vscode-extension/src/health.ts'
+      - 'vscode-extension/src/constants.ts'
+      - 'vscode-extension/tests/skills-*.test.mjs'
+      - '.github/workflows/extension-windows.yml'
+  workflow_dispatch:
+
+jobs:
+  skills:
+    name: Skills con junctions (Node ${{ matrix.node }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # Node de las versiones de Electron que usa VSCode y la actual.
+        node: ['20', '22', '24']
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install dependencies
+        working-directory: vscode-extension
+        run: npm ci
+      - name: Compile
+        working-directory: vscode-extension
+        run: npm run compile
+      - name: Skills tests
+        working-directory: vscode-extension
+        shell: bash
+        run: node --test tests/skills-*.test.mjs

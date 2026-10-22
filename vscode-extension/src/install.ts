@@ -226,11 +226,84 @@ export async function cloneManagedEngine(deps: CloneDeps = {}): Promise<CloneRes
 	}
 }
 
+// UC-9602 (US-96) — the managed clone puts back the files an earlier install deleted.
+//
+// Before UC-9601, installing twice on Windows could delete, through the junctions of
+// ~/.claude/skills, every skill file of the managed clone (git status: " D"). Only the managed
+// clone is touched, and only the files git lists as deleted: `git checkout-index` writes them from
+// the index and never overwrites a file that exists, so a modified file stays as it is.
+
+/** What restoreManagedEngine did; `skipped` says why it did nothing. */
+export interface RestoreResult {
+	/** Paths written back, as git lists them. */
+	restored: string[];
+	/** Skills under .claude/skills with at least one file written back. */
+	skills: string[];
+	skipped?: 'not_managed' | 'no_clone' | 'git_failed';
+}
+
+/** Paths per `git checkout-index` call, so the command line stays short on Windows. */
+const RESTORE_BATCH = 200;
+
+/** Write back the versioned files missing from the managed clone. Never throws. */
+export async function restoreManagedEngine(
+	enginePath: string,
+	gitRunner: GitRunner = defaultGitRunner,
+	existsSync: (p: string) => boolean = fs.existsSync,
+): Promise<RestoreResult> {
+	if (!isManagedPath(enginePath)) { return { restored: [], skills: [], skipped: 'not_managed' }; }
+	if (!existsSync(path.join(enginePath, '.git'))) { return { restored: [], skills: [], skipped: 'no_clone' }; }
+	const listed = await gitRunner(['ls-files', '--deleted', '-z'], enginePath);
+	if (listed.code !== 0) { return { restored: [], skills: [], skipped: 'git_failed' }; }
+	const deleted = [...new Set(listed.stdout.split('\0').filter(Boolean))];
+	const restored: string[] = [];
+	for (let i = 0; i < deleted.length; i += RESTORE_BATCH) {
+		const batch = deleted.slice(i, i + RESTORE_BATCH);
+		const res = await gitRunner(['checkout-index', '--', ...batch], enginePath);
+		if (res.code !== 0) { return { restored, skills: skillsIn(restored), skipped: 'git_failed' }; }
+		restored.push(...batch);
+	}
+	return { restored, skills: skillsIn(restored) };
+}
+
+function skillsIn(paths: string[]): string[] {
+	const names = new Set<string>();
+	for (const p of paths) {
+		const m = /^\.claude\/skills\/([^/]+)\//.exec(p);
+		if (m) { names.add(m[1]); }
+	}
+	return [...names].sort();
+}
+
 export class InstallManager {
 	private context: vscode.ExtensionContext;
 
-	constructor(context: vscode.ExtensionContext) {
+	/** @param gitRunner injectable so the repair of the managed clone (UC-9602) is testable. */
+	constructor(context: vscode.ExtensionContext, private gitRunner: GitRunner = defaultGitRunner) {
 		this.context = context;
+	}
+
+	/**
+	 * UC-9602 — on activation, put back what an earlier install deleted from the managed clone and
+	 * say how many skills came back. The links in ~/.claude/skills still point at those folders, so
+	 * the skills work again without running a command. A clone elsewhere is never touched. Never throws.
+	 */
+	async repairManagedEngine(): Promise<RestoreResult> {
+		const result = await restoreManagedEngine(managedEnginePath(), this.gitRunner);
+		if (result.skills.length === 1) {
+			vscode.window.showInformationMessage(
+				markDone(vscode.l10n.t('SpecBox recovered 1 skill that an earlier install had deleted from its engine copy.'))
+			);
+		} else if (result.skills.length > 1) {
+			vscode.window.showInformationMessage(
+				markDone(vscode.l10n.t('SpecBox recovered {0} skills that an earlier install had deleted from its engine copy.', result.skills.length))
+			);
+		} else if (result.restored.length > 0) {
+			vscode.window.showInformationMessage(
+				markDone(vscode.l10n.t('SpecBox restored {0} files missing from its engine copy.', result.restored.length))
+			);
+		}
+		return result;
 	}
 
 	async runFullInstall(): Promise<void> {
@@ -243,8 +316,9 @@ export class InstallManager {
 			title: vscode.l10n.t('SpecBox Engine'),
 			cancellable: false,
 		}, async (progress) => {
-			// 1. Skills
+			// 1. Skills — first put back what an earlier install deleted from the managed clone (UC-9602).
 			progress.report({ message: vscode.l10n.t('Installing skills...'), increment: 0 });
+			await restoreManagedEngine(enginePath, this.gitRunner);
 			const skillsResult = this.installSkills(enginePath);
 
 			// 2. Hooks

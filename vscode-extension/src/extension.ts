@@ -192,11 +192,12 @@ export async function activate(context: vscode.ExtensionContext) {
 	// version bump (the updater's "Update extension?" prompt blocked startup).
 	// We fire them in the background and never await; failures are swallowed so
 	// they can never wedge activation.
-	void runStartupTasks(context, { health, statusBar: statusBar!, statusTree, skillsTree, secrets, cli });
+	void runStartupTasks(context, { health, installer, statusBar: statusBar!, statusTree, skillsTree, secrets, cli });
 }
 
 interface StartupDeps {
 	health: HealthChecker;
+	installer: InstallManager;
 	statusBar: StatusBarManager;
 	statusTree: StatusTreeProvider;
 	skillsTree: SkillsTreeProvider;
@@ -210,7 +211,7 @@ interface StartupDeps {
  * — each step guards itself and logs on failure.
  */
 async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDeps): Promise<void> {
-	const { health, statusBar: bar, statusTree, skillsTree, secrets, cli } = deps;
+	const { health, installer, statusBar: bar, statusTree, skillsTree, secrets, cli } = deps;
 
 	// UC-3901 AC-03 / UC-3904 — keep this computer connected without manual
 	// steps: adopt a token kept from an older version as a device token, renew
@@ -239,6 +240,14 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 		}
 	} catch (err) {
 		console.warn('[specbox] device connection check failed:', err);
+	}
+
+	// UC-9602 — put back the skill files an earlier install deleted from the managed engine copy,
+	// before the first health check counts them.
+	try {
+		await installer.repairManagedEngine();
+	} catch (err) {
+		console.warn('[specbox] managed engine repair failed:', err);
 	}
 
 	const config = vscode.workspace.getConfiguration('specbox');

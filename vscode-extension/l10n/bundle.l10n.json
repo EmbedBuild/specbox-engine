@@ -188,5 +188,8 @@
   "Other": "Other",
   "Show skill card": "Show skill card",
   "No skills detected — run /install or check ~/.claude/skills/": "No skills detected — run /install or check ~/.claude/skills/",
-  "{0} configured but missing: {1}": "{0} configured but missing: {1}"
+  "{0} configured but missing: {1}": "{0} configured but missing: {1}",
+  "SpecBox recovered 1 skill that an earlier install had deleted from its engine copy.": "SpecBox recovered 1 skill that an earlier install had deleted from its engine copy.",
+  "SpecBox recovered {0} skills that an earlier install had deleted from its engine copy.": "SpecBox recovered {0} skills that an earlier install had deleted from its engine copy.",
+  "SpecBox restored {0} files missing from its engine copy.": "SpecBox restored {0} files missing from its engine copy."
 }

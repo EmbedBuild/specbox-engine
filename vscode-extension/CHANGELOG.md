@@ -15,6 +15,11 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
   skill file in the managed engine copy (`~/.specbox/specbox-engine`). A link that already points at
   its engine folder is now left as it is, a link pointing elsewhere is removed on its own (that folder
   keeps its files), and only a real folder from an earlier copy is deleted (UC-9601).
+- **The skills an earlier install deleted come back on their own.** On activation, and before
+  «SpecBox: Install Engine» links the skills, the extension writes back from git the versioned files
+  missing from the managed engine copy and says how many skills it recovered. Only files git lists as
+  deleted are written: a modified file stays as it is, and an engine copy in a folder you chose is
+  never touched (UC-9602).
 
 ## [6.25.0] — "Lienzo"
 

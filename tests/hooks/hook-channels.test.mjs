@@ -29,6 +29,7 @@ const EXEMPT = {
   'session-start': 'SessionStart: su stdout se añade al contexto por diseño de Claude Code',
   'on-session-end': 'Stop: solo escribe telemetría en .quality/logs',
   'read-tracker': 'PostToolUse de Read: solo anota la lectura, en silencio',
+  'session-heartbeat': 'Latido al board (UC-9901): nunca habla con el agente ni bloquea; lo manda en segundo plano',
 };
 
 function registered() {

@@ -257,6 +257,7 @@ specbox-engine/
 │   │   ├── pre-read-budget-guard.mjs
 │   │   ├── quality-first-guard.mjs
 │   │   ├── read-tracker.mjs
+│   │   ├── session-heartbeat.mjs
 │   │   ├── session-start.mjs
 │   │   ├── spec-guard.mjs
 │   │   ├── stripe-safety-guard.mjs
@@ -457,6 +458,7 @@ Automatic enforcement — no need to remember running these manually:
 | checkpoint-freshness-guard | PostToolUse (git commit) | Note to the agent: checkpoint stale (>30min) or missing during active UC implementation. |
 | uc-lifecycle-guard | PostToolUse (git push) | Note to the agent: pushing a feature branch without calling move_uc or marking ACs (board out of sync). |
 | **session-start** | SessionStart | Non-blocking: injects `.quality/handoff.md` (if fresh), active UC + checkpoint, and auto zones from `app_spec.md` as `additionalContext` for the new session. Capped at 14k chars. v5.30. |
+| **session-heartbeat** | SessionStart, PostToolUse (Bash/Write/Edit/mcp), Notification, UserPromptSubmit, SessionEnd | Non-blocking, silent: sends the session heartbeat (project, UC, pipeline phase, waiting for a permission or a decision) to the board with `report_session_heartbeat`, in a background process with a 3 s cap, at start, on any change and at most every 2 minutes; `SessionEnd` closes it. Failures go to `.quality/logs/heartbeat.log` at most once a minute. Native boards only; `SPECBOX_HEARTBEAT=off` turns it off. US-99 · UC-9901. |
 | **pre-read-budget-guard** | PreToolUse (Read) | Note to the agent: estimates tokens for the file being read; notes when ≥ `specbox.context_budget.warn_pct` of the window (default 5% of 1M). v5.30. |
 | **design-system-gate** | PreToolUse (mcp__SpecBox-MCP__move_uc → review/done, mcp__SpecBox-MCP__complete_uc, `gh pr create`) | **BLOCKING in autopilot** (exit 2): scans the UI files changed on the branch against the project's `design-system.tokens.json` — colours written directly, fonts outside the system, weights above the system maximum, gradients — and lists each with `file:line` and what to do. Warns outside autopilot; `specbox.design_gate.mode` overrides. US-49 · UC-4902. |
 | **design-review-gate** | PreToolUse (mcp__SpecBox-MCP__move_uc → review/done, mcp__SpecBox-MCP__complete_uc, `gh pr create`) | Reads the verdict of each `doc/design/{feature}/{screen}.verify.md` changed on the branch. With `specbox.design_review.mode = "block"`, a «Block» stops the transition (exit 2) with the screens and their three priority problems; with `warn` (default) or `off` it passes and the verdict goes to the PR and the evidence. US-91 · UC-9102. |

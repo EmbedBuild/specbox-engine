@@ -45,6 +45,7 @@ const DESCRIPTIONS = {
   'freeform-path-guard': 'Absolute FreeForm tracking paths',
   'pre-prd-discovery-check': 'Discovery gate before /prd',
   'app-docs-sync-guard': 'Canonical docs drift on commit',
+  'session-heartbeat': 'Session heartbeat to the board, in the background (UC-9901)',
 };
 
 /** Ayudantes que no se registran en settings.json: los llama /implement. */

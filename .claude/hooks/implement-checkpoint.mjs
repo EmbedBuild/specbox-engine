@@ -7,6 +7,7 @@
 
 import { git, mkdir, now } from './lib/utils.mjs';
 import { writeFileSync } from 'fs';
+import { join } from 'path';
 
 const feature = process.argv[2] || '';
 const phase = process.argv[3] || '';
@@ -41,4 +42,5 @@ writeFileSync(
 console.log(`[CHECKPOINT] Phase ${phase} (${phaseName}) saved for ${feature}`);
 
 // v6.1.0 Cloud Cutover: remote heartbeat + mcp-report dispatch removed.
-// Local checkpoint state still persisted to .quality/checkpoints/ above.
+// US-99 · UC-9901: el latido lo manda session-heartbeat.mjs, que lee este checkpoint para la fase.
+// (Desde 25c9426 faltaba el import de join y el checkpoint no se escribía.)

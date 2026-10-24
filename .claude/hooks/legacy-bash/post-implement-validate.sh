@@ -22,7 +22,7 @@ echo "[POST-IMPLEMENT] Validating against baseline..."
 # Quick lint check
 ERRORS=0
 if [ -f "pubspec.yaml" ]; then
-  ERRORS=$(dart analyze --no-fatal-infos 2>&1 | grep -ci " error " || echo 0)
+  ERRORS=$(dart analyze 2>&1 | grep -ci " error " || echo 0)
 elif [ -f "package.json" ]; then
   ERRORS=$(npx eslint . --format json 2>/dev/null | python3 -c "import sys,json; data=json.load(sys.stdin); print(sum(f.get('errorCount',0) for f in data))" 2>/dev/null || echo 0)
 elif [ -f "pyproject.toml" ]; then

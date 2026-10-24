@@ -39,7 +39,7 @@ echo "[QG] Install GGA for cached validation: $INSTALL_CMD"
 # Detectar stack
 if [ -f "pubspec.yaml" ]; then
   echo "[QG] Running dart analyze..."
-  dart analyze --no-fatal-infos 2>&1
+  dart analyze 2>&1
   RESULT=$?
 elif [ -f "package.json" ]; then
   if command -v eslint &> /dev/null; then

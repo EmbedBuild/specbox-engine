@@ -9,7 +9,7 @@
  * Linters, only if the project or the machine already has them (never `npx`, which can download):
  *   .py                          ruff check (.venv/bin/ruff or ruff on PATH)
  *   .ts .tsx .js .jsx .mjs .cjs  eslint --max-warnings=0 (node_modules/.bin/eslint of the project)
- *   .dart                        dart analyze --no-fatal-infos (dart or fvm dart)
+ *   .dart                        dart analyze (dart or fvm dart; infos no bloquean, avisos sí)
  * Nothing to lint, or no linter for those files → silent.
  *
  * v5.7.0 · US-93/UC-9302: runs before the commit (it ran after it, on an empty staging area) and
@@ -48,8 +48,8 @@ const eslint = join('node_modules', '.bin', 'eslint');
 if (js.length && existsSync(eslint)) runs.push({ name: 'eslint', cmd: eslint, args: ['--max-warnings=0', ...js] });
 const dart = byExt(/\.dart$/);
 if (dart.length) {
-  if (commandExists('dart')) runs.push({ name: 'dart analyze', cmd: 'dart', args: ['analyze', '--no-fatal-infos', ...dart] });
-  else if (commandExists('fvm')) runs.push({ name: 'dart analyze', cmd: 'fvm', args: ['dart', 'analyze', '--no-fatal-infos', ...dart] });
+  if (commandExists('dart')) runs.push({ name: 'dart analyze', cmd: 'dart', args: ['analyze', ...dart] });
+  else if (commandExists('fvm')) runs.push({ name: 'dart analyze', cmd: 'fvm', args: ['dart', 'analyze', ...dart] });
 }
 
 const failures = [];

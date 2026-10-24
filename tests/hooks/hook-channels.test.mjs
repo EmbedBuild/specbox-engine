@@ -86,6 +86,8 @@ function assertReaches(r, label, expect) {
   if (expect === 'note') assert.match(JSON.parse(r.stdout).hookSpecificOutput.additionalContext, /\S/, `${label}: tenía que dejar una nota`);
 }
 
+const hayDart = () => spawnSync('dart', ['--version']).status === 0;
+
 /** Escenarios que hacen hablar a cada hook: [nombre, expectativa, función que devuelve el resultado]. */
 const SCENARIOS = {
   'no-bypass-guard': [
@@ -101,6 +103,20 @@ const SCENARIOS = {
       p.write('malo.py', 'import os\nx = 1\n');
       return run('pre-commit-lint', p.dir, 'PreToolUse', 'Bash', { command: 'git add malo.py && git commit -m x' });
     }, () => spawnSync('ruff', ['--version']).status === 0],
+    // UC-9707: Dart 3.12 rechaza `--no-fatal-infos` («Cannot negate option»); el hook llama a
+    // `dart analyze` sin opciones: los avisos siguen bloqueando (fatal por defecto), los infos no.
+    ['un .dart con un error de análisis', 'block', (p) => {
+      p.write('malo.dart', 'void main() { int x = "a"; print(x); }\n');
+      return run('pre-commit-lint', p.dir, 'PreToolUse', 'Bash', { command: 'git add malo.dart && git commit -m x' });
+    }, hayDart],
+    ['un .dart con un aviso del analizador', 'block', (p) => {
+      p.write('aviso.dart', 'void main() { var x = 1; }\n');
+      return run('pre-commit-lint', p.dir, 'PreToolUse', 'Bash', { command: 'git add aviso.dart && git commit -m x' });
+    }, hayDart],
+    ['un .dart limpio', 'silent', (p) => {
+      p.write('bueno.dart', 'void main() { print(1); }\n');
+      return run('pre-commit-lint', p.dir, 'PreToolUse', 'Bash', { command: 'git add bueno.dart && git commit -m x' });
+    }, hayDart],
   ],
   'e2e-gate': [
     ['evidencia sin results.json', 'block', (p) => {

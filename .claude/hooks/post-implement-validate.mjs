@@ -29,7 +29,7 @@ let errors = 0;
 
 if (fileExists('pubspec.yaml')) {
   try {
-    const output = execSync('dart analyze --no-fatal-infos', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+    const output = execSync('dart analyze', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
     const matches = output.match(/ error /gi);
     errors = matches ? matches.length : 0;
   } catch (e) {

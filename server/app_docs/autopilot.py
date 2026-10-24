@@ -260,6 +260,23 @@ def evaluate_decision(decision_key: str, context: dict[str, Any] | None = None) 
 
     rule = definition["tiers"].get(level, "ask")
     result = _apply_rule(rule, definition, ctx, level, config["image_budget_eur_per_feature"])
+
+    # US-99 · UC-9902: con la cola activa y una opción por defecto, lo que se preguntaría se aplaza.
+    from .queue import INVIOLABLE_FOR_QUEUE
+
+    if (
+        result.get("action") == "ask"
+        and config["queue_enabled"]
+        and ctx.get("defaultOption")
+        and decision_key not in INVIOLABLE_FOR_QUEUE
+    ):
+        return {
+            "autoConfirm": True,
+            "action": "queue",
+            "reason": "queued_with_default",
+            "decisionKey": decision_key,
+            "level": level,
+        }
     return {**result, "decisionKey": decision_key, "level": level}
 
 

@@ -7,6 +7,8 @@
  *   2. .quality/active_uc.json — UC en progreso
  *   3. doc/app/app_spec.md — auto-zones (tracking_backend, autopilot)
  *   4. .quality/evidence/<feature>/checkpoint.json — last phase
+ *   5. Board native: decisions a person resolved from the panel, the app or another session
+ *      (take_resolved_decisions, US-99 · UC-9902), first in the context; 2.5 s cap, never fails.
  *
  * Output: JSON to stdout with hookSpecificOutput.additionalContext
  * If nothing relevant exists, exits silently (no context injection).
@@ -14,6 +16,8 @@
 
 import { readFileSync, statSync, existsSync } from 'fs';
 import { findFiles, readJsonFile, fileExists } from './lib/utils.mjs';
+import { getProjectConfig } from './lib/config.mjs';
+import { recogerDecisiones, textoDeDecisiones } from './lib/decisiones.mjs';
 
 const HANDOFF_PATH = '.quality/handoff.md';
 const APP_SPEC_PATH = 'doc/app/app_spec.md';
@@ -85,8 +89,11 @@ function extractAutoZones(specPath) {
   return Object.keys(zones).length > 0 ? zones : null;
 }
 
-function buildContext() {
+function buildContext(decisiones = []) {
   const parts = [];
+
+  const resueltas = textoDeDecisiones(decisiones);
+  if (resueltas) parts.push(resueltas);
 
   const handoff = readHandoff();
   if (handoff) {
@@ -129,8 +136,10 @@ function buildContext() {
   return combined;
 }
 
-function main() {
-  const ctx = buildContext();
+async function main() {
+  const { boardId, backendType } = getProjectConfig();
+  const decisiones = backendType === 'native' && boardId ? await recogerDecisiones({ proyecto: boardId }) : [];
+  const ctx = buildContext(decisiones);
   if (!ctx) {
     process.exit(0);
   }
@@ -144,9 +153,7 @@ function main() {
   process.exit(0);
 }
 
-try {
-  main();
-} catch (e) {
+main().catch((e) => {
   console.error(`[session-start] error: ${e.message}`);
   process.exit(0);
-}
+});

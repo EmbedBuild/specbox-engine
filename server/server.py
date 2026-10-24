@@ -33,6 +33,7 @@ from .tools.spec_driven import register_spec_driven_tools
 from .tools.coordination import register_coordination_tools
 from .tools.access_log import register_access_log_tools  # UC-3803
 from .tools.session_heartbeat import register_session_heartbeat_tools  # US-99 UC-9901
+from .tools.autopilot_decisions import register_autopilot_decision_tools  # US-99 UC-9902
 from .coordination.access_log import ToolAccessLogMiddleware, build_default_store, configure_store
 from .coordination.transport_auth import TransportAuthMiddleware, TransportNoticeMiddleware  # UC-3901
 from .coordination.abuse_guard import AbuseGuardMiddleware  # UC-3903
@@ -207,6 +208,8 @@ mcp.add_middleware(ToolAccessLogMiddleware())
 register_access_log_tools(mcp)
 # US-99 UC-9901: el latido de cada sesión de Claude Code en el board.
 register_session_heartbeat_tools(mcp)
+# US-99 UC-9902: las decisiones aplazadas del autopilot en el board.
+register_autopilot_decision_tools(mcp)
 
 # UC-3901 — the transport authenticates every HTTP request (see main()); while
 # connections without a token are tolerated (grace period), every tool response

@@ -68,6 +68,21 @@ Autopilot de implementacion: lee un plan, crea rama, ejecuta todas las fases, ge
 
 Antes de cada gate o pregunta, llama a `evaluateDecision(decision_key, context)` desde `.claude/hooks/lib/autopilot.mjs`. Si retorna `auto`, aplica el default + log; si `ask`, pregunta como en v5.28; si `block`, bloquea con el mensaje del helper.
 
+**Decisiones aplazadas (US-99 · UC-9902).** Con `autopilot.queue_enabled` y un `defaultOption` en el contexto, una
+decisión que se preguntaría vuelve como `queue` (nunca las inviolables ni las que fijó la persona con
+`always_ask_overrides`). Entonces, sin parar:
+
+1. Aplica `defaultOption` y sigue.
+2. Anótala en el proyecto con `enqueue_decision_tool` (devuelve el id `dq-…`).
+3. Publícala en el board con `publish_decision(decision_key, question, options=[{id, label}, …], default_option,
+   uc_id, decision_id=<el dq-… del paso 2>)`: pregunta corta, de 2 a 6 opciones y sin credenciales. Así la ve la
+   persona en el panel y en el teléfono.
+4. Si al arrancar la siguiente sesión aparece en «Decisiones resueltas fuera de esta sesión», aplica la opción elegida
+   en lugar de la de por defecto y muévela a resueltas en la cola local con `resolve_queue_entry`.
+
+`list_pending_decisions` lista las que siguen esperando; `resolve_decision` la resuelve desde una sesión si la persona
+contesta en el chat.
+
 | Pregunta / gate | decision_key | Default si auto |
 |-----------------|--------------|------------------|
 | Origen ambigüo (Paso 0.1, sin argumento) | `origin_detection` | `equilibrado`+: usar match único |

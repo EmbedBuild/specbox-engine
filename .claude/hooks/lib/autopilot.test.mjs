@@ -14,6 +14,7 @@ import { tmpdir } from 'os';
 
 import {
   DECISION_KEYS,
+  NOT_QUEUEABLE,
   loadAutopilotConfig,
   evaluateDecision,
   logAutoDecision,
@@ -309,4 +310,42 @@ test('inviolable decisions all have ask or block at every tier', () => {
       );
     }
   }
+});
+
+// ── US-99 · UC-9902: aplazar en lugar de preguntar ───────────────────
+
+test('with the queue on and a default option, what would be asked is queued', () => {
+  const dir = makeProject('agresivo', { queue_enabled: true });
+  const r = evaluateDecision('feature_epic_assignment', { projectPath: dir, defaultOption: 'ep-17' });
+  assert.equal(r.action, 'queue');
+  assert.equal(r.autoConfirm, true);
+  assert.equal(r.reason, 'queued_with_default');
+});
+
+test('without a default option or with the queue off, it is still asked', () => {
+  const on = makeProject('agresivo', { queue_enabled: true });
+  assert.equal(evaluateDecision('feature_epic_assignment', { projectPath: on }).action, 'ask');
+  const off = makeProject('agresivo');
+  assert.equal(evaluateDecision('feature_epic_assignment', { projectPath: off, defaultOption: 'ep-17' }).action, 'ask');
+});
+
+test('irreversible decisions and the ones that define the feature are never queued', () => {
+  const dir = makeProject('agresivo', { queue_enabled: true });
+  for (const key of ['destructive_action', 'image_cost_over_budget', 'feature_problem_definition']) {
+    assert.equal(evaluateDecision(key, { projectPath: dir, defaultOption: 'x' }).action, 'ask', key);
+  }
+  assert.equal(evaluateDecision('branch_to_main_push', { projectPath: dir, defaultOption: 'x' }).action, 'block');
+});
+
+test('what is decided automatically is not queued', () => {
+  const dir = makeProject('agresivo', { queue_enabled: true });
+  assert.equal(evaluateDecision('backend_selection', { projectPath: dir, defaultOption: 'freeform' }).action, 'auto');
+});
+
+test('NOT_QUEUEABLE is the same set as INVIOLABLE_FOR_QUEUE in the server', () => {
+  const py = readFileSync(join(import.meta.dirname, '../../../server/app_docs/queue.py'), 'utf-8');
+  const bloque = py.match(/INVIOLABLE_FOR_QUEUE[^=]*=\s*frozenset\(\s*\{([^}]*)\}/);
+  assert.ok(bloque, 'INVIOLABLE_FOR_QUEUE not found');
+  const servidor = [...bloque[1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]).sort();
+  assert.deepEqual([...NOT_QUEUEABLE].sort(), servidor);
 });

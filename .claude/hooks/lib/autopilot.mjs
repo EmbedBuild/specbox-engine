@@ -62,6 +62,19 @@ export const DECISION_KEYS = {
   branch_to_main_push:       { family: 'destructive', tiers: { low: 'block', conservador: 'block', equilibrado: 'block', agresivo: 'block' }, inviolable: true },
 };
 
+/**
+ * US-99 · UC-9902: decisiones que nunca se aplazan aunque la cola esté activa (las mismas que
+ * INVIOLABLE_FOR_QUEUE de server/app_docs/queue.py): o son irreversibles o definen la feature.
+ */
+export const NOT_QUEUEABLE = new Set([
+  'destructive_action',
+  'image_cost_over_budget',
+  'branch_to_main_push',
+  'definition_quality_gate',
+  'feature_problem_definition',
+  'feedback_field_classification',
+]);
+
 // ── Config loading ───────────────────────────────────────────────────
 
 const VALID_TIERS = ['low', 'conservador', 'equilibrado', 'agresivo'];
@@ -98,7 +111,10 @@ export function loadAutopilotConfig(projectPath = '.') {
  * Evaluate a single decision against the active autopilot policy.
  *
  * @param {string} decisionKey - Key from DECISION_KEYS.
- * @param {object} context - Optional signals: { score, costEur, hasAppPrd, hasAppSpec, isUnique, projectPath }.
+ * @param {object} context - Optional signals: { score, costEur, hasAppPrd, hasAppSpec, isUnique, projectPath,
+ *   defaultOption }. With `autopilot.queue_enabled` and a `defaultOption`, a decision that would be asked
+ *   is queued instead (UC-9902): the session goes on with the default and the person decides later from
+ *   the panel or the phone.
  * @returns {object} { autoConfirm, action: 'auto'|'ask'|'block'|'queue', reason, decisionKey, level }.
  */
 export function evaluateDecision(decisionKey, context = {}) {
@@ -128,6 +144,11 @@ export function evaluateDecision(decisionKey, context = {}) {
   // 4) Tier rule.
   const rule = def.tiers[level] || 'ask';
   const decision = applyRule(rule, def, context, level);
+
+  // 5) UC-9902: con la cola activa, lo que se preguntaría se aplaza con su opción por defecto.
+  if (decision.action === 'ask' && config.queue_enabled && context.defaultOption && !NOT_QUEUEABLE.has(decisionKey)) {
+    return { autoConfirm: true, action: 'queue', reason: 'queued_with_default', decisionKey, level };
+  }
   return { ...decision, decisionKey, level };
 }
 

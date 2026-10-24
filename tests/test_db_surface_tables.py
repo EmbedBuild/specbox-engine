@@ -39,6 +39,7 @@ pytestmark = pytest.mark.skipif(not _PG_OK, reason=_PG_SKIP_REASON)
 BOARD_TABLES = (
     "acceptance_criteria",
     "audit_log",
+    "autopilot_decisions",
     "branch_registry",
     "developers",
     "epics",

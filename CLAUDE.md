@@ -257,6 +257,7 @@ specbox-engine/
 │   │   ├── pre-read-budget-guard.mjs
 │   │   ├── quality-first-guard.mjs
 │   │   ├── read-tracker.mjs
+│   │   ├── session-heartbeat.mjs
 │   │   ├── session-start.mjs
 │   │   ├── spec-guard.mjs
 │   │   ├── stripe-safety-guard.mjs

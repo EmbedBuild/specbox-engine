@@ -45,6 +45,7 @@ BOARD_TABLES = (
     "epics",
     "github_identities",
     "mcp_tokens",
+    "notification_events",
     "organization_members",
     "organizations",
     "project_members",

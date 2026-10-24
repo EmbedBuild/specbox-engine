@@ -1,1 +1,4 @@
 read_tracker.jsonl
+heartbeat_state.json
+heartbeat_error.json
+logs/heartbeat.log

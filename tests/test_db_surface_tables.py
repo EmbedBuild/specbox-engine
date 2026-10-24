@@ -48,6 +48,7 @@ BOARD_TABLES = (
     "organizations",
     "project_members",
     "projects",
+    "session_heartbeats",
     "tool_access_log",
     "uc_reservations",
     "uc_state_transitions",

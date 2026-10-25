@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.27.0] — "Bolsillo"
+
+No changes to the extension itself: its version moves with the engine. The engine release adds a
+heartbeat for each Claude Code session, deferred autopilot decisions and notification events in the
+board (see the engine CHANGELOG).
+
 ## [6.26.1] — "Extensión"
 
 ### Fixed

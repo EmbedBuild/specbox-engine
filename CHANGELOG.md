@@ -2,6 +2,75 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.27.0] - 2026-10-25 — "Bolsillo"
+
+El board cabe en el bolsillo: el engine le cuenta qué hace cada sesión, qué decisiones esperan a una
+persona y qué eventos merecen un aviso. Es la parte del engine que el panel y la app SpecBox Mobile
+necesitan para ser una torre de control de las sesiones en autopilot: verlas vivas, resolver una decisión
+sin volver al terminal y recibir avisos (EP-17, US-99 y US-100).
+
+### Security
+
+- El latido de una sesión solo lleva campos enumerados o de forma fija (proyecto, desarrollador, UC, fase,
+  espera y horas), nunca texto de specs, prompts ni rutas. Su tabla queda cerrada a los roles públicos;
+  solo los miembros del proyecto la escriben y la leen, una sesión ajena no se sobrescribe y lo ajeno
+  responde como lo inexistente (#289).
+- El hook del latido usa la credencial del dispositivo, nunca bloquea ni escribe en la conversación, y un
+  fallo queda en `.quality/logs/heartbeat.log` como mucho una vez por minuto (#289).
+- Las decisiones aplazadas aplican la pertenencia al proyecto en cada tool y lo ajeno responde como lo
+  inexistente. Se rechazan las que llevan credenciales y las que nunca se aplazan (irreversibles o que
+  definen la feature), y la sesión que las recoge al arrancar las recibe marcadas como datos, no como
+  instrucciones (#290).
+- Los eventos de aviso no guardan texto de specs ni datos personales, su tabla queda cerrada a los roles
+  públicos y un evento que no se puede apuntar nunca impide el cambio del board (#291).
+
+### Added
+
+- **Latido de cada sesión de Claude Code (UC-9901, #289).** El hook `session-heartbeat.mjs` (SessionStart,
+  PostToolUse, Notification, UserPromptSubmit y SessionEnd) calcula la UC, la fase y si la sesión espera
+  una respuesta, y lo envía al cambiar algo o cada dos minutos desde un proceso aparte con un tope de 3 s.
+  Migración 0031 `session_heartbeats`, vista `v_live_sessions` (una sesión sin latido en 15 minutos deja de
+  contar como viva) y `close_stale_sessions()` cada 5 minutos con pg_cron. Tools `report_session_heartbeat`
+  y `get_live_session`. Cliente MCP mínimo para hooks (`.claude/hooks/lib/mcp-client.mjs`).
+- **Decisiones aplazadas del autopilot en el board (UC-9902, #290).** Con `autopilot.queue_enabled` y una
+  opción por defecto, lo que antes se preguntaba se aplaza: la sesión sigue con esa opción y publica la
+  decisión con su UC, su pregunta y sus opciones (migración 0032 `autopilot_decisions`). Una persona la
+  resuelve desde el panel, la app u otra sesión, queda quién, cuándo y qué opción, y `session-start` la
+  pone al principio del contexto de la sesión siguiente una sola vez. Tools `publish_decision`,
+  `list_pending_decisions`, `resolve_decision` y `take_resolved_decisions`.
+- **Eventos que merecen un aviso (UC-10001, #291).** Migración 0033 `notification_events`: una fila por
+  cambio (`event_key` único) que escriben cinco triggers en la misma transacción: UC hecha, historia
+  cerrada, UC lista para aceptar (la misma regla que la vista del panel), sesión que espera una respuesta y
+  sesión que se para con una UC abierta. El panel los convierte en avisos para el teléfono.
+
+### Fixed
+
+- **El linter de commit analiza proyectos Dart 3.12 (UC-9707, #288).** Dart 3.12 rechaza
+  `--no-fatal-infos`, así que ningún commit con ficheros Dart pasaba `pre-commit-lint`. El hook llama a
+  `dart analyze` sin opciones: los avisos siguen bloqueando y los infos no. Mismo cambio en
+  `post-implement-validate` y en las versiones en bash.
+- **`implement-checkpoint.mjs` vuelve a guardar el checkpoint**: le faltaba importar `join` (#289).
+
+### Changed
+
+- `heartbeat-sender-hook` sale de la lista de funcionalidades de `ENGINE_VERSION.yaml`: ese hook ya no
+  existe y su papel lo cumple `session-heartbeat`.
+
+### Compatibility
+
+- Las migraciones 0031, 0032 y 0033 ya están aplicadas en el board de producción y el MCP alojado ya sirve
+  las tools nuevas.
+- El hook del latido llega con la plantilla de `settings.json`. Los proyectos ya creados lo reciben al
+  propagar la plantilla; sin él, el panel y la app no ven sus sesiones en vivo, y nada más cambia.
+- Sin `autopilot.queue_enabled` (por defecto, apagado), el autopilot pregunta como antes.
+
+### Tests
+
+- Pruebas nuevas, todas verdes: `test_session_heartbeats.py` y `tests/hooks/session-heartbeat.test.mjs`
+  (UC-9901), `test_autopilot_decisions.py`, `tests/hooks/decisiones.test.mjs` y `autopilot.test.mjs`
+  (UC-9902), `test_notification_events.py` (UC-10001) y tres escenarios de Dart en `hook-channels`
+  (UC-9707). En total, 2.721 pruebas de Python y 206 de hooks en verde.
+
 ## [6.26.1] - 2026-10-22 — "Extensión"
 
 La extensión de la 6.26.0 no llegó al Marketplace: rechazó su icono, de 1200×1200, porque ahora admite

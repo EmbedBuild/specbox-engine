@@ -1,8 +1,8 @@
-version: 6.26.1
-codename: "Extensión"
+version: 6.27.0
+codename: "Bolsillo"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-10-22
+release_date: 2026-10-25
 min_claude_code: "1.0.0"
 
 stacks:
@@ -120,7 +120,6 @@ features:
   # New (v5.2.0)
   - remote-state-management
   - heartbeat-protocol
-  - heartbeat-sender-hook
   - github-sync
   - live-state-mcp-tools
   - project-state-snapshot
@@ -549,8 +548,23 @@ features:
   - extension-install-checks-skills
   - extension-health-specbox-skills-count
   - extension-update-notice-same-mcp-check
+  # New (v6.27.0) — Bolsillo
+  - session-heartbeat-hook
+  - live-session-tools
+  - autopilot-deferred-decisions-board
+  - notification-events-board
 
 changelog:
+  6.27.0:
+    date: 2026-10-25
+    codename: "Bolsillo"
+    changes:
+      - "feat: each Claude Code session sends a heartbeat to the board — the session-heartbeat.mjs hook (SessionStart, PostToolUse, Notification, UserPromptSubmit, SessionEnd) works out UC, phase and whether the session waits for an answer, and sends it when something changes or every 2 min from a detached process capped at 3 s, never blocking; migration 0031 session_heartbeats with only enumerated or fixed-shape fields, v_live_sessions (stale after 15 min) and close_stale_sessions() every 5 min with pg_cron; tools report_session_heartbeat and get_live_session for project members (UC-9901, PR #289)"
+      - "feat: deferred autopilot decisions live in the board — with autopilot.queue_enabled and a default option, the session keeps going with the default and publishes the decision with its UC, question and options (migration 0032 autopilot_decisions); a person resolves it from the panel, the app or another session, and session-start applies it once on the next start; tools publish_decision, list_pending_decisions, resolve_decision and take_resolved_decisions; decisions carrying credentials or that are never deferred are rejected (UC-9902, PR #290)"
+      - "feat: the board records the events worth a notification — migration 0033 notification_events, one row per change (unique event_key) written by five triggers in the same transaction: UC done, story closed, UC ready to accept, session waiting for an answer and session stopped with an open UC; no spec text or personal data, and a notification never blocks a board write (UC-10001, PR #291)"
+      - "fix: pre-commit-lint and post-implement-validate analyse Dart 3.12 projects — dart analyze without --no-fatal-infos, which Dart 3.12 rejects; warnings still block, infos do not (UC-9707, PR #288)"
+      - "fix: implement-checkpoint.mjs writes the checkpoint again (the join import was missing) (PR #289)"
+      - "chore: heartbeat-sender-hook leaves the feature list — that hook no longer exists; session-heartbeat takes its place"
   6.26.1:
     date: 2026-10-22
     codename: "Extensión"

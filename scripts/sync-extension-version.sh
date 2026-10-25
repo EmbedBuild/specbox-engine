@@ -5,6 +5,7 @@
 #   ./scripts/sync-extension-version.sh            # --check (default): verifica sync, exit 1 si drift
 #   ./scripts/sync-extension-version.sh --check    # Idem
 #   ./scripts/sync-extension-version.sh --write    # Reescribe package.json + package-lock.json para match
+#   ./scripts/sync-extension-version.sh --check-tag vX.Y.Z  # Además, la etiqueta es la versión de la extensión
 #
 # Designed para v6.2.0+ (US-VSCODE-MARKETPLACE / UC-634).
 
@@ -30,16 +31,27 @@ fi
 
 # --- Parse args ---
 MODE="check"
+TAG=""
 if [ $# -gt 0 ]; then
     case "$1" in
         --check) MODE="check" ;;
         --write) MODE="write" ;;
+        --check-tag)
+            # UC-10608: la publicación compara también la etiqueta (en la 6.27.0 una etiqueta sobre
+            # el commit anterior llegó hasta la subida al Marketplace).
+            MODE="check-tag"
+            TAG="${2:-}"
+            if [ -z "$TAG" ]; then
+                echo "ERROR: --check-tag needs the tag (vX.Y.Z)." >&2
+                exit 2
+            fi
+            ;;
         --help|-h)
-            sed -n '2,8p' "$0" | sed 's/^# //; s/^#//'
+            sed -n '2,9p' "$0" | sed 's/^# //; s/^#//'
             exit 0
             ;;
         *)
-            echo "ERROR: unknown arg '$1'. Use --check or --write." >&2
+            echo "ERROR: unknown arg '$1'. Use --check, --write or --check-tag vX.Y.Z." >&2
             exit 2
             ;;
     esac
@@ -77,6 +89,23 @@ if [ "$MODE" = "check" ]; then
         echo "  Fix with: bash scripts/sync-extension-version.sh --write"
         exit 1
     fi
+fi
+
+if [ "$MODE" = "check-tag" ]; then
+    TAG_VERSION="${TAG#v}"
+    # vX.Y.Z-rc1 se publica como pre-release de X.Y.Z: el Marketplace no admite sufijos.
+    TAG_VERSION="${TAG_VERSION%%-*}"
+    if [ "$ENGINE_VERSION" = "$EXT_VERSION" ] && [ "$TAG_VERSION" = "$EXT_VERSION" ]; then
+        echo "${GREEN}✓ tag $TAG matches extension $EXT_VERSION and engine $ENGINE_VERSION${NC}"
+        exit 0
+    fi
+    echo "${RED}✗ tag and versions do not match${NC}"
+    echo "  tag:       $TAG"
+    echo "  extension: $EXT_VERSION  (vscode-extension/package.json)"
+    echo "  engine:    $ENGINE_VERSION  (ENGINE_VERSION.yaml)"
+    echo ""
+    echo "  The tag must point at the release commit: run /release, merge it, then tag."
+    exit 1
 fi
 
 if [ "$MODE" = "write" ]; then

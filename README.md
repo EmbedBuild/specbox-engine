@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.26.1 — "Extensión" (sobre v6.25.0 "Lienzo")<br/>
+  v 6.27.0 — "Bolsillo" (sobre v6.26.1 "Extensión")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,28 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.27
+
+**v6.27.0 — "Bolsillo"** pone el board en el bolsillo: el engine le cuenta qué hace cada sesión, qué
+decisiones esperan a una persona y qué merece un aviso, que es lo que el panel y la app SpecBox Mobile
+necesitan para vigilar las sesiones en autopilot desde el teléfono:
+
+- **Latido de cada sesión.** Un hook nuevo manda al board la UC, la fase y si la sesión espera una
+  respuesta, cada vez que algo cambia o cada dos minutos, sin bloquear nunca. El panel y la app ven qué
+  sesiones están vivas y en qué están.
+- **Decisiones aplazadas.** Con la cola activa (`autopilot.queue_enabled`), el autopilot sigue con la
+  opción por defecto y deja la decisión en el board; se resuelve desde el panel, la app u otra sesión, y
+  la sesión siguiente la aplica al arrancar.
+- **Eventos de aviso.** El board apunta, en la misma transacción del cambio, cuándo una UC se hace, una
+  historia se cierra, una UC queda lista para aceptar o una sesión espera o se para. Sin texto de specs
+  ni datos personales.
+- **El linter de commit analiza proyectos Dart 3.12**, que rechaza la opción que usaba.
+
+100% compatible hacia atrás: sin la cola activa, el autopilot pregunta como siempre, y las tablas nuevas
+ya están en el board de producción.
 
 ---
 
@@ -703,7 +725,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.26.1 — "Extensión" (over v6.25.0 "Lienzo")
+> v 6.27.0 — "Bolsillo" (over v6.26.1 "Extensión")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -716,6 +738,28 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.27
+
+**v6.27.0 — "Bolsillo"** ("pocket") puts the board in your pocket: the engine tells it what each session
+is doing, which decisions wait for a person and what deserves a notification, which is what the panel and
+the SpecBox Mobile app need to watch autopilot sessions from the phone:
+
+- **A heartbeat for each session.** A new hook sends the board the UC, the phase and whether the session
+  waits for an answer, whenever something changes or every two minutes, never blocking. The panel and the
+  app see which sessions are alive and what they are on.
+- **Deferred decisions.** With the queue on (`autopilot.queue_enabled`), the autopilot keeps going with
+  the default option and leaves the decision in the board; it is resolved from the panel, the app or
+  another session, and the next session applies it when it starts.
+- **Notification events.** The board records, in the same transaction as the change, when a UC is done,
+  a story is closed, a UC becomes ready to accept or a session waits or stops. No spec text or personal
+  data.
+- **The commit linter analyses Dart 3.12 projects**, which reject the option it used.
+
+100% backwards-compatible: without the queue on, the autopilot asks as before, and the new tables are
+already in the production board.
+
+---
 
 ## What's new in v6.26
 

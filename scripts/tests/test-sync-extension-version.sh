@@ -153,6 +153,60 @@ exit_code=$(cd "$TMPDIR_T5" && bash "$TMPDIR_T5/scripts/sync-extension-version.s
 set -e
 assert_eq "exit code 2" "2" "$exit_code"
 
+# --- Test 6 (UC-10608): --check-tag with the release tag → exit 0 ---
+run_test "--check-tag: tag, extension and engine agree → exit 0"
+TMPDIR_T6=$(mktemp -d)
+trap "rm -rf '$TMPDIR_T1' '$TMPDIR_T2' '$TMPDIR_T3' '$TMPDIR_T4' '$TMPDIR_T5' '$TMPDIR_T6'" EXIT
+make_fixture "$TMPDIR_T6" "6.27.0" "6.27.0"
+set +e
+output=$(cd "$TMPDIR_T6" && bash "$TMPDIR_T6/scripts/sync-extension-version.sh" --check-tag v6.27.0 2>&1)
+exit_code=$?
+set -e
+assert_eq "exit code 0" "0" "$exit_code"
+echo "$output" | grep -q "tag v6.27.0 matches extension 6.27.0" && assert_eq "names the checked version" "yes" "yes" || assert_eq "names the checked version" "yes" "no"
+
+# --- Test 7 (UC-10608): a tag on the commit before the release → exit 1 with both versions ---
+run_test "--check-tag: tag ahead of the extension → exit 1"
+TMPDIR_T7=$(mktemp -d)
+trap "rm -rf '$TMPDIR_T1' '$TMPDIR_T2' '$TMPDIR_T3' '$TMPDIR_T4' '$TMPDIR_T5' '$TMPDIR_T6' '$TMPDIR_T7'" EXIT
+make_fixture "$TMPDIR_T7" "6.26.1" "6.26.1"
+set +e
+output=$(cd "$TMPDIR_T7" && bash "$TMPDIR_T7/scripts/sync-extension-version.sh" --check-tag v6.27.0 2>&1)
+exit_code=$?
+set -e
+assert_eq "exit code 1" "1" "$exit_code"
+echo "$output" | grep -q "tag:       v6.27.0" && assert_eq "shows the tag" "yes" "yes" || assert_eq "shows the tag" "yes" "no"
+echo "$output" | grep -q "extension: 6.26.1" && assert_eq "shows the extension version" "yes" "yes" || assert_eq "shows the extension version" "yes" "no"
+
+# --- Test 8 (UC-10608): a pre-release tag checks its base version ---
+run_test "--check-tag: v6.27.0-rc1 checks 6.27.0 → exit 0"
+TMPDIR_T8=$(mktemp -d)
+trap "rm -rf '$TMPDIR_T1' '$TMPDIR_T2' '$TMPDIR_T3' '$TMPDIR_T4' '$TMPDIR_T5' '$TMPDIR_T6' '$TMPDIR_T7' '$TMPDIR_T8'" EXIT
+make_fixture "$TMPDIR_T8" "6.27.0" "6.27.0"
+set +e
+(cd "$TMPDIR_T8" && bash "$TMPDIR_T8/scripts/sync-extension-version.sh" --check-tag v6.27.0-rc1 >/dev/null 2>&1)
+exit_code=$?
+set -e
+assert_eq "exit code 0" "0" "$exit_code"
+
+# --- Test 9 (UC-10608): engine drift still fails even with a matching tag ---
+run_test "--check-tag: tag matches the extension but the engine drifts → exit 1"
+TMPDIR_T9=$(mktemp -d)
+trap "rm -rf '$TMPDIR_T1' '$TMPDIR_T2' '$TMPDIR_T3' '$TMPDIR_T4' '$TMPDIR_T5' '$TMPDIR_T6' '$TMPDIR_T7' '$TMPDIR_T8' '$TMPDIR_T9'" EXIT
+make_fixture "$TMPDIR_T9" "6.26.1" "6.27.0"
+set +e
+(cd "$TMPDIR_T9" && bash "$TMPDIR_T9/scripts/sync-extension-version.sh" --check-tag v6.27.0 >/dev/null 2>&1)
+exit_code=$?
+set -e
+assert_eq "exit code 1" "1" "$exit_code"
+
+# --- Test 10 (UC-10608): --check-tag without the tag → exit 2 ---
+run_test "--check-tag without a tag: exit 2"
+set +e
+exit_code=$(cd "$TMPDIR_T9" && bash "$TMPDIR_T9/scripts/sync-extension-version.sh" --check-tag 2>/dev/null; echo $?)
+set -e
+assert_eq "exit code 2" "2" "$exit_code"
+
 # --- Summary ---
 echo ""
 echo "════════════════════════════════════════"

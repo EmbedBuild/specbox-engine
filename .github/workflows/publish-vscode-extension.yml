@@ -66,7 +66,9 @@ jobs:
         run: |
           # UC-635 release skill already enforces this pre-tag, but we verify again
           # in case the tag was pushed manually outside the /release skill flow.
-          bash scripts/sync-extension-version.sh --check
+          # UC-10608: the tag itself must be the extension version (a tag on the
+          # commit before the release reached the Marketplace upload in 6.27.0).
+          bash scripts/sync-extension-version.sh --check-tag "${{ steps.meta.outputs.tag }}"
 
       - name: Lint extension strings (i18n gate)
         run: node scripts/lint-extension-strings.mjs

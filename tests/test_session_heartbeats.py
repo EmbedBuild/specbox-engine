@@ -120,7 +120,7 @@ async def test_table_is_closed_to_roles_without_privileges_and_has_no_free_text_
         role = f"hb_probe_{uuid.uuid4().hex[:6]}"
         await conn.execute(f"CREATE ROLE {role} NOLOGIN")
         try:
-            for objeto in ("public.session_heartbeats", "public.v_live_sessions"):
+            for objeto in ("public.session_heartbeats", "public.v_live_sessions", "public.v_project_live_sessions"):
                 for privilege in ("SELECT", "INSERT", "UPDATE", "DELETE"):
                     assert not await conn.fetchval(
                         "SELECT has_table_privilege($1, $2, $3)", role, objeto, privilege
@@ -288,3 +288,106 @@ async def test_only_members_and_the_superadmin_read_the_live_session(monkeypatch
         assert (await get_live_session(None, project_id=project_id))["code"] == "UNAUTHENTICATED"
     finally:
         await _cleanup(pool, project_id, owner, stranger)
+
+
+# ── Todas las sesiones vivas del proyecto (US-99 · UC-10609) ───────────
+
+OTRA = "9a8b7c6d-0000-4000-8000-123456789abc"
+TERCERA = "5e6f7a8b-1111-4111-8111-abcdefabcdef"
+
+
+@pytestmark_pg
+async def test_two_sessions_at_once_are_both_live_ordered_by_last_beat():
+    """AC-01: dos sesiones a la vez en repositorios distintos del mismo board (cada satélite manda su
+    latido al board del orquestador) aparecen las dos, con su UC, su fase y si esperan, de la del
+    último latido a la más antigua. La sesión «viva» de siempre sigue siendo la última."""
+    pool = await _pool()
+    project_id, owner, stranger = await _seed(pool)
+    async with pool.acquire() as conn:
+        colega = await _developer(conn, member_of=project_id)
+    try:
+        # La del satélite cloud empieza antes; la de la app, después y esperando una respuesta.
+        await report_session_heartbeat(
+            None, SESSION, "implement", uc_id="UC-10610", project_id=project_id, dev_token=owner[1]
+        )
+        await report_session_heartbeat(
+            None, OTRA, "tests", uc_id="UC-10611", waiting="decision", project_id=project_id, dev_token=colega[1]
+        )
+        await pool.execute(
+            "UPDATE session_heartbeats SET last_beat_at = now() - interval '3 minutes' WHERE session_id = $1", SESSION
+        )
+
+        leida = await get_live_session(None, project_id=project_id, dev_token=owner[1])
+        sesiones = leida["sessions"]
+        assert [s["session_id"] for s in sesiones] == [OTRA, SESSION]
+        assert [(s["uc_id"], s["phase"], s["waiting"]) for s in sesiones] == [
+            ("UC-10611", "tests", "decision"),
+            ("UC-10610", "implement", "none"),
+        ]
+        assert sesiones[0]["waiting_since"] is not None and sesiones[1]["waiting_since"] is None
+        assert sesiones[0]["developer_id"] == colega[0]
+        assert sesiones[0]["last_beat_at"] > sesiones[1]["last_beat_at"]
+        # Compatibilidad: `session` es la del último latido, como antes.
+        assert leida["session"]["session_id"] == OTRA
+
+        # Un latido nuevo de la primera la sube arriba.
+        await report_session_heartbeat(
+            None, SESSION, "review", uc_id="UC-10610", project_id=project_id, dev_token=owner[1]
+        )
+        orden = [s["session_id"] for s in (await get_live_session(None, project_id=project_id, dev_token=owner[1]))["sessions"]]
+        assert orden == [SESSION, OTRA]
+    finally:
+        await _cleanup(pool, project_id, owner, stranger, colega)
+
+
+@pytestmark_pg
+async def test_closed_and_quiet_sessions_are_left_out_of_the_live_list():
+    """AC-02: una sesión cerrada, o sin latido en quince minutos, no está en la lista; aunque el
+    barrido aún no haya cerrado la callada."""
+    pool = await _pool()
+    project_id, owner, stranger = await _seed(pool)
+    try:
+        for sesion, fase in ((SESSION, "implement"), (OTRA, "plan"), (TERCERA, "tests")):
+            await report_session_heartbeat(None, sesion, fase, project_id=project_id, dev_token=owner[1])
+
+        await report_session_heartbeat(None, OTRA, "idle", ended=True, project_id=project_id, dev_token=owner[1])
+        await pool.execute(
+            "UPDATE session_heartbeats SET last_beat_at = now() - interval '16 minutes' WHERE session_id = $1", TERCERA
+        )
+        await pool.execute(
+            "UPDATE session_heartbeats SET last_beat_at = now() - interval '14 minutes' WHERE session_id = $1", SESSION
+        )
+
+        leida = await get_live_session(None, project_id=project_id, dev_token=owner[1])
+        assert [s["session_id"] for s in leida["sessions"]] == [SESSION]
+        # Sin barrer todavía, la callada sigue sin terminar en la tabla: la lista la deja fuera igual.
+        assert (await pool.fetchval("SELECT ended_at FROM session_heartbeats WHERE session_id = $1", TERCERA)) is None
+
+        # Pasados los quince minutos, la última también sale; sin ninguna, la lista queda vacía.
+        await pool.execute(
+            "UPDATE session_heartbeats SET last_beat_at = now() - interval '15 minutes 1 second' WHERE session_id = $1",
+            SESSION,
+        )
+        assert (await get_live_session(None, project_id=project_id, dev_token=owner[1]))["sessions"] == []
+        await pool.fetchval("SELECT close_stale_sessions()")
+        vacia = await get_live_session(None, project_id=project_id, dev_token=owner[1])
+        assert vacia["session"] is None and vacia["sessions"] == []
+    finally:
+        await _cleanup(pool, project_id, owner, stranger)
+
+
+@pytestmark_pg
+async def test_the_live_list_only_has_this_projects_sessions_and_strangers_see_nothing():
+    pool = await _pool()
+    project_id, owner, stranger = await _seed(pool)
+    otro_id, otro_owner, otro_stranger = await _seed(pool)
+    try:
+        await report_session_heartbeat(None, SESSION, "implement", project_id=project_id, dev_token=owner[1])
+        await report_session_heartbeat(None, OTRA, "plan", project_id=otro_id, dev_token=otro_owner[1])
+        leida = await get_live_session(None, project_id=project_id, dev_token=owner[1])
+        assert [s["session_id"] for s in leida["sessions"]] == [SESSION]
+        ajena = await get_live_session(None, project_id=project_id, dev_token=stranger[1])
+        assert ajena["code"] == "PROJECT_NOT_VISIBLE" and "sessions" not in ajena
+    finally:
+        await _cleanup(pool, project_id, owner, stranger)
+        await _cleanup(pool, otro_id, otro_owner, otro_stranger)

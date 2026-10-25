@@ -174,11 +174,22 @@ async def report_session_heartbeat(
     }
 
 
+def _isoformat(row) -> dict[str, Any]:
+    fila = dict(row)
+    for key in ("waiting_since", "started_at", "last_beat_at"):
+        if fila.get(key) is not None:
+            fila[key] = fila[key].isoformat()
+    return fila
+
+
 async def get_live_session(ctx: Context, project_id: str = "", dev_token: str = "") -> dict[str, Any]:
     """La sesión viva de un proyecto, para sus miembros y el SuperAdmin (UC-9901 AC-04).
 
     Devuelve ``session: null`` cuando no hay ninguna sin terminar; ``stale: true`` cuando la más
     reciente lleva más de quince minutos sin latido (el board la cerrará en el siguiente barrido).
+    ``sessions`` son todas las sesiones vivas del proyecto, de la del último latido a la más antigua
+    (UC-10609): las de cada satélite que trabaja a la vez en el mismo board, sin las cerradas ni las
+    que llevan quince minutos sin latido.
     """
     pid = (project_id or "").strip() or await _session_project(ctx)
     if not PROJECT_ID.match(pid or ""):
@@ -198,13 +209,17 @@ async def get_live_session(ctx: Context, project_id: str = "", dev_token: str = 
         "started_at, last_beat_at, stale FROM v_live_sessions WHERE project_id = $1",
         pid,
     )
-    if row is None:
-        return {"success": True, "project_id": pid, "session": None}
-    session = dict(row)
-    for key in ("waiting_since", "started_at", "last_beat_at"):
-        if session.get(key) is not None:
-            session[key] = session[key].isoformat()
-    return {"success": True, "project_id": pid, "session": session}
+    vivas = await pool.fetch(
+        "SELECT session_id, developer_id, uc_id, phase, waiting, waiting_since, started_at, last_beat_at "
+        "FROM v_project_live_sessions WHERE project_id = $1 ORDER BY last_beat_at DESC, session_id",
+        pid,
+    )
+    return {
+        "success": True,
+        "project_id": pid,
+        "session": None if row is None else _isoformat(row),
+        "sessions": [_isoformat(v) for v in vivas],
+    }
 
 
 def register_session_heartbeat_tools(mcp_instance) -> None:
@@ -220,6 +235,7 @@ def register_session_heartbeat_tools(mcp_instance) -> None:
     mcp_instance.tool(
         description=(
             "La sesión viva de un proyecto (fase, UC, si espera y desde cuándo, stale a los 15 "
-            "minutos sin latido) o null. Para miembros del proyecto y el SuperAdmin."
+            "minutos sin latido) o null, y en sessions todas las sesiones vivas del proyecto, de la "
+            "del último latido a la más antigua. Para miembros del proyecto y el SuperAdmin."
         )
     )(get_live_session)

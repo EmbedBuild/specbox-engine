@@ -2,6 +2,44 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.28.0] - 2026-10-26 — "Plural"
+
+El board pasa de «la sesión» a «las sesiones». Cada satélite del ecosistema (manager, cloud, site, projects y
+mobile) manda su latido al board del orquestador, pero el board solo daba la última sesión de cada proyecto: con
+dos sesiones a la vez, el panel y la app SpecBox Mobile veían solo la más reciente. Ahora el board las da todas
+(EP-17, US-99). Además, la publicación de la extensión comprueba que la etiqueta es su versión.
+
+### Security
+
+- La lista de sesiones vivas queda cerrada a los roles públicos como el resto del board: corre con los
+  derechos de quien consulta y solo la leen el servidor y el panel con su rol de servicio, que aplican la
+  pertenencia al proyecto; quien no es miembro recibe lo mismo que si el proyecto no existiera (#296).
+
+### Added
+
+- **Todas las sesiones vivas de un proyecto (UC-10609, #296).** La migración 0034 crea la vista
+  `v_project_live_sessions`: cada sesión sin terminar con latido en los últimos quince minutos, con su UC, su
+  fase y si espera una respuesta. `get_live_session` devuelve `sessions`, de la del último latido a la más
+  antigua; una sesión cerrada, o callada quince minutos, no sale aunque el barrido aún no la haya cerrado.
+
+### Fixed
+
+- **La publicación de la extensión compara la etiqueta con su versión (UC-10608, #295).**
+  `sync-extension-version.sh --check-tag vX.Y.Z` se para antes de empaquetar si la etiqueta no es la versión
+  de la extensión y enseña la etiqueta, la de la extensión y la del engine. Con la 6.27.0, una etiqueta puesta
+  sobre el commit anterior llegó hasta la subida al Marketplace, que la rechazó por versión repetida.
+
+### Compatibility
+
+- `v_live_sessions` y `session` no cambian: los siguen leyendo el vistazo, el Inicio del teléfono y la ficha
+  del panel. La vista nueva ya está aplicada en el board de producción.
+
+### Tests
+
+- `tests/test_session_heartbeats.py`: dos sesiones a la vez ordenadas por su latido, cerradas y calladas fuera,
+  solo las del proyecto y la vista cerrada a los roles públicos (17 en verde; `pytest -m native_db`, 599).
+- `scripts/tests/test-sync-extension-version.sh`: 22 comprobaciones, 5 nuevas.
+
 ## [6.27.0] - 2026-10-25 — "Bolsillo"
 
 El board cabe en el bolsillo: el engine le cuenta qué hace cada sesión, qué decisiones esperan a una

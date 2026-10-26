@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.28.0] — "Plural"
+
+No changes to the extension itself: its version moves with the engine. Publishing it now checks that the
+tag is the extension version before packaging; the engine release lists every live session of a project
+(see the engine CHANGELOG).
+
 ## [6.27.0] — "Bolsillo"
 
 No changes to the extension itself: its version moves with the engine. The engine release adds a

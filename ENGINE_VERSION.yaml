@@ -1,8 +1,8 @@
-version: 6.27.0
-codename: "Bolsillo"
+version: 6.28.0
+codename: "Plural"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-10-25
+release_date: 2026-10-26
 min_claude_code: "1.0.0"
 
 stacks:
@@ -553,8 +553,17 @@ features:
   - live-session-tools
   - autopilot-deferred-decisions-board
   - notification-events-board
+  # New (v6.28.0) — Plural
+  - project-live-sessions-list
+  - extension-publish-tag-check
 
 changelog:
+  6.28.0:
+    date: 2026-10-26
+    codename: "Plural"
+    changes:
+      - "feat: the board gives every live session of a project, not only the last one — each satellite (manager, cloud, site, projects, mobile) sends its heartbeat to the orchestrator board, and migration 0034 v_project_live_sessions lists every unfinished session with a heartbeat in the last 15 minutes (security_invoker, service_role only); get_live_session returns `sessions`, from the latest heartbeat to the oldest, with UC, phase and whether each one waits; v_live_sessions and `session` do not change (UC-10609, PR #296)"
+      - "fix: publishing the VS Code extension checks that the tag is the extension version — sync-extension-version.sh --check-tag stops before packaging and prints the tag, the extension and the engine versions; with 6.27.0 a tag on the previous commit reached the Marketplace upload (UC-10608, PR #295)"
   6.27.0:
     date: 2026-10-25
     codename: "Bolsillo"

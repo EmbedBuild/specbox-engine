@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.27.0 — "Bolsillo" (sobre v6.26.1 "Extensión")<br/>
+  v 6.28.0 — "Plural" (sobre v6.27.0 "Bolsillo")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,24 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.28
+
+**v6.28.0 — "Plural"** pasa de «la sesión» a «las sesiones»: cada satélite del ecosistema manda su latido al
+board del orquestador, y con varias sesiones trabajando a la vez el panel y la app las ven todas, no solo la
+última:
+
+- **Todas las sesiones vivas de un proyecto.** Una vista nueva del board lista cada sesión sin terminar con
+  latido en los últimos quince minutos, con su UC, su fase y si espera una respuesta, y `get_live_session`
+  las devuelve en `sessions`, de la del último latido a la más antigua. La sesión «viva» de siempre no
+  cambia.
+- **La publicación de la extensión comprueba la etiqueta.** Si la etiqueta no es la versión de la extensión,
+  se para antes de empaquetar y enseña las tres versiones.
+
+100% compatible hacia atrás: `session` y `v_live_sessions` siguen igual, y la vista nueva ya está en el board
+de producción.
 
 ---
 
@@ -725,7 +743,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.27.0 — "Bolsillo" (over v6.26.1 "Extensión")
+> v 6.28.0 — "Plural" (over v6.27.0 "Bolsillo")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -738,6 +756,22 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.28
+
+**v6.28.0 — "Plural"** goes from "the session" to "the sessions": each satellite of the ecosystem sends its
+heartbeat to the orchestrator board, and with several sessions working at once the panel and the app see
+all of them, not only the last one:
+
+- **Every live session of a project.** A new board view lists each unfinished session with a heartbeat in
+  the last fifteen minutes, with its UC, its phase and whether it waits for an answer, and
+  `get_live_session` returns them in `sessions`, from the latest heartbeat to the oldest. The usual "live"
+  session does not change.
+- **Publishing the extension checks the tag.** If the tag is not the extension version, it stops before
+  packaging and prints the three versions.
+
+100% backwards-compatible: `session` and `v_live_sessions` stay the same, and the new view is already in the
+production board.
 
 ## What's new in v6.27
 

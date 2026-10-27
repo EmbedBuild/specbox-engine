@@ -177,10 +177,13 @@ Patrones: `specbox-engine/design/stitch/`
 
 ### Opcion A: Subagentes
 
-Agentes disponibles en .claude/agents/:
+Los agentes viven en el engine, no se copian al proyecto: cada uno es `agents/<archivo>.md` del
+clon del engine (`~/.specbox/specbox-engine/agents/` si lo instaló la extensión de VSCode). La tool
+`list_agent_definitions` del MCP los lista. `/implement` los delega en Tasks aisladas.
 
 | ID | Agente | Archivo |
 |----|--------|---------|
+| AG-00 | Orchestrator | agents/orchestrator.md |
 | AG-01 | Feature Generator | agents/feature-generator.md |
 | AG-02 | UI/UX Designer | agents/uiux-designer.md |
 | AG-03 | DB Specialist | agents/db-specialist.md |
@@ -191,6 +194,8 @@ Agentes disponibles en .claude/agents/:
 | AG-08 | Quality Auditor | agents/quality-auditor.md |
 | AG-09a | Acceptance Tester | agents/acceptance-tester.md |
 | AG-09b | Acceptance Validator | agents/acceptance-validator.md |
+| AG-10 | Developer Tester | agents/developer-tester.md |
+| AG-11 | Quality Auditor (externo, /audit) | agents/ag-10-quality-auditor.md |
 
 ### Opcion B: Agent Teams (nativo Claude Code)
 

@@ -764,7 +764,7 @@ Proxy completo de Google Stitch a través del SpecBox Engine MCP server. Permite
 |------|-------------|---------|
 | `stitch_set_api_key` | Configurar/actualizar API Key de Stitch para un proyecto | normal |
 | `stitch_create_project` | Crear nuevo proyecto/workspace en Stitch | normal |
-| `stitch_list_projects` | Listar proyectos del usuario en Stitch | normal |
+| `stitch_list_projects` | Listar proyectos del usuario en Stitch: por defecto un resumen por proyecto (id, título, fechas, dispositivo, tipo, visibilidad y nº de pantallas; 38 proyectos ≈ 11 KB en vez de 430 KB); `full=true` devuelve la respuesta de Stitch entera (UC-11303) | normal |
 | `stitch_get_project` | Obtener detalles de un proyecto Stitch | normal |
 | `stitch_list_screens` | Listar pantallas de un proyecto | normal |
 | `stitch_get_screen` | Obtener metadata de una pantalla | normal |

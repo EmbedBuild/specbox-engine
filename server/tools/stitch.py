@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 import structlog
 from fastmcp import Context, FastMCP
@@ -40,6 +41,33 @@ STITCH_KEY_DEPRECATION = (
     "board token, and the Stitch tools work without this call. If the helper is missing "
     "or outdated, update the SpecBox extension or run `npx specbox@latest login`."
 )
+
+
+_SUMMARY_FIELDS = ("title", "updateTime", "createTime", "deviceType", "projectType", "visibility")
+
+
+def summarize_project_list(result: Any) -> Any:
+    """Each project of a Stitch list reduced to what it takes to pick one (UC-11303).
+
+    The theme and the position of every screen are ~93 % of the answer (412 KB
+    for 38 projects); a list keeps the id, the title, the dates, the device,
+    the type, the visibility and the number of screens. Anything that is not
+    a ``{projects: [...]}`` answer comes back untouched.
+    """
+    if not isinstance(result, dict) or not isinstance(result.get("projects"), list):
+        return result
+    projects = []
+    for p in result["projects"]:
+        if not isinstance(p, dict):
+            projects.append(p)
+            continue
+        name = p.get("name", "")
+        summary: dict[str, Any] = {"id": name.rsplit("/", 1)[-1] if isinstance(name, str) else name, "name": name}
+        summary.update({k: p[k] for k in _SUMMARY_FIELDS if k in p})
+        screens = p.get("screenInstances")
+        summary["screens"] = len(screens) if isinstance(screens, list) else 0
+        projects.append(summary)
+    return {**{k: v for k, v in result.items() if k != "projects"}, "projects": projects, "detail": "summary"}
 
 
 def register_stitch_tools(mcp: FastMCP, state_path: Path):
@@ -123,23 +151,32 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
         return None
 
     @mcp.tool
-    async def stitch_list_projects(ctx: Context, project: str, view: str = "owned") -> dict:
+    async def stitch_list_projects(
+        ctx: Context, project: str, view: str = "owned", full: bool = False
+    ) -> dict:
         """List the Google Stitch projects of the user's account.
 
         Use when you need to see which Stitch design projects are available.
+        By default each project comes as a summary (id, title, dates, device,
+        type, visibility and number of screens): enough to pick one. Use
+        stitch_get_project for one project's details.
 
         Args:
             project: SpecBox Engine project slug (to resolve the API Key).
             view: "owned" (default) or "shared" — the projects others shared
                 with you (UC-8501).
+            full: True returns every project exactly as Stitch sends it, with
+                its theme and the position of each screen (~10 KB per project).
 
         Returns:
-            List of Stitch projects with their IDs and names.
+            ``{status, project, result: {projects: [...]}}``.
         """
         try:
             client = await _get_client_for_project(ctx, project)
             result = await client.list_projects(view)
             _log_stitch_usage(project, "list_projects")
+            if not full:
+                result = summarize_project_list(result)
             return {"status": "ok", "project": project, "result": result}
         except Exception as exc:
             logger.error("stitch_list_projects_error", project=project, error=str(exc))

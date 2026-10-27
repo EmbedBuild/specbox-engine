@@ -2163,6 +2163,23 @@ miembros exige que quien abre la sesión ya lo sea: si no, `ForbiddenError` (`FO
 `project_admin`). Es la regla D2 (`native_provision_authority`), que hasta ahora solo aplicaba la
 ruta de migración. Tests: `tests/test_native_provision.py::TestSessionNeverJoinsAProject`.
 
+## Un nombre del cliente no sale de su carpeta (US-107 · UC-10701)
+
+Las tools de solo lectura del engine (`read_plan`, `list_designs`, `get_hook_source`, `read_skill`,
+`read_agent_prompt`, `get_architecture_doc`, `get_infra_doc`, `get_quality_baseline`,
+`get_feature_evidence`, `get_healing_log`, `get_quality_logs`, `get_session_events`) unían el nombre que
+manda el cliente a su carpeta con `Path /`. Con un nombre absoluto o con `..` leían cualquier fichero del
+contenedor, también sin token en el MCP alojado (auditoría del 2026-10-27, ENG-S-01).
+
+- `server/tools/_safe_paths.py::child_within(base, name)` es la única forma de convertir ese nombre en
+  ruta: un solo segmento (sin `/`, `\`, NUL, `.` ni `..`) que, resuelto con sus enlaces, siga dentro de
+  la carpeta. Si no, `None`, y la tool responde como a un nombre que no existe.
+- `tests/test_remote_surface_inventory.py::test_every_tool_that_joins_a_parameter_to_a_path_uses_child_within`
+  falla si una tool une uno de sus parámetros a una ruta (`base / name` o `base / f"…{name}…"`) sin
+  pasar por `child_within`. Las excepciones van en `APPROVED_JOINS` con su motivo.
+- Tests: `tests/test_safe_paths.py` (cada tool contra un engine falso con un secreto al lado: rutas
+  absolutas, `..`, barra invertida, NUL y un enlace dentro de la carpeta que apunta fuera).
+
 ## Cada tool lee del board solo lo que necesita (US-89 · UC-8901)
 
 En el MCP alojado cada fila que lee el backend native cruza el pooler de la base, y eso agotó la

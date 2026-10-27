@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from fastmcp import FastMCP
 
+from ._safe_paths import child_within
+
 
 def register_quality_tools(mcp: FastMCP, engine_path: Path):
 
@@ -27,8 +29,8 @@ def register_quality_tools(mcp: FastMCP, engine_path: Path):
                     baselines.append(data)
             return baselines
 
-        baseline_file = baselines_dir / f"{project_name}.json"
-        if not baseline_file.exists():
+        baseline_file = child_within(baselines_dir, f"{project_name}.json")
+        if baseline_file is None or not baseline_file.exists():
             return {
                 "error": f"No baseline for '{project_name}'",
                 "available": [f.stem for f in baselines_dir.glob("*.json")],
@@ -44,8 +46,8 @@ def register_quality_tools(mcp: FastMCP, engine_path: Path):
             feature_name: Name of the feature directory in .quality/evidence/.
         Returns checkpoint state, evidence files, audit results, and self-healing events.
         Use to get the complete quality picture of a feature's implementation."""
-        evidence_dir = engine_path / ".quality" / "evidence" / feature_name
-        if not evidence_dir.exists():
+        evidence_dir = child_within(engine_path / ".quality" / "evidence", feature_name)
+        if evidence_dir is None or not evidence_dir.exists():
             available = []
             parent = engine_path / ".quality" / "evidence"
             if parent.exists():
@@ -132,8 +134,8 @@ def register_quality_tools(mcp: FastMCP, engine_path: Path):
             log_files = [f.name for f in sorted(logs_dir.glob("*.jsonl"))]
             return {"available_logs": log_files, "count": len(log_files)}
 
-        log_file = logs_dir / f"sessions_{date}.jsonl"
-        if not log_file.exists():
+        log_file = child_within(logs_dir, f"sessions_{date}.jsonl")
+        if log_file is None or not log_file.exists():
             return {"error": f"No log for date '{date}'"}
 
         entries = []

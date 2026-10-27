@@ -3,6 +3,8 @@
 from pathlib import Path
 from fastmcp import FastMCP
 
+from ._safe_paths import child_within
+
 
 def register_feature_tools(mcp: FastMCP, engine_path: Path):
 
@@ -64,12 +66,14 @@ def register_feature_tools(mcp: FastMCP, engine_path: Path):
             doc_type: Document type (overview, folder-structure, patterns, testing-strategy).
         Returns document content and metadata.
         Use when you need architecture guidance for implementing in a specific stack."""
-        doc_file = engine_path / "architecture" / stack / f"{doc_type}.md"
-        if not doc_file.exists():
-            stack_dir = engine_path / "architecture" / stack
-            available_docs = [f.stem for f in stack_dir.glob("*.md")] if stack_dir.exists() else []
+        arch_dir = engine_path / "architecture"
+        stack_dir = child_within(arch_dir, stack)
+        doc_file = child_within(stack_dir, f"{doc_type}.md") if stack_dir is not None else None
+        if doc_file is None or not doc_file.exists():
+            available_docs = (
+                [f.stem for f in stack_dir.glob("*.md")] if stack_dir is not None and stack_dir.exists() else []
+            )
             available_stacks = []
-            arch_dir = engine_path / "architecture"
             if arch_dir.exists():
                 available_stacks = [d.name for d in arch_dir.iterdir() if d.is_dir()]
             return {
@@ -93,10 +97,10 @@ def register_feature_tools(mcp: FastMCP, engine_path: Path):
             service: Service name (supabase, neon, stripe, firebase, n8n).
         Returns all markdown files content for that service.
         Use when you need infrastructure setup guidance or integration patterns."""
-        infra_dir = engine_path / "infra" / service
-        if not infra_dir.exists():
+        parent = engine_path / "infra"
+        infra_dir = child_within(parent, service)
+        if infra_dir is None or not infra_dir.exists():
             available = []
-            parent = engine_path / "infra"
             if parent.exists():
                 available = [d.name for d in parent.iterdir() if d.is_dir()]
             return {"error": f"Infra '{service}' not found", "available": available}
@@ -122,8 +126,8 @@ def register_feature_tools(mcp: FastMCP, engine_path: Path):
         if not prompts_dir.exists():
             return {"error": "agent-teams/prompts directory not found"}
 
-        prompt_file = prompts_dir / f"{role_name}.md"
-        if not prompt_file.exists():
+        prompt_file = child_within(prompts_dir, f"{role_name}.md")
+        if prompt_file is None or not prompt_file.exists():
             # Try fuzzy match
             matches = [f for f in prompts_dir.glob("*.md") if role_name.lower() in f.stem.lower()]
             if matches:

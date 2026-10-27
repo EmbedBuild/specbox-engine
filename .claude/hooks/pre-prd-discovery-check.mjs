@@ -101,6 +101,24 @@ function extractFeatureName(input) {
   return null;
 }
 
+const PRD_SKILLS = new Set(['prd', 'prd-generator']);
+
+/**
+ * UC-11001: the skill being invoked — `tool_input.skill` of the Skill tool, or the slash command at
+ * the start of the text (`/plan …`). null when the input names none. The hook is wired to every Skill
+ * call, so without this any skill with arguments (`/plan US-01`, `/implement UC-001`) was read as /prd.
+ */
+function invokedSkill(input) {
+  const ti = input?.tool_input || input?.toolInput || input?.input || {};
+  const named = (name) => name.replace(/^\//, '').split(':').pop();
+  if (typeof ti.skill === 'string' && ti.skill.trim()) return named(ti.skill.trim());
+  for (const c of [ti.command, ti.prompt, ti.text, input?.command]) {
+    const slash = typeof c === 'string' ? c.trim().match(/^\/([\w:-]+)/) : null;
+    if (slash) return named(slash[1]);
+  }
+  return null;
+}
+
 function recordEvent(entry) {
   try {
     appendLine(TELEMETRY_PATH, JSON.stringify(entry));
@@ -151,6 +169,10 @@ if (gateMode === 'off') {
 }
 
 const input = readHookInput();
+const skill = invokedSkill(input);
+if (skill !== null && !PRD_SKILLS.has(skill)) {
+  process.exit(0); // another skill: the discovery gate is only about /prd
+}
 const featureName = extractFeatureName(input);
 
 if (!featureName) {

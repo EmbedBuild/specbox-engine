@@ -9,8 +9,13 @@ proyecto.
 | | Reglas |
 |---|---|
 | `allow` (sin preguntar) | `Read`, `Write`, `Edit` del proyecto |
-| `deny` (nunca) | leer o editar `~/.ssh/**` y `~/.specbox/**`; leer `.env` y `.env.*`; `curl` y `wget` |
+| `deny` (nunca) | leer o editar `~/.ssh/**`; leer las credenciales de `~/.specbox` (los `.json` de su raíz, `credentials/**` y `backups/**`) y editar cualquier cosa de `~/.specbox/**`; leer `.env` y `.env.*`; `curl` y `wget` |
 | el resto | Claude Code pregunta: comandos (`Bash`), webs (`WebFetch`), MCP |
+
+`~/.specbox/specbox-engine` (el clon del engine que gestiona la extensión) y `~/.specbox/bin` se
+pueden leer: las skills de `~/.claude/skills` son enlaces a ese clon, Claude Code sigue el enlace
+al aplicar las reglas y `/app-init` lee sus plantillas. La 6.29.0 prohibía leer todo `~/.specbox/**`
+y con ello dejaba sin leer las skills de SpecBox (UC-11009).
 
 Hasta la 6.28 la plantilla daba `Bash` y `WebFetch(domain:*)` sin preguntar. Un texto malicioso
 que leyera el agente (una web, un issue, un fichero del repo) podía hacerle ejecutar cualquier
@@ -37,4 +42,5 @@ ejemplo `"Bash(npm test:*)"` o `"WebFetch(domain:docs.github.com)"` en vez de `B
 ## Comprobación
 
 `tests/test_template_permissions.py` falla si la plantilla vuelve a dar `Bash` o `WebFetch` sin
-restricción, si pierde alguna prohibición o si `upgrade_project` escribe `settings.local.json`.
+restricción, si pierde alguna prohibición, si deja leer alguna credencial de `~/.specbox`, si
+prohíbe leer el clon del engine o si `upgrade_project` escribe `settings.local.json`.

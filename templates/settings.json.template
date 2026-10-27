@@ -8,7 +8,9 @@
     "deny": [
       "Read(~/.ssh/**)",
       "Edit(~/.ssh/**)",
-      "Read(~/.specbox/**)",
+      "Read(~/.specbox/*.json)",
+      "Read(~/.specbox/credentials/**)",
+      "Read(~/.specbox/backups/**)",
       "Edit(~/.specbox/**)",
       "Read(./.env)",
       "Read(./.env.*)",

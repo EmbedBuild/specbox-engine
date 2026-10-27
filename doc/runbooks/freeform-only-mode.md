@@ -1,7 +1,7 @@
-# Runbook — Local mode (FreeForm, no auth)
+# Runbook — Local mode (FreeForm)
 
-> Audience: developers who want to run SpecBox Engine without signing in to
-> the cloud. FreeForm remains first-class — no degraded experience.
+> Audience: developers who want to run SpecBox Engine with the board in their own repository,
+> without SpecBox Cloud. FreeForm remains first-class and free — no degraded experience.
 
 ## TL;DR
 
@@ -9,9 +9,18 @@
 2. The extension writes `specbox.backend_type = "freeform"` and
    `specbox.freeform_root_absolute = <workspace>/doc/tracking` to
    `.claude/settings.local.json`.
-3. Done. No browser, no token, no MCP handshake.
+3. It then asks you to **Sign in with GitHub** (UC-11013). It is free and only connects this
+   computer to the hosted MCP: the board stays in `doc/tracking/` of your repository.
 
-## What works without signing in
+## The hosted MCP needs an account from 30 October 2026
+
+From **2026-10-30** the hosted MCP (`mcp.specbox.build`) rejects every connection without a token
+(`401 token_required`, UC-3901), FreeForm included. Signing in with GitHub, or `npx specbox login`
+in a terminal, gives this computer its token; Claude Code sends it on every connection. Until you
+sign in, the extension's Status view shows the date and a startup reminder appears at most once a
+day. If you run the MCP server yourself over stdio, no account is needed.
+
+## What works in FreeForm
 
 | Capability | Works in FreeForm? |
 |---|---|
@@ -21,9 +30,11 @@
 | Trello backend | ✅ (you provide your own Trello API key + token) |
 | Plane backend | ✅ (you provide your own Plane API key) |
 | The 100+ MCP tools that read/mutate project state | ✅ |
-| Native backend (`whoami`, `reserve_uc`, `release_uc`, `register_native_branch`) | ❌ — these require sign-in |
+| Native backend (`whoami`, `reserve_uc`, `release_uc`, `register_native_branch`) | ❌ — SpecBox Cloud |
 
-## What requires sign-in
+The MCP tools go through the hosted MCP, so from 2026-10-30 they need the account (above).
+
+## What SpecBox Cloud adds
 
 The Native backend exists for **multi-developer scenarios** where two or more
 people share a single board source-of-truth and need optimistic locking to

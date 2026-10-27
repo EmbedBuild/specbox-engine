@@ -81,10 +81,12 @@ notification with two choices:
 - **Sign in with GitHub** — opens your browser, completes a GitHub OAuth
   flow via [cloud.specbox.build](https://cloud.specbox.build), and stores
   the resulting MCP token in your OS keychain via VSCode SecretStorage.
-  Enables Native backend (shared tracking, multi-developer reservations).
-- **Continue in local mode (FreeForm)** — no auth, no cloud. All tracking
-  lives on disk under `doc/tracking/`. See
-  [Local mode (no auth)](#local-mode-no-auth) below.
+  It is free. With SpecBox Cloud it also enables the Native backend (shared tracking,
+  multi-developer reservations).
+- **Continue in local mode (FreeForm)** — no cloud: all tracking lives in your
+  repository under `doc/tracking/`. Right after, the extension asks you to sign in
+  with GitHub too: from **30 October 2026** the hosted MCP only accepts connections
+  with an account. See [Local mode (FreeForm)](#local-mode-freeform) below.
 
 You can switch modes at any time later: `Ctrl+Shift+P` → **SpecBox: Sign
 in with GitHub** or **SpecBox: Sign out**.
@@ -112,18 +114,22 @@ Step 4  →  Configure MCP servers (SpecBox + Engram)
 
 ---
 
-## Local mode (no auth)
+## Local mode (FreeForm)
 
-FreeForm remains **first-class**. If you pick "Continue in local mode" you
+FreeForm remains **first-class** and free. If you pick "Continue in local mode" you
 get the full engine — skills, hooks, BDD acceptance, MCP tools that do not
-require shared state — without ever opening a browser or storing a token.
+require shared state — with the board in your own repository.
 
-What works without signing in:
+**From 30 October 2026 the hosted MCP only accepts connections with an account**, FreeForm
+included. Signing in with GitHub is free and only connects this computer: the board stays in
+`doc/tracking/`. Until you sign in, the Status view shows the date.
+
+What works in local mode (with your GitHub account connected):
 - The full pipeline: `/prd`, `/plan`, `/implement`, `/audit`, etc.
 - Trello and Plane backends (you provide their own API keys).
 - All non-Native tools (110+ tools).
 
-What requires signing in:
+What needs SpecBox Cloud:
 - The Native backend's UC reservation system (multi-developer locking).
 - The four native tools: `whoami`, `reserve_uc`, `release_uc`,
   `register_native_branch`.

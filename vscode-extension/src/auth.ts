@@ -243,6 +243,31 @@ export async function maybeShowOnboarding(
 		extVersion: context.extension.packageJSON.version,
 	};
 	await context.workspaceState.update(ONBOARDING_DECISION_KEY, decision);
+
+	// UC-11013: FreeForm keeps the board here, but from 30 October 2026 the hosted MCP only accepts
+	// connections with an account, so local mode also asks to connect one (free).
+	if (!(await secrets.hasToken())) {
+		const connect = vscode.l10n.t('Sign in with GitHub');
+		const pick = await vscode.window.showInformationMessage(
+			vscode.l10n.t('Local mode (FreeForm): the board lives in this repository and is free. To use the SpecBox MCP, connect your GitHub account: it is required from 30 October 2026.'),
+			connect,
+			vscode.l10n.t('Later'),
+		);
+		if (pick === connect) {
+			const result = await runSignIn(context, secrets, cli);
+			if (result.ok) {
+				void reportConnection(result);
+				vscode.window.showInformationMessage(
+					markDone(vscode.l10n.t('Signed in as @{0}. The board stays in this repository (FreeForm).', result.handle ?? '?'))
+				);
+			} else {
+				vscode.window.showWarningMessage(
+					vscode.l10n.t('Sign-in failed: {0}. You can try again later from the Command Palette.', describeSignInError(result.error))
+				);
+			}
+		}
+		return decision;
+	}
 	vscode.window.showInformationMessage(vscode.l10n.t('Continuing in local mode (FreeForm).'));
 	return decision;
 }

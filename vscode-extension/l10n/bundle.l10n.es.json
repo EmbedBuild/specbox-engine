@@ -192,5 +192,11 @@
   "Nothing was migrated: the SpecBox MCP server is not configured in Claude Code yet (global configuration of this computer).": "No se ha migrado nada: el servidor MCP de SpecBox aún no está configurado en Claude Code (configuración global de este ordenador).",
   "Run \"SpecBox: Onboard Project\" to finish setting it up.": "Ejecuta «SpecBox: Inicializar Proyecto» para terminar de configurarlo.",
   "SpecBox: Onboard Project": "SpecBox: Inicializar Proyecto",
-  "SpecBox Engine v{0} is available: update the SpecBox extension from the Marketplace.": "SpecBox Engine v{0} está disponible: actualiza la extensión de SpecBox desde el Marketplace."
+  "SpecBox Engine v{0} is available: update the SpecBox extension from the Marketplace.": "SpecBox Engine v{0} está disponible: actualiza la extensión de SpecBox desde el Marketplace.",
+  "Sign in with GitHub: required from 30 October 2026": "Inicia sesión con GitHub: obligatorio a partir del 30 de octubre de 2026",
+  "From 30 October 2026 the SpecBox MCP only accepts connections with an account. Sign in with GitHub: it is free, and with FreeForm the board stays in your repository.": "A partir del 30 de octubre de 2026, el MCP de SpecBox solo acepta conexiones con cuenta. Inicia sesión con GitHub: es gratis y, con FreeForm, el board sigue en tu repositorio.",
+  "Sign in with GitHub: required since 30 October 2026": "Inicia sesión con GitHub: obligatorio desde el 30 de octubre de 2026",
+  "Since 30 October 2026 the SpecBox MCP only accepts connections with an account. Sign in with GitHub to keep using it: it is free, and with FreeForm the board stays in your repository.": "Desde el 30 de octubre de 2026, el MCP de SpecBox solo acepta conexiones con cuenta. Inicia sesión con GitHub para seguir usándolo: es gratis y, con FreeForm, el board sigue en tu repositorio.",
+  "Local mode (FreeForm): the board lives in this repository and is free. To use the SpecBox MCP, connect your GitHub account: it is required from 30 October 2026.": "Modo local (FreeForm): el board vive en este repositorio y es gratis. Para usar el MCP de SpecBox, conecta tu cuenta de GitHub: es obligatorio a partir del 30 de octubre de 2026.",
+  "Signed in as @{0}. The board stays in this repository (FreeForm).": "Sesión iniciada como @{0}. El board sigue en este repositorio (FreeForm)."
 }

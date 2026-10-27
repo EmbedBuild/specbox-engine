@@ -87,19 +87,38 @@ ssh specbox-vps 'sh -s -- "$(docker ps -q -f name=mcp_mcp-specbox-engine | head 
 El token viaja en la cabecera `Authorization: Bearer <token>` de **cada** petición HTTP (así lo
 exige la especificación de autorización de MCP).
 
-**Estado a 2026-09-29: ningún cliente la envía todavía.** Hasta la versión 6.13.0, la extensión de
-VSCode escribe su configuración en `~/.claude/settings.local.json`, un fichero del que Claude Code no
-lee servidores MCP (solo los lee de `~/.claude.json` y del `.mcp.json` del proyecto), y su lanzador
-espera un valor `${secretStorage:…}` que nadie resuelve. Lo que falta está en preparación
-(UC-3904, plan en `doc/plans/US-39-conexion-dispositivos_plan.md` del orquestador):
+**Las dos formas de conectarse** (UC-3904, publicadas en la extensión y en npm):
 
-- **Extensión de VSCode**: al iniciar sesión («SpecBox: Iniciar sesión con GitHub») guardará el token
-  en el almacén seguro del sistema y configurará Claude Code para enviarlo; al actualizarse, migrará
-  las configuraciones existentes sin pasos manuales.
-- **Terminal**: `specbox login` mostrará un código de un solo uso que se confirma en el panel con la
-  cuenta de GitHub, y hará lo mismo sin que nadie vea ni copie el token.
+- **Extensión de VSCode**: «SpecBox: Iniciar sesión con GitHub» guarda el token en el almacén seguro
+  del sistema y configura Claude Code para enviarlo. Desde la UC-11013 la bienvenida también lo pide
+  al elegir FreeForm, y la vista de estado avisa con la fecha mientras no haya cuenta.
+- **Terminal**: `specbox login` muestra un código de un solo uso que se confirma en el panel con la
+  cuenta de GitHub, y hace lo mismo sin que nadie vea ni copie el token.
 
-Mientras tanto, **Claude Code a mano** (`~/.claude.json` o `.mcp.json`): servidor `"type": "http"`
+**FreeForm también necesita la cuenta.** El board vive en el repositorio y no hace falta SpecBox
+Cloud, pero la conexión con el MCP alojado sí exige token desde el fin de la gracia. Es gratis.
+
+### Qué ve un cliente sin token cuando el servidor lo rechaza (UC-11013)
+
+Medido el 2026-10-27 contra un servidor local en `enforce`. Los dos clientes reciben el 401, intentan
+el alta OAuth dinámica (`POST /register`), que también da 401 con el mismo cuerpo, y enseñan ese cuerpo.
+Ninguno manda `Accept-Language`, así que el mensaje sale en inglés.
+
+- **Claude Code con la entrada `http`** (`claude mcp list` y `/mcp`):
+  `✘ Failed to connect — Dynamic Client Registration rejected (HTTP 401): {"error": "token_required",
+  "message": "The SpecBox remote server only accepts connections with an account. Connect in one of two
+  ways: sign in from the VSCode extension (\"SpecBox: Sign in with GitHub\") or run `specbox login` in a
+  terminal.", "docs_url": "https://cloud.specbox.build/how-to-connect"}`. No abre el navegador.
+- **`npx mcp-remote@0.15.2`** (entradas antiguas, anteriores a la 6.14): sale con código 1 y deja en su
+  stderr `Fatal error: RegistrationRejectedError: Dynamic Client Registration rejected (HTTP 401): {…}`
+  con el mismo cuerpo. En Claude Code el servidor aparece como fallido y el motivo se ve en el detalle
+  de `/mcp`. Tampoco abre el navegador.
+
+Qué hacer en los dos casos: iniciar sesión con la extensión o `specbox login`, y reconectar el MCP
+(`/mcp` → SpecBox-MCP → Reconnect). `tests/test_transport_auth.py` comprueba que `/register` y el
+descubrimiento OAuth responden con esa explicación.
+
+**Claude Code a mano** (`~/.claude.json` o `.mcp.json`): servidor `"type": "http"`
 con `"headersHelper"` apuntando a un comando que imprima `{"Authorization": "Bearer <token>"}`
 (Claude Code lo ejecuta al conectar, al reconectar y tras un 401, así que una rotación del token no
 corta la sesión), o con `"headers": {"Authorization": "Bearer ${SPECBOX_MCP_TOKEN}"}` si el token

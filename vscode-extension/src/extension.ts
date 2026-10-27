@@ -13,6 +13,7 @@ import { SecretsManager } from './secret-storage';
 import { runSignIn, runSignOut, maybeShowOnboarding, describeSignInError, reportConnection } from './auth';
 import { whoamiStatus } from './cloud-api';
 import { showPrereqGate } from './prerequisites';
+import { showAccountNoticeOnce } from './account-notice';
 import { registerRevertCommand } from './migration';
 import { registerActivationUriHandler, maybeEmitActivation } from './activation';
 import { SpecboxCli, cloudApiBase } from './specbox-cli';
@@ -304,6 +305,15 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 	await maybeShowOnboarding(context, secrets, undefined, cli).catch((err) => {
 		console.warn('[specbox] onboarding gate failed:', err);
 	});
+
+	// UC-11013 — the MCP is configured without an account: remind, at most once a day, that the
+	// hosted MCP requires one from 30 October 2026 (FreeForm included).
+	try {
+		const result = await health.run();
+		await showAccountNoticeOnce(context, { mcpConfigured: result.mcpSpecbox.configured, signedIn: await secrets.hasToken() });
+	} catch (err) {
+		console.warn('[specbox] account notice failed:', err);
+	}
 
 	// Skills context bootstrapping (drives viewsWelcome for specbox.skills).
 	await updateSkillsContext(skillsTree).catch((err) => {

@@ -532,8 +532,8 @@ debajo:
 |---|---|---|
 | **SpecBox: Onboard Project** | `specbox.onboard` | Wizard de 5 pasos: prerequisitos → localizar/clonar engine (`resolveEnginePath`, auto-clone desde el repo público si falta) → instalar skills+hooks (`runFullInstall`) → **Configure MCP** → health check. **No crea el board**: deja el entorno listo para que tú corras las skills. |
 | **SpecBox: Install Engine** | `specbox.install` | Copia skills a `~/.claude/skills/` y hooks a `~/.claude/hooks/` (equivale a `./install.sh`). |
-| **SpecBox: Configure MCP Servers** | `specbox.configureMcp` | Escribe la config del MCP remoto de SpecBox (`npx mcp-remote …`) + Engram en el `settings.json` de Claude Code. |
-| **SpecBox: Sign in with GitHub** | `specbox.signIn` | OAuth de GitHub (loopback) → provisiona un `mcp_token` para el **backend native** (Cloud) y lo guarda en el SecretStorage de VS Code. Es el paso que habilita el board native compartido. |
+| **SpecBox: Configure MCP Servers** | `specbox.configureMcp` | Configura SpecBox-MCP en Claude Code (`~/.claude.json`, entrada `http` con un ayudante de cabeceras que envía el token de este equipo) + Engram. |
+| **SpecBox: Sign in with GitHub** | `specbox.signIn` | OAuth de GitHub (loopback) → el token de este equipo para el MCP alojado, guardado en el almacén seguro del sistema. Es gratis y, **desde el 30 de octubre de 2026, el MCP alojado solo acepta conexiones con cuenta, también en FreeForm** (el board sigue en el repositorio; no hace falta pagar Cloud). Con SpecBox Cloud habilita además el board native compartido. |
 | **SpecBox: Check Prerequisites** | `specbox.checkPrerequisites` | Re-evalúa el entorno (Claude Code, Engram, Node, MCPs) y avisa si falta algo. |
 
 Tras `Onboard Project` + `Sign in with GitHub`, el **arranque real del proyecto**

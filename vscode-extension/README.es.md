@@ -81,11 +81,13 @@ notificación con dos opciones (una sola vez):
 - **Iniciar sesión con GitHub** — abre el navegador, completa el flujo
   OAuth de GitHub a través de [cloud.specbox.build](https://cloud.specbox.build)
   y guarda el token MCP resultante en el llavero del sistema operativo
-  mediante VSCode SecretStorage. Activa el backend Native (tracking
-  compartido, reservas multi-developer).
-- **Continuar en modo local (FreeForm)** — sin auth, sin nube. Todo el
-  tracking vive en disco bajo `doc/tracking/`. Mira la sección
-  [Modo local (sin auth)](#modo-local-sin-auth) más abajo.
+  mediante VSCode SecretStorage. Es gratis. Con SpecBox Cloud activa además el
+  backend Native (tracking compartido, reservas multi-developer).
+- **Continuar en modo local (FreeForm)** — sin nube: todo el tracking vive en tu
+  repositorio, bajo `doc/tracking/`. Justo después, la extensión te pide iniciar
+  sesión con GitHub también: a partir del **30 de octubre de 2026** el MCP alojado
+  solo acepta conexiones con cuenta. Mira la sección
+  [Modo local (FreeForm)](#modo-local-freeform) más abajo.
 
 Puedes cambiar de modo en cualquier momento: `Ctrl+Shift+P` → **SpecBox:
 Iniciar sesión con GitHub** o **SpecBox: Cerrar sesión**.
@@ -113,19 +115,22 @@ Paso 4  →  Configura servidores MCP (SpecBox + Engram)
 
 ---
 
-## Modo local (sin auth)
+## Modo local (FreeForm)
 
-FreeForm sigue siendo **first-class**. Si eliges "Continuar en modo local"
+FreeForm sigue siendo **first-class** y gratis. Si eliges "Continuar en modo local"
 obtienes el engine completo — skills, hooks, acceptance BDD, tools MCP
-que no requieren estado compartido — sin abrir nunca un navegador ni
-guardar ningún token.
+que no requieren estado compartido — con el board en tu propio repositorio.
 
-Lo que funciona sin iniciar sesión:
+**A partir del 30 de octubre de 2026, el MCP alojado solo acepta conexiones con cuenta**,
+también en FreeForm. Iniciar sesión con GitHub es gratis y solo conecta este equipo: el board
+sigue en `doc/tracking/`. Mientras no inicies sesión, la vista de estado muestra la fecha.
+
+Lo que funciona en modo local (con tu cuenta de GitHub conectada):
 - El pipeline completo: `/prd`, `/plan`, `/implement`, `/audit`, etc.
 - Backends Trello y Plane (con sus propias API keys).
 - Todas las tools no-Native (110+ tools).
 
-Lo que requiere iniciar sesión:
+Lo que necesita SpecBox Cloud:
 - El sistema de reservas de UC del backend Native (locking multi-developer).
 - Las cuatro tools nativas: `whoami`, `reserve_uc`, `release_uc`,
   `register_native_branch`.

@@ -237,3 +237,42 @@ class TestTelemetry:
         telemetry_path = project / ".quality/discovery_gate_events.jsonl"
         # In "off" mode the hook exits before writing telemetry
         assert not telemetry_path.exists()
+
+
+# ─── UC-11001: only /prd goes through the gate ───────────────────────
+
+
+class TestOnlyPrd:
+    """The hook is wired to every Skill call; only /prd (prd or prd-generator) is gated."""
+
+    @pytest.mark.parametrize(
+        "tool_input",
+        [
+            {"skill": "plan", "args": "nueva_feature"},
+            {"skill": "implement", "args": "UC-001"},
+            {"skill": "SpecBox:plan", "args": "otra_feature"},
+            {"command": "/plan nueva_feature"},
+            {"command": "/implement nueva_feature"},
+        ],
+    )
+    def test_other_skills_with_arguments_are_never_blocked(self, project_with_settings, tool_input):
+        project = project_with_settings("block")
+        rc, stdout, stderr = _run_hook(project, {"tool_input": tool_input})
+        assert rc == 0, stderr
+        assert stdout == "" and stderr == ""
+        assert not (project / ".quality/discovery_gate_events.jsonl").exists()
+
+    @pytest.mark.parametrize(
+        "tool_input",
+        [
+            {"skill": "prd", "args": "nueva_feature"},
+            {"skill": "prd-generator", "args": "nueva_feature"},
+            {"command": "/prd nueva_feature"},
+        ],
+    )
+    def test_prd_without_discovery_is_blocked_with_the_same_message(self, project_with_settings, tool_input):
+        project = project_with_settings("block")
+        rc, _, stderr = _run_hook(project, {"tool_input": tool_input})
+        assert rc == 2
+        assert "[DISCOVERY-GATE] /prd bloqueado: falta el discovery" in stderr
+        assert "/discovery nueva_feature" in stderr

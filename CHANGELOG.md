@@ -2,6 +2,56 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.29.0] - 2026-10-27 — "Candado"
+
+Esta versión cierra puertas: las tools de solo lectura del MCP no salen de su carpeta, el servidor remoto no
+arranca sin decir cómo trata las peticiones sin token, la plantilla de proyectos pide permiso para comandos
+y webs, y la extensión de VS Code no ejecuta nada de la carpeta abierta y sigue las versiones publicadas.
+
+### Security
+
+- Las tools de solo lectura del MCP (planes, diseños, hooks, skills, prompts de agentes, documentación de
+  arquitectura e infraestructura, baselines, evidencias y logs de sesión) solo leen dentro de su carpeta:
+  un nombre absoluto, con `..`, con barra invertida o un enlace que apunta fuera se responde como un nombre
+  que no existe (#298).
+- Un servidor remoto ya no arranca sin `SPECBOX_TRANSPORT_AUTH`, así que perder la variable en un despliegue
+  no deja las tools abiertas sin token (#299).
+- La imagen del servidor instala exactamente las versiones de `requirements.lock`, comprobando el hash de
+  cada paquete, con `mcp` 1.30 o superior, que limita las sesiones abiertas en el transporte HTTP (#299).
+- La plantilla de proyectos ya no deja ejecutar comandos ni abrir webs sin preguntar, y prohíbe leer o
+  editar `~/.ssh` y `~/.specbox`, leer `.env` y usar `curl` o `wget` (#300).
+- La extensión de VS Code no ejecuta código de la carpeta abierta: solo corre `install-ext.mjs` del clon
+  gestionado y en una carpeta de confianza, una carpeta solo cuenta como engine si es de confianza, e
+  instalar, el onboarding, configurar el MCP e iniciar sesión piden confianza (#301).
+- El clon gestionado sigue las versiones publicadas (etiquetas `vX.Y.Z`), no `main` (#301).
+
+### Changed
+
+- **La extensión ya no actualiza el engine sola.** El clon gestionado nace en la última versión publicada y
+  solo cambia cuando aceptas una: «Update now» pasa a esa etiqueta y «Later» espera. Un clon propio no se
+  toca; su extensión se actualiza desde el Marketplace (#301).
+- **`docker-compose.yml`** exige `SPECBOX_TRANSPORT_AUTH` y deja de pasar `GITHUB_TOKEN` y
+  `SPECBOX_SYNC_TOKEN`, que ningún código usa (#299).
+- Guía nueva `doc/guides/permisos.md` y sección «Permisos de Claude Code» en la plantilla de `CLAUDE.md`
+  (#300).
+
+### Compatibility
+
+- Quien despliegue el servidor con su propia imagen o con `docker compose` tiene que declarar
+  `SPECBOX_TRANSPORT_AUTH` (`off`, `grace` o `enforce`): `doc/runbooks/transport-auth.md`. Con `stdio` no
+  cambia nada.
+- Un proyecto que haga `upgrade_project` recibe la plantilla nueva y Claude Code vuelve a preguntar antes de
+  ejecutar comandos. El modo sin preguntas se activa en `.claude/settings.local.json`, que la actualización
+  no toca.
+
+### Tests
+
+- `tests/test_safe_paths.py` y la comprobación nueva del inventario de la superficie remota.
+- `tests/test_server_main.py`: un servidor remoto sin política no arranca.
+- `tests/test_template_permissions.py`: permisos y prohibiciones de la plantilla.
+- Extensión: `updater-remote.test.mjs` y `autoclone.test.mjs` (un `install-ext.mjs` trampa que no se
+  ejecuta, etiquetas, «Later»); 205/205.
+
 ## [6.28.0] - 2026-10-26 — "Plural"
 
 El board pasa de «la sesión» a «las sesiones». Cada satélite del ecosistema (manager, cloud, site, projects y

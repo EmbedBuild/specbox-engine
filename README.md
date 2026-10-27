@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.28.0 — "Plural" (sobre v6.27.0 "Bolsillo")<br/>
+  v 6.29.0 — "Candado" (sobre v6.28.0 "Plural")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,26 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.29
+
+**v6.29.0 — "Candado"** cierra puertas: lo que el MCP lee, lo que el servidor deja pasar sin cuenta, lo que
+un proyecto deja hacer a Claude sin preguntar y lo que la extensión ejecuta:
+
+- **Las tools de solo lectura no salen de su carpeta.** Planes, hooks, skills, prompts de agentes,
+  documentación y evidencias se leen solo dentro de su carpeta; un nombre con ruta se responde como uno
+  que no existe.
+- **El servidor remoto no arranca sin política de transporte.** Hay que declarar `SPECBOX_TRANSPORT_AUTH`
+  (`off`, `grace` o `enforce`), y la imagen instala dependencias fijadas y comprobadas una a una.
+- **La plantilla de proyectos pide permiso** para ejecutar comandos y abrir webs, y prohíbe leer tus
+  credenciales y `.env`. El modo sin preguntas se activa en tu `settings.local.json`.
+- **La extensión no ejecuta nada de la carpeta abierta** y sigue las versiones publicadas: el clon del
+  engine solo cambia cuando aceptas una versión, y «Later» espera de verdad.
+
+Si despliegas el engine con Docker, declara `SPECBOX_TRANSPORT_AUTH`; si quieres el autopilot sin preguntas,
+mira `doc/guides/permisos.md`.
 
 ---
 
@@ -743,7 +763,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.28.0 — "Plural" (over v6.27.0 "Bolsillo")
+> v 6.29.0 — "Candado" (over v6.28.0 "Plural")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -756,6 +776,23 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.29
+
+**v6.29.0 — "Candado"** closes doors: what the MCP reads, what the server lets through without an account,
+what a project lets Claude do without asking and what the extension runs:
+
+- **The read-only tools stay in their folder.** Plans, hooks, skills, agent prompts, docs and evidence are
+  read only inside their folder; a name with a path is answered like one that does not exist.
+- **The remote server does not start without a transport policy.** `SPECBOX_TRANSPORT_AUTH` has to be
+  declared (`off`, `grace` or `enforce`), and the image installs pinned dependencies, each one checked.
+- **The project template asks** before running commands and opening the web, and forbids reading your
+  credentials and `.env`. The mode without questions goes in your `settings.local.json`.
+- **The extension runs nothing from the opened folder** and follows the published releases: the engine
+  clone only moves when you accept a release, and "Later" really waits.
+
+If you deploy the engine with Docker, declare `SPECBOX_TRANSPORT_AUTH`; for the autopilot without questions,
+see `doc/guides/permisos.md`.
 
 ## What's new in v6.28
 

@@ -8,6 +8,16 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.29.0] — "Candado"
+
+- **Nothing from the opened folder runs.** `install-ext.mjs` only runs from the managed engine clone and in a
+  trusted workspace; otherwise you get a notice to update from the Marketplace. A workspace folder only
+  counts as the engine when it is trusted, and Install, Onboard, Configure MCP and Sign In need a trusted
+  workspace, as the Restricted Mode description already said.
+- **The managed engine follows the published releases.** The clone starts on the newest `vX.Y.Z` tag and
+  only moves when you accept a release ("Update now" checks out the tag). There is no automatic pull any
+  more, so "Later" really waits, and your own clone of the engine is never touched.
+
 ## [6.28.0] — "Plural"
 
 No changes to the extension itself: its version moves with the engine. Publishing it now checks that the

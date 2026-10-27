@@ -1358,6 +1358,7 @@ SKILL post-Task block).
 - `server/implement_context/execution_context.py` — Pydantic model + atomic write.
 - `server/implement_context/phase_outputs.py` — append/read/aggregate.
 - `aggregate_for_spec_sync(feature)` → `SpecSyncAggregate` con `overall_status`, `delta_count`, `files_*` deduped, `phases[]`, `total_duration_s`, `total_healing_attempts`.
+- **Sin el Python del engine (UC-11202, US-112)**: `/implement` usa las tools `build_execution_context` (devuelve `{path, content, changed}` del `execution_context.json`, que el cliente escribe) y `aggregate_phase_outputs` (el agregado a partir del contenido de `phase_outputs.jsonl`, más `phase_deltas` en Markdown para `write_implementation_status`). Las dos pasan por las mismas funciones (`execution_context_content`, `aggregate_phase_entries`) que la ruta local, así que el contenido es el mismo. El skill ya no tiene bloques Python. Tests: `tests/test_implement_context_tools.py`.
 
 ### Hooks nuevos
 

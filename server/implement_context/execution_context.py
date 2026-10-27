@@ -80,7 +80,68 @@ def context_path(feature_slug: str, project_root: Path | str | None = None) -> P
     return base / EVIDENCE_DIR / feature_slug / CONTEXT_FILENAME
 
 
+def context_relpath(feature_slug: str) -> str:
+    """The context file's path relative to the project root (for a remote client)."""
+
+    return (EVIDENCE_DIR / feature_slug / CONTEXT_FILENAME).as_posix()
+
+
 # ── Public API ─────────────────────────────────────────────────────────
+
+
+def execution_context_content(
+    feature_slug: str,
+    *,
+    branch: str,
+    stack: str,
+    project_name: str,
+    project_root_absolute: str,
+    engine_version: str,
+    base_branch: str = "main",
+    backend_type: str = "freeform",
+    board_id: str | None = None,
+    uc_id: str | None = None,
+    us_id: str | None = None,
+    plan_path: str | None = None,
+    plan_hash: str | None = None,
+    autopilot_level: str | None = None,
+    existing_content: str | None = None,
+) -> tuple[str, bool]:
+    """The context file's content, without touching any disk (UC-11202).
+
+    Returns ``(content, changed)``. When ``existing_content`` only differs in
+    the timestamps, it comes back untouched with ``changed=False``: re-running
+    /implement keeps ``started_at``. ``write_execution_context`` and the MCP
+    tool ``build_execution_context`` both serialise through here.
+    """
+
+    ctx = ExecutionContext(
+        feature_slug=feature_slug,
+        branch=branch,
+        base_branch=base_branch,
+        stack=stack,
+        backend_type=backend_type,
+        board_id=board_id,
+        uc_id=uc_id,
+        us_id=us_id,
+        project_name=project_name,
+        project_root_absolute=project_root_absolute,
+        plan_path=plan_path,
+        plan_hash=plan_hash,
+        engine_version=engine_version,
+        autopilot_level=autopilot_level,
+    )
+    payload = ctx.model_dump(exclude_none=True)
+
+    if existing_content:
+        try:
+            existing = json.loads(existing_content)
+        except json.JSONDecodeError:
+            existing = None  # corrupt file → overwrite
+        if isinstance(existing, dict) and _without_timestamps(existing) == _without_timestamps(payload):
+            return existing_content, False
+
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), True
 
 
 def write_execution_context(
@@ -108,8 +169,19 @@ def write_execution_context(
     re-runs of /implement from churning the file unnecessarily.
     """
 
-    ctx = ExecutionContext(
-        feature_slug=feature_slug,
+    path = context_path(feature_slug, project_root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    existing: str | None = None
+    if path.exists():
+        try:
+            existing = path.read_text(encoding="utf-8")
+        except OSError:
+            existing = None  # unreadable → overwrite
+
+    # Idempotency: skip the write if the only difference would be timestamps.
+    content, changed = execution_context_content(
+        feature_slug,
         branch=branch,
         base_branch=base_branch,
         stack=stack,
@@ -123,29 +195,10 @@ def write_execution_context(
         plan_hash=plan_hash,
         engine_version=engine_version,
         autopilot_level=autopilot_level,
+        existing_content=existing,
     )
-
-    path = context_path(feature_slug, project_root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    payload = ctx.model_dump(exclude_none=True)
-    new_serialised = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
-
-    # Idempotency: skip the write if the only difference would be timestamps.
-    if path.exists():
-        try:
-            existing = json.loads(path.read_text(encoding="utf-8"))
-            existing.pop("started_at", None)
-            existing.pop("last_updated_at", None)
-            stripped_new = {**payload}
-            stripped_new.pop("started_at", None)
-            stripped_new.pop("last_updated_at", None)
-            if existing == stripped_new:
-                return path
-        except (OSError, json.JSONDecodeError):
-            pass  # corrupt file → overwrite
-
-    _atomic_write(path, new_serialised)
+    if changed:
+        _atomic_write(path, content)
     return path
 
 
@@ -191,7 +244,17 @@ def compute_plan_hash(plan_path: Path | str) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
+def plan_hash_of(plan_content: str) -> str:
+    """The same hash as ``compute_plan_hash`` for a UTF-8 plan given as text."""
+
+    return hashlib.sha256(plan_content.encode("utf-8")).hexdigest()
+
+
 # ── Internals ──────────────────────────────────────────────────────────
+
+
+def _without_timestamps(payload: dict) -> dict:
+    return {k: v for k, v in payload.items() if k not in ("started_at", "last_updated_at")}
 
 
 def _atomic_write(path: Path, content: str) -> None:

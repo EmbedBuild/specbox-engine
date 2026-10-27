@@ -160,6 +160,23 @@ test('connected from the terminal (specbox login): the extension picks the same 
 	assert.ok(!cli.calls.some((c) => c.command === '_configure'));
 });
 
+test('UC-11301: an outdated helper in ~/.specbox/bin is reinstalled so it sends the Stitch key', async () => {
+	const cli = fakeCli({
+		_status: { connected: true, store: 'keychain', claude_helper: true, helper_current: false },
+		_renew: { connected: true, renewed: false, token: 'spbx_t' },
+		_configure: { ok: true, claude: { ok: true } },
+	});
+	assert.equal((await ensureDeviceConnection(cli, fakeSecrets('spbx_t'))).state, 'connected');
+	assert.ok(cli.calls.some((c) => c.command === '_configure'));
+
+	const current = fakeCli({
+		_status: { connected: true, store: 'keychain', claude_helper: true, helper_current: true },
+		_renew: { connected: true, renewed: false, token: 'spbx_t' },
+	});
+	await ensureDeviceConnection(current, fakeSecrets('spbx_t'));
+	assert.ok(!current.calls.some((c) => c.command === '_configure'), 'a current helper is left alone');
+});
+
 test('signed out, no Node or a dead token: nothing is invented', async () => {
 	assert.equal((await ensureDeviceConnection(fakeCli({ _status: { connected: false } }), fakeSecrets(undefined))).state, 'signed_out');
 	assert.equal((await ensureDeviceConnection(fakeCli({}), fakeSecrets('x'))).state, 'no_node');

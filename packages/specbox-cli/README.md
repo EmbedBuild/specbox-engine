@@ -25,7 +25,7 @@ Options: `--no-browser` (just print the link), `--server <url>` and `--cloud <ur
 ## What it changes on your computer
 
 - **Secure store:** the macOS Keychain, Secret Service on Linux (`secret-tool`) or Windows DPAPI. Without any of them (headless Linux), a `~/.specbox/credentials.json` file with `0600` permissions; `specbox login` says so.
-- **`~/.specbox/bin/mcp-headers.mjs`:** a small helper. Claude Code runs it when it connects (and after a `401`) to get the `Authorization` header; it reads the store and renews the token when due. It never prints anything but that header.
+- **`~/.specbox/bin/mcp-headers.mjs`:** a small helper. Claude Code runs it when it connects (and after a `401`) to get the `Authorization` header; it reads the store and renews the token when due. If the project has a Google Stitch key (`STITCH_API_KEY`, or `stitch.apiKey` in the nearest `.claude/settings.local.json`), it also sends it as `X-Stitch-Api-Key`, so the key never goes through the conversation. It never prints anything but those headers.
 - **Claude Code:** the `SpecBox-MCP` server (user scope) becomes `{"type": "http", "url": …, "headersHelper": "<node> ~/.specbox/bin/mcp-headers.mjs"}` through the official `claude mcp` command, and other entries pointing to the same server get the same helper.
 - **`~/.specbox/device-id`:** only if the machine id cannot be read. The server only ever sees a SHA-256 of it.
 
@@ -35,4 +35,4 @@ More: [How SpecBox connects](https://cloud.specbox.build/how-to-connect) · [Có
 
 ---
 
-**En español.** `npx specbox login` conecta este ordenador: te muestra un código, lo confirmas en el navegador con tu cuenta de GitHub y el token queda en el almacén seguro del sistema; Claude Code lo envía solo y se renueva solo. `specbox status` dice con qué cuenta estás conectado y cuándo caduca; `specbox logout` desconecta el ordenador. Los mensajes salen en español si tu sistema está en español.
+**En español.** `npx specbox login` conecta este ordenador: te muestra un código, lo confirmas en el navegador con tu cuenta de GitHub y el token queda en el almacén seguro del sistema; Claude Code lo envía solo y se renueva solo. Si el proyecto tiene clave de Google Stitch (`STITCH_API_KEY` o `stitch.apiKey` en su `.claude/settings.local.json`), la envía también, en la cabecera `X-Stitch-Api-Key`, sin que pase por la conversación. `specbox status` dice con qué cuenta estás conectado y cuándo caduca; `specbox logout` desconecta el ordenador. Los mensajes salen en español si tu sistema está en español.

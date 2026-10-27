@@ -164,6 +164,16 @@ test("_connect guarda la credencial de la extensión y configura Claude Code; _s
   assert.ok(!h.out.at(-1).includes("spbx_delaextension"));
 });
 
+test("UC-11301: _status dice si el ayudante instalado es el de esta versión", async () => {
+  const { installHelper: realInstallHelper } = await import("../lib/install.mjs");
+  const h = harness(() => [200, {}]);
+  assert.equal(await internal(h, "_status"), 0);
+  assert.equal(JSON.parse(h.out.at(-1)).helper_current, false, "sin ayudante instalado");
+  realInstallHelper(h.deps.env.SPECBOX_HOME);
+  assert.equal(await internal(h, "_status"), 0);
+  assert.equal(JSON.parse(h.out.at(-1)).helper_current, true);
+});
+
 test("_adopt obtiene un token de dispositivo con el que ya tenía la extensión (sin revocarlo) y lo conecta", async () => {
   let sent;
   const h = harness((url, init) => {

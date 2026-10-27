@@ -8,8 +8,8 @@
  * stdout; la entrada, si la hay, por stdin) y no aparecen en `--help`.
  *
  *   _device      id y nombre del dispositivo (los mismos que usa `specbox login`)
- *   _status      ¿hay credencial? dispositivo, caducidad y si Claude Code usa el ayudante
- *                (nunca el token: solo su huella)
+ *   _status      ¿hay credencial? dispositivo, caducidad, si Claude Code usa el ayudante y
+ *                si el ayudante instalado es el de esta versión (nunca el token: solo su huella)
  *   _connect     guarda la credencial que trae la extensión, instala el ayudante y
  *                configura Claude Code
  *   _configure   instala el ayudante y configura Claude Code, sin credencial
@@ -23,7 +23,7 @@ import { createHash } from "node:crypto";
 import { claudeUsesHelper, configureClaudeCode, helperCommand, stableNodePath } from "./claude.mjs";
 import { CLIENT } from "./config.mjs";
 import { deviceId, hostLabel } from "./device.mjs";
-import { installHelper } from "./install.mjs";
+import { installHelper, installedHelperVersion, packageVersion } from "./install.mjs";
 import { credentialFromResponse, renewCredential, renewDue } from "./renew.mjs";
 
 export async function readStdinJson(stream = process.stdin) {
@@ -86,6 +86,9 @@ export async function runInternal(command, ctx) {
         store: store.kind,
         ...(credential?.token ? credentialMeta(credential) : {}),
         claude_helper: usesHelper(),
+        // UC-11301: an older helper in ~/.specbox/bin does not send the Stitch key;
+        // the extension reinstalls it with `_configure` when this is false.
+        helper_current: installedHelperVersion(home) === (deps.packageVersion ?? packageVersion()),
       });
       return 0;
     }

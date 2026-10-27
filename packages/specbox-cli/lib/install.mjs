@@ -20,6 +20,15 @@ export function packageVersion() {
   }
 }
 
+/** La versión del ayudante instalado en `~/.specbox/bin`, o null si no hay. */
+export function installedHelperVersion(home) {
+  try {
+    return JSON.parse(readFileSync(join(home, "bin", "package.json"), "utf8")).specbox_helper_version ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function installHelper(home, { sourceDir = LIB_DIR, version = packageVersion() } = {}) {
   const bin = join(home, "bin");
   mkdirSync(bin, { recursive: true, mode: 0o700 });

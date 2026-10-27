@@ -11,7 +11,8 @@
  *     picks that token up too: one computer, one device, one token.
  *   - The token renews itself from 14 days before it expires (`_renew`), and
  *     the SecretStorage copy follows it.
- *   - If Claude Code lost the helper configuration, it is restored.
+ *   - If Claude Code lost the helper configuration, it is restored; an outdated
+ *     helper in ~/.specbox/bin is reinstalled (UC-11301: it sends the Stitch key).
  *
  * No vscode import: the CLI and the token store are injected (tests).
  */
@@ -48,7 +49,9 @@ export async function ensureDeviceConnection(
 		if (renewed?.token && renewed.token !== token) {
 			await secrets.storeToken(renewed.token);
 		}
-		if (status.claude_helper) {
+		// UC-11301: an older helper in ~/.specbox/bin does not send the Stitch key, so an
+		// outdated one is reinstalled too (`helper_current` is absent with an older CLI).
+		if (status.claude_helper && status.helper_current !== false) {
 			cleanupLegacy();
 		} else {
 			const configured = await cli.call<{ ok: boolean; claude?: ClaudeConfigResult }>('_configure');

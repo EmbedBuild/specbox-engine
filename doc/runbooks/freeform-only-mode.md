@@ -34,6 +34,53 @@ day. If you run the MCP server yourself over stdio, no account is needed.
 
 The MCP tools go through the hosted MCP, so from 2026-10-30 they need the account (above).
 
+## FreeForm with the remote MCP: fragments (UC-11103)
+
+The hosted MCP cannot read your repository, so the board travels with each call. Until 6.29.1
+the whole `doc/tracking/items.json` went in every call and came back whole: on a board of 134
+stories, use cases and criteria that is ~105 KB each way, and the model had to write it.
+
+Now the `freeform-fragment` hook (in `.claude/hooks/`, registered by the project template) does
+it for you:
+
+- **Before the call** it reads `items.json` locally and puts in `items_content` only what the tool
+  needs, plus the highest US, UC and EP number of the whole board:
+
+  ```json
+  {"format": "specbox-freeform-fragment/1",
+   "max_ids": {"US": 12, "UC": 131, "EP": 3},
+   "items": [ ...the UC, its criteria and its story... ]}
+  ```
+
+  The numbers keep new ids unique: `add_uc` answers `UC-132` even if UC-131 did not travel.
+- **After the call** it writes into `items.json` what the tool changed (field by field, under a
+  lock) and removes the fragment from the answer the model sees.
+
+| Call (134 items) | Before | With fragments |
+|---|---|---|
+| `add_uc` | ~113 KB | ~0.6 KB (the same with 10 items) |
+| `get_uc`, `start_uc`, `mark_ac`, `complete_uc` | ~105 KB | ~5 KB |
+
+Tools without a fragment (whole-board reports such as `list_us` or `get_board_status`) still get
+the whole file, but the hook sends it, not the model.
+
+**How to switch to it.** Nothing to migrate: `items.json` keeps its format, and a 6.28 board works
+as is. The project needs:
+- the hook: `npx specbox hooks update`, or update the SpecBox extension;
+- `"backend_type": "freeform"` under `specbox` in `.claude/settings.local.json` (the extension and
+  `/app-init` write it).
+
+Then stop passing `items_content` yourself. Three things to know:
+- If a tool answers `FREEFORM_CONTENT_REQUIRED`, the hook is missing.
+- Never write a `{"format": "specbox-freeform-fragment/1", …}` answer as `items.json`: it is a part
+  of the board.
+- If the hook cannot save a change, the call shows it (exit 2) and what was sent stays in
+  `.quality/freeform-fragments/`: read the board again and repeat the call if the change is not
+  there.
+
+Clients without hooks (the claude.ai connector, Cursor) keep sending the whole array, as before. Do
+not send them a partial array: without `max_ids`, a new UC can repeat an id that did not travel.
+
 ## What SpecBox Cloud adds
 
 The Native backend exists for **multi-developer scenarios** where two or more

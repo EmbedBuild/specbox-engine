@@ -129,3 +129,13 @@ def test_a_malformed_fragment_is_rejected_with_what_is_wrong(content, message):
 
 def test_other_backends_have_no_floor():
     assert FreeformBackend(items_content="[]").logical_id_floor("UC") == 0
+
+
+def test_uc11103_ac04_the_remote_freeform_guide_explains_the_format_and_how_to_switch():
+    from pathlib import Path
+
+    guide = (Path(__file__).resolve().parents[1] / "doc" / "runbooks" / "freeform-only-mode.md").read_text(encoding="utf-8")
+    section = guide.split("## FreeForm with the remote MCP: fragments", 1)[1].split("\n## ", 1)[0]
+    assert FRAGMENT_FORMAT in section and "max_ids" in section
+    assert "How to switch to it" in section and "npx specbox hooks update" in section
+    assert "Nothing to migrate" in section

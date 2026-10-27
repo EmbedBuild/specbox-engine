@@ -442,8 +442,12 @@ async def set_auth_token(
                 "mode": "content_only",
                 "message": (
                     "FreeForm backend initialized in content-passing mode: the server "
-                    "keeps no files. Pass `items_content` in every tool call and write "
-                    "back the `items_content` each tool returns."
+                    "keeps no files; the board travels in each call as `items_content`. "
+                    "With the SpecBox freeform-fragment hook (UC-11103) do not pass it: the "
+                    "hook sends each tool only what it needs and saves what changes in "
+                    "doc/tracking/items.json. Without the hook (a tool answers "
+                    "FREEFORM_CONTENT_REQUIRED), pass the whole items.json in every call "
+                    "and write back the `items_content` each tool returns."
                 ),
                 "user": {
                     "id": user.id,
@@ -452,7 +456,8 @@ async def set_auth_token(
                 },
                 "summary": (
                     "Backend FreeForm en modo contenido: el servidor remoto no guarda "
-                    "archivos; el board viaja en cada llamada como items_content."
+                    "archivos; el board viaja en cada llamada como items_content (con el "
+                    "hook freeform-fragment lo pone el hook, solo la parte que hace falta)."
                 ),
             }
 

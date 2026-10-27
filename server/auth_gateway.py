@@ -52,11 +52,13 @@ STITCH_KEY_HEADER = "x-stitch-api-key"
 FREEFORM_CONTENT_REQUIRED_CODE = "FREEFORM_CONTENT_REQUIRED"
 FREEFORM_CONTENT_REQUIRED_MESSAGE = (
     f"{FREEFORM_CONTENT_REQUIRED_CODE}: this MCP server is remote, so the FreeForm "
-    "backend cannot read or write a directory on the server. Pass the contents of "
-    "your local doc/tracking/items.json in the `items_content` argument of every "
-    "tool call and write back the `items_content` the tool returns. Export "
-    "SPECBOX_ENGINE_MCP_URL on the client so SpecBox hooks and skills do this for "
-    "you automatically."
+    "backend cannot read or write a directory on the server. The SpecBox "
+    "freeform-fragment hook sends each tool only the part of doc/tracking/items.json "
+    "it needs and saves what changes (UC-11103): install it with `npx specbox hooks "
+    "update` and set specbox.backend_type = \"freeform\" in .claude/settings.local.json. "
+    "Without the hook, pass the whole local doc/tracking/items.json in the "
+    "`items_content` argument of every tool call and write back the `items_content` "
+    "the tool returns."
 )
 
 # The memory-mode FreeForm backend built for the *current* tool call. Scoped to

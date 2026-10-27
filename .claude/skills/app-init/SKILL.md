@@ -107,11 +107,15 @@ pasa ninguna ruta. Dilo así al usuario: «El MCP es remoto: el board vive en
    ```
    set_auth_token(api_key="freeform", token="", backend_type="freeform")
    ```
-3. Llamar a `setup_board(board_name=PROJECT_NAME)` y guardar el
-   `items_content` que devuelve en `doc/tracking/items.json`.
-4. Desde aquí, cada tool FreeForm recibe el `items.json` actual en
-   `items_content`, y lo que devuelve una mutación en `items_content` se guarda
-   en el mismo fichero.
+3. Llamar a `setup_board(board_name=PROJECT_NAME)`.
+4. **Con el hook `freeform-fragment`** (UC-11103, viene en la plantilla): no leas
+   `items.json` ni pases `items_content`. El hook manda a cada tool solo la parte del
+   tablero que necesita y guarda en `doc/tracking/items.json` lo que cambió; la respuesta
+   no trae el tablero. Si una tool responde `FREEFORM_CONTENT_REQUIRED`, el proyecto no
+   tiene el hook: actualiza sus hooks (`npx specbox hooks update`) o, mientras tanto, pasa
+   el `items.json` entero en `items_content` y guarda en el fichero el `items_content`
+   que devuelva una mutación. Un `items_content` que empieza por
+   `{"format":"specbox-freeform-fragment/1"` es un fragmento: nunca se escribe como el fichero.
 
 **MCP local** (`is_remote_mcp: false`, `mode: "disk"`):
 

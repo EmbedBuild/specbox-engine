@@ -62,8 +62,8 @@ function repo({ branch = 'feature/UC-1', specDriven = true, activeUC = false, fi
   return { dir, git, write, done: () => rmSync(dir, { recursive: true, force: true }) };
 }
 
-function run(hook, dir, event, tool, toolInput, env = {}) {
-  const payload = { hook_event_name: event, tool_name: tool, tool_input: toolInput, cwd: dir };
+function run(hook, dir, event, tool, toolInput, env = {}, extra = {}) {
+  const payload = { hook_event_name: event, tool_name: tool, tool_input: toolInput, cwd: dir, ...extra };
   const res = spawnSync(process.execPath, [join(hooksDir, `${hook}.mjs`)], {
     cwd: dir, input: JSON.stringify(payload), encoding: 'utf8', timeout: 60000, env: { ...process.env, ...env },
   });
@@ -202,6 +202,16 @@ const SCENARIOS = {
   ],
   'freeform-path-guard': [
     ['ruta relativa de FreeForm', 'decision', (p) => run('freeform-path-guard', p.dir, 'PreToolUse', 'mcp__SpecBox-MCP__set_auth_token', { backend_type: 'freeform', root_path: 'doc/tracking', api_key: 'freeform', token: '' })],
+  ],
+  'freeform-fragment': [
+    ['FreeForm con el MCP remoto: el fragmento va en items_content', 'decision', (p) => {
+      p.write('.claude/settings.local.json', JSON.stringify({ specbox: { backend_type: 'freeform' } }));
+      p.write('doc/tracking/items.json', JSON.stringify([{ id: 'item-1', name: 'US-01: Demo', labels: ['US'], meta: { us_id: 'US-01' } }]));
+      return run('freeform-fragment', p.dir, 'PreToolUse', 'mcp__SpecBox-MCP__add_uc', { board_id: 'ff', us_id: 'US-01', name: 'UC' },
+        { SPECBOX_ENGINE_MCP_URL: 'https://mcp.example.test/mcp' }, { tool_use_id: 'toolu_canal' });
+    }],
+    ['proyecto que no es FreeForm', 'silent', (p) => run('freeform-fragment', p.dir, 'PreToolUse', 'mcp__SpecBox-MCP__add_uc', { board_id: 'ff' },
+      { SPECBOX_ENGINE_MCP_URL: 'https://mcp.example.test/mcp' }, { tool_use_id: 'toolu_canal' })],
   ],
 };
 

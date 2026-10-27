@@ -36,6 +36,7 @@ from .tools.session_heartbeat import register_session_heartbeat_tools  # US-99 U
 from .tools.autopilot_decisions import register_autopilot_decision_tools  # US-99 UC-9902
 from .coordination.access_log import ToolAccessLogMiddleware, build_default_store, configure_store
 from .coordination.transport_auth import TransportAuthMiddleware, TransportNoticeMiddleware  # UC-3901
+from .coordination.transport_auth import MODE_ENV as TRANSPORT_AUTH_ENV, undeclared_remote_policy  # UC-10806
 from .coordination.abuse_guard import AbuseGuardMiddleware  # UC-3903
 from .coordination.project_state_scope import ProjectStateScopeMiddleware  # UC-8603
 from .coordination.client_paths import ClientPathGuardMiddleware  # UC-8604
@@ -380,6 +381,13 @@ def main():
     host = os.getenv("MCP_HOST", "0.0.0.0")
 
     logger = structlog.get_logger(__name__)
+    if undeclared_remote_policy(transport):
+        # UC-10806: fail closed instead of serving every tool without a token.
+        logger.error("transport_auth_undeclared", transport=transport, required_env=TRANSPORT_AUTH_ENV)
+        raise SystemExit(
+            f"{TRANSPORT_AUTH_ENV} must be set for the {transport} transport (off, grace or enforce): "
+            "see doc/runbooks/transport-auth.md"
+        )
     logger.info("server_starting", transport=transport, host=host, port=port, version=_ENGINE_VERSION)
 
     uvicorn_opts = {"timeout_graceful_shutdown": 5}

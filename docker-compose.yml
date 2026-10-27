@@ -10,10 +10,10 @@ services:
     environment:
       - MCP_TRANSPORT=http
       - MCP_PORT=8000
-      - DASHBOARD_TOKEN=${DASHBOARD_TOKEN:-}
-      - DASHBOARD_CORS_ORIGIN=${DASHBOARD_CORS_ORIGIN:-}
-      - SPECBOX_SYNC_TOKEN=${SPECBOX_SYNC_TOKEN:-}
-      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      # UC-10806: a remote server does not start without its policy for requests
+      # without a token (off | grace | enforce); see doc/runbooks/transport-auth.md.
+      - SPECBOX_TRANSPORT_AUTH=${SPECBOX_TRANSPORT_AUTH:?set SPECBOX_TRANSPORT_AUTH to off, grace or enforce}
+      - SPECBOX_TRANSPORT_AUTH_GRACE_UNTIL=${SPECBOX_TRANSPORT_AUTH_GRACE_UNTIL:-}
       - LOG_FORMAT=json
     stop_grace_period: 10s
     healthcheck:

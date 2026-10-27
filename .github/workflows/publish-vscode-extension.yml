@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
-          fetch-depth: 1
+          fetch-depth: 0  # UC-11201: copy-cli empaqueta los hooks con su historial de huellas
 
       - name: Set up Node.js 20 LTS
         uses: actions/setup-node@v4

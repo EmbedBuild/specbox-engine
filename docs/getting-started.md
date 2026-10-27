@@ -150,6 +150,27 @@ git pull
 ./install.sh
 ```
 
+### Los hooks de cada proyecto
+
+Cada proyecto ejecuta su propia copia de los hooks (`.claude/hooks/`), y actualizar el engine no la
+toca. Para ponerla al día, también con el MCP alojado y sin clon del engine, hay un solo comando:
+
+```bash
+npx specbox@latest hooks update      # o, en VS Code: «SpecBox: Update Project Hooks»
+```
+
+Antes de cambiar nada lista los hooks que difieren de los publicados (`npx specbox hooks status` solo
+lista). Instala los que faltan, sustituye los que no tocaste y añade a `.claude/settings.json` los
+registros nuevos, sin quitar los tuyos y dejando una copia en `settings.json.bak`.
+
+**Un hook que cambiaste tú no se pisa.** La versión nueva queda al lado como `<hook>.mjs.new`:
+compárala con la tuya (`diff .claude/hooks/<hook>.mjs .claude/hooks/<hook>.mjs.new`). Después:
+- si lo que arreglaste ya viene en la nueva, sustitúyelo con
+  `npx specbox hooks update --overwrite <hook>`;
+- si no, pásale tu cambio a la versión nueva o quédate con la tuya y borra el `.new`.
+
+Detalle: [doc/guides/hooks.md](../doc/guides/hooks.md#cómo-se-actualizan-en-un-proyecto).
+
 ## Referencia rapida
 
 | Quiero... | Accion |

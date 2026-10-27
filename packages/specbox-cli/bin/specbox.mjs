@@ -6,15 +6,19 @@
  *                    ayudante en ~/.specbox/bin → Claude Code lo usa solo
  *   specbox status   con qué cuenta y dispositivo, caducidad, si sigue valiendo
  *   specbox logout   desconecta el dispositivo y borra la credencial local
+ *   specbox hooks [status|update]   los hooks del proyecto frente a los publicados;
+ *                    update no pisa los retocados (UC-11201)
  *
  * Todo se puede inyectar (`run`) para las pruebas.
  */
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { realpathSync } from "node:fs";
+import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { claudeUsesHelper, configureClaudeCode, helperCommand, stableNodePath } from "../lib/claude.mjs";
 import { CLIENT, HOW_TO_CONNECT_URL, accountFor, resolveConfig, specboxHome } from "../lib/config.mjs";
 import { deviceId, hostLabel } from "../lib/device.mjs";
+import { hooksStatus, loadPackaged, updateHooks } from "../lib/hooks.mjs";
 import { installHelper, packageVersion } from "../lib/install.mjs";
 import { readStdinJson, runInternal } from "../lib/internal.mjs";
 import { LoginError, deviceLogin } from "../lib/login.mjs";
@@ -22,17 +26,29 @@ import { messages, pickLang } from "../lib/messages.mjs";
 import { createStore } from "../lib/store.mjs";
 
 export function parseArgs(argv) {
-  const opts = { command: null, server: null, cloud: null, browser: true };
+  const opts = { command: null, server: null, cloud: null, browser: true, args: [], project: null, overwrite: [] };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--server") opts.server = argv[(i += 1)];
     else if (arg === "--cloud") opts.cloud = argv[(i += 1)];
     else if (arg === "--no-browser") opts.browser = false;
+    else if (arg === "--project") opts.project = argv[(i += 1)];
+    else if (arg === "--overwrite") opts.overwrite.push(...String(argv[(i += 1)] ?? "").split(",").filter(Boolean));
     else if (arg === "--version" || arg === "-v") opts.command = "version";
     else if (arg === "--help" || arg === "-h") opts.command = "help";
     else if (!opts.command) opts.command = arg;
+    else opts.args.push(arg);
   }
   return opts;
+}
+
+/** La raíz del repositorio donde se ejecuta la orden (o la carpeta, si no es un repo). */
+function projectRootOf(dir) {
+  try {
+    return execFileSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() || dir;
+  } catch {
+    return dir;
+  }
 }
 
 function openInBrowser(url) {
@@ -170,6 +186,26 @@ export async function run(argv, deps = {}) {
       }
       store.remove(account);
       print(t.loggedOut(credential.device_name ?? "?", remote));
+      return 0;
+    }
+    case "hooks": {
+      // UC-11201: los hooks del proyecto frente a los que trae este paquete.
+      const action = opts.args[0] ?? "status";
+      if (!["status", "update"].includes(action)) {
+        printErr(t.usage);
+        return 1;
+      }
+      const packaged = (deps.loadPackaged ?? loadPackaged)();
+      if (!packaged) {
+        printErr(t.hooksNotPackaged);
+        return 1;
+      }
+      const projectRoot = projectRootOf(resolve(opts.project ?? deps.cwd ?? process.cwd()));
+      const status = hooksStatus({ projectRoot, packaged });
+      print(t.hooksStatus(status, projectRoot));
+      if (action === "status") return 0;
+      if (!status.differs) return 0;
+      print(t.hooksUpdated(updateHooks({ projectRoot, packaged, overwrite: opts.overwrite })));
       return 0;
     }
     case "help":

@@ -20,6 +20,7 @@ import { SpecboxCli, cloudApiBase } from './specbox-cli';
 import { ensureDeviceConnection, syncRenewal } from './device-connection';
 import { howToConnectUrl, PANEL_DEVICES_URL } from './constants';
 import { IdentityRefresher } from './identity-schedule';
+import { updateProjectHooks } from './project-hooks-command';
 
 import { markDone } from './design';
 let statusBar: StatusBarManager | undefined;
@@ -97,6 +98,9 @@ export async function activate(context: vscode.ExtensionContext) {
 			statusTree.refresh();
 			await showPrereqGate(result, { onStartup: false });
 		}),
+
+		// UC-11201 — the project's hooks against the ones this extension carries.
+		vscode.commands.registerCommand('specbox.updateProjectHooks', () => updateProjectHooks(cli)),
 
 		vscode.commands.registerCommand('specbox.signIn', async () => {
 			const result = await runSignIn(context, secrets, cli);

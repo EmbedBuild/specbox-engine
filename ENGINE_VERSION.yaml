@@ -1,8 +1,8 @@
-version: 6.29.1
-codename: "Bisagra"
+version: 6.29.2
+codename: "Tesela"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-10-27
+release_date: 2026-10-28
 min_claude_code: "1.0.0"
 
 stacks:
@@ -571,7 +571,26 @@ features:
   - freeform-account-before-token-cut
   - template-protects-credentials-not-skills
 
+  # New (v6.29.2) — Tesela
+  - freeform-remote-fragments
+  - freeform-fragment-hook
+  - project-hooks-update-keeps-local-changes
+  - implement-context-mcp-tools
+  - stitch-key-in-header
+  - stitch-theme-directives-visible
+  - stitch-project-list-summary
+
 changelog:
+  6.29.2:
+    date: 2026-10-28
+    codename: "Tesela"
+    changes:
+      - "feat: FreeForm with the remote MCP travels in fragments — items_content also takes a specbox-freeform-fragment/1 object with the board's highest US/UC/EP numbers, and the new freeform-fragment hook sends each tool only the part of doc/tracking/items.json it needs and merges what changes back (field by field, under a lock); on a 134-item board add_uc goes from ~113 KB to ~0.6 KB and get_uc/start_uc to ~5 KB, and new ids never repeat (UC-11103, UC-11102, #325)"
+      - "feat: `specbox hooks status|update` and the extension's «Update Project Hooks» update a project's .claude/hooks without overwriting the hooks changed locally — the new version is saved next to them as .mjs.new and --overwrite replaces them; the npm package carries the published hooks with their fingerprints (UC-11201, #326)"
+      - "feat: /implement no longer needs the engine's Python — build_execution_context and aggregate_phase_outputs compute the run context and the Spec-Code Sync aggregate from content (UC-11202, #324)"
+      - "feat: the Stitch API key reaches the MCP in the X-Stitch-Api-Key header sent by the headers helper, like the board token, so it never goes through the conversation; stitch_set_api_key is deprecated (UC-11301, #323)"
+      - "feat: native_v2 tells which theme lines it strips from a Stitch prompt and keep_theme_directives keeps them (UC-11302, #322); stitch_list_projects answers a summary per project by default — 430 KB to 11 KB for 38 projects — and full=true gives Stitch's whole answer (UC-11303, #327)"
+
   6.29.1:
     date: 2026-10-27
     codename: "Bisagra"

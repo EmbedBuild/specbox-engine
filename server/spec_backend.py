@@ -765,6 +765,14 @@ class SpecBackend(ABC):
             counts[uc_item_id] = (len(acs), sum(1 for ac in acs if ac.done))
         return counts
 
+    def logical_id_floor(self, kind: str) -> int:
+        """Lowest number a new ``US``/``UC``/``EP`` id must exceed besides what the backend sees.
+
+        Only a FreeForm fragment (UC-11102) knows ids it does not carry; every
+        other backend sees the whole board. Default: 0.
+        """
+        return 0
+
     # ── Convenience (non-abstract) ───────────────────────────────
 
     async def find_us_items(self, board_id: str) -> list[ItemDTO]:

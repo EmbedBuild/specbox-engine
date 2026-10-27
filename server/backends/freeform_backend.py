@@ -98,6 +98,16 @@ _STATE_DISPLAY: dict[str, str] = {
     "done": "Done",
 }
 
+# UC-11103 / UC-11102 — content mode may carry only the part of items.json a
+# tool needs, plus the highest id of each kind on the whole board, so a new
+# UC or epic never repeats an id the fragment does not show.
+FRAGMENT_FORMAT = "specbox-freeform-fragment/1"
+FRAGMENT_NOTE = (
+    "Fragment of doc/tracking/items.json: the SpecBox freeform-fragment hook merges it "
+    "into the file. Never write it as the whole items.json."
+)
+_ID_KINDS = ("US", "UC", "EP")
+
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -109,6 +119,38 @@ def _new_id(prefix: str = "ff") -> str:
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _id_number(item: dict[str, Any], kind: str) -> int:
+    """The number of an item's US-/UC-/EP- id (UC-004b counts as 4), or 0."""
+    if kind == "EP":
+        if "EP" not in item.get("labels", []):
+            return 0
+        logical = item.get("id", "")
+    else:
+        meta = item.get("meta") or {}
+        logical = meta.get(f"{kind.lower()}_id") or parse_item_id(item.get("name", ""), kind)[0] or ""
+    prefix = f"{kind}-"
+    if not isinstance(logical, str) or not logical.startswith(prefix):
+        return 0
+    digits = ""
+    for ch in logical[len(prefix):]:
+        if not ch.isdigit():
+            break
+        digits += ch
+    return int(digits) if digits else 0
+
+
+def _parse_max_ids(raw: Any) -> dict[str, int]:
+    if not isinstance(raw, dict):
+        raise ValueError(f"{FRAGMENT_FORMAT}: max_ids must be an object like {{\"UC\": 27}}")
+    out: dict[str, int] = {}
+    for kind in _ID_KINDS:
+        value = raw.get(kind, 0)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"{FRAGMENT_FORMAT}: max_ids.{kind} must be a non-negative integer")
+        out[kind] = value
+    return out
 
 
 def _detect_item_type(name: str) -> str:
@@ -176,6 +218,8 @@ class FreeformBackend(SpecBackend):
         """
         self._items_cache: list[dict[str, Any]] | None = None
         self._memory_mode = items_content is not None
+        # UC-11103: the id floors of a fragment, or None for a whole board.
+        self._fragment_max_ids: dict[str, int] | None = None
 
         if self._memory_mode:
             # Memory mode: no filesystem. `root` is irrelevant.
@@ -186,6 +230,17 @@ class FreeformBackend(SpecBackend):
                 self._mem_items: list[dict[str, Any]] = []
             else:
                 parsed = json.loads(stripped)
+                if isinstance(parsed, dict) and "format" in parsed:
+                    if parsed["format"] != FRAGMENT_FORMAT:
+                        raise ValueError(
+                            f"items_content format {parsed['format']!r} is not supported: send the "
+                            f"items.json array or a {FRAGMENT_FORMAT!r} object."
+                        )
+                    if not isinstance(parsed.get("items"), list):
+                        raise ValueError(f"{FRAGMENT_FORMAT}: items must be an array of items.json entries")
+                    self._fragment_max_ids = _parse_max_ids(parsed.get("max_ids", {}))
+                    self._mem_items = parsed["items"]
+                    return
                 if not isinstance(parsed, list):
                     # UC-709: a nested FreeForm index.json ({"user_stories": [...]})
                     # is a dict, not the flat items.json array. Name the dialect
@@ -273,8 +328,23 @@ class FreeformBackend(SpecBackend):
         reads this after a mutation and writes it back to its local items.json.
         In disk mode it still returns a faithful serialization of the current
         items, matching the on-disk format byte-for-byte.
+
+        UC-11103: a fragment comes back as a fragment (compact, with its note
+        and the id floors raised to whatever was created), never as items.json.
         """
-        return json.dumps(self._load_items(), indent=2, ensure_ascii=False) + "\n"
+        items = self._load_items()
+        if self._fragment_max_ids is None:
+            return json.dumps(items, indent=2, ensure_ascii=False) + "\n"
+        max_ids = {
+            kind: max([self._fragment_max_ids[kind], *(_id_number(i, kind) for i in items)])
+            for kind in _ID_KINDS
+        }
+        payload = {"format": FRAGMENT_FORMAT, "note": FRAGMENT_NOTE, "max_ids": max_ids, "items": items}
+        return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+    def logical_id_floor(self, kind: str) -> int:
+        """Highest US/UC/EP number on the whole board as the fragment declares it (UC-11102)."""
+        return (self._fragment_max_ids or {}).get(kind, 0)
 
     def _load_labels(self) -> dict[str, dict[str, str]]:
         """Load labels. Returns {name: {id, name, color}}."""
@@ -944,7 +1014,8 @@ class FreeformBackend(SpecBackend):
         epics = [d for d in items if self._is_epic_item(d)]
         ids = [d["id"] for d in epics]
         if epic_id is None:
-            epic_id = next_epic_id(ids)
+            floor = self.logical_id_floor("EP")
+            epic_id = next_epic_id(ids + ([f"EP-{floor:02d}"] if floor else []))
         elif epic_id in ids:
             raise EpicError(EPIC_EXISTS, f"{epic_id} already exists.")
         if position is None:

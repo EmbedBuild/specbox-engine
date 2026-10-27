@@ -2,6 +2,62 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.29.2] - 2026-10-28 — "Tesela"
+
+FreeForm con el MCP alojado aguanta un proyecto real: el tablero viaja en piezas que encajan, en vez de entero
+en cada llamada. Los proyectos actualizan sus hooks sin perder lo que cambiaron, `/implement` ya no necesita el
+Python del engine y la clave de Stitch deja de pasar por la conversación. Cierra el feedback de un usuario real
+de FreeForm (US-111, US-112 y US-113 del board del orquestador).
+
+### Security
+
+- **La clave de Stitch no pasa por la conversación.** El ayudante de cabeceras la envía en `X-Stitch-Api-Key`
+  con cada petición al MCP, como el token del board, desde `STITCH_API_KEY` o `stitch.apiKey` del
+  `.claude/settings.local.json` del proyecto. El MCP alojado nunca toma una clave de su propio entorno, y
+  `stitch_set_api_key`, que la recibía como argumento, queda obsoleta y lo dice en su respuesta (#323,
+  UC-11301).
+
+### Added
+
+- **FreeForm en fragmentos.** `items_content` admite, además del array de siempre, un objeto
+  `specbox-freeform-fragment/1` con la parte del tablero que necesita la tool y el mayor número US, UC y EP del
+  tablero entero. El hook nuevo `freeform-fragment` lo prepara antes de cada llamada y fusiona lo que cambia en
+  `doc/tracking/items.json`, campo a campo y bajo un cerrojo, sin que el modelo lea ni escriba el tablero.
+  Con 134 elementos, `add_uc` pasa de ~113 KB a ~0,6 KB y `get_uc` o `start_uc` a ~5 KB; los ids nuevos no se
+  repiten aunque el tablero viaje por partes (#325, UC-11103 y UC-11102).
+- **`specbox hooks status|update`** y «SpecBox: Update Project Hooks» en la extensión: listan los hooks del
+  proyecto que difieren de los publicados y los actualizan sin pisar los que se cambiaron en local; la versión
+  nueva de un hook retocado queda al lado como `.mjs.new` y `--overwrite` lo sustituye. El paquete `specbox`
+  trae los hooks con sus huellas y las de las versiones anteriores (#326, UC-11201).
+- **`build_execution_context` y `aggregate_phase_outputs`**: `/implement` calcula su contexto y el agregado de
+  Spec-Code Sync con estas tools, sin clon del engine ni Python (#324, UC-11202).
+- **`keep_theme_directives`** en `stitch_generate_screen_v2`: con un Design System aplicado, la respuesta dice
+  qué líneas de tema quitó del prompt y este parámetro las conserva (#322, UC-11302).
+
+### Changed
+
+- **`stitch_list_projects`** devuelve por defecto un resumen de cada proyecto (id, título, fechas, dispositivo
+  y número de pantallas): con 38 proyectos, 11 KB en vez de 430 KB. `full=true` devuelve la respuesta de
+  Stitch entera (#327, UC-11303).
+- `/plan`, `/visual-setup` e `/implement` comprueban que la clave de Stitch existe sin leer su valor; `/app-init`
+  y `/feedback` dejan el envío del tablero al hook.
+
+### Compatibility
+
+- El array entero en `items_content` sigue funcionando para clientes sin hooks. Un tablero de la 6.28 o la 6.29
+  se abre sin migrar.
+- Los hooks nuevos llegan a un proyecto con `npx specbox@latest hooks update` o el comando de la extensión;
+  `freeform-fragment` solo actúa con `specbox.backend_type = "freeform"` y el MCP remoto.
+- La extensión reinstala el ayudante de cabeceras si es de otra versión; con la CLI, `npx specbox@latest login`.
+
+### Tests
+
+- `tests/test_freeform_fragment.py`, `tests/test_freeform_fragment_equivalence.py` (cada tool con fragmento da
+  la misma respuesta y el mismo tablero que con el entero), `tests/hooks/freeform-fragment.test.mjs`,
+  `packages/specbox-cli/test/hooks.test.mjs`, `tests/test_implement_context_tools.py`,
+  `tests/test_stitch_key_session_only.py`, `tests/test_stitch_generate_v2_prompts.py`,
+  `tests/test_stitch_list_summary.py`. Extensión: `project-hooks.test.mjs`, `device-connection.test.mjs`.
+
 ## [6.29.1] - 2026-10-27 — "Bisagra"
 
 La 6.29.0 cerró puertas; esta hace que se abran para quien debe pasar. FreeForm con el MCP alojado vuelve a

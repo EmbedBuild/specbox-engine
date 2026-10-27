@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.29.1 — "Bisagra" (sobre v6.29.0 "Candado")<br/>
+  v 6.29.2 — "Tesela" (sobre v6.29.1 "Bisagra")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -48,6 +48,11 @@ funciona desde `/app-init`, la extensión pide la cuenta de GitHub también en F
 exija el 30 de octubre (gratis; el board sigue en tu repositorio), las skills de SpecBox se vuelven a leer con
 la plantilla de permisos, y se arreglan el freno de discovery, los scripts de las skills, el lint previo al
 commit, los valores heredados por `/prd` y `/plan` y `/handoff`.
+
+**v6.29.2 — "Tesela"** hace que FreeForm con el MCP alojado aguante un proyecto real: el tablero viaja en
+fragmentos (crear una UC en un tablero de 134 elementos pasa de ~113 KB a ~0,6 KB, sin repetir ids),
+`npx specbox hooks update` pone al día los hooks del proyecto sin pisar los que tocaste, `/implement` ya no
+necesita el Python del engine, y la clave de Stitch viaja en una cabecera, no por la conversación.
 
 ---
 
@@ -769,7 +774,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.29.1 — "Bisagra" (over v6.29.0 "Candado")
+> v 6.29.2 — "Tesela" (over v6.29.1 "Bisagra")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -805,6 +810,11 @@ see `doc/guides/permisos.md`.
 (free; the board stays in your repository), the SpecBox skills can be read again under the permissions
 template, and the discovery gate, the skill scripts, the pre-commit lint, the values `/prd` and `/plan` inherit
 and `/handoff` are fixed.
+
+**v6.29.2 — "Tesela"** makes FreeForm with the hosted MCP hold a real project: the board travels in fragments
+(creating a UC on a 134-item board goes from ~113 KB to ~0.6 KB, without repeating ids), `npx specbox hooks
+update` updates the project's hooks without overwriting the ones you changed, `/implement` no longer needs the
+engine's Python, and the Stitch key travels in a header, not through the conversation.
 
 ## What's new in v6.28
 

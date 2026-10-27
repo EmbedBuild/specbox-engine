@@ -1,4 +1,4 @@
-# SpecBox Engine v6.29.1
+# SpecBox Engine v6.29.2
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2869,7 +2869,7 @@ detrás. El diagnóstico decía «Engine: Not installed» y «Skills 28/54».
 
 ## Engine Version
 
-Current: v6.29.1 "Bisagra"
+Current: v6.29.2 "Tesela"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

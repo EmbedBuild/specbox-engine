@@ -8,6 +8,16 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.29.2] — "Tesela"
+
+- **"SpecBox: Update Project Hooks".** Lists the hooks of the open project that differ from the ones this
+  version carries, then installs the missing ones and replaces the ones you did not change. A hook you changed
+  is left as it is (its new version is saved next to it as `.mjs.new`) unless you tick it.
+- **The Stitch key stops going through the conversation.** The headers helper this extension installs sends it
+  with every request to the SpecBox MCP; an older helper is reinstalled on startup.
+- **FreeForm with the hosted MCP holds big boards.** Projects updated with the command above get the hook that
+  sends each tool only the part of the board it needs.
+
 ## [6.29.1] — "Bisagra"
 
 - **FreeForm asks for your GitHub account too.** From 30 October 2026 the hosted SpecBox MCP only accepts

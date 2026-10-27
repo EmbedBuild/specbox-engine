@@ -95,15 +95,31 @@ Ejecuta esta detección antes de hacer nada:
 Si la pregunta 5 = `[a] FreeForm`:
 
 1. **Handshake con el MCP** — llama primero a `detect_local_root_path()`. La
-   tool devuelve el contrato: `requires_absolute_path: true`,
-   `default_relative_path: "doc/tracking"` y la receta exacta para resolver
-   el absoluto del lado cliente. No escribe nada; solo declara las reglas.
+   tool devuelve el contrato (`is_remote_mcp`, `mode`) y no escribe nada.
+   Crear `doc/tracking/` en el repo (si no existe) en los dos casos.
+
+**MCP remoto** (`is_remote_mcp: true`, `mode: "content_only"`; es el MCP alojado,
+`mcp.specbox.build`). El servidor no ve los ficheros del proyecto, así que no se le
+pasa ninguna ruta. Dilo así al usuario: «El MCP es remoto: el board vive en
+`doc/tracking/items.json` de tu repo y viaja en cada llamada; el servidor no guarda nada».
+
+2. Abrir la sesión **sin `root_path`**:
+   ```
+   set_auth_token(api_key="freeform", token="", backend_type="freeform")
+   ```
+3. Llamar a `setup_board(board_name=PROJECT_NAME)` y guardar el
+   `items_content` que devuelve en `doc/tracking/items.json`.
+4. Desde aquí, cada tool FreeForm recibe el `items.json` actual en
+   `items_content`, y lo que devuelve una mutación en `items_content` se guarda
+   en el mismo fichero.
+
+**MCP local** (`is_remote_mcp: false`, `mode: "disk"`):
+
 2. **Resolver al absoluto local** — usar `PROJECT_ROOT` calculado en el
    Paso 1 (`git rev-parse --show-toplevel`):
    ```bash
    ABS_TRACKING="$PROJECT_ROOT/doc/tracking"
    ```
-   Crear `doc/tracking/` en disco (si no existe) bajo esa ruta.
 3. Llamar a la tool MCP `set_auth_token` con la ruta absoluta:
    ```
    set_auth_token(
@@ -116,7 +132,11 @@ Si la pregunta 5 = `[a] FreeForm`:
 4. Llamar a `setup_board(board_name=PROJECT_NAME)` para inicializar la
    estructura.
 
-> **Defensa en profundidad (v5.33+)**: aunque por error se llamase a
+> **Defensa en profundidad (v5.33+, UC-11101)**: con el MCP remoto, el hook
+> `freeform-path-guard.mjs` quita el `root_path` de `set_auth_token` aunque se
+> pase por error; sabe que es remoto por la entrada `SpecBox-MCP` de la
+> configuración de Claude Code (`http` o `mcp-remote`) o por
+> `SPECBOX_ENGINE_MCP_URL`. Con el MCP local, aunque por error se llamase a
 > `set_auth_token` u `onboard_project` con una ruta relativa, el hook
 > `freeform-path-guard.mjs` la reescribe automáticamente al absoluto
 > del repo del cliente antes de que la llamada llegue al MCP, y deja

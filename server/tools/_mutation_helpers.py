@@ -406,10 +406,11 @@ async def find_ac(
 async def find_max_uc_number(backend: SpecBackend, board_id: str) -> int:
     """Scan all items and return the max UC numeric suffix (e.g. 27 for UC-027).
 
-    Returns 0 if no UCs exist.
+    Returns 0 if no UCs exist. A FreeForm fragment (UC-11102) only carries part
+    of the board, so the highest number it declares for the whole board counts too.
     """
     items = await backend.list_items(board_id)
-    max_num = 0
+    max_num = backend.logical_id_floor("UC")
     for item in items:
         uc_id = item.meta.get("uc_id") or parse_item_id(item.name, "UC")[0]
         if not uc_id or not uc_id.startswith("UC-"):

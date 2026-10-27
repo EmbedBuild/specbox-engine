@@ -322,7 +322,12 @@ hay un UC asociado al feature en el board. Si el backend es Trello/Plane/Native,
 o el MCP es local, usar las tools directamente sin el bundle (el server resuelve
 el almacenamiento). Si no hay UC en el board para el feature, omitir este paso.
 
-Procedimiento (round-trip de 3 pasos):
+**Con el hook `freeform-fragment`** (UC-11103, viene en la plantilla): llama a la tool sin
+`items_content` (por ejemplo `mark_ac(uc_id=<UC>, ac_id="AC-03", passed=false)`). El hook le manda
+solo la UC y sus criterios y guarda el cambio en `doc/tracking/items.json`. El procedimiento de
+abajo es para un proyecto sin el hook: lo sabrás porque la tool responde `FREEFORM_CONTENT_REQUIRED`.
+
+Procedimiento sin el hook (round-trip de 3 pasos):
 
 ```bash
 # 1) Leer el items.json local como string vía el bridge (resuelve la raíz del

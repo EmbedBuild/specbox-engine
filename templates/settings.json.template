@@ -239,6 +239,16 @@
         ]
       },
       {
+        "matcher": "mcp__SpecBox-MCP__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/freeform-fragment.mjs",
+            "timeout": 15
+          }
+        ]
+      },
+      {
         "matcher": "Skill",
         "hooks": [
           {
@@ -250,6 +260,16 @@
       }
     ],
     "PostToolUse": [
+      {
+        "matcher": "mcp__SpecBox-MCP__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/freeform-fragment.mjs",
+            "timeout": 15
+          }
+        ]
+      },
       {
         "matcher": "Bash|Write|Edit|mcp__.*",
         "hooks": [

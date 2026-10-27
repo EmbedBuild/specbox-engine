@@ -154,6 +154,9 @@ class DualBackendWrapper(SpecBackend):
     ) -> list[ChecklistItemDTO]:
         return await self.primary.get_acceptance_criteria(board_id, uc_item_id)
 
+    def logical_id_floor(self, kind: str) -> int:
+        return self.primary.logical_id_floor(kind)
+
     async def get_comments(self, board_id: str, item_id: str) -> list[CommentDTO]:
         return await self.primary.get_comments(board_id, item_id)
 

@@ -1,11 +1,19 @@
 {
   "permissions": {
     "allow": [
-      "Bash",
       "Read",
       "Write",
-      "Edit",
-      "WebFetch(domain:*)"
+      "Edit"
+    ],
+    "deny": [
+      "Read(~/.ssh/**)",
+      "Edit(~/.ssh/**)",
+      "Read(~/.specbox/**)",
+      "Edit(~/.specbox/**)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)"
     ]
   },
   "env": {

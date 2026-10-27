@@ -8,6 +8,15 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.29.1] — "Bisagra"
+
+- **FreeForm asks for your GitHub account too.** From 30 October 2026 the hosted SpecBox MCP only accepts
+  connections with an account. Choosing local mode (FreeForm) now offers "Sign in with GitHub" right away:
+  it is free, and the board stays in your repository.
+- **The Status view says when it matters.** With the MCP configured and no account, a row shows the date
+  (a warning before 30 October, an error from then on) and signs you in when clicked; a startup reminder
+  appears at most once a day.
+
 ## [6.29.0] — "Candado"
 
 - **Nothing from the opened folder runs.** `install-ext.mjs` only runs from the managed engine clone and in a

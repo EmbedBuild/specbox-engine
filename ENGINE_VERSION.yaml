@@ -1,5 +1,5 @@
-version: 6.29.0
-codename: "Candado"
+version: 6.29.1
+codename: "Bisagra"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-10-27
@@ -564,7 +564,24 @@ features:
   - project-template-asks-before-commands
   - extension-follows-release-tags
 
+  # New (v6.29.1) — Bisagra
+  - freeform-remote-setup-board-content-mode
+  - freeform-remote-session-first-attempt
+  - freeform-remote-smoke-test
+  - freeform-account-before-token-cut
+  - template-protects-credentials-not-skills
+
 changelog:
+  6.29.1:
+    date: 2026-10-27
+    codename: "Bisagra"
+    changes:
+      - "fix: FreeForm with the hosted MCP works from /app-init — setup_board creates the board in content mode and returns items_content instead of failing on the server disk (#307); freeform-path-guard knows the MCP is remote from the SpecBox-MCP entry of the Claude Code config (http or mcp-remote), not only from the variable the VS Code extension writes, so set_auth_token is accepted at the first attempt; detect_local_root_path answers is_remote_mcp by the server transport; /app-init has a step for the remote MCP (#311)"
+      - "feat: the VS Code extension asks FreeForm users to sign in with GitHub too — from 2026-10-30 the hosted MCP only accepts connections with an account; the Status view and a daily reminder show the date while the MCP is configured without a token; README and guides say FreeForm also connects with GitHub, free and without Cloud (#312)"
+      - "feat: scripts/smoke-freeform-remote.mjs runs the FreeForm flow (setup_board, import_spec, find_next_uc, start_uc, mark_ac, get_uc) against both MCP hostnames, after every MCP deploy and in /release (#309)"
+      - "fix: the project template forbids reading the credentials in ~/.specbox (root .json files, credentials/, backups/) but no longer the engine clone the SpecBox skills link to, so /app-init and /design-review read their files again (#308)"
+      - "fix: the discovery gate only acts on /prd (#313); the skill scripts work run through their link (#314); the pre-commit lint does not block on files ESLint ignores (#315); /prd and /plan inherit values written in backticks and the native backend (#316); /handoff points to the PRD and plan that exist (#317) and validates in any project (#318); the CLAUDE.md template says where the agents live (#319)"
+
   6.29.0:
     date: 2026-10-27
     codename: "Candado"

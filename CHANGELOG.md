@@ -2,6 +2,62 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.29.1] - 2026-10-27 — "Bisagra"
+
+La 6.29.0 cerró puertas; esta hace que se abran para quien debe pasar. FreeForm con el MCP alojado vuelve a
+funcionar desde `/app-init`, la extensión pide la cuenta de GitHub también en FreeForm antes de que el MCP la
+exija el 30 de octubre, las skills de SpecBox se pueden leer otra vez con la plantilla de permisos, y se
+arreglan los puntos del feedback de un usuario real de FreeForm.
+
+### Security
+
+- La plantilla de proyectos sigue prohibiendo leer las credenciales de `~/.specbox` (los `.json` de su raíz,
+  `credentials/` y `backups/`), también a través de un enlace, y editar cualquier cosa de `~/.specbox`; ya no
+  prohíbe leer el clon del engine al que enlazan las skills (#308).
+
+### Fixed
+
+- **FreeForm con el MCP alojado.** `setup_board` crea el tablero en modo contenido y devuelve `items_content`
+  en vez de fallar en el disco del servidor (#307). La sesión se abre al primer intento: el guardián de rutas
+  sabe que el MCP es remoto por la entrada `SpecBox-MCP` de Claude Code (`http` o `mcp-remote`), no solo por
+  la variable que escribe la extensión; `detect_local_root_path` responde por el transporte del servidor, y
+  `/app-init` tiene su paso para el MCP remoto (#311).
+- **Las skills de SpecBox se leen** con la plantilla de permisos de la 6.29.0 (#308).
+- **El freno de discovery** solo actúa con `/prd` (#313).
+- **Los scripts de las skills** (`verify`, `verify-flutter`, `canvas`, `flutter-rules`, `ds-artifact`)
+  funcionan ejecutados por su enlace en `~/.claude/skills` (#314).
+- **El lint previo al commit** no bloquea por ficheros que la configuración de ESLint ignora (#315).
+- **`/prd` y `/plan` heredan** los valores escritos entre backticks o en negrita y el backend `native` (#316).
+- **`/handoff`** enlaza el PRD y el plan que existen (#317) y valida el handoff en cualquier proyecto: el
+  validador viaja con la skill (#318).
+- **La plantilla de `CLAUDE.md`** dice dónde viven los agentes y nombra los 13 (#319).
+
+### Added
+
+- **La extensión pide la cuenta también en FreeForm.** Desde el 2026-10-30 el MCP alojado solo acepta
+  conexiones con cuenta. Al elegir FreeForm, la bienvenida ofrece iniciar sesión con GitHub (gratis; el board
+  sigue en el repositorio), y la vista de estado y un recordatorio diario avisan con la fecha mientras falte
+  el token. `doc/runbooks/transport-auth.md` cuenta qué ve Claude Code o `mcp-remote` sin token (#312).
+- **`scripts/smoke-freeform-remote.mjs`**: recorre el flujo FreeForm contra los dos nombres del MCP tras cada
+  despliegue y en `/release` (`doc/runbooks/mcp-smoke-freeform.md`) (#309).
+
+### Compatibility
+
+- Quien use FreeForm con el MCP alojado tiene que iniciar sesión con GitHub antes del 2026-10-30 (extensión o
+  `npx specbox login`). Con un MCP propio por `stdio` no cambia nada.
+- Un proyecto que haga `upgrade_project` recibe la plantilla de permisos nueva; `settings.local.json` no se
+  toca.
+
+### Tests
+
+- `tests/test_freeform_content_passing.py`, `tests/hooks/freeform-path-guard.test.mjs`,
+  `tests/test_freeform_path_guard.py`, `scripts/smoke-freeform-remote.test.mjs`,
+  `tests/test_template_permissions.py`, `tests/test_transport_auth.py`,
+  `tests/test_pre_prd_discovery_check_hook.py`, `tests/design-review/scripts-by-link.test.mjs`,
+  `tests/hooks/pre-commit-lint.test.mjs`, `tests/test_app_docs_content_api.py`,
+  `tests/hooks/handoff-builder.test.mjs`, `tests/hooks/handoff-validate.test.mjs`,
+  `tests/test_claude_md_agents.py`. Extensión: `account-notice.test.mjs`; 210/210.
+
 ## [6.29.0] - 2026-10-27 — "Candado"
 
 Esta versión cierra puertas: las tools de solo lectura del MCP no salen de su carpeta, el servidor remoto no

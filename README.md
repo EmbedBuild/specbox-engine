@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.29.0 — "Candado" (sobre v6.28.0 "Plural")<br/>
+  v 6.29.1 — "Bisagra" (sobre v6.29.0 "Candado")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -42,6 +42,12 @@ un proyecto deja hacer a Claude sin preguntar y lo que la extensión ejecuta:
 
 Si despliegas el engine con Docker, declara `SPECBOX_TRANSPORT_AUTH`; si quieres el autopilot sin preguntas,
 mira `doc/guides/permisos.md`.
+
+**v6.29.1 — "Bisagra"** hace que esas puertas se abran para quien debe pasar: FreeForm con el MCP alojado
+funciona desde `/app-init`, la extensión pide la cuenta de GitHub también en FreeForm antes de que el MCP la
+exija el 30 de octubre (gratis; el board sigue en tu repositorio), las skills de SpecBox se vuelven a leer con
+la plantilla de permisos, y se arreglan el freno de discovery, los scripts de las skills, el lint previo al
+commit, los valores heredados por `/prd` y `/plan` y `/handoff`.
 
 ---
 
@@ -763,7 +769,7 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.29.0 — "Candado" (over v6.28.0 "Plural")
+> v 6.29.1 — "Bisagra" (over v6.29.0 "Candado")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -793,6 +799,12 @@ what a project lets Claude do without asking and what the extension runs:
 
 If you deploy the engine with Docker, declare `SPECBOX_TRANSPORT_AUTH`; for the autopilot without questions,
 see `doc/guides/permisos.md`.
+
+**v6.29.1 — "Bisagra"** opens those doors for whoever should pass: FreeForm with the hosted MCP works from
+`/app-init`, the extension asks for the GitHub account in FreeForm too before the MCP requires it on 30 October
+(free; the board stays in your repository), the SpecBox skills can be read again under the permissions
+template, and the discovery gate, the skill scripts, the pre-commit lint, the values `/prd` and `/plan` inherit
+and `/handoff` are fixed.
 
 ## What's new in v6.28
 

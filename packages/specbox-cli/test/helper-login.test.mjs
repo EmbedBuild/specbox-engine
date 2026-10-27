@@ -1,7 +1,7 @@
 // UC-3904 AC-02/AC-03 y UC-3901 AC-03 — el ayudante que ejecuta Claude Code,
 // el flujo de `specbox login` y la configuración de Claude Code.
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -18,7 +18,7 @@ import { accountFor } from "../lib/config.mjs";
 import { deviceId, hostLabel, machineId } from "../lib/device.mjs";
 import { RUNTIME_FILES, installHelper } from "../lib/install.mjs";
 import { LoginError, deviceLogin } from "../lib/login.mjs";
-import { headersFor } from "../lib/mcp-headers.mjs";
+import { STITCH_HEADER, headersFor, stitchKeyFor } from "../lib/mcp-headers.mjs";
 import { fileStore } from "../lib/store.mjs";
 
 const MCP = "https://mcp.example/mcp";
@@ -37,7 +37,7 @@ const TOKEN_BODY = {
 
 test("sin credencial el ayudante devuelve {} (conexión sin token)", async () => {
   const store = fileStore(mkdtempSync(join(tmpdir(), "specbox-h-")));
-  assert.deepEqual(await headersFor({ env: { CLAUDE_CODE_MCP_SERVER_URL: MCP }, store }), {});
+  assert.deepEqual(await headersFor({ env: { CLAUDE_CODE_MCP_SERVER_URL: MCP }, store, cwd: tmpdir() }), {});
 });
 
 test("con credencial devuelve la cabecera del servidor que pide Claude Code", async () => {
@@ -50,6 +50,7 @@ test("con credencial devuelve la cabecera del servidor que pide Claude Code", as
     store,
     now: Date.parse("2026-10-01T00:00:00Z"),
     fetchImpl: async () => assert.fail("no toca renovar"),
+    cwd: home,
   });
   assert.deepEqual(headers, { Authorization: "Bearer spbx_a" });
 });
@@ -63,9 +64,45 @@ test("cuando toca, renueva antes de devolver la cabecera", async () => {
     store,
     now: Date.parse("2026-12-20T00:00:00Z"),
     fetchImpl: async () => ({ status: 200, json: async () => TOKEN_BODY }),
+    cwd: home,
   });
   assert.deepEqual(headers, { Authorization: "Bearer spbx_deldispositivo" });
   assert.equal(store.read(ACCOUNT).token, "spbx_deldispositivo");
+});
+
+// ── UC-11301: la clave de Stitch viaja en una cabecera ───────────────
+
+function projectWithStitchKey(key) {
+  const project = mkdtempSync(join(tmpdir(), "specbox-stitch-"));
+  mkdirSync(join(project, ".claude"));
+  writeFileSync(join(project, ".claude", "settings.local.json"), JSON.stringify({ stitch: { apiKey: key } }));
+  mkdirSync(join(project, "src", "app"), { recursive: true });
+  return project;
+}
+
+test("UC-11301: la clave de Stitch del proyecto sale en su cabecera junto al token", async () => {
+  const home = mkdtempSync(join(tmpdir(), "specbox-h-"));
+  const store = fileStore(home);
+  store.write(ACCOUNT, { token: "spbx_a", expires_at: "2027-01-01T00:00:00Z", renew_after: "2026-12-18T00:00:00Z" });
+  const project = projectWithStitchKey("clave-stitch-del-proyecto");
+  const headers = await headersFor({
+    env: { CLAUDE_CODE_MCP_SERVER_URL: MCP, SPECBOX_HOME: home },
+    store,
+    now: Date.parse("2026-10-01T00:00:00Z"),
+    cwd: join(project, "src", "app"),
+  });
+  assert.deepEqual(headers, { Authorization: "Bearer spbx_a", [STITCH_HEADER]: "clave-stitch-del-proyecto" });
+});
+
+test("UC-11301: STITCH_API_KEY manda sobre el proyecto, y sin token la cabecera de Stitch sale igual", async () => {
+  const store = fileStore(mkdtempSync(join(tmpdir(), "specbox-h-")));
+  const project = projectWithStitchKey("la-del-proyecto");
+  const headers = await headersFor({ env: { CLAUDE_CODE_MCP_SERVER_URL: MCP, STITCH_API_KEY: "la-del-entorno" }, store, cwd: project });
+  assert.deepEqual(headers, { [STITCH_HEADER]: "la-del-entorno" });
+});
+
+test("UC-11301: sin clave en el entorno ni en el proyecto no hay cabecera de Stitch", () => {
+  assert.equal(stitchKeyFor({ env: {}, cwd: mkdtempSync(join(tmpdir(), "specbox-sin-")) }), null);
 });
 
 // ── Dispositivo ───────────────────────────────────────────────────────

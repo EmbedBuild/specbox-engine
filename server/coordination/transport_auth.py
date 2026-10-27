@@ -375,7 +375,7 @@ async def _reject(send: Any, status: int, code: str, text: str, locale: str = DE
 # ── Reading the transport identity from a tool (AC-02) ──────────────
 
 
-def _current_request(ctx: Any | None) -> Any | None:
+def current_request(ctx: Any | None) -> Any | None:
     if ctx is not None:
         try:
             request = ctx.request_context.request
@@ -393,7 +393,7 @@ def _current_request(ctx: Any | None) -> Any | None:
 
 def transport_identity(ctx: Any | None = None) -> TransportIdentity | None:
     """The identity :class:`TransportAuthMiddleware` attached to this request, if any."""
-    request = _current_request(ctx)
+    request = current_request(ctx)
     if request is None:
         return None
     state = getattr(request, "scope", {}).get("state")
@@ -411,7 +411,7 @@ def transport_token(ctx: Any | None = None) -> str:
     identity = transport_identity(ctx)
     if identity is None or identity.kind != KIND_DEVELOPER:
         return ""
-    request = _current_request(ctx)
+    request = current_request(ctx)
     present, token = bearer_token(getattr(request, "headers", {}) or {})
     return token if present else ""
 

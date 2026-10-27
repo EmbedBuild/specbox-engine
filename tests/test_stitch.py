@@ -11,7 +11,7 @@ Validates:
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -298,7 +298,6 @@ class TestStitchAuthGateway:
         from server.auth_gateway import (
             store_stitch_credentials,
             get_stitch_client,
-            STITCH_STATE_PREFIX,
         )
 
         ctx = AsyncMock()
@@ -318,9 +317,10 @@ class TestStitchAuthGateway:
         client = await get_stitch_client(ctx, "my-project")
         assert client.api_key == "AIzaSy-test-key"
 
-    async def test_missing_credentials_raises(self):
+    async def test_missing_credentials_raises(self, monkeypatch):
         from server.auth_gateway import get_stitch_client
 
+        monkeypatch.delenv("STITCH_API_KEY", raising=False)  # UC-11301: a local server reads it
         ctx = AsyncMock()
         ctx.get_state = AsyncMock(return_value=None)
 
@@ -332,7 +332,6 @@ class TestStitchUsageTelemetry:
     """Verify stitch_usage.jsonl is written."""
 
     def test_usage_log_written(self, state_path: Path):
-        from server.tools.stitch import register_stitch_tools
 
         # Simulate what _log_stitch_usage does
         project = "test-project"

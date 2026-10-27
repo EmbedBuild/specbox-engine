@@ -31,6 +31,16 @@ logger = structlog.get_logger(__name__)
 # Session state key for Stitch config
 STITCH_STATE_KEY = "stitch_config"
 
+# UC-11301 AC-03 — what every stitch_set_api_key answer says about the new path.
+STITCH_KEY_DEPRECATION = (
+    "stitch_set_api_key is deprecated: passing the key in a tool call leaves it in the "
+    "conversation transcript. Put it in `stitch.apiKey` of the project's "
+    ".claude/settings.local.json (or export STITCH_API_KEY) and reconnect the SpecBox "
+    "MCP: the headers helper sends it as X-Stitch-Api-Key with every request, like the "
+    "board token, and the Stitch tools work without this call. If the helper is missing "
+    "or outdated, update the SpecBox extension or run `npx specbox@latest login`."
+)
+
 
 def register_stitch_tools(mcp: FastMCP, state_path: Path):
     """Register Stitch proxy tools on the MCP instance."""
@@ -64,21 +74,23 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
         project: str,
         api_key: str,
     ) -> dict:
-        """Configure or update the Google Stitch API Key for a project.
+        """DEPRECATED (UC-11301): do not call it — the key would go through the conversation.
 
-        Use when a user wants to set up Stitch design generation for their project.
-        The API Key is kept only in this MCP session: the server never writes it
-        to disk, so the client sends it again in each new session.
+        The SpecBox headers helper already sends the Stitch key with every request
+        (`X-Stitch-Api-Key`, read from `stitch.apiKey` in the project's
+        .claude/settings.local.json or from STITCH_API_KEY), so the Stitch tools
+        work without this call. It remains only for clients without the helper:
+        it keeps the key in this MCP session, never on the server's disk.
 
         Args:
             project: Project slug (as registered in SpecBox Engine).
             api_key: Google Stitch API Key.
 
         Returns:
-            Confirmation with project and obfuscated key.
+            Confirmation with project, obfuscated key and the deprecation notice.
         """
         if not api_key or len(api_key) < 8:
-            return {"error": "Invalid API key — must be at least 8 characters."}
+            return {"error": "Invalid API key — must be at least 8 characters.", "deprecation": STITCH_KEY_DEPRECATION}
 
         await store_stitch_credentials(ctx, project, api_key)
 
@@ -92,6 +104,7 @@ def register_stitch_tools(mcp: FastMCP, state_path: Path):
                 f"Stitch API Key configured for project '{project}' in this session. "
                 "It is not stored on the server: send it again in a new session."
             ),
+            "deprecation": STITCH_KEY_DEPRECATION,
         }
 
     async def _get_client_for_project(ctx: Context, project: str):

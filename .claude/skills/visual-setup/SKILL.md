@@ -797,28 +797,29 @@ Si `veg.providers` incluye `"claude_design"`:
 
 ### 3.1 Verificar API Key de Stitch
 
-```
-¿Hay API Key de Stitch configurada?
-├── stitch_set_api_key ya ejecutado → Continuar
-├── stitch.apiKey en settings.local.json → Usar esa
-└── No hay key → Preguntar al usuario:
-    "Necesito tu API Key de Google Stitch para crear el proyecto y design system.
-     Puedes obtenerla en: https://stitch.withgoogle.com/settings
-     Introduce tu API Key:"
+La clave **no pasa por la conversación** (UC-11301): el ayudante de cabeceras de SpecBox la
+envía en cada petición al MCP (`X-Stitch-Api-Key`), como el token del board. No leas su valor ni
+lo pases a una tool; comprueba solo que existe, sin imprimirlo:
+
+```bash
+node -e 'const s=require("./.claude/settings.local.json");console.log(Boolean(s.stitch?.apiKey))'
 ```
 
-Configurarla via MCP, con el mismo `project` (el slug) que usarán las demás tools de Stitch:
-
 ```
-mcp__SpecBox-MCP__stitch_set_api_key(
-  project="{project}",
-  api_key="{api_key}"
-)
+¿Hay API Key de Stitch?
+├── true, o STITCH_API_KEY exportada → Continuar
+└── false → Pedir a la persona que la ponga ella:
+    "Necesito tu API Key de Google Stitch (https://stitch.withgoogle.com/settings).
+     No la pegues aquí: guárdala en `stitch.apiKey` de .claude/settings.local.json
+     (o exporta STITCH_API_KEY) y reconecta el MCP con /mcp."
 ```
 
-El servidor guarda la clave solo en la sesión y no la escribe en disco (UC-8601): en cada
-sesión nueva hay que volver a llamar a `stitch_set_api_key`, con `stitch.apiKey` de
-`settings.local.json`.
+Si una tool `stitch_*` responde «not configured», el ayudante instalado está desactualizado: actualizar
+la extensión SpecBox (o `npx specbox@latest login`) y reconectar con `/mcp`.
+
+`stitch_set_api_key` está **obsoleta**: solo para un cliente sin ayudante (el conector de
+claude.ai), avisando de que la clave quedará en la conversación. El servidor nunca escribe la
+clave en disco (UC-8601).
 
 ### 3.2 Crear proyecto en Stitch
 

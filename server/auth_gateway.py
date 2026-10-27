@@ -24,6 +24,8 @@ Service proxies:
 from __future__ import annotations
 
 import contextvars
+import os
+from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 from fastmcp import Context
@@ -40,6 +42,9 @@ AUTH_STATE_KEY = "trello_credentials"
 BACKEND_STATE_KEY = "spec_backend_config"
 # Stitch credentials keyed per project: stitch_config_{project}
 STITCH_STATE_PREFIX = "stitch_config_"
+# UC-11301 — the client's headers helper sends the Stitch key in this header on
+# every request, like the board token, so the key never enters the conversation.
+STITCH_KEY_HEADER = "x-stitch-api-key"
 
 # UC-3801 — a FreeForm session on a remote server never has a directory: it
 # only exists in content-passing mode. The error code is stable so clients and
@@ -362,20 +367,40 @@ async def store_stitch_credentials(ctx: Context, project: str, api_key: str) -> 
     await ctx.set_state(state_key, {"api_key": api_key, "project": project})
 
 
-async def get_stitch_client(ctx: Context, project: str) -> "StitchClient":
-    """Create a StitchClient from session-stored Stitch credentials.
+def _stitch_key_from_request(ctx: Context) -> str:
+    """The Stitch key the client sent in this request's headers, or ``""``."""
+    from .coordination.transport_auth import current_request
 
-    Raises RuntimeError if this session has no Stitch key for the project.
-    The key is never read from disk (UC-8601).
+    headers = getattr(current_request(ctx), "headers", None)
+    if not isinstance(headers, Mapping):  # stdio, or no request in this call
+        return ""
+    value = headers.get(STITCH_KEY_HEADER)
+    return value.strip() if isinstance(value, str) else ""
+
+
+async def get_stitch_client(ctx: Context, project: str) -> "StitchClient":
+    """Create a StitchClient with the Stitch key of this caller.
+
+    The key comes, in this order, from the session (``stitch_set_api_key``,
+    deprecated), from the ``X-Stitch-Api-Key`` header the client's headers
+    helper sends on every request (UC-11301, so the key never goes through the
+    conversation) or, on a local server only, from ``STITCH_API_KEY`` in the
+    server's environment. It is never read from disk (UC-8601).
+
+    Raises RuntimeError when none of them has a key.
     """
-    state_key = f"{STITCH_STATE_PREFIX}{project}"
-    config = await ctx.get_state(state_key)
-    if not config:
+    config = await ctx.get_state(f"{STITCH_STATE_PREFIX}{project}")
+    api_key = (config or {}).get("api_key") or _stitch_key_from_request(ctx)
+    if not api_key and not is_remote_transport():
+        api_key = os.environ.get("STITCH_API_KEY", "").strip()
+    if not api_key:
         raise RuntimeError(
-            f"Stitch API Key not configured for project '{project}' in this session. "
-            "Call stitch_set_api_key(project, api_key) first: the server keeps the key "
-            "only for the session."
+            f"Stitch API Key not configured for project '{project}'. Put it in "
+            "`stitch.apiKey` of the project's .claude/settings.local.json (or export "
+            "STITCH_API_KEY) and reconnect the SpecBox MCP: the headers helper sends it "
+            "with every request, so it never goes through the conversation. Without the "
+            "helper, update the SpecBox extension or run `npx specbox@latest login`."
         )
     from .stitch_client import StitchClient
 
-    return StitchClient(api_key=config["api_key"])
+    return StitchClient(api_key=api_key)

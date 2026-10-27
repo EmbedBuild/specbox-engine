@@ -50,6 +50,8 @@ export interface StatusResult extends CredentialMeta {
 	connected: boolean;
 	store: string;
 	claude_helper: boolean;
+	/** UC-11301: the helper in ~/.specbox/bin is this CLI's version (absent with an older CLI). */
+	helper_current?: boolean;
 }
 
 export interface ConnectResult extends CredentialMeta {

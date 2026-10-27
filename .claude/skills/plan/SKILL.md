@@ -752,10 +752,17 @@ legado `inline_prefix_v1`, pasar `design_md_content` en cada
 1. Buscar `stitch.projectId` en `.claude/settings.local.json` del proyecto
 2. Si no existe, buscar en `~/.claude/settings.local.json` (global)
 3. Si no se encuentra → preguntar al usuario o usar `mcp__stitch__list_projects`
-4. Antes de la primera tool `mcp__SpecBox-MCP__stitch_*` de la sesión, llamar a
-   `mcp__SpecBox-MCP__stitch_set_api_key(project, api_key)` con `stitch.apiKey` de esos
-   mismos settings (o preguntar la clave). El servidor la guarda solo en la sesión y no la
-   recupera de disco (UC-8601): sin ella responde «not configured … in this session».
+4. **La clave no pasa por la conversación (UC-11301).** El ayudante de cabeceras de SpecBox la
+   envía en cada petición al MCP (`X-Stitch-Api-Key`), como el token del board, desde
+   `stitch.apiKey` del `.claude/settings.local.json` del proyecto o desde `STITCH_API_KEY`. No
+   leas su valor ni lo pases a una tool: comprueba solo que existe, sin imprimirlo,
+   `node -e 'const s=require("./.claude/settings.local.json");console.log(Boolean(s.stitch?.apiKey))'`.
+   - Si no existe, pide a la persona que la ponga ella en `stitch.apiKey` (o que exporte
+     `STITCH_API_KEY`) y reconecte el MCP con `/mcp`; que no la pegue en el chat.
+   - Si una tool `stitch_*` responde «not configured», el ayudante instalado está desactualizado:
+     actualizar la extensión SpecBox (o `npx specbox@latest login`) y reconectar con `/mcp`.
+   - `stitch_set_api_key` está obsoleta: solo para un cliente sin ayudante (el conector de
+     claude.ai) y avisando de que la clave quedará en la conversación.
 
 **Configuración en settings:**
 ```json

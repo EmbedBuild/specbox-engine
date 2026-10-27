@@ -682,9 +682,10 @@ ls doc/design/{feature}/*.html 2>/dev/null
 
 ### 3.2 Detectar configuracion Stitch
 
-Igual que `/plan` 6.0: `stitch.projectId` en `.claude/settings.local.json` (o en el global) y,
-antes de la primera tool `stitch_*` de la sesión, `stitch_set_api_key` con la clave de esos mismos
-settings. Si no hay proyecto, `/plan` 6.0a (Stitch Config Gate): preguntar, nunca inventarlo.
+Igual que `/plan` 6.0: `stitch.projectId` en `.claude/settings.local.json` (o en el global). La
+clave la envía el ayudante de cabeceras en cada petición (UC-11301): comprobar que `stitch.apiKey`
+existe sin leer su valor y no llamar a `stitch_set_api_key` (obsoleta). Si no hay proyecto,
+`/plan` 6.0a (Stitch Config Gate): preguntar, nunca inventarlo.
 
 ### 3.3 Generar pantallas faltantes (misma cadena que `/plan`, US-91 · UC-9103)
 

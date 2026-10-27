@@ -810,7 +810,9 @@ Los enums se mantienen en `server/stitch_enums.py` y se pinnean en CI contra `mc
 
 ### Almacenamiento de API Key
 
-- **Sesión**: Credenciales en FastMCP session state (aisladas por cliente). Es el único sitio: desde UC-8601 (US-86) el servidor no escribe la clave en `meta.json` ni la lee de disco, así que el cliente la vuelve a enviar con `stitch_set_api_key` en cada sesión (la tiene en `stitch.apiKey` de su `settings.local.json`). Tests: `tests/test_stitch_key_session_only.py`.
+- **Cabecera (UC-11301, US-113)**: el ayudante de cabeceras (`packages/specbox-cli/lib/mcp-headers.mjs`) envía la clave en `X-Stitch-Api-Key` con cada petición al MCP, como el token del board; la lee de `STITCH_API_KEY` o de `stitch.apiKey` del `.claude/settings.local.json` más cercano. La clave no pasa por la conversación. `_status` de la CLI dice si el ayudante instalado es el de su versión (`helper_current`) y la extensión lo reinstala si no.
+- **Resolución** (`auth_gateway.get_stitch_client`): primero la sesión, luego la cabecera y, solo con un servidor local, `STITCH_API_KEY` de su entorno (el del MCP alojado no es la clave de nadie). El servidor nunca escribe la clave en `meta.json` ni la lee de disco (UC-8601, US-86).
+- **`stitch_set_api_key` está obsoleta**: guarda la clave en la sesión y responde con un campo `deprecation` que explica el camino de la cabecera; queda para clientes sin ayudante (el conector de claude.ai). Tests: `tests/test_stitch_key_session_only.py`.
 - **Telemetría**: Uso registrado en `stitch_usage.jsonl` por proyecto.
 
 ### Cuota — sin cuota

@@ -4,6 +4,29 @@ Cómo se registra un hook de SpecBox, qué recibe, cómo se escribe su condició
 que haga lo que promete. Todo lo marcado como comprobado se probó en sesiones reales de Claude Code
 2.1.288 (UC-9301; material en `doc/research/hooks-que-no-saltaban/`).
 
+## Cómo se actualizan en un proyecto
+
+Un proyecto ejecuta su copia de los hooks (`node .claude/hooks/<hook>.mjs`). El paquete `specbox` de
+npm, y la extensión, que lo lleva dentro, traen los hooks publicados con la huella sha256 de cada
+fichero (`hooks-manifest.json`) y las huellas de todas las versiones publicadas desde la 6.20.0
+(`hooks-history.json`). El proyecto guarda en `.claude/hooks/.specbox-hooks.json` qué versión instaló
+(UC-11201).
+
+`npx specbox hooks status` (o «SpecBox: Update Project Hooks» en VS Code) clasifica cada fichero:
+
+| Estado | Cuándo | Qué hace `npx specbox hooks update` |
+|---|---|---|
+| al día | igual que el publicado | nada |
+| se actualiza | su huella es de una versión publicada o de lo que se instaló | lo sustituye |
+| **retocado** | su huella no es de ninguna versión publicada | **no lo toca**: deja la versión nueva al lado como `<hook>.mjs.new`; `--overwrite <hook>` lo sustituye |
+| falta | no está en el proyecto | lo instala |
+| ya no se publica | lo instaló una versión anterior | lo lista y no lo borra |
+
+En `.claude/settings.json` solo añade los registros de la plantilla que no estén (en el grupo con el
+mismo `matcher`, o en uno nuevo) y deja una copia en `.claude/settings.json.bak`. Pruebas:
+`packages/specbox-cli/test/hooks.test.mjs`. El empaquetado (`packages/specbox-cli/scripts/pack-hooks.mjs`)
+lo ejecutan `npm pack` (prepack) y la extensión al copiar la CLI.
+
 ## Dónde se registra
 
 En `.claude/settings.json` del engine y en `templates/settings.json.template`, que es lo que reciben

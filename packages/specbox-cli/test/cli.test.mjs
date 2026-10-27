@@ -59,8 +59,14 @@ test("parseArgs entiende la orden y las opciones", () => {
     server: "https://s/mcp",
     cloud: null,
     browser: false,
+    args: [],
+    project: null,
+    overwrite: [],
   });
   assert.equal(parseArgs(["--version"]).command, "version");
+  // UC-11201: hooks <acción> con su proyecto y los retocados que se sustituyen.
+  const hooks = parseArgs(["hooks", "update", "--project", "/p", "--overwrite", "a,b", "--overwrite", "c"]);
+  assert.deepEqual([hooks.command, hooks.args, hooks.project, hooks.overwrite], ["hooks", ["update"], "/p", ["a", "b", "c"]]);
 });
 
 test("login: enseña el enlace y el código, abre el navegador, guarda el token y configura Claude Code", async () => {

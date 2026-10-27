@@ -6,7 +6,7 @@
 // generated (see .gitignore): edit packages/specbox-cli, never specbox-cli/.
 import { cpSync, existsSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const source = join(here, '..', 'packages', 'specbox-cli');
@@ -20,4 +20,8 @@ rmSync(target, { recursive: true, force: true });
 for (const entry of ['bin', 'lib', 'package.json', 'README.md']) {
 	cpSync(join(source, entry), join(target, entry), { recursive: true });
 }
-console.log(`copy-cli: bundled ${source} → ${target}`);
+// UC-11201: the project hooks the extension installs with "Update project hooks",
+// with their published fingerprints (same packer as `npm pack`).
+const { packHooks } = await import(pathToFileURL(join(source, 'scripts', 'pack-hooks.mjs')).href);
+const packed = packHooks(join(target, 'hooks'));
+console.log(`copy-cli: bundled ${source} → ${target} (${packed.files} hooks)`);

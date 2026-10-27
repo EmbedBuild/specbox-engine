@@ -125,6 +125,12 @@
         "category": "SpecBox"
       },
       {
+        "command": "specbox.updateProjectHooks",
+        "title": "%command.updateProjectHooks.title%",
+        "category": "SpecBox",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
         "command": "specbox.revertMigration",
         "title": "%command.revertMigration.title%",
         "category": "SpecBox"

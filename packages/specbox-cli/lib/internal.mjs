@@ -18,11 +18,14 @@
  *                pegado en otros sitios) y lo conecta como `_connect`
  *   _renew       renueva si toca y devuelve el token vigente (para la extensión)
  *   _disconnect  /devices/logout y borra la credencial local
+ *   _hooks_status  {project_root} → el estado de cada hook frente a los publicados (UC-11201)
+ *   _hooks_update  {project_root, overwrite} → actualiza sin pisar los retocados
  */
 import { createHash } from "node:crypto";
 import { claudeUsesHelper, configureClaudeCode, helperCommand, stableNodePath } from "./claude.mjs";
 import { CLIENT } from "./config.mjs";
 import { deviceId, hostLabel } from "./device.mjs";
+import { hooksStatus, loadPackaged, updateHooks } from "./hooks.mjs";
 import { installHelper, installedHelperVersion, packageVersion } from "./install.mjs";
 import { credentialFromResponse, renewCredential, renewDue } from "./renew.mjs";
 
@@ -184,6 +187,23 @@ export async function runInternal(command, ctx) {
       }
       store.remove(account);
       out({ ok: true, remote, had_credential: Boolean(credential?.token) });
+      return 0;
+    }
+
+    case "_hooks_status":
+    case "_hooks_update": {
+      const { project_root: projectRoot, overwrite = [] } = await readInput();
+      const packaged = (deps.loadPackaged ?? loadPackaged)();
+      if (!projectRoot || !packaged) {
+        out({ ok: false, reason: projectRoot ? "not_packaged" : "missing_project_root" });
+        return 1;
+      }
+      const status = hooksStatus({ projectRoot, packaged });
+      if (command === "_hooks_status") {
+        out({ ok: true, ...status });
+        return 0;
+      }
+      out({ ok: true, ...updateHooks({ projectRoot, packaged, overwrite }) });
       return 0;
     }
 

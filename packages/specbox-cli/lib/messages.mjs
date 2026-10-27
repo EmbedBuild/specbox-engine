@@ -28,11 +28,14 @@ export function messages(lang) {
           "  login    conecta este ordenador a SpecBox con tu cuenta de GitHub",
           "  status   enseña con qué cuenta y dispositivo estás conectado",
           "  logout   desconecta este ordenador",
+          "  hooks [status|update]   compara los hooks del proyecto con los publicados y los",
+          "           actualiza sin pisar los que cambiaste (--overwrite <hook> para sustituirlo)",
           "",
           "Opciones:",
           "  --server <url>   servidor MCP (por defecto el de SpecBox)",
           "  --cloud <url>    API del panel",
           "  --no-browser     no abrir el navegador",
+          "  --project <dir>  proyecto de hooks (por defecto, el repositorio actual)",
           "  --version, --help",
         ].join("\n")
       : [
@@ -42,11 +45,14 @@ export function messages(lang) {
           "  login    connect this computer to SpecBox with your GitHub account",
           "  status   show which account and device you are connected with",
           "  logout   disconnect this computer",
+          "  hooks [status|update]   compare the project's hooks with the published ones and",
+          "           update them without overwriting the ones you changed (--overwrite <hook>)",
           "",
           "Options:",
           "  --server <url>   MCP server (SpecBox's by default)",
           "  --cloud <url>    panel API",
           "  --no-browser     do not open the browser",
+          "  --project <dir>  project for hooks (default: the current repository)",
           "  --version, --help",
         ].join("\n"),
     loginTitle: es ? "SpecBox · conectar este ordenador" : "SpecBox · connect this computer",
@@ -118,6 +124,41 @@ export function messages(lang) {
             `  Claude Code:  ${helper ? "uses the helper ✓" : "not configured ✗ → run specbox login"}`,
           ]
       ).join("\n");
+    },
+    hooksNotPackaged: es
+      ? "Este specbox no trae hooks empaquetados (¿se ejecuta desde el repositorio?). Usa npx specbox@latest hooks."
+      : "This specbox carries no packaged hooks (running from the repository?). Use npx specbox@latest hooks.",
+    hooksStatus: (status, root) => {
+      const label = es
+        ? { current: "al día", updatable: "se actualiza", modified: "retocado: no se toca", missing: "falta: se instala", retired: "ya no se publica: no se borra" }
+        : { current: "up to date", updatable: "will be updated", modified: "changed locally: left as is", missing: "missing: will be installed", retired: "no longer published: not deleted" };
+      const lines = [
+        es
+          ? `Hooks de ${root} frente a SpecBox ${status.version} (instalados: ${status.installed_version ?? "sin registro"})`
+          : `Hooks of ${root} against SpecBox ${status.version} (installed: ${status.installed_version ?? "no record"})`,
+      ];
+      const differ = status.hooks.filter((h) => h.state !== "current");
+      for (const h of differ) lines.push(`  ${h.path.padEnd(36)} ${label[h.state]}`);
+      if (status.settings_missing.length) {
+        lines.push(es ? `  .claude/settings.json: faltan ${status.settings_missing.length} registros de hooks (se añaden)` : `  .claude/settings.json: ${status.settings_missing.length} hook registrations missing (will be added)`);
+      }
+      if (!status.differs) lines.push(es ? "  Todo al día." : "  Everything is up to date.");
+      else lines.push(es ? `  ${status.hooks.length - differ.length} hooks al día.` : `  ${status.hooks.length - differ.length} hooks up to date.`);
+      return lines.join("\n");
+    },
+    hooksUpdated: (r) => {
+      const lines = [es ? `✓ Hooks actualizados a ${r.version}: ${r.written.length} escritos.` : `✓ Hooks updated to ${r.version}: ${r.written.length} written.`];
+      for (const k of r.kept) {
+        lines.push(
+          es
+            ? `  ${k.path}: lo cambiaste tú; la versión nueva está en ${k.new}. Compáralas y quédate con la tuya o pasa a la nueva con --overwrite ${k.path.replace(/\.mjs$/, "")}.`
+            : `  ${k.path}: you changed it; the new version is in ${k.new}. Compare them and keep yours or switch with --overwrite ${k.path.replace(/\.mjs$/, "")}.`,
+        );
+      }
+      if (r.settings_added) {
+        lines.push(es ? `  .claude/settings.json: ${r.settings_added} registros añadidos (copia en ${r.settings_backup ?? "—"}).` : `  .claude/settings.json: ${r.settings_added} registrations added (copy in ${r.settings_backup ?? "—"}).`);
+      }
+      return lines.join("\n");
     },
     loggedOut: (name, remote) =>
       es

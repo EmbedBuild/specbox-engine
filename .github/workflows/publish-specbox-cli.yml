@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
-          fetch-depth: 1
+          fetch-depth: 0  # UC-11201: hooks-history.json lee las etiquetas publicadas
 
       - name: Set up Node.js 22 LTS
         uses: actions/setup-node@v4
@@ -69,7 +69,7 @@ jobs:
       - name: Tests of the publish-and-wait script
         run: bash scripts/tests/test-npm-publish-and-wait.sh
 
-      - name: The package ships only bin, lib and README
+      - name: The package ships only bin, lib, hooks and README
         working-directory: packages/specbox-cli
         run: |
           npm pack --dry-run --json > pack.json
@@ -79,7 +79,8 @@ jobs:
             const pkg = Array.isArray(out) ? out[0] : (out.files ? out : Object.values(out)[0]);
             const files = (pkg.files || []).map(f => f.path);
             if (!files.length) { console.error('npm pack no devolvió ficheros:', JSON.stringify(out).slice(0, 300)); process.exit(1); }
-            const bad = files.filter(p => !/^(bin|lib)\//.test(p) && !['README.md', 'package.json'].includes(p));
+            const bad = files.filter(p => !/^(bin|lib|hooks)\//.test(p) && !['README.md', 'package.json'].includes(p));
+            if (!files.includes('hooks/hooks-manifest.json')) { console.error('Falta hooks/hooks-manifest.json (prepack)'); process.exit(1); }
             if (bad.length) { console.error('Ficheros inesperados en el paquete:', bad); process.exit(1); }
             console.log(files.join('\n'));
           "

@@ -9,11 +9,13 @@ on:
   pull_request:
     paths:
       - 'scripts/check-mcp-hosts*.mjs'
+      - 'scripts/smoke-freeform-remote*.mjs'
       - '.github/workflows/mcp-hosts.yml'
   push:
     branches: [main]
     paths:
       - 'scripts/check-mcp-hosts*.mjs'
+      - 'scripts/smoke-freeform-remote*.mjs'
   schedule:
     - cron: '30 7 * * 1'
   workflow_dispatch:
@@ -33,6 +35,11 @@ jobs:
 
       - name: Pruebas del comprobador
         run: node --test scripts/check-mcp-hosts.test.mjs
+
+      # UC-11012: el recorrido FreeForm en vivo va con el token de dispositivo, en local
+      # (doc/runbooks/mcp-smoke-freeform.md); aquí solo sus pruebas, sin red.
+      - name: Pruebas de la prueba de humo de FreeForm
+        run: node --test scripts/smoke-freeform-remote.test.mjs
 
       - name: Comparar los dos nombres en vivo
         run: node scripts/check-mcp-hosts.mjs

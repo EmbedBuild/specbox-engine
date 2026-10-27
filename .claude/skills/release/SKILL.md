@@ -567,10 +567,21 @@ node scripts/check-mcp-hosts.mjs --with-device-token
 
 Exige en los dos nombres: misma versión, token inválido rechazado (401), la misma respuesta sin
 token (200 en la gracia de UC-3901, 401 después) y sesión abierta con token. Si falla, revisar
-los dominios del servicio `mcp-specbox-engine` en EasyPanel. Reflejar en el reporte final:
+los dominios del servicio `mcp-specbox-engine` en EasyPanel.
+
+Después, el flujo FreeForm con el MCP remoto (UC-11012, `doc/runbooks/mcp-smoke-freeform.md`):
+
+```bash
+node scripts/smoke-freeform-remote.mjs --with-device-token
+```
+
+Recorre `setup_board`, `import_spec`, `find_next_uc`, `start_uc`, `mark_ac` y `get_uc` en los dos
+nombres y sale con 1 si una tool falla. Un fallo aquí es un fallo de la release: un usuario de
+FreeForm no podría trabajar. Reflejar en el reporte final:
 
 ```
 - MCP en los dos nombres: {OK | FALLO — salida de check-mcp-hosts}
+- FreeForm en el MCP: {OK | FALLO — tool y error de smoke-freeform-remote}
 ```
 
 ---

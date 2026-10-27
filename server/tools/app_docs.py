@@ -22,6 +22,7 @@ content-passing variants.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -198,6 +199,20 @@ def get_inheritable_values_from_content(
     return _project_inheritable(docs)
 
 
+BACKEND_TYPES = ("freeform", "trello", "plane", "native")
+AUTOPILOT_LEVELS = ("low", "conservador", "equilibrado", "agresivo")
+
+
+def _field_value(line: str, label: str) -> str:
+    """The value after ``label`` in a line such as ``- **Tipo:** `native` (Postgres…)``.
+
+    UC-11005: without the markdown around it (bold, list dash, backticks) and up to the first
+    space, ``|``, ``(`` or comma, so a value in backticks or followed by a comment is read too.
+    """
+    raw = line.split(label, 1)[-1].replace("`", "").strip(" *-\t")
+    return re.split(r"[\s|(,]", raw, maxsplit=1)[0].strip(" *-.:") if raw else ""
+
+
 def _project_inheritable(docs: dict[str, Any]) -> dict[str, Any]:
     """Shared projection from a `read_app_docs` result to the flat
     inheritable-values dict. Used by both Path-based and content-based
@@ -248,8 +263,8 @@ def _project_inheritable(docs: dict[str, Any]) -> dict[str, Any]:
         backend_body = zones.get("tracking_backend", {}).get("body", "")
         for line in backend_body.splitlines():
             if "Tipo:" in line:
-                value = line.split("Tipo:")[-1].strip(" *-")
-                if value in ("freeform", "trello", "plane"):
+                value = _field_value(line, "Tipo:")
+                if value in BACKEND_TYPES:
                     out["backend_type"] = value
             if "Path absoluto" in line and "/" in line:
                 tail = line.split(":", 1)[-1].strip(" `*")
@@ -258,11 +273,11 @@ def _project_inheritable(docs: dict[str, Any]) -> dict[str, Any]:
         autopilot_body = zones.get("autopilot", {}).get("body", "")
         for line in autopilot_body.splitlines():
             if "Level:" in line:
-                value = line.split("Level:")[-1].strip(" *-")
-                if value in ("low", "conservador", "equilibrado", "agresivo"):
+                value = _field_value(line, "Level:")
+                if value in AUTOPILOT_LEVELS:
                     out["autopilot_level"] = value
             if "Image budget" in line:
-                tail = line.split(":")[-1].strip(" €*-")
+                tail = line.split(":")[-1].replace("`", "").strip(" €*-")
                 try:
                     out["image_budget_eur_per_feature"] = float(tail.split()[0])
                 except (ValueError, IndexError):

@@ -217,3 +217,50 @@ class TestGetInheritableValuesContentAPI:
         # Spec-derived fields remain default
         assert out["stack_known"] is False
         assert out["backend_type"] is None
+
+
+# ─── UC-11005: values in backticks, bold or with a comment; the 4 backends ───
+
+
+def _spec_with(tipo_line: str, level_line: str = "- Level: equilibrado") -> str:
+    return VALID_SPEC.replace("- Tipo: freeform", tipo_line).replace("- Level: equilibrado", level_line)
+
+
+class TestInheritableValuesAsWritten:
+    @pytest.mark.parametrize("backend", ["freeform", "trello", "plane", "native"])
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "- Tipo: {b}",
+            "- **Tipo:** {b}",
+            "- **Tipo:** `{b}`",
+            "- **Tipo:** `{b}` (comentario con `código` dentro)",
+        ],
+    )
+    def test_every_backend_in_every_way_it_is_written(self, app_docs_tools, backend, line):
+        out = app_docs_tools["get_inheritable_values_tool"](
+            app_prd_content=VALID_PRD, app_spec_content=_spec_with(line.format(b=backend))
+        )
+        assert out["backend_type"] == backend
+
+    @pytest.mark.parametrize("line", ["- Level: agresivo", "- **Level:** agresivo", "- **Level:** `agresivo`"])
+    def test_autopilot_level_without_markdown(self, app_docs_tools, line):
+        out = app_docs_tools["get_inheritable_values_tool"](
+            app_prd_content=VALID_PRD, app_spec_content=_spec_with("- Tipo: freeform", line)
+        )
+        assert out["autopilot_level"] == "agresivo"
+
+    def test_the_manager_documents_as_they_are_written(self, app_docs_tools):
+        """The lines of doc/app/app_spec.md of EmbedBuild/specbox-manager that returned nothing."""
+        spec = _spec_with(
+            "- **Tipo:** `native` (Postgres gestionado en Supabase, proyecto `SpecBox-Cloud`)",
+            "- **Level:** `agresivo`",
+        ).replace("- Image budget: 5.0 €", "- **Image budget €/feature:** `5`")
+        out = app_docs_tools["get_inheritable_values_tool"](app_prd_content=VALID_PRD, app_spec_content=spec)
+        assert (out["backend_type"], out["autopilot_level"], out["image_budget_eur_per_feature"]) == ("native", "agresivo", 5.0)
+
+    def test_an_unknown_value_in_backticks_is_still_ignored(self, app_docs_tools):
+        out = app_docs_tools["get_inheritable_values_tool"](
+            app_prd_content=VALID_PRD, app_spec_content=_spec_with("- **Tipo:** `jira`", "- **Level:** `turbo`")
+        )
+        assert out["backend_type"] is None and out["autopilot_level"] is None

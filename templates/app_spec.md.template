@@ -17,7 +17,7 @@
 <!-- @specbox:zone start kind="auto" id="tracking_backend" auto_sync_on="set_auth_token" -->
 ## 2. Tracking backend
 
-- **Tipo:** {freeform | trello | plane}
+- **Tipo:** {freeform | trello | plane | native}
 - **Path absoluto** (si freeform): {auto-rellenado por /app-init}
 - **Reporting externo:** {sí — board id "..." | no}
 

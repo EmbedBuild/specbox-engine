@@ -13,33 +13,39 @@ arreglan los puntos del feedback de un usuario real de FreeForm.
 
 - La plantilla de proyectos sigue prohibiendo leer las credenciales de `~/.specbox` (los `.json` de su raíz,
   `credentials/` y `backups/`), también a través de un enlace, y editar cualquier cosa de `~/.specbox`; ya no
-  prohíbe leer el clon del engine al que enlazan las skills (#308).
+  prohíbe leer el clon del engine al que enlazan las skills (#308, UC-11009).
 
 ### Fixed
 
 - **FreeForm con el MCP alojado.** `setup_board` crea el tablero en modo contenido y devuelve `items_content`
-  en vez de fallar en el disco del servidor (#307). La sesión se abre al primer intento: el guardián de rutas
-  sabe que el MCP es remoto por la entrada `SpecBox-MCP` de Claude Code (`http` o `mcp-remote`), no solo por
-  la variable que escribe la extensión; `detect_local_root_path` responde por el transporte del servidor, y
-  `/app-init` tiene su paso para el MCP remoto (#311).
-- **Las skills de SpecBox se leen** con la plantilla de permisos de la 6.29.0 (#308).
-- **El freno de discovery** solo actúa con `/prd` (#313).
+  en vez de fallar en el disco del servidor (#307, UC-11004). La sesión se abre al primer intento: el guardián
+  de rutas sabe que el MCP es remoto por la entrada `SpecBox-MCP` de Claude Code (`http` o `mcp-remote`), no
+  solo por la variable que escribe la extensión; `detect_local_root_path` responde por el transporte del
+  servidor, y `/app-init` tiene su paso para el MCP remoto (#311, UC-11101).
+- **Las skills de SpecBox se leen** con la plantilla de permisos de la 6.29.0 (#308, UC-11009).
+- **El freno de discovery** solo actúa con `/prd` (#313, UC-11001).
 - **Los scripts de las skills** (`verify`, `verify-flutter`, `canvas`, `flutter-rules`, `ds-artifact`)
-  funcionan ejecutados por su enlace en `~/.claude/skills` (#314).
-- **El lint previo al commit** no bloquea por ficheros que la configuración de ESLint ignora (#315).
-- **`/prd` y `/plan` heredan** los valores escritos entre backticks o en negrita y el backend `native` (#316).
-- **`/handoff`** enlaza el PRD y el plan que existen (#317) y valida el handoff en cualquier proyecto: el
-  validador viaja con la skill (#318).
-- **La plantilla de `CLAUDE.md`** dice dónde viven los agentes y nombra los 13 (#319).
+  funcionan ejecutados por su enlace en `~/.claude/skills` (#314, UC-11002).
+- **El lint previo al commit** no bloquea por ficheros que la configuración de ESLint ignora (#315,
+  UC-11003).
+- **`/prd` y `/plan` heredan** los valores escritos entre backticks o en negrita y el backend `native` (#316,
+  UC-11005).
+- **`/handoff`** enlaza el PRD y el plan que existen (#317, UC-11006) y valida el handoff en cualquier
+  proyecto: el validador viaja con la skill (#318, UC-11007).
+- **La plantilla de `CLAUDE.md`** dice dónde viven los agentes y nombra los 13 (#319, UC-11008).
 
 ### Added
 
 - **La extensión pide la cuenta también en FreeForm.** Desde el 2026-10-30 el MCP alojado solo acepta
   conexiones con cuenta. Al elegir FreeForm, la bienvenida ofrece iniciar sesión con GitHub (gratis; el board
   sigue en el repositorio), y la vista de estado y un recordatorio diario avisan con la fecha mientras falte
-  el token. `doc/runbooks/transport-auth.md` cuenta qué ve Claude Code o `mcp-remote` sin token (#312).
+  el token. `doc/runbooks/transport-auth.md` cuenta qué ve Claude Code o `mcp-remote` sin token (#312,
+  UC-11013).
 - **`scripts/smoke-freeform-remote.mjs`**: recorre el flujo FreeForm contra los dos nombres del MCP tras cada
-  despliegue y en `/release` (`doc/runbooks/mcp-smoke-freeform.md`) (#309).
+  despliegue y en `/release` (`doc/runbooks/mcp-smoke-freeform.md`) (#309, UC-11012).
+
+Las UC son del board del orquestador (`EmbedBuild/specbox-manager`, US-110 y US-111) y salen del feedback de un
+usuario de FreeForm con el MCP alojado; UC-11009 sale de la UC-10808 de la 6.29.0.
 
 ### Compatibility
 

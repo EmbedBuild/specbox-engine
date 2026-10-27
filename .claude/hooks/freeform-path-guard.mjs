@@ -7,8 +7,10 @@
  * and ensures the FreeForm root path reaching the MCP server is ALWAYS
  * an absolute path on the client filesystem.
  *
- * Why: when the MCP server runs remotely (env SPECBOX_ENGINE_MCP_URL set),
- * a relative path like "doc/tracking" is resolved against the server CWD,
+ * Why: when the MCP server runs remotely (an http or mcp-remote entry for
+ * SpecBox-MCP in the Claude Code config, or env SPECBOX_ENGINE_MCP_URL set),
+ * set_auth_token goes without root_path: the board travels as items_content.
+ * With a local server, a relative path like "doc/tracking" is resolved against the server CWD,
  * not the client repo — so the tracking folder gets created on the VPS
  * instead of the developer's laptop. Server-side guards already reject
  * this with FREEFORM_PATH_MUST_BE_ABSOLUTE, but that surfaces as an error
@@ -82,7 +84,10 @@ const rawRoot = (toolInput?.[argName] || '').toString().trim();
 // root_path (content-only) and the board travels as `items_content` in each
 // call. Only set_auth_token is affected: onboard_project keeps the absolute
 // path because it describes the CLIENT project.
-if (toolName === 'mcp__SpecBox-MCP__set_auth_token' && isRemoteMcp()) {
+// UC-11101: remote is read from how Claude Code reaches SpecBox-MCP (http entry or
+// mcp-remote bridge), not only from the env var that the VSCode extension writes.
+const remote = isRemoteMcp({ cwd: payload?.cwd || process.cwd() });
+if (toolName === 'mcp__SpecBox-MCP__set_auth_token' && remote) {
   const { [argName]: droppedRoot, ...updatedInput } = toolInput;
   try {
     appendLine(LOG_PATH, JSON.stringify({
@@ -141,7 +146,7 @@ try {
     arg: argName,
     from: effectiveRoot,
     to: absolute,
-    is_remote_mcp: isRemoteMcp(),
+    is_remote_mcp: remote,
     reason: rawRoot ? 'relative_path' : 'unspecified_default',
   }));
 } catch {

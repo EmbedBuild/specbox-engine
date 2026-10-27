@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -119,3 +118,41 @@ class TestSetAuthTokenFreeformPathResolution:
         monkeypatch.setenv("SPECBOX_ENGINE_MCP_URL", "   ")
         is_remote = bool(os.environ.get("SPECBOX_ENGINE_MCP_URL", "").strip())
         assert is_remote is False
+
+
+# ── UC-11101: the hosted server says it is remote ──────────────────────
+
+
+async def _detect(tmp_path: Path) -> dict:
+    from fastmcp import Client, FastMCP
+
+    from server.tools.onboarding import register_onboarding_tools
+
+    mcp = FastMCP("test")
+    register_onboarding_tools(mcp, engine_path=Path(__file__).resolve().parent.parent, state_path=tmp_path)
+    async with Client(mcp) as client:
+        result = await client.call_tool("detect_local_root_path", {})
+    return result.data
+
+
+@pytest.mark.asyncio
+async def test_detect_local_root_path_on_a_remote_transport_is_content_only(monkeypatch, tmp_path):
+    monkeypatch.setenv("MCP_TRANSPORT", "http")
+    monkeypatch.delenv("SPECBOX_ENGINE_MCP_URL", raising=False)
+    contract = await _detect(tmp_path)
+
+    assert contract["is_remote_mcp"] is True
+    assert contract["mode"] == "content_only"
+    assert contract["requires_absolute_path"] is False
+    assert any("without root_path" in step for step in contract["client_steps"])
+
+
+@pytest.mark.asyncio
+async def test_detect_local_root_path_on_stdio_keeps_the_absolute_path(monkeypatch, tmp_path):
+    monkeypatch.setenv("MCP_TRANSPORT", "stdio")
+    monkeypatch.delenv("SPECBOX_ENGINE_MCP_URL", raising=False)
+    contract = await _detect(tmp_path)
+
+    assert contract["is_remote_mcp"] is False
+    assert contract["mode"] == "disk"
+    assert contract["requires_absolute_path"] is True

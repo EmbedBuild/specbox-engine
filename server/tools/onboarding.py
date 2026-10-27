@@ -517,9 +517,12 @@ def register_onboarding_tools(
               is_remote_mcp: bool — whether SPECBOX_ENGINE_MCP_URL is set
                 on the SERVER process. Note: the client must check the same
                 env var on its own side; the two values can differ.
-              requires_absolute_path: bool — always True when the server
-                is remote. True is the safest default and is what the
-                client should assume.
+                Since UC-11101 it is True whenever the server runs on a remote
+                transport (http/sse), which is what the hosted MCP does.
+              mode: "content_only" (remote: no root_path, the board travels as
+                items_content; see client_steps) or "disk" (local server).
+              requires_absolute_path: bool — True for a local server, which
+                needs the absolute path of the client's doc/tracking.
               default_relative_path: str — the conventional relative path
                 ("doc/tracking") that should be resolved against the
                 client's git toplevel.
@@ -530,8 +533,34 @@ def register_onboarding_tools(
         """
         import os
 
+        from ..transport import is_remote_transport
+
+        # UC-11101: the server knows how it was started; SPECBOX_ENGINE_MCP_URL is a client
+        # setting nobody sets on the VPS, so it answered "not remote" from the hosted server.
+        if is_remote_transport() or os.environ.get("SPECBOX_ENGINE_MCP_URL", "").strip():
+            return {
+                "is_remote_mcp": True,
+                "mode": "content_only",
+                "requires_absolute_path": False,
+                "default_relative_path": "doc/tracking",
+                "client_steps": [
+                    "set_auth_token(api_key='freeform', token='', backend_type='freeform') "
+                    "without root_path",
+                    "setup_board(board_name) and save the returned items_content as "
+                    "doc/tracking/items.json",
+                    "send the current doc/tracking/items.json as items_content in every "
+                    "FreeForm tool call and save the items_content each mutation returns",
+                ],
+                "summary": (
+                    "This MCP server is remote: it cannot read or write the client's files. "
+                    "Open the FreeForm session without root_path; the board lives in "
+                    "doc/tracking/items.json of the client repo and travels as items_content."
+                ),
+            }
+
         return {
-            "is_remote_mcp": bool(os.environ.get("SPECBOX_ENGINE_MCP_URL", "").strip()),
+            "is_remote_mcp": False,
+            "mode": "disk",
             "requires_absolute_path": True,
             "default_relative_path": "doc/tracking",
             "client_resolution_recipe": (

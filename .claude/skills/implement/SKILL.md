@@ -278,30 +278,31 @@ que cada Task delegado leera para conocer branch / feature / stack sin que el
 orquestador los repita verbatim en cada prompt (causa raiz de la exhaustion de
 contexto en UCs grandes — ver doc/plans/v5.32.0_implement_task_isolation_plan.md).
 
-```python
-from server.implement_context import write_execution_context, compute_plan_hash
+Lo calcula una tool del MCP (UC-11202): funciona con el MCP alojado, sin clon del engine y
+sin Python. El servidor no escribe nada; el fichero lo escribes tú con `Write`.
 
-write_execution_context(
-    feature_slug=feature,
-    branch=branch,                     # se conocera en Paso 1; aqui pasar valor
-                                       # tentativo y refrescar tras crear la rama
-                                       # con update_last_updated()
-    stack=stack,                       # detectado en Paso 0.x
-    project_name=project_name,
-    project_root_absolute=str(Path.cwd()),
-    engine_version="5.32.0",
-    uc_id=uc_id,
-    us_id=us_id,
-    backend_type=backend_type,         # freeform | trello | plane
-    board_id=board_id,
-    plan_path=str(plan_path),
-    plan_hash=compute_plan_hash(plan_path),
-    autopilot_level=autopilot_level,   # equilibrado | conservador | ...
+```
+mcp__SpecBox-MCP__build_execution_context(
+  feature_slug=feature,
+  branch=branch,                  # tentativa aquí; tras crear la rama (Paso 1), otra llamada con la real
+  stack=stack,                    # detectado en Paso 0.x
+  project_name=project_name,
+  project_root_absolute=<raíz absoluta del proyecto>,
+  uc_id=uc_id,
+  us_id=us_id,
+  backend_type=backend_type,      # freeform | trello | plane | native
+  board_id=board_id,
+  plan_path=plan_path,            # relativa al proyecto
+  autopilot_level=autopilot_level,
+  existing_content=<el execution_context.json actual, si existe>,
 )
+→ {path, content, changed}
 ```
 
-Esto crea `.quality/evidence/{feature}/execution_context.json` con escritura
-atomica e idempotente (no churnea el archivo si el contenido no cambia).
+- `changed: true` → escribir `content` en `path` (`.quality/evidence/{feature}/execution_context.json`) con
+  `Write`. `changed: false` → el fichero ya está al día (solo cambiarían las marcas de tiempo).
+- `engine_version` sale del servidor. `plan_hash` es opcional (nada lo consume): pásalo si ya tienes el
+  SHA-256 del plan, o `plan_content` si el plan es corto; si no, omítelo.
 
 **Contrato de uso**: a partir de aqui, cualquier Task delegado por /implement
 debe arrancar leyendo este archivo en lugar de recibir branch/feature/stack
@@ -1189,18 +1190,14 @@ If the result exceeds 30% of context window → split the phase into sub-phases.
 
 **Antes** de spawnear `Task(AG-XX)`:
 
-```python
-import json, time, uuid
-from pathlib import Path
+Marcar el agente activo para que `file-ownership-guard.mjs` lo lea: `Write` de
+`.quality/active_agent.json` con
 
-# Marcar el agente activo para que file-ownership-guard.mjs lo lea
-Path(".quality/active_agent.json").write_text(json.dumps({
-    "agent": "AG-01",                       # codigo del agente delegado
-    "feature_slug": feature,
-    "phase": "feature",                     # ID corto de la fase
-    "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-}))
+```json
+{"agent": "AG-01", "feature_slug": "{feature}", "phase": "feature", "started_at": "{ahora en UTC, ISO 8601}"}
 ```
+
+(`agent`: el código del agente delegado; `phase`: el ID corto de la fase).
 
 **Construccion del prompt del Task** (NO repetir branch/feature/stack en
 prosa — el Task los lee del execution_context):
@@ -1244,28 +1241,14 @@ del aislamiento real del contexto.
 
 **Despues** del retorno del Task:
 
-```python
-# Limpieza obligatoria del marcador de agente activo
-try:
-    Path(".quality/active_agent.json").unlink()
-except FileNotFoundError:
-    pass
+1. **Limpieza obligatoria del marcador**: `Write` de `.quality/active_agent.json` con `{}`. Sin
+   `agent`, `file-ownership-guard.mjs` no actúa (es el orquestador quien escribe).
+2. **Telemetría local**: en `.quality/task_isolation.json` (`Read` + `Write`; si no existe, `{}`),
+   poner `enabled: true`, `last_feature_slug: "{feature}"` y `last_event_at` (ahora, UTC). El
+   contador `tasks_run_total` ya lo subió `context-budget-guard.mjs` al lanzar el Task.
 
-# Bumpear el contador de telemetria local
-# context-budget-guard.mjs ya bumpeo tasks_run_total al spawnearlo;
-# aqui actualizamos last_feature_slug.
-isolation_cache = Path(".quality/task_isolation.json")
-data = json.loads(isolation_cache.read_text()) if isolation_cache.exists() else {}
-data["enabled"] = True
-data["last_feature_slug"] = feature
-data["last_event_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-isolation_cache.parent.mkdir(parents=True, exist_ok=True)
-isolation_cache.write_text(json.dumps(data, indent=2))
-```
-
-**Si el Task falla / crashea**: el `try/finally` debe garantizar siempre la
-limpieza de `active_agent.json`. El siguiente Task encontrara el archivo
-borrado y operara con guard en modo no-op (no asume agente activo).
+**Si el Task falla o se corta**: la limpieza del marcador va igual. El siguiente Task lo encuentra
+sin `agent` y el guard no supone ningún agente activo.
 
 ### 5.1 Para cada fase del plan
 
@@ -1366,18 +1349,21 @@ Esto permite que `pipeline-phase-guard.mjs` valide el orden sin falsos positivos
 
 Despues de guardar el checkpoint, agregar el delta block:
 
-```python
-from server.implement_context import aggregate_for_spec_sync
-
-# Lee phase_outputs.jsonl y devuelve el SpecSyncAggregate
-agg = aggregate_for_spec_sync(feature)
-
-# agg.overall_status ∈ {ok, partial, error, empty}
-# agg.delta_count                              — files tocados (sum across phases)
-# agg.files_created / files_modified / files_deleted   — listas dedupeadas
-# agg.phases                                   — uno por fase, en orden de ejecucion
-# agg.total_duration_s, agg.total_healing_attempts
 ```
+mcp__SpecBox-MCP__aggregate_phase_outputs(
+  feature_slug=feature,
+  phase_outputs_content=<contenido de .quality/evidence/{feature}/phase_outputs.jsonl, o "" si no existe>,
+)
+→ agg:
+  overall_status ∈ {ok, partial, error, empty}
+  delta_count                                 — ficheros tocados (suma de las fases)
+  files_created / files_modified / files_deleted   — listas sin repetidos
+  phases                                      — una por fase, en orden de ejecución
+  phase_deltas                                — el bloque Markdown de cada fase (para write_implementation_status)
+  total_duration_s, total_healing_attempts
+```
+
+Es una tool del MCP (UC-11202): no hace falta el clon del engine ni Python.
 
 Reglas de uso:
 - Si `agg.overall_status == "error"` → linea: "Fase {phase} fallida — pendiente de resolucion"
@@ -1385,11 +1371,11 @@ Reglas de uso:
 - Si todo conforme al plan → linea: "Sin deltas — implementacion conforme al plan"
 
 El orquestador YA NO mantiene `implementation_deltas: list[str]` en memoria.
-Cualquier consulta posterior (Paso 7.7a, Paso 8.5.1a) re-llama a
-`aggregate_for_spec_sync(feature)` — la fuente esta en disco.
+Cualquier consulta posterior (Paso 7.7a, Paso 8.5.1a) vuelve a llamar a
+`aggregate_phase_outputs` — la fuente es `phase_outputs.jsonl`.
 
 **IMPORTANTE:** Este paso es informativo (nunca bloquea). Si `phase_outputs.jsonl`
-no existe (Task legacy que no lo escribio), `aggregate_for_spec_sync` retorna
+no existe (Task legacy que no lo escribio), `aggregate_phase_outputs` retorna
 `overall_status="empty"` y el orquestador continua con la observacion via
 git diff como fallback (compat con flujo pre-v5.32).
 
@@ -1909,17 +1895,18 @@ node .claude/hooks/implement-healing.mjs {feature} acceptance {level} "{action}"
 
 Si el pipeline NO es spec-driven (no hay board_id ni Trello/Plane configurado):
 
-1. Verificar que `implementation_deltas[]` tiene al menos 1 entrada
+1. Verificar que `agg.phase_deltas` (de `aggregate_phase_outputs`, Paso 5.1.1b) tiene al menos 1 entrada
 2. Derivar `uc_id` del nombre del plan (e.g. `uc_001_plan.md` → `UC-001`) o usar `"FREEFORM"`
 3. Obtener branch name actual: `git rev-parse --abbrev-ref HEAD`
-4. Buscar PRD en `doc/prds/` usando `find_prd_path(project_path, feature=feature_name)`
-5. Si PRD encontrado: ejecutar `append_implementation_status(prd_path, uc_id, branch, implementation_deltas)`
-6. Commit del PRD actualizado:
+4. Llamar a `write_implementation_status(project_path, uc_id, branch, phase_deltas=agg.phase_deltas,
+   feature=feature_name)`: busca el PRD en `doc/prds/` y le añade la sección (con el MCP remoto, el
+   PRD va en `files_content` y se escribe lo que vuelve en `files_changed`, como en 8.5.1a)
+5. Commit del PRD actualizado:
    ```bash
    git add doc/prds/{prd_file}
    git commit -m "docs({feature}): add Implementation Status for {uc_id}"
    ```
-7. Si no se encuentra PRD → WARNING en output, no bloquear
+6. Si la tool no encuentra PRD (`success: false`) → WARNING en output, no bloquear
 
 **IMPORTANTE:** En modo spec-driven, este paso se ejecuta en 8.5.3a en su lugar.
 
@@ -2163,18 +2150,13 @@ Antes del merge, escribir el Implementation Status en el PRD:
 1. Localizar PRD del feature/US actual:
    - Si spec-driven: buscar en `doc/prds/` por us_id o feature name
    - Si freeform: ya se hizo en Paso 7.7a (saltar este paso)
-2. **(v5.32.0)** Construir el aggregate desde phase_outputs.jsonl en lugar de
-   acumulado del orquestador:
-   ```python
-   from server.implement_context import aggregate_for_spec_sync
-   agg = aggregate_for_spec_sync(feature)
-   # agg.phases es la lista que antes llamabamos implementation_deltas
-   ```
-3. Compilar el aggregate en seccion Markdown con
-   `compile_uc_status(uc_id, branch, agg.phases)` (la firma de
-   `compile_uc_status` acepta tanto la lista vieja de strings como la
-   lista nueva de dicts; mantiene compat con flujos pre-v5.32).
-4. Append al PRD con `append_implementation_status(prd_path, uc_id, branch, agg.phases)`
+2. **(v5.32.0)** Construir el aggregate desde phase_outputs.jsonl con la tool
+   `aggregate_phase_outputs` (Paso 5.1.1b). Sus `phase_deltas` son los bloques Markdown que
+   antes llamábamos `implementation_deltas`.
+3. Escribir la sección en el PRD con la tool `write_implementation_status(project_path, uc_id,
+   branch, phase_deltas=agg.phase_deltas, us_id=us_id)`: compila la sección y la añade al final
+   del PRD (append-only). Con el MCP remoto, ver la nota de abajo (`files_content`).
+4. (Lo hace la misma tool del paso 3.)
 5. Commit del PRD actualizado:
    ```bash
    git add doc/prds/{prd_file}

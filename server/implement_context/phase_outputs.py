@@ -113,20 +113,28 @@ def read_phase_outputs(
     path = phase_outputs_path(feature_slug, project_root)
     if not path.exists():
         return []
+    return parse_phase_outputs(path.read_text(encoding="utf-8"))
+
+
+def parse_phase_outputs(content: str) -> list[PhaseOutput]:
+    """Parse the JSONL text of a phase_outputs file (UC-11202: the MCP tool
+    ``aggregate_phase_outputs`` receives it as content). Corrupt lines are
+    skipped, as in ``read_phase_outputs``."""
 
     out: list[PhaseOutput] = []
-    with path.open("r", encoding="utf-8") as f:
-        for raw_line in f:
-            line = raw_line.strip()
-            if not line:
-                continue
-            try:
-                obj = json.loads(line)
-                out.append(PhaseOutput.model_validate(obj))
-            except (json.JSONDecodeError, ValueError):
-                # Skip malformed lines; the validator script catches
-                # them in CI when contracts matter.
-                continue
+    # Split on "\n" only, like iterating the file: a raw U+2028 inside a JSON
+    # string (ensure_ascii=False) must not cut the line.
+    for raw_line in content.split("\n"):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+            out.append(PhaseOutput.model_validate(obj))
+        except (json.JSONDecodeError, ValueError):
+            # Skip malformed lines; the validator script catches
+            # them in CI when contracts matter.
+            continue
     return out
 
 
@@ -163,7 +171,11 @@ def aggregate_for_spec_sync(
     "partial" if any was partial, else "ok".
     """
 
-    entries = read_phase_outputs(feature_slug, project_root)
+    return aggregate_phase_entries(feature_slug, read_phase_outputs(feature_slug, project_root))
+
+
+def aggregate_phase_entries(feature_slug: str, entries: list[PhaseOutput]) -> SpecSyncAggregate:
+    """The aggregate of already-parsed entries (shared with the MCP tool, UC-11202)."""
 
     seen_created: set[str] = set()
     seen_modified: set[str] = set()

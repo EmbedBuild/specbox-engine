@@ -45,7 +45,12 @@ if (py.length) {
 }
 const js = byExt(/\.(ts|tsx|js|jsx|mjs|cjs)$/);
 const eslint = join('node_modules', '.bin', 'eslint');
-if (js.length && existsSync(eslint)) runs.push({ name: 'eslint', cmd: eslint, args: ['--max-warnings=0', ...js] });
+// UC-11003: with the flat config a committed file that the config ignores gives the warning «File
+// ignored», and --max-warnings=0 turns it into a block. --no-warn-ignored only exists with the flat
+// config (eslint.config.*); with .eslintrc it is an unknown option, so it is passed only then.
+const flatConfig = ['js', 'mjs', 'cjs', 'ts', 'mts', 'cts'].some((ext) => existsSync(`eslint.config.${ext}`));
+const eslintArgs = ['--max-warnings=0', ...(flatConfig ? ['--no-warn-ignored'] : [])];
+if (js.length && existsSync(eslint)) runs.push({ name: 'eslint', cmd: eslint, args: [...eslintArgs, ...js] });
 const dart = byExt(/\.dart$/);
 if (dart.length) {
   if (commandExists('dart')) runs.push({ name: 'dart analyze', cmd: 'dart', args: ['analyze', ...dart] });

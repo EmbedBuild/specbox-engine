@@ -27,7 +27,7 @@ const vscodeStub = {
 		showErrorMessage: (msg) => { shown.error.push(msg); return Promise.resolve(undefined); },
 		withProgress: (_opts, fn) => fn({ report: () => {} }),
 	},
-	workspace: { getConfiguration: () => ({ get: () => undefined, update: () => Promise.resolve() }) },
+	workspace: { isTrusted: true, getConfiguration: () => ({ get: () => undefined, update: () => Promise.resolve() }) },
 	commands: { executeCommand: () => Promise.resolve() },
 	ProgressLocation: { Notification: 15 },
 };
@@ -80,9 +80,14 @@ test('parseInstalledVersion reads the INSTALLED_VERSION line', () => {
 
 // ── AC-03: the notice tells the version that really got installed ─────
 
+// UC-10807: only the managed clone runs its install-ext.mjs, so the fake engine
+// lives at ~/.specbox/specbox-engine of a temporary home (never the real one).
 function fakeEngine(installedVersion) {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'specbox-uc4307-'));
-	fs.mkdirSync(path.join(dir, 'vscode-extension'));
+	const home = fs.mkdtempSync(path.join(os.tmpdir(), 'specbox-uc4307-'));
+	process.env.HOME = home;
+	process.env.USERPROFILE = home;
+	const dir = path.join(home, '.specbox', 'specbox-engine');
+	fs.mkdirSync(path.join(dir, 'vscode-extension'), { recursive: true });
 	fs.writeFileSync(
 		path.join(dir, 'vscode-extension', 'install-ext.mjs'),
 		`console.log('  Installing...');\nconsole.log('INSTALLED_VERSION=${installedVersion}');\n`,

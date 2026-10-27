@@ -1,5 +1,5 @@
 // US-VSCODE-AUTOCLONE (UC-109..112) — managed-engine pure helpers, auto-clone in
-// resolveEnginePath, git pull in the update flow, and docs without "clone first".
+// resolveEnginePath, the clone on the newest release tag (UC-10807), and docs without "clone first".
 // Pure-function + IO tests over compiled out/install.js and out/updater.js,
 // stubbing `vscode`, `git` (injected runner), and `fs` the same way the other
 // extension tests do. No test touches git or the network.
@@ -53,7 +53,7 @@ require.cache['vscode-stub'] = { id: 'vscode-stub', filename: 'vscode-stub', loa
 const {
 	ENGINE_REPO_URL, managedEnginePath, isManagedPath, cloneManagedEngine, InstallManager,
 } = require(path.join(outDir, 'install.js'));
-const { pullManagedEngine, ExtensionUpdater } = require(path.join(outDir, 'updater.js'));
+const { ExtensionUpdater } = require(path.join(outDir, 'updater.js'));
 
 function reset() {
 	shown.info = []; shown.warn = []; shown.error = []; shown.opened = 0;
@@ -183,49 +183,59 @@ test('NFR idempotency: a managed clone already on disk is used without re-clonin
 });
 
 // ============================================================
-// UC-111 — pullManagedEngine + update flow (AC-06, AC-07)
+// UC-10807 (US-108) — the managed clone starts on the newest release, not on main.
+// UC-111's automatic `git pull` is gone: the clone only moves when the person
+// accepts a release in the updater (see updater-remote.test.mjs).
 // ============================================================
 
-test('AC-06: pull runs only on the managed dir', async () => {
-	reset();
-	let pulledIn = null;
-	const gitRunner = async (args, cwd) => { pulledIn = { args, cwd }; return { code: 0, stdout: '', stderr: '' }; };
+function cloneWithTags(tags, checkout = { code: 0, stdout: '', stderr: '' }) {
+	const calls = [];
+	const created = new Set();
+	return {
+		calls,
+		gitRunner: async (args) => {
+			calls.push(args);
+			if (args[0] === 'clone') { created.add(MANAGED); }
+			if (args[0] === 'tag') { return { code: 0, stdout: tags.join('\n'), stderr: '' }; }
+			if (args[0] === 'checkout') { return checkout; }
+			return { code: 0, stdout: '', stderr: '' };
+		},
+		existsSync: (p) => created.has(p) || (p === path.join(MANAGED, 'ENGINE_VERSION.yaml') && created.has(MANAGED)),
+		mkdirSync: () => {},
+		rmSync: (p) => { created.delete(p); calls.push(['rm', p]); },
+	};
+}
 
-	const managedResult = await pullManagedEngine(MANAGED, { gitRunner });
-	assert.equal(managedResult.ok, true);
-	assert.equal(managedResult.skipped, undefined);
-	assert.deepEqual(pulledIn.args, ['pull', '--ff-only']);
-	assert.equal(pulledIn.cwd, MANAGED);
-});
-
-test('AC-06: pull is skipped (no-op) for a user clone — never touches it', async () => {
+test('UC-10807 AC-02: a fresh clone is put on the newest vX.Y.Z tag', async () => {
 	reset();
-	let called = false;
-	const gitRunner = async () => { called = true; return { code: 0, stdout: '', stderr: '' }; };
-	const r = await pullManagedEngine('/Users/x/specbox-engine', { gitRunner });
+	const deps = cloneWithTags(['v6.28.0', 'v6.9.4', 'v6.28.0-rc1', 'vscode-ext-1']);
+	const r = await cloneManagedEngine(deps);
 	assert.equal(r.ok, true);
-	assert.equal(r.skipped, true);
-	assert.equal(called, false, 'git pull must NOT run on a user clone');
+	assert.deepEqual(deps.calls.find((a) => a[0] === 'checkout'), ['checkout', '--quiet', '--detach', 'v6.28.0']);
 });
 
-test('AC-07: failed pull does not throw, reports error', async () => {
+test('UC-10807: a clone without release tags stays as cloned', async () => {
 	reset();
-	const r = await pullManagedEngine(MANAGED, {
-		gitRunner: async () => ({ code: 1, stdout: '', stderr: 'fatal: Not possible to fast-forward' }),
-	});
+	const deps = cloneWithTags([]);
+	const r = await cloneManagedEngine(deps);
+	assert.equal(r.ok, true);
+	assert.ok(!deps.calls.some((a) => a[0] === 'checkout'), 'no tag, no checkout');
+});
+
+test('UC-10807: a failed checkout of the release cleans up and reports it', async () => {
+	reset();
+	const deps = cloneWithTags(['v6.28.0'], { code: 1, stdout: '', stderr: 'error: pathspec' });
+	const r = await cloneManagedEngine(deps);
 	assert.equal(r.ok, false);
-	assert.match(r.error, /fast-forward/);
+	assert.match(r.error, /pathspec/);
+	assert.ok(deps.calls.some((a) => a[0] === 'rm' && a[1] === MANAGED), 'partial clone removed');
 });
 
-test('AC-07: runUpdateFlow with a failing managed pull resolves without throwing + warns', async () => {
-	reset();
-	// Point the updater at the managed path but make ENGINE_VERSION.yaml unreadable
-	// so resolveEngineVersion returns null AFTER the pull phase ran. To exercise the
-	// pull warning we instead test pullManagedEngine directly (above) and assert the
-	// flow's resilience here with a non-managed path that resolves a version.
-	const updater = new ExtensionUpdater('9.9.9');
+test('UC-10807 AC-03: the updater module no longer exports an automatic pull', async () => {
+	const updater = require(path.join(outDir, 'updater.js'));
+	assert.equal(updater.pullManagedEngine, undefined);
 	// enginePath null → flow returns early but must not throw.
-	await assert.doesNotReject(updater.runUpdateFlow(null));
+	await assert.doesNotReject(new ExtensionUpdater('9.9.9').runUpdateFlow(null));
 });
 
 // ============================================================

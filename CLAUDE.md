@@ -2041,6 +2041,25 @@ Tests: `vscode-extension/tests/updater-remote.test.mjs` — 16 casos `node:test`
 - PR: [#125](https://github.com/EmbedBuild/specbox-engine/pull/125)
 - PRD/Plan: `doc/prd/vscode-engine-autoupdate/` + `doc/plans/vscode-engine-autoupdate_plan.md` en `EmbedBuild/specbox-manager`
 
+### Versiones publicadas y carpetas de confianza (US-108 · UC-10807)
+
+La auditoría de seguridad del 2026-10-27 (ENG-D-01, ENG-D-02) cambió tres cosas de lo anterior:
+
+- **El clon gestionado sigue las etiquetas, no `main`.** `latestReleaseTag` toma la última
+  `vX.Y.Z`; el clon nuevo nace en ella y «Update now» hace `checkout --detach` de la etiqueta (ya no
+  hay `pull`, ni divergencia, ni `reset --hard`). Un commit en `main` no llega a nadie sin etiqueta.
+- **Sin `pull` automático.** `pullManagedEngine` ya no existe: el clon solo se mueve cuando la
+  persona acepta una versión, así que «Later» espera de verdad. Solo se ofrece en el clon gestionado;
+  un clon propio no se toca.
+- **Nada de la carpeta abierta se ejecuta.** `rebuildExtension` solo corre `install-ext.mjs` del clon
+  gestionado y con la carpeta de confianza; si no, avisa de actualizar desde el Marketplace. Una
+  carpeta con `ENGINE_VERSION.yaml` solo cuenta como engine (estado e instalación) si es de
+  confianza, y `install`, `onboard`, `configureMcp` y `signIn` llevan `isWorkspaceTrusted` en su
+  `enablement`, como ya decía la descripción del Modo Restringido.
+
+Tests: `updater-remote.test.mjs` (un `install-ext.mjs` trampa que deja una marca si se ejecuta) y
+`autoclone.test.mjs`; contra `main` fallan 16.
+
 ## El MCP remoto solo enseña a cada usuario lo suyo (US-38)
 
 US-38 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) responde al

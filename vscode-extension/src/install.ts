@@ -61,11 +61,32 @@ export const defaultGitRunner: GitRunner = (args, cwd) =>
 //
 // Same pure/IO split as the auto-clone helpers above: a git runner is injected
 // so tests never touch git or the network. These power the start-up remote check
-// in updater.ts: fetch the remote, read the version published on origin/<branch>,
-// and compare it (semver-numeric) against the local ENGINE_VERSION.yaml.
+// in updater.ts: fetch the remote, find the newest published release, and compare
+// it (semver-numeric) against the local ENGINE_VERSION.yaml.
+//
+// UC-10807 (US-108): the managed clone follows the published releases, the vX.Y.Z
+// tags, not `main`. Before, every activation pulled `main`, so any commit there
+// reached every user within two activations, without a tag or the Marketplace
+// (audit of 2026-10-27, ENG-D-02).
 
-/** Default branch the managed clone tracks. The remote version is read from its tip. */
-export const DEFAULT_REMOTE_BRANCH = 'main';
+/** The newest release tag (`vX.Y.Z`) the clone knows, or null. Never throws. */
+export async function latestReleaseTag(
+	enginePath: string,
+	gitRunner: GitRunner = defaultGitRunner,
+): Promise<string | null> {
+	const res = await gitRunner(['tag', '--list', 'v*', '--sort=-v:refname'], enginePath);
+	if (res.code !== 0) { return null; }
+	return res.stdout.split('\n').map((s) => s.trim()).find((t) => /^v\d+\.\d+\.\d+$/.test(t)) ?? null;
+}
+
+/** Put the clone on a release tag (detached). Returns the git result; never throws. */
+export async function checkoutRelease(
+	enginePath: string,
+	tag: string,
+	gitRunner: GitRunner = defaultGitRunner,
+): Promise<GitRunResult> {
+	return gitRunner(['checkout', '--quiet', '--detach', tag], enginePath);
+}
 
 /**
  * Fetch from origin (tags included). Effects (git) but NEVER throws — returns the
@@ -78,26 +99,6 @@ export async function fetchRemote(
 	gitRunner: GitRunner = defaultGitRunner,
 ): Promise<GitRunResult> {
 	return gitRunner(['fetch', 'origin', '--tags'], enginePath);
-}
-
-/**
- * Read the `version:` field of ENGINE_VERSION.yaml as published on
- * `origin/<branch>` (default `main`) via `git show`. Returns the trimmed version
- * string, or null when the command fails (no network, no remote, file absent) —
- * the caller then silently skips the remote check (US-14 AC-02, AC-03).
- *
- * Uses the same `/^version:\s*(.+)/m` regex as updater.ts::resolveEngineVersion
- * so the local and remote sides parse identically.
- */
-export async function remoteEngineVersion(
-	enginePath: string,
-	gitRunner: GitRunner = defaultGitRunner,
-	branch: string = DEFAULT_REMOTE_BRANCH,
-): Promise<string | null> {
-	const res = await gitRunner(['show', `origin/${branch}:ENGINE_VERSION.yaml`], enginePath);
-	if (res.code !== 0) { return null; }
-	const m = res.stdout.match(/^version:\s*(.+)/m);
-	return m?.[1]?.trim() ?? null;
 }
 
 /**
@@ -140,33 +141,6 @@ export function shouldReinstallExtension(engineVersion: string, extensionVersion
 export function parseInstalledVersion(stdout: string | null | undefined): string | null {
 	const m = /^INSTALLED_VERSION=(\S+)\s*$/m.exec(stdout ?? '');
 	return m ? m[1] : null;
-}
-
-/**
- * Decide whether a failed `git pull --ff-only` failed *because the history
- * diverged* (local commits / a feature branch that is not a fast-forward of the
- * remote) rather than for a transient reason. Combines the stderr text with the
- * ahead-count from `git rev-list` so detection does not rely on git's wording
- * alone (which varies by git version and locale) — US-14 AC-12.
- *
- * Returns false on a clean tree, on a transient error (network), or when git is
- * absent. Never throws.
- */
-export async function isDivergedFromRemote(
-	enginePath: string,
-	gitRunner: GitRunner = defaultGitRunner,
-	branch: string = DEFAULT_REMOTE_BRANCH,
-): Promise<boolean> {
-	const res = await gitRunner(
-		['rev-list', '--left-right', '--count', `origin/${branch}...HEAD`],
-		enginePath,
-	);
-	if (res.code !== 0) { return false; }
-	// Output is "<behind>\t<ahead>". Ahead > 0 means local has commits the remote
-	// lacks → a --ff-only pull cannot fast-forward.
-	const parts = res.stdout.trim().split(/\s+/);
-	const ahead = parseInt(parts[1] ?? '0', 10);
-	return Number.isFinite(ahead) && ahead > 0;
 }
 
 /** Injectable filesystem + git deps for cloneManagedEngine — all optional, real by default. */
@@ -217,6 +191,16 @@ export async function cloneManagedEngine(deps: CloneDeps = {}): Promise<CloneRes
 		if (!existsSync(path.join(dest, 'ENGINE_VERSION.yaml'))) {
 			cleanupPartial();
 			return { ok: false, error: 'clone completed but ENGINE_VERSION.yaml is missing' };
+		}
+
+		// UC-10807: start on the newest published release, not on `main`.
+		const tag = await latestReleaseTag(dest, gitRunner);
+		if (tag) {
+			const moved = await checkoutRelease(dest, tag, gitRunner);
+			if (moved.code !== 0) {
+				cleanupPartial();
+				return { ok: false, error: moved.stderr.trim() || `git checkout ${tag} exited with code ${moved.code}` };
+			}
 		}
 
 		return { ok: true, path: dest };
@@ -425,8 +409,9 @@ export class InstallManager {
 			return configured;
 		}
 
-		// 2. Workspace
-		for (const folder of vscode.workspace.workspaceFolders ?? []) {
+		// 2. Workspace — only a trusted one (UC-10807): in Restricted Mode, or from a
+		// folder you have not trusted, its hooks and skills are never installed.
+		for (const folder of vscode.workspace.isTrusted ? vscode.workspace.workspaceFolders ?? [] : []) {
 			if (fs.existsSync(path.join(folder.uri.fsPath, 'ENGINE_VERSION.yaml'))) {
 				return folder.uri.fsPath;
 			}

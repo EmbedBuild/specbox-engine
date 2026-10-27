@@ -10,38 +10,10 @@ import {
 } from './migration';
 import {
 	GitRunner, defaultGitRunner, isManagedPath,
-	fetchRemote, remoteEngineVersion, compareSemver, isDivergedFromRemote,
-	DEFAULT_REMOTE_BRANCH, shouldReinstallExtension, parseInstalledVersion,
+	fetchRemote, latestReleaseTag, checkoutRelease, compareSemver,
+	shouldReinstallExtension, parseInstalledVersion,
 } from './install';
 import { HealthChecker } from './health';
-
-/** Outcome of pulling the managed clone. `skipped` means the engine is a user clone (untouched). */
-export interface PullResult { ok: boolean; skipped?: boolean; error?: string; }
-
-/**
- * Fast-forward the managed engine clone (UC-111). Effects (git) but NEVER throws.
- *
- * - If `enginePath` is NOT the managed dir → no-op `{ ok:true, skipped:true }`:
- *   a user's own clone is never touched (AC-06, ICP-1 protection).
- * - `git pull --ff-only` so local edits are never overwritten and a diverged
- *   history fails cleanly into a non-blocking warning (AC-07).
- */
-export async function pullManagedEngine(
-  enginePath: string,
-  deps: { gitRunner?: GitRunner } = {},
-): Promise<PullResult> {
-  if (!isManagedPath(enginePath)) { return { ok: true, skipped: true }; }
-  const gitRunner = deps.gitRunner ?? defaultGitRunner;
-  try {
-    const res = await gitRunner(['pull', '--ff-only'], enginePath);
-    if (res.code !== 0) {
-      return { ok: false, error: res.stderr.trim() || `git pull exited with code ${res.code}` };
-    }
-    return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
-  }
-}
 
 /**
  * Self-update mechanism + post-update orchestrator (UC-666).
@@ -78,39 +50,22 @@ export class ExtensionUpdater {
 		const engineVersion = this.resolveEngineVersion(enginePath);
 		if (!engineVersion) { return; }
 
-		// Phase -1 — remote version check (US-14, UC-1401..1404). BEFORE the pull:
-		// fetch origin, read the version on origin/main, and if it is newer than the
-		// local one, offer an actionable X→Y upgrade. Self-contained and fire-and-
-		// forget — any failure (no network, no git) skips silently and the rest of
-		// the flow continues unchanged (AC-03). When the user accepts and the upgrade
-		// applies, the engineVersion below is already stale, but Phase 1's rebuild +
-		// reload supersede it, so we simply return after a successful applied upgrade.
+		// Phase -1 — remote version check (US-14, UC-1401..1404): fetch the tags,
+		// and if the newest published release is newer than the local one, offer an
+		// actionable X→Y upgrade. Self-contained and fire-and-forget — any failure
+		// (no network, no git) skips silently and the rest of the flow continues
+		// unchanged (AC-03). When the user accepts and the upgrade applies, Phase 1's
+		// rebuild + reload supersede the rest, so we return.
+		//
+		// UC-10807: there is no automatic pull any more. The managed clone only
+		// moves when the person accepts a release here, so «Later» really waits and
+		// a commit on `main` never reaches anyone without a tag.
 		if (enginePath) {
 			try {
 				const handled = await this.checkRemoteAndOffer(enginePath, engineVersion);
 				if (handled === 'reloading') { return; }
 			} catch (err) {
 				console.warn('[specbox] updater: remote-check phase failed:', err);
-			}
-		}
-
-		// Phase 0 — pull the managed clone up to date (UC-111). The skills follow it
-		// through their links; this flow does not reinstall skills or hooks (only
-		// «SpecBox: Install Engine» and «SpecBox: Onboard Project» do). Only touches
-		// the managed dir; a user clone is skipped. A failed
-		// pull (no network, diverged history) is a non-blocking warning — the flow
-		// continues with the local copy and never aborts activation (AC-07,
-		// fire-and-forget pattern of v6.6.2).
-		if (enginePath) {
-			try {
-				const pull = await pullManagedEngine(enginePath, { gitRunner: this.gitRunner });
-				if (!pull.ok && !pull.skipped) {
-					vscode.window.showWarningMessage(
-						vscode.l10n.t('SpecBox: could not update the managed engine ({0}). Continuing with the local copy.', pull.error ?? 'unknown error'),
-					);
-				}
-			} catch (err) {
-				console.warn('[specbox] updater: pull phase failed:', err);
 			}
 		}
 
@@ -188,6 +143,15 @@ export class ExtensionUpdater {
 	}
 
 	private async rebuildExtension(enginePath: string, engineVersion: string): Promise<void> {
+		// UC-10807: only the managed clone, and only in a trusted workspace, may run
+		// its install-ext.mjs. Before, any folder with an ENGINE_VERSION.yaml of a
+		// higher version ran its own script, also in Restricted Mode (ENG-D-01).
+		if (!isManagedPath(enginePath) || !vscode.workspace.isTrusted) {
+			vscode.window.showInformationMessage(
+				vscode.l10n.t('SpecBox Engine v{0} is available: update the SpecBox extension from the Marketplace.', engineVersion),
+			);
+			return;
+		}
 		await vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
 			title: vscode.l10n.t('SpecBox: Updating extension...'),
@@ -235,8 +199,9 @@ export class ExtensionUpdater {
 	}
 
 	/**
-	 * Phase -1 (US-14): fetch origin, read the remote version, and — if it is
-	 * strictly newer than `localVersion` — offer an actionable X→Y upgrade.
+	 * Phase -1 (US-14): fetch the tags, find the newest release, and — if it is
+	 * strictly newer than `localVersion` — offer an actionable X→Y upgrade. Only for
+	 * the managed clone (UC-10807): a clone of your own is yours to update.
 	 *
 	 * Returns:
 	 *  - 'reloading' when the upgrade applied AND the user accepted a reload (the
@@ -251,14 +216,17 @@ export class ExtensionUpdater {
 		enginePath: string,
 		localVersion: string,
 	): Promise<'reloading' | 'noop'> {
+		if (!isManagedPath(enginePath)) { return 'noop'; }
+
 		// UC-1401 AC-01: fetch (tags included). Non-throwing; a failure (no network,
 		// no git → code 127) just means we cannot compare → skip silently (AC-03).
 		const fetched = await fetchRemote(enginePath, this.gitRunner);
 		if (fetched.code !== 0) { return 'noop'; }
 
-		// UC-1401 AC-02: read origin/main:ENGINE_VERSION.yaml. null → skip silently.
-		const remoteVersion = await remoteEngineVersion(enginePath, this.gitRunner);
-		if (!remoteVersion) { return 'noop'; }
+		// UC-10807: the newest published release (vX.Y.Z tag). null → skip silently.
+		const tag = await latestReleaseTag(enginePath, this.gitRunner);
+		if (!tag) { return 'noop'; }
+		const remoteVersion = tag.replace(/^v/, '');
 
 		// UC-1402 AC-04 / AC-06: numeric semver compare. Only a strictly-newer remote
 		// is an upgrade; equal or local-ahead (the engine developer's case) shows nothing.
@@ -284,7 +252,7 @@ export class ExtensionUpdater {
 			return this.checkRemoteAndOffer(enginePath, localVersion);
 		}
 		if (choice === update) {
-			return this.applyUpgrade(enginePath, remoteVersion);
+			return this.applyUpgrade(enginePath, tag);
 		}
 		// Later or dismissed (undefined): postpone this version for the session.
 		this.postponedVersions.add(remoteVersion);
@@ -304,34 +272,28 @@ export class ExtensionUpdater {
 	}
 
 	/**
-	 * Apply the accepted upgrade (UC-1403). `git pull --ff-only` inside a progress
-	 * notification, then VERIFY by re-reading ENGINE_VERSION.yaml — a pull that
-	 * reports success but did not move the version is surfaced as an error, never
-	 * declared a success (AC-11). On a diverged history (--ff-only fails) it routes
-	 * to the gated reset path (UC-1404). Returns 'reloading' only when the upgrade
-	 * applied and the user chose to reload.
+	 * Apply the accepted upgrade (UC-1403): put the managed clone on the release tag
+	 * inside a progress notification, then VERIFY by re-reading ENGINE_VERSION.yaml —
+	 * a checkout that reports success but did not move the version is surfaced as an
+	 * error, never declared a success (AC-11). A failed checkout (local changes in
+	 * the clone) is a warning and nothing is reset. Returns 'reloading' only when the
+	 * upgrade applied and the user chose to reload.
 	 */
-	private async applyUpgrade(enginePath: string, targetVersion: string): Promise<'reloading' | 'noop'> {
-		const pull = await vscode.window.withProgress({
+	private async applyUpgrade(enginePath: string, tag: string): Promise<'reloading' | 'noop'> {
+		const moved = await vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
 			title: vscode.l10n.t('SpecBox: updating engine…'),
 			cancellable: false,
-		}, async () => this.gitRunner(['pull', '--ff-only'], enginePath));
+		}, async () => checkoutRelease(enginePath, tag, this.gitRunner));
 
-		if (pull.code !== 0) {
-			// --ff-only failed. If it is because the history diverged, offer the gated
-			// reset-with-backup path (UC-1404). Otherwise it is a transient failure.
-			const diverged = await isDivergedFromRemote(enginePath, this.gitRunner);
-			if (diverged) {
-				return this.handleDivergence(enginePath, targetVersion);
-			}
+		if (moved.code !== 0) {
 			vscode.window.showWarningMessage(
-				vscode.l10n.t('SpecBox: could not update the engine ({0}). Continuing with the local copy.', pull.stderr.trim() || `git exited with code ${pull.code}`),
+				vscode.l10n.t('SpecBox: could not update the engine ({0}). Continuing with the local copy.', moved.stderr.trim() || `git exited with code ${moved.code}`),
 			);
 			return 'noop';
 		}
 
-		return this.verifyAndFinish(enginePath, targetVersion);
+		return this.verifyAndFinish(enginePath, tag.replace(/^v/, ''));
 	}
 
 	/**
@@ -346,7 +308,7 @@ export class ExtensionUpdater {
 			await this.rebuildExtension(enginePath, applied);
 			return 'reloading';
 		}
-		// AC-11: the pull "succeeded" but the version did not change → do not lie.
+		// AC-11: the checkout "succeeded" but the version did not change → do not lie.
 		const openTerminal = vscode.l10n.t('Open Terminal');
 		const choice = await vscode.window.showErrorMessage(
 			vscode.l10n.t('SpecBox: the upgrade did not apply — still on v{0}. Update manually from a terminal.', applied ?? 'unknown'),
@@ -356,88 +318,6 @@ export class ExtensionUpdater {
 			vscode.commands.executeCommand('workbench.action.terminal.new');
 		}
 		return 'noop';
-	}
-
-	/**
-	 * Diverged managed clone (UC-1404): the engine developer's case. NEVER resets a
-	 * user clone (isManagedPath gate, ICP-1). On the managed clone, ask for explicit
-	 * confirmation, back up the current branch FIRST (recoverable), then
-	 * fetch → checkout default → reset --hard, and verify like AC-10/AC-11.
-	 */
-	private async handleDivergence(enginePath: string, targetVersion: string): Promise<'reloading' | 'noop'> {
-		const branch = await this.currentBranch(enginePath);
-
-		// AC-15 guard / ICP-1: a user clone is never reset — only an informational notice.
-		if (!isManagedPath(enginePath)) {
-			vscode.window.showWarningMessage(
-				vscode.l10n.t('SpecBox: the local engine clone has diverged (branch {0}). Update it manually.', branch ?? 'unknown'),
-			);
-			return 'noop';
-		}
-
-		// AC-12: explicit, modal, destructive confirmation. No reset without it.
-		const doReset = vscode.l10n.t('Reset with backup');
-		const cancel = vscode.l10n.t('Cancel');
-		const choice = await vscode.window.showWarningMessage(
-			vscode.l10n.t('The local engine clone has diverged (branch {0}). Updating requires resetting to origin/{1}. Your current branch will be backed up. Continue?', branch ?? 'unknown', DEFAULT_REMOTE_BRANCH),
-			{ modal: true },
-			doReset, cancel,
-		);
-		// AC-15: Cancel (or dismiss) leaves the clone untouched — no fetch, checkout or reset.
-		if (choice !== doReset) {
-			vscode.window.showInformationMessage(
-				vscode.l10n.t('SpecBox: engine update cancelled. Continuing with the local copy.'),
-			);
-			return 'noop';
-		}
-
-		// AC-13: back up the current branch BEFORE touching anything (recoverable SHA).
-		const backupRef = `specbox-backup/${branch ?? 'detached'}-${utcStamp()}`;
-		const backup = await this.gitRunner(['branch', backupRef], enginePath);
-		if (backup.code !== 0) {
-			vscode.window.showErrorMessage(
-				vscode.l10n.t('SpecBox: could not create the backup branch ({0}). Aborting the reset.', backup.stderr.trim() || `git exited with code ${backup.code}`),
-			);
-			return 'noop';
-		}
-
-		// AC-14: only after confirmation → fetch + checkout default + reset --hard, then verify.
-		const result = await vscode.window.withProgress({
-			location: vscode.ProgressLocation.Notification,
-			title: vscode.l10n.t('SpecBox: updating engine…'),
-			cancellable: false,
-		}, async (): Promise<'reloading' | 'noop'> => {
-			const steps: string[][] = [
-				['fetch', 'origin'],
-				['checkout', DEFAULT_REMOTE_BRANCH],
-				['reset', '--hard', `origin/${DEFAULT_REMOTE_BRANCH}`],
-			];
-			for (const args of steps) {
-				const r = await this.gitRunner(args, enginePath);
-				if (r.code !== 0) {
-					vscode.window.showErrorMessage(
-						vscode.l10n.t('SpecBox: reset failed at `git {0}` ({1}). Your branch is safe at {2}.', args.join(' '), r.stderr.trim() || `code ${r.code}`, backupRef),
-					);
-					return 'noop';
-				}
-			}
-			return this.verifyAndFinish(enginePath, targetVersion);
-		});
-
-		if (result === 'reloading') {
-			vscode.window.showInformationMessage(
-				markDone(vscode.l10n.t('SpecBox: engine reset to origin/{0}. Previous work backed up at {1}.', DEFAULT_REMOTE_BRANCH, backupRef)),
-			);
-		}
-		return result;
-	}
-
-	/** Current branch name (or null if detached / git fails). Used for backup naming. */
-	private async currentBranch(enginePath: string): Promise<string | null> {
-		const r = await this.gitRunner(['rev-parse', '--abbrev-ref', 'HEAD'], enginePath);
-		if (r.code !== 0) { return null; }
-		const name = r.stdout.trim();
-		return name && name !== 'HEAD' ? name : null;
 	}
 
 	/** Backwards-compatible alias for the old entry point. */

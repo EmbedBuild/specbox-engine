@@ -1,10 +1,13 @@
-// US-14 (UC-1401..1404) — remote-version check + guaranteed upgrade.
-// Pure-function + flow tests over compiled out/install.js and out/updater.js,
-// stubbing `vscode` and injecting a scripted GitRunner. No test touches git or
-// the network. Mirrors the mock style of autoclone.test.mjs.
+// US-14 (UC-1401..1404) — remote-version check + guaranteed upgrade, and
+// UC-10807 (US-108) — the managed clone follows the release tags, never runs code
+// from the workspace and waits when the person says «Later».
+// Pure-function + flow tests over compiled out/install.js, out/updater.js and
+// out/health.js, stubbing `vscode` and injecting a scripted GitRunner. No test
+// touches git or the network. Mirrors the mock style of autoclone.test.mjs.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import Module from 'node:module';
@@ -43,6 +46,8 @@ const vscodeStub = {
 		withProgress: (_opts, fn) => fn({ report: () => {} }),
 	},
 	workspace: {
+		isTrusted: true,
+		workspaceFolders: [],
 		openTextDocument: (p) => { openedDocs.push(p); return Promise.resolve({ uri: p }); },
 		getConfiguration: () => ({ get: () => undefined, update: () => Promise.resolve() }),
 	},
@@ -57,10 +62,10 @@ Module._resolveFilename = function (req, ...rest) {
 require.cache['vscode-stub'] = { id: 'vscode-stub', filename: 'vscode-stub', loaded: true, exports: vscodeStub };
 
 const {
-	compareSemver, fetchRemote, remoteEngineVersion, isDivergedFromRemote,
-	managedEnginePath, DEFAULT_REMOTE_BRANCH,
+	compareSemver, fetchRemote, latestReleaseTag, checkoutRelease, managedEnginePath,
 } = require(path.join(outDir, 'install.js'));
 const { ExtensionUpdater } = require(path.join(outDir, 'updater.js'));
+const { HealthChecker } = require(path.join(outDir, 'health.js'));
 
 const MANAGED = managedEnginePath();
 
@@ -68,12 +73,14 @@ function reset() {
 	shown.info = []; shown.warn = []; shown.error = [];
 	infoAnswers = []; warnAnswers = []; errorAnswers = [];
 	openedDocs = []; executed = [];
+	vscodeStub.workspace.isTrusted = true;
+	vscodeStub.workspace.workspaceFolders = [];
 }
 
 /**
- * Build a scripted GitRunner. `behavior` maps the first git arg (or a custom key)
- * to a GitRunResult. `version` is what `git show origin/main:ENGINE_VERSION.yaml`
- * returns. `recorded` collects every invocation for assertions.
+ * Build a scripted GitRunner. `behavior` maps the first git arg to a GitRunResult.
+ * `remoteVersion` is the newest release tag the clone knows (null = no tags).
+ * `recorded` collects every invocation for assertions.
  */
 function scriptedGit(opts = {}) {
 	const recorded = [];
@@ -81,16 +88,11 @@ function scriptedGit(opts = {}) {
 		recorded.push(args);
 		const key = args[0];
 		if (key === 'fetch') { return opts.fetch ?? { code: 0, stdout: '', stderr: '' }; }
-		if (key === 'show') {
-			if (opts.remoteVersion === null) { return { code: 1, stdout: '', stderr: 'fatal' }; }
-			return { code: 0, stdout: `version: ${opts.remoteVersion ?? '0.0.0'}\ncodename: x\n`, stderr: '' };
+		if (key === 'tag') {
+			if (opts.remoteVersion === null) { return { code: 0, stdout: '', stderr: '' }; }
+			return { code: 0, stdout: `v${opts.remoteVersion ?? '0.0.0'}\nv6.0.0\n`, stderr: '' };
 		}
-		if (key === 'pull') { return opts.pull ?? { code: 0, stdout: '', stderr: '' }; }
-		if (key === 'rev-list') { return opts.revList ?? { code: 0, stdout: '0\t0', stderr: '' }; }
-		if (key === 'rev-parse') { return { code: 0, stdout: opts.branch ?? 'main', stderr: '' }; }
-		if (key === 'branch') { return opts.branch_cmd ?? { code: 0, stdout: '', stderr: '' }; }
 		if (key === 'checkout') { return opts.checkout ?? { code: 0, stdout: '', stderr: '' }; }
-		if (key === 'reset') { return opts.reset ?? { code: 0, stdout: '', stderr: '' }; }
 		return { code: 0, stdout: '', stderr: '' };
 	};
 	runner.recorded = recorded;
@@ -98,12 +100,12 @@ function scriptedGit(opts = {}) {
 }
 
 // A minimal updater whose local-version read is stubbed (avoids touching disk for
-// ENGINE_VERSION.yaml). `postPullVersion` is what resolveEngineVersion returns —
-// it is only consulted by verifyAndFinish AFTER the pull/reset, so it models the
+// ENGINE_VERSION.yaml). `postCheckoutVersion` is what resolveEngineVersion returns —
+// it is only consulted by verifyAndFinish AFTER the checkout, so it models the
 // on-disk version once the upgrade ran. Default '6.9.4' = the upgrade did NOT apply.
-function makeUpdater(gitRunner, postPullVersion = '6.9.4') {
+function makeUpdater(gitRunner, postCheckoutVersion = '6.9.4') {
 	const u = new ExtensionUpdater('9.9.9', gitRunner);
-	u.resolveEngineVersion = () => postPullVersion;
+	u.resolveEngineVersion = () => postCheckoutVersion;
 	// Stub rebuildExtension so tests never spawn node/install-ext.mjs.
 	u.rebuildExtension = async () => { executed.push('rebuild'); };
 	return u;
@@ -122,7 +124,7 @@ test('AC-04: compareSemver is numeric, not lexicographic', () => {
 });
 
 // ============================================================
-// UC-1401 — remote read helpers (AC-01, AC-02, AC-03)
+// UC-1401 + UC-10807 — remote read helpers (AC-01, AC-02, AC-03)
 // ============================================================
 
 test('AC-01: fetchRemote calls git fetch origin --tags and never throws', async () => {
@@ -132,54 +134,63 @@ test('AC-01: fetchRemote calls git fetch origin --tags and never throws', async 
 	assert.deepEqual(git.recorded[0], ['fetch', 'origin', '--tags']);
 });
 
-test('AC-02: remoteEngineVersion parses version: from git show', async () => {
-	const git = scriptedGit({ remoteVersion: '6.10.2' });
-	const v = await remoteEngineVersion('/x', git);
-	assert.equal(v, '6.10.2');
-	assert.deepEqual(git.recorded[0], ['show', 'origin/main:ENGINE_VERSION.yaml']);
+test('UC-10807 AC-02: latestReleaseTag is the newest vX.Y.Z tag, not main', async () => {
+	const git = async () => ({ code: 0, stdout: 'v6.28.0-rc1\nv6.28.0\nv6.9.4\nvscode-ext-1\n', stderr: '' });
+	assert.equal(await latestReleaseTag('/x', git), 'v6.28.0');
+	const none = async () => ({ code: 0, stdout: 'nightly\n', stderr: '' });
+	assert.equal(await latestReleaseTag('/x', none), null);
+	const failed = async () => ({ code: 128, stdout: '', stderr: 'fatal' });
+	assert.equal(await latestReleaseTag('/x', failed), null);
 });
 
-test('AC-02/AC-03: remoteEngineVersion returns null when git show fails (no network)', async () => {
-	const git = scriptedGit({ remoteVersion: null });
-	const v = await remoteEngineVersion('/x', git);
-	assert.equal(v, null);
+test('UC-10807: checkoutRelease detaches on the tag', async () => {
+	const git = scriptedGit();
+	await checkoutRelease('/x', 'v6.28.0', git);
+	assert.deepEqual(git.recorded[0], ['checkout', '--quiet', '--detach', 'v6.28.0']);
 });
 
 test('AC-03: a failed fetch (git absent, code 127) shows no dialog, flow continues', async () => {
 	reset();
 	const git = scriptedGit({ fetch: { code: 127, stdout: '', stderr: 'git not found' } });
 	const u = makeUpdater(git);
-	const res = await u.checkRemoteAndOffer('/x', '6.9.4');
+	const res = await u.checkRemoteAndOffer(MANAGED, '6.9.4');
 	assert.equal(res, 'noop');
 	assert.equal(shown.info.length, 0, 'no upgrade dialog when fetch failed');
 	assert.equal(shown.warn.length, 0);
+});
+
+test('AC-03: no release tag → no dialog', async () => {
+	reset();
+	const u = makeUpdater(scriptedGit({ remoteVersion: null }));
+	assert.equal(await u.checkRemoteAndOffer(MANAGED, '6.9.4'), 'noop');
+	assert.equal(shown.info.length, 0);
 });
 
 // ============================================================
 // UC-1402 — dialog X→Y (AC-05, AC-06, AC-07, AC-08)
 // ============================================================
 
-test('AC-05: remote newer than local → modal offers the X→Y upgrade', async () => {
+test('AC-05: a newer release than local → modal offers the X→Y upgrade', async () => {
 	reset();
 	infoAnswers = ['Later']; // dismiss by postponing
 	const git = scriptedGit({ remoteVersion: '6.10.2' });
 	const u = makeUpdater(git);
-	const res = await u.checkRemoteAndOffer('/x', '6.9.4');
+	const res = await u.checkRemoteAndOffer(MANAGED, '6.9.4');
 	assert.equal(res, 'noop');
 	assert.equal(shown.info.length, 1);
 	assert.match(shown.info[0], /v6\.9\.4 → v6\.10\.2/, 'dialog names both versions');
 });
 
-test('AC-06: remote equal or older → no dialog', async () => {
+test('AC-06: release equal or older → no dialog', async () => {
 	reset();
 	const gitEqual = scriptedGit({ remoteVersion: '6.9.4' });
 	let u = makeUpdater(gitEqual);
-	assert.equal(await u.checkRemoteAndOffer('/x', '6.9.4'), 'noop');
+	assert.equal(await u.checkRemoteAndOffer(MANAGED, '6.9.4'), 'noop');
 	assert.equal(shown.info.length, 0, 'equal version shows nothing');
 
 	const gitOlder = scriptedGit({ remoteVersion: '6.8.0' });
 	u = makeUpdater(gitOlder);
-	assert.equal(await u.checkRemoteAndOffer('/x', '6.9.4'), 'noop');
+	assert.equal(await u.checkRemoteAndOffer(MANAGED, '6.9.4'), 'noop');
 	assert.equal(shown.info.length, 0, 'local-ahead (developer) shows nothing');
 });
 
@@ -189,137 +200,134 @@ test('AC-07: View changes opens CHANGELOG then re-offers the decision', async ()
 	infoAnswers = ['View changes', 'Later'];
 	const git = scriptedGit({ remoteVersion: '6.10.2' });
 	const u = makeUpdater(git);
-	// openChangelog calls fs.existsSync(CHANGELOG); the managed path won't have one,
-	// so it's a no-op — but the decision must be re-offered regardless.
-	await u.checkRemoteAndOffer('/x', '6.9.4');
+	await u.checkRemoteAndOffer(MANAGED, '6.9.4');
 	assert.equal(shown.info.length, 2, 'dialog shown again after viewing changes');
 });
 
-test('AC-08: Later postpones this version for the session; a newer one re-prompts', async () => {
+test('AC-08 / UC-10807 AC-03: Later postpones this version and the clone does not move', async () => {
 	reset();
 	const git = scriptedGit({ remoteVersion: '6.10.2' });
 	const u = makeUpdater(git);
 	infoAnswers = ['Later'];
-	await u.checkRemoteAndOffer('/x', '6.9.4');
+	await u.checkRemoteAndOffer(MANAGED, '6.9.4');
 	assert.equal(shown.info.length, 1);
 	// Same version again → suppressed (no second dialog).
-	await u.checkRemoteAndOffer('/x', '6.9.4');
+	await u.checkRemoteAndOffer(MANAGED, '6.9.4');
 	assert.equal(shown.info.length, 1, 'same postponed version must not re-prompt');
-	// A newer remote → prompts again.
+	assert.ok(!git.recorded.some((a) => a[0] === 'checkout' || a[0] === 'pull'), 'after Later nothing moves the clone');
+	// A newer release → prompts again.
 	const gitNewer = scriptedGit({ remoteVersion: '6.11.0' });
-	u.gitRunner = gitNewer; // not used directly; pass via new helper read
 	const u2 = makeUpdater(gitNewer);
 	u2.postponedVersions = u.postponedVersions; // share session state
 	infoAnswers = ['Later'];
-	await u2.checkRemoteAndOffer('/x', '6.9.4');
+	await u2.checkRemoteAndOffer(MANAGED, '6.9.4');
 	assert.equal(shown.info.length, 2, 'a newer version re-prompts');
 });
 
+test('UC-10807 AC-03: the update flow never pulls on its own', () => {
+	const source = fs.readFileSync(path.join(outDir, 'updater.js'), 'utf-8');
+	assert.ok(!/['"]pull['"]/.test(source), 'no git pull left in the updater');
+});
+
+test('UC-10807: a clone of your own is never offered or touched', async () => {
+	reset();
+	const git = scriptedGit({ remoteVersion: '6.10.2' });
+	const u = makeUpdater(git);
+	assert.equal(await u.checkRemoteAndOffer('/Users/x/my-engine', '6.9.4'), 'noop');
+	assert.equal(git.recorded.length, 0, 'no git command on a user clone');
+	assert.equal(shown.info.length, 0);
+});
+
 // ============================================================
-// UC-1403 — guaranteed upgrade + verification (AC-09, AC-10, AC-11)
+// UC-1403 + UC-10807 — upgrade to the release tag + verification (AC-09..AC-11)
 // ============================================================
 
-test('AC-09/AC-10: Update now → pull --ff-only, version moved → rebuild + reload', async () => {
+test('AC-09/AC-10: Update now → checkout of the tag, version moved → rebuild + reload', async () => {
 	reset();
 	infoAnswers = ['Update now'];
-	const git = scriptedGit({ remoteVersion: '6.10.2', pull: { code: 0, stdout: '', stderr: '' } });
-	// local reads 6.9.4 for the offer, then 6.10.2 after the pull (verifyAndFinish).
+	const git = scriptedGit({ remoteVersion: '6.10.2' });
+	// local reads 6.9.4 for the offer, then 6.10.2 after the checkout (verifyAndFinish).
 	const u = makeUpdater(git, '6.10.2');
-	const res = await u.checkRemoteAndOffer('/x', '6.9.4');
+	const res = await u.checkRemoteAndOffer(MANAGED, '6.9.4');
 	assert.equal(res, 'reloading');
-	assert.deepEqual(git.recorded.find(a => a[0] === 'pull'), ['pull', '--ff-only']);
+	assert.deepEqual(git.recorded.find((a) => a[0] === 'checkout'), ['checkout', '--quiet', '--detach', 'v6.10.2']);
 	assert.ok(executed.includes('rebuild'), 'rebuild ran on a verified upgrade');
 });
 
-test('AC-11: pull reports success but version unchanged → error, NOT success', async () => {
+test('AC-11: checkout reports success but version unchanged → error, NOT success', async () => {
 	reset();
 	infoAnswers = ['Update now'];
 	errorAnswers = [undefined];
-	const git = scriptedGit({ remoteVersion: '6.10.2', pull: { code: 0, stdout: '', stderr: '' } });
-	// local stays 6.9.4 even after the pull → mismatch.
+	const git = scriptedGit({ remoteVersion: '6.10.2' });
+	// local stays 6.9.4 even after the checkout → mismatch.
 	const u = makeUpdater(git);
-	const res = await u.checkRemoteAndOffer('/x', '6.9.4');
+	const res = await u.checkRemoteAndOffer(MANAGED, '6.9.4');
 	assert.equal(res, 'noop', 'must not declare success');
 	assert.equal(shown.error.length, 1, 'an actionable error is shown');
 	assert.match(shown.error[0], /did not apply|still on v6\.9\.4/i);
 	assert.ok(!executed.includes('rebuild'), 'no rebuild on a failed verification');
 });
 
-// ============================================================
-// UC-1404 — divergence: reset --hard with backup (AC-12..15)
-// ============================================================
-
-test('AC-12: --ff-only fails by divergence → modal warning, no automatic reset', async () => {
+test('UC-10807: a failed checkout (local changes) only warns — nothing is reset', async () => {
 	reset();
 	infoAnswers = ['Update now'];
-	warnAnswers = ['Cancel']; // divergence modal answered Cancel
-	infoAnswers.push(undefined); // the "cancelled" info notice
 	const git = scriptedGit({
 		remoteVersion: '6.10.2',
-		pull: { code: 1, stdout: '', stderr: 'fatal: Not possible to fast-forward, aborting.' },
-		revList: { code: 0, stdout: '2\t3' }, // behind 2, ahead 3 → diverged
+		checkout: { code: 1, stdout: '', stderr: 'error: Your local changes would be overwritten' },
 	});
 	const u = makeUpdater(git);
 	const res = await u.checkRemoteAndOffer(MANAGED, '6.9.4');
 	assert.equal(res, 'noop');
-	assert.equal(shown.warn.length, 1, 'divergence modal shown');
-	// No reset/checkout ran because the user cancelled.
-	assert.ok(!git.recorded.some(a => a[0] === 'reset'), 'no reset without confirmation');
-	assert.ok(!git.recorded.some(a => a[0] === 'checkout'), 'no checkout without confirmation');
-});
-
-test('AC-13/AC-14: confirmed reset backs up the branch first, then fetch/checkout/reset/verify', async () => {
-	reset();
-	infoAnswers = ['Update now'];
-	warnAnswers = ['Reset with backup'];
-	infoAnswers.push(undefined); // final "reset done" info notice
-	const git = scriptedGit({
-		remoteVersion: '6.10.2',
-		pull: { code: 1, stdout: '', stderr: 'Not possible to fast-forward' },
-		revList: { code: 0, stdout: '1\t1' }, // diverged
-		branch: 'docs/prd-dual-backend',
-	});
-	// after reset, local reads the target version.
-	const u = makeUpdater(git, '6.10.2');
-	const res = await u.checkRemoteAndOffer(MANAGED, '6.9.4');
-	assert.equal(res, 'reloading');
-	const order = git.recorded.map(a => a[0]);
-	const branchIdx = order.indexOf('branch');
-	const resetIdx = order.indexOf('reset');
-	assert.ok(branchIdx !== -1, 'a backup branch was created');
-	assert.ok(branchIdx < resetIdx, 'backup created BEFORE the reset');
-	const backupArgs = git.recorded.find(a => a[0] === 'branch');
-	assert.match(backupArgs[1], /^specbox-backup\/docs\/prd-dual-backend-/, 'backup ref names the branch');
-	assert.ok(order.includes('checkout') && order.includes('reset'), 'fetch/checkout/reset ran');
-	assert.ok(executed.includes('rebuild'), 'verified upgrade rebuilds');
-});
-
-test('AC-15: a diverged USER clone (not managed) is never reset — only a notice', async () => {
-	reset();
-	infoAnswers = ['Update now'];
-	warnAnswers = []; // no modal expected
-	const git = scriptedGit({
-		remoteVersion: '6.10.2',
-		pull: { code: 1, stdout: '', stderr: 'Not possible to fast-forward' },
-		revList: { code: 0, stdout: '1\t1' },
-		branch: 'wip',
-	});
-	const u = makeUpdater(git);
-	const res = await u.checkRemoteAndOffer('/Users/x/my-engine', '6.9.4');
-	assert.equal(res, 'noop');
-	assert.ok(!git.recorded.some(a => a[0] === 'reset'), 'user clone is never reset');
-	assert.ok(shown.warn.length >= 1, 'an informational warning is shown for the user clone');
+	assert.equal(shown.warn.length, 1);
+	assert.match(shown.warn[0], /local changes/);
+	assert.ok(!git.recorded.some((a) => ['reset', 'branch', 'pull'].includes(a[0])), 'no reset, backup or pull');
+	assert.ok(!executed.includes('rebuild'));
 });
 
 // ============================================================
-// isDivergedFromRemote helper (AC-12 robustness)
+// UC-10807 AC-01 — no script of the opened folder ever runs
 // ============================================================
 
-test('AC-12: isDivergedFromRemote uses rev-list ahead count', async () => {
-	const diverged = scriptedGit({ revList: { code: 0, stdout: '0\t3' } });
-	assert.equal(await isDivergedFromRemote('/x', diverged), true, 'ahead>0 is diverged');
-	const clean = scriptedGit({ revList: { code: 0, stdout: '0\t0' } });
-	assert.equal(await isDivergedFromRemote('/x', clean), false, 'ahead=0 is not diverged');
-	const failed = scriptedGit({ revList: { code: 1, stdout: '' } });
-	assert.equal(await isDivergedFromRemote('/x', failed), false, 'rev-list failure is not diverged');
+/** A folder that looks like a newer engine and whose install-ext.mjs leaves a mark if it runs. */
+function maliciousEngine() {
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'uc10807-'));
+	fs.writeFileSync(path.join(dir, 'ENGINE_VERSION.yaml'), 'version: 99.0.0\n');
+	fs.mkdirSync(path.join(dir, 'vscode-extension'));
+	const mark = path.join(dir, 'RAN');
+	fs.writeFileSync(
+		path.join(dir, 'vscode-extension', 'install-ext.mjs'),
+		`import fs from 'node:fs'; fs.writeFileSync(${JSON.stringify(mark)}, 'x');\n`,
+	);
+	return { dir, mark };
+}
+
+test('UC-10807 AC-01: the updater does not run install-ext.mjs of a folder that is not the managed clone', async () => {
+	reset();
+	const { dir, mark } = maliciousEngine();
+	const u = new ExtensionUpdater('6.28.0', scriptedGit());
+	await u.rebuildExtension(dir, '99.0.0');
+	await new Promise((r) => setTimeout(r, 300));
+	assert.equal(fs.existsSync(mark), false, 'install-ext.mjs of the folder must not run');
+	assert.match(shown.info[0], /Marketplace/);
+	fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('UC-10807 AC-01: in Restricted Mode not even the managed clone runs its script', async () => {
+	reset();
+	vscodeStub.workspace.isTrusted = false;
+	const u = new ExtensionUpdater('6.28.0', scriptedGit());
+	await u.rebuildExtension(MANAGED, '99.0.0');
+	assert.equal(shown.info.length, 1, 'only the Marketplace notice');
+	assert.equal(shown.error.length, 0, 'it did not even look for install-ext.mjs');
+});
+
+test('UC-10807 AC-01: in Restricted Mode a workspace folder is not taken as the engine', async () => {
+	reset();
+	const { dir } = maliciousEngine();
+	vscodeStub.workspace.workspaceFolders = [{ uri: { fsPath: dir } }];
+	vscodeStub.workspace.isTrusted = false;
+	assert.notEqual(await new HealthChecker().findEnginePath(), dir, 'untrusted folder ignored');
+	vscodeStub.workspace.isTrusted = true;
+	assert.equal(await new HealthChecker().findEnginePath(), dir, 'a trusted engine checkout still counts');
+	fs.rmSync(dir, { recursive: true, force: true });
 });

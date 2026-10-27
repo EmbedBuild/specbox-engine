@@ -1,8 +1,8 @@
-version: 6.28.0
-codename: "Plural"
+version: 6.29.0
+codename: "Candado"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-10-26
+release_date: 2026-10-27
 min_claude_code: "1.0.0"
 
 stacks:
@@ -557,7 +557,22 @@ features:
   - project-live-sessions-list
   - extension-publish-tag-check
 
+  # New (v6.29.0) — Candado
+  - mcp-read-tools-stay-in-their-folder
+  - remote-transport-policy-required
+  - server-image-hashed-lockfile
+  - project-template-asks-before-commands
+  - extension-follows-release-tags
+
 changelog:
+  6.29.0:
+    date: 2026-10-27
+    codename: "Candado"
+    changes:
+      - "fix: the MCP read-only tools only read inside their folder — read_plan, list_designs, get_hook_source, read_skill, read_agent_prompt, get_architecture_doc, get_infra_doc, get_quality_baseline, get_feature_evidence, get_healing_log, get_quality_logs and get_session_events turn a name into a path only through child_within (one segment, resolved inside the folder); anything else is answered like a name that does not exist, and the remote-surface inventory fails if a tool joins a parameter to a path without it (UC-10701, PR #298)"
+      - "fix: a remote server does not start without SPECBOX_TRANSPORT_AUTH — with http, streamable-http or sse and no policy, main() logs transport_auth_undeclared and exits; off stays possible but written on purpose; the image installs requirements.lock with pip --require-hashes (mcp>=1.30.0), and docker-compose.yml requires the policy and no longer passes GITHUB_TOKEN or SPECBOX_SYNC_TOKEN (UC-10806, PR #299)"
+      - "fix: the project template asks before commands and the web — allow keeps Read, Write and Edit; deny covers reading or editing ~/.ssh and ~/.specbox, reading .env and .env.*, and curl and wget; the mode without questions goes in each machine's settings.local.json, which upgrade_project never writes (doc/guides/permisos.md) (UC-10808, PR #300)"
+      - "fix: the VS Code extension never runs code of the opened folder and follows the published releases — install-ext.mjs only runs from the managed clone in a trusted workspace, a workspace folder only counts as the engine when trusted, install/onboard/configureMcp/signIn need isWorkspaceTrusted, and the managed clone starts on the newest vX.Y.Z tag and moves only when the person accepts a release (checkout of the tag; no automatic pull, no reset) (UC-10807, PR #301)"
   6.28.0:
     date: 2026-10-26
     codename: "Plural"

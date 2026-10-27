@@ -582,18 +582,36 @@ async def setup_board(
     Returns:
         Board configuration with IDs for states, custom fields, and labels.
     """
-    backend = await get_session_backend(ctx, items_content=items_content)
+    # UC-11004: creating a board reads nothing, so a remote FreeForm session that
+    # sends no items_content starts from an empty items.json instead of failing.
+    new_content_board = items_content is None and await _content_only_freeform(ctx)
+    backend = await get_session_backend(
+        ctx, items_content="" if new_content_board else items_content
+    )
     try:
         config = await backend.setup_board(board_name)
-        return {
+        result = {
             "board_id": config.board_id,
             "board_url": config.board_url,
             "lists": config.states,
             "custom_fields": config.custom_fields,
             "labels": config.labels,
         }
+        if new_content_board:
+            result["items_content"] = backend.get_items_content()
+        return result
     finally:
         await backend.close()
+
+
+async def _content_only_freeform(ctx: Context) -> bool:
+    """True for a FreeForm session that has no disk on this server (UC-3801)."""
+    from ..transport import is_remote_transport
+
+    config = await ctx.get_state(BACKEND_STATE_KEY) or {}
+    return config.get("backend_type") == "freeform" and bool(
+        config.get("content_only") or is_remote_transport()
+    )
 
 
 async def get_board_status(

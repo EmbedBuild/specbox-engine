@@ -27,6 +27,7 @@ from server.tools.spec_driven import (
     find_next_uc,
     import_spec,
     mark_ac,
+    setup_board,
     start_uc,
 )
 from server.tools.spec_mutations import add_ac, add_uc, update_uc
@@ -265,3 +266,51 @@ def test_get_items_content_roundtrips(tmp_path):
     b._save_items([{"id": "x", "name": "US-01: t", "labels": ["US"]}])
     content = b.get_items_content()
     assert json.loads(content)[0]["id"] == "x"
+
+
+# ── UC-11004: setup_board on a remote FreeForm session ───────────────
+
+
+def _content_only_ctx() -> FakeCtx:
+    ctx = FakeCtx()
+    ctx._s["spec_backend_config"] = {"backend_type": "freeform", "content_only": True}
+    return ctx
+
+
+@pytest.mark.asyncio
+async def test_setup_board_content_only_session_starts_empty_board(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    res = await setup_board(board_name="demo", ctx=_content_only_ctx())
+
+    assert res["board_id"].startswith("ff-")
+    assert {"US", "UC"} <= set(res["labels"])
+    assert json.loads(res["items_content"]) == []
+    assert list(tmp_path.iterdir()) == [], "the server wrote nothing to disk"
+
+
+@pytest.mark.asyncio
+async def test_setup_board_with_items_content_keeps_the_board(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    board = _board_with_us()
+    res = await setup_board(board_name="demo", ctx=_content_only_ctx(), items_content=board)
+
+    assert json.loads(res["items_content"]) == json.loads(board)
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.asyncio
+async def test_setup_board_legacy_root_path_on_remote_transport(monkeypatch):
+    monkeypatch.setenv("MCP_TRANSPORT", "http")
+    res = await setup_board(board_name="demo", ctx=FakeCtx())
+
+    assert json.loads(res["items_content"]) == []
+
+
+@pytest.mark.asyncio
+async def test_setup_board_disk_mode_unchanged(tmp_path):
+    ctx = FakeCtx(root_path=str(tmp_path / "tracking"))
+    res = await setup_board(board_name="demo", ctx=ctx)
+
+    assert "items_content" not in res
+    assert json.loads((tmp_path / "tracking" / "items.json").read_text()) == []
+    assert (tmp_path / "tracking" / "labels.json").exists()

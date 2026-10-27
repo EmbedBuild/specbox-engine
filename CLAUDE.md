@@ -564,7 +564,7 @@ fondo, re-ejecutar `./install.sh` desde v6.1.0 o borrar manualmente los
 SpecBox provee persistencia de sesión más rica que la compactación nativa de Claude Code. Antes de proponer al usuario "compactar", "iniciar nueva sesión" o `/clear`:
 
 1. **Ejecutá `/handoff`** — persiste el estado fino de la sesión a `.quality/handoff.md` y a Engram como observación estructurada con topic `session:<project>:<branch>`.
-2. Confirmá al usuario que el handoff fue exitoso (validador: `node .quality/scripts/validate-handoff.mjs .quality/handoff.md`).
+2. Confirmá al usuario que el handoff fue exitoso (validador: `node ~/.claude/skills/handoff/scripts/validate-handoff.mjs .quality/handoff.md`).
 3. Solo entonces, sugerí compactar/cerrar.
 
 La nueva sesión arranca con el handoff cargado vía hook `session-start.mjs`, que inyecta:
@@ -588,7 +588,7 @@ Componentes:
 - Skill: `.claude/skills/handoff/SKILL.md`
 - Builder: `.claude/hooks/lib/handoff-builder.mjs` (puro, testeable)
 - SessionStart hook: `.claude/hooks/session-start.mjs`
-- Validador: `.quality/scripts/validate-handoff.mjs`
+- Validador: `.claude/skills/handoff/scripts/validate-handoff.mjs` (viaja con la skill, UC-11007)
 - Spec: `doc/specs/handoff-spec.md`
 - Pre-read budget guard: `.claude/hooks/pre-read-budget-guard.mjs` (warning no bloqueante para Read >5% de la ventana)
 

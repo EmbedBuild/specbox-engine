@@ -122,7 +122,7 @@ Todas son **obligatorias**. Si una sección no aplica, debe escribirse el conten
 
 ## Validación
 
-Validador: `.quality/scripts/validate-handoff.mjs <path>` (creado en Phase 1).
+Validador: `.claude/skills/handoff/scripts/validate-handoff.mjs <path>` (creado en Phase 1; desde UC-11007 viaja con la skill para que llegue a los proyectos).
 
 Comprueba:
 - Frontmatter parsea como YAML válido.

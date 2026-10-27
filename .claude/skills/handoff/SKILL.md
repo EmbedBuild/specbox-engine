@@ -112,11 +112,20 @@ node -e "
 
 ### Paso 4 — Validar
 
+El validador viaja con esta skill (`~/.claude/skills/handoff/scripts/`), así que está en cualquier
+proyecto donde esté instalada SpecBox (UC-11007):
+
 ```bash
-node .quality/scripts/validate-handoff.mjs .quality/handoff.md
+V="$HOME/.claude/skills/handoff/scripts/validate-handoff.mjs"
+if [ -f "$V" ]; then
+  node "$V" .quality/handoff.md
+else
+  echo "Falta el validador del handoff ($V). Actualiza SpecBox: en VSCode, «SpecBox: Install Engine»; en la terminal, ./install.sh del engine."
+fi
 ```
 
-Si exit != 0, leer stderr y arreglar antes de continuar.
+Si exit != 0, leer stderr y arreglar antes de continuar. Si falta el validador, decírselo al
+usuario con ese mensaje y seguir: el handoff ya está escrito.
 
 ### Paso 5 — Persistir en Engram (estructurado)
 

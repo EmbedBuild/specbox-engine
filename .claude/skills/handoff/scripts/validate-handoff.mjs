@@ -3,7 +3,7 @@
  * validate-handoff.mjs — Validates a .quality/handoff.md against doc/specs/handoff-spec.md
  *
  * Usage:
- *   node .quality/scripts/validate-handoff.mjs <path>
+ *   node ~/.claude/skills/handoff/scripts/validate-handoff.mjs <path>   (UC-11007: viaja con la skill)
  *
  * Exit:
  *   0 — valid

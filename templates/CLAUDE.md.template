@@ -359,6 +359,20 @@ Si el PRD no tiene seccion Audiencia, el pipeline funciona como siempre (legacy)
 | Report | `doc/test_cases/reports/` |
 | Patterns | `specbox-engine/architecture/{stack}/e2e-testing.md` |
 
+## Permisos de Claude Code
+
+`.claude/settings.json` (versionado) deja leer y editar el proyecto sin preguntar, pero pide
+permiso para ejecutar comandos y para abrir webs, y prohíbe leer `~/.ssh`, `~/.specbox` y `.env`
+y usar `curl` o `wget`. Si quieres el modo sin preguntas (autopilot), actívalo solo en tu máquina
+con `.claude/settings.local.json`, que no se versiona y que `upgrade_project` no toca:
+
+```json
+{ "permissions": { "allow": ["Bash", "WebFetch"] } }
+```
+
+Las prohibiciones de `settings.json` siguen valiendo con ese modo. Guía:
+`specbox-engine/doc/guides/permisos.md`.
+
 ## Hooks
 
 ```bash

@@ -217,7 +217,8 @@ async def test_health_get_and_preflight_are_never_limited():
 def test_main_puts_the_guard_right_after_the_authentication():
     from server.server import main
 
-    with patch.dict(os.environ, {"MCP_TRANSPORT": "streamable-http"}, clear=False), patch("server.server.mcp") as fake:
+    env = {"MCP_TRANSPORT": "streamable-http", "SPECBOX_TRANSPORT_AUTH": "enforce"}
+    with patch.dict(os.environ, env, clear=False), patch("server.server.mcp") as fake:
         main()
     classes = [m.cls for m in fake.run.call_args.kwargs["middleware"]]
     assert classes == [ta.TransportAuthMiddleware, ag.AbuseGuardMiddleware]

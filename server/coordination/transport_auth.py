@@ -136,6 +136,21 @@ def utc_today() -> dt.date:
     return dt.datetime.now(dt.timezone.utc).date()
 
 
+REMOTE_TRANSPORTS = frozenset({"http", "streamable-http", "sse"})
+
+
+def undeclared_remote_policy(transport: str, environ: Mapping[str, str] | None = None) -> bool:
+    """UC-10806: a remote server must say how it treats requests without a token.
+
+    Without ``SPECBOX_TRANSPORT_AUTH`` the policy is ``off``, so a deployment
+    that loses the variable opens every tool that does not resolve its caller
+    to the Internet (audit of 2026-10-27, ENG-S-03). ``off`` stays possible, but
+    only written on purpose; stdio runs on the caller's machine and needs nothing.
+    """
+    env = os.environ if environ is None else environ
+    return transport in REMOTE_TRANSPORTS and not (env.get(MODE_ENV) or "").strip()
+
+
 # ── Messages (AC-05: the same text before and after the deadline) ───
 
 _MESSAGES: dict[str, dict[str, str]] = {

@@ -42,7 +42,9 @@ async def test_the_handshake_announces_exactly_the_published_version():
 
 def test_http_transports_authenticate_every_request_and_stdio_does_not():
     for transport, expects_auth in (("streamable-http", True), ("sse", True), ("stdio", False)):
-        with patch.dict(os.environ, {"MCP_TRANSPORT": transport}, clear=False), patch("server.server.mcp") as fake:
+        # UC-10806: a remote transport only starts with its policy declared.
+        env = {"MCP_TRANSPORT": transport, "SPECBOX_TRANSPORT_AUTH": "enforce"}
+        with patch.dict(os.environ, env, clear=False), patch("server.server.mcp") as fake:
             main()
         middleware = fake.run.call_args.kwargs.get("middleware") or []
         classes = [m.cls for m in middleware]

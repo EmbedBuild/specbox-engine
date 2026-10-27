@@ -19,13 +19,19 @@ Código: `server/coordination/transport_auth.py`. Pruebas: `tests/test_transport
 
 | `SPECBOX_TRANSPORT_AUTH` | Conexión sin token |
 |---|---|
-| `off` (por defecto) | Funciona como hasta ahora, sin aviso. |
+| `off` | Funciona como hasta ahora, sin aviso. Hay que escribirlo: ver abajo. |
 | `grace` | Funciona hasta `SPECBOX_TRANSPORT_AUTH_GRACE_UNTIL` (excluida), y cada respuesta de una tool lleva un aviso con esa fecha y las dos formas de conectarse con cuenta. Desde esa fecha, se rechaza con `401 token_required` **y el mismo mensaje**. |
 | `enforce` | Se rechaza con `401 token_required`. |
 
 `SPECBOX_TRANSPORT_AUTH_GRACE_UNTIL` es una fecha `AAAA-MM-DD` (UTC): el primer día en que se
 rechaza la conexión sin token. Un `grace` sin fecha válida, o un modo desconocido, se comportan
 como `enforce` (nunca abren la puerta por error).
+
+**Desde UC-10806 la variable es obligatoria en remoto.** Con `MCP_TRANSPORT` `http`,
+`streamable-http` o `sse` y sin `SPECBOX_TRANSPORT_AUTH`, el servidor no arranca: deja
+`transport_auth_undeclared` en el log y sale con el motivo. Antes, perder la variable en un
+despliegue dejaba el MCP en `off` sin que nadie lo notara. `off` sigue existiendo, pero solo si se
+escribe. Con `stdio` no hace falta. El `docker-compose.yml` exige declararla.
 
 La respuesta de rechazo es JSON (`error`, `message`, `docs_url`) con `WWW-Authenticate: Bearer`;
 el mensaje sale en español o inglés según `Accept-Language`.

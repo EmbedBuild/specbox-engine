@@ -7,9 +7,12 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir .
+# Install Python dependencies. UC-10806: exactly the versions of requirements.lock,
+# each checked against its hash, so every deploy builds the same image (before,
+# `pip install .` took whatever was newest). The server runs from the code copied
+# below (`python -m server`), so the project itself is not installed.
+COPY requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 # Cache-bust: bump this ARG (or pass --build-arg CACHEBUST=$(date)) to force a
 # fresh recopy of all engine content + server code below. Needed because some

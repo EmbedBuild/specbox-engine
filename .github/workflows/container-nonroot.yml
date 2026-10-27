@@ -42,7 +42,8 @@ jobs:
           docker volume create engine-state-ci
           docker run --rm -v engine-state-ci:/data/state --entrypoint sh specbox-engine:ci \
             -c 'mkdir -p /data/state/projects && echo "{}" > /data/state/registry.json && chown -R root:root /data/state'
-          docker run -d --name engine -v engine-state-ci:/data/state specbox-engine:ci
+          # UC-10806: a remote server only starts with its transport policy declared.
+          docker run -d --name engine -e SPECBOX_TRANSPORT_AUTH=enforce -v engine-state-ci:/data/state specbox-engine:ci
 
       - name: Wait until it is healthy
         run: |

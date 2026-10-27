@@ -42,15 +42,12 @@ from ..stitch_enums import DEFAULT_MODEL, UnknownModelError, resolve_model
 from ..transport import is_remote_transport
 from ..stitch_orchestration import (
     FallbackOutcome,
-    FallbackStrategy,
     ScreenSpec,
     build_site_batched,
     generate_screen_with_fallback,
 )
 from ..stitch_prompt import (
-    PromptLayers,
     ValidatorMode,
-    build_prompt,
     validate_and_normalize,
 )
 from ..app_docs.workspace import MemoryWorkspace
@@ -443,6 +440,7 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
         contract: str = "native_v2",
         design_md_content: str | None = None,
         design_system: str | None = None,
+        keep_theme_directives: bool = False,
     ) -> dict:
         """Generate a screen with the v5.31.0 fallback chain.
 
@@ -478,6 +476,11 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 ``native_v2`` sends the project's design system it detects
                 (the first one listed), so the colours and fonts stripped
                 from the prompt come from the DS (UC-8501).
+            keep_theme_directives: With ``native_v2`` and a DS bound, keep the
+                colour / font / roundness lines in the prompt instead of removing
+                them (UC-11302), e.g. a colour that the DS must not override.
+                When lines are removed, ``design_system_info.stripped_lines``
+                lists them and ``prompt_notice`` says so.
 
         Returns:
             ``{status, outcome, final_strategy, model_used, attempts,
@@ -516,7 +519,9 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 prompt,
                 contract=contract,
                 design_md_content=design_md_content,
+                keep_theme_directives=keep_theme_directives,
             )
+            stripped_lines = ds_info.get("stripped_lines") or []
 
             ds_asset = design_system or (
                 ds_info.get("first_asset") if prompt_mode == "design_system_applied" else None
@@ -560,6 +565,11 @@ def register_stitch_v2_tools(mcp: FastMCP, state_path: Path) -> None:
                 "prompt_mode": prompt_mode,
                 "design_system_info": ds_info,
                 "design_system_used": ds_asset,
+                **({"prompt_notice": (
+                    f"native_v2 removed {len(stripped_lines)} line(s) with colours, fonts or roundness "
+                    "from the prompt because the design system applies them (design_system_info."
+                    "stripped_lines). Pass keep_theme_directives=true to keep them."
+                )} if stripped_lines else {}),
                 **({"model_notice": model_notice} if model_notice else {}),
                 **candidate_marker("stitch", extract_locale_from_ctx(ctx)),
             }
@@ -1025,8 +1035,13 @@ async def _resolve_prompt_for_contract(
     *,
     contract: str,
     design_md_content: str | None,
+    keep_theme_directives: bool = False,
 ) -> tuple[str, str, dict]:
     """Pick the right prompt shape based on contract + DS state.
+
+    UC-11302: with a DS bound, the lines with colour / font / roundness directives are removed
+    unless ``keep_theme_directives`` is set, and ``ds_info["stripped_lines"]`` lists what was
+    removed, so the caller sees it instead of losing it silently.
 
     Returns ``(effective_prompt, prompt_mode, ds_info)`` where:
       * ``prompt_mode`` is one of:
@@ -1046,11 +1061,13 @@ async def _resolve_prompt_for_contract(
     # contract == "native_v2"
     ds_list = await _list_design_systems_safe(client, stitch_project_id)
     if ds_list:
-        cleaned, stripped = _strip_theme_directives(prompt)
+        cleaned, stripped = (prompt, []) if keep_theme_directives else _strip_theme_directives(prompt)
         ds_info = {
             "count": len(ds_list),
             "first_asset": ds_list[0].get("name") if isinstance(ds_list[0], dict) else None,
             "stripped_line_count": len(stripped),
+            "stripped_lines": stripped,
+            "theme_directives_kept": keep_theme_directives,
         }
         return cleaned, "design_system_applied", ds_info
 

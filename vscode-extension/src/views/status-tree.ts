@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { HealthChecker, HealthResult, specboxSkillsCount } from '../health';
 import { SecretsManager } from '../secret-storage';
+import { accountNotice } from '../account-notice';
 
 export interface IdentityState {
 	signedIn: boolean;
@@ -59,8 +60,20 @@ export class StatusTreeProvider implements vscode.TreeDataProvider<vscode.TreeIt
 				'person'
 			);
 
+		// UC-11013 — the MCP is configured but no account is connected: say when it stops working.
+		const signedIn = this.identityState.signedIn || (await this.secrets?.hasToken()) === true;
+		const notice = accountNotice({ mcpConfigured: r.mcpSpecbox.configured, signedIn });
+		const noticeItems: vscode.TreeItem[] = [];
+		if (notice) {
+			const item = new StatusItem(notice.label, notice.severity === 'error' ? 'fail' : 'warn');
+			item.tooltip = notice.text;
+			item.command = { command: 'specbox.signIn', title: vscode.l10n.t('Sign in with GitHub') };
+			noticeItems.push(item);
+		}
+
 		return [
 			identityItem,
+			...noticeItems,
 			// UC-9604 — the engine is there when it was found; missing skills go in the Skills row.
 			new StatusItem(
 				`Engine: ${r.enginePath ? `v${r.engineVersion}` : vscode.l10n.t('Not installed')}`,

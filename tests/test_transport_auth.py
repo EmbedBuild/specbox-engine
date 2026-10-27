@@ -149,6 +149,24 @@ async def test_ac01_no_token_is_rejected_when_enforcing_before_the_app_runs():
     assert body["docs_url"] == "https://cloud.specbox.build/como-se-conecta"
 
 
+@pytest.mark.parametrize("path", ["/register", "/.well-known/oauth-authorization-server"])
+async def test_uc11013_the_oauth_attempt_of_a_tokenless_client_gets_the_same_explanation(path):
+    """UC-11013 AC-04: on a 401, Claude Code (http) and mcp-remote 0.15.2 try OAuth dynamic client
+    registration and show the body of that answer: «✘ Failed to connect — Dynamic Client Registration
+    rejected (HTTP 401): {…}» in `claude mcp list` and «Fatal error: RegistrationRejectedError» in
+    mcp-remote (doc/runbooks/transport-auth.md). That body must be the explanation, in English, since
+    neither client sends Accept-Language."""
+    client, app = _client(ENFORCE)
+    async with client:
+        resp = await client.request("POST" if path == "/register" else "GET", path, json={})
+    assert resp.status_code == 401 and app.calls == []
+    body = resp.json()
+    assert body["error"] == "token_required"
+    assert "only accepts connections with an account" in body["message"]
+    assert "Sign in with GitHub" in body["message"] and "`specbox login`" in body["message"]
+    assert body["docs_url"] == "https://cloud.specbox.build/how-to-connect"
+
+
 @pytest.mark.parametrize(
     ("language", "url"),
     [

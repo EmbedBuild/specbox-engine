@@ -2,10 +2,11 @@
 
 import json
 import os
-import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from fastmcp import FastMCP
+
+from ._safe_paths import child_within
 
 
 def _find_engine_path() -> str | None:
@@ -108,8 +109,8 @@ def register_telemetry_tools(mcp: FastMCP, engine_path: Path):
         if not date:
             date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-        logfile = logs_dir / f"sessions_{date}.jsonl"
-        if not logfile.exists():
+        logfile = child_within(logs_dir, f"sessions_{date}.jsonl")
+        if logfile is None or not logfile.exists():
             available = sorted([f.stem.replace("sessions_", "") for f in logs_dir.glob("sessions_*.jsonl")])
             return {"error": f"No log for {date}", "available_dates": available[-10:]}
 
@@ -130,10 +131,10 @@ def register_telemetry_tools(mcp: FastMCP, engine_path: Path):
         Returns healing events: what failed, what level of recovery was used,
         whether it was resolved. Use to audit implementation reliability.
         Self-healing levels: 1=auto-fix, 2=diagnose+fix, 3=rollback+retry, 4=human needed."""
-        evidence_dir = engine_path / ".quality" / "evidence" / feature_name
-        healing_file = evidence_dir / "healing.jsonl"
+        evidence_dir = child_within(engine_path / ".quality" / "evidence", feature_name)
+        healing_file = evidence_dir / "healing.jsonl" if evidence_dir is not None else None
 
-        if not healing_file.exists():
+        if healing_file is None or not healing_file.exists():
             available = []
             parent = engine_path / ".quality" / "evidence"
             if parent.exists():

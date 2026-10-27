@@ -79,6 +79,17 @@ APPROVED_STATE: dict[str, str] = {
 #: Builds ``projects/<x>`` by hand: ``"projects" / name`` in any quoting.
 HAND_BUILT = re.compile(r"""["']projects["']\s*/""")
 
+#: A tool parameter joined to a path: ``base / name`` or ``base / f"…{name}…"`` (UC-10701).
+RAW_JOIN = re.compile(r"""/\s*(?:f["'][^"'\n]*\{(?P<f>\w+)[^}]*\}|(?P<v>[A-Za-z_]\w*)\b(?!\s*[(.\[]))""")
+
+#: Tools that join a parameter to a path without ``child_within``, and why.
+APPROVED_JOINS: dict[str, str] = {
+    "generate_design_md_tool": "the match is its docstring listing the *_content parameters",
+    "switch_project_backend": "the match is its docstring (source_type / target_type)",
+    "get_context_budget": "the match is a division of token counts, not a path",
+    "report_e2e_results": "the match is a division (passing / total), not a path",
+}
+
 
 def path_problems(name: str, fn: Callable) -> list[str]:
     """A tool with a client path must be guarded or approved."""
@@ -128,6 +139,19 @@ def state_problems(name: str, fn: Callable) -> list[str]:
     return problems
 
 
+def raw_join_problems(name: str, fn: Callable) -> list[str]:
+    """A tool that turns a parameter into a path must go through ``child_within``."""
+    if name in APPROVED_JOINS or name in CLIENT_PATH_TOOLS:
+        return []
+    try:
+        source = inspect.getsource(fn)
+    except (OSError, TypeError):
+        return []
+    params = set(inspect.signature(fn).parameters)
+    joined = {m.group("f") or m.group("v") for m in RAW_JOIN.finditer(source)} & params
+    return [f"{name}: joins {sorted(joined)} to a path without child_within"] if joined else []
+
+
 def hand_built_paths(root: Path) -> list[str]:
     found = []
     for path in sorted(root.rglob("*.py")):
@@ -172,8 +196,14 @@ def test_no_code_builds_a_project_state_path_by_hand():
     assert hand_built_paths(SERVER) == []
 
 
+async def test_every_tool_that_joins_a_parameter_to_a_path_uses_child_within():
+    tools = await _registered_tools()
+    problems = [p for name, fn in sorted(tools.items()) for p in raw_join_problems(name, fn)]
+    assert problems == []
+
+
 def test_approved_entries_say_why():
-    for reason in {**APPROVED_PATHS, **APPROVED_STATE, **APPROVED_CWD}.values():
+    for reason in {**APPROVED_PATHS, **APPROVED_STATE, **APPROVED_CWD, **APPROVED_JOINS}.values():
         assert len(reason) > 20
 
 

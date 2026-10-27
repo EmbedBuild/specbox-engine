@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from fastmcp import FastMCP
 
+from ._safe_paths import child_within
+
 
 def register_hook_tools(mcp: FastMCP, engine_path: Path):
 
@@ -97,12 +99,10 @@ def register_hook_tools(mcp: FastMCP, engine_path: Path):
         Returns the full script content, description, and metadata.
         Use to understand exactly what a hook does or to debug hook behavior."""
         hooks_dir = engine_path / ".claude" / "hooks"
-        hook_file = hooks_dir / hook_name
-
-        if not hook_file.exists():
-            # Try with .mjs extension
-            hook_file = hooks_dir / f"{hook_name}.mjs"
-        if not hook_file.exists():
+        # The name as given, then with the .mjs extension
+        candidates = [child_within(hooks_dir, hook_name), child_within(hooks_dir, f"{hook_name}.mjs")]
+        hook_file = next((p for p in candidates if p is not None and p.exists()), None)
+        if hook_file is None:
             available = [f.name for f in hooks_dir.glob("*.mjs")] if hooks_dir.exists() else []
             return {"error": f"Hook '{hook_name}' not found", "available": available}
 

@@ -3,6 +3,8 @@
 from pathlib import Path
 from fastmcp import FastMCP
 
+from ._safe_paths import child_within
+
 
 def register_plan_tools(mcp: FastMCP, engine_path: Path):
 
@@ -36,11 +38,10 @@ def register_plan_tools(mcp: FastMCP, engine_path: Path):
         Use when you need to review plan details, phases, or agent assignments."""
         plans_dir = engine_path / "doc" / "plans"
 
-        plan_file = plans_dir / f"{plan_name}"
-        if not plan_file.exists():
-            plan_file = plans_dir / f"{plan_name}.md"
-        if not plan_file.exists():
-            matches = list(plans_dir.glob(f"*{plan_name}*"))
+        candidates = [child_within(plans_dir, plan_name), child_within(plans_dir, f"{plan_name}.md")]
+        plan_file = next((p for p in candidates if p is not None and p.exists()), None)
+        if plan_file is None:
+            matches = list(plans_dir.glob(f"*{plan_name}*")) if candidates[0] is not None else []
             if matches:
                 plan_file = matches[0]
             else:
@@ -69,7 +70,9 @@ def register_plan_tools(mcp: FastMCP, engine_path: Path):
             return []
 
         designs = []
-        search_path = design_dir / feature_name if feature_name else design_dir
+        search_path = child_within(design_dir, feature_name) if feature_name else design_dir
+        if search_path is None:
+            return []
         for f in search_path.rglob("*.html"):
             designs.append({
                 "feature": f.parent.name,

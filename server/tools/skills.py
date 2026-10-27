@@ -3,6 +3,8 @@
 from pathlib import Path
 from fastmcp import FastMCP
 
+from ._safe_paths import child_within
+
 
 def _parse_frontmatter(content: str) -> dict:
     """Parse YAML frontmatter from a SKILL.md file."""
@@ -77,9 +79,9 @@ def register_skill_tools(mcp: FastMCP, engine_path: Path):
         Returns frontmatter fields, full SKILL.md content, and supporting file previews.
         Use when you need the detailed instructions of how a skill works."""
         skills_dir = engine_path / ".claude" / "skills"
-        skill_dir = skills_dir / skill_name
+        skill_dir = child_within(skills_dir, skill_name)
 
-        if not skill_dir.exists():
+        if skill_dir is None or not skill_dir.exists():
             matches = [d for d in skills_dir.iterdir() if d.is_dir() and skill_name.lower() in d.name.lower()]
             if matches:
                 skill_dir = matches[0]

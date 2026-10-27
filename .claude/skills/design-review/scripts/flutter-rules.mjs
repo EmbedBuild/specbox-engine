@@ -7,7 +7,7 @@
 // reglas marcan lo que deja un control por debajo de 48 dp, lo que anula la escala de texto del
 // sistema y el movimiento que se sale de la rúbrica. Cada hallazgo lleva fichero, línea y columna.
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -100,7 +100,7 @@ export function scanPaths(paths, root = process.cwd()) {
   return dartFiles(paths).flatMap((f) => scanDart(readFileSync(f, 'utf8'), f.startsWith(`${root}/`) ? f.slice(root.length + 1) : f));
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   const paths = process.argv.slice(2);
   if (!paths.length) {
     console.error('Uso: node flutter-rules.mjs <fichero.dart | carpeta> [...]');

@@ -60,7 +60,8 @@
         "command": "specbox.install",
         "title": "%command.install.title%",
         "category": "SpecBox",
-        "icon": "$(rocket)"
+        "icon": "$(rocket)",
+        "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "specbox.healthCheck",
@@ -73,7 +74,7 @@
         "title": "%command.onboard.title%",
         "category": "SpecBox",
         "icon": "$(wand)",
-        "enablement": "specbox.installed"
+        "enablement": "specbox.installed && isWorkspaceTrusted"
       },
       {
         "command": "specbox.showStatus",
@@ -85,14 +86,14 @@
         "command": "specbox.configureMcp",
         "title": "%command.configureMcp.title%",
         "category": "SpecBox",
-        "enablement": "specbox.installed"
+        "enablement": "specbox.installed && isWorkspaceTrusted"
       },
       {
         "command": "specbox.signIn",
         "title": "%command.signIn.title%",
         "category": "SpecBox",
         "icon": "$(github-inverted)",
-        "enablement": "specbox.installed"
+        "enablement": "specbox.installed && isWorkspaceTrusted"
       },
       {
         "command": "specbox.signOut",

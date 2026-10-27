@@ -147,8 +147,9 @@ export class HealthChecker {
 		if (configured && fs.existsSync(path.join(configured, 'ENGINE_VERSION.yaml'))) {
 			return configured;
 		}
-		// 2. Workspace root (if inside the engine repo)
-		for (const folder of vscode.workspace.workspaceFolders ?? []) {
+		// 2. Workspace root (if inside the engine repo) — only a trusted workspace
+		// (UC-10807): a folder in Restricted Mode is never taken as the engine.
+		for (const folder of vscode.workspace.isTrusted ? vscode.workspace.workspaceFolders ?? [] : []) {
 			const candidate = folder.uri.fsPath;
 			if (fs.existsSync(path.join(candidate, 'ENGINE_VERSION.yaml'))) {
 				return candidate;

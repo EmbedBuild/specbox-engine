@@ -141,7 +141,6 @@
   "All prerequisites are installed. SpecBox is ready.": "Todos los requisitos están instalados. SpecBox está listo.",
   "Run Setup Wizard": "Ejecutar el asistente",
   "Open Guide": "Abrir la guía",
-  "SpecBox: could not update the managed engine ({0}). Continuing with the local copy.": "SpecBox: no se pudo actualizar el engine gestionado ({0}). Se sigue con la copia local.",
   "Revert": "Revertir",
   "SpecBox: Updating extension...": "SpecBox: actualizando la extensión...",
   "install-ext.mjs not found in engine repo. Pull the latest version.": "No se encontró install-ext.mjs en el repositorio del engine. Descarga la última versión.",
@@ -156,13 +155,6 @@
   "SpecBox: could not update the engine ({0}). Continuing with the local copy.": "SpecBox: no se pudo actualizar el engine ({0}). Se sigue con la copia local.",
   "Open Terminal": "Abrir un terminal",
   "SpecBox: the upgrade did not apply — still on v{0}. Update manually from a terminal.": "SpecBox: la actualización no se aplicó y sigues en la v{0}. Actualiza a mano desde un terminal.",
-  "SpecBox: the local engine clone has diverged (branch {0}). Update it manually.": "SpecBox: el clon local del engine se ha separado del remoto (rama {0}). Actualízalo a mano.",
-  "Reset with backup": "Restablecer con copia",
-  "The local engine clone has diverged (branch {0}). Updating requires resetting to origin/{1}. Your current branch will be backed up. Continue?": "El clon local del engine se ha separado del remoto (rama {0}). Para actualizar hay que restablecerlo a origin/{1}; antes se guarda una copia de tu rama actual. ¿Continúas?",
-  "SpecBox: engine update cancelled. Continuing with the local copy.": "SpecBox: actualización del engine cancelada. Se sigue con la copia local.",
-  "SpecBox: could not create the backup branch ({0}). Aborting the reset.": "SpecBox: no se pudo crear la rama de copia ({0}). No se restablece nada.",
-  "SpecBox: reset failed at `git {0}` ({1}). Your branch is safe at {2}.": "SpecBox: el restablecimiento falló en `git {0}` ({1}). Tu rama está a salvo en {2}.",
-  "SpecBox: engine reset to origin/{0}. Previous work backed up at {1}.": "SpecBox: engine restablecido a origin/{0}. El trabajo anterior está guardado en {1}.",
   "(no description available)": "(sin descripción)",
   "(consult the SKILL.md or run /compliance to verify the skill is correctly installed)": "(consulta su SKILL.md o ejecuta /compliance para comprobar que el skill está bien instalado)",
   "(no example available)": "(sin ejemplo)",
@@ -199,5 +191,6 @@
   "{0} SpecBox skills missing": "Faltan {0} skills de SpecBox",
   "Nothing was migrated: the SpecBox MCP server is not configured in Claude Code yet (global configuration of this computer).": "No se ha migrado nada: el servidor MCP de SpecBox aún no está configurado en Claude Code (configuración global de este ordenador).",
   "Run \"SpecBox: Onboard Project\" to finish setting it up.": "Ejecuta «SpecBox: Inicializar Proyecto» para terminar de configurarlo.",
-  "SpecBox: Onboard Project": "SpecBox: Inicializar Proyecto"
+  "SpecBox: Onboard Project": "SpecBox: Inicializar Proyecto",
+  "SpecBox Engine v{0} is available: update the SpecBox extension from the Marketplace.": "SpecBox Engine v{0} está disponible: actualiza la extensión de SpecBox desde el Marketplace."
 }

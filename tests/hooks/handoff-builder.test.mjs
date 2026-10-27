@@ -239,6 +239,72 @@ test('writeHandoff is idempotent (overwrites cleanly)', () => {
   });
 });
 
+// ── UC-11006: the pointers are the PRD and plan that /prd and /plan write ──
+
+function activeUC(uc, feature) {
+  mkdirSync(`.quality/evidence/${feature}`, { recursive: true });
+  writeFileSync('.quality/active_uc.json', JSON.stringify({ uc_id: uc }));
+  writeFileSync(`.quality/evidence/${feature}/checkpoint.json`, JSON.stringify({ feature, phase: 2, phase_name: 'Feature' }));
+}
+
+test('UC-11006: PRD in doc/prd/<feature>/prd.md and plan doc/plans/<feature>_plan.md of the checkpoint', () => {
+  withTempRepo(() => {
+    activeUC('UC-501', 'solicitudes');
+    mkdirSync('doc/prd/solicitudes', { recursive: true });
+    mkdirSync('doc/plans', { recursive: true });
+    writeFileSync('doc/prd/solicitudes/prd.md', '# PRD\n');
+    writeFileSync('doc/plans/solicitudes_plan.md', '# Plan\n');
+    const data = buildHandoffData();
+    assert.deepEqual(data.pointers, {
+      plan: 'doc/plans/solicitudes_plan.md',
+      prd: 'doc/prd/solicitudes/prd.md',
+      checkpoint: '.quality/evidence/solicitudes/checkpoint.json',
+    });
+    const md = renderHandoff(data, {});
+    assert.match(md, /Plan: doc\/plans\/solicitudes_plan\.md/);
+    assert.match(md, /PRD: doc\/prd\/solicitudes\/prd\.md/);
+  });
+});
+
+test('UC-11006: a plan named after the story that mentions the active UC', () => {
+  withTempRepo(() => {
+    activeUC('UC-10301', 'otra-cosa');
+    mkdirSync('doc/plans', { recursive: true });
+    mkdirSync('doc/prd/app-movil-rediseno', { recursive: true });
+    writeFileSync('doc/plans/US-90_plan.md', '# Plan US-90\nUC-9001\n');
+    writeFileSync('doc/plans/US-103-106-rediseno_plan.md', '# Plan\n## UC-10301 Barra flotante\n');
+    writeFileSync('doc/prd/app-movil-rediseno/prd.md', '# PRD\n- UC-10301: barra\n');
+    const data = buildHandoffData();
+    assert.equal(data.pointers.plan, 'doc/plans/US-103-106-rediseno_plan.md');
+    assert.equal(data.pointers.prd, 'doc/prd/app-movil-rediseno/prd.md');
+  });
+});
+
+test('UC-11006: the old doc/prds/<uc>_prd.md and uc_<n>_plan.md still count', () => {
+  withTempRepo(() => {
+    activeUC('UC-042', 'UC-042');
+    mkdirSync('doc/prds', { recursive: true });
+    mkdirSync('doc/plans', { recursive: true });
+    writeFileSync('doc/prds/uc_042_prd.md', '# PRD\n');
+    writeFileSync('doc/plans/uc_042_plan.md', '# Plan\n');
+    const data = buildHandoffData();
+    assert.equal(data.pointers.prd, 'doc/prds/uc_042_prd.md');
+    assert.equal(data.pointers.plan, 'doc/plans/uc_042_plan.md');
+  });
+});
+
+test('UC-11006: without PRD or plan the pointers stay empty, never a path that does not exist', () => {
+  withTempRepo(() => {
+    activeUC('UC-777', 'sin-docs');
+    mkdirSync('doc/plans', { recursive: true });
+    writeFileSync('doc/plans/otra_plan.md', '# Plan de UC-778\n');
+    const data = buildHandoffData();
+    assert.equal(data.pointers.plan, null);
+    assert.equal(data.pointers.prd, null);
+    assert.doesNotMatch(renderHandoff(data, {}), /^- (Plan|PRD): /m);
+  });
+});
+
 console.log('===========================');
 console.log(`${pass} passed, ${fail} failed`);
 if (fail > 0) {

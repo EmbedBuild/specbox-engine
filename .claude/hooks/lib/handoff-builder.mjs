@@ -167,32 +167,56 @@ function topHotFiles(limit = MAX_HOT_FILES) {
   return files.slice(0, limit).map((f) => f.path);
 }
 
+/** The newest of `paths` whose text names `ucId` (UC-11006: a plan or PRD covers several UCs). */
+function newestMentioning(paths, ucId) {
+  if (!/^UC-/i.test(ucId || '')) return null;
+  const named = new RegExp(`\\b${ucId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+  const withTime = paths.flatMap((p) => {
+    try {
+      return [{ p, t: statSync(p).mtimeMs }];
+    } catch {
+      return [];
+    }
+  });
+  for (const { p } of withTime.sort((a, b) => b.t - a.t)) {
+    try {
+      if (named.test(readFileSync(p, 'utf-8').slice(0, 400_000))) return p;
+    } catch { /* unreadable: next */ }
+  }
+  return null;
+}
+
+function listDir(dir) {
+  try {
+    return readdirSync(dir);
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Resolve known pointer paths: plan, prd, checkpoint.
+ *
+ * UC-11006: /prd writes doc/prd/<feature>/prd.md and /plan doc/plans/<name>_plan.md, where
+ * <feature> and <name> are the feature slug of the checkpoint or a story id, not the active UC.
+ * Exact paths for the UC and the feature first (the old doc/prds/… and uc_… ones still count);
+ * then the newest plan or PRD that names the active UC. Nothing found → null, never a guess.
  */
 function resolvePointers(active) {
-  const out = {};
-  if (active?.feature) {
-    const slug = active.feature.toLowerCase().replace(/^uc-/, 'uc_');
-    const planCandidates = [
-      `doc/plans/${slug}_plan.md`,
-      `doc/plans/${active.feature}_plan.md`,
-    ];
-    out.plan = planCandidates.find((p) => existsSync(p)) || null;
+  const keys = [...new Set([active?.feature, active?.checkpointFeature].filter(Boolean))];
+  const out = { plan: null, prd: null, checkpoint: null };
+  if (keys.length === 0) return out;
 
-    const prdCandidates = [
-      `doc/prds/${slug}_prd.md`,
-      `doc/prds/${active.feature}_prd.md`,
-    ];
-    out.prd = prdCandidates.find((p) => existsSync(p)) || null;
+  const exact = (paths) => paths.find((p) => existsSync(p)) || null;
+  const slugs = keys.flatMap((k) => [k, k.toLowerCase().replace(/^uc-/, 'uc_')]);
 
-    const checkpointPath = `.quality/evidence/${active.feature}/checkpoint.json`;
-    out.checkpoint = existsSync(checkpointPath) ? checkpointPath : null;
-  } else {
-    out.plan = null;
-    out.prd = null;
-    out.checkpoint = null;
-  }
+  out.plan = exact(slugs.map((k) => `doc/plans/${k}_plan.md`))
+    || newestMentioning(listDir('doc/plans').filter((f) => f.endsWith('.md')).map((f) => join('doc/plans', f)), active?.feature);
+
+  out.prd = exact(keys.flatMap((k) => [`doc/prd/${k}/prd.md`]).concat(slugs.map((k) => `doc/prds/${k}_prd.md`)))
+    || newestMentioning(listDir('doc/prd').map((d) => join('doc/prd', d, 'prd.md')).filter((p) => existsSync(p)), active?.feature);
+
+  out.checkpoint = exact(keys.map((k) => `.quality/evidence/${k}/checkpoint.json`));
   return out;
 }
 
@@ -235,7 +259,7 @@ export function buildHandoffData(opts = {}) {
   }
 
   const hotFiles = topHotFiles();
-  const pointers = resolvePointers({ feature: activeUCId });
+  const pointers = resolvePointers({ feature: activeUCId, checkpointFeature: checkpoint?.feature });
 
   return {
     generated_at: generatedAt,

@@ -160,3 +160,56 @@ class TestResolvePromptForContract:
         # An exception during list_design_systems must not break generation.
         assert mode == "design_system_missing"
         assert effective == "prompt"
+
+
+# ── UC-11302: native_v2 says what it removes, and can keep it ─────────
+
+
+PROMPT = "Lista de solicitudes con su fecha\nBotón principal en #0EA5E9\nTarjetas con avatar"
+
+
+async def _generate(tmp_path, monkeypatch, *, design_systems, **kwargs):
+    from unittest.mock import AsyncMock
+
+    from fastmcp import FastMCP
+
+    from server.tools import stitch_v2
+
+    sent: list[str] = []
+
+    class _Fake(_FakeClient):
+        async def generate_screen_from_text(self, project_id, prompt, *, device_type=None, model_id=None, design_system=None):
+            sent.append(prompt)
+            return {"outputComponents": []}
+
+    async def _client(*_a, **_k):
+        return _Fake(design_systems=design_systems)
+
+    monkeypatch.setattr(stitch_v2, "_v2_get_client", _client)
+    mcp = FastMCP("test-uc11302")
+    (tmp_path / "state").mkdir()
+    stitch_v2.register_stitch_v2_tools(mcp, tmp_path / "state")
+    tool = await mcp._get_tool("stitch_generate_screen_v2")
+    res = await tool.fn(AsyncMock(), project="p", stitch_project_id="123", prompt=PROMPT, **kwargs)
+    return res, sent[0]
+
+
+@pytest.mark.asyncio
+class TestThemeDirectivesAreVisible:
+    async def test_with_a_design_system_the_removed_lines_come_back_with_a_notice(self, tmp_path, monkeypatch):
+        res, sent = await _generate(tmp_path, monkeypatch, design_systems=[{"name": "assets/9"}])
+        assert "#0EA5E9" not in sent
+        assert res["design_system_info"]["stripped_lines"] == ["Botón principal en #0EA5E9"]
+        assert "keep_theme_directives" in res["prompt_notice"]
+
+    async def test_keep_theme_directives_sends_the_hex_lines(self, tmp_path, monkeypatch):
+        res, sent = await _generate(tmp_path, monkeypatch, design_systems=[{"name": "assets/9"}], keep_theme_directives=True)
+        assert sent == PROMPT
+        assert res["design_system_info"]["stripped_lines"] == []
+        assert "prompt_notice" not in res
+
+    async def test_without_a_design_system_every_line_is_sent(self, tmp_path, monkeypatch):
+        res, sent = await _generate(tmp_path, monkeypatch, design_systems=None)
+        assert sent.splitlines() == PROMPT.splitlines()
+        assert res["prompt_mode"] == "design_system_missing"
+        assert "prompt_notice" not in res

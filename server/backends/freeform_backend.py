@@ -444,17 +444,29 @@ class FreeformBackend(SpecBackend):
     async def setup_board(self, name: str) -> BoardConfig:
         board_id = f"ff-{uuid.uuid4().hex[:12]}"
 
+        # Create labels
+        labels = {}
+        for label_name, color in _DEFAULT_LABELS.items():
+            lid = _new_id("lbl")
+            labels[label_name] = {"id": lid, "name": label_name, "color": color}
+
+        if self._memory_mode:
+            # UC-11004: in content mode the server writes nothing. The board is the
+            # items.json the client keeps (returned as items_content), left as received.
+            return BoardConfig(
+                board_id=board_id,
+                board_url="",
+                states=dict(FREEFORM_STATES),
+                labels={k: v["id"] for k, v in labels.items()},
+                custom_fields={},
+            )
+
         # Create directory structure
         self.root.mkdir(parents=True, exist_ok=True)
         (self.root / "comments").mkdir(exist_ok=True)
         (self.root / "attachments").mkdir(exist_ok=True)
         (self.root / "progress").mkdir(exist_ok=True)
 
-        # Create labels
-        labels = {}
-        for label_name, color in _DEFAULT_LABELS.items():
-            lid = _new_id("lbl")
-            labels[label_name] = {"id": lid, "name": label_name, "color": color}
         self._save_labels(labels)
 
         # Create empty items

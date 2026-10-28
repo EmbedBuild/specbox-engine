@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.29.2 — "Tesela" (sobre v6.29.1 "Bisagra")<br/>
+  v 6.30.0 — "Juego limpio" (sobre v6.29.2 "Tesela")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,23 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.30
+
+**v6.30.0 — "Juego limpio"** hace de SpecBox **fair source**: el engine, la CLI y la extensión pasan a la
+licencia FSL-1.1-ALv2 y se usan gratis, también en producción y con clientes, sin firmar nada:
+
+- **Licencia FSL-1.1-ALv2** — cualquier uso salvo ofrecer un producto o un servicio que compita con SpecBox;
+  cada versión pasa a Apache 2.0 a los dos años. Las versiones anteriores a la 6.30.0 conservan la BSL 1.1
+  (engine) y la MIT (CLI y extensión). Autoría en `NOTICE`.
+- **Servicios y soporte** — `SERVICES.md` sustituye a la licencia comercial: consultoría, implantación,
+  formación y soporte, sin contrato para usar el engine en producción.
+- **Sin preguntar para leer** — la plantilla de proyecto deja usar sin pedir permiso las 99 tools del MCP de
+  SpecBox que solo leen (`get_*`, `list_*`, `read_*`, `find_next_uc`…); las que escriben siguen preguntando.
+
+100% backwards-compatible: los proyectos reciben los permisos nuevos al actualizar la plantilla.
 
 ---
 
@@ -787,7 +804,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.29.2 — "Tesela" (over v6.29.1 "Bisagra")
+> v 6.30.0 — "Juego limpio" (over v6.29.2 "Tesela")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -800,6 +817,21 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.30
+
+**v6.30.0 — "Juego limpio"** makes SpecBox **fair source**: the engine, the CLI and the extension move to the
+FSL-1.1-ALv2 and are free to use, also in production and with clients, without signing anything:
+
+- **FSL-1.1-ALv2 license** — any use except offering a product or service that competes with SpecBox; each
+  version becomes Apache 2.0 two years after its release. Versions before 6.30.0 keep BSL 1.1 (engine) and
+  MIT (CLI and extension). Authorship in `NOTICE`.
+- **Services and support** — `SERVICES.md` replaces the commercial license: consulting, implementation,
+  training and support, with no contract needed to use the engine in production.
+- **No prompts to read** — the project template lets the 99 SpecBox MCP tools that only read (`get_*`,
+  `list_*`, `read_*`, `find_next_uc`…) run without asking; the tools that write keep asking.
+
+100% backwards-compatible: projects get the new permissions when they update the template.
 
 ## What's new in v6.29
 

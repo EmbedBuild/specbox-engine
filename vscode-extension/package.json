@@ -2,7 +2,7 @@
   "name": "specbox-engine",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "6.29.2",
+  "version": "6.30.0",
   "publisher": "EmbedBuild",
   "license": "FSL-1.1-ALv2",
   "engines": {

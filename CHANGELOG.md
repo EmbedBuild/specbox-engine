@@ -2,6 +2,59 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.30.0] - 2026-10-28 — "Juego limpio"
+
+SpecBox pasa a ser **fair source**. El engine, la CLI y la extensión de VS Code cambian a la licencia
+FSL-1.1-ALv2 y se pueden usar gratis, también en producción y en los proyectos de los clientes, sin firmar
+nada; la licencia comercial se convierte en una página de servicios y soporte. Y la plantilla de proyecto deja
+de pedir permiso para las tools del MCP que solo leen (decisión D21, US-87; US-110 del board del orquestador).
+
+### Security
+
+- La plantilla de proyecto solo deja usar sin preguntar las tools del MCP que leen. Una prueba compara esa
+  lista con las tools del servidor y falla si se cuela una que crea, cambia, borra, reserva, marca o informa,
+  así que permitir la lectura nunca abre la puerta a una escritura sin confirmar.
+
+### Changed
+
+- **Licencia**: el engine, la CLI (`specbox` en npm) y la extensión pasan de BSL 1.1 (engine) y MIT (CLI y
+  extensión) a la **FSL-1.1-ALv2** (Functional Source License 1.1 con licencia futura Apache 2.0): cualquier
+  uso salvo ofrecer un producto o un servicio que compita con SpecBox, y cada versión pasa a Apache 2.0 a los
+  dos años de publicarse. **Aplica desde la 6.30.0; las versiones anteriores conservan la licencia con la que
+  se publicaron: BSL 1.1 el engine y MIT la CLI y la extensión** (UC-8701, #330).
+- `README.md` (ES y EN) explica qué permite y qué no la licencia; el CLA de `CONTRIBUTING.md` la refleja en
+  los dos idiomas; `package.json` de la CLI y de la extensión declaran `FSL-1.1-ALv2`.
+- `templates/settings.json.template` permite por su nombre exacto las 99 tools del MCP de SpecBox que solo
+  leen; las que escriben siguen preguntando (UC-11306, #329).
+
+### Added
+
+- `NOTICE` — autor (Jesús Pérez Sánchez), Embed Build y desde qué versión aplica la licencia.
+- `SERVICES.md` — servicios y soporte (consultoría, implantación, formación y soporte), sin contrato para
+  usar el engine en producción.
+
+### Removed
+
+- `COMMERCIAL_LICENSE.md`: con la FSL ya no hace falta una licencia comercial para usar el engine en
+  producción.
+
+### Decisions
+
+- Se comunica como «fair source», nunca como «open source» (D21).
+- Las tres tools que escriben en `.quality/` aunque su nombre parezca de lectura
+  (`detect_app_docs_drift`, `app_docs_drift_for_heartbeat`, `evaluate_autopilot_decision`) quedan fuera de la
+  lista de permisos.
+
+### Compatibility
+
+- 100% backwards-compatible. Los proyectos reciben los permisos nuevos al actualizar la plantilla
+  (`upgrade_project`).
+
+### Tests
+
+- `tests/test_template_permissions.py`: la lista se compara con las tools registradas en el servidor y falla
+  si se cuela una que escribe o si falta una de lectura (12 pruebas).
+
 ## [6.29.2] - 2026-10-28 — "Tesela"
 
 FreeForm con el MCP alojado aguanta un proyecto real: el tablero viaja en piezas que encajan, en vez de entero

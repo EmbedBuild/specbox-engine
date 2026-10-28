@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.30.0] — "Juego limpio"
+
+- **License.** The extension is now **fair source** under the FSL-1.1-ALv2: free for any use, also in
+  production and with clients, except offering a product or service that competes with SpecBox; each version
+  becomes Apache 2.0 two years after its release. Versions before 6.30.0 stay under the MIT License.
+
 ## [6.29.2] — "Tesela"
 
 - **"SpecBox: Update Project Hooks".** Lists the hooks of the open project that differ from the ones this

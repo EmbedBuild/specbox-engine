@@ -128,3 +128,82 @@ def test_the_rule_check_catches_what_it_is_for():
     assert _unrestricted("Bash", "Bash") and _unrestricted("Bash(*)", "Bash") and _unrestricted("Bash(*:*)", "Bash")
     assert _unrestricted("WebFetch(domain:*)", "WebFetch") and _unrestricted("WebFetch", "WebFetch")
     assert not _unrestricted("Bash(npm test:*)", "Bash") and not _unrestricted("WebFetch(domain:docs.github.com)", "WebFetch")
+
+
+# ── UC-11306: las tools de solo lectura del MCP de SpecBox, sin preguntar ──────────────────────
+#
+# Consultar el board, los planes o las skills no pide permiso en cada llamada (decisión del owner,
+# 2026-10-28). Las reglas de Claude Code no admiten comodines dentro del nombre, así que la plantilla
+# nombra cada tool. Lo que escribe sigue preguntando.
+
+MCP_PREFIX = "mcp__SpecBox-MCP__"
+
+#: Leen y no empiezan por get_/list_/read_. Una tool de lectura nueva con otro nombre se añade aquí y a
+#: la plantilla.
+READ_ONLY_EXTRA = {
+    "whoami", "find_next_uc", "discover_skills", "estimate_from_ac", "check_audit_tools_status",
+    "analyze_preflight_decisions", "detect_local_root_path", "detect_project_backend", "detect_project_stack",
+    "detect_stitch_migration_case", "detect_v529_migration_case", "detect_v60_migration_case",
+    "validate_ac_quality", "validate_discovery_completeness", "validate_skill_manifest", "validate_stitch_prompt",
+    "verify_app_docs", "migrate_preview", "migrate_status", "build_execution_context", "aggregate_phase_outputs",
+    "stitch_get_project", "stitch_get_screen", "stitch_list_projects", "stitch_list_screens",
+    "stitch_list_design_systems", "stitch_fetch_screen_code", "stitch_fetch_screen_image",
+    "claude_design_get_project", "claude_design_list_projects", "claude_design_status",
+}
+
+#: Escriben aunque el nombre parezca de lectura (auditoría del 2026-10-28): anotan en .quality/ del proyecto.
+WRITES_DESPITE_NAME = {"detect_app_docs_drift", "app_docs_drift_for_heartbeat", "evaluate_autopilot_decision"}
+
+#: Una tool que crea, cambia, borra, reserva, marca o informa: el verbo es el principio del nombre, tras
+#: `stitch_` o `claude_design_` (en `get_delivery_report`, «report» es el nombre de lo que se lee).
+WRITE_VERB = re.compile(
+    r"^(stitch_|claude_design_)?(add|create|update|delete|set|mark|move|start|complete|claim|reserve|release|report|record|register"
+    r"|import|upload|attach|apply|sync|upgrade|onboard|run|submit|enqueue|resolve|publish|revoke|take|write"
+    r"|archive|reset|switch|declare|link|regenerate|generate|append|commit|enable|disable|setup|bulk|edit"
+    r"|evaluate|migrate_(project|backend|to))(_|$)"
+)
+
+
+def _registered_tools() -> set[str]:
+    import asyncio
+
+    from server.server import mcp
+
+    return {t.name for t in asyncio.run(mcp.list_tools())}
+
+
+def _allowed_mcp_tools() -> set[str]:
+    allow = _permissions(TEMPLATE.read_text(encoding="utf-8"))["allow"]
+    return {r[len(MCP_PREFIX):] for r in allow if r.startswith(MCP_PREFIX)}
+
+
+def _is_read_only(name: str) -> bool:
+    return (re.match(r"(get|list|read)_", name) is not None or name in READ_ONLY_EXTRA) and name not in WRITES_DESPITE_NAME
+
+
+def test_uc11306_ac01_the_template_lets_the_read_only_tools_run_without_asking():
+    allowed = _allowed_mcp_tools()
+    assert {"get_uc", "list_uc", "get_board_status", "read_plan"} <= allowed
+
+
+def test_uc11306_ac02_no_tool_that_writes_runs_without_asking():
+    registered = _registered_tools()
+    allowed = _allowed_mcp_tools()
+    assert not allowed - registered, sorted(allowed - registered)
+    writers = sorted(t for t in allowed if WRITE_VERB.search(t) or t in WRITES_DESPITE_NAME)
+    assert not writers, writers
+
+
+def test_uc11306_every_read_only_tool_of_the_server_is_in_the_template():
+    registered = _registered_tools()
+    assert READ_ONLY_EXTRA <= registered, sorted(READ_ONLY_EXTRA - registered)
+    assert _allowed_mcp_tools() == {t for t in registered if _is_read_only(t)}
+
+
+def test_the_write_check_catches_what_it_is_for():
+    for writer in ["add_uc", "mark_ac_batch", "report_heartbeat", "complete_uc", "set_auth_token", "migrate_project",
+                   "stitch_generate_screen", "reserve_uc", "take_resolved_decisions", "evaluate_autopilot_decision"]:
+        assert WRITE_VERB.search(writer), writer
+    for reader in ["get_uc", "list_uc", "read_plan", "migrate_preview", "find_next_uc", "build_execution_context",
+                   "stitch_list_projects", "validate_ac_quality", "get_delivery_report"]:
+        assert not WRITE_VERB.search(reader), reader

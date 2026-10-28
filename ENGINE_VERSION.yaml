@@ -1,5 +1,5 @@
-version: 6.29.2
-codename: "Tesela"
+version: 6.30.0
+codename: "Juego limpio"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-10-28
@@ -580,7 +580,20 @@ features:
   - stitch-theme-directives-visible
   - stitch-project-list-summary
 
+  # New (v6.30.0) — Juego limpio
+  - fair-source-fsl-license
+  - services-and-support-page
+  - template-read-only-mcp-tools
+
 changelog:
+  6.30.0:
+    date: 2026-10-28
+    codename: "Juego limpio"
+    changes:
+      - "feat: SpecBox is fair source — the engine, the CLI and the VS Code extension move to the FSL-1.1-ALv2 (Functional Source License 1.1 with an Apache 2.0 future license): free for any use, also in production and with clients, except offering a product or service that competes with SpecBox; each version becomes Apache 2.0 two years after its release. Applies from 6.30.0; earlier versions keep BSL 1.1 (engine) and MIT (CLI and extension). New NOTICE; README (ES/EN) and the CLA in CONTRIBUTING.md say so (UC-8701, #330)"
+      - "docs: the commercial license becomes SERVICES.md — consulting, implementation, training and support, with no contract needed to use the engine in production (UC-8701, #330)"
+      - "feat: the project template lets the 99 read-only SpecBox MCP tools run without asking (get_*, list_*, read_*, find_next_uc, whoami…); tools that write keep asking, and a test compares the list with the server's registered tools (UC-11306, #329)"
+
   6.29.2:
     date: 2026-10-28
     codename: "Tesela"

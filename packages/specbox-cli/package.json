@@ -1,6 +1,6 @@
 {
   "name": "specbox",
-  "version": "6.29.2",
+  "version": "6.30.0",
   "description": "Conecta este ordenador a SpecBox sin copiar tokens (specbox login, status y logout) y actualiza los hooks del proyecto sin pisar los tuyos (specbox hooks).",
   "type": "module",
   "bin": {

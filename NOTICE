@@ -1,0 +1,16 @@
+SpecBox Engine
+Copyright 2026 Jesús Pérez Sánchez
+
+Author and licensor: Jesús Pérez Sánchez.
+Published and maintained by Embed Build (https://www.embed.build).
+
+This software is fair source, licensed under the Functional Source License, Version 1.1,
+ALv2 Future License (FSL-1.1-ALv2): see LICENSE. Each version becomes available under the
+Apache License, Version 2.0 on the second anniversary of its release.
+
+The FSL-1.1-ALv2 applies from SpecBox Engine 6.30.0 on, including the SpecBox CLI on npm and
+the SpecBox extension for VS Code. Versions published before 6.30.0 remain under the licenses
+they were released with: the Business Source License 1.1 for the engine and the MIT License
+for the CLI and the extension.
+
+Services and support: see SERVICES.md or write to hola@specbox.build.

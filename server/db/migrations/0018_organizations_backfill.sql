@@ -40,7 +40,7 @@
 -- ── ENMENDADA 2026-08-24 — aplicable sobre una base LIMPIA ───────────
 -- Tal y como se escribió, este backfill INSERTABA los cuatro developers de
 -- producción por su id. En cualquier Postgres donde esos developers no existan
--- —una BD de dev recién creada, un clon del engine open-source, la CI— el paso
+-- —una BD de dev recién creada, un clon del engine genérico, la CI— el paso
 -- 1 violaba `organizations_created_by_fkey` y ABORTABA EL LEDGER ENTERO. Efecto
 -- real medido: 11 de 16 tests de `test_native_provision.py` fallaban en `main`
 -- sobre un contenedor nuevo, y con ellos TODA la suite native del engine, que

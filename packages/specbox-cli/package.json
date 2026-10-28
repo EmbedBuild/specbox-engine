@@ -25,7 +25,7 @@
     "claude-code",
     "login"
   ],
-  "license": "MIT",
+  "license": "FSL-1.1-ALv2",
   "author": "EmbedBuild",
   "repository": {
     "type": "git",

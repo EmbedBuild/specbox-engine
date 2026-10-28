@@ -13,7 +13,7 @@
   <a href="https://marketplace.visualstudio.com/items?itemName=EmbedBuild.specbox-engine"><img src="https://img.shields.io/visual-studio-marketplace/v/EmbedBuild.specbox-engine?label=marketplace&color=00B4D8&style=flat-square" alt="Version" /></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=EmbedBuild.specbox-engine"><img src="https://img.shields.io/visual-studio-marketplace/i/EmbedBuild.specbox-engine?color=0077B6&style=flat-square" alt="Installs" /></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=EmbedBuild.specbox-engine"><img src="https://img.shields.io/visual-studio-marketplace/r/EmbedBuild.specbox-engine?style=flat-square" alt="Rating" /></a>
-  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License" />
+  <img src="https://img.shields.io/badge/license-FSL--1.1--ALv2-green?style=flat-square" alt="License: FSL-1.1-ALv2" />
   <img src="https://img.shields.io/badge/platform-win%20%7C%20mac%20%7C%20linux-0B1120?style=flat-square" alt="Platform" />
   <img src="https://img.shields.io/badge/claude--code-ready-00B4D8?style=flat-square" alt="Claude Code" />
   <img src="https://img.shields.io/badge/i18n-EN%20%7C%20ES-1a1a2e?style=flat-square" alt="Idiomas" />

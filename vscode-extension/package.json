@@ -4,7 +4,7 @@
   "description": "%extension.description%",
   "version": "6.29.2",
   "publisher": "EmbedBuild",
-  "license": "MIT",
+  "license": "FSL-1.1-ALv2",
   "engines": {
     "vscode": "^1.86.0"
   },

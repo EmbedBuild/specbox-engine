@@ -765,7 +765,20 @@ Casos sensibles que se difieren para revisión manual: feature en curso (caso 7)
 
 ## Licencia
 
-[Indicar licencia del proyecto]
+SpecBox es **fair source**: el código está a la vista y su uso es gratis, también en producción y con
+clientes, con licencia [FSL-1.1-ALv2](LICENSE) (Functional Source License, versión 1.1, con licencia futura
+Apache 2.0).
+
+- **Puedes**: usar el engine, la extensión, la CLI y el tablero FreeForm en tus proyectos y en los de tus
+  clientes, en producción, sin firmar nada; estudiarlo, modificarlo y redistribuirlo con la licencia; y
+  prestar servicios profesionales a quien lo use.
+- **No puedes**: ofrecer un producto o un servicio comercial que compita con SpecBox (que lo sustituya o que
+  ofrezca lo mismo o algo sustancialmente parecido).
+- **A los dos años** de publicarse, cada versión pasa a Apache 2.0.
+
+La FSL-1.1-ALv2 aplica desde la 6.30.0; las versiones anteriores conservan la licencia con la que se
+publicaron (BSL 1.1 el engine, MIT la CLI y la extensión). Autoría y créditos en [NOTICE](NOTICE). Si
+quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SERVICES.md).
 
 ---
 
@@ -1286,4 +1299,17 @@ The engine doesn't take shortcuts for you — it **prevents them**. Every blocki
 
 ## License
 
-[Project license]
+SpecBox is **fair source**: the code is public and using it is free, also in production and with clients,
+under the [FSL-1.1-ALv2](LICENSE) (Functional Source License, version 1.1, with an Apache 2.0 future
+license).
+
+- **You can**: use the engine, the extension, the CLI and the FreeForm board in your projects and your
+  clients' projects, in production, without signing anything; study, modify and redistribute it under the
+  license; and provide professional services to people who use it.
+- **You cannot**: offer a commercial product or service that competes with SpecBox (one that substitutes it
+  or offers the same or substantially similar functionality).
+- **Two years** after its release, each version becomes Apache 2.0.
+
+The FSL-1.1-ALv2 applies from 6.30.0 on; earlier versions keep the license they were released with (BSL 1.1
+for the engine, MIT for the CLI and the extension). Authorship and credits in [NOTICE](NOTICE). For
+consulting, implementation, training or support, see [SERVICES.md](SERVICES.md).

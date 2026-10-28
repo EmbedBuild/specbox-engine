@@ -4,7 +4,7 @@
 -- WHY (layer correction): migration 0019 set `projects.organization_id` NOT
 -- NULL to seal the org-tenancy anchor. That sealing was placed in the WRONG
 -- LAYER. "Organization" is a concept of the SpecBox Manager / Cloud panel — it
--- is NOT part of the generic, open-source engine. The engine's `projects` table
+-- is NOT part of the generic, fair-source engine. The engine's `projects` table
 -- is multi-tenant by `project_id` alone; a plain clone of the engine has no
 -- organizations at all. Forcing NOT NULL here coupled the generic engine to a
 -- manager-only abstraction and broke ~99 tests that legitimately create

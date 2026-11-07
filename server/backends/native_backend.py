@@ -521,11 +521,16 @@ class NativeBackend(SpecBackend):
         *,
         us_id: str | None = None,
         uc_id: str | None = None,
+        with_siblings: bool = True,
     ) -> list[ItemDTO]:
         """One story (by ``us_id``, or the story of ``uc_id``) and its UCs, whole.
 
         A UC without a story comes alone; an unknown UC or story gives ``[]``.
-        Without either id, the whole board as ``list_items``.
+        Without either id, the whole board as ``list_items``. With ``uc_id`` and
+        ``with_siblings=False`` (UC-11402): that UC whole and its story without
+        description nor long meta, the other UCs left in the database —
+        ``get_uc`` read every UC of the story to show one, and a client polling
+        it every few minutes filled the egress quota (2026-11-07).
         """
         if us_id is None and uc_id is None:
             return await self.list_items(board_id)
@@ -543,6 +548,16 @@ class NativeBackend(SpecBackend):
                 if uc_row["us_id"] is None:
                     return [self._uc_row_to_dto(uc_row)]
                 us_id = uc_row["us_id"]
+                if not with_siblings:
+                    us_row = await conn.fetchrow(
+                        "SELECT id, name, '' AS description, state, labels, priority, "
+                        f"external_source, external_id, {self._LIGHT_META}, version, epic_id "
+                        "FROM user_stories WHERE project_id = $1 AND id = $2",
+                        board_id,
+                        us_id,
+                    )
+                    alone = [self._uc_row_to_dto(uc_row)]
+                    return [self._us_row_to_dto(us_row), *alone] if us_row else alone
             us_rows = await conn.fetch(
                 "SELECT * FROM user_stories WHERE project_id = $1 AND id = $2",
                 board_id,

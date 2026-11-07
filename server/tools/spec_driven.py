@@ -1394,7 +1394,9 @@ async def get_uc(
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
-        items = await backend.list_story_items(board_id, uc_id=uc_id)
+        # UC-11402: the UC and its story are all get_uc shows; the other UCs
+        # of the story stay in the database.
+        items = await backend.list_story_items(board_id, uc_id=uc_id, with_siblings=False)
 
         uc_item = _find_uc_item(items, uc_id)
         if not uc_item:

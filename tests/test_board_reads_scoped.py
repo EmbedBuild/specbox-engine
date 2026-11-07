@@ -14,6 +14,11 @@ These tests record every SQL statement the native backend sends and check:
   and count criteria in one query.
 - AC-04: every response is the same as reading the whole board.
 
+UC-11402 (US-114): ``get_uc`` read every UC of the story to show one; a client
+polling it every few minutes filled the egress quota again (2026-11-07). It now
+reads one row of ``use_cases`` and one of ``user_stories``, and AC-04 above keeps
+its response equal to reading the whole board.
+
 Postgres-gated (``tests/_native_db.py``).
 """
 
@@ -261,3 +266,59 @@ async def test_ac04_every_response_is_the_same_as_reading_the_whole_board(board,
     assert scoped["get_uc"]["description_raw"].startswith("Descripción del caso")
     for name in whole_board:
         assert _without_clock(scoped[name]) == _without_clock(whole_board[name]), name
+
+
+# ── UC-11402: get_uc leaves the other UCs of the story in the database ──
+
+
+def _record_rows(monkeypatch) -> list[tuple[str, int]]:
+    """Every whole-row read (``fetch`` / ``fetchrow``) as (normalized SQL, rows returned).
+
+    ``fetchval`` is left out on purpose: comments and attachments read one
+    field of the UC (``meta->'comments'``), not the row.
+    """
+    reads: list[tuple[str, int]] = []
+    for name in ("fetch", "fetchrow"):
+        original = getattr(asyncpg.connection.Connection, name)
+
+        async def wrapper(self, query, *args, __original=original, __many=(name == "fetch"), **kwargs):
+            result = await __original(self, query, *args, **kwargs)
+            reads.append((" ".join(str(query).split()), len(result) if __many else int(result is not None)))
+            return result
+
+        monkeypatch.setattr(asyncpg.connection.Connection, name, wrapper)
+    return reads
+
+
+def _rows_from(reads: list[tuple[str, int]], table: str) -> int:
+    return sum(count for sql, count in reads if f"FROM {table} " in f"{sql} ")
+
+
+async def test_uc11402_ac01_get_uc_reads_one_uc_and_its_story(board, monkeypatch):
+    """A story of 20 UCs: get_uc reads 1 row of use_cases and 1 of user_stories."""
+    pid, ctx = board
+    from server.tools.spec_driven import get_session_backend
+
+    backend = await get_session_backend(ctx)
+    try:
+        for n in range(3, 21):  # US-01 already has UC-0101 and UC-0102
+            uc_id = f"UC-01{n:02d}"
+            uc = await backend.create_item(
+                pid,
+                f"{uc_id} Caso {uc_id}",
+                description="Descripción del caso " * 30,
+                parent_id="US-01",
+                meta={"horas": 1, "context": _CONTEXT},
+            )
+            await backend.update_item(pid, uc.id, state="backlog")
+    finally:
+        await backend.close()
+    assert len((await sd.get_us(pid, "US-01", ctx))["use_cases"]) == 20
+
+    reads = _record_rows(monkeypatch)
+    detail = await sd.get_uc(pid, "UC-0101", ctx)
+
+    assert detail["us_id"] == "US-01" and detail["epic_id"] == "EP-01"
+    assert detail["us_name"] == "Historia US-01"
+    assert _rows_from(reads, "use_cases") == 1
+    assert _rows_from(reads, "user_stories") == 1

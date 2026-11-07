@@ -1,16 +1,16 @@
 """A per-identity call limit on the hosted MCP (UC-11401, US-114).
 
-- AC-01: over 120 calls in 60 seconds, 1,200 in an hour or 5,000 in a day from
-  one identity, the hosted MCP answers RATE_LIMITED with the seconds to wait
-  and the tool does not run.
+- AC-01: over 1,200 calls in an hour or 5,000 in a day from one identity, the
+  hosted MCP answers RATE_LIMITED with the seconds to wait and the tool does
+  not run. (The minute is UC-3903's: 429 over 60 tool calls a minute.)
 - AC-02: every rejected call stays in the access log with RATE_LIMITED and the
   identity that made it — also for a tool whose result is a list.
 - AC-03: SPECBOX_RATE_LIMITS changes the limits without a release; "off"
   turns them off.
 
 AC-04 (no legitimate identity of the last 30 days reaches the defaults) is
-measured on production's ``tool_access_log``; AC-05 is a burst against
-production after the deploy.
+measured on production's ``tool_access_log``; AC-05 is read there too, after
+the deploy.
 """
 
 from __future__ import annotations
@@ -37,8 +37,9 @@ class _Clock:
 # ── Limits from the environment (AC-03) ─────────────────────────────
 
 
-def test_defaults_are_two_to_two_and_a_half_times_the_highest_legitimate_use():
-    assert parse_limits(None) == (Window(120, 60), Window(1200, 3600), Window(5000, 86400))
+def test_defaults_are_an_hour_and_a_day_the_minute_is_uc3903s():
+    # Highest sliding use of any other identity in 30 days: 218/h and 1,100/day.
+    assert parse_limits(None) == (Window(1200, 3600), Window(5000, 86400))
     assert parse_limits("") == parse_limits(None)
 
 
@@ -96,16 +97,16 @@ def test_ac01_every_window_counts_and_the_longest_one_catches_a_steady_poller():
     assert 17_280 - len(refused) == 5000
 
 
-def test_ac01_a_burst_hits_the_minute_window():
+def test_ac01_the_hour_window_catches_the_poller_at_its_peak():
     clock = _Clock()
     limiter = RateLimiter(parse_limits(None), clock=clock)
     verdicts = []
-    for n in range(121):
-        clock.now = 1_000 + n * 0.4  # 121 calls in 48 seconds
-        verdicts.append(limiter.check("developer:ana"))
-    assert all(v is None for v in verdicts[:120])
-    window, retry = verdicts[120]
-    assert window == Window(120, 60) and 1 <= retry <= 60
+    for n in range(1_473):  # the poller's busiest hour, under 60 a minute
+        clock.now = 1_000 + n * 2.44
+        verdicts.append(limiter.check("developer:poller"))
+    assert all(v is None for v in verdicts[:1200])
+    window, retry = verdicts[1200]
+    assert window == Window(1200, 3600) and 1 <= retry <= 3600
 
 
 def test_idle_identities_are_forgotten():

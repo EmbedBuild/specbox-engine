@@ -4,16 +4,20 @@ Origin: on 2026-11-07 the Supabase organization was restricted for egress
 (13.6 of 5 GB). One MCP client of another tenant had polled the hosted MCP
 every ~3 minutes for five days — ~54,500 calls, 36,582 of them ``get_uc`` —
 and every read of the board crossed the database pooler. In the 30 days
-before, no legitimate identity went past 59 calls a minute, 597 an hour or
-2,121 a day.
+before, no other identity went past 218 calls in a sliding hour nor 1,100 in
+a sliding day; the poller reached 1,473 and 19,257.
 
 What it does
 ============
-Each identity gets sliding windows: by default 120 calls per minute, 1,200
-per hour and 5,000 per day, two to two and a half times the highest
-legitimate use measured. A call over any window gets ``RATE_LIMITED`` with
+Each identity gets sliding windows: by default 1,200 calls per hour and
+5,000 per day. A call over any window gets ``RATE_LIMITED`` with
 ``retry_after_s`` and the tool does not run; rejected calls do not count, so
 waiting is enough to get through again.
+
+The minute is not here: UC-3903's ``AbuseGuardMiddleware`` already answers
+``429`` at the HTTP level over ``SPECBOX_RATE_LIMIT_PER_MINUTE`` (60) tool
+calls a minute. The poller stayed under it (~12 a minute) all day long, which
+only an hour or a day window sees.
 
 The identity is the ``developer_id`` the access log resolves (the session's
 token or the transport's); a caller without one is limited by its MCP session
@@ -24,7 +28,7 @@ Only on a remote transport: a local stdio server has one person behind it.
 Configuration
 =============
 ``SPECBOX_RATE_LIMITS`` replaces the defaults without a release, e.g.
-``"60/min,600/h,3000/d"`` (units: ``s``, ``min``, ``h``, ``d``); ``"off"``
+``"600/h,3000/d"`` (units: ``s``, ``min``, ``h``, ``d``); ``"off"``
 turns the limit off. A malformed value keeps the defaults and logs a warning.
 
 Where it sits
@@ -54,7 +58,7 @@ from .tool_envelope import envelope_result
 logger = structlog.get_logger(__name__)
 
 RATE_LIMITS_ENV = "SPECBOX_RATE_LIMITS"
-DEFAULT_RATE_LIMITS = "120/min,1200/h,5000/d"
+DEFAULT_RATE_LIMITS = "1200/h,5000/d"
 CODE_RATE_LIMITED = "RATE_LIMITED"
 
 _UNIT_SECONDS = {"s": 1, "sec": 1, "min": 60, "m": 60, "h": 3600, "hour": 3600, "d": 86400, "day": 86400}

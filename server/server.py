@@ -35,6 +35,7 @@ from .tools.access_log import register_access_log_tools  # UC-3803
 from .tools.session_heartbeat import register_session_heartbeat_tools  # US-99 UC-9901
 from .tools.autopilot_decisions import register_autopilot_decision_tools  # US-99 UC-9902
 from .coordination.access_log import ToolAccessLogMiddleware, build_default_store, configure_store
+from .coordination.rate_limit import RateLimitMiddleware  # UC-11401
 from .coordination.transport_auth import TransportAuthMiddleware, TransportNoticeMiddleware  # UC-3901
 from .coordination.transport_auth import MODE_ENV as TRANSPORT_AUTH_ENV, undeclared_remote_policy  # UC-10806
 from .coordination.abuse_guard import AbuseGuardMiddleware  # UC-3903
@@ -207,6 +208,10 @@ register_coordination_tools(mcp)
 # The query tool is reserved to the ecosystem operator.
 configure_store(build_default_store(STATE_PATH))
 mcp.add_middleware(ToolAccessLogMiddleware())
+# UC-11401 — on a remote transport, no identity makes more calls than a person
+# working (default 120/min, 1,200/h, 5,000/day; SPECBOX_RATE_LIMITS). Inside the
+# access log, so every refused call is recorded with RATE_LIMITED.
+mcp.add_middleware(RateLimitMiddleware())
 register_access_log_tools(mcp)
 # US-99 UC-9901: el latido de cada sesión de Claude Code en el board.
 register_session_heartbeat_tools(mcp)

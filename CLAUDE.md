@@ -2238,6 +2238,28 @@ de cada UC solo para contarlos.
 - Un token revocado o caducado se ve en la barra como mucho 30 minutos después, o al recuperar el foco.
 - Tests: `vscode-extension/tests/identity-schedule.test.mjs` (16 consultas en 8 horas sin foco).
 
+## Nadie llama al MCP alojado más que una persona trabajando (US-114)
+
+El 2026-11-07 Supabase restringió la organización por egress (13,6 de 5 GB, el 99 % del Shared
+Pooler). Un cliente MCP de otro tenant había consultado el MCP alojado cada ~3 minutos durante
+5 días: ~54.500 llamadas, 36.582 de `get_uc`. En los 30 días anteriores ninguna otra identidad pasó
+de 34 llamadas por minuto, 218 por hora ni 1.100 al día (ventanas deslizantes sobre `tool_access_log`).
+
+- **UC-11401 — límite por identidad.** `server/coordination/rate_limit.py`: `RateLimitMiddleware`,
+  registrado justo después de `ToolAccessLogMiddleware`, cuenta ventanas deslizantes por
+  `developer_id` (el que resuelve el registro de accesos; sin identidad, por sesión MCP o dirección).
+  Por defecto 120 por minuto, 1.200 por hora y 5.000 al día. Pasarse de una responde
+  `RATE_LIMITED` con `retry_after_s` y la tool no se ejecuta; las llamadas rechazadas no cuentan.
+  Solo con transporte remoto. `SPECBOX_RATE_LIMITS` (en EasyPanel) cambia los límites sin publicar,
+  p. ej. `"60/min,600/h,3000/d"`, y `"off"` los quita; un valor mal escrito deja los de por defecto.
+  El rechazo queda en `tool_access_log` con `error_code = RATE_LIMITED` también en las tools que
+  devuelven una lista: el código viaja en el `meta` del resultado (`RESULT_CODE_META_KEY`), que
+  `classify_result` lee sin mirar el texto. Tests: `tests/test_rate_limit.py`.
+- **UC-11402 — `get_uc` sin las UC hermanas.** `list_story_items(..., with_siblings=False)` lee la
+  UC entera y su historia sin descripción ni meta larga; los demás backends lo ignoran. En el board
+  del manager, `get_uc` de una UC de la US-89 pasa de 19–20 KB a 3–4 KB. Tests:
+  `test_uc11402_ac01_get_uc_reads_one_uc_and_its_story` en `tests/test_board_reads_scoped.py`.
+
 ## El esquema del board solo es legible por quien tiene permiso (US-40)
 
 US-40 (board del orquestador `EmbedBuild/specbox-manager`, satélite engine) versiona y completa

@@ -730,13 +730,17 @@ class SpecBackend(ABC):
         *,
         us_id: str | None = None,
         uc_id: str | None = None,
+        with_siblings: bool = True,
     ) -> list[ItemDTO]:
         """The items a tool about one story or one UC needs, whole.
 
         With ``uc_id``: that UC, its story and the story's other UCs. With
         ``us_id``: that story and its UCs. Criteria are not included (read them
         with ``get_acceptance_criteria`` or ``count_acceptance_criteria``).
-        Default: ``list_items``; a tool keeps filtering as before.
+        ``with_siblings=False`` (UC-11402) says the tool only needs the UC and
+        its story: a backend may leave out the other UCs, and the story's
+        description and long meta. Default: ``list_items``; a tool keeps
+        filtering as before.
         """
         return await self.list_items(board_id)
 

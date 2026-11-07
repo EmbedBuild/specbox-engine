@@ -438,8 +438,18 @@ def build_default_store(state_path: Path) -> AccessLogStore:
 # ── Middleware ──────────────────────────────────────────────────────
 
 
+#: Key of a result's ``meta`` with the code of an answer the server gave
+#: instead of running the tool (UC-11401: ``RATE_LIMITED``). It survives the
+#: error envelope of a tool whose result is a list, which has no object to
+#: carry ``code``.
+RESULT_CODE_META_KEY = "specbox_code"
+
+
 def classify_result(result: Any) -> tuple[str, str | None]:
     """``(outcome, error_code)`` from a tool result; never reads message text."""
+    meta = getattr(result, "meta", None)
+    if isinstance(meta, Mapping) and meta.get(RESULT_CODE_META_KEY):
+        return OUTCOME_ERROR, str(meta[RESULT_CODE_META_KEY])[:MAX_CODE_LEN]
     if getattr(result, "is_error", False):
         return OUTCOME_ERROR, "TOOL_ERROR"
     payload = getattr(result, "structured_content", None)

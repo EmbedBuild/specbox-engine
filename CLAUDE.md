@@ -2248,10 +2248,12 @@ de 34 llamadas por minuto, 218 por hora ni 1.100 al día (ventanas deslizantes s
 - **UC-11401 — límite por identidad.** `server/coordination/rate_limit.py`: `RateLimitMiddleware`,
   registrado justo después de `ToolAccessLogMiddleware`, cuenta ventanas deslizantes por
   `developer_id` (el que resuelve el registro de accesos; sin identidad, por sesión MCP o dirección).
-  Por defecto 120 por minuto, 1.200 por hora y 5.000 al día. Pasarse de una responde
-  `RATE_LIMITED` con `retry_after_s` y la tool no se ejecuta; las llamadas rechazadas no cuentan.
+  Por defecto 1.200 por hora y 5.000 al día. Pasarse de una responde `RATE_LIMITED` con
+  `retry_after_s` y la tool no se ejecuta; las llamadas rechazadas no cuentan. El minuto no está
+  aquí: lo pone ya el `AbuseGuardMiddleware` de UC-3903 (429 por encima de 60 llamadas a tools por
+  minuto, `SPECBOX_RATE_LIMIT_PER_MINUTE`), y el sondeo, a ~12 por minuto, nunca lo tocó.
   Solo con transporte remoto. `SPECBOX_RATE_LIMITS` (en EasyPanel) cambia los límites sin publicar,
-  p. ej. `"60/min,600/h,3000/d"`, y `"off"` los quita; un valor mal escrito deja los de por defecto.
+  p. ej. `"600/h,3000/d"`, y `"off"` los quita; un valor mal escrito deja los de por defecto.
   El rechazo queda en `tool_access_log` con `error_code = RATE_LIMITED` también en las tools que
   devuelven una lista: el código viaja en el `meta` del resultado (`RESULT_CODE_META_KEY`), que
   `classify_result` lee sin mirar el texto. Tests: `tests/test_rate_limit.py`.

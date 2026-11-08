@@ -139,3 +139,12 @@ test('postActivation with client that throws → ok:false, never propagates (res
 	assert.equal(res.ok, false);
 	assert.match(res.error, /ECONNREFUSED/);
 });
+
+// --- US-115 · UC-11509: the activation goes to SpecBox's own Supabase stack -----
+
+test('UC-11509: the activation is sent to supabase.specbox.build with its publishable key, never to Supabase Cloud', () => {
+	const { SUPABASE_URL, SUPABASE_ANON_KEY } = require(path.join(outDir, 'constants.js'));
+	assert.equal(new URL(SUPABASE_URL).host, 'supabase.specbox.build');
+	assert.doesNotMatch(SUPABASE_URL, /\.supabase\.co\b/);
+	assert.match(SUPABASE_ANON_KEY, /^sb_publishable_/);
+});

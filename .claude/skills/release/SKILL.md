@@ -498,9 +498,10 @@ El paso es **no bloqueante**: el release ya está consumado (commit + push hecho
 publicación falla, se reporta como WARNING accionable, NO se revierte el release.
 
 ```bash
-# Requiere las credenciales del proyecto Supabase SpecBox-Cloud (service-role, NO anon key).
-# Viven en el entorno del mantenedor, nunca en el repo.
-SUPABASE_URL="https://nywjsvumsvxlpflpbord.supabase.co" \
+# Requiere la clave de servicio de la base de SpecBox (service-role, NO anon key), que vive
+# desde el 2026-11-08 en la pila propia del VPS (US-115). Vive en el entorno del mantenedor,
+# nunca en el repo.
+SUPABASE_URL="https://supabase.specbox.build" \
 SUPABASE_SERVICE_ROLE_KEY="<service-role-key>" \
   uv run python -m server.site_publish
 ```

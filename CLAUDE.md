@@ -2252,7 +2252,7 @@ de 34 llamadas por minuto, 218 por hora ni 1.100 al día (ventanas deslizantes s
   `retry_after_s` y la tool no se ejecuta; las llamadas rechazadas no cuentan. El minuto no está
   aquí: lo pone ya el `AbuseGuardMiddleware` de UC-3903 (429 por encima de 60 llamadas a tools por
   minuto, `SPECBOX_RATE_LIMIT_PER_MINUTE`), y el sondeo, a ~12 por minuto, nunca lo tocó.
-  Solo con transporte remoto. `SPECBOX_RATE_LIMITS` (en EasyPanel) cambia los límites sin publicar,
+  Solo con transporte remoto. `SPECBOX_RATE_LIMITS` (en Coolify, aplicación `mcp-specbox-engine`) cambia los límites sin publicar,
   p. ej. `"600/h,3000/d"`, y `"off"` los quita; un valor mal escrito deja los de por defecto.
   El rechazo queda en `tool_access_log` con `error_code = RATE_LIMITED` también en las tools que
   devuelven una lista: el código viaja en el `meta` del resultado (`RESULT_CODE_META_KEY`), que
@@ -2837,8 +2837,9 @@ coloca un proyecto en una organización cuando hay alguna que asignar — la que
 ## El servidor alojado vive en mcp.specbox.build (US-51 · UC-5101/5102)
 
 El MCP alojado responde en **`https://mcp.specbox.build/mcp`** y en su nombre anterior,
-`mcp-specbox-engine.jpsdeveloper.com`: los dos son el mismo servicio de EasyPanel y el antiguo
-no tiene fecha de retirada. `scripts/check-mcp-hosts.mjs` compara los dos (versión, token
+`mcp-specbox-engine.jpsdeveloper.com`: los dos son la misma aplicación de Coolify
+(`mcp-specbox-engine` en `https://coolify.embed.build`, desde el 2026-11-08; antes EasyPanel) y el
+antiguo no tiene fecha de retirada. Se despliega sola al fusionar en `main` (GitHub App de Coolify). `scripts/check-mcp-hosts.mjs` compara los dos (versión, token
 inválido, sin token y, con `--with-device-token`, sesión con token); corre cada lunes sin
 token (`mcp-hosts.yml`) y con token en el Paso 6.7 de `/release`.
 

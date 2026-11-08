@@ -8,6 +8,11 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.31.0] — "Mudanza"
+
+- **Activation event.** The one-time, anonymous activation event (no personal data) now goes to SpecBox's own
+  database at `supabase.specbox.build` instead of the old Supabase Cloud project, which is frozen.
+
 ## [6.30.0] — "Juego limpio"
 
 - **License.** The extension is now **fair source** under the FSL-1.1-ALv2: free for any use, also in

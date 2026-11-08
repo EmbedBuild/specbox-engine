@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.30.0 — "Juego limpio" (sobre v6.29.2 "Tesela")<br/>
+  v 6.31.0 — "Mudanza" (sobre v6.30.0 "Juego limpio")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,22 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.31
+
+**v6.31.0 — "Mudanza"** acompaña la mudanza de la base de SpecBox a un Supabase propio, en la misma máquina
+que el MCP alojado y el panel, sin cuotas de tráfico:
+
+- **Un tope por identidad en el MCP alojado** — nadie pasa de 1.200 llamadas por hora ni de 5.000 al día;
+  pasado el tope, la tool responde `RATE_LIMITED` y dice cuándo volver. Muy por encima de lo que hace una
+  persona trabajando.
+- **`get_uc` más ligero** — lee solo la UC pedida y su historia: de 19–20 KB a 3–4 KB en una historia grande.
+- **La extensión, a la base nueva** — el evento de activación (anónimo, una sola vez) va a
+  `supabase.specbox.build`.
+
+100% backwards-compatible: los proyectos no tienen que cambiar nada.
 
 ---
 
@@ -804,7 +820,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.30.0 — "Juego limpio" (over v6.29.2 "Tesela")
+> v 6.31.0 — "Mudanza" (over v6.30.0 "Juego limpio")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -817,6 +833,20 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.31
+
+**v6.31.0 — "Mudanza"** comes with SpecBox's database moving to its own Supabase stack, on the same machine
+as the hosted MCP and the panel, with no traffic quotas:
+
+- **A cap per identity on the hosted MCP** — no one goes over 1,200 calls per hour or 5,000 per day; past the
+  cap, the tool returns `RATE_LIMITED` and says when to come back. Far above what a person working does.
+- **A lighter `get_uc`** — it reads only the requested UC and its story: 19–20 KB down to 3–4 KB on a large
+  story.
+- **The extension, on the new database** — the activation event (anonymous, sent once) goes to
+  `supabase.specbox.build`.
+
+100% backwards-compatible: projects don't need to change anything.
 
 ## What's new in v6.30
 

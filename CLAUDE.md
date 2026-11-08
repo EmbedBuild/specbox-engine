@@ -1,4 +1,4 @@
-# SpecBox Engine v6.30.0
+# SpecBox Engine v6.31.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2893,7 +2893,7 @@ detrás. El diagnóstico decía «Engine: Not installed» y «Skills 28/54».
 
 ## Engine Version
 
-Current: v6.30.0 "Juego limpio"
+Current: v6.31.0 "Mudanza"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

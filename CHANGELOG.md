@@ -2,6 +2,49 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.31.0] - 2026-11-08 — "Mudanza"
+
+La base de SpecBox se muda a un Supabase propio, en la misma máquina que el MCP alojado y el panel
+(`supabase.specbox.build`), sin cuotas de tráfico. La extensión envía allí su evento de activación y
+`/release` publica allí el estado del engine; además, el MCP alojado pone un tope de llamadas por identidad y
+`get_uc` lee solo lo que necesita (US-114 y US-115 del board del orquestador).
+
+### Security
+
+- Un solo cliente ya no puede acaparar el MCP alojado ni la base que hay detrás: ninguna identidad pasa de
+  1.200 llamadas por hora ni de 5.000 al día. Pasado el límite, la tool no se ejecuta y responde
+  `RATE_LIMITED` con los segundos que faltan (`retry_after_s`); las llamadas rechazadas no cuentan y quedan
+  en el registro de accesos. El tope por minuto sigue siendo el de UC-3903.
+
+### Added
+
+- `server/coordination/rate_limit.py` — `RateLimitMiddleware`, justo después de
+  `ToolAccessLogMiddleware`: ventanas deslizantes por identidad (sin identidad, por sesión MCP o dirección),
+  solo con transporte remoto. `SPECBOX_RATE_LIMITS` cambia los límites sin publicar (`"600/h,3000/d"`) y
+  `"off"` los quita; un valor mal escrito deja los de por defecto (UC-11401, #333, #334).
+
+### Changed
+
+- `get_uc` lee solo la UC pedida y su historia, sin las UC hermanas: en una UC de una historia grande pasa de
+  19–20 KB a 3–4 KB (UC-11402, #332).
+- La extensión de VS Code envía el evento de activación a `supabase.specbox.build` con la clave publicable de
+  la pila propia (la misma que lleva el site), en vez de al proyecto de Supabase Cloud, que queda congelado
+  (UC-11509, #335).
+- `/release` (Paso 6.5.1) publica el estado y el inventario del engine en la base nueva.
+
+### Compatibility
+
+- 100% backwards-compatible. Los límites quedan muy por encima de lo que hace una persona trabajando; los
+  proyectos no tienen que cambiar nada.
+
+### Tests
+
+- `tests/test_rate_limit.py` (10 pruebas, entre ellas una hora real de sondeo con menos de 60 llamadas por
+  minuto que recibe `RATE_LIMITED` en la llamada 1.201).
+- `tests/test_board_reads_scoped.py`: `get_uc` lee una UC y su historia, sin las hermanas.
+- `vscode-extension/tests/activation.test.mjs`: la activación va a `supabase.specbox.build` y nunca a
+  Supabase Cloud.
+
 ## [6.30.0] - 2026-10-28 — "Juego limpio"
 
 SpecBox pasa a ser **fair source**. El engine, la CLI y la extensión de VS Code cambian a la licencia

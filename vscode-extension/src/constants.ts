@@ -39,9 +39,11 @@ export const REQUIRED_NODE_VERSION = 18;
 
 // US-26 (UC-2601) — Funnel telemetry. The extension emits an `activation` event
 // to the same public Supabase project the site uses, via the RPC
-// `public.ingest_site_event` (deployed in US-25). The anon JWT below is the
-// legacy public anon key — identical to the one shipped in the site bundle, safe
-// to embed (RLS restricts what it can do; the RPC only ingests funnel events).
-export const SUPABASE_URL = 'https://nywjsvumsvxlpflpbord.supabase.co';
+// `public.ingest_site_event` (deployed in US-25). The key below is the public
+// publishable key — identical to the one shipped in the site bundle, safe to
+// embed (RLS restricts what it can do; the RPC only ingests funnel events).
+// US-115 · UC-11509: since 2026-11-08 the database lives on SpecBox's own
+// Supabase stack; the old Supabase Cloud project was frozen that day.
+export const SUPABASE_URL = 'https://supabase.specbox.build';
 export const SUPABASE_ANON_KEY =
-	'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55d2pzdnVtc3Z4bHBmbHBib3JkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MDA1OTYsImV4cCI6MjA5NDk3NjU5Nn0.v3uN9mPotaSV3uvWTD0T_n-fLK39ij5NwQdpSnwAG9I';
+	'sb_publishable_KrsnP391H0kIsQJpwLmdlk_XDwksna8';

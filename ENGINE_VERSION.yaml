@@ -1,8 +1,8 @@
-version: 6.30.0
-codename: "Juego limpio"
+version: 6.31.0
+codename: "Mudanza"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-10-28
+release_date: 2026-11-08
 min_claude_code: "1.0.0"
 
 stacks:
@@ -585,7 +585,20 @@ features:
   - services-and-support-page
   - template-read-only-mcp-tools
 
+  # New (v6.31.0) — Mudanza
+  - hosted-mcp-identity-rate-limit
+  - get-uc-without-sibling-ucs
+  - extension-activation-own-supabase
+
 changelog:
+  6.31.0:
+    date: 2026-11-08
+    codename: "Mudanza"
+    changes:
+      - "feat: the hosted MCP caps calls per identity — 1,200 per hour and 5,000 per day by default (the per-minute cap stays with UC-3903's AbuseGuardMiddleware); over the limit the tool is not run and returns RATE_LIMITED with retry_after_s, rejected calls do not count and are recorded in tool_access_log; SPECBOX_RATE_LIMITS changes the limits without a release and \"off\" removes them (UC-11401, #333, #334)"
+      - "fix: get_uc reads only the requested UC and its story, without the sibling UCs — 19-20 KB down to 3-4 KB on a large story (UC-11402, #332)"
+      - "feat: the VS Code extension sends its activation event to SpecBox's own Supabase stack (supabase.specbox.build) with its publishable key, and a test fails if it points back to Supabase Cloud; /release publishes the engine state to the new database (UC-11509, #335)"
+
   6.30.0:
     date: 2026-10-28
     codename: "Juego limpio"

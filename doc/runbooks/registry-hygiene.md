@@ -26,8 +26,8 @@ reporte del tester, y no dejar en el host ni el original ni una copia legible.
 
 ## Pasos
 
-Todo se ejecuta dentro del contenedor del engine (EasyPanel → servicio del MCP →
-consola), o con `docker exec -it <contenedor> sh`.
+Todo se ejecuta dentro del contenedor del engine (Coolify → aplicación `mcp-specbox-engine` →
+Terminal), o con `docker exec -it <contenedor> sh`.
 
 ### 1. Previsualizar (no escribe nada)
 

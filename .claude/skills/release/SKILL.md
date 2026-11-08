@@ -568,7 +568,8 @@ node scripts/check-mcp-hosts.mjs --with-device-token
 
 Exige en los dos nombres: misma versión, token inválido rechazado (401), la misma respuesta sin
 token (200 en la gracia de UC-3901, 401 después) y sesión abierta con token. Si falla, revisar
-los dominios del servicio `mcp-specbox-engine` en EasyPanel.
+los dominios de la aplicación `mcp-specbox-engine` en `https://coolify.embed.build`
+(desde el 2026-11-08, US-116; antes EasyPanel).
 
 Después, el flujo FreeForm con el MCP remoto (UC-11012, `doc/runbooks/mcp-smoke-freeform.md`):
 

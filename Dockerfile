@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 
 # Cache-bust: bump this ARG (or pass --build-arg CACHEBUST=$(date)) to force a
 # fresh recopy of all engine content + server code below. Needed because some
-# CI/PaaS builders (e.g. EasyPanel) reuse a stale :latest image and skip the
+# CI/PaaS builders (e.g. EasyPanel, Coolify) reuse a stale :latest image and skip the
 # COPY cache-key re-evaluation, leaving an old engine version baked in.
 ARG CACHEBUST=2026-05-25-v6.1.0
 

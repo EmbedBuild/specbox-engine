@@ -52,7 +52,8 @@ Es una decisión del operador: activarla empieza a contar el plazo para todos.
 
 ## Activar, comprobar, volver atrás
 
-En EasyPanel (servicio del MCP) → variables de entorno:
+En Coolify (`https://coolify.embed.build`, aplicación `mcp-specbox-engine`) → Environment Variables
+(antes del 2026-11-08, en EasyPanel):
 
 ```
 SPECBOX_TRANSPORT_AUTH=grace

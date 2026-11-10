@@ -28,7 +28,12 @@ EVIDENCE_TYPES: tuple[str, ...] = ("test", "screenshot", "diff", "url", "pr")
 #: completo es la etiqueta y no hay enlace.
 FREE_TEXT_TYPE = "url"
 
-_FIELDS = ("type", "label", "link", "detail")
+_FIELDS = ("type", "label", "link", "detail", "commit", "repo")
+
+#: UC-11702: el commit con el que se comprobó el criterio (lo manda quien marca:
+#: el servidor no ve su git) y el repositorio donde vive, para enlazarlo.
+COMMIT_RE = re.compile(r"^[0-9a-f]{7,40}$")
+REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 
 class AcEvidenceInput(TypedDict, total=False):
@@ -38,6 +43,10 @@ class AcEvidenceInput(TypedDict, total=False):
     label: Required[str]
     link: str | None
     detail: str | None
+    #: UC-11702: commit con el que pasó la comprobación (7–40 hexadecimales).
+    commit: str | None
+    #: UC-11702: repositorio del commit, «owner/nombre» (p. ej. EmbedBuild/specbox-engine).
+    repo: str | None
 
 
 class EvidenceError(ValueError):
@@ -48,15 +57,18 @@ def normalize_evidence(raw: str | dict[str, Any] | None) -> dict[str, Any] | Non
     """Devuelve la evidencia en su forma única, o ``None`` si no hay.
 
     - ``None`` o texto vacío → ``None`` (sin evidencia, como antes).
-    - Texto → ``{type: "url", label: <texto completo>, link: None, detail: None}``.
-    - Objeto → se valida campo a campo; lanza `EvidenceError` con el motivo.
+    - Texto → ``{type: "url", label: <texto completo>, link: None, detail: None,
+      commit: None, repo: None}``.
+    - Objeto → se valida campo a campo; lanza `EvidenceError` con el motivo. El
+      commit (UC-11702) se guarda en minúsculas; uno que no tenga entre 7 y 40
+      caracteres hexadecimales se rechaza y no se marca nada.
     """
     if raw is None:
         return None
     if isinstance(raw, str):
         if not raw.strip():
             return None
-        return {"type": FREE_TEXT_TYPE, "label": raw, "link": None, "detail": None}
+        return {"type": FREE_TEXT_TYPE, "label": raw, "link": None, "detail": None, "commit": None, "repo": None}
     if not isinstance(raw, dict):
         raise EvidenceError("evidence debe ser un texto o un objeto {type, label, link, detail}")
 
@@ -89,23 +101,92 @@ def normalize_evidence(raw: str | dict[str, Any] | None) -> dict[str, Any] | Non
     if isinstance(detail, str) and not detail.strip():
         detail = None
 
-    return {"type": ev_type, "label": label.strip(), "link": link, "detail": detail}
+    commit = raw.get("commit")
+    if commit is not None:
+        if not isinstance(commit, str) or not COMMIT_RE.match(commit.strip().lower()):
+            raise EvidenceError(
+                "evidence.commit debe tener entre 7 y 40 caracteres hexadecimales (el hash del commit) o ser null"
+            )
+        commit = commit.strip().lower()
+
+    repo = raw.get("repo")
+    if repo is not None:
+        if not isinstance(repo, str) or not REPO_RE.match(repo.strip()):
+            raise EvidenceError("evidence.repo debe ser «owner/nombre» (p. ej. EmbedBuild/specbox-engine) o null")
+        repo = repo.strip()
+
+    return {
+        "type": ev_type,
+        "label": label.strip(),
+        "link": link,
+        "detail": detail,
+        "commit": commit,
+        "repo": repo,
+    }
 
 
 def evidence_comment_text(evidence: dict[str, Any]) -> str:
     """Texto de la evidencia en el comentario de la UC.
 
     Una evidencia en texto libre se escribe tal cual, así el comentario de las
-    llamadas de siempre no cambia ni un carácter (AC-02).
+    llamadas de siempre no cambia ni un carácter (AC-02). El commit (UC-11702)
+    va al final, `` · commit owner/nombre@sha``, y `evidence_from_comments` lo
+    recupera.
     """
-    if evidence["type"] == FREE_TEXT_TYPE and evidence["link"] is None and evidence["detail"] is None:
+    commit = evidence.get("commit")
+    if (
+        evidence["type"] == FREE_TEXT_TYPE
+        and evidence["link"] is None
+        and evidence["detail"] is None
+        and not commit
+    ):
         return evidence["label"]
     text = f"[{evidence['type']}] {evidence['label']}"
     if evidence["link"]:
         text += f" <{evidence['link']}>"
     if evidence["detail"]:
         text += f" — {evidence['detail']}"
+    if commit:
+        repo = evidence.get("repo")
+        text += f" · commit {repo}@{commit}" if repo else f" · commit {commit}"
     return text
+
+
+#: Lo que escribe `evidence_comment_text` para una evidencia estructurada.
+_STRUCTURED_RE = re.compile(r"^\[(test|screenshot|diff|url|pr)\] (.+)$", re.DOTALL)
+_COMMIT_SUFFIX_RE = re.compile(r" · commit (?:([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@)?([0-9a-f]{7,40})$")
+_LINK_RE = re.compile(r"^(.*?) <(https?://\S+)>(?: — (.*))?$", re.DOTALL)
+
+
+def _receipt_from_text(text: str) -> dict[str, Any]:
+    """Recibo a partir del texto de un comentario.
+
+    Si el texto tiene la forma que escribe `evidence_comment_text` para una
+    evidencia estructurada, se recuperan tipo, etiqueta, enlace, detalle y
+    commit (UC-11702 AC-05). Si no, es texto libre, como siempre: tipo «url» y
+    el texto entero como etiqueta, sin commit (nunca se deduce uno, AC-06).
+    """
+    free = {"type": FREE_TEXT_TYPE, "label": text, "link": None, "detail": None, "commit": None, "repo": None}
+    structured = _STRUCTURED_RE.match(text)
+    if not structured:
+        return free
+    ev_type, rest = structured[1], structured[2]
+    commit = repo = None
+    suffix = _COMMIT_SUFFIX_RE.search(rest)
+    if suffix:
+        repo, commit = suffix[1], suffix[2]
+        rest = rest[: suffix.start()]
+    link = detail = None
+    linked = _LINK_RE.match(rest)
+    if linked:
+        label, link, detail = linked[1], linked[2], linked[3]
+    elif " — " in rest:
+        label, detail = rest.split(" — ", 1)
+    else:
+        label = rest
+    if not label.strip():
+        return free
+    return {"type": ev_type, "label": label, "link": link, "detail": detail, "commit": commit, "repo": repo}
 
 
 # ── Lectura de los comentarios de siempre ────────────────────────────────
@@ -159,15 +240,7 @@ def evidence_from_comments(comments: list[Any]) -> dict[str, list[dict[str, Any]
         if not v["text"]:
             continue
         out.setdefault(v["ac_id"], []).append(
-            {
-                "type": FREE_TEXT_TYPE,
-                "label": v["text"],
-                "link": None,
-                "detail": None,
-                "by": None,
-                "at": v["at"],
-                "passed": v["passed"],
-            }
+            {**_receipt_from_text(v["text"]), "by": None, "at": v["at"], "passed": v["passed"]}
         )
     return out
 

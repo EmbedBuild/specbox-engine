@@ -52,7 +52,9 @@ def test_no_evidence_is_none(raw):
 
 def test_ac02_free_text_is_url_with_full_text_and_no_link():
     text = "pytest tests/test_x.py — 12 passed\nsegunda línea"
-    assert normalize_evidence(text) == {"type": "url", "label": text, "link": None, "detail": None}
+    assert normalize_evidence(text) == {
+        "type": "url", "label": text, "link": None, "detail": None, "commit": None, "repo": None,
+    }
 
 
 def test_ac01_structured_evidence_is_normalized():
@@ -64,6 +66,8 @@ def test_ac01_structured_evidence_is_normalized():
         "label": "engine#189",
         "link": "https://github.com/EmbedBuild/specbox-engine/pull/189",
         "detail": None,
+        "commit": None,  # UC-11702: sin commit si no lo manda quien marca
+        "repo": None,
     }
 
 
@@ -119,6 +123,8 @@ def test_evidence_from_comments_keeps_text_date_and_unknown_author():
             "label": "12 passed",
             "link": None,
             "detail": None,
+            "commit": None,
+            "repo": None,
             "by": None,
             "at": "2026-09-01T10:00:05+00:00",
             "passed": True,
@@ -221,8 +227,11 @@ async def test_ac01_ac02_ac03_tools_on_freeform(tmp_path, monkeypatch):
     acs = {a["id"]: a for a in uc["acceptance_criteria"]}
     assert acs["AC-01"]["evidence"][0]["label"] == "12 passed"
     assert acs["AC-01"]["evidence"][0]["type"] == "url"
-    assert acs["AC-02"]["evidence"][0]["label"] == "[pr] engine#189 <https://github.com/x/y/pull/189>"
-    assert acs["AC-03"]["evidence"][0]["label"] == "[test] 8 passed"
+    # UC-11702: el comentario estructurado se lee con su tipo, etiqueta y enlace.
+    ev2 = acs["AC-02"]["evidence"][0]
+    assert (ev2["type"], ev2["label"], ev2["link"]) == ("pr", "engine#189", "https://github.com/x/y/pull/189")
+    ev3 = acs["AC-03"]["evidence"][0]
+    assert (ev3["type"], ev3["label"]) == ("test", "8 passed")
     for ac in acs.values():
         assert ac["done"] is True
         assert ac["accepted"]["by"] is None  # FreeForm no conoce al developer: nunca se inventa
@@ -359,7 +368,7 @@ async def test_ac01_native_stores_receipt_with_session_developer_and_date():
         assert dto.done is True
         assert len(dto.evidence) == 1
         ev = dto.evidence[0]
-        assert {k: ev[k] for k in ("type", "label", "link", "detail")} == receipt
+        assert {k: ev[k] for k in ("type", "label", "link", "detail", "commit", "repo")} == receipt
         assert ev["by"] == developer_id and ev["at"] and ev["passed"] is True
         assert dto.verdict["passed"] is True and dto.verdict["by"] == developer_id and dto.verdict["at"]
 

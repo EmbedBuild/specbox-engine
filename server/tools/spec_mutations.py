@@ -15,6 +15,7 @@ rationale):
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -26,6 +27,71 @@ from ..spec_backend import ItemDTO, parse_item_id, with_item_id
 from . import _mutation_helpers as mh
 
 logger = structlog.get_logger(__name__)
+
+
+# ── Internal: un criterio hecho que se reescribe (UC-11701) ──────────
+
+
+def _plan_ac_update(current: Any, text: str | None, done: bool | None) -> dict[str, Any]:
+    """Qué cambia de verdad en un criterio y si queda pendiente de comprobar.
+
+    Un criterio hecho cuyo texto cambia queda sin hacer en todos los backends: lo que se comprobó
+    era el texto anterior (en el board native lo hace además el trigger de la migración 0035, para
+    cualquier escritor). Un ``done=True`` en la misma llamada no se aplica: el criterio vuelve a
+    constar como hecho con ``mark_ac`` y su justificante.
+    """
+    text_changed = text is not None and text != current.text
+    reset = text_changed and bool(current.done)
+    if reset:
+        return {
+            "text_changed": True,
+            "done_changed": True,
+            "done": False,
+            "reset": True,
+            "ignored_done": done is True,
+        }
+    done_changed = done is not None and bool(done) != bool(current.done)
+    return {
+        "text_changed": text_changed,
+        "done_changed": done_changed,
+        "done": done if done_changed else None,
+        "reset": False,
+        "ignored_done": False,
+    }
+
+
+async def _record_reset(backend: Any, board_id: str, uc_item_id: str, ac_id: str) -> None:
+    """Deja en la UC el veredicto «no pasa» por el texto nuevo.
+
+    Trello, Plane y FreeForm reconstruyen el último veredicto de los comentarios: sin este, el
+    «PASSED» del texto anterior volvería a contar si alguien pone el criterio hecho sin mark_ac. En
+    el board native el veredicto lo pone el trigger de 0035 y el comentario queda como historial.
+    Un fallo al comentar no deshace el cambio.
+    """
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    try:
+        await backend.add_comment(
+            board_id,
+            uc_item_id,
+            f"{ac_id}: FAILED — Texto cambiado: pendiente de volver a comprobarse [{stamp}]",
+        )
+    except Exception as e:  # noqa: BLE001 — el comentario es historial, no el cambio
+        logger.warning("ac_reset_comment_failed", ac_id=ac_id, error=str(e))
+
+
+def _reset_notice(ac_id: str, plan: dict[str, Any]) -> dict[str, Any]:
+    """Lo que añade la respuesta cuando el criterio queda pendiente (AC-04)."""
+    if not plan["reset"]:
+        return {}
+    warning = (
+        f"{ac_id} queda pendiente de volver a comprobarse: su texto cambió y lo comprobado era el "
+        "texto anterior. Márcalo con mark_ac y su justificante cuando vuelva a pasar."
+    )
+    notice: dict[str, Any] = {"reset_to_pending": True, "warning": warning}
+    if plan["ignored_done"]:
+        notice["ignored"] = ["done"]
+        notice["warning"] = warning + " El done=true de esta llamada no se aplica."
+    return notice
 
 
 # ── Internal: metadata extraction for UC/US ──────────────────────────
@@ -407,8 +473,13 @@ async def update_ac(
     Only non-None fields are updated. If `done` is omitted, the existing
     done state is preserved.
 
+    Rewriting the text of a criterion that is done leaves it pending
+    (UC-11701): what was checked was the previous text. The response then
+    carries `reset_to_pending` and a `warning`; a `done=true` in the same call
+    is not applied (mark it again with `mark_ac` and its receipt).
+
     Returns:
-        {uc_id, ac_id, updated_fields, updated_at, reason?}
+        {uc_id, ac_id, updated_fields, updated_at, reason?, reset_to_pending?, warning?, ignored?}
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
@@ -422,8 +493,9 @@ async def update_ac(
                 "AC_NOT_FOUND", f"AC {ac_id} not found in {uc_id}", uc_id=uc_id, ac_id=ac_id
             )
 
-        text_changed = text is not None and text != current.text
-        done_changed = done is not None and bool(done) != bool(current.done)
+        plan = _plan_ac_update(current, text, done)
+        text_changed = plan["text_changed"]
+        done_changed = plan["done_changed"]
 
         if not text_changed and not done_changed:
             return {
@@ -440,12 +512,15 @@ async def update_ac(
                 uc_item.id,
                 ac_id,
                 text=text if text_changed else None,
-                done=done if done_changed else None,
+                done=plan["done"],
             )
         except ValueError as e:
             return _mk_error("AC_NOT_FOUND", str(e), uc_id=uc_id, ac_id=ac_id)
         except Exception as e:
             return _mk_error("BACKEND_ERROR", str(e))
+
+        if plan["reset"]:
+            await _record_reset(backend, board_id, uc_item.id, ac_id)
 
         fields: list[str] = []
         if text_changed:
@@ -458,6 +533,7 @@ async def update_ac(
             "ac_id": ac_id,
             "updated_fields": fields,
             "updated_at": mh.utc_now_iso(),
+            **_reset_notice(ac_id, plan),
         }
     finally:
         await backend.close()
@@ -543,8 +619,9 @@ async def update_ac_batch(
 
             text = entry.get("text")
             done = entry.get("done")
-            text_changed = text is not None and text != current.text
-            done_changed = done is not None and bool(done) != bool(current.done)
+            plan = _plan_ac_update(current, text, done)
+            text_changed = plan["text_changed"]
+            done_changed = plan["done_changed"]
 
             if not text_changed and not done_changed:
                 succeeded.append(
@@ -558,7 +635,7 @@ async def update_ac_batch(
                     uc_item.id,
                     ac_id,
                     text=text if text_changed else None,
-                    done=done if done_changed else None,
+                    done=plan["done"],
                 )
             except ValueError as e:
                 failed.append(
@@ -575,12 +652,17 @@ async def update_ac_batch(
                     break
                 continue
 
+            if plan["reset"]:
+                await _record_reset(backend, board_id, uc_item.id, ac_id)
+
             fields: list[str] = []
             if text_changed:
                 fields.append("text")
             if done_changed:
                 fields.append("done")
-            succeeded.append({"uc_id": uc_id, "ac_id": ac_id, "updated_fields": fields})
+            succeeded.append(
+                {"uc_id": uc_id, "ac_id": ac_id, "updated_fields": fields, **_reset_notice(ac_id, plan)}
+            )
 
         return {
             "total": len(updates),

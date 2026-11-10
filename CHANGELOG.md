@@ -2,6 +2,62 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.32.0] - 2026-11-10 — "Sello"
+
+El justificante de cada criterio de aceptación dice ahora qué demuestra y deja de valer cuando cambia lo
+aceptado: reescribir un criterio hecho lo deja pendiente y anula la aceptación de su UC, cada justificante
+lleva el commit con el que se comprobó y `get_uc` marca los criterios que ninguna prueba vuelve a comprobar
+(US-117 del board del orquestador, a partir de la pregunta de un desarrollador externo).
+
+### Security
+
+- Un criterio aceptado ya no se puede reescribir conservando su aceptación: cambiar el texto de un criterio
+  hecho, por cualquier vía, lo deja pendiente y anula la aceptación de su UC (UC-11701).
+- El MCP alojado ya no se puede desplegar desde fuera de GitHub: el webhook del repositorio que llamaba al
+  panel anterior se ha borrado y el despliegue solo sale de una fusión en `main` (UC-11606, #337).
+
+### Added
+
+- Migración `0035_ac_text_change_resets_done.sql` (y su copia en `supabase/migrations`): un trigger `BEFORE
+  UPDATE OF text` deja sin hacer un criterio hecho que cambia de texto y pone su veredicto en «no pasa»
+  (`reason: text_changed`, quién y el texto anterior); la anulación de la aceptación de 0029 se dispara
+  también con `UPDATE OF text`. Vale para `update_ac`, una importación o SQL directo (UC-11701, #338).
+- `commit` y `repo` en el recibo de `mark_ac` y `mark_ac_batch`: el commit con el que se comprobó el criterio
+  (de 7 a 40 hexadecimales) y su repositorio (`owner/nombre`). Uno no válido devuelve `INVALID_EVIDENCE` y no se
+  marca nada (UC-11702, #339).
+- `get_uc` da en cada criterio hecho `repeatable_test` y, si ningún recibo `test` pasa, la marca
+  `sin_prueba_que_se_repita` en `flags`. Se calcula al leer (UC-11703, #340).
+
+### Changed
+
+- `update_ac` y `update_ac_batch`: un criterio hecho cuyo texto cambia queda pendiente también en Trello, Plane
+  y FreeForm, con un comentario `FAILED` que lo explica; la respuesta lleva `reset_to_pending` y `warning`, y un
+  `done=true` en la misma llamada no se aplica.
+- Trello, Plane y FreeForm: el comentario del recibo lleva ` · commit owner/repo@sha` y `get_uc` recupera de los
+  comentarios estructurados el tipo, el enlace, el detalle y el commit (antes, todo como texto libre).
+- `/implement`: el Paso 7.5.11 apunta en la rama el commit con el que pasaron las pruebas
+  (`tested_commit.json`); los recibos de 6.5.5 y 8.5.4 lo llevan y enlazan a `blob/<sha>` en vez de a
+  `blob/main`, y cada criterio que cubre una prueba de aceptación lleva un recibo `test` además de su captura.
+
+### Decisions
+
+- Se invalida por eventos (desmarcar, `/feedback`, la UC sale de hecho y reescribir el criterio), no por
+  versión ni por ficheros tocados.
+- El estado de la UC no cambia al reescribir un criterio, como al desmarcarlo; la aceptación sí cae.
+- Con la fusión squash el commit de la rama no queda en `main`, pero GitHub lo conserva por la PR: el enlace
+  `…/commit/<sha>` sigue abriendo.
+
+### Compatibility
+
+- 100% backwards-compatible. Los justificantes anteriores se conservan y salen con `commit: null`; la marca no
+  necesita migración.
+
+### Tests
+
+- `tests/test_ac_text_change_resets.py`, `tests/test_ac_receipt_commit.py` y `tests/test_get_uc_repeatable.py`
+  (Postgres real y FreeForm en memoria); `tests/test_ac_evidence.py` y `tests/test_spec_mutations.py` pasan a
+  la regla nueva. Suite completa: 2.942 en verde.
+
 ## [6.31.0] - 2026-11-08 — "Mudanza"
 
 La base de SpecBox se muda a un Supabase propio, en la misma máquina que el MCP alojado y el panel

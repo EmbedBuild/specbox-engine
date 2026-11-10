@@ -1,4 +1,4 @@
-# SpecBox Engine v6.31.0
+# SpecBox Engine v6.32.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2892,9 +2892,32 @@ detrás. El diagnóstico decía «Engine: Not installed» y «Skills 28/54».
   y `update-notice.test.mjs`. En esos runners `rmSync` quita el junction limpio, así que no
   reproducen el borrado original: lo cubre el sistema de ficheros simulado.
 
+## Un justificante dice qué demuestra y caduca cuando cambia lo aceptado (US-117, v6.32.0)
+
+Pregunta de un desarrollador externo (2026-11-09): qué invalida el justificante de un criterio y qué
+evidencia se vuelve a ejecutar en vez de arrastrarse. Decisión de Jesús (2026-11-10): se invalida por
+eventos (desmarcar, `/feedback`, la UC sale de hecho y reescribir el criterio), no por versión ni por
+ficheros tocados.
+
+- **Reescribir un criterio hecho lo deja pendiente** (UC-11701): migración `0035` — `BEFORE UPDATE OF
+  text` pone `done=false` y el veredicto en `{passed:false, reason:"text_changed", previous_text, by}`
+  (firma con `app.developer_id`, que `update_acceptance_criterion` pone en su transacción), y
+  `trg_uc_acceptance_void_on_criterion` corre también con `UPDATE OF text` (Postgres elige por las
+  columnas del `SET`). Vale para cualquier escritor. `update_ac`/`update_ac_batch` hacen lo mismo en
+  Trello, Plane y FreeForm (comentario `FAILED` con el motivo) y responden `reset_to_pending` + `warning`.
+- **El commit en el justificante** (UC-11702): `commit` (7–40 hex) y `repo` (`owner/nombre`) en el recibo
+  de `mark_ac`/`mark_ac_batch` (`server/ac_evidence.py`); `get_uc` los enseña y un recibo anterior sale con
+  `commit: null`. En los backends de comentarios va como ` · commit owner/repo@sha` y
+  `evidence_from_comments` recupera tipo, enlace, detalle y commit. `/implement` 7.5.11 apunta el `HEAD`
+  comprobado en `tested_commit.json` y los recibos enlazan a `blob/<sha>`.
+- **Sin prueba que se repita** (UC-11703): `get_uc` da `repeatable_test` en cada criterio hecho y la marca
+  `sin_prueba_que_se_repita` en `flags` si ningún recibo `test` pasa (`ac_evidence.repeatable_test`, al
+  leer). `/implement` 8.5.4 deja un recibo `test` por prueba de aceptación.
+- Tests: `tests/test_ac_text_change_resets.py`, `test_ac_receipt_commit.py`, `test_get_uc_repeatable.py`.
+
 ## Engine Version
 
-Current: v6.31.0 "Mudanza"
+Current: v6.32.0 "Sello"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

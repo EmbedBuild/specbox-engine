@@ -23,12 +23,14 @@ import structlog
 from fastmcp import Context
 
 from ..ac_evidence import (
+    NO_REPEATABLE_TEST,
     AcEvidenceInput,
     EvidenceError,
     accepted_from,
     evidence_comment_text,
     evidence_from_comments,
     normalize_evidence,
+    repeatable_test,
     verdicts_from_comments,
 )
 from ..auth_gateway import (
@@ -1391,6 +1393,10 @@ async def get_uc(
 
     Returns:
         Complete UC detail with acceptance criteria, context, and attachments.
+        Each done criterion carries `repeatable_test` (true when at least one
+        receipt of type "test" passes) and, when false, the flag
+        "sin_prueba_que_se_repita" in `flags` (UC-11703): nothing re-checks
+        it automatically. A pending criterion has `repeatable_test: null`.
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
@@ -1438,6 +1444,9 @@ async def get_uc(
             # la persona dueña del token aunque marque el agente), no una aceptación humana.
             # `accepted` queda como alias de `verified` para quien ya lo lee.
             verified = accepted_from(ac.done, verdict)
+            # UC-11703: un criterio hecho sin un recibo «test» que pase lleva la marca: nada lo
+            # vuelve a comprobar solo. No dice que falle. Se calcula al leer.
+            repeatable = repeatable_test(ac.done, evidence)
             ac_list.append(
                 {
                     "id": ac.id,
@@ -1446,6 +1455,8 @@ async def get_uc(
                     "evidence": evidence,
                     "verified": verified,
                     "accepted": verified,
+                    "repeatable_test": repeatable,
+                    "flags": [NO_REPEATABLE_TEST] if repeatable is False else [],
                 }
             )
 

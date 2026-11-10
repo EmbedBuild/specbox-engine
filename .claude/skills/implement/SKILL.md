@@ -2222,6 +2222,21 @@ git pull origin main
    cumple. `commit` y `repo` son los de `.quality/evidence/{feature}/tested_commit.json` (7.5.11), y
    un enlace a un fichero del repo va a `https://github.com/{repo}/blob/{tested_commit}/…`, nunca a
    `blob/main` (UC-11702).
+4. **Cada AC que cubre una prueba de aceptación lleva un recibo `test`** (UC-11703), además de su
+   captura. Sale de `results.json` (7.5.6), una entrada por AC:
+
+   ```
+   {"ac_id": "{id}", "passed": {status == "PASS"}, "evidence": {
+     "type": "test",
+     "label": "{fichero .feature o de la prueba}: {scenario}",
+     "link": "https://github.com/{repo}/blob/{tested_commit}/{ruta del fichero de la prueba}",
+     "detail": "{status} · {N} pasos · {duration_ms} ms",
+     "commit": "{tested_commit}", "repo": "{repo}"}}
+   ```
+
+   La captura (de 7.5.6 o de la verificación de 6.5.5) va en su propio `mark_ac`: un criterio puede
+   tener varios recibos. `get_uc` marca como «sin prueba que se repita» (`flags`) el criterio hecho
+   que no tiene ningún recibo `test` que pase: la suite de no regresión no lo vuelve a comprobar.
 
 > **IMPORTANTE**: El agente NUNCA mueve a Done. Solo a Review.
 > El humano revisa la PR, ejecuta flujos manuales, verifica E2E,

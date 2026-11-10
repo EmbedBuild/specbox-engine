@@ -245,6 +245,22 @@ def evidence_from_comments(comments: list[Any]) -> dict[str, list[dict[str, Any]
     return out
 
 
+#: UC-11703: marca de un criterio hecho al que ninguna prueba automática vuelve a comprobar.
+NO_REPEATABLE_TEST = "sin_prueba_que_se_repita"
+
+
+def repeatable_test(done: bool, evidence: list[dict[str, Any]]) -> bool | None:
+    """Si un criterio hecho tiene al menos un recibo de tipo «test» que pasa (UC-11703).
+
+    La suite de no regresión vuelve a pasar las pruebas en cada UC; un criterio cuyo único recibo
+    es una captura, un enlace o una nota no tiene nada que lo vuelva a comprobar solo. Se calcula
+    al leer (AC-04), sin guardar nada. Un criterio sin hacer no lleva marca: ``None``.
+    """
+    if not done:
+        return None
+    return any(e.get("type") == "test" and e.get("passed") is not False for e in evidence)
+
+
 def verdicts_from_comments(comments: list[Any]) -> dict[str, dict[str, Any]]:
     """Último veredicto de cada AC según los comentarios; autor desconocido."""
     out: dict[str, dict[str, Any]] = {}

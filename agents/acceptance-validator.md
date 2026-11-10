@@ -289,7 +289,9 @@ La clave es `passed` (booleano). Cada `evidence` es el recibo del AC (US-56/UC-5
 `{type: test|screenshot|diff|url|pr, label, link?, detail?, commit?, repo?}` o, como antes, texto
 libre. `commit` y `repo` (UC-11702) dicen contra qué código se comprobó: los de
 `.quality/evidence/{feature}/tested_commit.json`; un enlace a un fichero del repo va a ese commit
-(`blob/<tested_commit>/…`), no a `main`. El board
+(`blob/<tested_commit>/…`), no a `main`. Un AC que cubre una prueba de aceptación lleva un recibo
+`test` con el nombre de la prueba (UC-11703), además de la captura en su propia llamada: sin él,
+`get_uc` lo marca «sin prueba que se repita». El board
 native lo guarda junto al AC con el developer de la sesión y la fecha, y el panel y el portal lo
 enseñan como recibo. Si un recibo no es válido, el lote entero se rechaza (`INVALID_EVIDENCE`) y no se
 marca nada.

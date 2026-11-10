@@ -1430,6 +1430,9 @@ async def get_uc(
         for ac in acs:
             stored = bool(ac.evidence) or ac.verdict is not None
             evidence = ac.evidence if stored else from_comments.get(ac.id, [])
+            # UC-11702: cada recibo dice con qué commit se comprobó; uno anterior a que existiera
+            # el campo sale sin commit (null), nunca con uno deducido.
+            evidence = [{**e, "commit": e.get("commit"), "repo": e.get("repo")} for e in evidence]
             verdict = ac.verdict if stored else verdicts.get(ac.id)
             # US-76: el veredicto de mark_ac es una verificación de la sesión (en autopilot la firma
             # la persona dueña del token aunque marque el agente), no una aceptación humana.
@@ -2004,9 +2007,12 @@ async def mark_ac(
         passed: True if the criterion passed, False if failed
         evidence: Optional receipt. Either free text (stored as type "url"
             with the full text as label and no link) or an object
-            {type: test|screenshot|diff|url|pr, label, link?, detail?}. The
-            Native board stores it with the AC together with the session
-            developer and the date (US-56/UC-5601).
+            {type: test|screenshot|diff|url|pr, label, link?, detail?,
+            commit?, repo?}. The Native board stores it with the AC together
+            with the session developer and the date (US-56/UC-5601). `commit`
+            is the hash the check ran against (7-40 hex chars, UC-11702) and
+            `repo` its repository ("owner/name"); the server cannot see your
+            git, so send them yourself. An invalid commit marks nothing.
         items_content: FreeForm content-passing (UC-660). Pass items.json as a
             string for remote MCP; the mutated string is returned under
             `items_content`. Omit for local MCP / disk mode.
@@ -2082,8 +2088,8 @@ async def mark_ac_batch(
         uc_id: Use Case ID (e.g., "UC-001")
         results: List of {ac_id: str, passed: bool, evidence: str | object | None}.
             Each evidence follows the same rules as in `mark_ac` (US-56/UC-5601):
-            free text, or {type, label, link?, detail?}. If any evidence is
-            invalid, nothing is marked.
+            free text, or {type, label, link?, detail?, commit?, repo?}. If any
+            evidence is invalid (an invalid commit included), nothing is marked.
 
     Returns:
         Batch result with total/passed/failed counts.

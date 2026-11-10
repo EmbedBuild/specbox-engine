@@ -1566,12 +1566,17 @@ node ~/.claude/skills/design-review/scripts/verify.mjs <url> \
 mark_ac(board_id, uc_id, ac_id, passed, evidence={
   "type": "screenshot",
   "label": "Verificación de {pantalla}: {veredicto} · {N}/40",
-  "link": "https://github.com/{owner}/{repo}/blob/main/doc/design/{feature}/verify/{pantalla}-390.jpg",
-  "detail": "{tres problemas prioritarios}; hallazgos: {regla: n, ...}; informe: doc/design/{feature}/{pantalla}.verify.md"
+  "link": "https://github.com/{repo}/blob/{tested_commit}/doc/design/{feature}/verify/{pantalla}-390.jpg",
+  "detail": "{tres problemas prioritarios}; hallazgos: {regla: n, ...}; informe: doc/design/{feature}/{pantalla}.verify.md",
+  "commit": "{tested_commit}",
+  "repo": "{repo}"
 })
 ```
 
-   El enlace apunta a `main`: vale en cuanto se fusiona la PR.
+   `tested_commit` y `repo` salen de `.quality/evidence/{feature}/tested_commit.json` (Paso 7.5.11).
+   El enlace apunta a ese commit y no a `main` (UC-11702): `main` se mueve, y el recibo tiene que
+   seguir enseñando lo que se comprobó. Con la fusión squash el commit de la rama no queda en `main`,
+   pero GitHub lo conserva por la PR y el enlace sigue abriendo.
 2. **En la UC:** `attach_evidence(board_id, uc_id, "uc", "ag09", <los .verify.md de la UC>,
    summary="Verificación de pantallas: {veredictos}")`.
 3. **En la PR:** la sección «Design Review» del Paso 8.3. Con `warn`, un «Block» o un «Needs changes»
@@ -1826,6 +1831,24 @@ git commit -m "test(acceptance): E2E acceptance tests + evidence report for UC-X
 ```
 
 **NOTA**: Si los acceptance tests fallan, NO bloquear aqui. Reportar fallos y dejar que AG-09b decida el veredicto en Paso 7.7.
+
+### 7.5.11 Commit comprobado (UC-11702)
+
+Tras el commit de 7.5.10, `HEAD` es el código con el que se acaban de pasar las pruebas (7.1 y
+7.5.5), con sus pruebas de aceptación dentro. Ese es el commit que llevan los justificantes de los
+criterios:
+
+```bash
+TESTED_COMMIT=$(git rev-parse HEAD)
+REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner)   # owner/nombre
+printf '{"tested_commit":"%s","repo":"%s","branch":"%s"}\n' "$TESTED_COMMIT" "$REPO" \
+  "$(git branch --show-current)" > .quality/evidence/{feature}/tested_commit.json
+```
+
+- Se apunta aquí, en la rama: en 8.5.4 ya se ha vuelto a `main` (8.5.3) y `HEAD` no es el comprobado.
+- Si el healing de 7.7.3 cambia código, se vuelven a pasar las pruebas y se reescribe el fichero con
+  el `HEAD` nuevo. Un commit posterior que no toca código (evidencia, docs) no lo cambia.
+- El servidor del board no ve tu git: el commit solo llega si lo pone el recibo (`commit`, `repo`).
 
 ---
 
@@ -2194,8 +2217,11 @@ git pull origin main
 1. Llamar `move_uc(board_id, uc_id, "review")` — mueve UC a **Review** (NO a Done)
 2. Adjuntar evidencia: `attach_evidence(board_id, uc_id, "uc", "acceptance", evidence_md)`
 3. Reportar acceptance tests: `mark_ac_batch(board_id, uc_id, results)`, con un recibo por AC
-   (`{"ac_id", "passed", "evidence": {type: test|screenshot|diff|url|pr, label, link?, detail?}}`,
-   US-56/UC-5601): el panel y el portal lo enseñan como prueba de que el criterio se cumple.
+   (`{"ac_id", "passed", "evidence": {type: test|screenshot|diff|url|pr, label, link?, detail?,
+   commit, repo}}`, US-56/UC-5601): el panel y el portal lo enseñan como prueba de que el criterio se
+   cumple. `commit` y `repo` son los de `.quality/evidence/{feature}/tested_commit.json` (7.5.11), y
+   un enlace a un fichero del repo va a `https://github.com/{repo}/blob/{tested_commit}/…`, nunca a
+   `blob/main` (UC-11702).
 
 > **IMPORTANTE**: El agente NUNCA mueve a Done. Solo a Review.
 > El humano revisa la PR, ejecuta flujos manuales, verifica E2E,

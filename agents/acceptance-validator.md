@@ -275,16 +275,21 @@ Después de emitir veredicto, reportar resultados al board:
 mark_ac_batch(board_id, uc_id, [
   {"ac_id": "AC-01", "passed": true,
    "evidence": {"type": "test", "label": "tests/acceptance/test_uc_xxx.py::test_ac01 — passed",
-                "link": "https://github.com/<org>/<repo>/actions/runs/<id>"}},
+                "link": "https://github.com/<org>/<repo>/actions/runs/<id>",
+                "commit": "<tested_commit>", "repo": "<org>/<repo>"}},
   {"ac_id": "AC-02", "passed": false,
    "evidence": {"type": "screenshot", "label": "Pantalla de error al guardar",
-                "detail": "doc/evidence/UC-XXX/ac02.png"}},
+                "link": "https://github.com/<org>/<repo>/blob/<tested_commit>/doc/evidence/UC-XXX/ac02.png",
+                "commit": "<tested_commit>", "repo": "<org>/<repo>"}},
   {"ac_id": "AC-03", "passed": true, "evidence": "Verificado a mano en staging"}
 ])
 ```
 
 La clave es `passed` (booleano). Cada `evidence` es el recibo del AC (US-56/UC-5601): un objeto
-`{type: test|screenshot|diff|url|pr, label, link?, detail?}` o, como antes, texto libre. El board
+`{type: test|screenshot|diff|url|pr, label, link?, detail?, commit?, repo?}` o, como antes, texto
+libre. `commit` y `repo` (UC-11702) dicen contra qué código se comprobó: los de
+`.quality/evidence/{feature}/tested_commit.json`; un enlace a un fichero del repo va a ese commit
+(`blob/<tested_commit>/…`), no a `main`. El board
 native lo guarda junto al AC con el developer de la sesión y la fecha, y el panel y el portal lo
 enseñan como recibo. Si un recibo no es válido, el lote entero se rechaza (`INVALID_EVIDENCE`) y no se
 marca nada.

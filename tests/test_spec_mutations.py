@@ -334,17 +334,29 @@ async def test_update_uc_batch_calls_list_items_once(backend, ctx):
 
 
 async def test_update_ac_preserves_done_when_omitted(backend, ctx):
+    """Sin ``done``, un criterio pendiente que cambia de texto sigue pendiente."""
     _, uc = await _seed_us_uc(backend)
-    # Mark AC-01 as done first
-    await backend.mark_acceptance_criterion("board", uc.id, "AC-01", True)
-    # Rewrite text, don't pass done
     result = await sm.update_ac(
         "board", "UC-001", "AC-01", ctx, text="Valida email RFC 5322"
     )
-    assert "text" in result["updated_fields"]
-    assert "done" not in result["updated_fields"]
+    assert result["updated_fields"] == ["text"]
+    assert "reset_to_pending" not in result
     ac = next(a for a in backend.acs[uc.id] if a.id == "AC-01")
-    assert ac.done is True  # preserved
+    assert ac.done is False  # preserved
+
+
+async def test_update_ac_rewriting_a_done_criterion_leaves_it_pending(backend, ctx):
+    """UC-11701: lo comprobado era el texto anterior; el criterio vuelve a pendiente y se avisa."""
+    _, uc = await _seed_us_uc(backend)
+    await backend.mark_acceptance_criterion("board", uc.id, "AC-01", True)
+    result = await sm.update_ac(
+        "board", "UC-001", "AC-01", ctx, text="Valida email RFC 5322"
+    )
+    assert result["updated_fields"] == ["text", "done"]
+    assert result["reset_to_pending"] is True
+    assert "pendiente de volver a comprobarse" in result["warning"]
+    ac = next(a for a in backend.acs[uc.id] if a.id == "AC-01")
+    assert ac.done is False
 
 
 async def test_update_ac_not_found(backend, ctx):

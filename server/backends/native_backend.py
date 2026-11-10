@@ -1643,9 +1643,13 @@ class NativeBackend(SpecBackend):
             f"AND ac_id = {ac_param} RETURNING *"
         )
         from ..coordination.audit import OP_UPDATE_AC, record_destructive
+        from ..coordination.lifecycle import set_lifecycle_context
 
         pool = await self._pool()
-        async with pool.acquire() as conn:
+        async with pool.acquire() as conn, conn.transaction():
+            # UC-11701: el trigger de 0035 firma con este developer el veredicto
+            # «no pasa» de un criterio hecho que cambia de texto.
+            await set_lifecycle_context(conn, developer_id=dev.developer_id)
             row = await conn.fetchrow(sql, *params)
             if row is None:
                 raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
@@ -1664,6 +1668,7 @@ class NativeBackend(SpecBackend):
             done=row["done"],
             backend_id=row["id"],
             internal=row["internal"],
+            **_ac_receipts(row),
         )
 
     async def delete_acceptance_criterion(

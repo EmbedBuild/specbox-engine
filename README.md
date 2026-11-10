@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.31.0 — "Mudanza" (sobre v6.30.0 "Juego limpio")<br/>
+  v 6.32.0 — "Sello" (sobre v6.31.0 "Mudanza")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,22 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.32
+
+**v6.32.0 — "Sello"** hace que el justificante de cada criterio diga qué demuestra y deje de valer cuando cambia
+lo aceptado:
+
+- **Reescribir un criterio hecho lo deja pendiente** — y la aceptación de su UC cae: lo que se comprobó era el
+  texto anterior. Pasa por cualquier vía (`update_ac`, una importación o SQL directo) y la respuesta avisa.
+- **Cada justificante lleva su commit** — `mark_ac` acepta el commit y el repositorio con los que se comprobó
+  el criterio; `/implement` los pone solo y enlaza a ese commit, no a `main`.
+- **«Sin prueba que se repita»** — `get_uc` marca los criterios hechos que ninguna prueba automática vuelve a
+  comprobar (solo tienen una captura, un enlace o una nota).
+
+100% backwards-compatible: los justificantes anteriores siguen ahí, sin commit, y la marca se calcula al leer.
 
 ---
 
@@ -820,7 +836,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.31.0 — "Mudanza" (over v6.30.0 "Juego limpio")
+> v 6.32.0 — "Sello" (over v6.31.0 "Mudanza")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -833,6 +849,21 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.32
+
+**v6.32.0 — "Sello"** makes each acceptance criterion's receipt say what it proves, and stop counting when
+what was accepted changes:
+
+- **Rewriting a done criterion leaves it pending** — and its UC's acceptance is voided: what was checked was
+  the previous text. It happens through any path (`update_ac`, an import or direct SQL) and the response says
+  so.
+- **Every receipt carries its commit** — `mark_ac` takes the commit and repository the criterion was checked
+  against; `/implement` fills them in and links to that commit, not to `main`.
+- **"No repeatable test"** — `get_uc` flags done criteria that no automated test checks again (they only have
+  a screenshot, a link or a note).
+
+100% backwards-compatible: older receipts stay, without a commit, and the flag is computed on read.
 
 ## What's new in v6.31
 

@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.32.0] — "Sello"
+
+- **No changes in the extension itself.** Its version follows the engine, and the engine it installs and updates
+  brings a `/implement` whose receipts carry the commit they were checked against and link to it, plus a test
+  receipt for every acceptance test.
+
 ## [6.31.0] — "Mudanza"
 
 - **Activation event.** The one-time, anonymous activation event (no personal data) now goes to SpecBox's own

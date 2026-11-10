@@ -1,8 +1,8 @@
-version: 6.31.0
-codename: "Mudanza"
+version: 6.32.0
+codename: "Sello"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-11-08
+release_date: 2026-11-10
 min_claude_code: "1.0.0"
 
 stacks:
@@ -590,7 +590,20 @@ features:
   - get-uc-without-sibling-ucs
   - extension-activation-own-supabase
 
+  # New (v6.32.0) — Sello
+  - ac-text-change-resets-done
+  - ac-receipt-commit
+  - ac-repeatable-test-flag
+
 changelog:
+  6.32.0:
+    date: 2026-11-10
+    codename: "Sello"
+    changes:
+      - "feat: rewriting the text of a done acceptance criterion leaves it pending and voids its UC's human acceptance — migration 0035 adds a BEFORE UPDATE OF text trigger (any writer: update_ac, import_spec or direct SQL) that sets done=false and a verdict passed:false reason text_changed with the previous text, and fires the acceptance void on UPDATE OF text; update_ac/update_ac_batch also do it on Trello, Plane and FreeForm and answer with reset_to_pending and a warning (UC-11701, #338)"
+      - "feat: every receipt records the commit it was checked against — mark_ac/mark_ac_batch accept commit (7-40 hex) and repo (owner/name), get_uc shows them, an invalid commit marks nothing, older receipts show commit null and none is ever guessed; Trello, Plane and FreeForm keep it in the comment and read it back; /implement records the tested HEAD of the branch (tested_commit.json) and links receipts to blob/<sha>, never blob/main (UC-11702, #339)"
+      - "feat: get_uc flags done criteria with no repeatable test — repeatable_test is true when at least one test receipt passes, otherwise flags carries sin_prueba_que_se_repita; computed on read, no migration; /implement leaves a test receipt per acceptance test besides the screenshot (UC-11703, #340)"
+
   6.31.0:
     date: 2026-11-08
     codename: "Mudanza"

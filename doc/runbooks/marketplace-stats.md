@@ -1,131 +1,81 @@
-# Marketplace Stats Snapshot — Runbook
+# Cifras del Marketplace y uso de la extensión — Runbook
 
-> Telemetría pública de adopción para la extensión `EmbedBuild.specbox-engine`
-> en el VSCode Marketplace.
-> Introducido en v6.2.0 por UC-643 (US-VSCODE-MARKETPLACE).
+> Cómo sabe SpecBox cuánta gente lo instala y lo usa, sin saber quién es nadie.
+> Introducido en v6.2.0 (UC-643) como un workflow con un fichero que nunca se guardó; desde v6.33.0
+> (US-118) la extensión mide su uso, y desde v6.34.0 (US-119) la foto diaria vive en la base.
 
 ## Resumen
 
-Una vez al día, GitHub Actions consulta el endpoint REST público del Marketplace de Microsoft, extrae las métricas agregadas de la extensión (installs, downloads, ratings, trending) y las añade como una línea JSON a [`.quality/marketplace-stats.jsonl`](../../.quality/marketplace-stats.jsonl). El histórico se commitea automáticamente a `main` para que cualquier consumidor (la tool MCP `get_marketplace_stats`, scripts ad-hoc, dashboards externos) pueda leerlo.
+Hay dos medidas distintas, y las dos acaban en la base de SpecBox (Supabase propio del VPS):
 
-## Privacy & data sources
+| Medida | Qué cuenta | De dónde sale | Dónde queda |
+|---|---|---|---|
+| **Foto diaria de fuera** | Instalaciones y actualizaciones acumuladas del Marketplace, descargas diarias de npm, estrellas y forks de GitHub (y el tráfico del repo, solo para el SuperAdmin) | Una tarea diaria del VPS que lee las APIs públicas (06:15 UTC) | Tabla `external_signal_daily` |
+| **Uso de la extensión** | Instalaciones que se activan y las que siguen en uso cada día | La propia extensión: una activación al instalarse y un latido al día | Tabla `site_event` (`activation`, `heartbeat`) |
 
-**Cero PII.** Toda la información viene del endpoint público del Marketplace y refleja datos agregados del listing — no se recoge nada del cliente de cada usuario que instala la extensión. La extensión en sí no contiene telemetría activa (no envía eventos a Application Insights ni a servicios similares).
+La foto cuenta descargas, no personas. El uso cuenta instalaciones con la telemetría de VS Code activa.
+Las dos se ven juntas en la página «Adopción» del SuperAdmin del panel.
 
-- **Fuente única**: `POST https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery`
-- **Datos extraídos**: `install`, `updateCount` (downloads), `averagerating`, `ratingcount`, `trendingdaily`, `trendingweekly`, `trendingmonthly`.
-- **Datos NO recogidos**: IPs de instalación, IDs de máquina, paths de filesystem, comandos ejecutados, errores runtime, locale del usuario.
+## La foto diaria (US-119)
 
-## Componentes
+La hace `ops/external-signals/specbox-external-signals.py`, un temporizador systemd del VPS, en el
+repo **specbox-manager**. Su runbook (instalar, relanzar a mano, token de GitHub y qué hacer si falla)
+es [`doc/runbooks/foto-diaria-externa.md`](https://github.com/EmbedBuild/specbox-manager/blob/main/doc/runbooks/foto-diaria-externa.md)
+de ese repo. El esquema es la migración `20261112000000_external_signal_daily.sql` de **specbox_cloud**:
 
-| Archivo | Rol |
-|---------|-----|
-| [`.github/workflows/marketplace-stats.yml`](../../.github/workflows/marketplace-stats.yml) | Cron diario (06:00 UTC) + `workflow_dispatch` manual |
-| [`scripts/fetch-marketplace-stats.mjs`](../../scripts/fetch-marketplace-stats.mjs) | Cliente Node 20 zero-deps que llama al endpoint y appendea al jsonl |
-| [`.quality/marketplace-stats.jsonl`](../../.quality/marketplace-stats.jsonl) | Histórico append-only, una línea JSON por día |
-| [`server/tools/marketplace.py`](../../server/tools/marketplace.py) | Tool MCP `get_marketplace_stats` que agrega métricas dentro de una ventana |
-| [`tests/test_marketplace_tool.py`](../../tests/test_marketplace_tool.py) | 9 tests pytest sobre la función pura `aggregate_marketplace_stats` |
+- una fila por día (UTC), fuente y métrica; repetir la foto del día deja el último valor;
+- `record_external_signals` la escribe y `external_signals_core` la lee, las dos solo para `service_role`.
 
-## El endpoint `extensionquery`
+El workflow `marketplace-stats.yml` y su script `fetch-marketplace-stats.mjs` se retiraron en v6.34.0:
+escribían en `.quality/marketplace-stats.jsonl`, que git ignora, así que nunca guardaron nada.
 
-Endpoint REST no documentado oficialmente por Microsoft, pero ampliamente usado por el ecosistema (la propia `vsce` lo utiliza para `vsce show`). Esquema observado:
+### El endpoint del Marketplace
 
-**Request** (JSON):
+`POST https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery` con
+`{"filters":[{"criteria":[{"filterType":7,"value":"EmbedBuild.specbox-engine"}]}],"flags":914}`
+(`filterType: 7` = `publisher.extensionName` exacto). De `results[0].extensions[0].statistics` se
+guardan `install` → `installs` y `updateCount` → `updates`. Es el mismo endpoint que usa `vsce show`;
+no tiene límites documentados y una consulta al día está muy por debajo de cualquiera.
 
-```json
-{
-  "filters": [{
-    "criteria": [{"filterType": 7, "value": "EmbedBuild.specbox-engine"}],
-    "pageSize": 1,
-    "pageNumber": 1
-  }],
-  "flags": 914
-}
-```
+## La tool `get_marketplace_stats`
 
-`filterType: 7` = filtrar por `publisher.extensionName` exacto.
-
-### Qué significa `flags=914`
-
-El campo `flags` es un bitmask con las opciones de respuesta que pedimos. `914` corresponde a la suma de los bits más comunes para extraer estadísticas:
-
-| Bit  | Constante                  | Incluido en 914 |
-|------|----------------------------|:---------------:|
-| 2    | `IncludeVersions`          | ✓               |
-| 16   | `IncludeStatistics`        | ✓               |
-| 128  | `IncludeAssetUri`          | ✓               |
-| 256  | `IncludeCategoryAndTags`   | ✓               |
-| 512  | `IncludeVersionProperties` | ✓               |
-
-Estos cinco flags suman exactamente 914. No incluye `IncludeFiles` (1) ni `IncludeInstallationTargets` (8) — no los necesitamos y aumentarían el payload.
-
-### Response shape (relevante)
-
-```json
-{
-  "results": [{
-    "extensions": [{
-      "publisher": {"publisherName": "EmbedBuild"},
-      "extensionName": "specbox-engine",
-      "versions": [{"version": "6.2.0", "lastUpdated": "..."}],
-      "statistics": [
-        {"statisticName": "install", "value": 123},
-        {"statisticName": "updateCount", "value": 45},
-        {"statisticName": "averagerating", "value": 4.7},
-        {"statisticName": "ratingcount", "value": 12},
-        {"statisticName": "trendingdaily", "value": 0.12},
-        ...
-      ]
-    }]
-  }]
-}
-```
-
-Si la extensión no está publicada todavía, el endpoint devuelve `404` o `results[].extensions == []`. El script trata ambos casos como "no data yet" y exit 0 sin contaminar el jsonl.
-
-## Rate limiting
-
-Microsoft no documenta límites oficiales. La observación de la comunidad sugiere que >10 req/min desde la misma IP puede devolver 429 temporal. El cron diario (1 req/día) está **muy** por debajo de cualquier umbral razonable.
-
-Si en algún momento el workflow falla con 429, el job exit code != 0 → reintento manual al día siguiente. NO añadir backoff agresivo en el script para evitar amplificar el problema.
-
-## Uso manual
-
-### Disparar el snapshot fuera del cron
-
-```bash
-gh workflow run marketplace-stats.yml -R EmbedBuild/specbox-engine
-```
-
-El job tarda <1 minuto. El resultado se commitea automáticamente a `main` si hay datos nuevos.
-
-### Consultar las stats agregadas vía MCP
-
-Desde un cliente MCP (Claude Code, claude.ai, etc.):
+Lee la foto de la base con el pool del servidor MCP: las mismas cifras que la foto diaria.
 
 ```
-get_marketplace_stats(window_days=30, jsonl_content=<contenido del jsonl>)
+get_marketplace_stats(window_days=30)
 ```
 
-El cliente debe leer localmente `.quality/marketplace-stats.jsonl` y pasar el contenido (v6.0.1 Path Contract).
+Devuelve `total_installs`, `total_updates`, `install_growth_pct` y `daily_series` (Marketplace), `npm`
+(descargas del periodo y por día) y `github` (estrellas y forks). Solo cifras públicas: el tráfico del
+repo (clonaciones y visitas), que GitHub solo enseña a quien administra el repo, no sale por la tool.
+Sin base o antes de la primera foto responde `status: "no_data_yet"` con su `reason`.
+`jsonl_content` se acepta por compatibilidad y se ignora desde v6.34.0.
 
-### Inspección directa del jsonl
+## El uso de la extensión (US-118)
 
-```bash
-tail -7 .quality/marketplace-stats.jsonl | jq .
-```
+Desde v6.33.0 **la extensión sí envía telemetría de uso, anónima**:
+
+- **Activación**: una vez por instalación, con un identificador aleatorio de esa instalación (o el de
+  la visita al site, si llegó por su enlace), la versión de la extensión, la plataforma, la versión de
+  VS Code y el origen (`site` o `marketplace`). Desde v6.33.1 sale nada más arrancar, sin esperar a
+  ningún aviso.
+- **Latido**: como mucho uno por día natural UTC mientras se usa, con el mismo identificador, la
+  versión, la plataforma, la versión de VS Code y el tipo de board de la carpeta abierta (`freeform`,
+  `native`, `trello`, `plane` o `none`).
+- **Nunca** rutas, nombres de proyecto o repositorio, correos, cuentas ni tokens.
+- **Se apaga** con la telemetría de VS Code (`telemetry.telemetryLevel` en `off`): sin ella no se
+  envía nada.
+
+Código: `vscode-extension/src/activation.ts` y `heartbeat.ts`, con sus pruebas. Lo explican el README
+de la extensión («Usage telemetry») y la página de privacidad del site
+(<https://specbox.build/privacy>).
 
 ## Troubleshooting
 
 | Síntoma | Causa probable | Acción |
-|---------|----------------|--------|
-| Workflow falla con `404` | Extensión aún no publicada o `extensionName` cambió | Verificar listing en marketplace.visualstudio.com. El script ya hace soft-skip si pasa antes del primer publish. |
-| Workflow falla con `429` | Rate limit (improbable con cron diario) | Esperar 24h. Si persiste, revisar si hay otro proceso disparando el endpoint. |
-| jsonl tiene gaps (días sin entry) | Cron no se ejecutó (incidente GitHub Actions o repo archivado) | Disparar manualmente con `gh workflow run marketplace-stats.yml`. Los gaps son cosméticos — `aggregate_marketplace_stats` los tolera. |
-| `delta_installs_24h` saliendo negativo | Edge raro: Microsoft retira instalaciones contadas como fraude o duplicadas | Aceptable, sucede ocasionalmente en extensiones populares. El jsonl preserva los datos brutos. |
-
-## Cuándo actualizar este runbook
-
-- Microsoft cambia el shape del endpoint `extensionquery` (improbable, es API estable desde 2017).
-- El script `fetch-marketplace-stats.mjs` evoluciona (p. ej. añadimos un nuevo stat).
-- Se añade telemetría activa en la extensión — en ese caso ya **no es zero PII** y este runbook debe actualizarse o reemplazarse.
+|---|---|---|
+| `get_marketplace_stats` responde `no_data_yet` con `snapshot_table_missing` | El MCP apunta a una base sin la migración del panel | Aplicar `20261112000000_external_signal_daily.sql` de specbox_cloud |
+| Responde `no_snapshot_in_window` | La foto no ha corrido en el periodo | Ver el registro del temporizador (`journalctl -u specbox-external-signals`) y relanzarlo (runbook del manager) |
+| Faltan días en la serie | El VPS no ejecutó la foto ese día | Los días pasados de npm se recuperan solos en la siguiente foto; los acumulados del Marketplace de ese día no |
+| `delta` negativo en `daily_series` | El Marketplace retiró instalaciones (fraude o duplicados) | Normal de vez en cuando |
+| No llegan activaciones ni latidos | Telemetría de VS Code apagada, o una extensión anterior a la 6.33.1 | Comprobar la versión instalada; sin telemetría no se cuenta, por diseño |

@@ -279,8 +279,9 @@ register_benchmark_tools(mcp, ENGINE_PATH, STATE_PATH)
 # Register hint tools (3 tools: get_skill_hint, record_skill_hint, list_skill_hints)
 register_hint_tools(mcp)
 
-# Register marketplace stats tool (1 tool: get_marketplace_stats) — v6.2.0 UC-643
-register_marketplace_tools(mcp, ENGINE_PATH)
+# Register marketplace stats tool (1 tool: get_marketplace_stats) — v6.2.0 UC-643;
+# since v6.34.0 (UC-11903) it reads the daily snapshot from the database.
+register_marketplace_tools(mcp)
 
 # Register skill registry tools (3 tools: list_skills_v2, discover_skills, validate_skill_manifest)
 register_skill_registry_tools(mcp, ENGINE_PATH)

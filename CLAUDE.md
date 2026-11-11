@@ -535,8 +535,10 @@ huella. Los workflows del engine se lanzan solo a mano
 check. Windows (`extension-windows.yml`) es lo único que el CI local no reproduce: se lanza cuando
 una PR toca la instalación de la extensión. Siguen con su disparador las publicaciones por
 etiqueta (`publish-vscode-extension.yml`, `publish-specbox-cli.yml` y el
-`smoke-test-marketplace.yml` que cuelga de ellas), la comprobación semanal de los dos nombres del
-MCP (`mcp-hosts.yml`) y la foto diaria del Marketplace (`marketplace-stats.yml`).
+`smoke-test-marketplace.yml` que cuelga de ellas) y la comprobación semanal de los dos nombres del
+MCP (`mcp-hosts.yml`). La foto diaria del Marketplace, npm y GitHub ya no es un workflow: la hace
+un temporizador del VPS y queda en la base (US-119; `get_marketplace_stats` la lee de ahí, runbook
+`doc/runbooks/marketplace-stats.md`).
 
 **If /implement skill is unavailable**, the pipeline MUST be executed manually step by step.
 See `rules/GLOBAL_RULES.md` section "Pipeline Integrity" for the full contract.

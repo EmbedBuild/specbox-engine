@@ -10,7 +10,8 @@
  * Qué comprueba:
  *   1. Toma la entrada superior del CHANGELOG.md (`## [X.Y.Z] - ...`).
  *   2. Lista los commits de esa versión: desde la etiqueta de la entrada
- *      anterior (`v<anterior>`) hasta HEAD, o desde `--since <ref>`.
+ *      anterior (`v<anterior>`) hasta la etiqueta de la propia versión si ya
+ *      existe, o hasta HEAD si aún no (o desde `--since <ref>` hasta HEAD).
  *   3. Un commit es de seguridad si su mensaje habla de seguridad
  *      (SECURITY_KEYWORDS, en español o inglés), nombra un token de acceso
  *      (ACCESS_TOKEN) o toca la superficie sensible (SECURITY_PATHS). Los
@@ -273,7 +274,11 @@ export function main(argv, cwd = process.cwd()) {
       console.error(`[changelog-security-check] la referencia ${since} no existe en este repositorio (¿falta la etiqueta?)`);
       return 2;
     }
-    range = `${since}..HEAD`;
+    // Ya etiquetada, la versión acaba en su etiqueta: lo que llega después a main es de la
+    // siguiente y no le toca a esta entrada (US-121). Sin etiqueta todavía (en /release, antes
+    // de etiquetar), llega hasta HEAD.
+    const until = !args.since && refExists(`v${entry.version}`, cwd) ? `v${entry.version}` : 'HEAD';
+    range = `${since}..${until}`;
     try {
       commits = commitsFromGit(range, cwd);
     } catch (err) {

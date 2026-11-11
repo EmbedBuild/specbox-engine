@@ -59,7 +59,7 @@ secretos() { ci_secretos; }
 
 dependencias() { cd "$ROOT" && ci_paso "uv sync" uv sync --extra dev; }
 
-python() { cd "$ROOT" && ci_paso "pytest" uv run pytest -q -m "not native_db" tests; }
+python() { cd "$ROOT" && ci_paso "pytest" uv run pytest -m "not native_db" tests; } # sin -q: el «collected» da el total al estado
 
 native() {
   cd "$ROOT" || return 1
@@ -113,7 +113,7 @@ migraciones() {
   pg_arrancar superficie || { pg_parar; return 1; }
   ci_paso "Base de Supabase y migraciones" superficie_base &&
     ci_paso "Superficie" uv run python -m server.db.surface_check --schemas public &&
-    ci_paso "Pruebas de superficie" uv run pytest -q tests/test_db_surface_views.py tests/test_db_surface_tables.py \
+    ci_paso "Pruebas de superficie" uv run pytest tests/test_db_surface_views.py tests/test_db_surface_tables.py \
       tests/test_db_surface_check.py tests/test_migration_twins.py
   local rc=$?
   pg_parar

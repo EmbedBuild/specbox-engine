@@ -40,8 +40,9 @@ The following files require explicit owner approval and should not be modified w
 1. Fork the repository
 2. Create a feature branch from `main`
 3. Make your changes
-4. Open a Pull Request using the provided template
-5. Wait for review and address any feedback
+4. Run the local CI: `bash scripts/ci-local.sh` (needs uv, Node 22, Docker and gitleaks; about two minutes). It is the check before every PR: GitHub Actions does not run on pull requests, and the owner launches it by hand when needed. `bash scripts/ci-local.sh python hooks` runs only those blocks, and `bash scripts/ci-local/lib.sh estado` shows where it is.
+5. Open a Pull Request using the provided template, with the CI summary table
+6. Wait for review and address any feedback
 
 ## Philosophy
 
@@ -91,8 +92,9 @@ Los siguientes archivos requieren aprobacion explicita del propietario:
 1. Haz fork del repositorio
 2. Crea una rama desde `main`
 3. Haz tus cambios
-4. Abre un Pull Request usando la plantilla proporcionada
-5. Espera el review y atiende el feedback
+4. Pasa el CI local: `bash scripts/ci-local.sh` (necesita uv, Node 22, Docker y gitleaks; unos dos minutos). Es la prueba antes de cada PR: GitHub Actions no se lanza en las PR, y el propietario lo lanza a mano cuando hace falta. `bash scripts/ci-local.sh python hooks` corre solo esos bloques, y `bash scripts/ci-local/lib.sh estado` dice por dónde va.
+5. Abre un Pull Request usando la plantilla proporcionada, con la tabla de resumen del CI
+6. Espera el review y atiende el feedback
 
 ## Filosofia
 

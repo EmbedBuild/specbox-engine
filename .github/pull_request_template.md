@@ -8,8 +8,12 @@
 
 ## Testing
 
-- [ ] I have tested these changes locally
+- [ ] `bash scripts/ci-local.sh` passes (paste its summary table below)
 - [ ] No existing functionality is broken
+
+<!-- CI local summary (BLOQUE / ESTADO / TIEMPO) -->
+```
+```
 
 ## Checklist
 

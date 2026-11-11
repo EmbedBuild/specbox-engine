@@ -1,0 +1,41 @@
+# Falsos positivos de gitleaks en el historial del engine (US-121 · UC-12101), revisados el 2026-11-11.
+# Una huella por hallazgo (commit:fichero:regla:línea): un valor nuevo, aunque sea en estos ficheros, vuelve a saltar.
+
+# Clave anon de Supabase (rol anon): pública por diseño, viaja en el paquete de la extensión.
+311ece4c2ab1ef390f4cfeffed56b13acd8d2e5c:vscode-extension/src/constants.ts:jwt:35
+d6a96964cfc1d8dd6bf7ad22217334a496df1237:vscode-extension/src/constants.ts:jwt:35
+
+# Pruebas de Stitch: StitchClient con claves inventadas (test-api-key…, key-for-the-test).
+0cbf1fe219a399433deeb0742cf548a45d788db9:tests/test_stitch_timeouts.py:generic-api-key:37
+0cfa33e8c610576853369bb796747ed972e6f263:tests/test_stitch_is_error.py:generic-api-key:103
+0cfa33e8c610576853369bb796747ed972e6f263:tests/test_stitch_is_error.py:generic-api-key:39
+23dc249e7e388ce578f4323b7a1bb407b7064499:tests/test_stitch_resource_names.py:generic-api-key:45
+43b37679b522769eacf305b9f4a0a61b41115902:tests/test_stitch_fetch.py:generic-api-key:42
+43b37679b522769eacf305b9f4a0a61b41115902:tests/test_stitch_fetch.py:generic-api-key:87
+58654064f1a37d3d79c89661d316371df690f030:tests/test_stitch.py:generic-api-key:33
+689973e87ae97b112fb4649bbbd9dd9b347ebfe0:tests/test_stitch_fonts.py:generic-api-key:79
+69b23b128c11317d6ae1dec42819e8f1e9b0be1d:tests/test_stitch_new_api.py:generic-api-key:130
+69b23b128c11317d6ae1dec42819e8f1e9b0be1d:tests/test_stitch_new_api.py:generic-api-key:33
+810eec249944bcdfd35fe4f155bf7deeb99b33db:tests/test_stitch_models.py:generic-api-key:81
+a9ccf86efe392aabbf0ab9d282b4af21444c5c6a:tests/test_stitch_list_summary.py:generic-api-key:66
+ac0d31fb7909a9a41ecd7d3b072d90d903926a9c:tests/test_stitch_list_summary.py:generic-api-key:66
+b13f907a388b744de8c1fb06840fc5071e9422b4:tests/test_stitch_contract.py:generic-api-key:103
+bb2eb2b8cd2a89e4b285962470ace027534e0f39:tests/test_stitch_edit_variants.py:generic-api-key:152
+bb2eb2b8cd2a89e4b285962470ace027534e0f39:tests/test_stitch_edit_variants.py:generic-api-key:53
+bc143608a75e3b46139746bbbd894bc3b7e22e60:tests/test_stitch_build_batches.py:generic-api-key:38
+dec8e9556e3e8aaa6629904f45e228835a5027f7:tests/test_stitch_design_system.py:generic-api-key:65
+
+# Pruebas de exposición de AC (US-33): textos de ejemplo con claves falsas que el detector tiene que marcar.
+9d81af8df391f1ad81b8192823bc4b1921762991:tests/test_ac_exposure.py:generic-api-key:37
+9d81af8df391f1ad81b8192823bc4b1921762991:tests/test_ac_exposure.py:stripe-access-token:39
+f8073c99aa75bb9fcd7cdc54d5e63b7e5b6f4bef:tests/test_ac_exposure.py:generic-api-key:37
+f8073c99aa75bb9fcd7cdc54d5e63b7e5b6f4bef:tests/test_ac_exposure.py:stripe-access-token:39
+
+# Guardián de Stripe: ejemplos de claves falsas (sk_test_DUMMY…) en la documentación y en las pruebas de redacción.
+372da9f97b37a30eb2795a724b3315042e8868c8:packages/specbox-stripe-mcp/src/specbox_stripe_mcp/lib/safety.py:stripe-access-token:88
+372da9f97b37a30eb2795a724b3315042e8868c8:packages/specbox-stripe-mcp/tests/unit/test_safety.py:stripe-access-token:19
+372da9f97b37a30eb2795a724b3315042e8868c8:packages/specbox-stripe-mcp/tests/unit/test_safety.py:stripe-access-token:22
+372da9f97b37a30eb2795a724b3315042e8868c8:packages/specbox-stripe-mcp/tests/unit/test_safety.py:stripe-access-token:79
+372da9f97b37a30eb2795a724b3315042e8868c8:packages/specbox-stripe-mcp/tests/unit/test_safety.py:stripe-access-token:93
+372da9f97b37a30eb2795a724b3315042e8868c8:packages/specbox-stripe-mcp/tests/unit/test_safety.py:stripe-access-token:95
+372da9f97b37a30eb2795a724b3315042e8868c8:packages/specbox-stripe-mcp/tests/unit/test_uc8_telemetry.py:stripe-access-token:207

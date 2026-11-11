@@ -126,10 +126,10 @@ python -m pytest tests/test_native_*.py
 Las pruebas que usan Postgres (UC-5901) son las de los módulos que pasan por
 `tests/_native_db.py`; `tests/conftest.py` les pone el marcador `native_db`, así que
 `python -m pytest -m native_db tests` las corre todas (461 hoy, ~35 s contra un Postgres 16
-limpio) y un módulo nuevo entra solo con usar el helper. Es check obligatorio para fusionar en
-main. La CI las ejecuta en cada PR y en
-cada push a main contra un `postgres:16-alpine` de servicio:
-`.github/workflows/native-tests.yml`, check `native-tests`. Tres reglas que las sostienen:
+limpio) y un módulo nuevo entra solo con usar el helper. Antes de cada PR se pasan en local con
+el bloque `native` de `bash scripts/ci-local.sh`, contra un `postgres:16-alpine` desechable con
+puerto propio. `.github/workflows/native-tests.yml` hace lo mismo en GitHub, pero solo a mano:
+desde US-121 ya no es un check obligatorio para fusionar. Tres reglas que las sostienen:
 
 - **La pool no sobrevive a la prueba que la abrió.** `server/db/pool.py` es un singleton por
   proceso y pytest-asyncio da un loop por prueba; `tests/conftest.py` la cierra al terminar
@@ -521,8 +521,22 @@ outside Claude Code. See `templates/github-actions/branch-protection-setup.md`.
 al cerrar un bloque grande. En un repo privado cada ejecución gasta minutos del plan de GitHub, así
 que ninguna plantilla vuelve a traer `pull_request` ni `push`, ninguna es status check obligatorio
 de la protección de rama, y una tarea programada (`schedule`) corre como mucho una vez al día.
-Ninguna tool ni skill las instala: se copian a mano. Los workflows propios del engine
-(`.github/workflows/`, repo público) siguen con sus disparadores.
+Ninguna tool ni skill las instala: se copian a mano.
+
+**CI del engine: en local, con el estándar ci-local (US-121).** `bash scripts/ci-local.sh` es la
+prueba de verdad antes de cada PR. Corre diez bloques, los independientes en paralelo, en ~2 min en
+un M4 Pro: secretos, dependencias, python, native, migraciones, inventario, extension, cli, hooks y
+contenedor. `bash scripts/ci-local.sh native hooks` corre solo esos bloques, y
+`bash scripts/ci-local/lib.sh estado` dice por dónde va. Necesita uv, node ≥ 22, gitleaks y Docker
+(native, migraciones y contenedor levantan sus propios contenedores y los borran al acabar). Los
+falsos positivos del historial, ya revisados, están en `scripts/ci-local.gitleaksignore`, por
+huella. Los workflows del engine se lanzan solo a mano
+(`gh workflow run <fichero> -R EmbedBuild/specbox-engine --ref <rama>`) y main no exige ningún
+check. Windows (`extension-windows.yml`) es lo único que el CI local no reproduce: se lanza cuando
+una PR toca la instalación de la extensión. Siguen con su disparador las publicaciones por
+etiqueta (`publish-vscode-extension.yml`, `publish-specbox-cli.yml` y el
+`smoke-test-marketplace.yml` que cuelga de ellas), la comprobación semanal de los dos nombres del
+MCP (`mcp-hosts.yml`) y la foto diaria del Marketplace (`marketplace-stats.yml`).
 
 **If /implement skill is unavailable**, the pipeline MUST be executed manually step by step.
 See `rules/GLOBAL_RULES.md` section "Pipeline Integrity" for the full contract.

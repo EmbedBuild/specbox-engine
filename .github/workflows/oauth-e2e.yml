@@ -4,17 +4,11 @@ name: OAuth E2E
 # Full @vscode/test-electron + Playwright matrix lands once US-09 of the cloud
 # (EmbedBuild/specbox_cloud) is in production and the test secrets are wired.
 
+# US-121 (UC-12101): manual only. The real check is `bash scripts/ci-local.sh extension`,
+# which runs the same locally before every PR. Launch by hand when closing a large block:
+# gh workflow run oauth-e2e.yml -R EmbedBuild/specbox-engine --ref <branch>
 on:
-  pull_request:
-    paths:
-      - 'vscode-extension/src/oauth.ts'
-      - 'vscode-extension/src/secret-storage.ts'
-      - 'vscode-extension/src/mcp.ts'
-      - 'vscode-extension/src/auth.ts'
-      - 'vscode-extension/src/extension.ts'
-      - 'vscode-extension/tests/**'
-      - 'server/coordination/identity.py'
-      - 'server/coordination/i18n_messages.py'
+  workflow_dispatch:
 
 jobs:
   oauth-e2e:

@@ -1,21 +1,22 @@
 name: Native backend tests
 
-# UC-5901 (US-59) — every PR of the engine runs the native backend tests against
-# a real Postgres. They are the tests that use the shared helper
-# tests/_native_db.py (marker `native_db`, applied by tests/conftest.py): the
-# native_* suites, coordination, reservations, tokens, the access log, the
-# database surface, AC evidence… A new module joins just by using the helper.
+# UC-5901 (US-59) — the native backend tests against a real Postgres. They are
+# the tests that use the shared helper tests/_native_db.py (marker `native_db`,
+# applied by tests/conftest.py): the native_* suites, coordination, reservations,
+# tokens, the access log, the database surface, AC evidence… A new module joins
+# just by using the helper.
 #
-# No path filter on purpose: the job is meant to be a required check, and a
-# required check that does not run blocks the PR.
+# Since US-121 (UC-12101) this is not a required check any more: every PR runs it
+# in local as the `native` block of scripts/ci-local.sh, with a throwaway Postgres.
 #
 # A test that blocks (e.g. waiting on a Postgres lock) fails by the time limit
 # set in pyproject.toml (pytest-timeout) instead of hanging the job.
 
+# US-121 (UC-12101): manual only. The real check is `bash scripts/ci-local.sh native`,
+# which runs the same locally before every PR. Launch by hand when closing a large block:
+# gh workflow run native-tests.yml -R EmbedBuild/specbox-engine --ref <branch>
 on:
-  pull_request:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read

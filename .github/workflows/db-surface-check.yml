@@ -17,22 +17,11 @@ name: DB surface check
 # container, where its DSN already lives — doc/runbooks/db-surface.md. No
 # production credential is stored in this public repository.
 
+# US-121 (UC-12101): manual only. The real check is `bash scripts/ci-local.sh migraciones`,
+# which runs the same locally before every PR. Launch by hand when closing a large block:
+# gh workflow run db-surface-check.yml -R EmbedBuild/specbox-engine --ref <branch>
 on:
-  pull_request:
-    paths:
-      - "server/db/**"
-      - "supabase/migrations/**"
-      - "tests/test_db_surface_*.py"
-      - "tests/test_migration_twins.py"
-      - ".github/workflows/db-surface-check.yml"
-  push:
-    branches: [main]
-    paths:
-      - "server/db/**"
-      - "supabase/migrations/**"
-      - "tests/test_db_surface_*.py"
-      - "tests/test_migration_twins.py"
-      - ".github/workflows/db-surface-check.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read

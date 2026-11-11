@@ -68,7 +68,9 @@ run "E409 then served: ends green" staged 1 60 0 "npm serves specbox@9.9.9" 2
 run "another publish error fails without waiting" denied 0 60 1 "npm publish failed" 0
 run "never served: fails after the deadline" ok -1 0 1 "still does not serve it" 1
 run "the failure says how to relaunch" ok -1 0 1 "relaunch-hint" 1
-run "served on the first check: no waiting" ok 0 60 0 "after 0s" 1
+# «No waiting» is proved by a single `npm view`, not by the text «after 0s»: SECONDS is an integer
+# and, on a busy machine (the local CI runs ten blocks at once), the first check can cross a second.
+run "served on the first check: no waiting" ok 0 60 0 "npm serves specbox@9.9.9" 1
 
 # Usage error (sin argumentos) — fuera de run() porque no pasa paquete ni versión
 if bash "$SCRIPT_UNDER_TEST" >/dev/null 2>&1; then

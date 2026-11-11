@@ -164,6 +164,42 @@ def test_release_6_15_0_flags_only_its_real_security_commits():
     assert flagged == {"181", "174"}
 
 
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false",
+         "-c", "tag.gpgsign=false", *args],
+        cwd=repo, check=True, capture_output=True,
+    )
+
+
+@pytest.mark.skipif(shutil.which("git") is None, reason="git no está disponible")
+def test_a_tagged_version_ends_at_its_tag_and_an_untagged_one_at_head(tmp_path):
+    """US-121: un commit de seguridad posterior a la etiqueta es de la versión siguiente."""
+    _git(tmp_path, "init", "-q")
+    (tmp_path / "CHANGELOG.md").write_text(_changelog("### Fixed\n\n- una errata\n"), encoding="utf-8")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-q", "-m", "release: v6.14.0")
+    _git(tmp_path, "tag", "v6.14.0")
+    _git(tmp_path, "commit", "-q", "--allow-empty", "-m", "docs: aclara el paso 3 del quickstart")
+    (tmp_path / "notas.md").write_text("x\n", encoding="utf-8")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-q", "-m", "fix: los tokens de acceso caducan a los 90 días")
+
+    def run() -> subprocess.CompletedProcess:
+        return subprocess.run(["node", str(SCRIPT)], cwd=tmp_path, capture_output=True, text=True, check=False)
+
+    # Sin etiqueta v6.14.1 el commit de seguridad es de la 6.14.1 y su entrada no lo cuenta.
+    untagged = run()
+    assert untagged.returncode == 1, untagged.stderr
+    assert "(v6.14.0..HEAD)" in untagged.stderr
+
+    # Con la 6.14.1 ya etiquetada antes de ese commit, ese commit es de la siguiente.
+    _git(tmp_path, "tag", "v6.14.1", "HEAD~1")
+    tagged = run()
+    assert tagged.returncode == 0, tagged.stderr
+    assert "(v6.14.0..v6.14.1)" in tagged.stderr
+
+
 def test_the_published_changelog_passes_against_git_history():
     """El contrato vivo: la entrada superior del CHANGELOG.md real cumple la regla."""
     if shutil.which("git") is None:

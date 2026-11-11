@@ -5,25 +5,11 @@ name: Contenedor sin privilegios
 # anteriores) y falla si el proceso del servidor corre como root o no puede
 # escribir su estado.
 
+# US-121 (UC-12101): manual only. The real check is `bash scripts/ci-local.sh contenedor`,
+# which runs the same locally before every PR. Launch by hand when closing a large block:
+# gh workflow run container-nonroot.yml -R EmbedBuild/specbox-engine --ref <branch>
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "Dockerfile"
-      - "docker-entrypoint.sh"
-      - "pyproject.toml"
-      - "server/**"
-      - "scripts/verify-nonroot.sh"
-      - ".github/workflows/container-nonroot.yml"
-  pull_request:
-    paths:
-      - "Dockerfile"
-      - "docker-entrypoint.sh"
-      - "pyproject.toml"
-      - "server/**"
-      - "scripts/verify-nonroot.sh"
-      - ".github/workflows/container-nonroot.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read

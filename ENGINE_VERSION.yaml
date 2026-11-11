@@ -1,5 +1,5 @@
-version: 6.33.0
-codename: "Latido"
+version: 6.33.1
+codename: "A la primera"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-11
@@ -598,8 +598,18 @@ features:
   # New (v6.33.0) — Latido
   - extension-install-identity
   - extension-daily-heartbeat
+  # New (v6.33.1) — A la primera
+  - engine-local-ci
 
 changelog:
+  6.33.1:
+    date: 2026-11-11
+    codename: "A la primera"
+    changes:
+      - "fix: a clean install from the Marketplace is counted on its first start — in 6.33.0 the activation event and the daily heartbeat started at the end of the extension's startup chain, behind notifications that wait for a click («SpecBox Engine detected but not installed. Run the setup wizard?» shows on every clean install), so a new install was never counted unless the person answered; they now start first, without await, and a test pins that order (UC-11801, #346)"
+      - "ci: the engine runs its CI in local with the ci-local standard — scripts/ci-local.sh runs ten blocks (secrets, dependencies, python, native against a throwaway Postgres, migrations, site inventory, extension, CLI, hooks, container) in about 2 min; the workflows are manual only except tag publishing and the scheduled checks, and main no longer requires a GitHub check (UC-12101, #345)"
+      - "fix: changelog-security-check ends a tagged version's range at its tag, so a commit that lands on main after a release no longer fails the live changelog test; the npm wait test no longer depends on a whole second passing (#345)"
+
   6.33.0:
     date: 2026-11-11
     codename: "Latido"

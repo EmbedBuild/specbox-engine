@@ -2,6 +2,54 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.33.1] - 2026-11-11 — "A la primera"
+
+La 6.33.0 arregló la activación, pero una instalación limpia desde el Marketplace seguía sin contarse: la
+extensión lanzaba la activación y el latido al final de su arranque, detrás de avisos que esperan un clic, y en
+toda instalación limpia sale «SpecBox Engine detected but not installed. Run the setup wizard?». Se comprobó el
+mismo día de publicarla, con una instalación limpia en un perfil nuevo de VS Code: ningún evento en 5 minutos.
+Esta versión los lanza lo primero. Además, el engine pasa a probarse en local con el estándar ci-local (US-121).
+
+### Fixed
+
+- **Una instalación nueva cuenta en su primer arranque** (UC-11801, #346) — la activación y el latido salen
+  antes de cualquier aviso y sin esperarlos. Con este cambio, en un perfil limpio la activación llega 6 s después
+  de abrir la carpeta (los 5 s de espera del enlace de la web más el envío) y el latido 1 s más tarde.
+- **`changelog-security-check`** termina el rango de una versión ya etiquetada en su etiqueta: un commit que llega
+  a main después de una release es de la siguiente y ya no rompe la prueba viva del changelog (#345).
+- **`test-npm-publish-and-wait.sh`** demuestra «sin espera» con una sola consulta a npm, no con el texto
+  «after 0s», que fallaba cuando la máquina iba cargada (#345).
+
+### Changed
+
+- **CI del engine en local** (UC-12101, #345) — `bash scripts/ci-local.sh` (estándar ci-local v1, librería
+  1.2.1) corre diez bloques en ~2 min: secretos, dependencias, python, native con un Postgres desechable,
+  migraciones, inventario del site, extensión, CLI, hooks y contenedor. `bash scripts/ci-local/lib.sh estado`
+  enseña el paso de cada bloque y, en los de pytest, la prueba X de Y.
+- **Workflows solo a mano** — ninguno se lanza ya con un push o una PR. Conservan su disparador las publicaciones
+  por etiqueta, la prueba del Marketplace que va tras ellas, la comprobación semanal de los nombres del MCP y la
+  foto diaria del Marketplace. La protección de main deja de exigir comprobaciones de GitHub y mantiene la
+  historia lineal.
+- CLAUDE.md, CONTRIBUTING.md y la plantilla de PR piden el CI local antes de cada PR.
+
+### Security
+
+- **Búsqueda de claves antes de cada PR** — el CI local pasa gitleaks por todo el historial del repositorio. Los
+  falsos positivos revisados (claves inventadas de las pruebas y la clave pública de Supabase de la extensión)
+  quedan fijados uno a uno por su huella, así que una clave nueva, en cualquier fichero, para la PR.
+
+### Compatibility
+
+- 100% backwards-compatible. La extensión no cambia lo que envía, solo cuándo lo envía. Ni el MCP ni el board
+  cambian.
+
+### Tests
+
+- `vscode-extension/tests/startup-order.test.mjs` (2 pruebas): falla con el código de la 6.33.0 y pasa con este.
+- `tests/test_changelog_security_check.py`: una prueba nueva, con un repositorio git temporal, para una versión
+  etiquetada y otra sin etiquetar.
+- CI local completo: 10/10 bloques en verde.
+
 ## [6.33.0] - 2026-11-11 — "Latido"
 
 SpecBox no sabía cuánta gente lo usa: la activación de la extensión nunca llegaba a la base (mandaba un

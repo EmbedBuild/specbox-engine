@@ -222,6 +222,17 @@ interface StartupDeps {
 async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDeps): Promise<void> {
 	const { health, installer, statusBar: bar, statusTree, skillsTree, secrets, cli } = deps;
 
+	// US-26 (UC-2601) + US-118 (UC-11801/UC-11802) — emit the one-shot `activation`
+	// event, then the daily heartbeat with the same anonymous id. Idempotent,
+	// privacy-respecting, fully self-guarded — fired without await so a slow or
+	// failing POST can never wedge activation. FIRST, before anything that awaits:
+	// in 6.33.0 it ran at the end of this chain, and a clean install from the
+	// Marketplace never reached it while the «not installed — run the setup
+	// wizard?» notification waited for a click (2026-11-11, UC-11801 AC-06).
+	void maybeEmitActivation(context).then(() => startHeartbeat(context)).catch((err) => {
+		console.warn('[specbox] usage events failed to start:', err);
+	});
+
 	// UC-3901 AC-03 / UC-3904 — keep this computer connected without manual
 	// steps: adopt a token kept from an older version as a device token, renew
 	// it when due, restore the Claude Code helper config, drop the dead entry.
@@ -329,14 +340,6 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 	// refresh (UC-8903).
 	await refreshIdentityNow(statusTree, secrets).catch((err) => {
 		console.warn('[specbox] initial identity refresh failed:', err);
-	});
-
-	// US-26 (UC-2601) + US-118 (UC-11801/UC-11802) — emit the one-shot `activation`
-	// event, then the daily heartbeat with the same anonymous id. Idempotent,
-	// privacy-respecting, fully self-guarded — fired without await so a slow or
-	// failing POST can never wedge activation.
-	void maybeEmitActivation(context).then(() => startHeartbeat(context)).catch((err) => {
-		console.warn('[specbox] usage events failed to start:', err);
 	});
 }
 

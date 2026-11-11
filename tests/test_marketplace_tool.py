@@ -1,198 +1,146 @@
-"""Tests for server/tools/marketplace.py — UC-643.
+"""Tests for server/tools/marketplace.py — UC-11903 (US-119).
 
-Validates:
-- AC-04: tool MCP get_marketplace_stats returns expected shape
-- AC-05: 30 entries → metrics correct + install_growth_pct positive + daily_series == 30
-- AC-05 edge: empty jsonl → no_data_yet
-- Robustness: malformed lines skipped, entries outside window filtered
+get_marketplace_stats reads the daily snapshot from ``external_signal_daily``
+(UC-11901, written by the VPS task of UC-11902) instead of a local jsonl file.
+
+- AC-02: the summary of the stored rows (Marketplace, npm, GitHub stars/forks),
+  the query only asks for public figures and errors never leak detail.
 """
 
-import json
-from datetime import datetime, timedelta, timezone
+from __future__ import annotations
 
-import pytest
+import asyncio
+from datetime import date, datetime, timedelta, timezone
 
-from server.tools.marketplace import aggregate_marketplace_stats
+import asyncpg
 
+from server.tools.marketplace import (
+    MAX_WINDOW_DAYS,
+    _ROWS_SQL,
+    fetch_marketplace_stats,
+    summarize_external_signals,
+)
 
-def make_fixture(num_entries: int, base_installs: int = 10, growth_per_day: int = 8) -> str:
-    """Build a jsonl fixture with `num_entries` consecutive daily entries.
-
-    Entries are anchored at `now - num_entries + 1` days through `now`,
-    so all entries fall inside a `window_days >= num_entries` window.
-    """
-    now = datetime(2026, 5, 26, 6, 0, 0, tzinfo=timezone.utc)
-    lines = []
-    for i in range(num_entries):
-        ts = now - timedelta(days=num_entries - 1 - i)
-        installs = base_installs + i * growth_per_day
-        entry = {
-            "date": ts.isoformat().replace("+00:00", "Z"),
-            "version": "6.2.0",
-            "installs": installs,
-            "downloads": installs * 2,
-            "avg_rating": 4.5,
-            "rating_count": max(0, i // 5),
-            "trending_daily": 0,
-            "trending_weekly": 0,
-            "trending_monthly": 0,
-            "delta_installs_24h": growth_per_day if i > 0 else 0,
-        }
-        lines.append(json.dumps(entry))
-    return "\n".join(lines) + "\n"
+TODAY = date(2026, 11, 12)
+CAPTURED = datetime(2026, 11, 12, 6, 15, tzinfo=timezone.utc)
 
 
-def test_30_entries_full_window():
-    """AC-05: 30 entries simuladas → métricas correctas, growth positivo, 30 entries en daily_series."""
-    jsonl = make_fixture(num_entries=30, base_installs=10, growth_per_day=8)
-    now = datetime(2026, 5, 26, 12, 0, 0, tzinfo=timezone.utc)
-    result = aggregate_marketplace_stats(jsonl, window_days=30, now=now)
-
-    assert result["status"] == "ok"
-    assert result["entries_count"] == 30
-    assert len(result["daily_series"]) == 30
-    assert result["total_installs"] == 10 + 29 * 8  # last entry
-    assert result["install_growth_pct"] > 0
-    # First=10, last=242 → growth ≈ 2320%
-    assert result["install_growth_pct"] == pytest.approx(2320.0, abs=1.0)
-
-
-def test_smaller_window_filters_old_entries():
-    """window_days=7 sobre 30 entries → solo 7 entries dentro de la ventana."""
-    jsonl = make_fixture(num_entries=30, base_installs=10, growth_per_day=8)
-    now = datetime(2026, 5, 26, 12, 0, 0, tzinfo=timezone.utc)
-    result = aggregate_marketplace_stats(jsonl, window_days=7, now=now)
-
-    assert result["status"] == "ok"
-    # window_days=7 cutoff = now - 7 days. The fixture's last entry is anchored
-    # at now - 0 days; entries from days [-6..0] fall inside the window (7 entries).
-    assert result["entries_count"] == 7
-    assert result["window_days"] == 7
-
-
-def test_empty_jsonl_returns_no_data_yet():
-    """AC-05 edge: jsonl vacío → status no_data_yet, reason extension_not_published_or_no_stats."""
-    result = aggregate_marketplace_stats("", window_days=30)
-    assert result["status"] == "no_data_yet"
-    assert result["reason"] == "extension_not_published_or_no_stats"
-    assert result["window_days"] == 30
-
-
-def test_whitespace_only_jsonl_returns_no_data_yet():
-    """Robustness: jsonl con solo whitespace → no_data_yet."""
-    result = aggregate_marketplace_stats("   \n  \n\n   ", window_days=30)
-    assert result["status"] == "no_data_yet"
-    assert result["reason"] == "extension_not_published_or_no_stats"
-
-
-def test_malformed_lines_are_skipped():
-    """Robustness: jsonl con líneas malformadas → skip + count, no crash."""
-    valid = json.dumps({
-        "date": "2026-05-26T06:00:00Z",
-        "version": "6.2.0",
-        "installs": 100,
-        "downloads": 200,
-        "avg_rating": 4.5,
-        "rating_count": 5,
-        "trending_daily": 0,
-        "trending_weekly": 0,
-        "trending_monthly": 0,
-        "delta_installs_24h": 5,
-    })
-    jsonl = f"this is not json\n{valid}\n{{broken json"
-    now = datetime(2026, 5, 26, 12, 0, 0, tzinfo=timezone.utc)
-    result = aggregate_marketplace_stats(jsonl, window_days=30, now=now)
-
-    assert result["status"] == "ok"
-    assert result["entries_count"] == 1
-    assert result["malformed_lines_skipped"] == 2
-    assert result["total_installs"] == 100
-
-
-def test_entries_outside_window_dropped():
-    """Window dejado por defecto en 30 días, fixture con 60 entries → solo las últimas 30 entran."""
-    jsonl = make_fixture(num_entries=60, base_installs=1, growth_per_day=1)
-    now = datetime(2026, 5, 26, 12, 0, 0, tzinfo=timezone.utc)
-    result = aggregate_marketplace_stats(jsonl, window_days=30, now=now)
-
-    assert result["status"] == "ok"
-    # window_days=30 cutoff = now - 30 days; fixture spans days [-59..0]
-    # so 31 entries fall within the window (days -29 through 0, inclusive of cutoff day)
-    assert result["entries_count"] in (30, 31)
-
-
-def test_all_entries_older_than_window():
-    """Si todas las entries son más viejas que la ventana → no_entries_within_window."""
-    # Build a fixture from a fixed past date, then query with a far-future "now"
-    past = datetime(2025, 1, 1, 6, 0, 0, tzinfo=timezone.utc)
-    entries = []
-    for i in range(5):
-        ts = past + timedelta(days=i)
-        entries.append(json.dumps({
-            "date": ts.isoformat().replace("+00:00", "Z"),
-            "version": "6.2.0",
-            "installs": 10 + i,
-            "downloads": 20 + i,
-            "avg_rating": 4.0,
-            "rating_count": 1,
-            "trending_daily": 0,
-            "trending_weekly": 0,
-            "trending_monthly": 0,
-            "delta_installs_24h": 1,
-        }))
-    jsonl = "\n".join(entries)
-    now = datetime(2026, 5, 26, 12, 0, 0, tzinfo=timezone.utc)
-    result = aggregate_marketplace_stats(jsonl, window_days=30, now=now)
-
-    assert result["status"] == "no_data_yet"
-    assert result["reason"] == "no_entries_within_window"
-    assert result["entries_total_in_file"] == 5
-
-
-def test_single_entry_growth_pct_is_zero():
-    """Edge: una sola entry en la ventana → growth_pct = 0 (no hay first y last distintos)."""
-    jsonl = make_fixture(num_entries=1, base_installs=42, growth_per_day=0)
-    now = datetime(2026, 5, 26, 12, 0, 0, tzinfo=timezone.utc)
-    result = aggregate_marketplace_stats(jsonl, window_days=30, now=now)
-
-    assert result["status"] == "ok"
-    assert result["entries_count"] == 1
-    assert result["total_installs"] == 42
-    assert result["install_growth_pct"] == 0.0  # first == last
-
-
-def test_zero_first_installs_growth_zero():
-    """Si first_installs = 0 → growth_pct = 0 (sin division by zero)."""
-    now = datetime(2026, 5, 26, 12, 0, 0, tzinfo=timezone.utc)
-    entries = [
-        {
-            "date": (now - timedelta(days=2)).isoformat().replace("+00:00", "Z"),
-            "version": "6.2.0",
-            "installs": 0,
-            "downloads": 0,
-            "avg_rating": 0,
-            "rating_count": 0,
-            "trending_daily": 0,
-            "trending_weekly": 0,
-            "trending_monthly": 0,
-            "delta_installs_24h": 0,
-        },
-        {
-            "date": (now - timedelta(days=1)).isoformat().replace("+00:00", "Z"),
-            "version": "6.2.0",
-            "installs": 5,
-            "downloads": 10,
-            "avg_rating": 4.0,
-            "rating_count": 0,
-            "trending_daily": 0,
-            "trending_weekly": 0,
-            "trending_monthly": 0,
-            "delta_installs_24h": 5,
-        },
+def snapshot(days: int = 5, base: int = 100, step: int = 4) -> list[dict]:
+    rows = []
+    for i in range(days):
+        d = TODAY - timedelta(days=days - 1 - i)
+        rows += [
+            {"day": d, "source": "marketplace", "metric": "installs", "value": base + i * step, "captured_at": CAPTURED - timedelta(days=days - 1 - i)},
+            {"day": d, "source": "marketplace", "metric": "updates", "value": 300 + i, "captured_at": CAPTURED},
+            {"day": d, "source": "npm", "metric": "downloads", "value": 10 * (i + 1), "captured_at": CAPTURED},
+        ]
+    rows += [
+        {"day": TODAY - timedelta(days=40), "source": "github", "metric": "stars", "value": 12, "captured_at": CAPTURED},
+        {"day": TODAY, "source": "github", "metric": "stars", "value": 19, "captured_at": CAPTURED},
+        {"day": TODAY, "source": "github", "metric": "forks", "value": 4, "captured_at": CAPTURED},
     ]
-    jsonl = "\n".join(json.dumps(e) for e in entries)
-    result = aggregate_marketplace_stats(jsonl, window_days=30, now=now)
+    return rows
 
-    assert result["status"] == "ok"
-    assert result["install_growth_pct"] == 0.0
-    assert result["total_installs"] == 5
+
+# ── Summary (pure) ──────────────────────────────────────────────────────────────
+
+
+def test_ac02_summary_of_the_stored_snapshot():
+    out = summarize_external_signals(snapshot(), 30, TODAY)
+    assert out["status"] == "ok"
+    assert out["source"] == "external_signal_daily"
+    assert out["total_installs"] == 116  # 100 + 4·4, the latest day
+    assert out["total_updates"] == 304
+    assert out["install_growth_pct"] == 16.0
+    assert [p["installs"] for p in out["daily_series"]] == [100, 104, 108, 112, 116]
+    assert [p["delta"] for p in out["daily_series"]] == [0, 4, 4, 4, 4]
+    assert out["npm"]["downloads_in_window"] == 150
+    assert len(out["npm"]["daily_series"]) == 5
+    assert out["github"] == {"stars": 19, "forks": 4}
+    assert out["from"] == "2026-10-13" and out["to"] == "2026-11-12"
+    assert out["last_captured_at"] == CAPTURED.isoformat()
+
+
+def test_rows_outside_the_window_are_ignored():
+    out = summarize_external_signals(snapshot(days=5), 2, TODAY)
+    assert [p["date"] for p in out["daily_series"]] == ["2026-11-10", "2026-11-11", "2026-11-12"]
+    assert out["github"]["stars"] == 19  # the star 40 days back is outside
+
+
+def test_no_marketplace_snapshot_is_no_data_yet():
+    rows = [r for r in snapshot() if r["source"] != "marketplace"]
+    out = summarize_external_signals(rows, 30, TODAY)
+    assert out == {"status": "no_data_yet", "reason": "no_snapshot_in_window",
+                   "source": "external_signal_daily", "window_days": 30}
+
+
+def test_zero_first_installs_gives_zero_growth():
+    out = summarize_external_signals(snapshot(base=0), 30, TODAY)
+    assert out["install_growth_pct"] == 0.0
+
+
+# ── Query (fake pool) ───────────────────────────────────────────────────────────
+
+
+class FakeConn:
+    def __init__(self, rows=None, exc=None):
+        self.rows, self.exc, self.calls = rows or [], exc, []
+
+    async def fetch(self, sql, *args):
+        self.calls.append((sql, args))
+        if self.exc:
+            raise self.exc
+        return self.rows
+
+
+class FakePool:
+    def __init__(self, conn):
+        self.conn = conn
+
+    def acquire(self):
+        conn = self.conn
+
+        class _Ctx:
+            async def __aenter__(self):
+                return conn
+
+            async def __aexit__(self, *exc):
+                return False
+
+        return _Ctx()
+
+
+def test_ac02_reads_the_window_from_the_database():
+    conn = FakeConn(rows=snapshot())
+    out = asyncio.run(fetch_marketplace_stats(30, pool=FakePool(conn), today=TODAY))
+    assert out["status"] == "ok" and out["total_installs"] == 116
+    sql, args = conn.calls[0]
+    assert "FROM public.external_signal_daily" in sql
+    assert args == (TODAY - timedelta(days=30), TODAY)
+
+
+def test_the_query_only_asks_for_public_figures():
+    # GitHub traffic (clones, views) is admin-only on GitHub: it never leaves this tool.
+    assert "clones" not in _ROWS_SQL and "views" not in _ROWS_SQL
+    assert "metric IN ('stars', 'forks')" in _ROWS_SQL
+
+
+def test_window_is_clamped():
+    conn = FakeConn(rows=[])
+    asyncio.run(fetch_marketplace_stats(10_000, pool=FakePool(conn), today=TODAY))
+    assert conn.calls[0][1][0] == TODAY - timedelta(days=MAX_WINDOW_DAYS)
+    asyncio.run(fetch_marketplace_stats(0, pool=FakePool(conn), today=TODAY))
+    assert conn.calls[1][1][0] == TODAY - timedelta(days=1)
+
+
+def test_missing_table_is_no_data_yet():
+    conn = FakeConn(exc=asyncpg.UndefinedTableError("relation does not exist"))
+    out = asyncio.run(fetch_marketplace_stats(30, pool=FakePool(conn), today=TODAY))
+    assert out["status"] == "no_data_yet" and out["reason"] == "snapshot_table_missing"
+
+
+def test_database_errors_never_leak_detail():
+    conn = FakeConn(exc=OSError("connection refused to 10.0.0.5:5432 password=secret"))
+    out = asyncio.run(fetch_marketplace_stats(30, pool=FakePool(conn), today=TODAY))
+    assert out == {"status": "no_data_yet", "reason": "database_unavailable",
+                   "source": "external_signal_daily", "window_days": 30}

@@ -1,184 +1,198 @@
-"""MCP tools for VSCode Marketplace adoption telemetry.
+"""MCP tool for the adoption signals seen from outside: Marketplace, npm and GitHub.
 
-v6.2.0 — UC-643 (US-VSCODE-MARKETPLACE). The client supplies the raw
-``.quality/marketplace-stats.jsonl`` content (one JSON entry per day,
-written by the ``marketplace-stats.yml`` GitHub Actions workflow). The
-tool aggregates the entries inside the requested window and returns a
-compact summary safe to render in a dashboard or chat reply.
+v6.2.0 — UC-643 (US-VSCODE-MARKETPLACE) introduced ``get_marketplace_stats``
+over a ``.quality/marketplace-stats.jsonl`` written by a GitHub Actions
+workflow. That file was ignored by git, so nothing was ever kept.
 
-**Privacy**: zero PII. The jsonl only contains public Marketplace stats
-(installs, downloads, ratings, trending ranks) scraped from the
-``extensionquery`` public REST endpoint. No data is collected from
-end-user installs.
+v6.34.0 — UC-11903 (US-119, EP-19): the figures come from the database. A
+daily task on the SpecBox VPS (``ops/external-signals/`` of specbox-manager,
+UC-11902) stores one row per UTC day, source and metric in
+``public.external_signal_daily`` (migration of specbox_cloud, UC-11901). This
+tool reads that table with the server's pool: the same figures as the daily
+snapshot.
+
+**Privacy**: zero PII. Only public figures leave this tool — Marketplace
+installs and updates, npm downloads, GitHub stars and forks. The GitHub
+traffic (clones and visits) that the snapshot also keeps is visible on GitHub
+only to repository admins, so it stays in the SuperAdmin «Adopción» page and
+is never returned here.
 """
 
 from __future__ import annotations
 
-import json
-from datetime import datetime, timedelta, timezone
+import logging
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
+import asyncpg
 from fastmcp import FastMCP
 
+from server.db.pool import get_pool
 
-# Engine-side fallback location (only used when jsonl_content is empty
-# and the MCP server happens to share the filesystem with the repo —
-# typical for local stdio mode). Remote MCP callers MUST pass jsonl_content
-# explicitly per the v6.0.1 Path Contract.
-_FALLBACK_RELPATH = ".quality/marketplace-stats.jsonl"
+logger = logging.getLogger(__name__)
+
+#: Longest look-back a caller can ask for (days).
+MAX_WINDOW_DAYS = 400
+
+# Public figures only (see the module docstring): no GitHub traffic.
+_ROWS_SQL = """
+SELECT day, source, metric, value, captured_at
+FROM public.external_signal_daily
+WHERE day BETWEEN $1 AND $2
+  AND (source IN ('marketplace', 'npm') OR (source = 'github' AND metric IN ('stars', 'forks')))
+ORDER BY day
+"""
 
 
-def aggregate_marketplace_stats(
-    jsonl_content: str,
-    window_days: int = 30,
-    now: datetime | None = None,
+def _clamp_window(window_days: Any) -> int:
+    try:
+        days = int(window_days)
+    except (TypeError, ValueError):
+        days = 30
+    return max(1, min(days, MAX_WINDOW_DAYS))
+
+
+def summarize_external_signals(
+    rows: Iterable[dict[str, Any]],
+    window_days: int,
+    today: date,
 ) -> dict[str, Any]:
-    """Pure aggregation function — testable without an MCP instance.
+    """Pure summary of the snapshot rows of a window — testable without a database.
 
     Args:
-        jsonl_content: Raw jsonl text (one entry per line) from
-            ``.quality/marketplace-stats.jsonl``.
+        rows: ``{day, source, metric, value, captured_at}`` rows of
+            ``external_signal_daily`` inside ``[today - window_days, today]``.
         window_days: Look-back window in days.
-        now: Override "current time" for deterministic tests. Defaults to
-            ``datetime.now(timezone.utc)``.
+        today: The last day of the window (UTC).
 
     Returns:
-        See ``get_marketplace_stats`` docstring.
+        ``status: "ok"`` with the Marketplace installs and updates (latest,
+        growth and daily series), npm downloads in the window with their daily
+        series and the latest GitHub stars and forks; or ``status:
+        "no_data_yet"`` when the window has no Marketplace snapshot.
+        ``total_installs`` and ``daily_series`` keep the v6.2.0 shape.
     """
-    now = now or datetime.now(timezone.utc)
-    content = jsonl_content.strip()
-
-    if not content:
-        return {
-            "status": "no_data_yet",
-            "reason": "extension_not_published_or_no_stats",
-            "window_days": window_days,
-        }
-
-    entries: list[dict[str, Any]] = []
-    malformed = 0
-    for line in content.splitlines():
-        line = line.strip()
-        if not line:
+    start = today - timedelta(days=window_days)
+    series: dict[tuple[str, str], dict[date, int]] = {}
+    last_captured: datetime | None = None
+    for r in rows:
+        day = r["day"]
+        if not (start <= day <= today):
             continue
-        try:
-            entry = json.loads(line)
-            if isinstance(entry, dict) and "date" in entry:
-                entries.append(entry)
-            else:
-                malformed += 1
-        except json.JSONDecodeError:
-            malformed += 1
+        series.setdefault((r["source"], r["metric"]), {})[day] = int(r["value"])
+        cap = r.get("captured_at")
+        if cap is not None and (last_captured is None or cap > last_captured):
+            last_captured = cap
 
-    if not entries:
+    installs = series.get(("marketplace", "installs"), {})
+    if not installs:
         return {
             "status": "no_data_yet",
-            "reason": "jsonl_empty_or_malformed",
+            "reason": "no_snapshot_in_window",
+            "source": "external_signal_daily",
             "window_days": window_days,
-            "malformed_lines": malformed,
         }
 
-    cutoff = now - timedelta(days=window_days)
-    in_window: list[dict[str, Any]] = []
-    for e in entries:
-        try:
-            d = e["date"].replace("Z", "+00:00")
-            ts = datetime.fromisoformat(d)
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
-            if ts >= cutoff:
-                in_window.append(e)
-        except (KeyError, ValueError, TypeError):
-            malformed += 1
+    def latest(key: tuple[str, str]) -> int | None:
+        s = series.get(key)
+        return s[max(s)] if s else None
 
-    if not in_window:
-        return {
-            "status": "no_data_yet",
-            "reason": "no_entries_within_window",
-            "window_days": window_days,
-            "entries_total_in_file": len(entries),
-        }
+    days = sorted(installs)
+    first, last = installs[days[0]], installs[days[-1]]
+    growth = round((last - first) / first * 100.0, 2) if first > 0 else 0.0
+    updates = series.get(("marketplace", "updates"), {})
+    daily_series = []
+    previous: int | None = None
+    for d in days:
+        daily_series.append({
+            "date": d.isoformat(),
+            "installs": installs[d],
+            "updates": updates.get(d),
+            "delta": installs[d] - previous if previous is not None else 0,
+        })
+        previous = installs[d]
 
-    in_window.sort(key=lambda e: e["date"])
-    first = in_window[0]
-    last = in_window[-1]
-
-    first_installs = int(first.get("installs", 0))
-    last_installs = int(last.get("installs", 0))
-    install_growth_pct = (
-        ((last_installs - first_installs) / first_installs * 100.0)
-        if first_installs > 0
-        else 0.0
-    )
-
-    daily_series = [
-        {
-            "date": e["date"],
-            "installs": int(e.get("installs", 0)),
-            "delta": int(e.get("delta_installs_24h", 0)),
-        }
-        for e in in_window
-    ]
-
+    npm = series.get(("npm", "downloads"), {})
     return {
         "status": "ok",
-        "total_installs": last_installs,
-        "total_downloads": int(last.get("downloads", 0)),
-        "avg_rating": float(last.get("avg_rating", 0.0)),
-        "rating_count": int(last.get("rating_count", 0)),
-        "install_growth_pct": round(install_growth_pct, 2),
-        "daily_series": daily_series,
-        "current_trending_rank": {
-            "daily": int(last.get("trending_daily", 0)),
-            "weekly": int(last.get("trending_weekly", 0)),
-            "monthly": int(last.get("trending_monthly", 0)),
-        },
+        "source": "external_signal_daily",
         "window_days": window_days,
-        "entries_count": len(in_window),
-        "malformed_lines_skipped": malformed,
+        "from": start.isoformat(),
+        "to": today.isoformat(),
+        "last_captured_at": last_captured.isoformat() if last_captured else None,
+        "total_installs": last,
+        "total_updates": latest(("marketplace", "updates")),
+        "install_growth_pct": growth,
+        "daily_series": daily_series,
+        "npm": {
+            "downloads_in_window": sum(npm.values()),
+            "daily_series": [{"date": d.isoformat(), "downloads": npm[d]} for d in sorted(npm)],
+        },
+        "github": {
+            "stars": latest(("github", "stars")),
+            "forks": latest(("github", "forks")),
+        },
+        "entries_count": len(days),
     }
 
 
-def register_marketplace_tools(mcp: FastMCP, engine_path: Path | None = None) -> None:
-    """Register the marketplace stats tool with the MCP server.
+async def fetch_marketplace_stats(
+    window_days: int = 30,
+    *,
+    pool: Any = None,
+    today: date | None = None,
+) -> dict[str, Any]:
+    """Read the window from ``external_signal_daily`` and summarise it.
 
-    Args:
-        mcp: FastMCP instance.
-        engine_path: Optional engine repo root. When provided, used as a
-            fallback to read the jsonl from disk if the caller did not
-            supply ``jsonl_content``. In remote MCP deployments this path
-            points to the *server's* filesystem (not the client's), so it
-            is only useful for local stdio sessions.
+    Never raises: without a database, or before the snapshot table exists,
+    the answer is ``no_data_yet`` with the reason, and no internal detail.
+    """
+    window_days = _clamp_window(window_days)
+    today = today or datetime.now(timezone.utc).date()
+    start = today - timedelta(days=window_days)
+    try:
+        pool = pool or await get_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(_ROWS_SQL, start, today)
+    except asyncpg.UndefinedTableError:
+        return {"status": "no_data_yet", "reason": "snapshot_table_missing",
+                "source": "external_signal_daily", "window_days": window_days}
+    except Exception as exc:  # no DSN, network, permissions: same answer, detail only in the log
+        logger.warning("get_marketplace_stats: database unavailable (%s)", type(exc).__name__)
+        return {"status": "no_data_yet", "reason": "database_unavailable",
+                "source": "external_signal_daily", "window_days": window_days}
+    return summarize_external_signals([dict(r) for r in rows], window_days, today)
+
+
+def register_marketplace_tools(mcp: FastMCP, engine_path: Path | None = None) -> None:
+    """Register ``get_marketplace_stats``.
+
+    ``engine_path`` is accepted for compatibility and no longer used: the
+    figures come from the database, never from the server's filesystem.
     """
 
     @mcp.tool
-    def get_marketplace_stats(
+    async def get_marketplace_stats(
         window_days: int = 30,
         jsonl_content: str = "",
     ) -> dict[str, Any]:
-        """Aggregate VSCode Marketplace adoption stats over a time window.
+        """Adoption seen from outside, from the daily snapshot in the database.
 
-        **v6.0.1 content-passing API**: the client reads
-        ``.quality/marketplace-stats.jsonl`` locally and passes its
-        contents via ``jsonl_content``. The tool parses, filters by
-        date window, and returns aggregated metrics. Zero PII.
+        Returns the VS Code Marketplace installs and updates of the extension
+        (latest, growth over the window and daily series), the npm downloads
+        of the ``specbox`` CLI in the window and the latest GitHub stars and
+        forks of the engine repository. Public figures only: downloads and
+        installs, not people. Zero PII.
 
         Args:
-            window_days: Look-back window in days (default 30). Entries
-                older than this are excluded from the aggregation.
-            jsonl_content: Raw content of
-                ``.quality/marketplace-stats.jsonl`` (one JSON object per
-                line). Pass empty to attempt an engine-side fallback read
-                (only works in local stdio MCP mode).
+            window_days: Look-back window in days (default 30, 1–400).
+            jsonl_content: Deprecated since v6.34.0 and ignored. The figures
+                no longer come from a local file.
 
         Returns:
-            See :func:`aggregate_marketplace_stats`.
+            ``status: "ok"`` with ``total_installs``, ``total_updates``,
+            ``install_growth_pct``, ``daily_series``, ``npm`` and ``github``;
+            or ``status: "no_data_yet"`` with a ``reason``.
         """
-        content = jsonl_content.strip()
-        if not content and engine_path is not None:
-            fallback = engine_path / _FALLBACK_RELPATH
-            if fallback.exists():
-                content = fallback.read_text(encoding="utf-8").strip()
-
-        return aggregate_marketplace_stats(content, window_days=window_days)
+        return await fetch_marketplace_stats(window_days)

@@ -164,41 +164,43 @@ for the architectural rationale and the residual security trade-offs.
 
 ---
 
-## Activation telemetry (funnel)
+## Usage telemetry (anonymous)
 
-To measure how many people who discover SpecBox on the website actually install
-the extension, the extension emits a single, anonymous **`activation`** event the
-first time it runs after installation. This closes the loop with the website's
-anonymous funnel (page view → install intent → activation).
+To know how many people use SpecBox — not just how many downloads there are —
+the extension sends two kinds of anonymous events. Both respect your VS Code
+telemetry setting.
+
+| Event | When | What it carries |
+|---|---|---|
+| **`activation`** | **Once per install**, the first time the extension runs | A random install id, **extension version**, **OS platform**, **VS Code version** and the **origin**: `site` if you installed through the SpecBox website, `marketplace` otherwise |
+| **`heartbeat`** | **At most once a day** (UTC) while you use VS Code with the extension | The same install id, **extension version**, **OS platform**, **VS Code version** and the **tracking backend** of the open folder: `freeform`, `native`, `trello`, `plane` or `none` |
 
 How it works:
 
-1. When you click **Get the extension** on the SpecBox site, the site opens a
-   deep-link `vscode://EmbedBuild.specbox-engine/activate?anon_id=<uuid>`. The
-   `anon_id` is the website's opaque, randomly-generated anonymous session id —
-   it is **not** tied to your identity, GitHub account, email, or repository.
-2. The extension validates the `anon_id` (must be a UUID v4) and stores it in VS
-   Code global state.
-3. On the next activation, the extension posts **one** `activation` event to the
-   public funnel endpoint (the same Supabase project the website uses). The event
-   carries the `anon_id` (so the install can be correlated with the anonymous web
-   session) plus a small technical `meta` block: **extension version**,
-   **OS platform**, and **VS Code version**. Nothing else.
-4. The event is emitted **at most once per install** (an idempotency flag in
-   global state). If the deep-link `anon_id` never arrived (e.g. you installed
-   from the Marketplace directly), the activation is still emitted, just without a
-   web-session origin.
+1. **The install id.** If you click **Get the extension** on the SpecBox site, the
+   site opens `vscode://EmbedBuild.specbox-engine/activate?anon_id=<uuid>` and that
+   opaque, random id of the anonymous web visit becomes the install id. Otherwise
+   the extension generates a random UUID v4. Either way it is stored in VS Code
+   global state, is **not** tied to your identity, GitHub account, email or
+   repository, and never changes.
+2. **Where it goes.** Both events go to the same public endpoint the website uses
+   (`supabase.specbox.build`). The database keeps one activation per install and one
+   heartbeat per install and day.
+3. **Failures.** If an event cannot be sent (no network, server error), nothing is
+   shown to you: the activation is retried on the next start and the heartbeat on
+   the next start or a few hours later the same day. Sending never blocks the
+   extension.
 
-What is **never** sent: local file paths, your git email or name, workspace or
-repo contents, MCP/auth tokens, or any other personally identifiable data. The
-`anon_id` is opaque and is never enriched.
+What is **never** sent: local file paths, project or repository names, your git
+email or name, workspace or repo contents, MCP/auth tokens, or any other
+personally identifiable data.
 
-Respecting your preferences: if you have **disabled VS Code telemetry**
-(`telemetry.telemetryLevel: "off"`, surfaced as `vscode.env.isTelemetryEnabled`),
-the extension emits **nothing**. The emitter is fully best-effort and
-fire-and-forget — it never blocks activation and never surfaces errors to you.
+**How to turn it off:** disable VS Code telemetry — set
+`telemetry.telemetryLevel` to `"off"` (Settings → search *telemetry*). With it off
+the extension sends **nothing** and does not even create the install id.
 
-Implementation: [`src/activation.ts`](src/activation.ts) (US-26, UC-2601/UC-2602).
+Implementation: [`src/activation.ts`](src/activation.ts) (US-26, UC-11801) and
+[`src/heartbeat.ts`](src/heartbeat.ts) (UC-11802).
 
 ---
 

@@ -16,6 +16,7 @@ import { showPrereqGate } from './prerequisites';
 import { showAccountNoticeOnce } from './account-notice';
 import { registerRevertCommand } from './migration';
 import { registerActivationUriHandler, maybeEmitActivation } from './activation';
+import { startHeartbeat } from './heartbeat';
 import { SpecboxCli, cloudApiBase } from './specbox-cli';
 import { ensureDeviceConnection, syncRenewal } from './device-connection';
 import { howToConnectUrl, PANEL_DEVICES_URL } from './constants';
@@ -330,10 +331,13 @@ async function runStartupTasks(context: vscode.ExtensionContext, deps: StartupDe
 		console.warn('[specbox] initial identity refresh failed:', err);
 	});
 
-	// US-26 (UC-2601) — emit the one-shot `activation` funnel event. Idempotent,
+	// US-26 (UC-2601) + US-118 (UC-11801/UC-11802) — emit the one-shot `activation`
+	// event, then the daily heartbeat with the same anonymous id. Idempotent,
 	// privacy-respecting, fully self-guarded — fired without await so a slow or
 	// failing POST can never wedge activation.
-	void maybeEmitActivation(context);
+	void maybeEmitActivation(context).then(() => startHeartbeat(context)).catch((err) => {
+		console.warn('[specbox] usage events failed to start:', err);
+	});
 }
 
 /** Ask /api/whoami now; through the schedule when it exists, so the next background ask is 30 min later. */

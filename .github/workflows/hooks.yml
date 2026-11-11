@@ -7,38 +7,11 @@ name: Hooks and CLAUDE.md inventory
 # check that CLAUDE.md names every skill, hook and agent that exists (and none
 # that does not). Seconds, not minutes: no Python, no Postgres.
 
+# US-121 (UC-12101): manual only. The real check is `bash scripts/ci-local.sh hooks`,
+# which runs the same locally before every PR. Launch by hand when closing a large block:
+# gh workflow run hooks.yml -R EmbedBuild/specbox-engine --ref <branch>
 on:
-  pull_request:
-    paths:
-      - ".claude/hooks/**"
-      - ".claude/settings.json"
-      - "templates/settings.json.template"
-      - "tests/hooks/**"
-      - "tests/docs/**"
-      - "tests/design-review/**"
-      - "tests/visual-setup/**"
-      - "CLAUDE.md"
-      - "agents/**"
-      - ".claude/skills/**"
-      - ".quality/scripts/audit-hooks.mjs"
-      - ".quality/scripts/specbox-audit.mjs"
-      - ".github/workflows/hooks.yml"
-  push:
-    branches: [main]
-    paths:
-      - ".claude/hooks/**"
-      - ".claude/settings.json"
-      - "templates/settings.json.template"
-      - "tests/hooks/**"
-      - "tests/docs/**"
-      - "tests/design-review/**"
-      - "tests/visual-setup/**"
-      - "CLAUDE.md"
-      - "agents/**"
-      - ".claude/skills/**"
-      - ".quality/scripts/audit-hooks.mjs"
-      - ".quality/scripts/specbox-audit.mjs"
-      - ".github/workflows/hooks.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read

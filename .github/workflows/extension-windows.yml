@@ -7,15 +7,11 @@ name: Extension on Windows
 # sistema de ficheros simulado); comprueban el resultado con junctions reales. En macOS y Linux las
 # mismas pruebas usan enlaces simbólicos (npm test en oauth-e2e.yml).
 
+# US-121 (UC-12101): manual only. Windows is the one platform the local CI cannot
+# reproduce: launch it by hand when a PR touches vscode-extension/src/{util,install,health,
+# constants}.ts or vscode-extension/tests/skills-*.test.mjs:
+# gh workflow run extension-windows.yml -R EmbedBuild/specbox-engine --ref <branch>
 on:
-  pull_request:
-    paths:
-      - 'vscode-extension/src/util.ts'
-      - 'vscode-extension/src/install.ts'
-      - 'vscode-extension/src/health.ts'
-      - 'vscode-extension/src/constants.ts'
-      - 'vscode-extension/tests/skills-*.test.mjs'
-      - '.github/workflows/extension-windows.yml'
   workflow_dispatch:
 
 jobs:

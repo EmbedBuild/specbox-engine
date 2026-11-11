@@ -5,17 +5,10 @@ name: MCP — los dos nombres responden igual
 # Sin token: la sesión con token se comprueba en local en cada /release (Paso 6.7), para no
 # guardar en GitHub un token con acceso a los boards.
 
+# US-121 (UC-12101): manual or weekly (Monday 07:30 UTC). The real check is `bash scripts/ci-local.sh hooks`,
+# which runs the same locally before every PR. Launch by hand when closing a large block:
+# gh workflow run mcp-hosts.yml -R EmbedBuild/specbox-engine --ref <branch>
 on:
-  pull_request:
-    paths:
-      - 'scripts/check-mcp-hosts*.mjs'
-      - 'scripts/smoke-freeform-remote*.mjs'
-      - '.github/workflows/mcp-hosts.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'scripts/check-mcp-hosts*.mjs'
-      - 'scripts/smoke-freeform-remote*.mjs'
   schedule:
     - cron: '30 7 * * 1'
   workflow_dispatch:

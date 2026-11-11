@@ -6,22 +6,11 @@ name: Site inventory
 # site_publish tests. The general test suite does not run in CI, so without
 # this job the comparison would only run when someone runs it by hand.
 
+# US-121 (UC-12101): manual only. The real check is `bash scripts/ci-local.sh inventario`,
+# which runs the same locally before every PR. Launch by hand when closing a large block:
+# gh workflow run site-inventory.yml -R EmbedBuild/specbox-engine --ref <branch>
 on:
-  pull_request:
-    paths:
-      - "server/**"
-      - "tests/test_site_publish_*.py"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".github/workflows/site-inventory.yml"
-  push:
-    branches: [main]
-    paths:
-      - "server/**"
-      - "tests/test_site_publish_*.py"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".github/workflows/site-inventory.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read

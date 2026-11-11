@@ -5,20 +5,11 @@ name: specbox CLI
 # sistemas (cada uno usa un almacén seguro distinto) y en la Node más antigua
 # que declara el paquete.
 
+# US-121 (UC-12101): manual only. The real check is `bash scripts/ci-local.sh cli`,
+# which runs the same locally before every PR. Launch by hand when closing a large block:
+# gh workflow run specbox-cli.yml -R EmbedBuild/specbox-engine --ref <branch>
 on:
-  pull_request:
-    paths:
-      - 'packages/specbox-cli/**'
-      - '.github/workflows/specbox-cli.yml'
-      - '.github/workflows/publish-specbox-cli.yml'
-      - 'scripts/npm-publish-and-wait.sh'
-      - 'scripts/tests/test-npm-publish-and-wait.sh'
-  push:
-    branches: [main]
-    paths:
-      - 'packages/specbox-cli/**'
-      - 'scripts/npm-publish-and-wait.sh'
-      - 'scripts/tests/test-npm-publish-and-wait.sh'
+  workflow_dispatch:
 
 jobs:
   # UC-5902 — el paso de publicación espera a npm aunque la versión quede «staged».

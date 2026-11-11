@@ -167,6 +167,45 @@ para el rationale arquitectural y los trade-offs de seguridad residuales.
 
 ---
 
+## Telemetría de uso (anónima)
+
+Para saber cuánta gente usa SpecBox, y no solo cuántas descargas hay, la extensión
+envía dos tipos de eventos anónimos. Los dos respetan la telemetría de VS Code.
+
+| Evento | Cuándo | Qué lleva |
+|---|---|---|
+| **`activation`** | **Una vez por instalación**, la primera vez que arranca la extensión | Un identificador aleatorio de la instalación, la **versión de la extensión**, la **plataforma**, la **versión de VS Code** y el **origen**: `site` si la instalaste desde la web de SpecBox, `marketplace` si no |
+| **`heartbeat`** | **Como mucho una vez al día** (UTC) mientras usas VS Code con la extensión | El mismo identificador, la **versión de la extensión**, la **plataforma**, la **versión de VS Code** y el **backend de tracking** de la carpeta abierta: `freeform`, `native`, `trello`, `plane` o `none` |
+
+Cómo funciona:
+
+1. **El identificador.** Si pulsas **Instalar la extensión** en la web de SpecBox,
+   la web abre `vscode://EmbedBuild.specbox-engine/activate?anon_id=<uuid>` y ese
+   identificador aleatorio de la visita anónima pasa a ser el de la instalación. Si
+   no, la extensión genera un UUID v4 al azar. En los dos casos se guarda en el
+   estado global de VS Code, **no** está ligado a tu identidad, tu cuenta de GitHub,
+   tu correo ni tu repositorio, y no cambia nunca.
+2. **Adónde va.** Los dos eventos van al mismo punto público que usa la web
+   (`supabase.specbox.build`). La base guarda una activación por instalación y un
+   latido por instalación y día.
+3. **Si falla.** Si un evento no se puede enviar (sin red, error del servidor), no
+   ves nada: la activación se reintenta en el siguiente arranque y el latido en el
+   siguiente arranque o unas horas después el mismo día. Enviar nunca bloquea la
+   extensión.
+
+Lo que **nunca** se envía: rutas locales, nombres de proyectos o repositorios, tu
+correo o nombre de git, el contenido del workspace o del repositorio, tokens del MCP
+o de sesión, ni ningún otro dato personal.
+
+**Cómo desactivarlo:** desactiva la telemetría de VS Code, con
+`telemetry.telemetryLevel` en `"off"` (Ajustes → busca *telemetry*). Desactivada,
+la extensión **no envía nada** y ni siquiera crea el identificador.
+
+Implementación: [`src/activation.ts`](src/activation.ts) (US-26, UC-11801) y
+[`src/heartbeat.ts`](src/heartbeat.ts) (UC-11802).
+
+---
+
 ## Requisitos
 
 - **Claude Code** — [instalar](https://claude.ai/code) o la extensión oficial de Claude para VSCode.

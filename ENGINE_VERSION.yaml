@@ -1,8 +1,8 @@
-version: 6.32.0
-codename: "Sello"
+version: 6.33.0
+codename: "Latido"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-11-10
+release_date: 2026-11-11
 min_claude_code: "1.0.0"
 
 stacks:
@@ -595,7 +595,18 @@ features:
   - ac-receipt-commit
   - ac-repeatable-test-flag
 
+  # New (v6.33.0) — Latido
+  - extension-install-identity
+  - extension-daily-heartbeat
+
 changelog:
+  6.33.0:
+    date: 2026-11-11
+    codename: "Latido"
+    changes:
+      - "fix: the extension's activation event is finally recorded — it used to send a null anon_id when the install did not come through the site's deep link, the database rejected it and it was silently retried on every start (0 activations since June); now every install gets its own id: the site visit id (meta.origin = site) or a random UUID v4 (meta.origin = marketplace), stored before sending and never changed; the first emission waits 5 s for a deep link still arriving and the deep-link handler triggers it too (UC-11801, #342)"
+      - "feat: the extension sends an anonymous heartbeat once per natural UTC day with the same install id and only extension version, platform, VS Code version and the tracking backend of the open folder (freeform, native, trello, plane or none); nothing with VS Code telemetry off; a failure is silent and retried on the next start or the 6-hourly check; README and README.es explain what is sent, how often and how to turn it off (UC-11802, #343)"
+
   6.32.0:
     date: 2026-11-10
     codename: "Sello"

@@ -8,6 +8,15 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.33.0] — "Latido"
+
+- **The activation is recorded.** Every install now gets its own random id (or the website visit id if it came
+  through specbox.build) and says where it came from. Before, an install from the Marketplace sent an empty id
+  and no activation was ever stored.
+- **Anonymous daily heartbeat.** At most once a day the extension reports that it is still in use: extension
+  version, platform, VS Code version and the board type of the open folder. Nothing with VS Code telemetry off.
+  See «Usage telemetry» in the README.
+
 ## [6.32.0] — "Sello"
 
 - **No changes in the extension itself.** Its version follows the engine, and the engine it installs and updates

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.32.0 — "Sello" (sobre v6.31.0 "Mudanza")<br/>
+  v 6.33.0 — "Latido" (sobre v6.32.0 "Sello")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,23 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.33
+
+**v6.33.0 — "Latido"** hace que SpecBox sepa cuánta gente lo usa, sin saber quién es nadie:
+
+- **La activación por fin cuenta** — antes la extensión mandaba un identificador vacío cuando no se instalaba
+  desde la web, la base la rechazaba y no se registró ninguna desde junio. Ahora cada instalación tiene su
+  identificador aleatorio y dice si llegó por la web o directamente desde el Marketplace.
+- **Un latido anónimo al día** — la extensión avisa como mucho una vez al día de que sigue en uso, con la
+  versión, la plataforma, la versión de VS Code y el tipo de board de la carpeta abierta. Nada de rutas,
+  nombres ni correos.
+- **Se apaga con la telemetría de VS Code** — con `telemetry.telemetryLevel` en `off` no se envía nada; el
+  README de la extensión dice qué se envía y cada cuánto.
+
+100% backwards-compatible: nada cambia en el engine ni en el MCP; solo la extensión.
 
 ---
 
@@ -836,7 +853,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.32.0 — "Sello" (over v6.31.0 "Mudanza")
+> v 6.33.0 — "Latido" (over v6.32.0 "Sello")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -849,6 +866,20 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.33
+
+**v6.33.0 — "Latido"** lets SpecBox know how many people use it, without knowing who anyone is:
+
+- **The activation finally counts** — the extension used to send an empty id when it was not installed from
+  the website; the database rejected it and none was recorded since June. Now every install has its own random
+  id and says whether it came through the website or straight from the Marketplace.
+- **An anonymous heartbeat a day** — at most once a day the extension says it is still in use, with its
+  version, the platform, the VS Code version and the board type of the open folder. No paths, names or emails.
+- **Off with VS Code telemetry** — with `telemetry.telemetryLevel` set to `off` nothing is sent; the
+  extension's README says what is sent and how often.
+
+100% backwards-compatible: nothing changes in the engine or the MCP; only the extension.
 
 ## What's new in v6.32
 

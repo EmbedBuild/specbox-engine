@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.33.1] — "A la primera"
+
+- **New installs are counted on their first start.** In 6.33.0 the activation waited until the «SpecBox Engine
+  detected but not installed. Run the setup wizard?» notification was answered, so a clean install from the
+  Marketplace was not counted. It now starts first, before any notification. What is sent does not change.
+
 ## [6.33.0] — "Latido"
 
 - **The activation is recorded.** Every install now gets its own random id (or the website visit id if it came

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.33.0 — "Latido" (sobre v6.32.0 "Sello")<br/>
+  v 6.33.1 — "A la primera" (sobre v6.33.0 "Latido")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -39,6 +39,10 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
   README de la extensión dice qué se envía y cada cuánto.
 
 100% backwards-compatible: nada cambia en el engine ni en el MCP; solo la extensión.
+
+**v6.33.1 — "A la primera"** cuenta cada instalación nueva del Marketplace en su primer arranque: en la 6.33.0
+la activación esperaba a que se contestara el aviso de instalación del engine. Y el engine se prueba en local,
+con el mismo CI estándar que el resto del ecosistema.
 
 ---
 
@@ -853,7 +857,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.33.0 — "Latido" (over v6.32.0 "Sello")
+> v 6.33.1 — "A la primera" (over v6.33.0 "Latido")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -880,6 +884,10 @@ A system that turns Claude Code into a serious teammate:
   extension's README says what is sent and how often.
 
 100% backwards-compatible: nothing changes in the engine or the MCP; only the extension.
+
+**v6.33.1 — "A la primera"** counts every new install from the Marketplace on its first start: in 6.33.0 the
+activation waited until the engine install notification was answered. And the engine is tested in local, with
+the same standard CI as the rest of the ecosystem.
 
 ## What's new in v6.32
 

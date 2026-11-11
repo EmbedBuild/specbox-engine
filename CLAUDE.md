@@ -1,4 +1,4 @@
-# SpecBox Engine v6.33.0
+# SpecBox Engine v6.33.1
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2942,13 +2942,17 @@ y no se registró ninguna desde junio; y no había señal de uso.
 - **Latido diario** (UC-11802, `vscode-extension/src/heartbeat.ts`): `emitHeartbeat` manda como mucho un
   `heartbeat` por día UTC (`specbox.funnel.heartbeatDay`) con versión, plataforma, versión de VS Code y
   `readWorkspaceBackend` de la primera carpeta; `startHeartbeat` lo lanza tras la activación y cada 6 h.
+- **Lo primero del arranque** (v6.33.1): `runStartupTasks` lanza activación y latido antes de cualquier `await`
+  y sin esperarlos. En la 6.33.0 iban al final, detrás de avisos que esperan un clic («Run the setup
+  wizard?» sale en toda instalación limpia), y una instalación nueva del Marketplace no se contaba
+  (`vscode-extension/tests/startup-order.test.mjs`).
 - La base (`specbox_cloud`, UC-11803) guarda una activación por instalación y un latido por instalación y día
   y expone `adoption_active`, `adoption_mcp_people` y `adoption_summary` solo para `service_role`.
 - Tests: `vscode-extension/tests/activation.test.mjs` y `tests/heartbeat.test.mjs`.
 
 ## Engine Version
 
-Current: v6.33.0 "Latido"
+Current: v6.33.1 "A la primera"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

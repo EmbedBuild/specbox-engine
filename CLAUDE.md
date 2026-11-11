@@ -1,4 +1,4 @@
-# SpecBox Engine v6.32.0
+# SpecBox Engine v6.33.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2915,9 +2915,26 @@ ficheros tocados.
   leer). `/implement` 8.5.4 deja un recibo `test` por prueba de aceptación.
 - Tests: `tests/test_ac_text_change_resets.py`, `test_ac_receipt_commit.py`, `test_get_uc_repeatable.py`.
 
+## Saber cuánta gente usa SpecBox (US-118, v6.33.0)
+
+Pregunta de Jesús (2026-11-11): cuánta gente usa SpecBox. No se podía saber: la activación de la extensión
+mandaba `p_anon_id: null` cuando la instalación no venía del enlace de la web, `ingest_site_event` lo rechazaba
+y no se registró ninguna desde junio; y no había señal de uso.
+
+- **Identificador por instalación** (UC-11801, `vscode-extension/src/activation.ts`): `resolveInstallIdentity`
+  elige el de la visita (`origin: site`) o un UUID v4 (`origin: marketplace`); `emitActivation` lo guarda en
+  `globalState` (`specbox.funnel.installId`, `specbox.funnel.origin`) antes del POST, espera 5 s la primera vez
+  por si llega el enlace y tiene un guardia en memoria; el manejador del enlace también la dispara.
+- **Latido diario** (UC-11802, `vscode-extension/src/heartbeat.ts`): `emitHeartbeat` manda como mucho un
+  `heartbeat` por día UTC (`specbox.funnel.heartbeatDay`) con versión, plataforma, versión de VS Code y
+  `readWorkspaceBackend` de la primera carpeta; `startHeartbeat` lo lanza tras la activación y cada 6 h.
+- La base (`specbox_cloud`, UC-11803) guarda una activación por instalación y un latido por instalación y día
+  y expone `adoption_active`, `adoption_mcp_people` y `adoption_summary` solo para `service_role`.
+- Tests: `vscode-extension/tests/activation.test.mjs` y `tests/heartbeat.test.mjs`.
+
 ## Engine Version
 
-Current: v6.32.0 "Sello"
+Current: v6.33.0 "Latido"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

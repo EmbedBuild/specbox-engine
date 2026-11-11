@@ -2,6 +2,45 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.33.0] - 2026-11-11 — "Latido"
+
+SpecBox no sabía cuánta gente lo usa: la activación de la extensión nunca llegaba a la base (mandaba un
+identificador vacío cuando la instalación no venía de la web y la base lo rechazaba) y no había ninguna señal
+de uso. Esta versión arregla la activación y añade un latido anónimo diario, para que la página «Adopción» del
+panel cuente las instalaciones activas, su retención, su versión y su tipo de board (US-118 del board del
+orquestador, épica EP-19 «Saber quién usa SpecBox»).
+
+### Added
+
+- **Latido diario anónimo** (`vscode-extension/src/heartbeat.ts`, UC-11802) — como mucho un evento
+  `heartbeat` por instalación y día natural UTC, con el identificador de la activación y solo la versión de la
+  extensión, la plataforma, la versión de VS Code y el backend de tracking de la carpeta abierta (`freeform`,
+  `native`, `trello`, `plane` o `none`, detectado como `detect_project_backend`). Se envía al arrancar y se
+  comprueba cada 6 horas mientras VS Code sigue abierto.
+- **Sección de telemetría de uso** en `vscode-extension/README.md` (la ficha del Marketplace) y
+  `README.es.md`: qué se envía, cada cuánto y cómo desactivarlo.
+
+### Fixed
+
+- **La activación se registra** (UC-11801) — cada instalación tiene su identificador: el de la visita si llegó
+  por la web (`meta.origin = site`) o un UUID v4 aleatorio (`meta.origin = marketplace`). Se guarda antes de
+  enviar y no cambia; la primera emisión espera 5 s a que llegue el enlace de la web y el propio enlace también
+  la dispara. Antes se mandaba `p_anon_id: null` y la base lo rechazaba: 0 activaciones desde junio.
+
+### Decisions
+
+- Con la telemetría de VS Code desactivada no se envía nada y ni siquiera se crea el identificador.
+- La base guarda una activación por instalación y un latido por instalación y día (`specbox_cloud` UC-11803,
+  ya en producción): los reintentos no duplican nada.
+
+### Compatibility
+
+- Solo cambia la extensión; el engine, el MCP y las tools no cambian.
+
+### Tests
+
+- `vscode-extension/tests/activation.test.mjs` (reescrito) y `tests/heartbeat.test.mjs` (nuevo): 234/234.
+
 ## [6.32.0] - 2026-11-10 — "Sello"
 
 El justificante de cada criterio de aceptación dice ahora qué demuestra y deja de valer cuando cambia lo

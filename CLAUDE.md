@@ -1,4 +1,4 @@
-# SpecBox Engine v6.33.1
+# SpecBox Engine v6.34.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2343,8 +2343,9 @@ tenants por PostgREST.
   ni funciones de extensiones) o `table_writable_by_public_role` (solo en `public`) salvo que
   `server/db/surface_allowlist.yaml` lo apruebe con un motivo; una entrada sin motivo hace fallar
   la comprobación. Salida 0/1/2; el DSN nunca se imprime.
-- Lista aprobada (5): `public.ingest_site_event` y `public.site_funnel` (RPC del site), vistas
-  `public.site_activity` y `public.site_stats` (solo recuentos) y `business.project_specs`
+- Lista aprobada (5): `public.ingest_site_event` (ingesta del site y de la extensión), vistas
+  `public.site_activity`, `public.site_showcase` y `public.site_stats` (solo recuentos y lo que
+  el site enseña) y `business.project_specs`
   (puerta de lectura del portal, filtra por `business.is_project_member`). Las entradas que no
   encuentran nada se informan como `unused` sin fallar.
 - CI: `.github/workflows/db-surface-check.yml` monta Postgres 16 como Supabase (roles y
@@ -2954,7 +2955,7 @@ y no se registró ninguna desde junio; y no había señal de uso.
 
 ## Engine Version
 
-Current: v6.33.1 "A la primera"
+Current: v6.34.0 "Foto fija"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

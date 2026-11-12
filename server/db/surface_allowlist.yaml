@@ -18,19 +18,14 @@ exceptions:
   - kind: function
     name: public.ingest_site_event(text, text, text, text, text, jsonb)
     reason: >-
-      Funnel ingestion for the public site and the VS Code extension's activation event
-      (US-24, US-26). SECURITY DEFINER with a pinned search_path; it rejects an empty
-      anon_id and any event type outside page_view, section_view, cta_click,
-      install_intent and activation, and only inserts into site_event. Since UC-4202 it
+      Funnel ingestion for the public site and the VS Code extension's activation and daily
+      heartbeat events (US-24, US-26, UC-11803). SECURITY DEFINER with a pinned search_path;
+      it rejects an empty anon_id and any event type outside page_view, section_view,
+      cta_click, install_intent, activation and heartbeat, rejects an activation or a
+      heartbeat sent from a browser (Origin header), and only inserts into site_event, one
+      activation per anon_id and one heartbeat per anon_id and UTC day. Since UC-4202 it
       rejects anon_id, page or ref_id over 200 characters and meta over 2 KB, and drops
       (without an error) anything beyond 60 events per minute from the same anon_id.
-
-  - kind: function
-    name: public.site_funnel(timestamp with time zone, timestamp with time zone, text)
-    reason: >-
-      Funnel read for the cloud SuperAdmin panel (US-25). SECURITY DEFINER with a pinned
-      search_path; it raises "forbidden: superadmin only" unless panel.is_superadmin(),
-      so anon and ordinary users get an error and no data.
 
   - kind: view
     name: public.site_activity

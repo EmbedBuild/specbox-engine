@@ -8,6 +8,11 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.34.0] — "Foto fija"
+
+- No changes for extension users. The version follows the engine, whose `get_marketplace_stats` tool now reads
+  the daily snapshot of Marketplace, npm and GitHub figures stored in the database.
+
 ## [6.33.1] — "A la primera"
 
 - **New installs are counted on their first start.** In 6.33.0 the activation waited until the «SpecBox Engine

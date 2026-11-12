@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.33.1 — "A la primera" (sobre v6.33.0 "Latido")<br/>
+  v 6.34.0 — "Foto fija" (sobre v6.33 "A la primera")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -22,6 +22,21 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.34
+
+**v6.34.0 — "Foto fija"** hace que `get_marketplace_stats` lea la foto diaria de lo que se ve desde fuera,
+guardada en la base:
+
+- **Una foto cada día** — una tarea del servidor guarda cada mañana las instalaciones y actualizaciones del
+  Marketplace, las descargas de npm y las estrellas de GitHub. La herramienta las lee de ahí, con su
+  crecimiento y su serie diaria, en lugar de depender de un workflow que nunca guardaba nada.
+- **Solo cifras públicas** — el tráfico de GitHub no sale de la herramienta. Sin foto todavía, lo dice y por
+  qué, sin detalles internos.
+
+100% backwards-compatible: `total_installs` y `daily_series` mantienen su forma; nada cambia en la extensión.
 
 ---
 
@@ -857,7 +872,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.33.1 — "A la primera" (over v6.33.0 "Latido")
+> v 6.34.0 — "Foto fija" (over v6.33 "A la primera")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -870,6 +885,22 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.34
+
+**v6.34.0 — "Foto fija"** makes `get_marketplace_stats` read the daily snapshot of what is visible from
+outside, stored in the database:
+
+- **One snapshot a day** — a server task stores every morning the Marketplace installs and updates, npm
+  downloads and GitHub stars. The tool reads them from there, with their growth and daily series, instead of
+  relying on a workflow that never kept anything.
+- **Public figures only** — GitHub traffic stays out of the tool. With no snapshot yet, it says so and why,
+  without internal details.
+
+100% backwards-compatible: `total_installs` and `daily_series` keep their shape; nothing changes in the
+extension.
+
+---
 
 ## What's new in v6.33
 

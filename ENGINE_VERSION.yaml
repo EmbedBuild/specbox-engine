@@ -1,8 +1,8 @@
-version: 6.33.1
-codename: "A la primera"
+version: 6.34.0
+codename: "Foto fija"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-11-11
+release_date: 2026-11-12
 min_claude_code: "1.0.0"
 
 stacks:
@@ -600,8 +600,18 @@ features:
   - extension-daily-heartbeat
   # New (v6.33.1) — A la primera
   - engine-local-ci
+  # New (v6.34.0) — Foto fija
+  - marketplace-stats-daily-snapshot
 
 changelog:
+  6.34.0:
+    date: 2026-11-12
+    codename: "Foto fija"
+    changes:
+      - "feat: get_marketplace_stats reads the daily snapshot that a VPS task stores in public.external_signal_daily (Marketplace installs and updates with growth and a daily series, npm downloads, GitHub stars and forks); public figures only, the GitHub traffic stays out; with no database or no snapshot yet it answers no_data_yet with the reason (UC-11903, #348)"
+      - "chore: removed the marketplace-stats workflow and scripts/fetch-marketplace-stats.mjs, which wrote to an ignored file and never kept anything; the runbook now describes the daily snapshot and the extension's usage telemetry (UC-11903, #348)"
+      - "chore: the database surface allowlist drops public.site_funnel (removed with the cloud panel's «Adopción» page) and describes ingest_site_event with the heartbeat event"
+
   6.33.1:
     date: 2026-11-11
     codename: "A la primera"

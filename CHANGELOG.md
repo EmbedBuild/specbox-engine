@@ -2,6 +2,47 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.34.0] - 2026-11-12 — "Foto fija"
+
+`get_marketplace_stats` dependía de un workflow que escribía un fichero ignorado y nunca guardaba nada: la
+herramienta no tenía de dónde sacar la historia. Desde US-119 una tarea del servidor guarda cada mañana una foto
+de lo que se ve desde fuera (Marketplace, npm y GitHub) en la base, y esta versión hace que la herramienta la lea
+de ahí.
+
+### Changed
+
+- **`get_marketplace_stats` lee la foto diaria** (UC-11903, #348) — instalaciones y actualizaciones del
+  Marketplace con su crecimiento y su serie diaria, descargas de npm de la ventana y estrellas y forks de GitHub,
+  desde `public.external_signal_daily`. `total_installs` y `daily_series` mantienen su forma. Solo cifras
+  públicas: el tráfico de GitHub (visitas y clones) no sale de la herramienta. Sin base o sin foto todavía,
+  responde `no_data_yet` con el motivo y sin detalles internos.
+- **Lista de superficies de la base** — sale `public.site_funnel`, que el panel retiró con su página «Adopción»,
+  y el motivo de `public.ingest_site_event` describe también el latido de la extensión.
+
+### Removed
+
+- El workflow `marketplace-stats.yml` y `scripts/fetch-marketplace-stats.mjs`: escribían en un fichero ignorado y
+  no guardaban nada (#348). El runbook `doc/runbooks/marketplace-stats.md` describe ahora la foto diaria y la
+  telemetría de uso de la extensión.
+
+### Security
+
+- **La lista de superficies aprobadas ya no aprueba lo que no existe** — `public.site_funnel` sale de la lista:
+  si algún día volviera a crearse una función con ese nombre y abierta a más roles, la comprobación de la base la
+  marcaría en lugar de darla por buena.
+- **`get_marketplace_stats` solo da cifras públicas** — las visitas y clones de GitHub, que la foto diaria
+  también guarda, no salen de la herramienta.
+
+### Compatibility
+
+- 100% backwards-compatible para quien llama a la herramienta. `jsonl_content` se acepta y se ignora. La
+  extensión no cambia.
+
+### Tests
+
+- `tests/test_marketplace_tool.py`: 9 pruebas (resumen, consulta, límites y errores).
+- CI local completo en verde.
+
 ## [6.33.1] - 2026-11-11 — "A la primera"
 
 La 6.33.0 arregló la activación, pero una instalación limpia desde el Marketplace seguía sin contarse: la

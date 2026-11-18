@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.35.0] — "Palabra"
+
+- **A new FreeForm project starts with the discovery gate in «warn».** When the extension creates
+  `.claude/settings.local.json` while configuring FreeForm, it writes `specbox.discovery.gate_mode: "warn"`, so
+  `/prd` without a discovery leaves a note and goes on. A project that already had the file keeps its settings.
+
 ## [6.34.0] — "Foto fija"
 
 - No changes for extension users. The version follows the engine, whose `get_marketplace_stats` tool now reads

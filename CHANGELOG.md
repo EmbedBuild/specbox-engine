@@ -2,6 +2,63 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.35.0] - 2026-11-18 — "Palabra"
+
+La auditoría de la 6.34.0 frente a lo que pide un Spec-Driven Development (EP-20) encontró promesas de la
+documentación que el código no cumplía y medidas que existían pero no se ejecutaban. Esta versión es la primera
+tanda de US-122: la documentación dice lo que pasa hoy, y tres medidas que no corrían vuelven a correr.
+
+### Fixed
+
+- **Las zonas automáticas de `app_spec` entran al empezar la sesión** (UC-12205, #350) — la expresión de
+  session-start exigía cerrar el marcador justo después del id y la plantilla trae `auto_sync_on` detrás: no casaba
+  ninguna zona y el stack, el backend de tracking y el autopilot nunca llegaban a la sesión. Ahora lee los
+  atributos en cualquier orden, con otros atributos y con comillas dobles o simples.
+- **El presupuesto de contexto vigila a los subagentes** (UC-12208, #351) — Claude Code los lanza con la
+  herramienta `Agent` y el guard solo escuchaba `Task`, así que no se ejecutaba nunca. El matcher es `Agent|Task`
+  en `.claude/settings.json` y en la plantilla, y los ajustes se leen por clave de `settings.local.json` (gana) y
+  de `settings.json`, donde los escribe la plantilla.
+- **Un proyecto nuevo nace con el control de discovery en «warn»** (UC-12207, #352) — `onboard_project` escribe
+  `specbox.discovery.gate_mode` y `specbox.engine_version_at_onboard`, y la extensión hace lo mismo al configurar
+  FreeForm si `settings.local.json` no existía. Un valor que ya estuviera no se toca, y `upgrade_project` no crea
+  los ajustes: los proyectos que ya existían siguen en «off».
+- **`add_uc` sigue la numeración de la historia** (UC-12214, #356) — tomaba el máximo del tablero y en US-122 creó
+  UC-12802. Si todas las UC de la historia siguen `UC-{historia}{NN}`, la nueva continúa la serie; si no, el
+  siguiente del tablero, como antes. Acepta `uc_id` explícito y responde `INVALID_UC_ID`, `UC_ID_TAKEN` o
+  `UC_ID_CONFLICT` sin crear nada. En FreeForm el hook de fragmentos calcula el mismo id y lo reserva.
+
+### Changed
+
+- **La documentación dice lo que pasa** (UC-12201 #353, UC-12202 #354, UC-12204 #355):
+  - El Definition Quality Gate avisa y se reescribe; no bloquea (`/prd`, `/plan`, `/quickstart`, GLOBAL_RULES,
+    CLAUDE.md y README).
+  - spec-guard corre después de escribir: sin UC activa deja una nota y bloquea en `main`/`master`. branch-guard
+    figura como no registrado.
+  - Spec-Code Sync lista los ficheros tocados en cada fase y aún no los compara con el plan. Lo dicen también las
+    instrucciones que el servidor MCP manda a los clientes.
+
+### Security
+
+- **Configurar FreeForm desde la extensión no pisa los ajustes del proyecto** — al conectar un proyecto FreeForm,
+  la extensión conserva los ajustes y las variables de entorno que ya tenía `settings.local.json`; esta versión
+  solo añade el modo del discovery cuando el fichero no existía, y el flujo de conexión no cambia en lo que toca a
+  credenciales.
+
+### Tests
+
+- `tests/test_doc_promises.py` (11): falla si la documentación viva o las instrucciones del MCP vuelven a prometer
+  un bloqueo o una comparación con el plan que el código no hace.
+- `app-spec-zones.test.mjs` (8) y una prueba de session-start con la plantilla real; 6 pruebas nuevas de
+  context-budget-guard con la carga real de un subagente; `test_onboard_discovery_gate.py` (8) y 3 de la extensión;
+  pruebas de numeración en `test_spec_mutations.py`, `test_freeform_fragment_equivalence.py` y
+  `freeform-fragment.test.mjs`.
+
+### Compatibility
+
+- Los proyectos existentes conservan sus ajustes de discovery. Los tableros numerados de forma correlativa siguen
+  la regla de antes en `add_uc`. Las UC-12301, UC-12601 y UC-12602 volverán a subir las promesas cuando el código
+  las cumpla.
+
 ## [6.34.0] - 2026-11-12 — "Foto fija"
 
 `get_marketplace_stats` dependía de un workflow que escribía un fichero ignorado y nunca guardaba nada: la

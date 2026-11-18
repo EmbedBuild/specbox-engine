@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.34.0 — "Foto fija" (sobre v6.33 "A la primera")<br/>
+  v 6.35.0 — "Palabra" (sobre v6.34 "Foto fija")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,29 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.35
+
+**v6.35.0 — "Palabra"** hace que el engine diga solo lo que cumple y cumpla lo que dice:
+
+- **La documentación dice lo que pasa** — el Definition Quality Gate avisa de los criterios vagos, spec-guard
+  deja una nota si no hay UC activa, y Spec-Code Sync lista los ficheros de cada fase sin compararlos aún con el
+  plan. Lo dicen
+  las skills, las reglas, este README y las instrucciones que el MCP manda a los clientes, y una prueba falla si
+  la promesa vuelve sin el código que la cumpla.
+- **El arranque de sesión lee el canon** — el stack, el backend de tracking y el autopilot de
+  `doc/app/app_spec.md` entran al empezar la sesión, como prometía CLAUDE.md.
+- **El presupuesto de contexto ve a los subagentes** — el guard escucha la herramienta `Agent`, que es la que
+  usa Claude Code.
+- **Un proyecto nuevo nace con el discovery en «warn»** — `onboard_project` y la extensión lo escriben al crear
+  los ajustes; un proyecto que ya existía no cambia.
+- **`add_uc` sigue la numeración de la historia** — en un tablero que numera `UC-{historia}{NN}` la nueva UC
+  continúa la serie; acepta un `uc_id` explícito y no crea nada si el id choca con otra historia.
+
+100% backwards-compatible: los proyectos existentes conservan sus ajustes, y los tableros numerados de forma
+correlativa siguen con la regla de antes.
 
 ---
 
@@ -872,7 +895,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.34.0 — "Foto fija" (over v6.33 "A la primera")
+> v 6.35.0 — "Palabra" (over v6.34 "Foto fija")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -886,6 +909,28 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.35
+
+**v6.35.0 — "Palabra"** makes the engine say only what it does, and do what it says:
+
+- **The documentation says what happens** — the Definition Quality Gate warns about vague criteria, spec-guard
+  leaves a note when no UC is active, and Spec-Code Sync lists each phase's files without checking them against
+  the plan yet.
+  The skills, the rules, this README and the instructions the MCP sends to clients say so, and a test fails if
+  the promise comes back without the code that keeps it.
+- **Session start reads the canon** — the stack, tracking backend and autopilot from `doc/app/app_spec.md`
+  reach the session when it starts, as CLAUDE.md promised.
+- **The context budget sees subagents** — the guard listens to the `Agent` tool, the one Claude Code uses.
+- **A new project starts with discovery in «warn»** — `onboard_project` and the extension write it when they
+  create the settings; a project that already existed does not change.
+- **`add_uc` follows the story's numbering** — on a board numbered `UC-{story}{NN}` the new UC continues the
+  series; it takes an explicit `uc_id` and creates nothing if the id belongs to another story.
+
+100% backwards-compatible: existing projects keep their settings, and boards numbered in sequence keep the old
+rule.
+
+---
 
 ## What's new in v6.34
 

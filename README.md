@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.38.1 — "Sin atascos" (sobre v6.38.0 "Lo justo")<br/>
+  v 6.39.0 — "Umbral" (sobre v6.38 "Lo justo")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,23 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.39
+
+**v6.39.0 — "Umbral"** comprueba la spec en la puerta de la UC:
+
+- **`start_uc` mide los criterios antes de reservar** — con la medida `spec_quality` en «block», una UC sin
+  criterios o por debajo del umbral del proyecto (1,0 por defecto) no arranca, y la respuesta dice qué criterio
+  falla y por qué; en «warn», arranca con el aviso.
+- **Lo que falta por decidir queda marcado** — una marca `[POR DECIDIR: …]` en la UC o en un criterio detiene el
+  arranque con `pending_decisions` en «block»; las plantillas de PRD y plan ganan «Pendiente de decidir».
+- **Los criterios usan lenguaje normativo y límites con cifra** — «debería» o «rápido» sin número dejan de pasar;
+  una cifra de rendimiento sin red, volumen ni dispositivo avisa. Solo para criterios escritos desde esta versión.
+
+100% backwards-compatible: las dos medidas empiezan en «warn» y los criterios que ya existían no cambian de
+veredicto.
 
 ---
 
@@ -958,7 +975,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.38.1 — "Sin atascos" (over v6.38.0 "Lo justo")
+> v 6.39.0 — "Umbral" (over v6.38 "Lo justo")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -972,6 +989,22 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.39
+
+**v6.39.0 — "Umbral"** checks the spec at the UC's door:
+
+- **`start_uc` measures the criteria before reserving** — with the `spec_quality` measure in «block», a UC with no
+  criteria or below the project threshold (1.0 by default) does not start, and the answer says which criterion
+  fails and why; in «warn», it starts with the warning.
+- **What is still undecided stays marked** — a `[POR DECIDIR: …]` mark in the UC or a criterion stops the start
+  with `pending_decisions` in «block»; the PRD and plan templates gain «Pendiente de decidir».
+- **Criteria use normative language and limits with a figure** — «should» or «fast» without a number stop passing;
+  a performance figure with no network, volume or device warns. Only for criteria written from this version on.
+
+100% backwards-compatible: both measures start in «warn» and existing criteria keep their verdict.
+
+---
 
 ## What's new in v6.38
 

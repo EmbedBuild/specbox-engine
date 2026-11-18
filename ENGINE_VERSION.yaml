@@ -1,5 +1,5 @@
-version: 6.38.1
-codename: "Sin atascos"
+version: 6.39.0
+codename: "Umbral"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-18
@@ -629,8 +629,24 @@ features:
   # New (v6.38.1) — Sin atascos
   - managed-clone-clean-rebuild
   - prd-locate-named-folders
+  # New (v6.39.0) — Umbral
+  - measure-spec-quality-at-start
+  - measure-pending-decisions
+  - spec-quality-threshold-per-project
+  - ac-rules-v2-normative-measurable
+  - ac-rules-stamp-per-criterion
 
 changelog:
+  6.39.0:
+    date: 2026-11-18
+    codename: "Umbral"
+    changes:
+      - "feat: start_uc checks the spec_quality measure before reserving (native) or moving (FreeForm), only from backlog or user_stories: in «block» a UC with no criteria or below the project threshold returns AC_QUALITY_BELOW_THRESHOLD with each criterion and its reason and stays put; in «warn» it starts with the warning; a UC predating the rule or with a skip starts. Per-project threshold (1.0 by default) in set_enforcement_mode(threshold) and get_enforcement_policy; blocks and their fixes go to audit_log or enforcement_events.jsonl (UC-12301, #376)"
+      - "feat: pending_decisions measure: a [POR DECIDIR: …] mark in the UC name, description or a criterion stops start_uc in «block» with PENDING_DECISIONS and each mark; quoted marks do not count; PRD and plan templates gain «Pendiente de decidir»; /implement stops before start_uc without triage (UC-12305, #377)"
+      - "feat: import_spec and add_ac return spec_gate per UC (gate result and pending marks) (UC-12301, UC-12305)"
+      - "feat: AC rules v2: weak_modal and no_threshold fail a criterion, threshold_without_condition warns; quoted text does not count; each criterion stores the rules it was written under (meta.spec_rules) and older ones are judged with the old rules, with predates_rule showing what the new ones would say (UC-12302, #378)"
+      - "fix: validate_ac_quality counts a UC with no criteria as pass_rate 0 (was 1.0); the docs say the gate is enforced by start_uc with the measure in «block» and drop the UC-12201 note (UC-12301)"
+
   6.38.1:
     date: 2026-11-18
     codename: "Sin atascos"

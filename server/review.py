@@ -15,6 +15,9 @@ La parte pura de la revisión independiente, sin tablero ni red:
 - **Caducan** (:func:`voids_review`): al volver a trabajo desde revisión o hecha, o al reabrir una UC
   hecha, los veredictos vigentes caducan (``voided_at``), igual que la aceptación de una persona. La
   regla solo cuenta los vigentes: lo revisado tiene que ser el trabajo que se va a fusionar.
+- **El visto bueno de una persona va con su aceptación** (UC-12404): el panel guarda un «aceptada» de
+  persona al aceptar, para ordenarlo frente a una devolución. Sin la aceptación (se retiró, o la anuló
+  un criterio que quedó sin hacer) ese veredicto no cuenta, y vuelve a mandar lo anterior.
 
 El hook merge-guard aplica la misma regla en ``lib/independent-review.mjs`` (una prueba compara las dos).
 """
@@ -121,11 +124,15 @@ def void_verdicts(verdicts: list[dict[str, Any]], at: str) -> list[dict[str, Any
     ]
 
 
-def _latest(verdicts: list[dict[str, Any]]) -> dict[str, Any] | None:
-    valid = [
-        v for v in verdicts or []
-        if isinstance(v, dict) and v.get("verdict") in VERDICTS and not v.get("voided_at")
-    ]
+def _counts(verdict: Any, human: bool) -> bool:
+    """Si un veredicto cuenta: vigente y, si es el «aceptada» de una persona, con su aceptación en pie."""
+    if not isinstance(verdict, dict) or verdict.get("verdict") not in VERDICTS or verdict.get("voided_at"):
+        return False
+    return human or not (verdict.get("by_kind") == "person" and verdict.get("verdict") == "accepted")
+
+
+def _latest(verdicts: list[dict[str, Any]], human: bool = False) -> dict[str, Any] | None:
+    valid = [v for v in verdicts or [] if _counts(v, human)]
     return max(valid, key=lambda v: str(v.get("at") or "")) if valid else None
 
 
@@ -140,9 +147,10 @@ def independent_review_result(
 
     Devuelve ``{"ok", "reason_code"?, "reason"?}``. ``reason_code``: ``returned`` (devuelta después del
     último visto bueno), ``no_person_acceptance`` (fuera del autopilot «agresivo» hace falta una
-    persona) o ``no_independent_verdict``. Solo cuentan los veredictos vigentes (sin ``voided_at``).
+    persona) o ``no_independent_verdict``. Solo cuentan los veredictos vigentes (sin ``voided_at``), y el
+    «aceptada» de una persona solo mientras su aceptación sigue en pie.
     """
-    latest = _latest(verdicts)
+    latest = _latest(verdicts, bool(human_acceptance))
     if latest is not None and latest.get("verdict") == "returned":
         why = latest.get("reason") or "sin motivo"
         return {"ok": False, "reason_code": "returned", "reason": f"La UC fue devuelta: {why}."}

@@ -257,10 +257,14 @@ async def _native_open_ucs(project_id: str) -> list[dict[str, Any]]:
                -- UC-12402: la aceptación de una persona y el último veredicto vigente (0037).
                EXISTS (SELECT 1 FROM uc_acceptances x WHERE x.project_id = u.project_id AND x.uc_id = u.id)
                    AS human_accepted,
-               (SELECT json_build_object('verdict', v.verdict, 'independent', v.independent,
-                                         'reason', v.reason, 'at', v.at)
+               -- UC-12404: el «aceptada» de una persona solo cuenta con su aceptación en pie.
+               (SELECT json_build_object('verdict', v.verdict, 'by_kind', v.by_kind,
+                                         'independent', v.independent, 'reason', v.reason, 'at', v.at)
                   FROM uc_review_verdicts v
                  WHERE v.project_id = u.project_id AND v.uc_id = u.id AND v.voided_at IS NULL
+                   AND (v.by_kind <> 'person' OR v.verdict <> 'accepted'
+                        OR EXISTS (SELECT 1 FROM uc_acceptances x
+                                    WHERE x.project_id = u.project_id AND x.uc_id = u.id))
                  ORDER BY v.at DESC, v.id DESC LIMIT 1) AS latest_verdict
           FROM use_cases u
           LEFT JOIN acceptance_criteria a ON a.project_id = u.project_id AND a.uc_id = u.id

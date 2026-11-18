@@ -7,21 +7,27 @@
  * - en «agresivo», y en FreeForm (sin panel), basta el último veredicto «aceptada» de un contexto
  *   independiente del que implementó;
  * - fuera de «agresivo», en native, hace falta la persona;
- * - solo cuentan los veredictos vigentes: caducan (`voided_at`) cuando la UC vuelve a trabajo.
+ * - solo cuentan los veredictos vigentes: caducan (`voided_at`) cuando la UC vuelve a trabajo;
+ * - el «aceptada» de una persona solo cuenta mientras su aceptación sigue en pie (UC-12404).
  */
 
 export const AGGRESSIVE = 'agresivo';
 const VERDICTS = new Set(['accepted', 'returned']);
 
-function latest(verdicts) {
-  const valid = (Array.isArray(verdicts) ? verdicts : []).filter((v) => v && VERDICTS.has(v.verdict) && !v.voided_at);
+function counts(v, human) {
+  if (!v || !VERDICTS.has(v.verdict) || v.voided_at) return false;
+  return human || !(v.by_kind === 'person' && v.verdict === 'accepted');
+}
+
+function latest(verdicts, human = false) {
+  const valid = (Array.isArray(verdicts) ? verdicts : []).filter((v) => counts(v, human));
   if (!valid.length) return null;
   return valid.reduce((a, b) => (String(b.at ?? '') >= String(a.at ?? '') ? b : a));
 }
 
 /** `{ ok, reason_code?, reason? }` con los mismos códigos y textos que el servidor. */
 export function independentReview({ humanAcceptance = null, verdicts = [], level = '', backendType = '' } = {}) {
-  const last = latest(verdicts);
+  const last = latest(verdicts, Boolean(humanAcceptance));
   if (last && last.verdict === 'returned') {
     return { ok: false, reason_code: 'returned', reason: `La UC fue devuelta: ${last.reason || 'sin motivo'}.` };
   }

@@ -517,6 +517,33 @@ def verification_of(meta: Any) -> str | None:
     return value if value in VERIFICATION_METHODS else None
 
 
+def normalize_exclusions(value: Any) -> list[str] | None:
+    """UC-12306: las exclusiones de una historia como lista de textos sin vacíos.
+
+    ``None`` = no se dijeron (se conservan las que hubiera); ``[]`` = ninguna. Un texto suelto
+    cuenta como una exclusión; cualquier otra cosa que no sea lista lanza ValueError.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+        raise ValueError("exclusions must be a list of strings")
+    return [v.strip() for v in value if v.strip()]
+
+
+def exclusions_of(meta: Any) -> list[str]:
+    """Las exclusiones guardadas en el ``meta`` de una historia ([] si no hay)."""
+    value = meta.get("exclusions") if isinstance(meta, dict) else None
+    return [v for v in value if isinstance(v, str)] if isinstance(value, list) else []
+
+
+NO_EXCLUSIONS_MESSAGE = (
+    "La historia no dice qué queda fuera. Añade sus exclusiones (la sección «No incluye» del PRD) "
+    "con import_spec (exclusions) o update_us(exclusions=[...])."
+)
+
+
 def verification_warnings(verification: str | None, *, rules: int = 1) -> list[str]:
     """``no_verification`` para un criterio escrito con las reglas 3 o más que no dice cómo se
     comprueba (UC-12307 AC-03). Uno anterior no tenía el campo y queda sin aviso (AC-04)."""

@@ -307,8 +307,9 @@ class SpecBackend(ABC):
     """
 
     #: Whether the backend keeps the spec fields that live in an item's meta: how each AC is
-    #: checked (``verification``, UC-12307). Native and FreeForm keep them; Trello and Plane
-    #: accept them and drop them, and the tools then answer ``verification_not_stored``.
+    #: checked (``verification``, UC-12307) and what a story leaves out (``exclusions``,
+    #: UC-12306). Native and FreeForm keep them; Trello and Plane accept them and drop them,
+    #: and the tools then answer ``verification_not_stored`` / ``exclusions_not_stored``.
     STORES_SPEC_META: bool = False
 
     # ── Auth ──────────────────────────────────────────────────────

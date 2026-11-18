@@ -113,6 +113,9 @@ class UserStorySpec(BaseModel):
     screens: str = ""
     description: str = ""
     epic: str | None = None  # US-78 / UC-7805: EP-NN or the name of a declared epic
+    # UC-12306: what the story leaves out (the PRD's «No incluye»). None = not said: an existing
+    # story keeps what it had and import_spec warns `no_exclusions` if it ends up with none.
+    exclusions: list[str] | None = None
     use_cases: list[UseCaseSpec] = Field(default_factory=list)
 
     @model_validator(mode="before")
@@ -120,11 +123,15 @@ class UserStorySpec(BaseModel):
     def _normalize_aliases(cls, data: Any) -> Any:
         if not isinstance(data, dict):
             return data
+        from .tools._mutation_helpers import normalize_exclusions
+
         # Accept id/title as aliases for us_id/name
         if "us_id" not in data and "id" in data:
             data["us_id"] = data.pop("id")
         if "name" not in data and "title" in data:
             data["name"] = data.pop("title")
+        if "exclusions" in data:
+            data["exclusions"] = normalize_exclusions(data["exclusions"])
         return data
 
 

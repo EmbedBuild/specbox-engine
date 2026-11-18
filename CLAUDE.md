@@ -1,4 +1,4 @@
-# SpecBox Engine v6.34.0
+# SpecBox Engine v6.35.0
 
 > **⚠️ SATÉLITE del ecosistema SpecBox (rol: `engine`).** Desde 2026-06-03, el tracking
 > OPERATIVO de trabajo NUEVO vive en el **board native del orquestador**
@@ -2959,7 +2959,7 @@ y no se registró ninguna desde junio; y no había señal de uso.
 
 ## Engine Version
 
-Current: v6.34.0 "Foto fija"
+Current: v6.35.0 "Palabra"
 Brand: SpecBox Engine (SpecBox Engine by JPS)
 Config: ENGINE_VERSION.yaml
 

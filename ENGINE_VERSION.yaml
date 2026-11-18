@@ -1,8 +1,8 @@
-version: 6.34.0
-codename: "Foto fija"
+version: 6.35.0
+codename: "Palabra"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-11-12
+release_date: 2026-11-18
 min_claude_code: "1.0.0"
 
 stacks:
@@ -602,8 +602,25 @@ features:
   - engine-local-ci
   # New (v6.34.0) — Foto fija
   - marketplace-stats-daily-snapshot
+  # New (v6.35.0) — Palabra
+  - app-spec-zones-at-session-start
+  - context-budget-watches-subagents
+  - new-project-discovery-gate-warn
+  - doc-promises-test
+  - add-uc-story-numbering
 
 changelog:
+  6.35.0:
+    date: 2026-11-18
+    codename: "Palabra"
+    changes:
+      - "fix: the session-start hook reads the auto zones of doc/app/app_spec.md as the template writes them (attributes in any order, extra attributes such as auto_sync_on, double or single quotes); before, no zone matched and stack, tracking backend and autopilot never reached the session (UC-12205, #350)"
+      - "fix: context-budget-guard listens to the Agent tool that Claude Code uses to launch subagents (matcher «Agent|Task»), and reads its settings by key from settings.local.json and settings.json; before, it never ran (UC-12208, #351)"
+      - "fix: a new project starts with the discovery gate in «warn»: onboard_project writes specbox.discovery.gate_mode and specbox.engine_version_at_onboard, and the extension does the same when it creates settings.local.json for FreeForm; projects that already existed keep their value (UC-12207, #352)"
+      - "fix: add_uc follows the story's numbering (UC-{story}{NN}) when every UC of the story does, takes an explicit uc_id, and answers INVALID_UC_ID, UC_ID_TAKEN or UC_ID_CONFLICT without creating anything; boards numbered in sequence keep the old rule; the FreeForm fragment hook computes the same id and reserves it (UC-12214, #356)"
+      - "docs: the Definition Quality Gate, spec-guard and Spec-Code Sync are described as what they do today: the gate and spec-guard warn (spec-guard blocks on main/master after writing) and Spec-Code Sync lists the files touched per phase without checking them against the plan; this includes the instructions the MCP server sends to clients (UC-12201 #353, UC-12202 #354, UC-12204 #355)"
+      - "test: tests/test_doc_promises.py fails when the living documentation or the MCP instructions promise again a block or a plan comparison that the code does not make (UC-12201, UC-12202, UC-12204)"
+
   6.34.0:
     date: 2026-11-12
     codename: "Foto fija"

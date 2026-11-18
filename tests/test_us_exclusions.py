@@ -100,7 +100,7 @@ async def test_a_story_without_exclusions_is_created_as_before_with_only_the_war
 async def test_reimporting_without_exclusions_keeps_the_stored_ones():
     first = await import_spec("ff", _spec(EXCLUSIONS), CTX, items_content="[]")
     again = await import_spec("ff", _spec(), CTX, items_content=first["items_content"])
-    assert "warnings" not in again
+    assert not [w for w in again.get("warnings", []) if w["code"] == "no_exclusions"]
     assert _us_meta(again["items_content"])["exclusions"] == EXCLUSIONS
 
 
@@ -111,7 +111,7 @@ async def test_update_us_sets_and_clears_the_exclusions():
     assert out["updated_fields"] == ["exclusions"]
     assert (await get_us("ff", "US-09", CTX, items_content=out["items_content"]))["exclusions"] == EXCLUSIONS
     again = await import_spec("ff", _spec(), CTX, items_content=out["items_content"])
-    assert "warnings" not in again
+    assert not [w for w in again.get("warnings", []) if w["code"] == "no_exclusions"]
     same = await update_us("ff", "US-09", CTX, exclusions=EXCLUSIONS, items_content=out["items_content"])
     assert same["reason"] == "no_change"
     cleared = await update_us("ff", "US-09", CTX, exclusions=[], items_content=out["items_content"])

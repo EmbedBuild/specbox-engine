@@ -999,6 +999,14 @@ Al sembrar (`import_spec`):
 
 - `epics` crea las que no existen y reutiliza las que sí (por `epic_id` o por nombre); `epic`
   en cada historia acepta EP-NN o el nombre. La respuesta trae `epics.created/reused/assigned`.
+- **Volver a sembrar una historia que ya existe (UC-12501).** Una UC que ya está en el tablero no
+  se toca: `import_spec` la devuelve en `warnings` con `uc_exists` y su diferencia (`name`,
+  `fields`, `criteria_added`, `criteria_missing`, `verification_changed`). Las UC nuevas se crean
+  igual. Enséñale a la persona la diferencia de cada UC y, solo si la acepta, repite con
+  `on_existing_uc="apply"`: añade los criterios nuevos con el siguiente id libre (se emparejan por
+  texto, así que los que ya estaban conservan su id) y nunca reescribe ni retira uno. Para
+  reescribir uno, `update_ac`; para retirarlo, `delete_ac` con su motivo (obligatorio): el retirado
+  queda visible en `get_uc` (`retired_criteria`) y su id no se vuelve a usar.
 - **El título de la historia no lleva el satélite entre corchetes** (nada de `[engine][cloud]`):
   el satélite va en cada caso de uso (`satellite`), y `import_spec` quita esas marcas si llegan.
 - El nombre va sin el identificador delante: el engine pone «US-78: …» una sola vez.

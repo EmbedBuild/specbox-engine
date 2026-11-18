@@ -138,6 +138,12 @@ def _ac_receipts(meta: Any) -> dict[str, Any]:
     }
 
 
+def _retired_of(meta: Any) -> list[dict[str, Any]]:
+    """Los criterios retirados guardados en el ``meta`` de una UC (UC-12501)."""
+    retired = meta.get("retired_criteria") if isinstance(meta, dict) else None
+    return [dict(r) for r in retired or [] if isinstance(r, dict) and r.get("id")]
+
+
 def _id_number(item: dict[str, Any], kind: str) -> int:
     """The number of an item's US-/UC-/EP- id (UC-004b counts as 4), or 0."""
     if kind == "EP":
@@ -941,6 +947,79 @@ class FreeformBackend(SpecBackend):
                 self._regenerate_progress()
                 return
         raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
+
+    # ── Criterios retirados (UC-12501) ───────────────────────────
+    # El retirado sale de la lista de ítems y queda en ``meta.retired_criteria`` de su UC: viaja
+    # con la UC en el fragmento del hook freeform-fragment, así que el servidor en modo contenido
+    # ve los ids retirados y no los reutiliza.
+
+    async def retire_acceptance_criterion(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+        *,
+        reason: str,
+        retired_by: str | None = None,
+    ) -> dict[str, Any] | None:
+        items = self._load_items()
+        uc = next((i for i in items if i.get("id") == uc_item_id), None)
+        if uc is None:
+            raise ValueError(f"UC '{uc_item_id}' not found in items.json")
+        for idx, item in enumerate(items):
+            if item.get("parent_id") != uc_item_id or "AC" not in item.get("labels", []):
+                continue
+            parsed_id, clean_name = parse_item_id(item.get("name", ""), "AC")
+            if parsed_id != ac_id:
+                continue
+            meta = item.get("meta") if isinstance(item.get("meta"), dict) else {}
+            record: dict[str, Any] = {
+                "id": ac_id,
+                "text": clean_name or item.get("name", ""),
+                "reason": reason,
+                "retired_at": _now_iso(),
+                "retired_by": retired_by,
+                "done": item.get("state") == "done",
+                "internal": False,
+            }
+            for key in ("verdict", "evidence", "verification"):
+                if meta.get(key) is not None:
+                    record[key] = meta[key]
+            items.pop(idx)
+            uc_meta = dict(uc.get("meta") or {})
+            uc_meta["retired_criteria"] = [*_retired_of(uc_meta), record]
+            uc["meta"] = uc_meta
+            uc["updated_at"] = record["retired_at"]
+            self._save_items(items)
+            self._regenerate_progress()
+            return record
+        raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
+
+    async def get_retired_criteria(self, board_id: str, uc_item_id: str) -> list[dict[str, Any]]:
+        uc = next((i for i in self._load_items() if i.get("id") == uc_item_id), None)
+        return _retired_of(uc.get("meta") if uc else None)
+
+    async def import_retired_criteria(
+        self, board_id: str, uc_item_id: str, retired: list[dict[str, Any]],
+    ) -> int:
+        items = self._load_items()
+        uc = next((i for i in items if i.get("id") == uc_item_id), None)
+        if uc is None:
+            raise ValueError(f"UC '{uc_item_id}' not found in items.json")
+        uc_meta = dict(uc.get("meta") or {})
+        current = _retired_of(uc_meta)
+        known = {r["id"] for r in current}
+        new = [
+            dict(r) for r in retired
+            if isinstance(r, dict) and r.get("id") and r.get("text") and r["id"] not in known
+        ]
+        if not new:
+            return 0
+        uc_meta["retired_criteria"] = [*current, *new]
+        uc["meta"] = uc_meta
+        self._save_items(items)
+        self._regenerate_progress()
+        return len(new)
 
     # ── SpecBackend: Archival ────────────────────────────────────
 

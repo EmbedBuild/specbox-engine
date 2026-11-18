@@ -194,6 +194,12 @@ spec = {
 
 Cada UC con **mínimo 3 ACs** redactados para pasar el Definition Quality Gate (score ≥ 1.5/2.0). Los AC templates viven en `templates/tests/UC-NNN.feature` y se generan en Paso 10, pero los títulos/descripciones de los ACs se escriben en el spec backend aquí.
 
+**Si la skill ya se ejecutó en este board** (US-SPONSORSHIP existe): `import_spec` crea solo las UC
+que faltan y deja las demás como están, con un aviso `uc_exists` y su diferencia en `warnings`
+(UC-12501). Para aplicar a una UC existente los criterios nuevos de la plantilla, enséñale la
+diferencia a la persona y, si la acepta, repite la llamada con `on_existing_uc="apply"`: añade los
+criterios nuevos con el siguiente id libre y nunca reescribe ni retira uno.
+
 ### 3.1 Fallback si el spec backend está offline (AC-08)
 
 Try/catch sobre la llamada MCP. Si falla:

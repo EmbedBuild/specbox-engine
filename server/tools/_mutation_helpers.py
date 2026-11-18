@@ -16,7 +16,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Iterable, Literal
 
 from ..spec_backend import ChecklistItemDTO, ItemDTO, SpecBackend, parse_item_id
 
@@ -689,19 +689,55 @@ async def uc_owner(backend: SpecBackend, board_id: str, uc_id: str) -> str | Non
     return uc_owners(await backend.list_items(board_id)).get(uc_id)
 
 
-def next_ac_id(existing: list[ChecklistItemDTO]) -> str:
-    """Compute the next AC-NN id from a list of existing ACs."""
+def next_ac_id(existing: list[ChecklistItemDTO], retired_ids: Iterable[str] = ()) -> str:
+    """Compute the next AC-NN id from the existing ACs and the retired ones (UC-12501).
+
+    A retired id is never used again in its UC: if AC-05 was retired from AC-01..AC-05, the next
+    one is AC-06, not AC-05.
+    """
     max_num = 0
-    for ac in existing:
-        if not ac.id or not ac.id.startswith("AC-"):
+    for ac_id in [ac.id for ac in existing] + list(retired_ids):
+        if not ac_id or not ac_id.startswith("AC-"):
             continue
         try:
-            num = int(ac.id.split("-")[1])
+            num = int(ac_id.split("-")[1])
         except (IndexError, ValueError):
             continue
         if num > max_num:
             max_num = num
     return f"AC-{max_num + 1:02d}"
+
+
+#: Largo del motivo al retirar un criterio (UC-12501): lo que verá quien lea la UC después.
+REASON_MIN = 10
+REASON_MAX = 500
+
+
+async def retired_ids(backend: Any, board_id: str, uc_item_id: str) -> list[str]:
+    """Los ids retirados de una UC (UC-12501); vacío si el backend no los guarda."""
+    return [r["id"] for r in await backend.get_retired_criteria(board_id, uc_item_id)]
+
+
+async def retired_error(backend: Any, board_id: str, uc_item_id: str, uc_id: str, ac_id: str) -> dict[str, Any] | None:
+    """El error ``AC_RETIRED`` si ``ac_id`` está retirado en la UC, con su motivo; None si no lo está."""
+    try:
+        retired = await backend.get_retired_criteria(board_id, uc_item_id)
+    except Exception:  # noqa: BLE001 — sin poder mirarlo, el error sigue siendo AC_NOT_FOUND
+        return None
+    record = next((r for r in retired if r.get("id") == ac_id), None)
+    if record is None:
+        return None
+    return {
+        "error": (
+            f"El criterio {ac_id} de {uc_id} está retirado ({record.get('retired_at', '')}): "
+            f"{record.get('reason', '')}. Un criterio retirado no se marca ni se reescribe; "
+            "si hace falta, añade uno nuevo con add_ac."
+        ),
+        "code": "AC_RETIRED",
+        "uc_id": uc_id,
+        "ac_id": ac_id,
+        "retired": record,
+    }
 
 
 def format_uc_id(number: int) -> str:
@@ -789,3 +825,126 @@ def settings_path_from_env() -> Path | None:
         if candidate.exists():
             return candidate
     return None
+
+
+# ── import_spec sobre una UC que ya existe (UC-12501) ────────────────
+
+#: Qué hace import_spec con una UC que ya está en el tablero.
+ON_EXISTING_UC = ("report", "apply")
+#: Campos de la UC que import_spec compara además del nombre y los criterios.
+_COMPARED_FIELDS = {"actor": "actor", "horas": "hours", "pantallas": "screens", "satellite": "satellite", "us_id": "us_id"}
+
+
+def norm_text(text: str) -> str:
+    """El texto de un criterio sin espacios repetidos: lo que se compara al emparejar."""
+    return " ".join(str(text or "").split())
+
+
+def _context_of(description: str) -> str:
+    parts = str(description or "").split("## Contexto\n", 1)
+    return parts[1].strip() if len(parts) == 2 else ""
+
+
+def plan_existing_uc(
+    *,
+    existing_name: str,
+    existing_meta: dict[str, Any],
+    existing_description: str,
+    existing_acs: list[ChecklistItemDTO],
+    retired: Iterable[dict[str, Any]],
+    spec_name: str,
+    spec_meta: dict[str, Any],
+    spec_context: str,
+    spec_criteria: list[str],
+    spec_verifications: list[str | None],
+    stores_meta: bool,
+) -> dict[str, Any]:
+    """Lo que la spec cambiaría en una UC que ya existe, sin tocar nada (UC-12501 AC-04).
+
+    Los criterios se emparejan por texto (``norm_text``): uno que coincide conserva su id; uno de
+    la spec que no está toma el siguiente id libre, contando los retirados; uno vigente que la spec
+    no trae sigue igual y sale en ``criteria_missing``. Un texto de la spec que es el de un criterio
+    retirado no vuelve (se retiró a propósito) y sale en ``criteria_retired``. Nunca se reescribe ni
+    se retira un criterio.
+
+    Devuelve ``differences`` (lo que se avisa), ``identical``, ``new`` [(id, texto)],
+    ``new_verifications`` {id: verification}, ``verification_updates`` [(id, verification)] y
+    ``final`` [(id, texto)]: los vigentes tras aplicar, en orden de id.
+    """
+    differences: dict[str, Any] = {
+        "name": None,
+        "fields": [],
+        "criteria_added": [],
+        "criteria_missing": [],
+        "criteria_retired": [],
+        "verification_changed": [],
+    }
+    if norm_text(existing_name) != norm_text(spec_name):
+        differences["name"] = {"from": existing_name, "to": spec_name}
+    meta = existing_meta if isinstance(existing_meta, dict) else {}
+    for key, label in _COMPARED_FIELDS.items():
+        if key not in spec_meta:
+            continue
+        before, after = meta.get(key), spec_meta.get(key)
+        if key == "horas":
+            try:
+                same = float(before or 0) == float(after or 0)
+            except (TypeError, ValueError):
+                same = before == after
+        else:
+            same = str(before or "") == str(after or "")
+        if not same:
+            differences["fields"].append(label)
+    if norm_text(_context_of(existing_description)) != norm_text(spec_context):
+        differences["fields"].append("context")
+
+    unmatched = list(existing_acs)
+    new: list[tuple[str, str]] = []
+    new_verifications: dict[str, str] = {}
+    verification_updates: list[tuple[str, str]] = []
+    retired_list = [r for r in retired if isinstance(r, dict) and r.get("id")]
+    retired_by_text = {norm_text(r.get("text", "")): r for r in retired_list}
+    taken = [ac.id for ac in existing_acs] + [r["id"] for r in retired_list]
+    for index, text in enumerate(spec_criteria):
+        wanted = spec_verifications[index] if index < len(spec_verifications) else None
+        match = next((ac for ac in unmatched if norm_text(ac.text) == norm_text(text)), None)
+        if match is None and norm_text(text) in retired_by_text:
+            gone = retired_by_text[norm_text(text)]
+            differences["criteria_retired"].append({"id": gone["id"], "text": text, "reason": gone.get("reason")})
+            continue
+        if match is None:
+            ac_id = next_ac_id([], taken)
+            taken.append(ac_id)
+            new.append((ac_id, text))
+            if wanted:
+                new_verifications[ac_id] = wanted
+            differences["criteria_added"].append(text)
+            continue
+        unmatched.remove(match)
+        current = getattr(match, "verification", None)
+        if wanted and stores_meta and current != wanted:
+            verification_updates.append((match.id, wanted))
+            differences["verification_changed"].append({"id": match.id, "from": current, "to": wanted})
+    differences["criteria_missing"] = [{"id": ac.id, "text": ac.text} for ac in unmatched]
+
+    final = sorted([(ac.id, ac.text) for ac in existing_acs] + new, key=lambda pair: _ac_number(pair[0]))
+    identical = not (
+        differences["name"] or differences["fields"] or differences["criteria_added"]
+        or differences["criteria_missing"] or differences["criteria_retired"]
+        or differences["verification_changed"]
+    )
+    return {
+        "differences": differences,
+        "identical": identical,
+        "new": new,
+        "new_verifications": new_verifications,
+        "verification_updates": verification_updates,
+        "final": final,
+    }
+
+
+def _ac_number(ac_id: str) -> int:
+    try:
+        return int(str(ac_id).split("-")[1])
+    except (IndexError, ValueError):
+        return 10**6

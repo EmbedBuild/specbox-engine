@@ -2,20 +2,12 @@
 
 from __future__ import annotations
 
-import sys
-from types import ModuleType
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# Stub missing dependencies before importing spec_driven (not in test env)
-for _mod_name in ("fastmcp", "fpdf", "httpx"):
-    if _mod_name not in sys.modules:
-        _stub = ModuleType(_mod_name)
-        _stub.Context = MagicMock  # type: ignore[attr-defined]
-        _stub.FPDF = MagicMock  # type: ignore[attr-defined]
-        sys.modules[_mod_name] = _stub
-
+# Sin módulos de sustitución: fastmcp, fpdf y httpx están en el entorno, y un sustituto en
+# sys.modules rompía los módulos de prueba que se cargaban después en la misma sesión.
 from server.spec_backend import (
     ChecklistItemDTO,
     ItemDTO,
@@ -167,16 +159,26 @@ class TestImportSpecIdempotent:
         with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
             result = await import_spec("board1", _make_spec(), mock_ctx)
 
-        # Nothing created, everything updated
+        # Nothing created; the story is updated and the UC, which exists, is left as it is
+        # and reported (UC-12501).
         assert result["created"]["us"] == 0
         assert result["created"]["uc"] == 0
         assert result["created"]["ac"] == 0
         assert result["updated"]["us"] == 1
-        assert result["updated"]["uc"] == 1
+        assert result["updated"]["uc"] == 0
+        assert result["unchanged"] == {"uc": 1}
+        assert [w["uc_id"] for w in result["warnings"] if w["code"] == "uc_exists"] == ["UC-001"]
+        assert [c[0][1] for c in backend.update_item.call_args_list] == ["existing-us-1"]
 
         # create_item never called (no new items)
         backend.create_item.assert_not_called()
         # create_acceptance_criteria never called (all ACs exist)
+        backend.create_acceptance_criteria.assert_not_called()
+
+        # Asked for, the UC is updated, and still nothing is duplicated.
+        with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
+            applied = await import_spec("board1", _make_spec(), mock_ctx, on_existing_uc="apply")
+        assert applied["updated"]["uc"] == 1 and applied["created"]["ac"] == 0
         backend.create_acceptance_criteria.assert_not_called()
 
 
@@ -231,7 +233,7 @@ class TestImportSpecPartial:
         )
 
         with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
-            result = await import_spec("board1", _make_spec(), mock_ctx)
+            result = await import_spec("board1", _make_spec(), mock_ctx, on_existing_uc="apply")
 
         assert result["created"]["ac"] == 1  # Only AC-02 created
         # create_acceptance_criteria called with only the missing AC
@@ -283,9 +285,9 @@ class TestImportSpecUpdates:
         backend.get_acceptance_criteria = AsyncMock(return_value=[])
 
         with patch("server.tools.spec_driven.get_session_backend", return_value=backend):
-            await import_spec("board1", _make_spec(), mock_ctx)
+            await import_spec("board1", _make_spec(), mock_ctx, on_existing_uc="apply")
 
-        # update_item called for UC
+        # update_item called for UC (UC-12501: only when asked for)
         uc_update_call = backend.update_item.call_args_list[1]
         assert uc_update_call[0] == ("board1", "uc-1")
         assert uc_update_call[1]["name"] == "UC-001: Login"

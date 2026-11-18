@@ -551,6 +551,10 @@ async def update_ac(
 
         current = await mh.find_ac(backend, board_id, uc_item.id, ac_id)
         if not current:
+            # UC-12501: a retired criterion is neither rewritten nor marked.
+            retired = await mh.retired_error(backend, board_id, uc_item.id, uc_id, ac_id)
+            if retired is not None:
+                return retired
             return _mk_error(
                 "AC_NOT_FOUND", f"AC {ac_id} not found in {uc_id}", uc_id=uc_id, ac_id=ac_id
             )
@@ -682,8 +686,11 @@ async def update_ac_batch(
             snap = await _snapshot(uc_item)
             current = snap.get(ac_id)
             if current is None:
+                retired = await mh.retired_error(backend, board_id, uc_item.id, uc_id, ac_id)
                 failed.append(
-                    {"uc_id": uc_id, "ac_id": ac_id, "error": "AC not found", "code": "AC_NOT_FOUND"}
+                    {"uc_id": uc_id, "ac_id": ac_id, "error": retired["error"], "code": "AC_RETIRED"}
+                    if retired is not None
+                    else {"uc_id": uc_id, "ac_id": ac_id, "error": "AC not found", "code": "AC_NOT_FOUND"}
                 )
                 if stop_on_error:
                     break
@@ -781,15 +788,16 @@ async def add_ac(
     """Append a new Acceptance Criterion to an existing UC.
 
     Auto-assigns the next AC-NN id (e.g. if AC-01..AC-05 exist, the new AC
-    is AC-06). Empty UCs get AC-01.
+    is AC-06). Empty UCs get AC-01. Retired ids count (UC-12501): if AC-05 was
+    retired from AC-01..AC-05, the new AC is AC-06, never AC-05 again.
 
     `verification` (UC-12307) says how the criterion is checked: automated_test,
     manual_test, review or measurement. Without it, validate_ac_quality warns
     `no_verification`. Trello and Plane do not store it (`verification_not_stored`).
 
-    Use this for 1-2 AC additions. For adding many ACs at once, prefer
-    rewriting the UC's full AC list via `import_spec` — it's idempotent and
-    cheaper than a loop.
+    Use this for 1-2 AC additions. For many at once, `import_spec` with
+    `on_existing_uc="apply"` adds the spec's new criteria (matched by text, with the
+    next free ids) in one call; without that option it leaves an existing UC as it is.
 
     `items_content` (FreeForm content-passing, UC-660): pass items.json as a
     string for remote MCP; the mutated string is returned under `items_content`.
@@ -813,7 +821,8 @@ async def add_ac(
             return _mk_error("UC_NOT_FOUND", f"Use Case {uc_id} not found", uc_id=uc_id)
 
         existing = await backend.get_acceptance_criteria(board_id, uc_item.id)
-        new_id = mh.next_ac_id(existing)
+        # UC-12501: a retired id is never used again in its UC.
+        new_id = mh.next_ac_id(existing, await mh.retired_ids(backend, board_id, uc_item.id))
         stored = verification is not None and bool(getattr(backend, "STORES_SPEC_META", False))
 
         try:
@@ -872,19 +881,33 @@ async def delete_ac(
     ctx: Context,
     *,
     reason: str | None = None,
+    retired_by: str | None = None,
     items_content: str | None = None,
 ) -> dict[str, Any]:
-    """Remove an AC from a UC and renumber subsequent ACs.
+    """Retire an AC from a UC (UC-12501). The other ACs keep their ids.
 
-    If `reason` is provided, it's logged as a comment on the parent UC
-    for audit.
+    The retired AC leaves the current criteria but stays on the board with its reason, its date,
+    who retired it and its receipts (`get_uc` returns it under `retired_criteria`), and its id is
+    never used again in that UC: retiring AC-03 from AC-01..AC-05 leaves AC-01, AC-02, AC-04 and
+    AC-05, and the next new AC is AC-06. Native keeps it in its own table, FreeForm in the UC's
+    meta; Trello and Plane have nowhere to keep it and delete it (`retired_not_stored`).
 
-    Renumbering: if AC-03 is deleted from [AC-01, AC-02, AC-03, AC-04, AC-05],
-    the result is [AC-01, AC-02, AC-03 (was AC-04), AC-04 (was AC-05)].
+    `reason` is required (10 to 500 characters): it is what anyone reading the UC later sees.
+    `retired_by` is only used by FreeForm (the freeform-fragment hook puts the git author); native
+    takes it from the session.
 
     Returns:
-        {uc_id, deleted_ac_id, renumbered_acs, deleted_at, reason?}
+        {uc_id, retired_ac_id, reason, retired_at, retired?, retired_not_stored?}
     """
+    clean_reason = (reason or "").strip()
+    if not mh.REASON_MIN <= len(clean_reason) <= mh.REASON_MAX:
+        return _mk_error(
+            "REASON_REQUIRED",
+            f"Para retirar {ac_id} hace falta un motivo de {mh.REASON_MIN} a {mh.REASON_MAX} "
+            "caracteres: es lo que verá quien lea la UC después.",
+            uc_id=uc_id,
+            ac_id=ac_id,
+        )
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await mh.find_uc(backend, board_id, uc_id)
@@ -892,8 +915,10 @@ async def delete_ac(
             return _mk_error("UC_NOT_FOUND", f"Use Case {uc_id} not found", uc_id=uc_id)
 
         acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
-        target = next((a for a in acs if a.id == ac_id), None)
-        if not target:
+        if not any(a.id == ac_id for a in acs):
+            retired = await mh.retired_error(backend, board_id, uc_item.id, uc_id, ac_id)
+            if retired is not None:
+                return retired
             return _mk_error(
                 "AC_NOT_FOUND",
                 f"AC {ac_id} not found in {uc_id}",
@@ -901,71 +926,33 @@ async def delete_ac(
                 ac_id=ac_id,
             )
 
-        # Compute renumber plan — ACs strictly after the deleted one shift down by 1.
-        def _ac_num(s: str) -> int:
-            try:
-                return int(s.split("-")[1])
-            except (IndexError, ValueError):
-                return -1
-
-        target_num = _ac_num(ac_id)
-        shifted: list[tuple[str, str, str]] = []  # (old_id, new_id, text)
-        for ac in acs:
-            n = _ac_num(ac.id)
-            if n > target_num:
-                new_id = f"AC-{n - 1:02d}"
-                shifted.append((ac.id, new_id, ac.text))
-
-        # Apply deletion, then renumber. Renumber order: ascending old id so
-        # we don't collide with existing ids in any backend.
         try:
-            await backend.delete_acceptance_criterion(board_id, uc_item.id, ac_id)
+            record = await backend.retire_acceptance_criterion(
+                board_id, uc_item.id, ac_id, reason=clean_reason, retired_by=(retired_by or None)
+            )
         except ValueError as e:
-            return _mk_error("AC_NOT_FOUND", str(e))
+            return _mk_error("AC_NOT_FOUND", str(e), uc_id=uc_id, ac_id=ac_id)
         except Exception as e:
             return _mk_error("BACKEND_ERROR", str(e))
 
-        renumbered: dict[str, str] = {}
-        # The rename from "AC-04" -> "AC-03" requires that the text stays
-        # the same but the id embedded in the name changes. Our
-        # update_acceptance_criterion rewrites by ac_id (the OLD one) and
-        # accepts `text=` which the backend re-serializes as "{NEW_ID}: ...".
-        # However the backend resolves the item by OLD ac_id — we rename in
-        # place by issuing a text rewrite that also encodes the new id.
-        # Each backend's update_acceptance_criterion embeds {ac_id} in the
-        # rendered name, so we pass the OLD ac_id as locator and text as the
-        # NEW text — but we need the new id in the name.
-        # Solution: treat the rename as (delete old, create new).
-        # That preserves the text and id semantics cleanly for all backends.
-        for old_id, new_id, text in shifted:
-            try:
-                await backend.delete_acceptance_criterion(board_id, uc_item.id, old_id)
-                await backend.create_acceptance_criteria(
-                    board_id, uc_item.id, [(new_id, text)]
-                )
-                renumbered[old_id] = new_id
-            except Exception:
-                logger.exception(
-                    "renumber_ac_failed", uc=uc_id, old_id=old_id, new_id=new_id
-                )
-
-        if reason:
+        result: dict[str, Any] = {
+            "uc_id": uc_id,
+            "retired_ac_id": ac_id,
+            "reason": clean_reason,
+            "retired_at": (record or {}).get("retired_at") or mh.utc_now_iso(),
+        }
+        if record is None:
+            result["retired_not_stored"] = True
+            # Trello y Plane: el comentario de la UC es todo el rastro que queda.
             try:
                 await backend.add_comment(
-                    board_id,
-                    uc_item.id,
-                    f"AC {ac_id} deleted ({mh.utc_now_iso()}): {reason}",
+                    board_id, uc_item.id, f"AC {ac_id} retirado ({result['retired_at']}): {clean_reason}"
                 )
             except Exception:
                 logger.exception("delete_ac_comment_failed", uc=uc_id, ac=ac_id)
-
-        return {
-            "uc_id": uc_id,
-            "deleted_ac_id": ac_id,
-            "renumbered_acs": renumbered,
-            "deleted_at": mh.utc_now_iso(),
-            "reason": reason,
-        }
+        else:
+            result["retired"] = record
+        return result
     finally:
         await backend.close()
 
@@ -1167,11 +1154,12 @@ def register_spec_mutations_tools(mcp_instance) -> None:
     mcp_instance.tool(
         description="Append a new AC to an existing UC. Auto-assigns next AC-NN id. Pass "
         "verification (automated_test, manual_test, review, measurement) to say how it is "
-        "checked. Use for 1-2 additions; for many at once prefer import_spec."
+        "checked. Use for 1-2 additions; for many at once, import_spec with on_existing_uc=\"apply\"."
     )(add_ac)
     mcp_instance.tool(
-        description="Remove an AC from a UC and renumber subsequent ACs. Optional reason "
-        "logged as a comment on the UC for audit."
+        description="Retire an AC from a UC with a required reason (10-500 chars). The other ACs "
+        "keep their ids and the retired id is never used again; get_uc lists it under "
+        "retired_criteria with its reason, date and receipts (UC-12501)."
     )(delete_ac)
     mcp_instance.tool(
         description="Create a single new Use Case under an existing US. Use for 1-3 additions; "

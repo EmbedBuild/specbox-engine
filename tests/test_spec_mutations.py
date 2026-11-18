@@ -394,19 +394,29 @@ async def test_add_ac_empty_uc_gets_ac01(backend, ctx):
 # ── delete_ac ────────────────────────────────────────────────────────
 
 
-async def test_delete_ac_renumbers_remaining(backend, ctx):
+async def test_delete_ac_retires_without_renumbering(backend, ctx):
+    """UC-12501: the other criteria keep their ids; a backend with nowhere to keep it says so."""
     _, uc = await _seed_us_uc(backend)
     # Seed 5 ACs total
     await backend.create_acceptance_criteria(
         "board", uc.id, [("AC-03", "c"), ("AC-04", "d"), ("AC-05", "e")]
     )
-    result = await sm.delete_ac("board", "UC-001", "AC-03", ctx, reason="obsoleto")
-    assert result["deleted_ac_id"] == "AC-03"
-    assert result["renumbered_acs"] == {"AC-04": "AC-03", "AC-05": "AC-04"}
+    result = await sm.delete_ac("board", "UC-001", "AC-03", ctx, reason="la pide otra historia")
+    assert result["retired_ac_id"] == "AC-03"
+    assert "renumbered_acs" not in result
+    assert result["retired_not_stored"] is True  # this in-memory backend, like Trello and Plane
     remaining_ids = sorted(a.id for a in backend.acs[uc.id])
-    assert remaining_ids == ["AC-01", "AC-02", "AC-03", "AC-04"]
-    # Comment logged
-    assert any("AC-03 deleted" in c[1] for c in backend.comments)
+    assert remaining_ids == ["AC-01", "AC-02", "AC-04", "AC-05"]
+    # The UC comment is the only trace where the backend keeps nothing.
+    assert any("AC AC-03 retirado" in c[1] and "la pide otra historia" in c[1] for c in backend.comments)
+
+
+@pytest.mark.parametrize("reason", [None, "", "corto", "x" * 501])
+async def test_delete_ac_requires_a_reason(backend, ctx, reason):
+    _, uc = await _seed_us_uc(backend)
+    result = await sm.delete_ac("board", "UC-001", "AC-01", ctx, reason=reason)
+    assert result["code"] == "REASON_REQUIRED"
+    assert sorted(a.id for a in backend.acs[uc.id]) == ["AC-01", "AC-02"]
 
 
 # ── add_uc ───────────────────────────────────────────────────────────

@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.41.0] — "Con recibo"
+
+- No changes in the extension itself. The version follows the engine, where closing a UC (and merging
+  its PR, with the new `merge-guard` hook) needs every criterion with a passing receipt; the measure
+  starts in «warn».
+
 ## [6.40.0] — "Por escrito"
 
 - No changes in the extension itself. The version follows the engine, where each criterion says how it is

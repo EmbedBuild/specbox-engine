@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.40.0 — "Por escrito" (sobre v6.39 "Umbral")<br/>
+  v 6.41.0 — "Con recibo" (sobre v6.40 "Por escrito")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,20 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.41
+
+**v6.41.0 — "Con recibo"** hace que «hecho» signifique lo mismo para quien implementa y para quien revisa:
+
+- **Cerrar una UC pide cada criterio con un recibo que pasa** — con la medida `closing_evidence` en
+  «block», `complete_uc` no cierra y dice qué criterio falta y por qué; en «warn», cierra y lo avisa.
+- **Fusionar, también** — el hook nuevo `merge-guard` aplica la misma regla antes de `gh pr merge`, y
+  `/implement` marca los criterios antes de fusionar: una prueba de aceptación que falla no se fusiona.
+- **FreeForm guarda los recibos de cada criterio**, con quién lo marcó, igual que native.
+
+100% backwards-compatible: la medida empieza en «warn» y las UC ya cerradas no se revalidan.
 
 ---
 
@@ -992,7 +1006,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.40.0 — "Por escrito" (over v6.39 "Umbral")
+> v 6.41.0 — "Con recibo" (over v6.40 "Por escrito")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -1006,6 +1020,21 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.41
+
+**v6.41.0 — "Con recibo"** makes «done» mean the same for whoever implements and whoever reviews:
+
+- **Closing a UC needs every criterion with a passing receipt** — with the `closing_evidence` measure in
+  «block», `complete_uc` does not close and says which criterion is missing and why; in «warn», it
+  closes and warns.
+- **So does merging** — the new `merge-guard` hook applies the same rule before `gh pr merge`, and
+  `/implement` marks the criteria before merging: a failing acceptance test is not merged.
+- **FreeForm keeps the receipts of each criterion**, with who marked it, like native.
+
+100% backwards-compatible: the measure starts in «warn» and UCs already closed are not rechecked.
+
+---
 
 ## What's new in v6.40
 

@@ -23,6 +23,7 @@ import { decideNativeReservation } from './lib/native-reservation-revalidate.mjs
 // Antes era un curl a /api/native/reservation-status, que el servidor no tiene: fallaba siempre,
 // se daba la caché por buena y el bloqueo por reserva perdida no saltaba nunca.
 import { probeReservation, shouldNoteOffline } from './lib/reservation-probe.mjs';
+import { leerPolitica, modoDe } from './lib/enforcement-policy.mjs';
 
 const input = readStdin();
 
@@ -60,7 +61,7 @@ if (isAbsolute(filePath)) {
 }
 
 // --- Check if project is spec-driven ---
-const { boardId, backendType, isSpecDriven } = getProjectConfig();
+const { boardId, backendType, isSpecDriven, recognizedBy, freeformRoot } = getProjectConfig();
 
 // If no board and no backend configured → not spec-driven, allow
 if (!isSpecDriven) {
@@ -71,11 +72,26 @@ if (!isSpecDriven) {
 const currentBranch = git('branch --show-current');
 
 if (currentBranch === 'main' || currentBranch === 'master') {
-  blockWith(`SPEC GUARD: código escrito en ${currentBranch}`, [
-    `Fichero: ${filePath}`,
-    'Es un proyecto spec-driven: el código va en una rama de la UC, nunca en main ni en master.',
-    'La escritura ya está hecha. Antes de seguir: git checkout -b feature/{uc}-{nombre} (los cambios se van contigo).',
-  ]);
+  // UC-12215: misma regla que commit-spec-guard con la medida commit_on_main. Los proyectos de
+  // siempre conservan el bloqueo; los reconocidos por primera vez toman el modo del tablero
+  // («warn» salvo que una persona lo cambie); lo que puso una persona manda.
+  const politica = await leerPolitica({ root: process.cwd(), backendType, boardId, trackingDir: freeformRoot });
+  const puesto = politica.explicitas?.includes('commit_on_main');
+  const modo = puesto || recognizedBy !== 'legacy' ? modoDe(politica, 'commit_on_main') : 'block';
+  if (modo === 'block') {
+    blockWith(`SPEC GUARD: código escrito en ${currentBranch}`, [
+      `Fichero: ${filePath}`,
+      'Es un proyecto spec-driven: el código va en una rama de la UC, nunca en main ni en master.',
+      'La escritura ya está hecha. Antes de seguir: git checkout -b feature/{uc}-{nombre} (los cambios se van contigo).',
+    ]);
+  }
+  if (modo === 'warn') {
+    noteWith('PostToolUse', `SPEC GUARD: código escrito en ${currentBranch}`, [
+      `Fichero: ${filePath}`,
+      'En un proyecto spec-driven el código va en una rama de la UC. La medida commit_on_main está en «warn»: sigue, pero conviene moverlo:',
+      'git checkout -b feature/{uc}-{nombre} (los cambios se van contigo).',
+    ]);
+  }
 }
 
 // --- Spec-driven project: verify active UC ---

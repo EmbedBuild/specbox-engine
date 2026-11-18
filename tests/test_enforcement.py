@@ -317,11 +317,21 @@ def _changelog_entry(version: str) -> str:
     return m.group(0) if m else ""
 
 
-def measures_missing_from_changelog(measures=None, entry=_changelog_entry) -> list[str]:
-    """Las medidas activas cuya versión no cuenta qué cambia para los proyectos que ya existían."""
+def _engine_version() -> tuple[int, ...]:
+    text = (ENGINE / "ENGINE_VERSION.yaml").read_text(encoding="utf-8")
+    return tuple(int(x) for x in re.search(r"^version:\s*([\d.]+)", text, re.M).group(1).split("."))
+
+
+def measures_missing_from_changelog(measures=None, entry=_changelog_entry, current=None) -> list[str]:
+    """Las medidas activas cuya versión no cuenta qué cambia para los proyectos que ya existían.
+
+    Una medida que se activa en una versión aún no publicada (``since`` mayor que la del engine) se
+    comprueba en su release, cuando su entrada del CHANGELOG ya existe.
+    """
+    current = current or _engine_version()
     missing = []
     for key, measure in (measures or pol.MEASURES).items():
-        if not measure.since:
+        if not measure.since or tuple(int(x) for x in measure.since.split(".")) > current:
             continue
         body = entry(measure.since)
         section = re.search(r"^### Para los proyectos que ya existían\n(.*?)(?=^### |\Z)", body, re.S | re.M)
@@ -342,8 +352,10 @@ def test_the_changelog_check_catches_a_missing_note():
         "## [9.9.0]\n\n### Para los proyectos que ya existían\n\n- `spec_quality` queda en «warn»; "
         "para que bloquee: set_enforcement_mode(measure=\"spec_quality\", mode=\"block\").\n"
     )
-    assert measures_missing_from_changelog(fake, sin_nota) == ["spec_quality"]
-    assert measures_missing_from_changelog(fake, con_nota) == []
+    assert measures_missing_from_changelog(fake, sin_nota, current=(9, 9, 0)) == ["spec_quality"]
+    assert measures_missing_from_changelog(fake, con_nota, current=(9, 9, 0)) == []
+    # Una medida de una versión aún no publicada se comprueba en su release.
+    assert measures_missing_from_changelog(fake, sin_nota, current=(9, 8, 0)) == []
 
 
 # ══ UC-12213 — antes de endurecer, un informe; lo anterior queda a salvo ══

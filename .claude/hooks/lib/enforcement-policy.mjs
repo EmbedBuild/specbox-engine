@@ -37,6 +37,7 @@ export const MEASURES = {
   drift_gate: 'warn',
   impact_radius: 'warn',
   contract_first: 'warn',
+  commit_on_main: 'warn',
 };
 
 /** El modo de cada medida a partir de lo guardado (o null), como effective_policy del servidor. */
@@ -44,13 +45,17 @@ export function modosDe(raw, backendType) {
   const origin = raw && (raw.origin === 'new' || raw.origin === 'existing') ? raw.origin : 'existing';
   const guardadas = raw && typeof raw.measures === 'object' && raw.measures ? raw.measures : {};
   const modos = {};
+  const explicitas = [];
   for (const [clave, nuevo] of Object.entries(MEASURES)) {
     const entrada = guardadas[clave];
-    let modo = entrada && MODES.includes(entrada.mode) ? entrada.mode : origin === 'new' ? nuevo : 'warn';
+    const guardada = !!entrada && MODES.includes(entrada.mode);
+    let modo = guardada ? entrada.mode : origin === 'new' ? nuevo : 'warn';
     if (CAPPED_BACKENDS.has(backendType) && modo === 'block') modo = 'warn';
     modos[clave] = modo;
+    // UC-12215: la puso una persona (no es el valor por defecto del tablero).
+    if (guardada && entrada.source !== 'default') explicitas.push(clave);
   }
-  return { origin, backendType, modos };
+  return { origin, backendType, modos, explicitas };
 }
 
 /** El modo de una medida en una política leída con leerPolitica («warn» si no la conoce). */
@@ -120,7 +125,7 @@ export async function leerPolitica({
           const policy = {
             origin: r.policy.origin,
             measures: Object.fromEntries(
-              Object.entries(r.policy.measures || {}).map(([k, v]) => [k, { mode: v?.mode }]),
+              Object.entries(r.policy.measures || {}).map(([k, v]) => [k, { mode: v?.mode, source: v?.source }]),
             ),
           };
           try {

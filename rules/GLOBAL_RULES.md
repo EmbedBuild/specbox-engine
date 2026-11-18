@@ -132,7 +132,7 @@ salvo para corregir a mano.
 |------|--------|---------------|------|
 | `spec-guard.mjs` | Despues de Write/Edit en `src/` o `lib/` | Rama main/master → bloqueo (la escritura ya esta hecha); sin UC activo → nota; reserva native liberada o de otra persona → bloqueo, comprobado con `get_uc_reservation` (UC-12217); sin red → nota y se usa la reserva guardada | **BLOQUEANTE** (rama y reserva, tras escribir) + NOTA (UC) |
 | `branch-guard.mjs` | — | Sin registrar: la rama ya la vigilan `spec-guard` y `commit-spec-guard` | — |
-| `commit-spec-guard.mjs` | antes de git commit | Bloquea commits en main; warning UC/checkpoint/tamano | **BLOQUEANTE** (rama) + WARNING (resto) |
+| `commit-spec-guard.mjs` | antes de git commit | Bloquea commits en main segun la medida `commit_on_main`: los proyectos reconocidos por su configuracion de siempre conservan el bloqueo; los reconocidos por primera vez por el bloque `specbox` empiezan en «warn» (UC-12215); warning UC/checkpoint/tamano | **BLOQUEANTE** (rama) + WARNING (resto) |
 | `design-gate.mjs` | Write/Edit de una pagina de UI | Avisa al agente en la misma sesion si la feature no tiene HTML de diseno; la escritura ya esta hecha y el aviso dice que hacer | **AVISO** (exit 2 al modelo) |
 | `pre-commit-lint.mjs` | antes de git commit | Linter del proyecto sobre los ficheros del commit, tolerancia cero | **BLOQUEANTE** (exit 2) |
 

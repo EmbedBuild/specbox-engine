@@ -525,9 +525,8 @@
     "task_isolation": {
       "enabled": true,
       "task_budget_tokens": 16000,
-      "task_budget_mode": "warn",
       "ownership_mode": "warn",
-      "_v5_32_note": "v5.32.0 'Implement Task Isolation'. Modes: warn (default — emit stderr WARNING but never block) | strict (BLOCK with exit 2) | off (no-op). Promote to strict after 2 weeks of telemetry confirms low false-positive rate. The 16000 budget leaves a 20% margin over the ideal 20k declared in the SKILL.md for the Task's response tokens (~4k)."
+      "_v5_32_note": "v5.32.0 'Implement Task Isolation'. The 16000 budget leaves a 20% margin over the ideal 20k declared in the SKILL.md for the Task's response tokens (~4k). UC-12210: the budget mode is the EP-20 measure context_budget of the board's policy (warn unless a person changes it with set_enforcement_mode); write task_budget_mode (off | warn | block) in settings.local.json only to override it on this machine."
     }
   },
   "stitch": {

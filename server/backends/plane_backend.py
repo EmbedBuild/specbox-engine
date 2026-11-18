@@ -589,6 +589,8 @@ class PlaneBackend(SpecBackend):
         board_id: str,
         uc_item_id: str,
         criteria: list[tuple[str, str]],
+        *,
+        meta_by_ac: dict[str, dict[str, Any]] | None = None,  # UC-12307: not stored here
     ) -> list[ChecklistItemDTO]:
         result: list[ChecklistItemDTO] = []
         ac_label_ids = await self._resolve_label_ids(board_id, ["AC"])
@@ -646,6 +648,7 @@ class PlaneBackend(SpecBackend):
         *,
         text: str | None = None,
         done: bool | None = None,
+        meta: dict[str, Any] | None = None,  # UC-12307: not stored here
     ) -> ChecklistItemDTO:
         ac_item = await self._find_ac_child(board_id, uc_item_id, ac_id)
         if not ac_item:

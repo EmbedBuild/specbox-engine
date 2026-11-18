@@ -468,6 +468,8 @@ class TrelloBackend(SpecBackend):
         board_id: str,
         uc_item_id: str,
         criteria: list[tuple[str, str]],
+        *,
+        meta_by_ac: dict[str, dict[str, Any]] | None = None,  # UC-12307: not stored here
     ) -> list[ChecklistItemDTO]:
         checklist = await self.client.create_checklist(
             uc_item_id, "Criterios de Aceptacion"
@@ -497,6 +499,7 @@ class TrelloBackend(SpecBackend):
         *,
         text: str | None = None,
         done: bool | None = None,
+        meta: dict[str, Any] | None = None,  # UC-12307: not stored here
     ) -> ChecklistItemDTO:
         checklists = await self.client.get_card_checklists(uc_item_id)
         checkitem_id = self._find_checkitem_id(checklists, ac_id, "")

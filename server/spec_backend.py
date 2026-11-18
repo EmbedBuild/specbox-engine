@@ -87,6 +87,9 @@ class ChecklistItemDTO:
     # FreeForm stamp it (meta.spec_rules) when an AC is created or its text rewritten; 1 = the
     # rules from before, so an older AC is never judged by rules it did not know.
     spec_rules: int = 1
+    # UC-12307: how the AC is checked — automated_test, manual_test, review or measurement.
+    # Native and FreeForm keep it in the AC's meta; Trello and Plane have nowhere to put it.
+    verification: str | None = None
 
 
 @dataclass
@@ -303,6 +306,11 @@ class SpecBackend(ABC):
     Backend implementations handle API-specific details internally.
     """
 
+    #: Whether the backend keeps the spec fields that live in an item's meta: how each AC is
+    #: checked (``verification``, UC-12307). Native and FreeForm keep them; Trello and Plane
+    #: accept them and drop them, and the tools then answer ``verification_not_stored``.
+    STORES_SPEC_META: bool = False
+
     # ── Auth ──────────────────────────────────────────────────────
 
     @abstractmethod
@@ -478,11 +486,16 @@ class SpecBackend(ABC):
         board_id: str,
         uc_item_id: str,
         criteria: list[tuple[str, str]],
+        *,
+        meta_by_ac: dict[str, dict[str, Any]] | None = None,
     ) -> list[ChecklistItemDTO]:
         """Create ACs for a UC.
 
         Args:
             criteria: list of (ac_id, text) tuples, e.g. [('AC-01', 'Email validates')]
+            meta_by_ac: UC-12307 — extra per-AC metadata keyed by ac_id (today only
+                ``verification``). Backends without per-AC metadata (``STORES_SPEC_META``
+                False) accept and ignore it. Callers only pass it when there is something.
 
         In Trello: creates checklist items.
         In Plane: creates sub-work-items with label AC.
@@ -497,11 +510,13 @@ class SpecBackend(ABC):
         *,
         text: str | None = None,
         done: bool | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> ChecklistItemDTO:
         """Rewrite an AC's text and/or change its done state.
 
         Only non-None fields are updated. Distinct from mark_acceptance_criterion
-        which only toggles done.
+        which only toggles done. ``meta`` (UC-12307) is merged into the AC's metadata
+        (today only ``verification``); backends without per-AC metadata ignore it.
 
         In Trello: renames the checklist item and/or updates its state.
         In Plane: updates the sub-work-item name and/or state.

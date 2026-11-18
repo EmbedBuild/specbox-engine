@@ -103,10 +103,11 @@ async def validate_ac_quality(
                         "text": ac.text,
                         "issues": issues,
                     })
-                if rules < mh.SPEC_RULES_VERSION:
-                    # AC-04: anterior a la regla. Lo que las reglas nuevas le dirían se enseña,
-                    # pero no cuenta para el umbral ni para `failed`.
-                    would = mh.spec_rule_issues(ac.text) + mh.ac_text_warnings(ac.text, rules=mh.SPEC_RULES_VERSION)
+                if rules < mh.RULES_NORMATIVE:
+                    # UC-12302 AC-04: anterior a la regla. Lo que las reglas de redacción le
+                    # dirían se enseña, pero no cuenta para el umbral ni para `failed`. La falta
+                    # de «cómo se comprueba» no se le cuenta: el campo no existía (UC-12307 AC-04).
+                    would = mh.spec_rule_issues(ac.text) + mh.ac_text_warnings(ac.text, rules=mh.RULES_NORMATIVE)
                     if would:
                         predating.append({"uc_id": uid, "ac_id": ac.id, "text": ac.text, "would_flag": would})
 
@@ -115,9 +116,14 @@ async def validate_ac_quality(
                 # impecable como criterio: son dos ejes distintos, y meterlos en
                 # la misma lista los haría indistinguibles para el consumidor.
                 # UC-12302 AC-03: `threshold_without_condition` también es un aviso.
+                # UC-12307 AC-03: y `no_verification`, solo en criterios con las reglas 3.
                 exposure = mh.detect_ac_exposure(ac.text)
                 exposure_count += 1 if exposure else 0
-                ac_warnings = exposure + mh.ac_text_warnings(ac.text, rules=rules)
+                ac_warnings = (
+                    exposure
+                    + mh.ac_text_warnings(ac.text, rules=rules)
+                    + mh.verification_warnings(getattr(ac, "verification", None), rules=rules)
+                )
                 if ac_warnings:
                     warnings.append({
                         "uc_id": uid,
@@ -145,7 +151,7 @@ async def validate_ac_quality(
             result["predates_rule"] = predating
             result["predates_rule_note"] = (
                 "Criterios anteriores a las reglas de la versión "
-                f"{mh.SPEC_RULES_VERSION} (weak_modal, no_threshold, threshold_without_condition): "
+                f"{mh.RULES_NORMATIVE} (weak_modal, no_threshold, threshold_without_condition): "
                 "se enseña lo que esas reglas les dirían, pero no cuenta para el umbral. "
                 "Al reescribirlos con update_ac pasan a juzgarse con ellas."
             )
@@ -703,8 +709,9 @@ def register_board_operations_tools(mcp_instance) -> None:
     mcp_instance.tool(
         description="Validate AC quality against Definition Quality Gate rules. "
         "Flags vague, too-short and non-verifiable ACs, and separately warns about "
-        "ACs that expose credentials or internal file paths (warn-only, does not "
-        "affect pass_rate). For a single UC pass uc_id."
+        "ACs that expose credentials or internal file paths, or that do not say how they "
+        "are checked (no_verification) (warn-only, does not affect pass_rate). For a "
+        "single UC pass uc_id."
     )(validate_ac_quality)
     mcp_instance.tool(
         description="Attach structured evidence metadata (URL, screenshot, verdict) "

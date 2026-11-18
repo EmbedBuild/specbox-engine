@@ -62,6 +62,9 @@ class UseCaseSpec(BaseModel):
     hours: float = 0
     screens: str = ""
     acceptance_criteria: list[str] = Field(default_factory=list)
+    # UC-12307: how each criterion is checked, parallel to acceptance_criteria (None = not said).
+    # Filled from `{text, verification}` entries; a plain string has none.
+    acceptance_verifications: list[str | None] = Field(default_factory=list)
     context: str = ""
     satellite: str | None = None  # US-78 / UC-7805: the repo the UC's code goes to
 
@@ -70,6 +73,8 @@ class UseCaseSpec(BaseModel):
     def _normalize_aliases(cls, data: Any) -> Any:
         if not isinstance(data, dict):
             return data
+        from .tools._mutation_helpers import normalize_verification
+
         # Accept id/title as aliases for uc_id/name
         if "uc_id" not in data and "id" in data:
             data["uc_id"] = data.pop("id")
@@ -79,15 +84,26 @@ class UseCaseSpec(BaseModel):
         acs = data.get("acceptance_criteria")
         if isinstance(acs, list):
             normalized: list[str] = []
+            verifications: list[str | None] = []
             for ac in acs:
                 if isinstance(ac, str):
                     normalized.append(ac)
+                    verifications.append(None)
                 elif isinstance(ac, dict):
                     normalized.append(ac.get("text", ac.get("name", str(ac))))
+                    # A bad value is a ValueError: the import names it instead of dropping it.
+                    verifications.append(normalize_verification(ac.get("verification")))
                 else:
                     normalized.append(str(ac))
+                    verifications.append(None)
             data["acceptance_criteria"] = normalized
+            data["acceptance_verifications"] = verifications
         return data
+
+    def verification_for(self, index: int) -> str | None:
+        """The verification of the criterion at ``index`` (0-based), or None."""
+        vs = self.acceptance_verifications
+        return vs[index] if index < len(vs) else None
 
 
 class UserStorySpec(BaseModel):

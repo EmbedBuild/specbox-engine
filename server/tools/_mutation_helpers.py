@@ -385,8 +385,14 @@ def validate_ac_text(text: str, *, rules: int = 1) -> list[str]:
 # algo, y casi todas las cifras con unidad de tiempo son plazos, no rendimiento.
 # «podría» queda fuera: en el tablero describe situaciones («…podrían disparar builds»), no promesas.
 
+#: Desde qué versión de reglas se aplican lenguaje normativo y límites con cifra (UC-12302).
+RULES_NORMATIVE = 2
+#: Desde qué versión de reglas un criterio sin «cómo se comprueba» recibe ``no_verification``
+#: (UC-12307). Los criterios escritos antes no tienen el campo y no se les pide.
+RULES_VERIFICATION = 3
+
 #: Versión de las reglas del gate que estampa el backend en cada criterio nuevo o reescrito.
-SPEC_RULES_VERSION = 2
+SPEC_RULES_VERSION = RULES_VERIFICATION
 
 #: Lo citado no es lo que el criterio afirma: «debería», "rápido" o `may` entre comillas son el
 #: nombre de algo (UC-12302 cita las palabras de su propia regla).
@@ -464,6 +470,59 @@ def spec_rules_of(meta: Any) -> int:
     """La versión de reglas guardada en el ``meta`` de un criterio; 1 si no hay sello."""
     value = meta.get("spec_rules") if isinstance(meta, dict) else None
     return value if isinstance(value, int) and not isinstance(value, bool) and value >= 1 else 1
+
+
+# ── UC-12307 — cómo se comprueba cada criterio ───────────────────────
+
+#: Las cuatro formas de comprobar un criterio: una prueba automática, una prueba a mano, una
+#: revisión (de código, de diseño, de un documento) o una medida (tiempo, tamaño, cobertura…).
+VERIFICATION_METHODS: tuple[str, ...] = ("automated_test", "manual_test", "review", "measurement")
+
+
+class VerificationError(ValueError):
+    """Un valor de ``verification`` que no es una de las cuatro formas."""
+
+
+def normalize_verification(value: Any) -> str | None:
+    """``None`` o una de :data:`VERIFICATION_METHODS`; cualquier otro valor lanza VerificationError.
+
+    Acepta mayúsculas, espacios y guiones («Automated test», ``manual-test``) para no rechazar
+    lo que un cliente escribe a mano, pero guarda siempre la forma canónica.
+    """
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise VerificationError(f"verification must be a string, got {type(value).__name__}")
+    key = re.sub(r"[\s-]+", "_", value.strip().lower())
+    if key not in VERIFICATION_METHODS:
+        raise VerificationError(
+            f"verification {value!r} is not one of: {', '.join(VERIFICATION_METHODS)}"
+        )
+    return key
+
+
+#: Las claves del ``meta`` de un criterio que una tool puede escribir. El resto (``spec_rules``,
+#: ``evidence``, ``verdict``…) lo escribe solo el propio backend.
+AC_META_KEYS = frozenset({"verification"})
+
+
+def ac_meta_extra(meta: dict[str, Any] | None) -> dict[str, Any]:
+    """De un ``meta`` recibido, solo las claves de :data:`AC_META_KEYS` con valor."""
+    return {k: v for k, v in (meta or {}).items() if k in AC_META_KEYS and v is not None}
+
+
+def verification_of(meta: Any) -> str | None:
+    """La forma de comprobación guardada en el ``meta`` de un criterio (None si no hay o no vale)."""
+    value = meta.get("verification") if isinstance(meta, dict) else None
+    return value if value in VERIFICATION_METHODS else None
+
+
+def verification_warnings(verification: str | None, *, rules: int = 1) -> list[str]:
+    """``no_verification`` para un criterio escrito con las reglas 3 o más que no dice cómo se
+    comprueba (UC-12307 AC-03). Uno anterior no tenía el campo y queda sin aviso (AC-04)."""
+    if rules < RULES_VERIFICATION or verification:
+        return []
+    return ["no_verification"]
 
 
 # ── Item finders (thin wrappers over list_items) ─────────────────────

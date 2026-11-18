@@ -183,7 +183,7 @@ def _from_jsonb(value: Any) -> Any:
 
 def _ac_receipts(row: Any) -> dict[str, Any]:
     """The receipts of an AC row (US-56/UC-5601): ``evidence`` list and last ``verdict``."""
-    from ..tools._mutation_helpers import spec_rules_of
+    from ..tools._mutation_helpers import spec_rules_of, verification_of
 
     meta = _from_jsonb(row["meta"]) or {}
     evidence = meta.get("evidence")
@@ -192,6 +192,7 @@ def _ac_receipts(row: Any) -> dict[str, Any]:
         "evidence": evidence if isinstance(evidence, list) else [],
         "verdict": verdict if isinstance(verdict, dict) else None,
         "spec_rules": spec_rules_of(meta),  # UC-12302
+        "verification": verification_of(meta),  # UC-12307
     }
 
 
@@ -240,6 +241,8 @@ class NativeBackend(SpecBackend):
     method honours the ``board_id`` it is given so the instance can serve any
     project it is asked about while still filtering by tenant.
     """
+
+    STORES_SPEC_META = True  # UC-12307: acceptance_criteria.meta.verification
 
     def __init__(self, project_id: str, dev_token: str) -> None:
         """Initialize the backend scoped to a project + a developer session.
@@ -1503,8 +1506,11 @@ class NativeBackend(SpecBackend):
         uc_item_id: str,
         criteria: list[tuple[str, str]],
         emit_audit: bool = True,
+        *,
+        meta_by_ac: dict[str, dict[str, Any]] | None = None,
     ) -> list[ChecklistItemDTO]:
         from ..coordination.audit import OP_CREATE_AC, record_destructive
+        from ..tools._mutation_helpers import ac_meta_extra
 
         dev = await self._require_membership_cached(board_id)
         result: list[ChecklistItemDTO] = []
@@ -1513,6 +1519,8 @@ class NativeBackend(SpecBackend):
             async with conn.transaction():
                 for ac_id, text in criteria:
                     db_id = f"{uc_item_id}::{ac_id}"
+                    # UC-12307: what the tool says about this AC (only AC_META_KEYS).
+                    extra = ac_meta_extra((meta_by_ac or {}).get(ac_id))
                     row = await conn.fetchrow(
                         """
                         INSERT INTO acceptance_criteria
@@ -1526,7 +1534,7 @@ class NativeBackend(SpecBackend):
                         ac_id,
                         text,
                         # UC-12302: written under the current gate rules.
-                        _jsonb({"ac_id": ac_id, "tipo": "AC", "spec_rules": SPEC_RULES_VERSION}),
+                        _jsonb({**extra, "ac_id": ac_id, "tipo": "AC", "spec_rules": SPEC_RULES_VERSION}),
                     )
                     result.append(
                         ChecklistItemDTO(
@@ -1536,6 +1544,7 @@ class NativeBackend(SpecBackend):
                             backend_id=row["id"],
                             internal=False,
                             spec_rules=SPEC_RULES_VERSION,
+                            verification=extra.get("verification"),
                         )
                     )
                 # UC-706: one audit event for the create. A single AC targets
@@ -1593,8 +1602,9 @@ class NativeBackend(SpecBackend):
         *,
         text: str | None = None,
         done: bool | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> ChecklistItemDTO:
-        """Update an AC's text and/or done state. Increments ``version``.
+        """Update an AC's text, done state and/or tool metadata (UC-12307). Increments ``version``.
 
         Optimistic concurrency: the ABC signature has no meta param here, so an
         expected version is passed positionally is impossible. Callers that
@@ -1603,8 +1613,11 @@ class NativeBackend(SpecBackend):
         provided we no-op-return the current row. The version is still bumped on
         any real change so concurrent edits remain detectable on the next read.
         """
+        from ..tools._mutation_helpers import ac_meta_extra
+
         dev = await self._require_membership_cached(board_id)
-        if text is None and done is None:
+        extra = ac_meta_extra(meta)  # UC-12307: only the keys a tool may write
+        if text is None and done is None and not extra:
             # Nothing to change — return current state without bumping version.
             # No audit row (no mutation → no realtime event).
             pool = await self._pool()
@@ -1623,19 +1636,27 @@ class NativeBackend(SpecBackend):
                 done=row["done"],
                 backend_id=row["id"],
                 internal=row["internal"],
+                **_ac_receipts(row),
             )
 
         set_clauses: list[str] = []
         params: list[Any] = []
+        # One assignment to `meta` (Postgres rejects two): the rules stamp and the tool's keys.
+        meta_expr = "meta"
         if text is not None:
             params.append(text)
             set_clauses.append(f"text = ${len(params)}")
             # UC-12302: a rewritten criterion is judged by the current gate rules. SET reads the
             # old row, so the comparison is against the text before this update.
-            set_clauses.append(
-                f"meta = CASE WHEN text IS DISTINCT FROM ${len(params)} "
+            meta_expr = (
+                f"CASE WHEN text IS DISTINCT FROM ${len(params)} "
                 f"THEN meta || jsonb_build_object('spec_rules', {SPEC_RULES_VERSION}) ELSE meta END"
             )
+        if extra:
+            params.append(_jsonb(extra))
+            meta_expr = f"({meta_expr}) || ${len(params)}::jsonb"
+        if meta_expr != "meta":
+            set_clauses.append(f"meta = {meta_expr}")
         if done is not None:
             params.append(done)
             set_clauses.append(f"done = ${len(params)}")

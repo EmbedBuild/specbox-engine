@@ -30,6 +30,7 @@ const EXEMPT = {
   'on-session-end': 'Stop: solo escribe telemetría en .quality/logs',
   'read-tracker': 'PostToolUse de Read: solo anota la lectura, en silencio',
   'session-heartbeat': 'Latido al board (UC-9901): nunca habla con el agente ni bloquea; lo manda en segundo plano',
+  'uc-state-marker': 'PostToolUse de las tools de SpecBox (UC-12216): solo escribe o borra .quality/active_uc.json, en silencio',
 };
 
 function registered() {

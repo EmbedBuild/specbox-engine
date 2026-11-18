@@ -80,34 +80,26 @@ def _marker_is_local() -> bool:
     return not is_remote_transport()
 
 
-def _write_active_uc_marker(
+def _active_uc_marker(
     uc_id: str,
     board_id: str,
     feature: str = "",
     reservation: dict[str, Any] | None = None,
-) -> None:
-    """Write the active UC marker so spec-guard.mjs allows code writes.
+    us_id: str = "",
+) -> dict[str, Any]:
+    """The content of ``.quality/active_uc.json``: the UC, its story and, in native, the reservation.
 
-    For native sessions, ``reservation`` carries a reference to the remote
-    reservation (``developer_id``, ``reserved_at``) so spec-guard.mjs can
-    treat the local file as a cache and revalidate against the MCP when
-    online [AC-21].
-
-    The on-disk JSON uses the key ``reservation`` (UC-613, v5.35.0). The
-    Node-side hook (``.claude/hooks/spec-guard.mjs`` +
-    ``lib/native-reservation-revalidate.mjs``) reads ``payload.reservation``
-    and falls back to the legacy ``payload.claim`` key for cache files
-    written by older versions; the fallback is removed in v5.37.0 (UC-612).
+    ``start_uc`` returns it as ``active_uc_marker`` in every mode (UC-12216): with the remote MCP the
+    server has no access to the client's disk, so the ``uc-state-marker`` hook writes it there.
     """
-    if not _marker_is_local():
-        return
-    marker_path = Path(ACTIVE_UC_FILENAME)
     payload: dict[str, Any] = {
         "uc_id": uc_id,
         "board_id": board_id,
         "feature": feature,
         "started_at": datetime.now(timezone.utc).isoformat(),
     }
+    if us_id:
+        payload["us_id"] = us_id
     if reservation:
         # Cache of the remote reservation — spec-guard.mjs revalidates online.
         # Accept ``reserved_at`` (new) with ``claimed_at`` as a deprecated
@@ -123,14 +115,42 @@ def _write_active_uc_marker(
             "reserved_at": reserved_at,
             "backend": "native",
         }
+    return payload
+
+
+def _write_active_uc_marker(
+    uc_id: str,
+    board_id: str,
+    feature: str = "",
+    reservation: dict[str, Any] | None = None,
+    us_id: str = "",
+) -> dict[str, Any]:
+    """Write the active UC marker so spec-guard.mjs allows code writes; returns its content.
+
+    For native sessions, ``reservation`` carries a reference to the remote
+    reservation (``developer_id``, ``reserved_at``) so spec-guard.mjs can
+    treat the local file as a cache and revalidate against the MCP when
+    online [AC-21].
+
+    The on-disk JSON uses the key ``reservation`` (UC-613, v5.35.0). The
+    Node-side hook (``.claude/hooks/spec-guard.mjs`` +
+    ``lib/native-reservation-revalidate.mjs``) reads ``payload.reservation``
+    and falls back to the legacy ``payload.claim`` key for cache files
+    written by older versions; the fallback is removed in v5.37.0 (UC-612).
+    """
+    payload = _active_uc_marker(uc_id, board_id, feature, reservation, us_id)
+    if not _marker_is_local():
+        return payload
+    marker_path = Path(ACTIVE_UC_FILENAME)
     try:
         marker_path.parent.mkdir(parents=True, exist_ok=True)
         marker_path.write_text(json.dumps(payload, indent=2) + "\n")
     except OSError as exc:
         # A local convenience for the hook: never the reason a UC fails to start.
         logger.warning("active_uc_marker_not_written", uc_id=uc_id, reason=type(exc).__name__)
-        return
+        return payload
     logger.info("active_uc_marker_written", uc_id=uc_id, path=str(marker_path))
+    return payload
 
 
 def _clear_active_uc_marker() -> None:
@@ -1641,8 +1661,11 @@ async def start_uc(
             await backend.close()
         # Fall through to return the full UC detail.
         detail = await get_uc(board_id, uc_id, ctx)
-        if us_state_change and "error" not in detail:
-            detail["us_state_change"] = us_state_change
+        if "error" not in detail:
+            if us_state_change:
+                detail["us_state_change"] = us_state_change
+            # UC-12216: the client writes it with the remote MCP (uc-state-marker hook).
+            detail["active_uc_marker"] = reservation_result.get("active_uc_marker")
         return detail
 
     backend = await get_session_backend(ctx, items_content=items_content)
@@ -1663,10 +1686,14 @@ async def start_uc(
 
         # Write active UC marker for spec-guard.mjs enforcement.
         # In content-passing mode the marker is the client's responsibility
-        # (the server has no client filesystem) — skip the server-side write.
+        # (the server has no client filesystem) — skip the server-side write;
+        # the answer carries it for the uc-state-marker hook (UC-12216).
+        feature = _extract_meta_str(uc_item, "feature", uc_id)
+        us_id = _extract_meta_str(uc_item, "us_id")
         if items_content is None:
-            feature = _extract_meta_str(uc_item, "feature", uc_id)
-            _write_active_uc_marker(uc_id, board_id, feature)
+            marker = _write_active_uc_marker(uc_id, board_id, feature, us_id=us_id)
+        else:
+            marker = _active_uc_marker(uc_id, board_id, feature, us_id=us_id)
 
         # Content-passing: capture the mutated board now (before close), then
         # build the detail from it. get_uc re-parses the same string, so the
@@ -1682,12 +1709,15 @@ async def start_uc(
             detail["items_content"] = mutated
             if us_state_change:
                 detail["us_state_change"] = us_state_change
+            detail["active_uc_marker"] = marker
         return detail
 
     # Disk mode: return full UC detail (creates a new backend session)
     detail = await get_uc(board_id, uc_id, ctx)
-    if us_state_change and "error" not in detail:
-        detail["us_state_change"] = us_state_change
+    if "error" not in detail:
+        if us_state_change:
+            detail["us_state_change"] = us_state_change
+        detail["active_uc_marker"] = marker
     return detail
 
 
@@ -1749,13 +1779,14 @@ async def _start_uc_native(session: dict[str, str], board_id: str, uc_id: str, c
         # Conflict carries owner / reserved_at / branch [AC-19].
         return {"error": str(e), **e.to_payload()}
 
-    _write_active_uc_marker(
+    marker = _write_active_uc_marker(
         uc_id,
         board_id,
         _extract_meta_str(uc_item, "feature", uc_id),
         reservation=reservation.to_public(),
+        us_id=_extract_meta_str(uc_item, "us_id"),
     )
-    return {"success": True, "reserved_by": dev.developer_id}
+    return {"success": True, "reserved_by": dev.developer_id, "active_uc_marker": marker}
 
 
 async def _release_uc_native(session: dict[str, str], uc_id: str) -> None:

@@ -186,14 +186,12 @@ function pre() {
     );
     return result;
   });
-  process.stdout.write(
-    JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: 'PreToolUse',
-        updatedInput: { ...toolInput, items_content: built.itemsContent },
-      },
-    }),
-  );
+  const updatedInput = { ...toolInput, items_content: built.itemsContent };
+  // UC-12211: start_uc marks the UCs that predate a rule; it needs the board's policy.
+  if (parsed.tool === 'start_uc' && typeof toolInput.policy_content !== 'string' && existsSync(policyPath)) {
+    updatedInput.policy_content = readFileSync(policyPath, 'utf-8');
+  }
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', updatedInput } }));
 }
 
 function post() {

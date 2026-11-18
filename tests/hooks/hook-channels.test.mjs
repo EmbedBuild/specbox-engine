@@ -16,7 +16,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -217,7 +217,28 @@ const SCENARIOS = {
     ['proyecto que no es FreeForm', 'silent', (p) => run('freeform-fragment', p.dir, 'PreToolUse', 'mcp__SpecBox-MCP__add_uc', { board_id: 'ff' },
       { SPECBOX_ENGINE_MCP_URL: 'https://mcp.example.test/mcp' }, { tool_use_id: 'toolu_canal' })],
   ],
+  'prd-sync-guard': [
+    ['PR sin el PRD en modo aviso', 'note', () => prdMerge('warn')],
+    ['PR sin el PRD en modo bloqueante', 'block', () => prdMerge('block')],
+    ['sin UC activa', 'silent', (p) => run('prd-sync-guard', p.dir, 'PreToolUse', 'Bash', { command: 'gh pr merge 12 --squash' })],
+  ],
 };
+
+/** `gh pr merge` de la UC activa con un `gh` falso cuya PR no toca el PRD (UC-12211). */
+function prdMerge(mode) {
+  const p = repo({ specDriven: false });
+  try {
+    p.write('.claude/settings.local.json', JSON.stringify({ specbox: { backend_type: 'freeform' } }));
+    p.write('doc/tracking/policy.json', JSON.stringify({ schema: 1, origin: 'new', measures: { spec_in_pr: { mode } }, skips: [] }));
+    p.write('doc/prd/demo/prd.md', '# PRD\n\n## US-01\n');
+    p.write('.quality/active_uc.json', JSON.stringify({ uc_id: 'UC-1', us_id: 'US-01', feature: 'demo' }));
+    p.write('bin/gh', `#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify({ files: [{ path: 'src/x.ts' }], body: '' }));\n`);
+    chmodSync(join(p.dir, 'bin/gh'), 0o755);
+    return run('prd-sync-guard', p.dir, 'PreToolUse', 'Bash', { command: 'gh pr merge 12 --squash' }, { PATH: `${join(p.dir, 'bin')}:${process.env.PATH}` });
+  } finally {
+    p.done();
+  }
+}
 
 function mkdirP(base, rel) {
   mkdirSync(join(base, rel), { recursive: true });

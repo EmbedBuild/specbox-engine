@@ -693,3 +693,74 @@ def register_enforcement_tools(mcp_instance) -> None:
             "Quedan quién, cuándo y por qué en el tablero. Solo para medidas en «block»."
         )
     )(skip_enforcement)
+
+
+# ── Lo que el marcador de UC activa sabe de la política (UC-12211) ───
+
+
+async def _native_uc(project_id: str, uc_id: str) -> dict[str, Any] | None:
+    """La UC con sus criterios, como la ve el informe de impacto (misma huella)."""
+    from ..db.pool import get_pool
+
+    pool = await get_pool()
+    row = await pool.fetchrow(
+        """
+        SELECT u.id AS uc_id, u.name, u.description, u.state,
+               COALESCE(json_agg(json_build_object('ac_id', a.ac_id, 'text', a.text) ORDER BY a.ac_id)
+                        FILTER (WHERE a.ac_id IS NOT NULL), '[]'::json) AS acs
+          FROM use_cases u
+          LEFT JOIN acceptance_criteria a ON a.project_id = u.project_id AND a.uc_id = u.id
+         WHERE u.project_id = $1 AND u.id = $2
+         GROUP BY u.id, u.name, u.description, u.state
+        """,
+        project_id,
+        uc_id,
+    )
+    if row is None:
+        return None
+    acs = json.loads(row["acs"]) if isinstance(row["acs"], str) else row["acs"]
+    return {"uc_id": row["uc_id"], "name": row["name"], "description": row["description"], "state": row["state"], "acs": acs}
+
+
+async def marker_policy_extras(
+    ctx: Context | None, board_id: str, uc_id: str, items_content: str | None, policy_content: str | None
+) -> dict[str, Any]:
+    """``predates_rule``: las medidas en «block» para las que la UC es anterior a la regla.
+
+    Va en el marcador de UC activa para que los hooks que aplican medidas (spec_in_pr…) no
+    detengan una UC anterior a la regla. Nunca lanza: sin datos, no añade nada.
+    """
+    from ..auth_gateway import BACKEND_STATE_KEY
+
+    try:
+        config = (await ctx.get_state(BACKEND_STATE_KEY) or {}) if ctx is not None else {}
+        backend_type = config.get("backend_type") or ""
+        raw: Any = None
+        uc: dict[str, Any] | None = None
+        if backend_type == "native":
+            from ..db.pool import get_pool
+
+            pool = await get_pool()
+            raw = await pool.fetchval("SELECT meta->'enforcement' FROM projects WHERE project_id = $1", board_id)
+            raw = json.loads(raw) if isinstance(raw, str) else raw
+            if raw:
+                uc = await _native_uc(board_id, uc_id)
+        elif backend_type == "freeform":
+            if policy_content is not None:
+                raw = _parse_policy_content(policy_content)
+            elif config.get("root_path") and Path(config["root_path"]).is_absolute():
+                path = Path(config["root_path"]) / policy_mod.POLICY_FILE
+                raw = json.loads(path.read_text()) if path.exists() else None
+            if raw:
+                content = items_content
+                if content is None and config.get("root_path"):
+                    items_path = Path(config["root_path"]) / "items.json"
+                    content = items_path.read_text() if items_path.exists() else None
+                if content is not None:
+                    uc = next((u for u in await _freeform_open_ucs(content) if u["uc_id"] == uc_id), None)
+        if not raw or uc is None:
+            return {}
+        predates = policy_mod.predating_measures(raw, uc)
+        return {"predates_rule": predates} if predates else {}
+    except Exception:  # noqa: BLE001 — el marcador es una ayuda: nunca la razón de que falle start_uc
+        return {}

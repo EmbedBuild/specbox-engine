@@ -2176,23 +2176,32 @@ Si existe `.quality/evidence/${feature}/feedback-summary.json`:
 
 Antes del merge, escribir el Implementation Status en el PRD:
 
-1. Localizar PRD del feature/US actual:
-   - Si spec-driven: buscar en `doc/prds/` por us_id o feature name
+1. Localizar el PRD de la historia: `doc/prd/<slug>/prd.md`, `doc/prd/{feature}.md` o
+   `doc/prds/…`, y el único que nombra la US si no está por nombre; en un satélite, el del
+   orquestador (el mismo orden en el servidor y en `lib/prd-locate.mjs`, UC-12211).
    - Si freeform: ya se hizo en Paso 7.7a (saltar este paso)
 2. **(v5.32.0)** Construir el aggregate desde phase_outputs.jsonl con la tool
    `aggregate_phase_outputs` (Paso 5.1.1b). Sus `phase_deltas` son los bloques Markdown que
    antes llamábamos `implementation_deltas`.
 3. Escribir la sección en el PRD con la tool `write_implementation_status(project_path, uc_id,
-   branch, phase_deltas=agg.phase_deltas, us_id=us_id)`: compila la sección y la añade al final
-   del PRD (append-only). Con el MCP remoto, ver la nota de abajo (`files_content`).
+   branch, phase_deltas=agg.phase_deltas, us_id=us_id, behaviors={ac_id: frase})`: compila la
+   sección y la añade al final del PRD (append-only). **`behaviors` (UC-12211)**: por cada criterio,
+   en una frase, el comportamiento entregado («El recibo aparece en el correo del cliente»); va bajo
+   «Comportamiento entregado», además de ficheros y decisiones. Con el MCP remoto, ver la nota de
+   abajo (`files_content`).
 4. (Lo hace la misma tool del paso 3.)
-5. Commit del PRD actualizado:
+5. Commit del PRD actualizado **en la misma rama de la UC**, para que vaya en la misma PR que el
+   código (en un satélite, en una PR del orquestador enlazada desde la descripción de esta):
    ```bash
-   git add doc/prds/{prd_file}
+   git add {ruta del PRD}
    git commit -m "docs({feature}): add Implementation Status for {uc_id}"
    git push origin {branch}
    ```
-6. Si no se encuentra PRD → WARNING, no bloquear el merge.
+6. **Validación antes de fusionar (medida `spec_in_pr`, UC-12211).** El hook `prd-sync-guard`
+   revisa `gh pr merge`: si la PR no cambia el PRD (ni enlaza una PR del orquestador que lo
+   cambie), en «warn» avisa y en «block» detiene la fusión con el PRD esperado. Una UC sin PRD se
+   marca antes con `update_uc(board_id, uc_id, no_prd_reason="por qué")` (al menos 10 caracteres);
+   una UC anterior a la regla no se detiene.
 7. Si `agg.overall_status == "empty"` → WARNING (probable Task legacy que no
    escribio phase_outputs.jsonl); fallback al flujo pre-v5.32 con git diff.
 

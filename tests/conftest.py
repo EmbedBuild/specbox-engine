@@ -136,6 +136,25 @@ def _native_pool_guard(request):
         native_pool._pool = None
 
 
+# The tests about the marker itself: they move to a temporary folder and read it there.
+_MARKER_TESTS = {"test_active_uc_marker.py", "test_active_uc_marker_remote.py"}
+
+
+@pytest.fixture(autouse=True)
+def _active_uc_marker_out_of_the_repo(request, monkeypatch, tmp_path_factory):
+    """start_uc writes .quality/active_uc.json in the current folder (local MCP).
+
+    Run from the repo root, a test that starts a UC overwrote the real marker of whoever was
+    working there, and spec-guard, commit-spec-guard and prd-sync-guard then judged a test UC.
+    """
+    if request.node.path.name in _MARKER_TESTS:
+        return
+    from server.tools import spec_driven
+
+    target = tmp_path_factory.getbasetemp() / "active_uc_marker" / "active_uc.json"
+    monkeypatch.setattr(spec_driven, "ACTIVE_UC_FILENAME", str(target))
+
+
 @pytest.fixture
 def mock_ctx():
     """Mock FastMCP Context for per-session auth."""

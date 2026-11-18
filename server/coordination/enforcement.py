@@ -66,7 +66,7 @@ MEASURES: dict[str, Measure] = {
     m.key: m
     for m in (
         Measure("context_budget", "presupuesto de contexto por subagente", "UC-12210", since="6.38.0"),
-        Measure("spec_in_pr", "el PRD cambia en la misma PR que el código", "UC-12211"),
+        Measure("spec_in_pr", "el PRD cambia en la misma PR que el código", "UC-12211", since="6.38.0"),
         Measure("spec_quality", "calidad de la spec al empezar una UC", "US-123"),
         Measure("pending_decisions", "marcas «por decidir» al empezar una UC", "US-123"),
         Measure("closing_evidence", "evidencia que pasa al cerrar una UC", "US-124"),
@@ -396,6 +396,11 @@ def predates_rule(raw: Any, measure: str, uc: dict[str, Any]) -> bool:
         return False
     snapshot = entry.get("grandfathered") or {}
     return bool(uc.get("uc_id")) and snapshot.get(uc["uc_id"]) == uc_fingerprint(uc)
+
+
+def predating_measures(raw: Any, uc: dict[str, Any]) -> list[str]:
+    """Las medidas en «block» para las que la UC es anterior a la regla (va en el marcador de UC activa)."""
+    return [key for key in MEASURES if predates_rule(raw, key, uc)]
 
 
 def open_uc_fingerprints(ucs: list[dict[str, Any]]) -> dict[str, str]:

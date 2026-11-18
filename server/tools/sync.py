@@ -62,8 +62,12 @@ def register_sync_tools(mcp_instance: FastMCP, engine_path: Path) -> None:
         feature: str = "",
         us_id: str = "",
         files_content: dict[str, str] | None = None,
+        behaviors: dict[str, str] | None = None,
     ) -> dict:
         """Write Implementation Status section to a project's PRD.
+
+        `behaviors` (UC-12211): {ac_id: one sentence of what the delivered criterion does}; it goes
+        under «Comportamiento entregado», next to the files and decisions of each phase.
 
         Args:
             project_path: Absolute path to the project root directory.
@@ -79,7 +83,7 @@ def register_sync_tools(mcp_instance: FastMCP, engine_path: Path) -> None:
         return run_in_root(
             project_path,
             files_content,
-            lambda root: _write_status(root, uc_id, branch, phase_deltas, feature, us_id),
+            lambda root: _write_status(root, uc_id, branch, phase_deltas, feature, us_id, behaviors),
         )
 
 
@@ -123,7 +127,10 @@ def _get_status(project_path, item_id: str, feature: str) -> dict:
     )
 
 
-def _write_status(project_path, uc_id: str, branch: str, phase_deltas: list[str], feature: str, us_id: str) -> dict:
+def _write_status(
+    project_path, uc_id: str, branch: str, phase_deltas: list[str], feature: str, us_id: str,
+    behaviors: dict[str, str] | None = None,
+) -> dict:
     from ..prd_writer import append_implementation_status
 
     prd_path = find_prd_path(
@@ -135,11 +142,11 @@ def _write_status(project_path, uc_id: str, branch: str, phase_deltas: list[str]
     if prd_path is None:
         return {
             "success": False,
-            "error": f"No se encontró PRD en {project_path}/doc/prds/",
+            "error": f"No se encontró PRD en {project_path} (doc/prd/<slug>/prd.md, doc/prd/<feature>.md o doc/prds/)",
             "uc_id": uc_id,
         }
 
-    success = append_implementation_status(prd_path, uc_id, branch, phase_deltas)
+    success = append_implementation_status(prd_path, uc_id, branch, phase_deltas, behaviors=behaviors)
 
     return {
         "success": success,

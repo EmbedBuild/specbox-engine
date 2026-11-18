@@ -22,11 +22,14 @@ def find_prd_path(
     """Find the PRD file for a project/feature/US.
 
     Search order:
-      1. doc/prds/{feature}_prd.md
+      1. doc/prds/{feature}_prd.md (or doc/prds/{feature}.md)
       2. doc/prds/{us_id normalized}_prd.md (e.g. US-01 -> us_01)
-      3. doc/prd/{feature}.md (legacy format)
-      4. doc/prds/*.md (single file → that's the one)
-      5. None if not found
+      3. doc/prd/{feature}.md (legacy format) or doc/prd/{feature}/prd.md (UC-12211)
+      4. the only PRD that names the US (doc/prd/*/prd.md, doc/prd/*.md, doc/prds/*.md; UC-12211)
+      5. doc/prds/*.md (single file → that's the one)
+      6. None if not found
+
+    `.claude/hooks/lib/prd-locate.mjs` follows the same order (tests compare them).
     """
     root = as_path(project_path)
 
@@ -47,13 +50,22 @@ def find_prd_path(
         if candidate.exists():
             return candidate
 
-    # 3. Legacy format
+    # 3. Legacy format, and the folder per feature (doc/prd/<slug>/prd.md)
     if feature:
-        candidate = root / "doc" / "prd" / f"{feature}.md"
-        if candidate.exists():
-            return candidate
+        for candidate in (root / "doc" / "prd" / f"{feature}.md", root / "doc" / "prd" / feature / "prd.md"):
+            if candidate.exists():
+                return candidate
 
-    # 4. Single PRD in doc/prds/
+    # 4. The only PRD that names the US (UC-12211)
+    if us_id:
+        import re
+
+        word = re.compile(rf"\b{re.escape(us_id)}\b")
+        named = [p for p in prd_candidates(root) if word.search(_read(p))]
+        if len(named) == 1:
+            return named[0]
+
+    # 5. Single PRD in doc/prds/
     prds_dir = root / "doc" / "prds"
     if prds_dir.exists():
         md_files = list(prds_dir.glob("*.md"))
@@ -63,12 +75,28 @@ def find_prd_path(
     return None
 
 
+def prd_candidates(root: Path) -> list[Path]:
+    """Every PRD file of the project, in a stable order: doc/prd/*/prd.md, doc/prd/*.md, doc/prds/*.md."""
+    found: list[Path] = []
+    for pattern in ("doc/prd/*/prd.md", "doc/prd/*.md", "doc/prds/*.md"):
+        found.extend(sorted(root.glob(pattern), key=str))
+    return found
+
+
+def _read(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
 def append_implementation_status(
     prd_path: Path,
     uc_id: str,
     branch: str,
     phase_deltas: list[str],
     timestamp: str | None = None,
+    behaviors: dict[str, str] | None = None,
 ) -> bool:
     """Append Implementation Status section to the end of a PRD file.
 
@@ -98,7 +126,7 @@ def append_implementation_status(
         return False
 
     # Build the UC status block
-    uc_block = compile_uc_status(uc_id, branch, phase_deltas, timestamp)
+    uc_block = compile_uc_status(uc_id, branch, phase_deltas, timestamp, behaviors)
 
     # Check if Implementation Status section already exists
     has_impl_status = "## Implementation Status" in content

@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.40.0] — "Por escrito"
+
+- No changes in the extension itself. The version follows the engine, where each criterion says how it is
+  checked, each story says what it leaves out, and PRD format 2 separates what from how (new
+  `check_prd_format` tool); everything warns and nothing stops the work.
+
 ## [6.39.0] — "Umbral"
 
 - No changes in the extension itself. The version follows the engine, where `start_uc` now checks the spec

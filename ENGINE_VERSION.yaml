@@ -1,5 +1,5 @@
-version: 6.39.0
-codename: "Umbral"
+version: 6.40.0
+codename: "Por escrito"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-18
@@ -635,8 +635,24 @@ features:
   - spec-quality-threshold-per-project
   - ac-rules-v2-normative-measurable
   - ac-rules-stamp-per-criterion
+  # New (v6.40.0) — Por escrito
+  - ac-verification-method
+  - us-exclusions
+  - prd-format-v2
+  - check-prd-format
+  - prd-discarded-alternatives
 
 changelog:
+  6.40.0:
+    date: 2026-11-18
+    codename: "Por escrito"
+    changes:
+      - "feat: each AC says how it is checked (verification: automated_test, manual_test, review, measurement) via import_spec ({text, verification}), add_ac, add_uc, update_ac and update_ac_batch; native and FreeForm keep it in the AC meta and get_uc returns it; validate_ac_quality warns no_verification only on ACs written under rules 3 (stamp raised from 2 to 3); Trello and Plane answer verification_not_stored (UC-12307, #380)"
+      - "feat: import_spec takes exclusions per story (kept in the story meta, returned by get_us); a story without them is created as before and listed in warnings with no_exclusions; update_us(exclusions) sets or clears them; the PRD templates gain «Casos límite» (UC-12306, #381)"
+      - "feat: PRD format 2 (<!-- @specbox:prd format=\"2\" --> under the title): templates drop «Stack técnico» and «Archivos principales» for the plan and gain «Restricciones de implementación (opcional, de este cambio)»; new pure tool check_prd_format(prd_content) returns the format version and warns paths_outside_restrictions and missing_pending_section; /prd and /plan call it, /implement reads both formats (UC-12304, #382)"
+      - "feat: the PRD templates gain «Alternativas descartadas» (option, reason, who; or «Ninguna»); /prd asks for them and check_prd_format warns missing_alternatives on format 2 (UC-12303, #383)"
+      - "fix: the client-facing writing rule no longer sits inside the Spec-Driven PRD template block, so it is not copied into every PRD (UC-12304)"
+
   6.39.0:
     date: 2026-11-18
     codename: "Umbral"

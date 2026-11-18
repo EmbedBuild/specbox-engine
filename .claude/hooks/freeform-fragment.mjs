@@ -194,12 +194,45 @@ function pre() {
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', updatedInput } }));
 }
 
+/**
+ * start_uc (UC-12301): a block it records (`event_line`) and a skip it spends (`policy_content`)
+ * go where the policy tools write them. Returns the note for the agent, or null.
+ */
+function saveStartUcEnforcement(response) {
+  if (parsed.tool !== 'start_uc') return null;
+  const saved = [];
+  try {
+    const lines = (extractField(response, 'event_line') || '').split('\n').filter((l) => l.trim());
+    if (lines.length) {
+      for (const line of lines) JSON.parse(line);
+      mkdirSync(dirname(eventsPath), { recursive: true });
+      appendFileSync(eventsPath, lines.map((l) => `${l}\n`).join(''), 'utf-8');
+      saved.push(`el registro en ${eventsPath.replace(`${root}/`, '')}`);
+    }
+    const policy = extractField(response, 'policy_content');
+    if (policy != null) {
+      JSON.parse(policy);
+      writeAtomic(policyPath, policy.endsWith('\n') ? policy : `${policy}\n`);
+      saved.unshift(`la política en ${policyPath.replace(`${root}/`, '')}`);
+    }
+  } catch (err) {
+    process.stderr.write(
+      `SpecBox freeform-fragment: no se pudo guardar lo que devolvió start_uc (${err.message}). ` +
+        'Repite la llamada antes de seguir.\n',
+    );
+    process.exit(2);
+  }
+  return saved.length ? `SpecBox: guardado ${saved.join(' y ')}. No lo escribas a mano.` : null;
+}
+
 function post() {
   if (!existsSync(pending)) return;
   const response = payload.tool_response;
+  const startNote = saveStartUcEnforcement(response);
   const content = extractItemsContent(response);
   if (content == null) {
     unlinkSync(pending); // a read, or an error: nothing to merge
+    if (startNote) writeHidden(response, startNote); // a start_uc that a measure stopped
     return;
   }
   try {
@@ -224,7 +257,8 @@ function post() {
             `SpecBox: el tablero ya está guardado en ${itemsPath.replace(`${root}/`, '')}` +
             (changes ? ` (${changes > 0 ? '+' : ''}${changes} elementos)` : '') +
             (policySaved ? `, con su política en ${policyPath.replace(`${root}/`, '')}` : '') +
-            '. No lo escribas a mano.',
+            '. No lo escribas a mano.' +
+            (startNote ? ` ${startNote}` : ''),
         },
       }),
     );

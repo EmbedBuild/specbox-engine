@@ -32,6 +32,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import partial
 from typing import Any
 
 MODES: tuple[str, ...] = ("off", "warn", "block")
@@ -67,7 +68,8 @@ MEASURES: dict[str, Measure] = {
     for m in (
         Measure("context_budget", "presupuesto de contexto por subagente", "UC-12210", since="6.38.0"),
         Measure("spec_in_pr", "el PRD cambia en la misma PR que el código", "UC-12211", since="6.38.0"),
-        Measure("spec_quality", "calidad de la spec al empezar una UC", "US-123"),
+        # UC-12301: start_uc la comprueba antes de reservar (umbral por proyecto, 1,0 por defecto).
+        Measure("spec_quality", "calidad de la spec al empezar una UC", "US-123", since="6.39.0"),
         Measure("pending_decisions", "marcas «por decidir» al empezar una UC", "US-123"),
         Measure("closing_evidence", "evidencia que pasa al cerrar una UC", "US-124"),
         Measure("independent_review", "revisión independiente antes de fusionar", "US-124"),
@@ -142,6 +144,8 @@ def effective_policy(raw: Any, *, backend_type: str) -> dict[str, Any]:
         for field in ("set_by", "set_at", "block_since"):
             if entry and entry.get(field):
                 item[field] = entry[field]
+        if key in THRESHOLD_MEASURES:
+            item["threshold"] = threshold_of(stored)
         if entry and isinstance(entry.get("grandfathered"), dict) and entry["grandfathered"]:
             item["predating_ucs"] = len(entry["grandfathered"])
         out[key] = item
@@ -173,6 +177,24 @@ def mode_of(policy: dict[str, Any], measure: str) -> str:
     return entry.get("mode") if entry.get("mode") in MODES else "warn"
 
 
+# ── Umbral del gate de calidad (UC-12301) ───────────────────────────
+
+#: Las medidas que llevan umbral: la parte de los criterios de una UC que tiene que pasar el gate.
+THRESHOLD_MEASURES = frozenset({"spec_quality"})
+DEFAULT_THRESHOLD = 1.0
+
+
+def _valid_threshold(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and 0 < float(value) <= 1
+
+
+def threshold_of(raw: Any) -> float:
+    """El umbral de ``spec_quality`` guardado en el tablero, o 1,0 (todos los criterios pasan)."""
+    entry = _stored(raw)["measures"].get("spec_quality") or {}
+    value = entry.get("threshold")
+    return float(value) if _valid_threshold(value) else DEFAULT_THRESHOLD
+
+
 # ── Cambios ─────────────────────────────────────────────────────────
 
 
@@ -194,15 +216,31 @@ def with_mode(
     at: str,
     backend_type: str,
     open_ucs: dict[str, str] | None = None,
+    threshold: float | None = None,
 ) -> tuple[dict, str]:
     """La política guardada con ``measure`` en ``mode``, y el modo que tenía antes.
 
     Al pasar a «block», ``open_ucs`` ({uc_id: huella}) son las UC abiertas en ese momento: quedan
     como «anteriores a la regla» y la medida no las detiene mientras su huella no cambie (UC-12213).
+
+    ``threshold`` (solo ``spec_quality``, UC-12301): la parte de los criterios de una UC que tiene que
+    pasar el gate para que arranque, entre 0 (sin incluir) y 1. Sin él se conserva el que hubiera.
     """
     _known(measure)
     if mode not in MODES:
         raise PolicyError("INVALID_MODE", f"El modo tiene que ser {', '.join(MODES)}; llegó {mode!r}.")
+    if threshold is not None:
+        if measure not in THRESHOLD_MEASURES:
+            raise PolicyError(
+                "THRESHOLD_NOT_SUPPORTED",
+                f"Solo {', '.join(sorted(THRESHOLD_MEASURES))} tiene umbral; {measure} no lo usa.",
+            )
+        if not _valid_threshold(threshold):
+            raise PolicyError(
+                "INVALID_THRESHOLD",
+                "El umbral es la parte de los criterios que tiene que pasar: un número mayor que 0 y como "
+                f"mucho 1 (1 = todos). Llegó {threshold!r}.",
+            )
     if backend_type in CAPPED_BACKENDS:
         raise PolicyError(
             "NOT_SUPPORTED",
@@ -213,6 +251,10 @@ def with_mode(
     stored = _stored(raw)
     entry: dict[str, Any] = {"mode": mode, "set_by": by, "set_at": at}
     old = stored["measures"].get(measure) or {}
+    if threshold is not None:
+        entry["threshold"] = float(threshold)
+    elif _valid_threshold(old.get("threshold")):
+        entry["threshold"] = float(old["threshold"])
     if mode == "block":
         if old.get("mode") == "block" and old.get("block_since"):
             entry["block_since"] = old["block_since"]
@@ -411,14 +453,65 @@ def open_uc_fingerprints(ucs: list[dict[str, Any]]) -> dict[str, str]:
 _PENDING_MARK = re.compile(r"\[\s*POR DECIDIR", re.IGNORECASE)
 
 
-def _eval_spec_quality(uc: dict[str, Any]) -> str | None:
+def spec_quality_result(uc: dict[str, Any], threshold: float = DEFAULT_THRESHOLD) -> dict[str, Any]:
+    """El gate de calidad sobre los criterios de una UC (UC-12301).
+
+    ``pass_rate`` = criterios que pasan / criterios; una UC sin criterios da 0 (AC-02), nunca 1.
+    ``meets_threshold`` dice si arrancaría: tiene criterios y su ``pass_rate`` llega al umbral.
+    ``failed`` lleva cada criterio que no pasa con sus motivos (AC-03).
+    """
     from ..tools._mutation_helpers import validate_ac_text
 
     acs = uc.get("acs") or []
-    if not acs:
-        return "No tiene criterios de aceptación."
-    bad = [str(ac.get("ac_id", "?")) for ac in acs if validate_ac_text(str(ac.get("text", "")))]
-    return f"{len(bad)} criterio(s) no pasan la calidad: {', '.join(bad[:6])}." if bad else None
+    failed = []
+    for ac in acs:
+        issues = validate_ac_text(str(ac.get("text", "")))
+        if issues:
+            failed.append({"ac_id": str(ac.get("ac_id", "?")), "issues": issues})
+    total = len(acs)
+    pass_rate = round((total - len(failed)) / total, 4) if total else 0.0
+    return {
+        "total": total,
+        "passed": total - len(failed),
+        "pass_rate": pass_rate,
+        "threshold": threshold,
+        "meets_threshold": bool(total) and pass_rate >= threshold,
+        "failed": failed,
+    }
+
+
+def _issue_names(issues: list[str]) -> str:
+    # `not_testable` es el alias de compatibilidad de las dos etiquetas concretas: no aporta motivo.
+    named = [i for i in issues if i != "not_testable"] or issues
+    return ", ".join(named)
+
+
+def spec_quality_reason(result: dict[str, Any]) -> str | None:
+    """El motivo, en una frase, de que una UC no pase el gate; None si pasa."""
+    if result["meets_threshold"]:
+        return None
+    if not result["total"]:
+        return "La UC no tiene criterios de aceptación: el gate la cuenta con un pass_rate de 0."
+    detail = "; ".join(f"{f['ac_id']} ({_issue_names(f['issues'])})" for f in result["failed"])
+    return (
+        f"{len(result['failed'])} de {result['total']} criterios no pasan el gate (pass_rate "
+        f"{result['pass_rate']:g}, umbral {result['threshold']:g}): {detail}."
+    )
+
+
+SPEC_QUALITY_HOW_TO = (
+    "Reescribe los criterios que fallan con update_ac (o update_ac_batch) hasta que validate_ac_quality "
+    "los dé por buenos; una UC sin criterios necesita al menos uno (add_ac)."
+)
+#: Lo que se añade al «cómo seguir» cuando la medida bloquea (en «warn» no hay bloqueo que saltar).
+SKIP_HOW_TO = (
+    " Si esta UC tiene que empezar igualmente, una persona puede saltar el bloqueo con "
+    "skip_enforcement y un motivo."
+)
+
+
+def _eval_spec_quality(uc: dict[str, Any], threshold: float = DEFAULT_THRESHOLD) -> str | None:
+    return spec_quality_reason(spec_quality_result(uc, threshold))
 
 
 def _eval_pending_decisions(uc: dict[str, Any]) -> str | None:
@@ -511,21 +604,26 @@ def event_stats(events: list[dict[str, Any]], measure: str, *, now: datetime, da
 
 def impact_report(
     raw: Any, ucs: list[dict[str, Any]], *, backend_type: str, events: list[dict[str, Any]] | None = None,
-    now: datetime, measures: list[str] | None = None,
+    now: datetime, measures: list[str] | None = None, threshold: float | None = None,
 ) -> dict[str, Any]:
     """Cuántas UC abiertas detendría cada medida en «block» y por qué, sin cambiar nada (AC-01).
 
     Para cada medida: el modo, si se puede medir desde el tablero, las UC que detendría (con el
     motivo), cuántas de ellas son «anteriores a la regla» y quedan a salvo mientras no cambien, y
-    los bloqueos de los últimos 14 días con su porcentaje de saltos (AC-04).
+    los bloqueos de los últimos 14 días con su porcentaje de saltos (AC-04). ``threshold`` mide
+    ``spec_quality`` con otro umbral que el guardado (el que se está a punto de poner).
     """
     policy = effective_policy(raw, backend_type=backend_type)
     open_ucs = [uc for uc in ucs if uc.get("state") not in OPEN_EXCLUDED_STATES]
+    gate_threshold = threshold if threshold is not None else threshold_of(raw)
     report: dict[str, Any] = {}
     for key in measures or list(MEASURES):
         mode = mode_of(policy, key)
         item: dict[str, Any] = {"mode": mode, "label": MEASURES[key].label}
         evaluate = IMPACT_EVALUATORS.get(key)
+        if key in THRESHOLD_MEASURES and evaluate is not None:
+            evaluate = partial(evaluate, threshold=gate_threshold)
+            item["threshold"] = gate_threshold
         if evaluate is None:
             item.update(measurable=False, why_not=NOT_MEASURABLE.get(key, "No se puede medir desde el tablero."))
         else:

@@ -756,6 +756,13 @@ async def add_ac(
             "created_at": mh.utc_now_iso(),
             "backend_id": created_ac.backend_id if created_ac else "",
         }
+        # UC-12301 AC-04: the spec gate of the UC with its new criterion (information only).
+        from .enforcement import spec_gate_summary
+
+        result["spec_gate"] = await spec_gate_summary(ctx, board_id, [{
+            "uc_id": uc_id,
+            "acs": [{"ac_id": ac.id, "text": ac.text} for ac in existing] + [{"ac_id": new_id, "text": text}],
+        }])
         if items_content is not None:
             result["items_content"] = backend.get_items_content()
         return result

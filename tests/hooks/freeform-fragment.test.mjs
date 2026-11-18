@@ -319,3 +319,44 @@ test('impact tools get items.json and the events; event_line is appended to enfo
     p.done();
   }
 });
+
+// UC-12301 — start_uc detenido por spec_quality: el bloqueo se apunta y el tablero queda como estaba.
+test('start_uc: a block is appended to the events, a spent skip saves the policy, both hidden from the model', () => {
+  const p = project();
+  try {
+    const eventsPath = join(p.dir, 'doc/tracking/enforcement_events.jsonl');
+    const policyPath = join(p.dir, 'doc/tracking/policy.json');
+    const policy = { schema: 1, origin: 'new', measures: { spec_quality: { mode: 'block' } }, skips: [] };
+    writeFileSync(policyPath, `${JSON.stringify(policy)}\n`);
+    const before = readFileSync(join(p.dir, 'doc/tracking/items.json'), 'utf-8');
+
+    const pre = hook(p, 'PreToolUse', 'start_uc', { board_id: 'ff', uc_id: 'UC-007' }, { tool_use_id: 'toolu_g1' });
+    assert.equal(JSON.parse(pre.out.hookSpecificOutput.updatedInput.policy_content).measures.spec_quality.mode, 'block');
+
+    const line = JSON.stringify({ measure: 'spec_quality', uc_id: 'UC-007', outcome: 'blocked', at: '2026-11-18T10:00:00+00:00', by: 'start_uc' });
+    const blocked = { success: false, code: 'AC_QUALITY_BELOW_THRESHOLD', error: 'SpecBox detuvo la operación…', event_line: line };
+    const post = hook(p, 'PostToolUse', 'start_uc', {}, { tool_use_id: 'toolu_g1', tool_response: [{ type: 'text', text: JSON.stringify(blocked) }] });
+    assert.equal(post.code, 0, post.stderr);
+    assert.equal(JSON.parse(readFileSync(eventsPath, 'utf-8').trim()).outcome, 'blocked');
+    assert.equal(readFileSync(join(p.dir, 'doc/tracking/items.json'), 'utf-8'), before);
+    const shown = JSON.stringify(post.out.hookSpecificOutput.updatedToolOutput);
+    assert.ok(!shown.includes('event_line') && shown.includes('AC_QUALITY_BELOW_THRESHOLD'));
+    assert.deepEqual(p.pending(), []);
+
+    // Un salto gastado: start_uc arranca, el tablero se fusiona y la política vuelve sin el salto.
+    hook(p, 'PreToolUse', 'start_uc', { board_id: 'ff', uc_id: 'UC-007' }, { tool_use_id: 'toolu_g2' });
+    const fragment = JSON.parse(readdirSync(join(p.dir, '.quality/freeform-fragments')).length
+      ? readFileSync(join(p.dir, '.quality/freeform-fragments', p.pending()[0]), 'utf-8') : '{}');
+    const sent = fragment.sent ? fragment.sent.map((i) => (i.id === 'item-uc1' ? { ...i, state: 'in_progress' } : i)) : [];
+    const spent = { ...policy, skips: [] };
+    const started = { status: 'in_progress', items_content: JSON.stringify({ format: 'specbox-freeform-fragment/1', items: sent, max_ids: { US: 2, UC: 7, EP: 0 } }), policy_content: JSON.stringify(spent) };
+    const post2 = hook(p, 'PostToolUse', 'start_uc', {}, { tool_use_id: 'toolu_g2', tool_response: [{ type: 'text', text: JSON.stringify(started) }] });
+    assert.equal(post2.code, 0, post2.stderr);
+    assert.deepEqual(JSON.parse(readFileSync(policyPath, 'utf-8')), spent);
+    assert.equal(p.items().find((i) => i.id === 'item-uc1').state, 'in_progress');
+    assert.ok(!JSON.stringify(post2.out.hookSpecificOutput.updatedToolOutput).includes('policy_content'));
+    assert.match(post2.out.hookSpecificOutput.additionalContext, /policy\.json/);
+  } finally {
+    p.done();
+  }
+});

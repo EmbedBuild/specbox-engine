@@ -26,20 +26,18 @@
  */
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join } from 'node:path';
+import { dirname } from 'node:path';
 import { estimatePromptTokens } from './lib/token-counter.mjs';
 import { noteWith } from './lib/output.mjs';
 import { getProjectConfig } from './lib/config.mjs';
 import { leerPolitica, modoDe, textoDeMedida } from './lib/enforcement-policy.mjs';
-import { cabecerasDelDispositivo, URL_POR_DEFECTO } from './lib/heartbeat-send.mjs';
-import { llamarTool } from './lib/mcp-client.mjs';
+import { recordCorrectionIfBlocked, recordEnforcementEvent } from './lib/enforcement-events.mjs';
 
 const DEFAULT_BUDGET = 16000;
 const TEMPLATE_MODE = 'warn';
 const MEASURE = 'context_budget';
 const TASK_ISOLATION_CACHE = '.quality/task_isolation.json';
 const LOG = '.quality/logs/context-budget.jsonl';
-const STATE = '.quality/context_budget_state.json';
 // The names Claude Code uses to launch a subagent: «Agent» today, «Task» before.
 const SUBAGENT_TOOLS = new Set(['Agent', 'Task']);
 
@@ -73,7 +71,7 @@ const activeUc = readJson('.quality/active_uc.json')?.uc_id || '';
 if (total <= budget) {
   bumpCounter('tasks_run_total');
   log('under');
-  await recordCorrection();
+  await recordCorrectionIfBlocked({ config, measure: MEASURE, ucId: activeUc, by: 'context-budget-guard' });
   process.exit(0);
 }
 
@@ -91,7 +89,7 @@ const how =
 
 if (mode === 'block') {
   log('blocked');
-  await recordEvent('blocked');
+  await recordEnforcementEvent({ config, measure: MEASURE, ucId: activeUc, outcome: 'blocked', by: 'context-budget-guard' });
   console.error(
     textoDeMedida({
       medida: MEASURE,
@@ -158,41 +156,6 @@ function log(outcome) {
     if (activeUc) line.uc_id = activeUc;
     appendFileSync(LOG, `${JSON.stringify(line)}\n`);
   } catch { /* best-effort */ }
-}
-
-/** A block, or the launch within budget that follows one, goes to the board (UC-12213). */
-async function recordEvent(outcome) {
-  if (!activeUc) return;
-  try {
-    writeFileSync(STATE, JSON.stringify(outcome === 'blocked' ? { blocked_uc: activeUc } : {}));
-  } catch { /* best-effort */ }
-  const at = new Date().toISOString();
-  if (config.backendType === 'freeform') {
-    try {
-      const dir = config.freeformRoot && isAbsolute(config.freeformRoot) ? config.freeformRoot : join('doc', 'tracking');
-      mkdirSync(dir, { recursive: true });
-      appendFileSync(join(dir, 'enforcement_events.jsonl'), `${JSON.stringify({ measure: MEASURE, uc_id: activeUc, outcome, at, by: 'context-budget-guard' })}\n`);
-    } catch { /* best-effort */ }
-    return;
-  }
-  if (config.backendType !== 'native' || !config.boardId || process.env.SPECBOX_ENFORCEMENT_POLICY === 'off') return;
-  try {
-    const url = process.env.SPECBOX_MCP_URL || URL_POR_DEFECTO;
-    const cabeceras = await cabecerasDelDispositivo({ ...process.env, CLAUDE_CODE_MCP_SERVER_URL: url });
-    if (!cabeceras.Authorization) return;
-    await llamarTool({
-      url,
-      cabeceras,
-      nombre: 'record_enforcement_event',
-      args: { measure: MEASURE, uc_id: activeUc, outcome, board_id: config.boardId },
-      topeMs: 2500,
-    });
-  } catch { /* sin red: el registro local queda */ }
-}
-
-async function recordCorrection() {
-  const state = readJson(STATE);
-  if (state?.blocked_uc && state.blocked_uc === activeUc) await recordEvent('passed');
 }
 
 function bumpCounter(key) {

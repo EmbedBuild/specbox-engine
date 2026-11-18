@@ -147,9 +147,13 @@ async def update_uc(
     actor: str | None = None,
     context_text: str | None = None,
     satellite: str | None = None,
+    no_prd_reason: str | None = None,
     items_content: str | None = None,
 ) -> dict[str, Any]:
     """Update metadata of a single Use Case without touching ACs or workflow state.
+
+    `no_prd_reason` (UC-12211): marks the UC as «sin PRD» with a reason (at least 10 characters,
+    no credentials), so the spec_in_pr measure lets its PR merge without touching a PRD; "" clears it.
 
     For batch updates across many UCs, prefer `update_uc_batch` — it's 1 MCP
     call instead of N and keeps token cost proportional to payload size.
@@ -176,6 +180,18 @@ async def update_uc(
             if not ok:
                 return _mk_error("INVALID_SATELLITE", err or "invalid satellite")
 
+        if no_prd_reason:
+            reason = " ".join(no_prd_reason.split())
+            if len(reason) < 10:
+                return _mk_error(
+                    "REASON_REQUIRED",
+                    "Marcar una UC «sin PRD» exige un motivo de al menos 10 caracteres.",
+                    uc_id=uc_id,
+                )
+            if any("credential" in tag for tag in mh.detect_ac_exposure(reason)):
+                return _mk_error("SENSITIVE_DATA", "El motivo menciona credenciales: descríbelo sin ellas.", uc_id=uc_id)
+            no_prd_reason = reason
+
         uc_item = await mh.find_uc(backend, board_id, uc_id)
         if not uc_item:
             return _mk_error("UC_NOT_FOUND", f"Use Case {uc_id} not found", uc_id=uc_id)
@@ -187,6 +203,8 @@ async def update_uc(
             context_text=context_text,
             satellite=satellite,
         )
+        if no_prd_reason is not None:
+            meta_updates["no_prd_reason"] = no_prd_reason
         merged_meta, meta_changed = mh.merge_meta(uc_item.meta, meta_updates)
 
         if name is not None:

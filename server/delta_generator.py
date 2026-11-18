@@ -97,6 +97,7 @@ def compile_uc_status(
     branch: str,
     phase_deltas: list[str],
     timestamp: str | None = None,
+    behaviors: dict[str, str] | None = None,
 ) -> str:
     """Compile all phase deltas into an Implementation Status section for a UC.
 
@@ -117,6 +118,16 @@ def compile_uc_status(
     lines.append(f"**Timestamp:** {timestamp}")
     lines.append(f"**Branch:** {branch}")
     lines.append("")
+
+    # UC-12211: lo que hace cada criterio entregado, en una frase, además de ficheros y decisiones.
+    if behaviors:
+        lines.append("#### Comportamiento entregado")
+        lines.append("")
+        for ac_id in sorted(behaviors):
+            text = " ".join(str(behaviors[ac_id]).split())
+            if text:
+                lines.append(f"- **{ac_id}**: {text}")
+        lines.append("")
 
     for delta in phase_deltas:
         lines.append(delta)

@@ -1625,7 +1625,11 @@ async def move_uc(
 
 
 async def start_uc(
-    board_id: str, uc_id: str, ctx: Context, items_content: str | None = None
+    board_id: str,
+    uc_id: str,
+    ctx: Context,
+    items_content: str | None = None,
+    policy_content: str | None = None,
 ) -> dict[str, Any]:
     """Start working on a Use Case.
 
@@ -1668,7 +1672,9 @@ async def start_uc(
             if us_state_change:
                 detail["us_state_change"] = us_state_change
             # UC-12216: the client writes it with the remote MCP (uc-state-marker hook).
-            detail["active_uc_marker"] = reservation_result.get("active_uc_marker")
+            marker = dict(reservation_result.get("active_uc_marker") or {})
+            marker.update(await _marker_extras(ctx, board_id, uc_id, uc_item, None, policy_content))
+            detail["active_uc_marker"] = marker
         return detail
 
     backend = await get_session_backend(ctx, items_content=items_content)
@@ -1697,6 +1703,7 @@ async def start_uc(
             marker = _write_active_uc_marker(uc_id, board_id, feature, us_id=us_id)
         else:
             marker = _active_uc_marker(uc_id, board_id, feature, us_id=us_id)
+        marker.update(await _marker_extras(ctx, board_id, uc_id, uc_item, items_content, policy_content))
 
         # Content-passing: capture the mutated board now (before close), then
         # build the detail from it. get_uc re-parses the same string, so the
@@ -1722,6 +1729,20 @@ async def start_uc(
             detail["us_state_change"] = us_state_change
         detail["active_uc_marker"] = marker
     return detail
+
+
+async def _marker_extras(
+    ctx: Context, board_id: str, uc_id: str, uc_item: Any, items_content: str | None, policy_content: str | None
+) -> dict[str, Any]:
+    """UC-12211: lo que el marcador sabe de la UC para las medidas: «sin PRD» y «anterior a la regla»."""
+    from .enforcement import marker_policy_extras
+
+    extras: dict[str, Any] = {}
+    reason = (getattr(uc_item, "meta", None) or {}).get("no_prd_reason")
+    if isinstance(reason, str) and reason.strip():
+        extras["no_prd_reason"] = reason.strip()
+    extras.update(await marker_policy_extras(ctx, board_id, uc_id, items_content, policy_content))
+    return extras
 
 
 async def _get_native_session_config(ctx: Context) -> dict[str, str] | None:

@@ -1062,9 +1062,9 @@ Paso 9.5 de la skill invoca `set_edge_secret` con los 4 secrets obtenidos de los
 
 ## Spec-Code Sync (v5.0)
 
-Automatic PRD update with implementation deltas after each /implement phase:
+Automatic PRD update with what each /implement phase touched:
 
-- **Delta capture** (Paso 5.1.1a): After each phase, generates structured Markdown with files, deltas vs plan, healing events
+- **Delta capture** (Paso 5.1.1a): After each phase, generates structured Markdown with the files created, modified and deleted, decisions and healing events. **The plan is not used yet**: the files the plan expected never reach the comparator (`implement_context_tools.py` does not pass them), so each block says «Comparación no disponible — archivos listados sin referencia al plan» (UC-12204). UC-12601 connects it.
 - **PRD write** (Paso 8.5.1a / 7.7a): Appends `## Implementation Status` section to PRD (append-only)
 - **MCP tools**: `get_implementation_status(project_path, item_id)`, `write_implementation_status(...)`
 - **Parser**: Reads Implementation Status from PRDs into structured JSON with `overall_status` and `delta_count`

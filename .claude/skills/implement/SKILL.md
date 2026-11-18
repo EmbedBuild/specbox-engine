@@ -1372,7 +1372,9 @@ Es una tool del MCP (UC-11202): no hace falta el clon del engine ni Python.
 Reglas de uso:
 - Si `agg.overall_status == "error"` → linea: "Fase {phase} fallida — pendiente de resolucion"
 - Si `agg.total_healing_attempts > 0` → linea adicional con count y nivel maximo
-- Si todo conforme al plan → linea: "Sin deltas — implementacion conforme al plan"
+- Hoy el bloque de cada fase no se contrasta con el plan: lista los ficheros tocados y dice
+  «Comparación no disponible». No afirmar que la fase sigue el plan (UC-12204; el comparador
+  llega con UC-12601).
 
 El orquestador YA NO mantiene `implementation_deltas: list[str]` en memoria.
 Cualquier consulta posterior (Paso 7.7a, Paso 8.5.1a) vuelve a llamar a

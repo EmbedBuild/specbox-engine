@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.37.0 — "A la vista" (sobre v6.36 "Convivencia")<br/>
+  v 6.38.0 — "Lo justo" (sobre v6.37 "A la vista")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,26 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.38
+
+**v6.38.0 — "Lo justo"** da al agente lo que necesita y nada más, y deja la spec al día en la misma PR:
+
+- **El CLAUDE.md de plantilla pasa de 390 a 160 líneas** — se quedan el Quality Contract, la comprobación de la
+  memoria persistente y el recorrido de la UC; lo demás vive en las skills y en las guías. `upgrade_project` solo
+  cambia las zonas de la plantilla y conserva las secciones del proyecto; un CLAUDE.md anterior recibe antes una
+  propuesta con lo que sale y adónde va.
+- **La zona «roadmap» solo viaja cuando se pide** — los cambios de estado responden como en la 6.36 salvo que el
+  hook la pida.
+- **El presupuesto de contexto se mide** — cada subagente queda registrado con su tamaño; en «block», el que pasa
+  del presupuesto no se lanza.
+- **El PRD cambia en la misma PR que el código** — el hook nuevo `prd-sync-guard` lo revisa antes de fusionar; una
+  UC sin PRD pasa marcada con un motivo.
+
+100% backwards-compatible: las dos medidas nuevas empiezan en «warn» y el CLAUDE.md de un proyecto no cambia sin
+`upgrade_project`.
 
 ---
 
@@ -934,7 +954,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.37.0 — "A la vista" (over v6.36 "Convivencia")
+> v 6.38.0 — "Lo justo" (over v6.37 "A la vista")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -948,6 +968,25 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.38
+
+**v6.38.0 — "Lo justo"** gives the agent what it needs and no more, and keeps the spec current in the same PR:
+
+- **The template CLAUDE.md goes from 390 to 160 lines** — the Quality Contract, the persistent memory check and
+  the UC walk stay; the rest lives in the skills and the guides. `upgrade_project` only changes the template's
+  zones and keeps the project's sections; an older CLAUDE.md first gets a proposal with what leaves and where it
+  goes.
+- **The «roadmap» zone only travels when asked for** — state changes answer as in 6.36 unless the hook asks.
+- **The context budget is measured** — every subagent is logged with its size; in «block», one over budget is
+  not launched.
+- **The PRD changes in the same PR as the code** — the new `prd-sync-guard` hook checks it before merging; a UC
+  without a PRD passes when marked with a reason.
+
+100% backwards-compatible: both new measures start in «warn» and a project's CLAUDE.md does not change without
+`upgrade_project`.
+
+---
 
 ## What's new in v6.37
 

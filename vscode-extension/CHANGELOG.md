@@ -8,6 +8,11 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.38.0] — "Lo justo"
+
+- No changes in the extension itself. The version follows the engine, whose template CLAUDE.md is now 160 lines
+  with zones that `upgrade_project` updates without touching the project's own sections.
+
 ## [6.37.0] — "A la vista"
 
 - No changes in the extension itself. The version follows the engine, whose hooks now recognize the projects the

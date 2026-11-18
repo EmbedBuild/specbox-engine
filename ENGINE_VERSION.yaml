@@ -1,5 +1,5 @@
-version: 6.37.0
-codename: "A la vista"
+version: 6.38.0
+codename: "Lo justo"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-18
@@ -620,8 +620,23 @@ features:
   - hooks-read-specbox-block
   - measure-commit-on-main
   - roadmap-zone-from-board
+  # New (v6.38.0) — Lo justo
+  - roadmap-zone-on-request
+  - measure-context-budget
+  - measure-spec-in-pr
+  - prd-sync-guard
+  - claude-md-template-zones
 
 changelog:
+  6.38.0:
+    date: 2026-11-18
+    codename: "Lo justo"
+    changes:
+      - "fix: complete_uc, move_uc, add_uc, delete_uc and mark_ac_batch only compute and return the roadmap zone when asked (with_roadmap=true, which the app-docs-fragment hook sets on main/master with the canon present); without it the answer is the one of 6.36.0 and no client pays ~8 KB of context per state change (UC-12218, #368)"
+      - "feat: the EP-20 measure context_budget: context-budget-guard logs every subagent launch (tokens, budget, mode, outcome) in .quality/logs/context-budget.jsonl, and in block a subagent over budget is not launched; task_budget_mode of the project wins, otherwise the board's policy (warn by default) (UC-12210, #369)"
+      - "feat: the EP-20 measure spec_in_pr and the prd-sync-guard hook (PreToolUse of gh pr merge): the PR of the active UC changes the PRD of its story, links an orchestrator PR that does, or the UC is marked without PRD with a reason (update_uc no_prd_reason); warn notes, block stops the merge naming the expected PRD; write_implementation_status takes behaviors (one sentence per criterion) (UC-12211, #370)"
+      - "feat: the CLAUDE.md template goes from 390 to 160 lines with seven @specbox:claude-md zones; upgrade_project takes claude_md_content and changes only those zones, proposes (and writes only with confirm_claude_md) for a CLAUDE.md without markers, and leaves CLAUDE.md out of files when the content is not sent; what left the template lives in doc/guides/claude-md.md, doc/guides/memoria-engram.md and the skills (UC-12209, #371)"
+
   6.37.0:
     date: 2026-11-18
     codename: "A la vista"

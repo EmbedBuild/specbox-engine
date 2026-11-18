@@ -2,6 +2,49 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.36.0] - 2026-11-18 — "Convivencia"
+
+EP-20 va a añadir medidas que detienen el trabajo que no cumple la spec. Antes de la primera, esta versión
+pone la base para que convivan con los proyectos que ya existían: cada medida tiene un modo por proyecto, nada
+pasa a «block» sin un informe y una confirmación, y lo que ya estaba abierto queda a salvo. Segunda tanda de
+US-122.
+
+### Added
+
+- **Un modo por medida y por proyecto** (UC-12212, #358) — `off`, `warn` o `block` para cada una de las diez
+  medidas de EP-20 que pueden detener el trabajo. Native lo guarda en `projects.meta.enforcement`; FreeForm, en
+  `doc/tracking/policy.json` (con el MCP remoto lo lleva el hook freeform-fragment); Trello y Plane quedan en
+  «warn» como máximo y lo dicen. Tools `get_enforcement_policy`, `set_enforcement_mode` (en native, solo
+  `project_admin`) y `skip_enforcement` (motivo obligatorio, una vez por medida y UC). Los cambios y los saltos
+  quedan en `audit_log`. Un error de una medida que bloquea lleva en su texto la medida, el motivo y cómo
+  seguir. Los hooks leen el mismo modo (`leerPolitica`, 10 minutos de caché en native).
+- **Antes de endurecer, un informe** (UC-12213, #359) — `get_enforcement_impact` dice, sin cambiar nada,
+  cuántas UC abiertas detendría cada medida en «block» y por qué, cuántas son anteriores a la regla y los
+  bloqueos de 14 días con su porcentaje de saltos. Pasar a «block» va en dos pasos (`CONFIRMATION_REQUIRED` con
+  el informe y un código `confirm`). Las UC abiertas en ese momento quedan anteriores a la regla hasta que
+  cambie su texto o sus criterios. `record_enforcement_event` registra cada bloqueo y cómo termina.
+  `enforcement_readiness` (solo operador) dice qué medidas podrían nacer en «block».
+
+### Para los proyectos que ya existían
+
+- **No cambia nada en su trabajo.** Ninguna medida comprueba nada todavía (`since` sin versión en el
+  catálogo), y cuando lo haga empezará en «warn»: avisa y la operación sigue. Un tablero sin política se lee
+  como uno que ya existía.
+- **Quien administra el proyecto decide cuándo endurecer.** Para pasar una medida a «block»:
+  `set_enforcement_mode(measure="<clave>", mode="block")` devuelve el informe de impacto y un código; la misma
+  llamada con `confirm="<código>"` la aplica. Las UC que ya estaban abiertas no se detienen hasta que cambien.
+- **Los proyectos nuevos** nacen con `origin: "new"` y el modo de proyecto nuevo de cada medida, que hoy es
+  «warn» en todas. Una medida solo pasará a «block» por defecto con 14 días de datos en los tableros de
+  EmbedBuild (al menos 20 bloqueos y un 10 % de saltos o menos), en una versión con su codename.
+- La plantilla de permisos pide confirmación antes de `set_enforcement_mode` y `skip_enforcement`.
+
+### Tests
+
+- `tests/test_enforcement.py` (33), `tests/test_enforcement_native.py` (9, Postgres: sin identidad, otro
+  developer, `member` frente a `project_admin`, tablero nuevo frente a existente, informe sin cambios, dos pasos
+  y UC a salvo, bloqueos y saltos en la auditoría, lectura solo de operador), `tests/hooks/enforcement-policy.test.mjs`
+  (6) y 3 casos de la política en `tests/hooks/freeform-fragment.test.mjs`.
+
 ## [6.35.0] - 2026-11-18 — "Palabra"
 
 La auditoría de la 6.34.0 frente a lo que pide un Spec-Driven Development (EP-20) encontró promesas de la

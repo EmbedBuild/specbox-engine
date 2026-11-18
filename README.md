@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.41.0 — "Con recibo" (sobre v6.40 "Por escrito")<br/>
+  v 6.42.0 — "Otra mirada" (sobre v6.41 "Con recibo")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,22 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.42
+
+**v6.42.0 — "Otra mirada"** hace que quien implementa una UC no sea quien le da el visto bueno:
+
+- **Revisión independiente antes de fusionar** — con la medida `independent_review`, la fusión pide
+  que una persona acepte la UC en el panel o, en autopilot «agresivo», el «aceptada» de un evaluador
+  aislado en otro contexto. El tablero sabe quién implementó y rechaza un veredicto suyo.
+- **La aceptación llega antes de fusionar** — una persona acepta o devuelve con motivo una UC en
+  revisión desde el panel (v0.28.0 «Visto bueno»).
+- **Lo que cuesta cada UC** — el hook nuevo `uc-usage` registra los tokens reales de cada UC, y
+  `get_project_kpis` da el tiempo de revisión (p50 y p90) y los tokens por UC y por criterio.
+
+100% backwards-compatible: la medida empieza en «warn» y las UC anteriores salen «estimado».
 
 ---
 
@@ -1006,7 +1022,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.41.0 — "Con recibo" (over v6.40 "Por escrito")
+> v 6.42.0 — "Otra mirada" (over v6.41 "Con recibo")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -1020,6 +1036,22 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.42
+
+**v6.42.0 — "Otra mirada"** makes sure whoever implements a UC is not whoever approves it:
+
+- **Independent review before merging** — with the `independent_review` measure, merging needs a
+  person accepting the UC in the panel or, in «agresivo» autopilot, an isolated evaluator's «accepted»
+  verdict from another context. The board knows who implemented it and rejects their own verdict.
+- **Acceptance comes before the merge** — a person accepts, or returns with a reason, a UC in review
+  from the panel (v0.28.0 «Visto bueno»).
+- **What each UC costs** — the new `uc-usage` hook records the real tokens of each UC, and
+  `get_project_kpis` gives the review time (p50 and p90) and the tokens per UC and per criterion.
+
+100% backwards-compatible: the measure starts in «warn» and older UCs show as «estimated».
+
+---
 
 ## What's new in v6.41
 

@@ -131,6 +131,20 @@ Que recibi?
 2. Analizar codigo para extraer: modelos, estados, widgets
 3. Identificar gaps o mejoras posibles
 
+### 0.5 Formato del PRD (UC-12304)
+
+El PRD dice **qué**; el plan, **cómo**. Si hay PRD en el repositorio, antes de generar el plan:
+
+1. Llama a `check_prd_format(prd_content=<texto del PRD>)` (pura: no lee el disco ni guarda nada).
+2. Enseña cada aviso al usuario antes de seguir:
+   - `paths_outside_restrictions`: rutas de fichero fuera de «Restricciones de implementación»;
+     el plan las recoge en «Archivos a Crear/Modificar» y el PRD debería quitarlas.
+   - `missing_pending_section`: marcas `[POR DECIDIR: …]` sin su sección «Pendiente de decidir».
+3. Un PRD sin la marca `<!-- @specbox:prd format="2" -->` es de formato 1: se lee igual que
+   siempre y no recibe avisos.
+4. El stack y los ficheros salen de aquí (Paso 1 y sección «Archivos a Crear/Modificar»), no del
+   PRD: las plantillas del formato 2 ya no traen «Stack técnico» ni «Archivos principales».
+
 ---
 
 ## Paso 1: Explorar Proyecto

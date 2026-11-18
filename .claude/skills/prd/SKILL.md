@@ -222,6 +222,7 @@ Para cada Use Case, determinar:
 
 ```markdown
 # PRD: [US-XX] [Nombre de la User Story]
+<!-- @specbox:prd format="2" -->
 
 > Origen: Trello board [board_name] | US-XX
 > Generado: [fecha]
@@ -277,6 +278,120 @@ Para cada Use Case, determinar:
 
 ### UC-XXX: [Nombre]
 ...
+
+---
+
+## Interacciones UI
+
+> Esta seccion alimenta el analisis de componentes en /plan
+
+### Visualizacion de datos
+| Dato | Volumen | Atributos visibles | Acciones por item |
+|------|---------|-------------------|-------------------|
+| [ej: Propiedades] | [20-100] | [nombre, direccion, precio] | [ver, editar, eliminar] |
+
+### Acciones del usuario
+| Accion | UC asociado | Frecuencia | Criticidad | Requiere confirmacion |
+|--------|-------------|------------|------------|----------------------|
+| [ej: Crear propiedad] | UC-001 | Ocasional | Media | No |
+
+### Formularios
+| Formulario | UC asociado | Campos | Contexto |
+|------------|-------------|--------|----------|
+| [ej: Nueva propiedad] | UC-002 | [8-12] | Modal / Pagina dedicada |
+
+---
+
+## Audiencia (alimenta VEG)
+
+> Esta seccion es OPCIONAL. Si se incluye, activa Visual Experience Generation en /plan.
+> Sin esta seccion, el pipeline funciona en modo legacy (sin VEG).
+
+### Targets de la aplicacion
+{Descripcion general de a quien va dirigida}
+
+### Target 1: {Nombre}
+- **Perfil**: {quien es, edad, rol, nivel tecnico}
+- **Contexto de uso**: {cuando, donde, con que frecuencia}
+- **JTBD Racional**: {que problema necesita resolver}
+- **JTBD Emocional**: {como quiere sentirse al usar la app}
+- **Referentes**: {apps/webs que usa y le gustan}
+- **Expectativa visual**: {que tipo de UI esperaria}
+
+### Target 2: {Nombre}
+...
+
+### ICPs para Landings (si aplica)
+{Solo cuando el feature incluye landings o campanas dirigidas}
+
+#### ICP 1: {Nombre}
+- **Perfil completo**: {demografia, psicografia, cargo, sector}
+- **JTBD Racional**: {necesidad funcional especifica}
+- **JTBD Emocional**: {necesidad emocional especifica}
+- **Objeciones principales**: {que le frena}
+- **Trigger de conversion**: {que le convence}
+
+---
+
+## Requisitos No Funcionales (NFRs)
+
+| NFR | Criterio | Medicion |
+|-----|----------|----------|
+| Rendimiento | Carga inicial < 2s en 4G | Lighthouse / DevTools |
+| Seguridad | RLS por tenant | Test de aislamiento |
+| Accesibilidad | WCAG 2.1 AA | axe-core audit |
+| Offline | [Si aplica] | Test sin conexion |
+
+---
+
+## Riesgos
+
+| Riesgo | Probabilidad | Impacto | Mitigacion |
+|--------|-------------|---------|------------|
+| [Dependencia externa X] | Media | Alto | [Plan B] |
+| [Complejidad de integracion] | Alta | Medio | [Spike previo] |
+
+---
+
+## Pendiente de decidir
+
+> Cada decision abierta se marca en el texto con `[POR DECIDIR: que falta y quien lo decide]`
+> y se lista aqui. `start_uc` no arranca una UC con una marca en su texto o en sus criterios
+> (medida `pending_decisions`, UC-12305). Si no queda nada, escribir «Ninguno».
+
+- [POR DECIDIR: decision abierta — quien la toma]
+
+---
+
+## Restricciones de implementación (opcional, de este cambio)
+
+> Solo lo que este cambio obliga a respetar: una ruta, una API, una versión, un formato de datos.
+> El stack, los ficheros y el diseño técnico van al plan (/plan). Es la única sección donde un PRD
+> de formato 2 nombra ficheros: `check_prd_format` avisa de las rutas fuera de ella (UC-12304).
+> Si no hay ninguna, escribir «Ninguna».
+
+- [Restricción y por qué la impone este cambio]
+
+---
+
+## Criterios de Aceptacion (consolidado)
+
+### Funcionales (validados por AG-09)
+[Copiar todos los AC-XX de los UCs arriba, consolidados]
+
+- [ ] **AC-01**: [Criterio — de UC-XXX]
+- [ ] **AC-02**: [Criterio — de UC-XXX]
+...
+
+### Tecnicos (no validados por AG-09)
+- [ ] Proyecto compila sin errores
+- [ ] Tests con 85%+ coverage
+
+---
+**Prioridad**: [urgent/high/medium/low/none]
+**Complejidad**: [Baja/Media/Alta]
+*Generado: [fecha]*
+```
 
 ---
 
@@ -372,125 +487,11 @@ distintos y se reportan por separado.
 
 ---
 
-## Interacciones UI
-
-> Esta seccion alimenta el analisis de componentes en /plan
-
-### Visualizacion de datos
-| Dato | Volumen | Atributos visibles | Acciones por item |
-|------|---------|-------------------|-------------------|
-| [ej: Propiedades] | [20-100] | [nombre, direccion, precio] | [ver, editar, eliminar] |
-
-### Acciones del usuario
-| Accion | UC asociado | Frecuencia | Criticidad | Requiere confirmacion |
-|--------|-------------|------------|------------|----------------------|
-| [ej: Crear propiedad] | UC-001 | Ocasional | Media | No |
-
-### Formularios
-| Formulario | UC asociado | Campos | Contexto |
-|------------|-------------|--------|----------|
-| [ej: Nueva propiedad] | UC-002 | [8-12] | Modal / Pagina dedicada |
-
----
-
-## Audiencia (alimenta VEG)
-
-> Esta seccion es OPCIONAL. Si se incluye, activa Visual Experience Generation en /plan.
-> Sin esta seccion, el pipeline funciona en modo legacy (sin VEG).
-
-### Targets de la aplicacion
-{Descripcion general de a quien va dirigida}
-
-### Target 1: {Nombre}
-- **Perfil**: {quien es, edad, rol, nivel tecnico}
-- **Contexto de uso**: {cuando, donde, con que frecuencia}
-- **JTBD Racional**: {que problema necesita resolver}
-- **JTBD Emocional**: {como quiere sentirse al usar la app}
-- **Referentes**: {apps/webs que usa y le gustan}
-- **Expectativa visual**: {que tipo de UI esperaria}
-
-### Target 2: {Nombre}
-...
-
-### ICPs para Landings (si aplica)
-{Solo cuando el feature incluye landings o campanas dirigidas}
-
-#### ICP 1: {Nombre}
-- **Perfil completo**: {demografia, psicografia, cargo, sector}
-- **JTBD Racional**: {necesidad funcional especifica}
-- **JTBD Emocional**: {necesidad emocional especifica}
-- **Objeciones principales**: {que le frena}
-- **Trigger de conversion**: {que le convence}
-
----
-
-## Requisitos No Funcionales (NFRs)
-
-| NFR | Criterio | Medicion |
-|-----|----------|----------|
-| Rendimiento | Carga inicial < 2s en 4G | Lighthouse / DevTools |
-| Seguridad | RLS por tenant | Test de aislamiento |
-| Accesibilidad | WCAG 2.1 AA | axe-core audit |
-| Offline | [Si aplica] | Test sin conexion |
-
----
-
-## Riesgos
-
-| Riesgo | Probabilidad | Impacto | Mitigacion |
-|--------|-------------|---------|------------|
-| [Dependencia externa X] | Media | Alto | [Plan B] |
-| [Complejidad de integracion] | Alta | Medio | [Spike previo] |
-
----
-
-## Pendiente de decidir
-
-> Cada decision abierta se marca en el texto con `[POR DECIDIR: que falta y quien lo decide]`
-> y se lista aqui. `start_uc` no arranca una UC con una marca en su texto o en sus criterios
-> (medida `pending_decisions`, UC-12305). Si no queda nada, escribir «Ninguno».
-
-- [POR DECIDIR: decision abierta — quien la toma]
-
----
-
-## Stack Tecnico (estimado)
-
-- **Modelo**: [Nuevo / Existente: nombre]
-- **Repository**: [nombre]_repository
-- **State**: [BLoC/Store/Context]
-- **Paginas**: [lista]
-
-## Archivos Principales
-[Estructura estimada segun stack detectado]
-
----
-
-## Criterios de Aceptacion (consolidado)
-
-### Funcionales (validados por AG-09)
-[Copiar todos los AC-XX de los UCs arriba, consolidados]
-
-- [ ] **AC-01**: [Criterio — de UC-XXX]
-- [ ] **AC-02**: [Criterio — de UC-XXX]
-...
-
-### Tecnicos (no validados por AG-09)
-- [ ] Proyecto compila sin errores
-- [ ] Tests con 85%+ coverage
-
----
-**Prioridad**: [urgent/high/medium/low/none]
-**Complejidad**: [Baja/Media/Alta]
-*Generado: [fecha]*
-```
-
----
-
 ## Template: PRD Feature (Freeform)
 
 ```markdown
 # PRD: [Titulo]
+<!-- @specbox:prd format="2" -->
 
 ## Descripcion
 [1-2 parrafos: que es y que problema resuelve]
@@ -637,15 +638,14 @@ distintos y se reportan por separado.
 
 ---
 
-## Stack Tecnico (estimado)
+## Restricciones de implementación (opcional, de este cambio)
 
-- **Modelo**: [Nuevo / Existente: nombre]
-- **Repository**: [nombre]_repository
-- **State**: [BLoC/Store/Context]
-- **Paginas**: [lista]
+> Solo lo que este cambio obliga a respetar: una ruta, una API, una versión, un formato de datos.
+> El stack, los ficheros y el diseño técnico van al plan (/plan). Es la única sección donde un PRD
+> de formato 2 nombra ficheros: `check_prd_format` avisa de las rutas fuera de ella (UC-12304).
+> Si no hay ninguna, escribir «Ninguna».
 
-## Archivos Principales
-[Estructura estimada segun stack]
+- [Restricción y por qué la impone este cambio]
 
 ## Dependencias
 - [Features o servicios requeridos]
@@ -675,6 +675,7 @@ distintos y se reportan por separado.
 
 ```markdown
 # PRD: [Titulo]
+<!-- @specbox:prd format="2" -->
 
 ## Resumen Ejecutivo
 [2-3 parrafos: objetivo del refactor y por que es necesario]
@@ -704,14 +705,23 @@ distintos y se reportan por separado.
 
 ---
 
-## Estado Actual vs Propuesto
+## Restricciones de implementación (opcional, de este cambio)
 
-### ACTUAL:
+> Solo lo que este cambio obliga a respetar: una ruta, una API, una versión, un formato de datos.
+> El stack, los ficheros y el diseño técnico van al plan (/plan). Es la única sección donde un PRD
+> de formato 2 nombra ficheros: `check_prd_format` avisa de las rutas fuera de ella (UC-12304).
+> Si no hay ninguna, escribir «Ninguna».
+
+- [Restricción y por qué la impone este cambio]
+
+### Estado actual vs propuesto
+
+#### ACTUAL:
 ```
 [Estructura actual]
 ```
 
-### PROPUESTO:
+#### PROPUESTO:
 ```
 [Nueva estructura]
 ```
@@ -894,6 +904,21 @@ Criterios funcionales: {N} (promedio: {score}/2.0)
 Cobertura: {N} Use Cases cubiertos de {M}
 VEG Readiness: {ENABLED (Modo X) / DISABLED}
 ```
+
+---
+
+## Paso 2.6: Comprobar el formato del PRD (UC-12304)
+
+> El PRD dice **qué**; el plan, **cómo**. Las plantillas escriben la marca
+> `<!-- @specbox:prd format="2" -->` justo debajo del título: no la quites.
+
+1. Con el PRD escrito, llama a `check_prd_format(prd_content=<texto del PRD>)` (pura: no lee el
+   tablero ni el disco ni guarda nada).
+2. Corrige cada aviso antes de sembrar:
+   - `paths_outside_restrictions`: una ruta de fichero fuera de «Restricciones de implementación».
+     Llévala al plan o, si este cambio obliga a respetarla, a esa sección.
+   - `missing_pending_section`: hay marcas `[POR DECIDIR: …]` sin la sección «Pendiente de decidir».
+3. Un PRD sin marca es de formato 1 (los de antes): `format_version: 1` y ningún aviso.
 
 ---
 

@@ -1679,6 +1679,9 @@ Extraer sección "Criterios de Aceptación > Funcionales":
 - Extraer cada AC-XX con su descripción
 - Ignorar sección "Técnicos"
 - Si no hay criterios AC-XX en el PRD → ERROR FATAL, PARAR pipeline
+- Los dos formatos del PRD se leen igual (UC-12304): la marca `<!-- @specbox:prd format="2" -->`
+  es un comentario bajo el título y no mueve los AC-XX; un PRD sin marca (formato 1) sigue valiendo.
+  El stack y los ficheros salen del plan, no del PRD.
 
 ### 7.5.2 Generar archivos .feature
 

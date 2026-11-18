@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { startLoopbackServer, buildSignInUrl } from './oauth';
 import { SecretsManager } from './secret-storage';
-import { removeLegacyLauncherEntry, respawnMcpServer, buildFreeformProjectSettings } from './mcp';
+import { removeLegacyLauncherEntry, respawnMcpServer, mergeFreeformProjectSettings } from './mcp';
 import { fetchWhoami } from './cloud-api';
 import { credentialFromWhoami, type ConnectResult, type DeviceInfo, type SpecboxCli } from './specbox-cli';
 
@@ -286,17 +286,15 @@ function configureFreeformBackend(): void {
 	const settingsPath = path.join(claudeDir, 'settings.local.json');
 	try {
 		if (!fs.existsSync(claudeDir)) { fs.mkdirSync(claudeDir, { recursive: true }); }
-		let settings: Record<string, unknown> = {};
+		// null = the file did not exist: a new project, which starts with the
+		// discovery gate in «warn» (UC-12207). An unreadable file counts as existing.
+		let existing: Record<string, unknown> | null = null;
 		if (fs.existsSync(settingsPath)) {
-			try { settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8')); } catch { settings = {}; }
+			try { existing = JSON.parse(fs.readFileSync(settingsPath, 'utf-8')); } catch { existing = {}; }
 		}
-		const fragment = buildFreeformProjectSettings(root);
-		const specbox = (settings.specbox as Record<string, unknown>) ?? {};
-		settings.specbox = { ...specbox, ...fragment.specbox };
-		// UC-3801 AC-05: activate content-passing for the hosted MCP. Merged, so
-		// any other env var the user keeps in settings.local.json survives.
-		const env = (settings.env as Record<string, unknown>) ?? {};
-		settings.env = { ...env, ...fragment.env };
+		// UC-3801 AC-05: the merge also activates content-passing for the hosted
+		// MCP (env), keeping any other env var the user has.
+		const settings = mergeFreeformProjectSettings(existing, root);
 		fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
 	} catch (err) {
 		console.warn('[specbox] failed to write freeform config:', err);

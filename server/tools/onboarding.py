@@ -485,6 +485,56 @@ def resolve_default_backend_type(
     return DEFAULT_BACKEND_TYPE
 
 
+# UC-12207: a project onboarded with onboard_project starts with the discovery gate in «warn», as
+# discovery/SKILL.md promises for fresh projects. A project that already existed never comes
+# through here — upgrade_project does not write settings.local.json — so it keeps «off».
+NEW_PROJECT_DISCOVERY_GATE_MODE = "warn"
+
+
+def build_onboard_local_settings(
+    existing_local: str | None,
+    *,
+    backend_type: str,
+    freeform_root: str = "",
+    board_id: str = "",
+    engine_version: str = "",
+) -> str:
+    """The `.claude/settings.local.json` content onboard_project hands to the client.
+
+    Merges the canonical `specbox.*` block into `existing_local` (the multirepo satellite case)
+    without overwriting anything the project already has: every key is only added when missing,
+    including `specbox.discovery.gate_mode`.
+    """
+    try:
+        local_data = json.loads(existing_local) if existing_local else {}
+    except json.JSONDecodeError:
+        local_data = {}
+    if not isinstance(local_data, dict):
+        local_data = {}
+
+    specbox_block: dict[str, object] = {
+        "backend_type": backend_type,
+        "autopilot": {
+            "level": "equilibrado",
+            "image_budget_eur_per_feature": 5,
+        },
+    }
+    if backend_type == "freeform" and freeform_root:
+        specbox_block["freeform_root_absolute"] = freeform_root
+    if backend_type == "trello" and board_id:
+        specbox_block["trello_board_id"] = board_id
+    if engine_version:
+        specbox_block["engine_version_at_onboard"] = engine_version
+
+    specbox = local_data.setdefault("specbox", {})
+    for key, value in specbox_block.items():
+        specbox.setdefault(key, value)
+    discovery = specbox.setdefault("discovery", {})
+    if isinstance(discovery, dict):
+        discovery.setdefault("gate_mode", NEW_PROJECT_DISCOVERY_GATE_MODE)
+    return json.dumps(local_data, indent=2, ensure_ascii=False)
+
+
 def register_onboarding_tools(
     mcp: FastMCP,
     engine_path: Path,
@@ -964,31 +1014,14 @@ def register_onboarding_tools(
             )
             freeform_root = ""
 
-        specbox_block: dict[str, object] = {
-            "backend_type": backend_type,
-            "autopilot": {
-                "level": "equilibrado",
-                "image_budget_eur_per_feature": 5,
-            },
-        }
-        if backend_type == "freeform" and freeform_root:
-            specbox_block["freeform_root_absolute"] = freeform_root
-        if backend_type == "trello" and board_id:
-            specbox_block["trello_board_id"] = board_id
-
         # Merge into settings.local.json if it already exists (multirepo case),
-        # otherwise create a fresh one.
-        existing_local = files.get(".claude/settings.local.json")
-        try:
-            local_data = json.loads(existing_local) if existing_local else {}
-        except json.JSONDecodeError:
-            local_data = {}
-        local_data.setdefault("specbox", {})
-        # Preserve user-provided values if any; only add what's missing.
-        for k, v in specbox_block.items():
-            local_data["specbox"].setdefault(k, v)
-        files[".claude/settings.local.json"] = json.dumps(
-            local_data, indent=2, ensure_ascii=False
+        # otherwise create a fresh one (UC-12207: with the discovery gate in «warn»).
+        files[".claude/settings.local.json"] = build_onboard_local_settings(
+            files.get(".claude/settings.local.json"),
+            backend_type=backend_type,
+            freeform_root=freeform_root,
+            board_id=board_id,
+            engine_version=_read_engine_version(engine_path),
         )
 
         # Register in state registry

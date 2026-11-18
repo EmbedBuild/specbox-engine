@@ -212,6 +212,11 @@
             "type": "command",
             "command": "node .claude/hooks/freeform-fragment.mjs",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/uc-state-marker.mjs",
+            "timeout": 5
           }
         ]
       },

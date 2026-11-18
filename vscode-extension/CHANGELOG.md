@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.39.0] — "Umbral"
+
+- No changes in the extension itself. The version follows the engine, where `start_uc` now checks the spec
+  (criteria against the project threshold and `[POR DECIDIR: …]` marks) before reserving a UC; both measures start
+  in «warn».
+
 ## [6.38.1] — "Sin atascos"
 
 - **The managed engine copy updates again.** Since 6.34.0 it stayed on that version: the rebuild ran `npm install`

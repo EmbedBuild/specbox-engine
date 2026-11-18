@@ -2,6 +2,83 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.39.0] - 2026-11-18 — "Umbral"
+
+Primera tanda de US-123: la calidad de la spec se comprueba en la puerta de la UC. `start_uc` mide los criterios
+contra un umbral del proyecto y busca lo que falta por decidir antes de reservar la UC; con la medida en «block»,
+una spec que no llega no arranca. Los criterios ganan dos reglas nuevas (lenguaje normativo y límites con cifra),
+que solo se aplican a los criterios escritos o cambiados desde esta versión.
+
+### Added
+
+- **`start_uc` comprueba la calidad de la spec antes de reservar** (UC-12301, #376) — medida `spec_quality`.
+  Antes de reservar (native) o de mover (FreeForm), y solo al arrancar desde backlog o user_stories:
+  - en «block», una UC sin criterios o con menos criterios buenos que el umbral devuelve
+    `AC_QUALITY_BELOW_THRESHOLD` con cada criterio y su motivo; la UC no se reserva y sigue en su estado;
+  - en «warn», arranca y la respuesta lleva el aviso;
+  - una UC anterior a la regla, o con un salto pedido con `skip_enforcement`, arranca.
+  - Umbral por proyecto (1,0 por defecto): `set_enforcement_mode(measure="spec_quality", threshold=0.8)`;
+    `get_enforcement_policy` lo enseña.
+  - Cada bloqueo, y el arranque que lo corrige, queda en el tablero (`audit_log` en native;
+    `.quality/enforcement_events.jsonl` en FreeForm, escrito por el hook `freeform-fragment`).
+- **Lo que falta por decidir queda marcado y detiene el arranque** (UC-12305, #377) — medida `pending_decisions`.
+  Una marca `[POR DECIDIR: …]` en el nombre, la descripción o un criterio de la UC:
+  - en «block», `start_uc` devuelve `PENDING_DECISIONS` con cada marca y no reserva;
+  - en «warn», arranca y las enseña.
+  - Lo citado entre comillas invertidas o angulares no cuenta, y una marca de la descripción que repite la de un
+    criterio cuenta una vez.
+  - Las tres plantillas de PRD y la del plan ganan la sección «Pendiente de decidir».
+- **`import_spec` y `add_ac` devuelven `spec_gate`** (UC-12301, UC-12305) — por cada UC que tocan, el resultado
+  del gate y sus marcas pendientes, para corregir antes de llegar a `start_uc`.
+- **Reglas versión 2 de los criterios** (UC-12302, #378) — dejan el criterio en `failed`:
+  - `weak_modal`: «debería», «en lo posible», «should», «may», o «intenta» + infinitivo sin otro resultado;
+  - `no_threshold`: un límite dicho con un calificativo y sin cifra («rápido», «pocos segundos»).
+  - Y avisa (`threshold_without_condition`) de una cifra de rendimiento sin red, volumen ni dispositivo.
+  - Lo citado entre comillas no cuenta.
+- **Sello por criterio** (UC-12302) — native y FreeForm guardan qué reglas se aplicaron al crear un criterio o
+  cambiar su texto (no si el texto es el mismo). Un criterio sin sello se juzga con las reglas de antes, y
+  `validate_ac_quality` enseña en `predates_rule` lo que las nuevas le dirían, sin contar para el umbral.
+
+### Fixed
+
+- **Una UC sin criterios ya no pasa el gate** (UC-12301) — `validate_ac_quality` la contaba con `pass_rate` 1,0;
+  ahora es 0.
+- **La documentación dice dónde y cuándo se impone el gate** (UC-12301) — `/prd`, `/implement`, quickstart,
+  CLAUDE.md y `rules/GLOBAL_RULES.md`: el gate avisa en `/prd` y lo impone `start_uc` con la medida en «block».
+  Se quita la nota de UC-12201 («se impondrá más adelante»), y `tests/test_doc_promises.py` lo vigila.
+- **`/implement` para si falta el triaje** (UC-12305) — antes de `start_uc` y de crear la rama; se quita la nota
+  de degradación.
+
+### Para los proyectos que ya existían
+
+- **`spec_quality` y `pending_decisions` empiezan en «warn»** en todos los tableros, nuevos y existentes: avisan
+  y no detienen nada. Para que detengan el arranque, quien administra el proyecto:
+  `set_enforcement_mode(measure="spec_quality", mode="block")` o
+  `set_enforcement_mode(measure="pending_decisions", mode="block")`, que primero enseña el informe de impacto. Las
+  UC abiertas y sin cambios cuando la medida pasa a «block» quedan como anteriores a la regla y arrancan.
+- **Los criterios que ya existían no cambian de veredicto.** Las reglas nuevas solo se aplican a los criterios
+  creados o reescritos desde esta versión. Medido en los 1.835 criterios del tablero del orquestador: ninguno
+  cambia de veredicto y 4 reciben el aviso de condición.
+- En Trello y Plane las dos medidas se quedan en «warn» (el tope de esos backends).
+
+### Security
+
+- **El gate lo decide el servidor, antes de tocar el tablero** — `start_uc` comprueba las dos medidas antes de
+  reservar (en native, después de identificar a quien llama): un cliente con skills anteriores no se lo salta, y un
+  arranque detenido no deja reserva ni UC movida.
+- **Un salto vale para un arranque** — se gasta con la fila del proyecto bloqueada, así que dos `start_uc` a la vez
+  no aprovechan el mismo salto.
+- **Los eventos de bloqueo guardan la medida y la UC, no la spec** — ni el texto de los criterios ni las marcas
+  pendientes pasan al registro de auditoría.
+
+### Tests
+
+- `tests/test_spec_gate_start_uc.py` (16, 3 contra Postgres y una de tiempo), `tests/test_pending_decisions.py`
+  (14), `tests/test_spec_rules_v2.py` (20) y `tests/hooks/freeform-fragment.test.mjs` (arranque bloqueado y salto
+  gastado en FreeForm).
+- `tests/test_doc_promises.py`: un documento que dice que el gate bloquea dice también `start_uc` y «block»; cada
+  elemento de lista es una afirmación propia.
+
 ## [6.38.1] - 2026-11-18 — "Sin atascos"
 
 Dos arreglos encontrados el mismo día de la 6.38.0: la copia del engine que gestiona la extensión se había quedado

@@ -415,8 +415,8 @@ Distinguir las dos cosas:
   implementacion: si manana la funcion cambia de nombre, el AC miente.
 
 Antes de cerrar el plan, pasar `validate_ac_quality` y revisar **las dos
-listas** que devuelve: `failed` (calidad, bloquea) y `warnings` (exposicion,
-solo avisa).
+listas** que devuelve: `failed` (calidad de definicion: reescribir esos criterios)
+y `warnings` (exposicion). Las dos avisan; el servidor no detiene nada.
 
 ### Template de Plan
 

@@ -18,7 +18,8 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 
 - **Te ayuda a ir rápido** sin saltarse trazabilidad ni calidad.
 - **Aprende de tu proyecto** y deja de preguntarte lo que ya has decidido.
-- **Bloquea atajos peligrosos** (push a main, AC vagos, code sin UC, paths inseguros).
+- **Bloquea atajos peligrosos**: commit en main, `--no-verify`, `push --force`.
+- **Avisa** de los AC vagos y del código sin UC, para corregirlos antes de seguir.
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
@@ -881,7 +882,8 @@ A system that turns Claude Code into a serious teammate:
 
 - **Helps you go fast** without skipping traceability or quality.
 - **Learns your project** and stops asking you what you already decided.
-- **Blocks dangerous shortcuts** (push to main, vague AC, code without UC, unsafe paths).
+- **Blocks dangerous shortcuts**: commit on main, `--no-verify`, `push --force`.
+- **Warns** about vague AC and code without a UC, so you fix them before moving on.
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.

@@ -652,7 +652,8 @@ Antes de crear un Work Item, los acceptance criteria se validan con 3 métricas:
 - **Medibilidad** (0-2): rechaza criterios subjetivos como "es rápido"
 - **Testabilidad** (0-2): rechaza criterios no verificables como "buena experiencia"
 
-Si algún criterio tiene score 0 → el PRD se rechaza hasta corrección.
+Si algún criterio tiene score 0, /prd lo reescribe antes de seguir. La medida es `validate_ac_quality`
+(lista `failed`); hoy avisa y no detiene nada en el servidor.
 
 ### AG-10 Developer Feedback Loop (on-demand, post-implementation)
 

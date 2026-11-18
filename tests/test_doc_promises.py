@@ -5,6 +5,7 @@ código no cumplía. Mientras el código no las cumpla, la documentación dice l
 verdad, y estas pruebas impiden que la promesa vuelva a colarse.
 
 - UC-12201: el Definition Quality Gate avisa; no bloquea (lo impondrá `start_uc`, UC-12301).
+- UC-12202: spec-guard avisa después de escribir; solo bloquea en main o master.
 """
 from __future__ import annotations
 
@@ -47,6 +48,28 @@ def _doc_lines() -> list[tuple[str, int, str]]:
 DOC_LINES = _doc_lines()
 
 
+def _doc_paragraphs() -> list[tuple[str, int, str]]:
+    """(fichero, primera línea, texto) de cada párrafo: una afirmación puede partirse en líneas."""
+    paragraphs: list[tuple[str, int, str]] = []
+    current: list[str] = []
+    start = 0
+    previous = None
+    for rel, number, line in DOC_LINES + [("", 0, "")]:
+        if rel != previous or not line.strip():
+            if current:
+                paragraphs.append((previous, start, " ".join(current)))
+            current = []
+        if line.strip():
+            if not current:
+                start = number
+            current.append(line.strip())
+        previous = rel
+    return paragraphs
+
+
+DOC_PARAGRAPHS = _doc_paragraphs()
+
+
 def _offending(subject: re.Pattern[str], claim: re.Pattern[str]) -> list[str]:
     return [
         f"{rel}:{number}: {line.strip()}"
@@ -87,3 +110,42 @@ def test_uc_12201_the_prd_skill_names_validate_ac_quality_as_the_measure():
 @pytest.mark.parametrize("claim", ["BLOQUEANTE", "NO se crea hasta que este gate pase"])
 def test_uc_12201_old_claims_are_gone_from_the_prd_skill(claim):
     assert claim not in (REPO_ROOT / ".claude/skills/prd/SKILL.md").read_text(encoding="utf-8")
+
+
+# UC-12202 ─ spec-guard avisa después de escribir; solo bloquea en main o master.
+SPEC_GUARD = re.compile(r"spec-guard", re.IGNORECASE)
+IMPOSSIBLE = re.compile(r"\bimpossible\b|\bimposible\b", re.IGNORECASE)
+
+
+def test_uc_12202_no_doc_says_spec_guard_makes_it_impossible():
+    offending = [
+        f"{rel}:{start}: {text[:160]}"
+        for rel, start, text in DOC_PARAGRAPHS
+        if SPEC_GUARD.search(text) and IMPOSSIBLE.search(text)
+    ]
+    assert offending == [], "spec-guard avisa; no hace nada imposible:\n" + "\n".join(offending)
+
+
+def _row(path: str, hook: str) -> str:
+    def first_cell(line: str) -> str:
+        return line.split("|")[1].strip().strip("*`").removesuffix(".mjs")
+
+    rows = [line for line in (REPO_ROOT / path).read_text(encoding="utf-8").splitlines()
+            if line.startswith("|") and first_cell(line) == hook]
+    assert len(rows) == 1, f"{path}: una fila para {hook}"
+    return rows[0]
+
+
+def test_uc_12202_the_hooks_table_describes_what_spec_guard_does():
+    claude = _row("CLAUDE.md", "spec-guard")
+    assert "after the write" in claude
+    assert "main or master" in claude
+    assert "pending" in claude and "UC-12217" in claude, "la reserva perdida figura como pendiente"
+    rules = _row("rules/GLOBAL_RULES.md", "spec-guard")
+    assert "Despues de Write/Edit" in rules
+    assert "main/master" in rules and "pendiente (UC-12217)" in rules
+    assert "NOTA (UC)" in rules
+
+
+def test_uc_12202_branch_guard_is_not_sold_as_blocking():
+    assert "**BLOQUEANTE**" not in _row("rules/GLOBAL_RULES.md", "branch-guard")

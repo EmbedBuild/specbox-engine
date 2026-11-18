@@ -2,6 +2,41 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.38.1] - 2026-11-18 — "Sin atascos"
+
+Dos arreglos encontrados el mismo día de la 6.38.0: la copia del engine que gestiona la extensión se había quedado
+en la 6.34.0, y la búsqueda del PRD del hook nuevo no veía todos los PRD del orquestador.
+
+### Fixed
+
+- **La copia gestionada del engine vuelve a actualizarse** (UC-1405, #373) — al reconstruirse, la extensión hacía
+  `npm install` dentro de `~/.specbox/specbox-engine` y npm corregía la licencia del `package-lock.json` versionado
+  (decía MIT; `package.json`, FSL-1.1-ALv2 desde la 6.30.0). La copia quedaba con un cambio local y cada
+  actualización posterior fallaba al pasar a la etiqueta nueva: la extensión avisaba y seguía con la copia de la
+  6.34.0, de la que salen las skills y los hooks. Ahora:
+  - la reconstrucción instala con `npm ci` (si no puede, sin lock) y nunca reescribe el `package-lock.json`;
+  - el `package-lock.json` versionado lleva la licencia de `package.json`, y una prueba lo comprueba;
+  - antes de cambiar de versión, la extensión restaura ese fichero, así que una copia ya atascada pasa a la versión
+    nueva; cualquier otro cambio local bloquea la actualización y el aviso nombra los ficheros y cómo seguir.
+- **`prd-sync-guard` encuentra los PRD con nombre propio en su carpeta** (UC-12219, #374) — la búsqueda (servidor y
+  hook, en paridad) acepta `doc/prd/<carpeta>/PRD.md` y `<carpeta>_prd.md`, devuelve el nombre que el fichero tiene
+  en disco (un disco que no distingue mayúsculas también «encontraba» `PRD.md` al pedir `prd.md`) y prefiere el PRD
+  que define la historia —un encabezado o una línea `>` la nombra— al que solo la cita.
+
+### Para los proyectos que ya existían
+
+- Quien actualizó con la extensión desde la 6.34.0 tiene la copia gestionada parada en esa versión. Al instalar la
+  extensión 6.38.1 desde el Marketplace y aceptar «Update now», la copia pasa a la 6.38.1 sin hacer nada a mano. Si
+  la copia tiene cambios propios en otros ficheros, el aviso los nombra y no se toca nada.
+
+### Tests
+
+- `vscode-extension/tests/updater-remote.test.mjs` (restaurar el lock y bloquear con otros cambios) y
+  `vscode-extension/tests/package-lock-sync.test.mjs`; prueba real con dos clones (v6.38.0 con `npm install` queda
+  con el lock cambiado; la 6.38.1 con `npm ci`, sin cambios).
+- `tests/test_spec_in_pr.py`: servidor y hook devuelven el mismo PRD en 15 disposiciones, y la ruta conserva las
+  mayúsculas del disco.
+
 ## [6.38.0] - 2026-11-18 — "Lo justo"
 
 Cuarta y última tanda de US-122: el agente recibe lo que necesita y nada más, y la spec se actualiza en la misma

@@ -1,5 +1,5 @@
-version: 6.38.0
-codename: "Lo justo"
+version: 6.38.1
+codename: "Sin atascos"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-18
@@ -626,8 +626,18 @@ features:
   - measure-spec-in-pr
   - prd-sync-guard
   - claude-md-template-zones
+  # New (v6.38.1) — Sin atascos
+  - managed-clone-clean-rebuild
+  - prd-locate-named-folders
 
 changelog:
+  6.38.1:
+    date: 2026-11-18
+    codename: "Sin atascos"
+    changes:
+      - "fix: the managed engine clone no longer stays on an old version: install-ext.mjs ran npm install inside it and npm rewrote the licence of the versioned package-lock.json (MIT vs FSL-1.1-ALv2 in package.json), so every later checkout of a release tag failed and clones stayed on 6.34.0; the rebuild now uses npm ci (or installs without a lock), the lock carries the right licence, and the updater restores the lock before moving, which heals clones already stuck; any other local change blocks the update naming the files (UC-1405, #373)"
+      - "fix: prd-sync-guard and write_implementation_status find PRDs named doc/prd/<folder>/PRD.md or <folder>_prd.md, return the name the file has on disk (a case-insensitive disk also matched other cases), and prefer the PRD that defines the story (a heading or a «>» line names it) over one that only mentions it (UC-12219, #374)"
+
   6.38.0:
     date: 2026-11-18
     codename: "Lo justo"

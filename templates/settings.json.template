@@ -32,6 +32,7 @@
       "mcp__SpecBox-MCP__get_cross_repo_dependencies",
       "mcp__SpecBox-MCP__get_delivery_report",
       "mcp__SpecBox-MCP__get_e2e_gap_report",
+      "mcp__SpecBox-MCP__get_enforcement_policy",
       "mcp__SpecBox-MCP__get_engine_status",
       "mcp__SpecBox-MCP__get_engine_version",
       "mcp__SpecBox-MCP__get_epic",
@@ -103,6 +104,10 @@
       "mcp__SpecBox-MCP__validate_stitch_prompt",
       "mcp__SpecBox-MCP__verify_app_docs",
       "mcp__SpecBox-MCP__whoami"
+    ],
+    "ask": [
+      "mcp__SpecBox-MCP__set_enforcement_mode",
+      "mcp__SpecBox-MCP__skip_enforcement"
     ],
     "deny": [
       "Read(~/.ssh/**)",

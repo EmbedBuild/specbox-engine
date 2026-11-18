@@ -428,6 +428,15 @@ para quien usa la extensión, y comprueba:
 grep -E "^## \[{nueva_version}\]" vscode-extension/CHANGELOG.md
 ```
 
+### 5.5.4 Las medidas de EP-20 y los proyectos que ya existían (UC-12212)
+
+Si la release activa una medida de EP-20 (su `since` en `server/coordination/enforcement.py` pasa a
+`{nueva_version}`) o cambia su modo de proyecto nuevo, la entrada del CHANGELOG.md lleva una sección
+`### Para los proyectos que ya existían` que nombra la clave de cada medida, dice qué cambia para un
+tablero que ya existía (empieza en «warn» y no se bloquea solo) y cómo pasarla a «block»:
+`set_enforcement_mode(measure="<clave>", mode="block")`, que hace quien administra el proyecto.
+`tests/test_enforcement.py` (`measures_missing_from_changelog`) falla si falta.
+
 ---
 
 ## Paso 6: Commit y Push

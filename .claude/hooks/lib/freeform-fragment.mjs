@@ -326,51 +326,68 @@ export function mergeFragment(local, sent, returned) {
 
 // ── The tool's answer ──────────────────────────────────────────────────
 
-/** The `items_content` string inside an MCP tool response, whatever its shape. */
-export function extractItemsContent(response, depth = 0) {
+/** The string field `key` inside an MCP tool response, whatever its shape. */
+export function extractField(response, key, depth = 0) {
   if (depth > 6 || response == null) return null;
   if (typeof response === 'string') {
     const text = response.trim();
-    return text.startsWith('{') ? extractItemsContent(safeJson(text), depth + 1) : null;
+    return text.startsWith('{') ? extractField(safeJson(text), key, depth + 1) : null;
   }
   if (Array.isArray(response)) {
     for (const part of response) {
-      const found = extractItemsContent(part, depth + 1);
+      const found = extractField(part, key, depth + 1);
       if (found != null) return found;
     }
     return null;
   }
   if (typeof response === 'object') {
-    if (typeof response.items_content === 'string') return response.items_content;
+    if (typeof response[key] === 'string') return response[key];
     for (const value of Object.values(response)) {
-      const found = extractItemsContent(value, depth + 1);
+      const found = extractField(value, key, depth + 1);
       if (found != null) return found;
     }
   }
   return null;
 }
 
-/** The same response without any `items_content` (what the model needs to see). */
-export function withoutItemsContent(response, depth = 0) {
+/** The same response without any field in `keys` (what the model needs to see). */
+export function withoutFields(response, keys, depth = 0) {
   if (depth > 6 || response == null) return response;
   if (typeof response === 'string') {
     const text = response.trim();
     if (!text.startsWith('{')) return response;
     const parsed = safeJson(text);
-    if (parsed == null || extractItemsContent(parsed) == null) return response;
-    return JSON.stringify(withoutItemsContent(parsed, depth + 1));
+    if (parsed == null || keys.every((k) => extractField(parsed, k) == null)) return response;
+    return JSON.stringify(withoutFields(parsed, keys, depth + 1));
   }
-  if (Array.isArray(response)) return response.map((part) => withoutItemsContent(part, depth + 1));
+  if (Array.isArray(response)) return response.map((part) => withoutFields(part, keys, depth + 1));
   if (typeof response === 'object') {
     const out = {};
     for (const [key, value] of Object.entries(response)) {
-      if (key === 'items_content') continue;
-      out[key] = withoutItemsContent(value, depth + 1);
+      if (keys.includes(key)) continue;
+      out[key] = withoutFields(value, keys, depth + 1);
     }
     return out;
   }
   return response;
 }
+
+/** The `items_content` string inside an MCP tool response, whatever its shape. */
+export function extractItemsContent(response) {
+  return extractField(response, 'items_content');
+}
+
+/** The same response without any `items_content` (nor `policy_content`, UC-12212). */
+export function withoutItemsContent(response) {
+  return withoutFields(response, ['items_content', 'policy_content']);
+}
+
+// ── The EP-20 policy, doc/tracking/policy.json (UC-12212) ─────────────
+
+/** The tools that read or change the policy: they get the file as `policy_content`. */
+export const POLICY_TOOLS = new Set(['get_enforcement_policy', 'set_enforcement_mode', 'skip_enforcement']);
+/** Of those, the ones whose answer is the new file. */
+export const POLICY_WRITERS = new Set(['set_enforcement_mode', 'skip_enforcement']);
 
 // ── Files: pending calls, the lock and atomic writes ───────────────────
 

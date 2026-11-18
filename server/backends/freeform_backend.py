@@ -578,6 +578,14 @@ class FreeformBackend(SpecBackend):
         }
         self._save_config(config)
 
+        # UC-12212: a board born here keeps the EP-20 policy with origin «new». A policy.json
+        # that is already there (the board was set up before) is left as it is.
+        from ..coordination.enforcement import POLICY_FILE, new_policy
+
+        policy_path = self.root / POLICY_FILE
+        if not policy_path.exists():
+            policy_path.write_text(json.dumps(new_policy(), indent=2) + "\n")
+
         # Generate initial progress
         self._regenerate_progress()
 

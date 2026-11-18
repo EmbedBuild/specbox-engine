@@ -116,8 +116,10 @@ async def validate_ac_quality(
         # AC-02: los avisos NO entran en el cómputo. `pass_rate` sigue midiendo
         # solo calidad de redacción, así que un AC con `exposure_warning` no
         # impide aprobar el Definition Quality Gate — solo aparece listado.
+        # UC-12301 AC-02: sin criterios no hay nada que pase, así que el gate
+        # cuenta 0 (antes 1,0: una UC vacía «aprobaba» y start_uc la arrancaba).
         passed = total - len(failed)
-        rate = round(passed / total, 4) if total else 1.0
+        rate = round(passed / total, 4) if total else 0.0
         return {
             "total_acs": total,
             "passed": passed,

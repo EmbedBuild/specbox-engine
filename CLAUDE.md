@@ -659,7 +659,7 @@ Componentes:
 
 Pipeline completo de validacion funcional con jerarquia US → UC → AC:
 
-1. **Definition Quality Gate** (`/prd` Paso 2.5) — Avisa de los acceptance criteria vagos o no verificables para reescribirlos antes de crear work items. La medida es `validate_ac_quality` y hoy no detiene nada en el servidor (UC-12201; `start_uc` lo impondrá con UC-12301). Evalua especificidad, medibilidad y testabilidad (0-2 cada una).
+1. **Definition Quality Gate** (`/prd` Paso 2.5 y `start_uc`) — /prd reescribe los acceptance criteria vagos o no verificables antes de crear work items. La medida es `validate_ac_quality` y la impone `start_uc` con la medida `spec_quality` del tablero (UC-12301): en «block», una UC sin criterios o cuyos criterios no llegan al umbral del proyecto (1,0 por defecto) no arranca (`AC_QUALITY_BELOW_THRESHOLD`) y queda sin reservar; en «warn», el valor de partida, arranca y la respuesta lista los criterios que fallan. `import_spec` y `add_ac` devuelven el resultado en `spec_gate`. Evalua especificidad, medibilidad y testabilidad (0-2 cada una).
 2. **AG-09a Acceptance Tester** (`/implement` Paso 7.5) — Genera E2E/integration tests desde AC-XX del PRD con evidencia visual (screenshots, traces, response logs).
 3. **AG-09b Acceptance Validator** (`/implement` Paso 7.7) — Validacion independiente por UC: verifica que cada AC-XX del UC esta implementado, testeado y evidenciado. Emite ACCEPTED/CONDITIONAL/REJECTED. US se considera ACCEPTED cuando todos sus UCs pasan.
 4. **AG-10 Developer Feedback** (`/feedback`) — Captura feedback de testing manual. Crea evidencia local (FB-NNN.json) + GitHub issue. Puede INVALIDAR verdict de AG-09b. Severity critical/major bloquea merge.

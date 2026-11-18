@@ -174,7 +174,9 @@ Si algun criterio no pasa → proponer mejoras al usuario ANTES de continuar.
 
 Aplicar tambien la **Regla de redaccion cara-al-cliente** (ver abajo). El gate
 devuelve dos listas separadas: `failed` (calidad de definicion) y `warnings`
-(exposicion). Las dos avisan: el servidor no detiene nada. Revisar las dos y
+(exposicion). En /prd las dos avisan; `failed` es ademas lo que comprueba
+`start_uc` al arrancar cada UC (UC-12301): con la medida `spec_quality` en
+«block», una UC con criterios en `failed` no arranca. Revisar las dos y
 reescribir los criterios de `failed`.
 
 ### S5: Adjuntar evidencia a Trello
@@ -346,8 +348,8 @@ Los cuatro salen del board del orquestador. No son inventados.
 `validate_ac_quality` devuelve dos listas **separadas**:
 
 - `failed` → calidad de definicion. Es la medida del gate: /prd reescribe estos
-  criterios antes de dar el PRD por bueno. Hoy el servidor solo avisa; `start_uc`
-  lo impondra cuando llegue UC-12301.
+  criterios antes de dar el PRD por bueno, y `start_uc` la impone al arrancar la
+  UC (UC-12301): en «block» no arranca, en «warn» arranca y lo avisa.
 - `warnings` → exposicion (`exposure_credentials`, `exposure_internal_path`).
   **Solo avisa**: el objetivo es visibilidad, no fricción.
 
@@ -719,12 +721,16 @@ distintos y se reportan por separado.
 
 ---
 
-## Paso 2.5: Validar Calidad de Definicion (aviso)
+## Paso 2.5: Validar Calidad de Definicion (se impone en start_uc)
 
 > Antes de crear el Work Item, validar que los acceptance criteria permiten testing automatizado.
-> La medida es `validate_ac_quality`: su lista `failed` dice que criterios no pasan. El gate
-> **avisa**, no detiene nada en el servidor; es /prd quien itera hasta que `failed` sale vacia
-> y muestra el resultado (Paso 2.5.7). El bloqueo real llegara en `start_uc` (UC-12301).
+> La medida es `validate_ac_quality`: su lista `failed` dice que criterios no pasan. En /prd el
+> gate avisa y /prd itera hasta que `failed` sale vacia (Paso 2.5.7). Lo impone `start_uc`
+> (UC-12301): con la medida `spec_quality` del tablero en «block», una UC sin criterios o cuyos
+> criterios no llegan al umbral del proyecto (1,0 por defecto) no arranca y devuelve
+> `AC_QUALITY_BELOW_THRESHOLD` con cada criterio que falla; en «warn» arranca y lo avisa.
+> `import_spec` devuelve el resultado de cada UC en `spec_gate`: si una sale con
+> `meets_threshold: false`, reescribir sus criterios antes de seguir.
 
 ### 2.5.1 Asignar ID a cada criterio
 
@@ -802,7 +808,7 @@ ICPs definidos: {N}
 Continuar a Paso 3 con los AC-XX numerados incorporados al PRD.
 Reportar:
 ```
-Definition Quality Gate: APROBADO (aviso: el servidor no lo impone)
+Definition Quality Gate: APROBADO (start_uc lo vuelve a comprobar al arrancar cada UC)
 validate_ac_quality: {passed}/{total} pasan · failed {0} · warnings {N}
 Criterios funcionales: {N} (promedio: {score}/2.0)
 Cobertura: {N} Use Cases cubiertos de {M}

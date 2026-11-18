@@ -4,7 +4,9 @@ La auditoría «SpecBox frente al SDD» (2026-11-18) halló promesas de la docum
 código no cumplía. Mientras el código no las cumpla, la documentación dice lo que pasa de
 verdad, y estas pruebas impiden que la promesa vuelva a colarse.
 
-- UC-12201: el Definition Quality Gate avisa; no bloquea (lo impondrá `start_uc`, UC-12301).
+- UC-12201 → UC-12301: el Definition Quality Gate avisa en /prd y lo impone `start_uc` con la medida
+  `spec_quality` en «block». Ningún documento dice que bloquea sin decir dónde (`start_uc`) y cuándo
+  («block»), ni conserva la nota de que «llegará».
 - UC-12202: spec-guard avisa después de escribir; solo bloquea en main o master.
 - UC-12204: Spec-Code Sync lista los ficheros tocados; aún no los compara con el plan.
 """
@@ -49,14 +51,20 @@ def _doc_lines() -> list[tuple[str, int, str]]:
 DOC_LINES = _doc_lines()
 
 
+LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+\.)\s|^\s*\|")
+
+
 def _doc_paragraphs() -> list[tuple[str, int, str]]:
-    """(fichero, primera línea, texto) de cada párrafo: una afirmación puede partirse en líneas."""
+    """(fichero, primera línea, texto) de cada párrafo: una afirmación puede partirse en líneas.
+
+    Cada elemento de lista y cada fila de tabla empieza un párrafo: son afirmaciones distintas.
+    """
     paragraphs: list[tuple[str, int, str]] = []
     current: list[str] = []
     start = 0
     previous = None
     for rel, number, line in DOC_LINES + [("", 0, "")]:
-        if rel != previous or not line.strip():
+        if rel != previous or not line.strip() or LIST_ITEM.match(line):
             if current:
                 paragraphs.append((previous, start, " ".join(current)))
             current = []
@@ -86,26 +94,53 @@ def test_the_docs_are_scanned():
     assert len(files) > 30
 
 
-# UC-12201 ─ el Definition Quality Gate es un aviso.
+# UC-12201 → UC-12301 ─ el Definition Quality Gate avisa en /prd y lo impone start_uc en «block».
 QUALITY_GATE = re.compile(
     r"definition quality gate|calidad de definici[oó]n|validate_ac_quality|\bAC vagos\b|\bvague AC\b",
     re.IGNORECASE,
 )
-# Afirmación de bloqueo en presente. «bloquear»/«bloqueará» (futuro, UC-12301) no cuentan.
-BLOCKS_NOW = re.compile(r"\b(bloquea|bloqueante|blocks|blocking)\b", re.IGNORECASE)
+BLOCKS_NOW = re.compile(r"\b(bloquea|bloqueante|blocks|blocking|no arranca|does not start)\b", re.IGNORECASE)
+WHERE_AND_WHEN = (re.compile(r"start_uc"), re.compile(r"«block»|\bblock\b"))
 
 
-def test_uc_12201_no_doc_says_the_quality_gate_blocks():
-    offending = _offending(QUALITY_GATE, BLOCKS_NOW)
-    assert offending == [], "El Definition Quality Gate avisa; no bloquea:\n" + "\n".join(offending)
+def _overpromises(text: str) -> bool:
+    return bool(QUALITY_GATE.search(text) and BLOCKS_NOW.search(text)) and not all(
+        rule.search(text) for rule in WHERE_AND_WHEN
+    )
 
 
-def test_uc_12201_the_prd_skill_names_validate_ac_quality_as_the_measure():
+def test_uc_12301_the_rule_tells_an_overpromise_from_the_truth():
+    assert _overpromises("El Definition Quality Gate bloquea las UC con criterios vagos.")
+    assert not _overpromises(
+        "La medida es validate_ac_quality y la impone start_uc: en «block» la UC no arranca; en «warn» avisa."
+    )
+
+
+def test_uc_12301_a_doc_that_says_the_gate_blocks_says_where_and_when():
+    """AC-05: el gate bloquea en start_uc y solo con la medida en «block»; decirlo sin eso es prometer de más."""
+    offending = [f"{rel}:{start}: {text[:160]}" for rel, start, text in DOC_PARAGRAPHS if _overpromises(text)]
+    assert offending == [], "El gate solo bloquea en start_uc con la medida en «block»:\n" + "\n".join(offending)
+
+
+def test_uc_12301_the_prd_skill_says_start_uc_enforces_the_gate():
     prd = (REPO_ROOT / ".claude/skills/prd/SKILL.md").read_text(encoding="utf-8")
     step = prd.split("## Paso 2.5:", 1)[1].split("\n## ", 1)[0]
-    assert "(aviso)" in step.splitlines()[0]
+    assert "(se impone en start_uc)" in step.splitlines()[0]
     assert "La medida es `validate_ac_quality`" in step
+    assert "AC_QUALITY_BELOW_THRESHOLD" in step and "«warn»" in step
     assert "validate_ac_quality: {passed}/{total}" in step, "el informe del Paso 2.5.7 muestra el resultado"
+
+
+# AC-05: la nota de UC-12201 («lo impondrá UC-12301», «el servidor no lo impone») se deshace.
+UC_12201_NOTE = re.compile(
+    r"impondr[aá]|bloqueo real llegar|el servidor no lo impone|no detiene nada en el servidor",
+    re.IGNORECASE,
+)
+
+
+def test_uc_12301_the_uc_12201_note_is_gone():
+    offending = [f"{rel}:{n}: {line.strip()}" for rel, n, line in DOC_LINES if UC_12201_NOTE.search(line)]
+    assert offending == [], "Quedan restos de la nota de UC-12201:\n" + "\n".join(offending)
 
 
 @pytest.mark.parametrize("claim", ["BLOQUEANTE", "NO se crea hasta que este gate pase"])

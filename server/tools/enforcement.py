@@ -408,6 +408,7 @@ async def set_enforcement_mode(
     events_content: str | None = None,
     dev_token: str = "",
     actor: str = "",
+    threshold: float | None = None,
 ) -> dict[str, Any]:
     """Cambia el modo de una medida en este tablero: «off», «warn» o «block».
 
@@ -418,13 +419,19 @@ async def set_enforcement_mode(
     informe de impacto de la medida y un código ``confirm``; la segunda, con ese código, la aplica.
     Las UC abiertas en ese momento quedan «anteriores a la regla»: la medida no las detiene mientras
     su texto o sus criterios no cambien.
+
+    ``threshold`` (solo ``spec_quality``, UC-12301): la parte de los criterios de una UC que tiene que
+    pasar el gate para que start_uc la arranque; 1 por defecto (todos). Para cambiarlo sin cambiar
+    el modo, pasa el modo que ya tiene.
     """
     try:
         target, error = await _resolve_target(ctx, board_id, policy_content, dev_token, actor)
         if error is not None:
             return error
         at = _now()
-        policy_mod.with_mode(target.raw, measure, mode, by=target.actor, at=at, backend_type=target.backend_type)
+        policy_mod.with_mode(
+            target.raw, measure, mode, by=target.actor, at=at, backend_type=target.backend_type, threshold=threshold
+        )
         if target.kind == "native":
             await _require_admin(target)
         current =policy_mod.mode_of(policy_mod.effective_policy(target.raw, backend_type=target.backend_type), measure)
@@ -433,7 +440,7 @@ async def set_enforcement_mode(
             ucs, events = await _board_data(target, board_content, events_content)
             report = policy_mod.impact_report(
                 target.raw, ucs, backend_type=target.backend_type, events=events,
-                now=datetime.now(timezone.utc), measures=[measure],
+                now=datetime.now(timezone.utc), measures=[measure], threshold=threshold,
             )
             impact = report["measures"][measure]
             expected = policy_mod.confirm_token(target.project_id or target.backend_type, measure, mode, current, impact)
@@ -456,7 +463,8 @@ async def set_enforcement_mode(
 
         def mutate(raw):
             return policy_mod.with_mode(
-                raw, measure, mode, by=target.actor, at=at, backend_type=target.backend_type, open_ucs=open_ucs
+                raw, measure, mode, by=target.actor, at=at, backend_type=target.backend_type, open_ucs=open_ucs,
+                threshold=threshold,
             )
 
         if target.kind == "native":
@@ -665,7 +673,9 @@ def register_enforcement_tools(mcp_instance) -> None:
             "Cambia el modo de una medida de EP-20 en este tablero (off, warn o block). Native: solo "
             "project_admin; queda en la auditoría. Pasar a block va en dos pasos: la primera llamada "
             "devuelve el informe de impacto y un código confirm; la segunda, con confirm, lo aplica y "
-            "deja las UC abiertas como anteriores a la regla. Trello y Plane: warn como máximo."
+            "deja las UC abiertas como anteriores a la regla. Trello y Plane: warn como máximo. "
+            "threshold (solo spec_quality): parte de los criterios que tiene que pasar el gate en "
+            "start_uc, de 0 a 1 (1 por defecto)."
         )
     )(set_enforcement_mode)
     mcp_instance.tool(
@@ -764,3 +774,218 @@ async def marker_policy_extras(
         return {"predates_rule": predates} if predates else {}
     except Exception:  # noqa: BLE001 — el marcador es una ayuda: nunca la razón de que falle start_uc
         return {}
+
+
+# ── Las medidas que comprueba start_uc antes de arrancar una UC (US-123) ──
+
+#: Estados desde los que una UC «arranca». Retomar una UC en curso, en revisión o hecha no la
+#: revalida con las reglas nuevas (NFR de compatibilidad del PRD de EP-20).
+START_GATE_STATES = frozenset({"backlog", "user_stories"})
+#: Las medidas de start_uc, en el orden en que se comprueban. UC-12305 añade pending_decisions.
+START_MEASURES: tuple[str, ...] = ("spec_quality",)
+_START_CODES = {"spec_quality": "AC_QUALITY_BELOW_THRESHOLD"}
+_START_HOW_TO = {"spec_quality": policy_mod.SPEC_QUALITY_HOW_TO}
+_CORRECTION_WINDOW_HOURS = 24
+
+
+async def _gate_policy(ctx: Context | None, board_id: str, policy_content: str | None) -> tuple[str, Any, Path | None]:
+    """(backend, política guardada, fichero de FreeForm local) del tablero de la sesión."""
+    from ..auth_gateway import BACKEND_STATE_KEY
+
+    config = (await ctx.get_state(BACKEND_STATE_KEY) or {}) if ctx is not None else {}
+    backend_type = config.get("backend_type") or ""
+    if backend_type == "native":
+        from ..db.pool import get_pool
+
+        pool = await get_pool()
+        raw = await pool.fetchval("SELECT meta->'enforcement' FROM projects WHERE project_id = $1", board_id)
+        return backend_type, (json.loads(raw) if isinstance(raw, str) else raw), None
+    if backend_type == "freeform":
+        if policy_content is not None:
+            return backend_type, _parse_policy_content(policy_content), None
+        root = config.get("root_path") or ""
+        if root and Path(root).is_absolute() and not config.get("content_only"):
+            path = Path(root) / policy_mod.POLICY_FILE
+            return backend_type, (json.loads(path.read_text()) if path.exists() else None), path
+    return backend_type, None, None
+
+
+def _evaluate_start(measure: str, uc: dict[str, Any], raw: Any) -> tuple[bool, str, dict[str, Any]]:
+    """(no pasa, motivo, detalle para la respuesta) de una medida de start_uc."""
+    if measure == "spec_quality":
+        result = policy_mod.spec_quality_result(uc, policy_mod.threshold_of(raw))
+        detail = {k: result[k] for k in ("pass_rate", "threshold", "total", "failed")}
+        return not result["meets_threshold"], policy_mod.spec_quality_reason(result) or "", detail
+    raise ValueError(f"start_uc no comprueba la medida {measure!r}")
+
+
+async def _native_take_skip(project_id: str, measure: str, uc_id: str) -> dict | None:
+    """Gasta, bajo bloqueo de fila, el salto pendiente de ``measure`` en ``uc_id``."""
+    from ..db.pool import get_pool
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            raw = await conn.fetchval(
+                "SELECT meta->'enforcement' FROM projects WHERE project_id = $1 FOR UPDATE", project_id
+            )
+            raw = json.loads(raw) if isinstance(raw, str) else raw
+            stored, skip = policy_mod.take_skip(raw, measure, uc_id)
+            if skip is not None:
+                await conn.execute(
+                    "UPDATE projects SET meta = meta || jsonb_build_object('enforcement', $2::jsonb), "
+                    "updated_at = now() WHERE project_id = $1",
+                    project_id,
+                    json.dumps(stored),
+                )
+    return skip
+
+
+async def _native_record(project_id: str, developer_id: str, measure: str, uc_id: str, outcome: str) -> None:
+    """Un bloqueo de start_uc, o el paso que lo corrige (solo si hubo bloqueo en las últimas 24 h)."""
+    from ..coordination.audit import record_destructive
+    from ..db.pool import get_pool
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        if outcome == "passed":
+            blocked = await conn.fetchval(
+                f"""
+                SELECT 1 FROM audit_log
+                 WHERE project_id = $1 AND operation = 'enforcement_block' AND target_id = $2
+                   AND metadata->>'measure' = $3
+                   AND occurred_at >= now() - interval '{_CORRECTION_WINDOW_HOURS} hours'
+                 LIMIT 1
+                """,
+                project_id,
+                uc_id,
+                measure,
+            )
+            if not blocked:
+                return
+        await record_destructive(
+            conn,
+            developer_id=developer_id or None,
+            project_id=project_id,
+            operation="enforcement_block" if outcome == "blocked" else "enforcement_pass",
+            target_id=uc_id,
+            metadata={"measure": measure, "uc_id": uc_id},
+        )
+
+
+async def start_gate(
+    ctx: Context | None,
+    board_id: str,
+    uc_id: str,
+    uc_item: Any,
+    backend: Any,
+    *,
+    policy_content: str | None = None,
+    developer_id: str = "",
+) -> dict[str, Any]:
+    """Las medidas de EP-20 que start_uc comprueba antes de arrancar una UC (UC-12301).
+
+    Devuelve ``{"error": …}`` si una medida en «block» detiene el arranque (no se reserva ni se mueve
+    nada), o ``{"warnings": […]}`` con lo que avisan las medidas en «warn» y las UC anteriores a la
+    regla o con un salto. FreeForm por contenido añade ``policy_content`` (si se gastó un salto) y
+    ``event_lines`` para el hook freeform-fragment. Solo actúa si la UC arranca (backlog o
+    user_stories). Nunca es la razón de que start_uc falle: si no puede comprobar, avisa y sigue.
+    """
+    out: dict[str, Any] = {"warnings": [], "event_lines": []}
+    if (getattr(uc_item, "state", "") or "") not in START_GATE_STATES:
+        return out
+    try:
+        backend_type, raw, disk = await _gate_policy(ctx, board_id, policy_content)
+        policy = policy_mod.effective_policy(raw, backend_type=backend_type)
+        measures = [
+            m for m in START_MEASURES
+            if policy["measures"][m]["active"] and policy_mod.mode_of(policy, m) != "off"
+        ]
+        if not measures:
+            return out
+        acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
+        uc = {
+            "uc_id": uc_id,
+            "name": uc_item.name,
+            "description": uc_item.description,
+            "state": uc_item.state,
+            "acs": [{"ac_id": ac.id, "text": ac.text} for ac in acs],
+        }
+        at = _now()
+        by = developer_id or "start_uc"
+        for measure in measures:
+            failed, reason, detail = _evaluate_start(measure, uc, raw)
+            mode = policy_mod.mode_of(policy, measure)
+            predates = failed and mode == "block" and policy_mod.predates_rule(raw, measure, uc)
+            skip = None
+            if failed and mode == "block" and not predates:
+                if backend_type == "native":
+                    skip = await _native_take_skip(board_id, measure, uc_id)
+                else:
+                    stored, skip = policy_mod.take_skip(raw, measure, uc_id)
+                    if skip is not None:
+                        raw = stored
+                        if disk is not None:
+                            disk.parent.mkdir(parents=True, exist_ok=True)
+                            disk.write_text(json.dumps(stored, ensure_ascii=False, indent=2) + "\n")
+                        elif policy_content is not None:
+                            out["policy_content"] = json.dumps(stored, ensure_ascii=False, indent=2) + "\n"
+            how_to = _START_HOW_TO[measure] + (policy_mod.SKIP_HOW_TO if mode == "block" else "")
+            decision = policy_mod.check(
+                policy, measure, failed=failed, reason=reason, how_to_continue=how_to,
+                skip=skip, predates=predates,
+            )
+            outcome = decision["outcome"]
+            if outcome in ("blocked", "pass") and mode != "off":
+                event = "blocked" if outcome == "blocked" else "passed"
+                if backend_type == "native":
+                    await _native_record(board_id, developer_id, measure, uc_id, event)
+                elif outcome == "blocked":
+                    line = _event_line(measure, uc_id, "blocked", at, by)
+                    if disk is not None:
+                        path = disk.parent / EVENTS_FILE
+                        with path.open("a", encoding="utf-8") as fh:
+                            fh.write(line + "\n")
+                    elif backend_type == "freeform":
+                        out["event_lines"].append(line)
+            if outcome == "blocked":
+                error = {**decision["error"], "code": _START_CODES[measure], "uc_id": uc_id, **detail}
+                logger.info("start_uc_blocked", measure=measure, uc_id=uc_id, backend=backend_type)
+                return {"error": error, "event_lines": out["event_lines"], **(
+                    {"policy_content": out["policy_content"]} if "policy_content" in out else {}
+                )}
+            if decision.get("warning"):
+                out["warnings"].append({**decision["warning"], "outcome": outcome, **detail})
+    except Exception as e:  # noqa: BLE001 — la medida avisa de que no pudo mirar; start_uc sigue
+        logger.warning("start_gate_failed", uc_id=uc_id, error=str(e))
+        out["warnings"].append({
+            "measure": "spec_quality",
+            "reason": f"No se pudo comprobar la spec de {uc_id}: {e}",
+            "how_to_continue": "La UC arranca igualmente. Repite start_uc si quieres la comprobación.",
+            "message": f"Aviso de SpecBox: no se pudo comprobar la spec de {uc_id} ({e}); la UC arranca.",
+            "outcome": "unchecked",
+        })
+    return out
+
+
+async def spec_gate_summary(
+    ctx: Context | None, board_id: str, ucs: list[dict[str, Any]], policy_content: str | None = None
+) -> list[dict[str, Any]]:
+    """El gate de calidad de cada UC que toca import_spec o add_ac (UC-12301 AC-04). Solo informa.
+
+    Usa el umbral del tablero si se puede leer (native, FreeForm local o ``policy_content``); si no,
+    1,0. ``meets_threshold`` dice si start_uc la arrancaría con ``spec_quality`` en «block».
+    """
+    try:
+        _, raw, _ = await _gate_policy(ctx, board_id, policy_content)
+        threshold = policy_mod.threshold_of(raw)
+    except Exception:  # noqa: BLE001 — informar del gate nunca hace fallar el alta
+        threshold = policy_mod.DEFAULT_THRESHOLD
+    out = []
+    for uc in ucs:
+        result = policy_mod.spec_quality_result(uc, threshold)
+        out.append({
+            "uc_id": uc.get("uc_id"),
+            **{k: result[k] for k in ("pass_rate", "threshold", "total", "meets_threshold", "failed")},
+        })
+    return out

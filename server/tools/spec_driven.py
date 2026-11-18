@@ -43,6 +43,7 @@ from ..auth_gateway import (
     store_session_credentials,
 )
 from ._content_passing import returns_items_content
+from ..coordination.enforcement import attach_warnings  # UC-12301
 from ..models import (
     ImportSpec,
     WORKFLOW_LIST_NAMES,
@@ -802,6 +803,7 @@ async def import_spec(
         updated_uc = 0
         created_ac = 0
         errors: list[str] = []
+        gate_inputs: list[dict[str, Any]] = []  # UC-12301 AC-04
 
         # US-78 / UC-7805: the epics the PRD declares — reuse what exists (by id
         # or name), create the rest — and the key → EP-NN map the stories use.
@@ -968,6 +970,8 @@ async def import_spec(
                         criteria = [
                             (f"AC-{idx:02d}", ac_text) for idx, ac_text in enumerate(uc_spec.acceptance_criteria, 1)
                         ]
+                        # UC-12301 AC-04: the criteria the UC ends up with, for the spec gate.
+                        gate_acs: list[tuple[str, str]] = list(criteria)
                         if criteria:
                             if existing_uc:
                                 existing_acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
@@ -975,6 +979,7 @@ async def import_spec(
                                 new_criteria = [
                                     (ac_id, text) for ac_id, text in criteria if ac_id not in existing_ac_ids
                                 ]
+                                gate_acs = [(ac.id, ac.text) for ac in existing_acs] + new_criteria
                                 if new_criteria:
                                     await backend.create_acceptance_criteria(
                                         board_id, uc_item.id, new_criteria, **seed_kw
@@ -985,6 +990,14 @@ async def import_spec(
                                     board_id, uc_item.id, criteria, **seed_kw
                                 )
                                 created_ac += len(criteria)
+                        elif existing_uc:
+                            gate_acs = [
+                                (ac.id, ac.text) for ac in await backend.get_acceptance_criteria(board_id, uc_item.id)
+                            ]
+                        gate_inputs.append({
+                            "uc_id": uc_spec.uc_id,
+                            "acs": [{"ac_id": ac_id, "text": text} for ac_id, text in gate_acs],
+                        })
 
                         # Only track new UCs for module linking
                         if not existing_uc:
@@ -1032,6 +1045,10 @@ async def import_spec(
         }
         if epic_keys or epic_report["skipped"]:
             result["epics"] = epic_report
+        if gate_inputs:
+            from .enforcement import spec_gate_summary
+
+            result["spec_gate"] = await spec_gate_summary(ctx, board_id, gate_inputs)
         if items_content is not None:
             result["items_content"] = backend.get_items_content()
         return result
@@ -1675,13 +1692,22 @@ async def start_uc(
             marker = dict(reservation_result.get("active_uc_marker") or {})
             marker.update(await _marker_extras(ctx, board_id, uc_id, uc_item, None, policy_content))
             detail["active_uc_marker"] = marker
+            detail = attach_warnings(detail, reservation_result.get("enforcement_warnings") or [])
         return detail
+
+    from .enforcement import start_gate
 
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
         if not uc_item:
             return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
+
+        # UC-12301: the EP-20 measures of start_uc, before anything moves. A block returns the
+        # error with the board untouched (no items_content: there is nothing to merge).
+        gate = await start_gate(ctx, board_id, uc_id, uc_item, backend, policy_content=policy_content)
+        if gate.get("error"):
+            return {**gate["error"], **_gate_extras(gate)}
 
         # Move to in_progress
         await backend.update_item(board_id, uc_item.id, state="in_progress")
@@ -1720,6 +1746,8 @@ async def start_uc(
             if us_state_change:
                 detail["us_state_change"] = us_state_change
             detail["active_uc_marker"] = marker
+            detail.update(_gate_extras(gate))
+            detail = attach_warnings(detail, gate["warnings"])
         return detail
 
     # Disk mode: return full UC detail (creates a new backend session)
@@ -1728,7 +1756,22 @@ async def start_uc(
         if us_state_change:
             detail["us_state_change"] = us_state_change
         detail["active_uc_marker"] = marker
+        detail = attach_warnings(detail, gate["warnings"])
     return detail
+
+
+def _gate_extras(gate: dict[str, Any]) -> dict[str, Any]:
+    """Lo que el hook freeform-fragment escribe en el cliente tras start_uc (UC-12301).
+
+    ``event_line`` (una línea JSON por evento, como en skip_enforcement) va a
+    doc/tracking/enforcement_events.jsonl; ``policy_content``, a doc/tracking/policy.json.
+    """
+    extras: dict[str, Any] = {}
+    if gate.get("event_lines"):
+        extras["event_line"] = "\n".join(gate["event_lines"])
+    if gate.get("policy_content") is not None:
+        extras["policy_content"] = gate["policy_content"]
+    return extras
 
 
 async def _marker_extras(
@@ -1782,14 +1825,20 @@ async def _start_uc_native(session: dict[str, str], board_id: str, uc_id: str, c
     except ForbiddenError as e:
         return {"error": str(e), "code": "FORBIDDEN"}
 
-    # Resolve the UC's DB id (find by uc_id).
+    # Resolve the UC's DB id (find by uc_id) and, before reserving anything, pass the EP-20
+    # measures of start_uc (UC-12301): a block leaves the UC unreserved and in its state.
+    from .enforcement import start_gate
+
     backend = await get_session_backend(ctx)
     try:
         uc_item = await backend.find_item_by_field(board_id, "uc_id", uc_id)
+        if not uc_item:
+            return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
+        gate = await start_gate(ctx, board_id, uc_id, uc_item, backend, developer_id=dev.developer_id)
     finally:
         await backend.close()
-    if not uc_item:
-        return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
+    if gate.get("error"):
+        return gate["error"]
 
     try:
         reservation = await start_uc_atomic(
@@ -1810,7 +1859,12 @@ async def _start_uc_native(session: dict[str, str], board_id: str, uc_id: str, c
         reservation=reservation.to_public(),
         us_id=_extract_meta_str(uc_item, "us_id"),
     )
-    return {"success": True, "reserved_by": dev.developer_id, "active_uc_marker": marker}
+    return {
+        "success": True,
+        "reserved_by": dev.developer_id,
+        "active_uc_marker": marker,
+        "enforcement_warnings": gate["warnings"],
+    }
 
 
 async def _release_uc_native(session: dict[str, str], uc_id: str) -> None:

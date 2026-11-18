@@ -100,8 +100,9 @@ Que es: El PRD es el documento que define QUE hay que construir.
 El Engine descompone cada feature en una jerarquia:
   US (User Story) → UC (Use Case) → AC (Acceptance Criteria)
 
-Cada AC pasa por el "Definition Quality Gate", que avisa de los
-criterios vagos para reescribirlos antes de implementar.
+Cada AC pasa por el "Definition Quality Gate": /prd reescribe los
+criterios vagos, y start_uc no arranca una UC que no lo pasa si el
+proyecto tiene la medida spec_quality en «block».
 
 Para este demo, vamos a definir una feature sencilla:
 "Como usuario, quiero ver una lista de tareas pendientes."
@@ -299,7 +300,7 @@ Mostrar la siguiente simulacion (NO ejecutar nada real):
 
 Conceptos aprendidos:
   1. PRD: Define QUE construir (US → UC → AC)
-  2. Definition Quality Gate: avisa de los AC vagos para reescribirlos antes de implementar
+  2. Definition Quality Gate: los AC vagos se reescriben antes de implementar, y start_uc lo comprueba al arrancar cada UC
   3. Plan Tecnico: Define COMO implementar cada UC en fases
   4. Implement Autopilot: Ejecuta fases con agentes especializados
   5. Quality Gates: Lint, coverage y tests con politica ratchet

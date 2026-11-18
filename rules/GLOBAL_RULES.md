@@ -660,7 +660,8 @@ Antes de crear un Work Item, los acceptance criteria se validan con 3 métricas:
 - **Testabilidad** (0-2): rechaza criterios no verificables como "buena experiencia"
 
 Si algún criterio tiene score 0, /prd lo reescribe antes de seguir. La medida es `validate_ac_quality`
-(lista `failed`); hoy avisa y no detiene nada en el servidor.
+(lista `failed`) y la impone `start_uc` (UC-12301): con la medida `spec_quality` en «block», una UC sin
+criterios o que no llega al umbral del proyecto (1,0 por defecto) no arranca; en «warn» arranca y avisa.
 
 ### AG-10 Developer Feedback Loop (on-demand, post-implementation)
 

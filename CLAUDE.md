@@ -442,7 +442,7 @@ Automatic enforcement — no need to remember running these manually:
 |------|-------|----------|
 | **quality-first-guard** | PreToolUse (Write/Edit) | **BLOCKING** (exit 2): editing an existing file the agent has not read in the session (whole path compared; a file the agent creates counts as known). US-93 · UC-9302: it never acted before (wrong input, exit 1). |
 | **read-tracker** | PostToolUse (Read) | Silent: records which files the agent reads in `.quality/read_tracker.jsonl` (kept out of git by `.quality/.gitignore`). Used by quality-first-guard. |
-| **spec-guard** | PostToolUse (Write/Edit on src/ or lib/) | Code written on main or under a native reservation that is no longer yours → exit 2, the agent must move it; code with no active UC → note to the agent (additionalContext). |
+| **spec-guard** | PostToolUse (Write/Edit on src/ or lib/) | Runs after the write, so it cannot undo it. Code written on main or master → exit 2, the agent must move it to a UC branch; code with no active UC → note to the agent (additionalContext). The block for a native reservation that is no longer yours is pending: its revalidation asks an endpoint the server does not have and trusts the cache (UC-12217). With the remote MCP `start_uc` does not write the active-UC marker yet (UC-12216), so the note can appear with a UC in progress. |
 | branch-guard | Not wired | Superseded: `spec-guard` already blocks writing code on main/master. The file stays for projects that wired it by hand. |
 | **commit-spec-guard** | PreToolUse (git commit) | **BLOCKING** (exit 2, before the commit): commits on main/master of a spec-driven project. No active UC, no checkpoint or more than 15 files → note. Checks the repo the command acts on. |
 | **pre-commit-lint** | PreToolUse (git commit) | **BLOCKING** (exit 2, before the commit): the project's linter (ruff, eslint, dart analyze) fails on the files of the commit, including a `git add` in the same command and `commit -a`. No linter → silent. GGA (AI review) is no longer run here. |
@@ -499,9 +499,13 @@ See `rules/GLOBAL_RULES.md` section "Quality First" for the complete quality con
 
 ### Pipeline Integrity (v5.7.0)
 
-The `spec-guard.mjs` hook makes it **impossible** to write source code in a spec-driven project
-without an active UC. The marker file `.quality/active_uc.json` is written by `start_uc()` and
-cleared by `complete_uc()`. It expires after 24 hours to prevent stale sessions.
+The `spec-guard.mjs` hook runs **after** every write to source code in a spec-driven project
+(PostToolUse), so it warns and cannot undo the write. Without an active UC it leaves a note to the
+agent; on main or master it returns a block (exit 2) and the agent moves the change to the UC
+branch. The block for a lost native reservation is pending until its revalidation works
+(UC-12217). Code without a UC is caught for good by the drift gate of the local CI (UC-12602). The
+marker file `.quality/active_uc.json` is written by `start_uc()` (only with a local MCP until
+UC-12216) and cleared by `complete_uc()`. It expires after 24 hours to prevent stale sessions.
 
 The `e2e-gate.mjs` hook makes it **impossible** to commit acceptance evidence without valid
 `results.json` (schema-validated via `validate-results-json.js`) + `e2e-evidence-report.html`

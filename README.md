@@ -764,8 +764,7 @@ Migración bidireccional: Trello ↔ Plane (`migrate_project`), Trello/Plane →
 23 hooks `.mjs` ejecutados automáticamente por Claude Code. Los **bloqueantes** son los que evitan que metas la pata:
 
 - `quality-first-guard` — no escribir sin haber leído el archivo primero.
-- `spec-guard` — no escribir código sin UC activo.
-- `branch-guard` — no escribir en main.
+- `spec-guard` — tras escribir código en main o master, para al agente para que lo mueva a la rama de la UC. Sin UC activa solo deja una nota.
 - `commit-spec-guard` — no commitear en main, avisos sobre UC y checkpoint.
 - `e2e-gate` — no commitear evidencia E2E sin `results.json` válido.
 - `no-bypass-guard` — bloquea `--no-verify`, `push --force`, `reset --hard`.

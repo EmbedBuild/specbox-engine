@@ -88,14 +88,20 @@ El tracker se limpia automaticamente cada 24 horas (una sesion = un tracker fres
 > **La trazabilidad en el gestor de proyecto (Trello/Plane/FreeForm) es INNEGOCIABLE.**
 > Este es el contrato fundamental del engine. Sin trazabilidad, SpecBox no tiene valor.
 
-### 3 Contratos Absolutos (enforcement por hooks BLOQUEANTES)
+### 3 Contratos Absolutos
 
 1. **No code without UC** — NUNCA escribir codigo en `src/` o `lib/` sin UC activo
 2. **No code on main** — NUNCA escribir codigo en rama `main` o `master`
 3. **No UI without design** — NUNCA crear/modificar paginas UI sin diseno Stitch previo
 
-Estos 3 contratos se verifican via hooks BLOQUEANTES. No son sugerencias.
-Si el hook bloquea, el agente DEBE cumplir el contrato antes de continuar.
+No son sugerencias: el agente los cumple aunque ningun hook lo pare. Hoy los hooks hacen esto:
+
+- **No code on main**: se bloquea. `spec-guard` para al agente tras escribir en main o master
+  (la escritura ya esta hecha y hay que moverla) y `commit-spec-guard` bloquea el commit.
+- **No code without UC**: `spec-guard` deja una nota despues de escribir; no bloquea.
+- **No UI without design**: `design-gate` avisa despues de escribir la pagina; no bloquea.
+
+Si un hook bloquea o avisa, el agente cumple el contrato antes de continuar.
 No hay "workarounds", no hay "emergencias", no hay excepciones.
 
 ### Pipeline manual (si `/implement` no disponible)
@@ -124,15 +130,16 @@ salvo para corregir a mano.
 
 | Hook | Evento | Comportamiento | Tipo |
 |------|--------|---------------|------|
-| `spec-guard.mjs` | Write/Edit en `src/` o `lib/` | Verifica UC activo + rama no es main | **BLOQUEANTE** |
-| `branch-guard.mjs` | Write/Edit en `src/` o `lib/` | Verifica rama no es main/master | **BLOQUEANTE** |
+| `spec-guard.mjs` | Despues de Write/Edit en `src/` o `lib/` | Rama main/master → bloqueo (la escritura ya esta hecha); sin UC activo → nota; reserva native perdida → pendiente (UC-12217) | **BLOQUEANTE** (rama, tras escribir) + NOTA (UC) |
+| `branch-guard.mjs` | — | Sin registrar: la rama ya la vigilan `spec-guard` y `commit-spec-guard` | — |
 | `commit-spec-guard.mjs` | antes de git commit | Bloquea commits en main; warning UC/checkpoint/tamano | **BLOQUEANTE** (rama) + WARNING (resto) |
 | `design-gate.mjs` | Write/Edit de una pagina de UI | Avisa al agente en la misma sesion si la feature no tiene HTML de diseno; la escritura ya esta hecha y el aviso dice que hacer | **AVISO** (exit 2 al modelo) |
 | `pre-commit-lint.mjs` | antes de git commit | Linter del proyecto sobre los ficheros del commit, tolerancia cero | **BLOQUEANTE** (exit 2) |
 
 ### Que activa el marker
 
-- `start_uc(board_id, uc_id)` → escribe `.quality/active_uc.json`
+- `start_uc(board_id, uc_id)` → escribe `.quality/active_uc.json` (con el MCP local; con el remoto,
+  pendiente de UC-12216)
 - `complete_uc(board_id, uc_id)` → borra `.quality/active_uc.json`
 - El marker expira a las 24 horas (proteccion contra sesiones abandonadas)
 

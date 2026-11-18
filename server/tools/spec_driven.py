@@ -774,9 +774,14 @@ async def import_spec(
         spec: JSON spec with structure: {epics?: [{epic_id?, name, objective?, link?,
               target_date?}], user_stories: [{us_id, name, hours, screens,
               description, epic? (EP-NN or epic name), use_cases: [{uc_id, name, actor,
-              hours, screens, acceptance_criteria: [str], context, satellite?}]}]}.
+              hours, screens, acceptance_criteria: [str | {text, verification}], context,
+              satellite?}]}]}.
               Declared epics that do not exist are created (an existing one, by id
               or name, is reused) and each story goes to its epic (US-78 / UC-7805).
+              `verification` (UC-12307) says how the criterion is checked:
+              automated_test, manual_test, review or measurement. An existing criterion
+              takes a new verification (`updated.ac_verification`); its text is never
+              rewritten here. Trello and Plane do not store it (`verification_not_stored`).
         items_content: FreeForm content-passing (UC-660). Pass items.json as a
             string for remote MCP; the mutated string is returned under
             `items_content`. Omit for local MCP / disk mode.
@@ -804,6 +809,8 @@ async def import_spec(
         created_ac = 0
         errors: list[str] = []
         gate_inputs: list[dict[str, Any]] = []  # UC-12301 AC-04
+        verification_given = False  # UC-12307
+        updated_verifications = 0
 
         # US-78 / UC-7805: the epics the PRD declares — reuse what exists (by id
         # or name), create the rest — and the key → EP-NN map the stories use.
@@ -970,6 +977,19 @@ async def import_spec(
                         criteria = [
                             (f"AC-{idx:02d}", ac_text) for idx, ac_text in enumerate(uc_spec.acceptance_criteria, 1)
                         ]
+                        # UC-12307: how each criterion is checked, when the spec says it.
+                        verif_by_ac = {
+                            f"AC-{idx:02d}": v
+                            for idx, v in enumerate(uc_spec.acceptance_verifications, 1)
+                            if v
+                        }
+                        if verif_by_ac:
+                            verification_given = True
+
+                        def _create_kw(ids: list[str], _v: dict[str, str] = verif_by_ac) -> dict[str, Any]:
+                            metas = {a: {"verification": _v[a]} for a in ids if a in _v}
+                            return {**seed_kw, **({"meta_by_ac": metas} if metas else {})}
+
                         # UC-12301 AC-04: the criteria the UC ends up with, for the spec gate.
                         gate_acs: list[tuple[str, str, int]] = [(i, t, mh.SPEC_RULES_VERSION) for i, t in criteria]
                         if criteria:
@@ -984,12 +1004,25 @@ async def import_spec(
                                 ]
                                 if new_criteria:
                                     await backend.create_acceptance_criteria(
-                                        board_id, uc_item.id, new_criteria, **seed_kw
+                                        board_id,
+                                        uc_item.id,
+                                        new_criteria,
+                                        **_create_kw([a for a, _ in new_criteria]),
                                     )
                                     created_ac += len(new_criteria)
+                                # UC-12307: a criterion that already existed takes the spec's
+                                # verification when it changes (the text is never rewritten here).
+                                if getattr(backend, "STORES_SPEC_META", False):
+                                    for ac in existing_acs:
+                                        wanted = verif_by_ac.get(ac.id)
+                                        if wanted and getattr(ac, "verification", None) != wanted:
+                                            await backend.update_acceptance_criterion(
+                                                board_id, uc_item.id, ac.id, meta={"verification": wanted}
+                                            )
+                                            updated_verifications += 1
                             else:
                                 await backend.create_acceptance_criteria(
-                                    board_id, uc_item.id, criteria, **seed_kw
+                                    board_id, uc_item.id, criteria, **_create_kw([a for a, _ in criteria])
                                 )
                                 created_ac += len(criteria)
                         elif existing_uc:
@@ -1048,6 +1081,10 @@ async def import_spec(
         }
         if epic_keys or epic_report["skipped"]:
             result["epics"] = epic_report
+        if updated_verifications:
+            result["updated"]["ac_verification"] = updated_verifications
+        if verification_given and not getattr(backend, "STORES_SPEC_META", False):
+            result["verification_not_stored"] = True  # UC-12307: Trello and Plane have nowhere for it
         if gate_inputs:
             from .enforcement import spec_gate_summary
 
@@ -1512,6 +1549,8 @@ async def get_uc(
                     "id": ac.id,
                     "text": ac.text,
                     "done": ac.done,
+                    # UC-12307: how it is checked (None when the criterion does not say).
+                    "verification": getattr(ac, "verification", None),
                     "evidence": evidence,
                     "verified": verified,
                     "accepted": verified,

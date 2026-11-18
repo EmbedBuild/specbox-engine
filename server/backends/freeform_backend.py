@@ -37,7 +37,12 @@ from typing import Any
 
 import structlog
 
-from ..tools._mutation_helpers import SPEC_RULES_VERSION, spec_rules_of  # UC-12302
+from ..tools._mutation_helpers import (  # UC-12302, UC-12307
+    SPEC_RULES_VERSION,
+    ac_meta_extra,
+    spec_rules_of,
+    verification_of,
+)
 from ..spec_backend import (
     AC_METADATA_MARK,
     EPIC_EXISTS,
@@ -193,6 +198,8 @@ class FreeformBackend(SpecBackend):
     All operations are synchronous file I/O wrapped in async for compatibility.
     Thread-safe for single-writer scenarios (typical Claude Code usage).
     """
+
+    STORES_SPEC_META = True  # UC-12307: the AC item's meta.verification in items.json
 
     def __init__(
         self,
@@ -760,6 +767,7 @@ class FreeformBackend(SpecBackend):
                     done=ac.state == "done",
                     backend_id=ac.id,
                     spec_rules=spec_rules_of(ac.meta),  # UC-12302
+                    verification=verification_of(ac.meta),  # UC-12307
                 )
             )
         return result
@@ -798,6 +806,8 @@ class FreeformBackend(SpecBackend):
         board_id: str,
         uc_item_id: str,
         criteria: list[tuple[str, str]],
+        *,
+        meta_by_ac: dict[str, dict[str, Any]] | None = None,
     ) -> list[ChecklistItemDTO]:
         result: list[ChecklistItemDTO] = []
         items = self._load_items()
@@ -805,6 +815,7 @@ class FreeformBackend(SpecBackend):
         for ac_id, text in criteria:
             item_id = _new_id("ac")
             name = f"[{ac_id}] {text}"
+            extra = ac_meta_extra((meta_by_ac or {}).get(ac_id))  # UC-12307
             d = {
                 "id": item_id,
                 "name": name,
@@ -814,13 +825,18 @@ class FreeformBackend(SpecBackend):
                 "labels": ["AC"],
                 "priority": "none",
                 # UC-12302: written under the current gate rules.
-                "meta": {"ac_id": ac_id, "tipo": "AC", "spec_rules": SPEC_RULES_VERSION},
+                "meta": {**extra, "ac_id": ac_id, "tipo": "AC", "spec_rules": SPEC_RULES_VERSION},
                 "created_at": _now_iso(),
             }
             items.append(d)
             result.append(
                 ChecklistItemDTO(
-                    id=ac_id, text=text, done=False, backend_id=item_id, spec_rules=SPEC_RULES_VERSION
+                    id=ac_id,
+                    text=text,
+                    done=False,
+                    backend_id=item_id,
+                    spec_rules=SPEC_RULES_VERSION,
+                    verification=extra.get("verification"),
                 )
             )
 
@@ -836,7 +852,9 @@ class FreeformBackend(SpecBackend):
         *,
         text: str | None = None,
         done: bool | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> ChecklistItemDTO:
+        extra = ac_meta_extra(meta)  # UC-12307: only the keys a tool may write
         items = self._load_items()
         for item in items:
             if item.get("parent_id") != uc_item_id:
@@ -853,7 +871,9 @@ class FreeformBackend(SpecBackend):
                 item["name"] = f"[{ac_id}] {text}"
             if done is not None:
                 item["state"] = "done" if done else "backlog"
-            if text is not None or done is not None:
+            if extra:
+                item["meta"] = {**(item.get("meta") or {}), **extra}
+            if text is not None or done is not None or extra:
                 item["updated_at"] = _now_iso()
                 self._save_items(items)
                 self._regenerate_progress()
@@ -864,6 +884,8 @@ class FreeformBackend(SpecBackend):
                 text=clean_name or item["name"],
                 done=item.get("state") == "done",
                 backend_id=item["id"],
+                spec_rules=spec_rules_of(item.get("meta")),
+                verification=verification_of(item.get("meta")),
             )
 
         raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")

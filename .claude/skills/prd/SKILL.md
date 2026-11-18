@@ -773,6 +773,24 @@ Numerar cada criterio funcional: AC-01, AC-02, AC-03...
 En modo spec-driven, los IDs ya vienen de Trello — mantenerlos.
 Excluir criterios tecnicos genericos ("compila sin errores", "85% coverage") — estos NO cuentan como funcionales.
 
+### 2.5.1b Decidir cómo se comprueba cada criterio (UC-12307)
+
+Para cada criterio, decidir **antes de sembrarlo** cómo se va a comprobar, y pasarlo como
+`verification` al sembrar (`import_spec` con `{text, verification}`, o `add_ac(verification=…)`):
+
+| Valor | Cuándo |
+|-------|--------|
+| `automated_test` | Una prueba que corre sola lo demuestra (unitaria, de integración, e2e, Gherkin) |
+| `manual_test` | Una persona lo prueba a mano y deja un recibo (nota, enlace o captura) |
+| `review` | Se comprueba leyendo: código, diseño, documento o contrato |
+| `measurement` | Una medida con cifra: tiempo, tamaño, cobertura, número de filas… |
+
+- Un criterio sin `verification` sale en `validate_ac_quality` con el aviso `no_verification`
+  (no cuenta para el umbral). Para corregirlo sin reimportar: `update_ac(verification=…)` o
+  `update_ac_batch` con `verification` en cada entrada.
+- Los criterios sembrados antes de la 6.40.0 no tienen el campo y no reciben el aviso.
+- Trello y Plane no lo guardan: la respuesta dice `verification_not_stored`.
+
 ### 2.5.2 Evaluar cada criterio funcional
 
 Para cada AC-XX, evaluar 3 metricas (0-2):
@@ -871,10 +889,17 @@ Al sembrar (`import_spec`):
   "epics": [{"name": "Épicas", "objective": "…", "link": "doc/prd/<feature>/prd.md"}],
   "user_stories": [
     {"us_id": "US-78", "name": "Cada historia pertenece a una épica", "epic": "Épicas",
-     "use_cases": [{"uc_id": "UC-7801", "name": "…", "satellite": "engine", "acceptance_criteria": ["…"]}]}
+     "use_cases": [{"uc_id": "UC-7801", "name": "…", "satellite": "engine", "acceptance_criteria": [
+       {"text": "…", "verification": "automated_test"},
+       {"text": "…", "verification": "manual_test"}
+     ]}]}
   ]
 }
 ```
+
+- Cada criterio va como `{text, verification}` con la forma de comprobación decidida en el
+  Paso 2.5.1b; un criterio como texto suelto también se acepta, pero queda con el aviso
+  `no_verification`.
 
 - `epics` crea las que no existen y reutiliza las que sí (por `epic_id` o por nombre); `epic`
   en cada historia acepta EP-NN o el nombre. La respuesta trae `epics.created/reused/assigned`.

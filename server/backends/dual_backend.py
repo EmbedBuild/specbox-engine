@@ -61,6 +61,11 @@ class DualBackendWrapper(SpecBackend):
         # Session-scoped; a stale entry only costs one skipped mirror write.
         self._mirror_ids: dict[str, str | None] = {}
 
+    @property
+    def STORES_SPEC_META(self) -> bool:  # type: ignore[override]  # noqa: N802
+        """UC-12307: what the caller reads back comes from the primary, so its answer counts."""
+        return bool(getattr(self.primary, "STORES_SPEC_META", False))
+
     # ── Mirror guard (the critical guarantee) ─────────────────────
 
     async def _guarded_mirror(
@@ -311,9 +316,13 @@ class DualBackendWrapper(SpecBackend):
         board_id: str,
         uc_item_id: str,
         criteria: list[tuple[str, str]],
+        *,
+        meta_by_ac: dict[str, dict[str, Any]] | None = None,
     ) -> list[ChecklistItemDTO]:
+        # UC-12307: only forwarded when there is something, like every caller does.
+        kw: dict[str, Any] = {"meta_by_ac": meta_by_ac} if meta_by_ac else {}
         result = await self.primary.create_acceptance_criteria(
-            board_id, uc_item_id, criteria
+            board_id, uc_item_id, criteria, **kw
         )
 
         async def _mirror() -> None:
@@ -321,7 +330,7 @@ class DualBackendWrapper(SpecBackend):
             if mirror_id is None:
                 return
             await self.mirror.create_acceptance_criteria(
-                self.mirror_board_id, mirror_id, criteria
+                self.mirror_board_id, mirror_id, criteria, **kw
             )
 
         await self._guarded_mirror("create_acceptance_criteria", _mirror)
@@ -335,9 +344,11 @@ class DualBackendWrapper(SpecBackend):
         *,
         text: str | None = None,
         done: bool | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> ChecklistItemDTO:
+        kw: dict[str, Any] = {"meta": meta} if meta else {}  # UC-12307
         result = await self.primary.update_acceptance_criterion(
-            board_id, uc_item_id, ac_id, text=text, done=done
+            board_id, uc_item_id, ac_id, text=text, done=done, **kw
         )
 
         async def _mirror() -> None:
@@ -345,7 +356,7 @@ class DualBackendWrapper(SpecBackend):
             if mirror_id is None:
                 return
             await self.mirror.update_acceptance_criterion(
-                self.mirror_board_id, mirror_id, ac_id, text=text, done=done
+                self.mirror_board_id, mirror_id, ac_id, text=text, done=done, **kw
             )
 
         await self._guarded_mirror("update_acceptance_criterion", _mirror)

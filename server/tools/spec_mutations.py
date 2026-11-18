@@ -61,6 +61,21 @@ def _plan_ac_update(current: Any, text: str | None, done: bool | None) -> dict[s
     }
 
 
+def _verification_change(backend: Any, current: Any, verification: str | None) -> dict[str, Any]:
+    """UC-12307: what a ``verification`` in update_ac(_batch) changes.
+
+    ``verification`` is already normalized. Returns ``{"meta": {...}}`` for the backend call when
+    it changes, ``{"not_stored": True}`` when the backend has nowhere to keep it, or ``{}``.
+    """
+    if verification is None:
+        return {}
+    if not getattr(backend, "STORES_SPEC_META", False):
+        return {"not_stored": True}
+    if verification == getattr(current, "verification", None):
+        return {}
+    return {"meta": {"verification": verification}}
+
+
 async def _record_reset(backend: Any, board_id: str, uc_item_id: str, ac_id: str) -> None:
     """Deja en la UC el veredicto «no pasa» por el texto nuevo.
 
@@ -477,9 +492,10 @@ async def update_ac(
     *,
     text: str | None = None,
     done: bool | None = None,
+    verification: str | None = None,
     items_content: str | None = None,
 ) -> dict[str, Any]:
-    """Rewrite an AC's text and/or change its done state.
+    """Rewrite an AC's text, change its done state and/or say how it is checked.
 
     Distinct from `mark_ac`, which only toggles `done`. Use `update_ac` when
     the Definition Quality Gate flags an AC as vague or untestable and you
@@ -497,9 +513,19 @@ async def update_ac(
     carries `reset_to_pending` and a `warning`; a `done=true` in the same call
     is not applied (mark it again with `mark_ac` and its receipt).
 
+    `verification` (UC-12307) says how the criterion is checked: automated_test,
+    manual_test, review or measurement. It clears the `no_verification` warning of
+    validate_ac_quality and leaves the done state as it is (the criterion's text has
+    not changed). Trello and Plane do not store it: `verification_not_stored`.
+
     Returns:
-        {uc_id, ac_id, updated_fields, updated_at, reason?, reset_to_pending?, warning?, ignored?}
+        {uc_id, ac_id, updated_fields, updated_at, reason?, reset_to_pending?, warning?, ignored?,
+         verification_not_stored?}
     """
+    try:
+        verification = mh.normalize_verification(verification)
+    except mh.VerificationError as e:
+        return _mk_error("INVALID_VERIFICATION", str(e), uc_id=uc_id, ac_id=ac_id)
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         uc_item = await mh.find_uc(backend, board_id, uc_id)
@@ -515,14 +541,17 @@ async def update_ac(
         plan = _plan_ac_update(current, text, done)
         text_changed = plan["text_changed"]
         done_changed = plan["done_changed"]
+        verif = _verification_change(backend, current, verification)
+        not_stored = {"verification_not_stored": True} if verif.get("not_stored") else {}
 
-        if not text_changed and not done_changed:
+        if not text_changed and not done_changed and "meta" not in verif:
             return {
                 "uc_id": uc_id,
                 "ac_id": ac_id,
                 "updated_fields": [],
                 "updated_at": mh.utc_now_iso(),
                 "reason": "no_change",
+                **not_stored,
             }
 
         try:
@@ -532,6 +561,7 @@ async def update_ac(
                 ac_id,
                 text=text if text_changed else None,
                 done=plan["done"],
+                **({"meta": verif["meta"]} if "meta" in verif else {}),
             )
         except ValueError as e:
             return _mk_error("AC_NOT_FOUND", str(e), uc_id=uc_id, ac_id=ac_id)
@@ -546,6 +576,8 @@ async def update_ac(
             fields.append("text")
         if done_changed:
             fields.append("done")
+        if "meta" in verif:
+            fields.append("verification")
 
         return {
             "uc_id": uc_id,
@@ -553,6 +585,7 @@ async def update_ac(
             "updated_fields": fields,
             "updated_at": mh.utc_now_iso(),
             **_reset_notice(ac_id, plan),
+            **not_stored,
         }
     finally:
         await backend.close()
@@ -577,7 +610,10 @@ async def update_ac_batch(
     Note: if you only need to flip `done` flags (no text rewrites),
     `mark_ac_batch` is cheaper — prefer it for that use case.
 
-    Each entry: {uc_id, ac_id, text?, done?}.
+    Each entry: {uc_id, ac_id, text?, done?, verification?}. `verification` (UC-12307):
+    automated_test, manual_test, review or measurement; an invalid one fails that entry
+    with INVALID_VERIFICATION. Trello and Plane do not store it (`verification_not_stored`
+    on the entry).
 
     Returns:
         {total, succeeded:[{uc_id, ac_id, updated_fields}], failed:[{uc_id, ac_id, error, code}]}
@@ -638,13 +674,24 @@ async def update_ac_batch(
 
             text = entry.get("text")
             done = entry.get("done")
+            try:
+                verification = mh.normalize_verification(entry.get("verification"))
+            except mh.VerificationError as e:
+                failed.append(
+                    {"uc_id": uc_id, "ac_id": ac_id, "error": str(e), "code": "INVALID_VERIFICATION"}
+                )
+                if stop_on_error:
+                    break
+                continue
             plan = _plan_ac_update(current, text, done)
             text_changed = plan["text_changed"]
             done_changed = plan["done_changed"]
+            verif = _verification_change(backend, current, verification)
+            not_stored = {"verification_not_stored": True} if verif.get("not_stored") else {}
 
-            if not text_changed and not done_changed:
+            if not text_changed and not done_changed and "meta" not in verif:
                 succeeded.append(
-                    {"uc_id": uc_id, "ac_id": ac_id, "updated_fields": [], "reason": "no_change"}
+                    {"uc_id": uc_id, "ac_id": ac_id, "updated_fields": [], "reason": "no_change", **not_stored}
                 )
                 continue
 
@@ -655,6 +702,7 @@ async def update_ac_batch(
                     ac_id,
                     text=text if text_changed else None,
                     done=plan["done"],
+                    **({"meta": verif["meta"]} if "meta" in verif else {}),
                 )
             except ValueError as e:
                 failed.append(
@@ -679,8 +727,16 @@ async def update_ac_batch(
                 fields.append("text")
             if done_changed:
                 fields.append("done")
+            if "meta" in verif:
+                fields.append("verification")
             succeeded.append(
-                {"uc_id": uc_id, "ac_id": ac_id, "updated_fields": fields, **_reset_notice(ac_id, plan)}
+                {
+                    "uc_id": uc_id,
+                    "ac_id": ac_id,
+                    "updated_fields": fields,
+                    **_reset_notice(ac_id, plan),
+                    **not_stored,
+                }
             )
 
         return {
@@ -702,12 +758,17 @@ async def add_ac(
     ctx: Context,
     *,
     done: bool = False,
+    verification: str | None = None,
     items_content: str | None = None,
 ) -> dict[str, Any]:
     """Append a new Acceptance Criterion to an existing UC.
 
     Auto-assigns the next AC-NN id (e.g. if AC-01..AC-05 exist, the new AC
     is AC-06). Empty UCs get AC-01.
+
+    `verification` (UC-12307) says how the criterion is checked: automated_test,
+    manual_test, review or measurement. Without it, validate_ac_quality warns
+    `no_verification`. Trello and Plane do not store it (`verification_not_stored`).
 
     Use this for 1-2 AC additions. For adding many ACs at once, prefer
     rewriting the UC's full AC list via `import_spec` — it's idempotent and
@@ -717,9 +778,14 @@ async def add_ac(
     string for remote MCP; the mutated string is returned under `items_content`.
 
     Returns:
-        {uc_id, ac_id, text, done, created_at}
+        {uc_id, ac_id, text, done, verification, created_at, spec_gate,
+         verification_not_stored?}
         plus `items_content` when `items_content` was provided.
     """
+    try:
+        verification = mh.normalize_verification(verification)
+    except mh.VerificationError as e:
+        return _mk_error("INVALID_VERIFICATION", str(e), uc_id=uc_id)
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         if not text or not text.strip():
@@ -731,10 +797,14 @@ async def add_ac(
 
         existing = await backend.get_acceptance_criteria(board_id, uc_item.id)
         new_id = mh.next_ac_id(existing)
+        stored = verification is not None and bool(getattr(backend, "STORES_SPEC_META", False))
 
         try:
             created = await backend.create_acceptance_criteria(
-                board_id, uc_item.id, [(new_id, text)]
+                board_id,
+                uc_item.id,
+                [(new_id, text)],
+                **({"meta_by_ac": {new_id: {"verification": verification}}} if stored else {}),
             )
         except Exception as e:
             return _mk_error("BACKEND_ERROR", str(e))
@@ -753,9 +823,12 @@ async def add_ac(
             "ac_id": new_id,
             "text": text,
             "done": done,
+            "verification": verification if stored else None,
             "created_at": mh.utc_now_iso(),
             "backend_id": created_ac.backend_id if created_ac else "",
         }
+        if verification is not None and not stored:
+            result["verification_not_stored"] = True  # UC-12307: Trello and Plane
         # UC-12301 AC-04: the spec gate of the UC with its new criterion (information only).
         from .enforcement import spec_gate_summary
 
@@ -889,7 +962,7 @@ async def add_uc(
     us_id: str,
     name: str,
     description: str,
-    acceptance_criteria: list[str],
+    acceptance_criteria: list[str | dict[str, Any]],
     ctx: Context,
     *,
     hours: float | None = None,
@@ -907,8 +980,9 @@ async def add_uc(
     creating more than 3 UCs at once, use `import_spec` — it's designed for
     bulk ingest and is idempotent. Using `add_uc` in a loop is an anti-pattern.
 
-    `acceptance_criteria` is a list of plain text strings. ACs are created
-    with ids AC-01, AC-02, ..., AC-NN automatically.
+    `acceptance_criteria` is a list of plain text strings or, as in import_spec,
+    `{text, verification}` objects (UC-12307: automated_test, manual_test, review or
+    measurement). ACs are created with ids AC-01, AC-02, ..., AC-NN automatically.
 
     Numbering (UC-12214):
     - When every UC of the story follows `UC-{story number}{NN}`, the new one continues
@@ -929,6 +1003,20 @@ async def add_uc(
         (`numbering`: "story", "board" or "explicit") plus `items_content`
         (mutated items.json string) when `items_content` was provided.
     """
+    # UC-12307: texts and verifications first, so a bad value creates nothing.
+    ac_texts: list[str] = []
+    ac_verifications: list[str | None] = []
+    try:
+        for ac in acceptance_criteria:
+            if isinstance(ac, dict):
+                ac_texts.append(str(ac.get("text", ac.get("name", ""))))
+                ac_verifications.append(mh.normalize_verification(ac.get("verification")))
+            else:
+                ac_texts.append(str(ac))
+                ac_verifications.append(None)
+    except mh.VerificationError as e:
+        return _mk_error("INVALID_VERIFICATION", str(e), us_id=us_id)
+
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         if satellite is not None:
@@ -994,11 +1082,22 @@ async def add_uc(
             return _mk_error("BACKEND_ERROR", str(e))
 
         ac_pairs: list[tuple[str, str]] = [
-            (f"AC-{i + 1:02d}", text) for i, text in enumerate(acceptance_criteria)
+            (f"AC-{i + 1:02d}", text) for i, text in enumerate(ac_texts)
         ]
+        stores = bool(getattr(backend, "STORES_SPEC_META", False))
+        metas = {
+            ac_id: {"verification": v}
+            for (ac_id, _), v in zip(ac_pairs, ac_verifications)
+            if v is not None
+        }
         if ac_pairs:
             try:
-                await backend.create_acceptance_criteria(board_id, created.id, ac_pairs)
+                await backend.create_acceptance_criteria(
+                    board_id,
+                    created.id,
+                    ac_pairs,
+                    **({"meta_by_ac": metas} if metas and stores else {}),
+                )
             except Exception:
                 logger.exception("add_uc_create_acs_failed", uc=new_uc_id)
 
@@ -1010,6 +1109,8 @@ async def add_uc(
             "backend_item_url": created.url,
             "created_at": mh.utc_now_iso(),
         }
+        if metas and not stores:
+            result["verification_not_stored"] = True  # UC-12307: Trello and Plane
         if items_content is not None:
             result["items_content"] = backend.get_items_content()
         return result
@@ -1036,16 +1137,19 @@ def register_spec_mutations_tools(mcp_instance) -> None:
         "To group stories use epics (set_us_epic)."
     )(update_us)
     mcp_instance.tool(
-        description="Rewrite an AC's text and/or change its done state. For pure done-flag "
+        description="Rewrite an AC's text, change its done state and/or set how it is checked "
+        "(verification: automated_test, manual_test, review, measurement). For pure done-flag "
         "toggles use mark_ac/mark_ac_batch. For many AC rewrites use update_ac_batch."
     )(update_ac)
     mcp_instance.tool(
-        description="Update many ACs across multiple UCs in a single call. Preferred for "
-        "Definition Quality Gate rewrites of multiple vague ACs at once."
+        description="Update many ACs across multiple UCs in a single call ({uc_id, ac_id, text?, "
+        "done?, verification?}). Preferred for Definition Quality Gate rewrites of multiple "
+        "vague ACs, or no_verification warnings, at once."
     )(update_ac_batch)
     mcp_instance.tool(
-        description="Append a new AC to an existing UC. Auto-assigns next AC-NN id. Use "
-        "for 1-2 additions; for many at once prefer import_spec."
+        description="Append a new AC to an existing UC. Auto-assigns next AC-NN id. Pass "
+        "verification (automated_test, manual_test, review, measurement) to say how it is "
+        "checked. Use for 1-2 additions; for many at once prefer import_spec."
     )(add_ac)
     mcp_instance.tool(
         description="Remove an AC from a UC and renumber subsequent ACs. Optional reason "

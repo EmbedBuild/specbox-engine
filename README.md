@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.39.0 — "Umbral" (sobre v6.38 "Lo justo")<br/>
+  v 6.40.0 — "Por escrito" (sobre v6.39 "Umbral")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,23 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.40
+
+**v6.40.0 — "Por escrito"** deja escrito, junto a la spec, lo que antes solo vivía en la conversación:
+
+- **Cada criterio dice cómo se comprueba** — prueba automática, prueba manual, revisión o medida; un criterio
+  nuevo sin ella sale con el aviso `no_verification`.
+- **Cada historia dice qué queda fuera** — sus exclusiones viajan al tablero con `import_spec`; una historia sin
+  ellas se crea igual y sale con el aviso `no_exclusions`.
+- **El PRD dice qué; el plan, cómo** — el formato 2 del PRD deja el stack y los ficheros para el plan y solo
+  nombra ficheros en «Restricciones de implementación»; la tool `check_prd_format` lo comprueba.
+- **Las alternativas descartadas quedan junto a la spec** — opción, motivo y quién la descartó, o «Ninguna».
+
+100% backwards-compatible: todo avisa y nada detiene el trabajo; los criterios y los PRD que ya existían no
+reciben avisos nuevos.
 
 ---
 
@@ -975,7 +992,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.39.0 — "Umbral" (over v6.38 "Lo justo")
+> v 6.40.0 — "Por escrito" (over v6.39 "Umbral")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -989,6 +1006,23 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.40
+
+**v6.40.0 — "Por escrito"** writes down, next to the spec, what used to live only in the conversation:
+
+- **Each criterion says how it is checked** — automated test, manual test, review or measurement; a new
+  criterion without it gets the `no_verification` warning.
+- **Each story says what it leaves out** — its exclusions reach the board through `import_spec`; a story
+  without them is still created and gets the `no_exclusions` warning.
+- **The PRD says what; the plan, how** — PRD format 2 leaves the stack and the files to the plan and only names
+  files under «Restricciones de implementación»; the `check_prd_format` tool checks it.
+- **Discarded alternatives stay next to the spec** — option, reason and who discarded it, or «Ninguna».
+
+100% backwards-compatible: everything warns and nothing stops the work; existing criteria and PRDs get no new
+warnings.
+
+---
 
 ## What's new in v6.39
 

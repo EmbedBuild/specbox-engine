@@ -2,6 +2,74 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.40.0] - 2026-11-18 — "Por escrito"
+
+Segunda y última tanda de US-123: la spec dice más y lo deja escrito junto a ella. Cada criterio dice cómo se
+comprueba, cada historia dice qué queda fuera, y el PRD separa el qué del cómo y guarda las alternativas que se
+descartaron. Todo avisa; nada detiene el trabajo.
+
+### Added
+
+- **Cada criterio dice cómo se comprueba** (UC-12307, #380) — campo `verification`: `automated_test`,
+  `manual_test`, `review` o `measurement`.
+  - Entra por `import_spec` (`{text, verification}`), `add_ac`, `add_uc`, `update_ac` y `update_ac_batch`; un
+    valor que no es de los cuatro devuelve `INVALID_VERIFICATION`. `get_uc` lo devuelve en cada criterio.
+  - Native y FreeForm lo guardan en el `meta` del criterio. Reimportar pone la forma de comprobación en un
+    criterio que ya existía sin reescribir su texto ni dejarlo pendiente.
+  - `validate_ac_quality` avisa `no_verification` en un criterio que no la dice; el aviso no cuenta para el
+    umbral. /prd la decide para cada criterio antes de sembrarlo (Paso 2.5.1b).
+- **Cada historia dice qué queda fuera** (UC-12306, #381) — `import_spec` acepta `exclusions` por historia (la
+  sección «No incluye» del PRD); `get_us` las devuelve.
+  - Una historia que termina sin exclusiones se crea igual y sale en `warnings` con `no_exclusions`.
+  - `update_us(exclusions=[...])` las pone o las quita sin reimportar; reimportar sin `exclusions` conserva las
+    que había.
+  - Las plantillas del PRD ganan «Casos límite», con cada caso y su comportamiento esperado.
+- **El PRD dice qué; el plan, cómo** (UC-12304, #382) — formato 2 del PRD, con la marca
+  `<!-- @specbox:prd format="2" -->` bajo el título.
+  - Las plantillas dejan «Stack técnico» y «Archivos principales» para el plan y ganan «Restricciones de
+    implementación (opcional, de este cambio)», la única sección donde el PRD nombra ficheros.
+  - Tool nueva `check_prd_format(prd_content)`, pura: la versión de formato y los avisos
+    `paths_outside_restrictions` (con línea, sección y rutas) y `missing_pending_section`. /prd la llama al
+    escribir el PRD (Paso 2.6) y /plan antes de planificar (Paso 0.5); /implement lee los dos formatos igual.
+- **Las alternativas descartadas quedan junto a la spec** (UC-12303, #383) — las plantillas ganan «Alternativas
+  descartadas» (opción, motivo y quién la descartó, o «Ninguna»); /prd pregunta por ellas, también las del
+  discovery, y `check_prd_format` avisa `missing_alternatives` si falta la sección.
+
+### Fixed
+
+- **La guía de redacción para el cliente ya no se copia en cada PRD** (UC-12304) — la «Regla de redacción
+  cara-al-cliente» estaba dentro del bloque de la plantilla Spec-Driven, así que acababa en cada PRD generado con
+  sus ejemplos de rutas. Ahora va justo después de la plantilla, como guía del agente.
+
+### Para los proyectos que ya existían
+
+- **Los criterios que ya existían no reciben `no_verification`.** El aviso solo sale en criterios creados o
+  reescritos desde esta versión (sello de reglas 3); para añadir la forma de comprobación a uno anterior:
+  `update_ac(verification=…)` o `update_ac_batch`.
+- **`no_exclusions` es solo un aviso**: una historia sin exclusiones se crea igual que antes. Para corregirlo:
+  `update_us(exclusions=[...])`.
+- **Los PRD que ya existían no cambian ni avisan.** Un PRD sin la marca de formato es de formato 1:
+  `check_prd_format` devuelve `format_version: 1` sin avisos, y /plan y /implement lo leen como siempre. Los PRD
+  nuevos salen de las plantillas con la marca.
+- En Trello y Plane, `verification` y `exclusions` no se guardan: la respuesta lo dice con
+  `verification_not_stored` y `exclusions_not_stored`.
+- No hay medidas nuevas: `spec_quality` y `pending_decisions` siguen en el modo que tenga cada tablero.
+
+### Security
+
+- **`check_prd_format` no añade superficie** — recibe el texto del PRD en la llamada y no lee el tablero ni el
+  disco ni guarda nada; la plantilla de permisos la pone entre las de solo lectura.
+- **Una tool solo escribe la forma de comprobación de un criterio** — los backends aceptan de las tools solo las
+  claves de `AC_META_KEYS` (`verification`); el sello de reglas, los recibos y el veredicto los sigue escribiendo
+  únicamente el propio backend.
+
+### Tests
+
+- `tests/test_ac_verification.py` (14, uno contra Postgres), `tests/test_us_exclusions.py` (8, uno contra
+  Postgres), `tests/test_prd_format.py` (15: las tres plantillas pasan su propia comprobación;
+  `find_prd_path`, `append_implementation_status`, `prd-locate.mjs` y `write_implementation_status` con los dos
+  formatos) y `tests/test_prd_alternatives.py` (5).
+
 ## [6.39.0] - 2026-11-18 — "Umbral"
 
 Primera tanda de US-123: la calidad de la spec se comprueba en la puerta de la UC. `start_uc` mide los criterios

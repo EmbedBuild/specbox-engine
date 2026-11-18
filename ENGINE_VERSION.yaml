@@ -1,5 +1,5 @@
-version: 6.36.0
-codename: "Convivencia"
+version: 6.37.0
+codename: "A la vista"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-18
@@ -613,8 +613,25 @@ features:
   - enforcement-impact-report
   - enforcement-predating-ucs
   - enforcement-readiness
+  # New (v6.37.0) — A la vista
+  - active-uc-marker-remote
+  - uc-lifecycle-markers
+  - reservation-check-via-tool
+  - hooks-read-specbox-block
+  - measure-commit-on-main
+  - roadmap-zone-from-board
 
 changelog:
+  6.37.0:
+    date: 2026-11-18
+    codename: "A la vista"
+    changes:
+      - "fix: with the remote MCP the active UC marker reaches the project: start_uc returns active_uc_marker (UC, story, board, reservation) in every mode and the new uc-state-marker hook writes .quality/active_uc.json; complete_uc and release_uc remove it when it is that UC's (UC-12216, #361)"
+      - "fix: uc-lifecycle-guard no longer warns on every push: uc-state-marker writes ac_marked.json after mark_ac_batch and uc_moved_to_review.json after move_uc to review, and the note names the criteria still missing or the UC out of review (UC-12206, #362)"
+      - "fix: spec-guard checks the native reservation with the new read-only tool get_uc_reservation (device identity, 3 s, confirmed answers cached 60 s) instead of an endpoint the server did not have; a released reservation or one held by someone else blocks, offline it trusts the marker and says so (UC-12217, #363)"
+      - "fix: hooks read the specbox block of settings.local.json (what onboard_project writes); the new measure commit_on_main keeps the block on main/master for projects recognized as before and starts in warn for those recognized for the first time; a mode a person set wins (UC-12215, #364)"
+      - "fix: the roadmap zone of app_prd.md follows the board: complete_uc, move_uc, add_uc, delete_uc and mark_ac_batch return the zone body computed from the board (one row per story with its UCs done/total) and the new app-docs-fragment hook writes it in the orchestrator's app_prd.md, only on main/master; a failure comes as app_docs_sync.ok=false and the UC keeps its change (UC-12203, #365)"
+
   6.36.0:
     date: 2026-11-18
     codename: "Convivencia"

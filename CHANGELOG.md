@@ -2,6 +2,62 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.37.0] - 2026-11-18 — "A la vista"
+
+Tercera tanda de US-122: los hooks ven el proyecto de verdad. Con el MCP remoto, el de siempre, varios hooks
+trabajaban a ciegas: no veían la UC activa, avisaban en cada push, revisaban la reserva contra una dirección
+que no existía y no reconocían los proyectos dados de alta con la extensión. Además, la zona «roadmap» del
+canon no se sincronizaba nunca.
+
+### Fixed
+
+- **La UC activa queda marcada en el proyecto** (UC-12216, #361) — `start_uc` devuelve `active_uc_marker` (UC,
+  historia, tablero y, en native, la reserva) en todos los modos y el hook nuevo `uc-state-marker` lo escribe en
+  `.quality/active_uc.json`; `complete_uc` y `release_uc` lo borran si es de esa UC.
+- **uc-lifecycle-guard deja de avisar en falso** (UC-12206, #362) — `uc-state-marker` escribe `ac_marked.json`
+  tras `mark_ac_batch` y `uc_moved_to_review.json` tras `move_uc` a revisión; el aviso nombra los criterios que
+  faltan o la UC fuera de revisión.
+- **spec-guard revisa la reserva de verdad** (UC-12217, #363) — con la tool nueva de solo lectura
+  `get_uc_reservation` y la identidad del dispositivo (3 s; las respuestas confirmadas se guardan 60 s). Una
+  reserva liberada o de otra persona da el bloqueo, con quién la tiene; sin red se usa la guardada y una nota lo
+  dice.
+- **Los hooks leen el bloque `specbox`** de `settings.local.json`, que escriben `onboard_project` y la extensión
+  (UC-12215, #364).
+- **La zona «roadmap» de `app_prd.md` sigue al tablero** (UC-12203, #365) — `complete_uc`, `move_uc`, `add_uc`,
+  `delete_uc` y `mark_ac_batch` devuelven el cuerpo de la zona calculado con el tablero (una fila por historia con
+  sus UC hechas/total) y el hook nuevo `app-docs-fragment` lo escribe en el `app_prd.md` del orquestador, solo en
+  main o master. Un fallo da `app_docs_sync.ok=false` con el motivo y la UC conserva su cambio.
+
+### Para los proyectos que ya existían
+
+- **`commit_on_main`, la primera medida de EP-20 que actúa** (commit-spec-guard y spec-guard en main o master):
+  - un proyecto reconocido por su configuración de siempre (claves en el primer nivel o
+    `.claude/project-config.json`) **conserva el bloqueo** que ya tenía;
+  - uno que se reconoce ahora por primera vez (solo el bloque `specbox`, como los dados de alta con la extensión)
+    empieza en **«warn»**: el commit se hace con un aviso. Para que bloquee, quien administra el proyecto:
+    `set_enforcement_mode(measure="commit_on_main", mode="block")`, que primero enseña el informe de impacto;
+  - el modo que ponga una persona manda en los dos casos.
+- Los hooks nuevos (`uc-state-marker`, `app-docs-fragment`) llegan con la plantilla; hasta actualizar los hooks del
+  proyecto (`specbox hooks update`), todo sigue como antes.
+- La zona «roadmap» se escribe solo en main: en una rama de trabajo no cambia, así que no aparece en los diffs de
+  las PR.
+
+### Security
+
+- **Escribir código de una UC que ya no es tuya se detiene** — spec-guard comprueba con el tablero la reserva que
+  guarda el marcador: si se liberó o la tiene otra persona, la escritura se señala y hay que volver a empezar la
+  UC o coordinarse.
+- **La consulta de la reserva solo responde a miembros del proyecto** — `get_uc_reservation` usa la identidad del
+  dispositivo o de la sesión; un proyecto ajeno responde como si no existiera y la respuesta solo lleva quién
+  tiene la reserva, cuándo y en qué rama.
+
+### Tests
+
+- `tests/hooks/uc-state-marker.test.mjs`, `uc-lifecycle-guard.test.mjs`, `spec-guard-reservation.test.mjs` (spec-guard
+  real contra un MCP falso local), `config-formats.test.mjs` y `app-docs-fragment.test.mjs`;
+  `tests/test_uc_reservation_tool.py` y `tests/test_app_docs_roadmap.py` (con Postgres), y la equivalencia de
+  fragmentos comprueba que la zona del cliente es la del servidor.
+
 ## [6.36.0] - 2026-11-18 — "Convivencia"
 
 EP-20 va a añadir medidas que detienen el trabajo que no cumple la spec. Antes de la primera, esta versión

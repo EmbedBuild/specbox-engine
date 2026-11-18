@@ -19,15 +19,20 @@
  * The EP-20 policy (UC-12212): the policy tools get doc/tracking/policy.json as
  * `policy_content` (and the git author as `actor`); what set_enforcement_mode and
  * skip_enforcement return is written back. A new board from setup_board writes
- * the policy only when the project has none.
+ * the policy only when the project has none. UC-12213: set_enforcement_mode and
+ * get_enforcement_impact also get items.json (`board_content`) and the blocks
+ * (`events_content`); the `event_line` of skip_enforcement and
+ * record_enforcement_event is appended to doc/tracking/enforcement_events.jsonl.
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, unlinkSync } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync } from 'node:fs';
+import { dirname, isAbsolute, join } from 'node:path';
 import { isRemoteMcp } from './lib/freeform-path.mjs';
 import {
   CONTENT_TOOLS,
+  POLICY_BOARD_TOOLS,
+  POLICY_EVENT_TOOLS,
   POLICY_TOOLS,
   POLICY_WRITERS,
   buildItemsContent,
@@ -67,6 +72,7 @@ const trackingDir =
     : join(root, 'doc', 'tracking');
 const itemsPath = join(trackingDir, 'items.json');
 const policyPath = join(trackingDir, 'policy.json');
+const eventsPath = join(trackingDir, 'enforcement_events.jsonl');
 const stateDir = join(root, '.quality', 'freeform-fragments');
 const pending = pendingPath(stateDir, payload.tool_use_id);
 
@@ -92,8 +98,13 @@ function gitAuthor() {
 
 function prePolicy() {
   if (typeof toolInput.policy_content === 'string') return; // explicit content wins
-  const content = existsSync(policyPath) ? readFileSync(policyPath, 'utf-8') : '';
-  const updatedInput = { ...toolInput, policy_content: content };
+  const read = (path) => (existsSync(path) ? readFileSync(path, 'utf-8') : '');
+  const updatedInput = { ...toolInput, policy_content: read(policyPath) };
+  if (POLICY_BOARD_TOOLS.has(parsed.tool)) {
+    // UC-12213: the impact report needs the open UCs and the blocks of the last days.
+    if (typeof toolInput.board_content !== 'string') updatedInput.board_content = read(itemsPath) || '[]';
+    if (typeof toolInput.events_content !== 'string') updatedInput.events_content = read(eventsPath);
+  }
   const author = gitAuthor();
   if (author && !toolInput.actor) updatedInput.actor = author.slice(0, 80);
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', updatedInput } }));
@@ -101,23 +112,31 @@ function prePolicy() {
 
 function postPolicy() {
   const response = payload.tool_response;
-  const content = extractField(response, 'policy_content');
-  if (content == null) return; // a read, or an error
-  if (!POLICY_WRITERS.has(parsed.tool)) {
-    writeHidden(response, null);
-    return;
-  }
+  const notes = [];
   try {
-    JSON.parse(content);
-    writeAtomic(policyPath, content.endsWith('\n') ? content : `${content}\n`);
-    writeHidden(response, `SpecBox: la política está guardada en ${policyPath.replace(`${root}/`, '')}. No la escribas a mano.`);
+    const line = POLICY_EVENT_TOOLS.has(parsed.tool) ? extractField(response, 'event_line') : null;
+    if (line != null) {
+      JSON.parse(line);
+      mkdirSync(dirname(eventsPath), { recursive: true });
+      appendFileSync(eventsPath, `${line}\n`, 'utf-8');
+      notes.push(`el registro en ${eventsPath.replace(`${root}/`, '')}`);
+    }
+    const content = POLICY_WRITERS.has(parsed.tool) ? extractField(response, 'policy_content') : null;
+    if (content != null) {
+      JSON.parse(content);
+      writeAtomic(policyPath, content.endsWith('\n') ? content : `${content}\n`);
+      notes.unshift(`la política en ${policyPath.replace(`${root}/`, '')}`);
+    }
   } catch (err) {
     process.stderr.write(
-      `SpecBox freeform-fragment: no se pudo guardar ${policyPath} tras ${parsed.tool} (${err.message}). ` +
+      `SpecBox freeform-fragment: no se pudo guardar lo que devolvió ${parsed.tool} (${err.message}). ` +
         'Repite la llamada antes de seguir.\n',
     );
     process.exit(2);
   }
+  const visible = ['policy_content', 'event_line'].some((k) => extractField(response, k) != null);
+  if (!visible && notes.length === 0) return; // a read without anything to hide, or an error
+  writeHidden(response, notes.length ? `SpecBox: guardado ${notes.join(' y ')}. No lo escribas a mano.` : null);
 }
 
 function writeHidden(response, note) {

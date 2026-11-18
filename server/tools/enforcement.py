@@ -8,6 +8,17 @@ Tres tools sobre la política de ``server/coordination/enforcement.py``:
   siguiente comprobación de esa medida en esa UC pasa una vez. La plantilla de permisos la pone en
   «ask»: una persona lo confirma en Claude Code.
 
+Y antes de endurecer (UC-12213):
+
+* ``get_enforcement_impact``   — cuántas UC abiertas detendría cada medida en «block» y por qué, cuántas
+  son «anteriores a la regla» y los bloqueos de 14 días con su porcentaje de saltos; no cambia nada;
+* ``record_enforcement_event`` — una medida detuvo una UC o la dejó pasar (las de los hooks);
+* ``enforcement_readiness``    — solo operador: qué medidas podrían nacer en «block» en los proyectos
+  nuevos según los tableros de EmbedBuild.
+
+``set_enforcement_mode`` pasa a «block» en dos pasos: informe y código ``confirm``, y luego la
+confirmación, que deja las UC abiertas como «anteriores a la regla».
+
 Dónde se lee y se escribe:
 
 * native: ``projects.meta.enforcement``. Identidad y alcance como las decisiones (UC-9902):
@@ -155,6 +166,24 @@ def _out(target: _Target, payload: dict[str, Any], stored: dict | None = None) -
 
 # ── Escrituras native (con fila de auditoría) ───────────────────────
 
+_ADMIN_ONLY = (
+    "Cambiar el modo de una medida es cosa de quien administra el proyecto (project_admin). "
+    "Pídeselo, o usa skip_enforcement con motivo para una UC concreta."
+)
+
+
+async def _require_admin(target: _Target) -> None:
+    from ..db.pool import get_pool
+
+    pool = await get_pool()
+    role = await pool.fetchval(
+        "SELECT role FROM project_members WHERE project_id = $1 AND developer_id = $2",
+        target.project_id,
+        target.developer_id,
+    )
+    if role != "project_admin":
+        raise PolicyError("FORBIDDEN", _ADMIN_ONLY)
+
 
 async def _native_apply(target: _Target, mutate, *, operation: str, admin_only: bool, metadata) -> Any:
     """Aplica ``mutate(raw) -> (stored, extra)`` a la política native bajo bloqueo de fila."""
@@ -203,6 +232,145 @@ def _save_disk(target: _Target, stored: dict) -> None:
     target.path.write_text(json.dumps(stored, ensure_ascii=False, indent=2) + "\n")
 
 
+# ── UC abiertas y bloqueos de un tablero (UC-12213) ─────────────────
+
+EVENTS_FILE = "enforcement_events.jsonl"
+_EVENT_OPS = {"enforcement_block": "blocked", "enforcement_pass": "passed", OP_ENFORCEMENT_SKIP: "skipped"}
+_EVENT_LOOKBACK_DAYS = 60
+
+
+async def _native_open_ucs(project_id: str) -> list[dict[str, Any]]:
+    from ..db.pool import get_pool
+
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT u.id AS uc_id, u.name, u.description, u.state,
+               COALESCE(
+                   json_agg(json_build_object('ac_id', a.ac_id, 'text', a.text, 'done', a.done,
+                                              'evidence', COALESCE(a.meta->'evidence', '[]'::jsonb))
+                            ORDER BY a.ac_id) FILTER (WHERE a.ac_id IS NOT NULL),
+                   '[]'::json) AS acs
+          FROM use_cases u
+          LEFT JOIN acceptance_criteria a ON a.project_id = u.project_id AND a.uc_id = u.id
+         WHERE u.project_id = $1 AND u.state NOT IN ('done', 'archived')
+         GROUP BY u.id, u.name, u.description, u.state
+         ORDER BY u.id
+        """,
+        project_id,
+    )
+    out = []
+    for r in rows:
+        acs = json.loads(r["acs"]) if isinstance(r["acs"], str) else r["acs"]
+        out.append({"uc_id": r["uc_id"], "name": r["name"], "description": r["description"], "state": r["state"],
+                    "acs": acs, "evidence_known": True})
+    return out
+
+
+async def _freeform_open_ucs(items_content: str) -> list[dict[str, Any]]:
+    from ..backends.freeform_backend import FreeformBackend
+    from ..spec_backend import parse_item_id
+
+    backend = FreeformBackend(items_content=items_content)
+    out = []
+    for item in await backend.list_items("freeform"):
+        if "UC" not in item.labels or item.state in policy_mod.OPEN_EXCLUDED_STATES:
+            continue
+        uc_id = item.meta.get("uc_id") or parse_item_id(item.name, "UC")[0]
+        if not uc_id:
+            continue
+        acs = await backend.get_acceptance_criteria("freeform", item.id)
+        out.append({
+            "uc_id": uc_id,
+            "name": item.name,
+            "description": item.description,
+            "state": item.state,
+            # FreeForm guarda la evidencia en los comentarios, que no viajan con items.json.
+            "evidence_known": False,
+            "acs": [{"ac_id": ac.id, "text": ac.text, "done": ac.done, "evidence": []} for ac in acs],
+        })
+    return out
+
+
+def _parse_events(content: str) -> list[dict[str, Any]]:
+    events = []
+    for line in (content or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(event, dict) and event.get("outcome") in ("blocked", "passed", "skipped"):
+            events.append(event)
+    return events
+
+
+async def _native_events(project_ids: list[str] | None, *, like: str | None = None) -> list[dict[str, Any]]:
+    from ..db.pool import get_pool
+
+    pool = await get_pool()
+    where = "project_id = ANY($1::text[])" if project_ids is not None else "project_id LIKE $1"
+    rows = await pool.fetch(
+        f"""
+        SELECT project_id, operation, metadata, occurred_at FROM audit_log
+         WHERE {where} AND operation = ANY($2::text[])
+           AND occurred_at >= now() - make_interval(days => {_EVENT_LOOKBACK_DAYS})
+         ORDER BY occurred_at
+        """,
+        project_ids if project_ids is not None else like,
+        list(_EVENT_OPS),
+    )
+    events = []
+    for r in rows:
+        meta = r["metadata"]
+        meta = json.loads(meta) if isinstance(meta, str) else (meta or {})
+        events.append({
+            "project_id": r["project_id"],
+            "measure": meta.get("measure"),
+            "uc_id": meta.get("uc_id"),
+            "outcome": _EVENT_OPS[r["operation"]],
+            "at": r["occurred_at"].isoformat(),
+        })
+    return events
+
+
+async def _board_data(target: _Target, board_content: str | None, events_content: str | None):
+    """(UC abiertas, eventos) del tablero, o PolicyError si con FreeForm remoto falta el contenido."""
+    if target.kind == "native":
+        return await _native_open_ucs(target.project_id), await _native_events([target.project_id])
+    if target.kind == "freeform_disk":
+        items_path = target.path.parent / "items.json"
+        events_path = target.path.parent / EVENTS_FILE
+        items = items_path.read_text() if items_path.exists() else "[]"
+        events = events_path.read_text() if events_path.exists() else ""
+        return await _freeform_open_ucs(items), _parse_events(events)
+    if target.kind == "freeform_content":
+        if board_content is None:
+            raise PolicyError(
+                "BOARD_CONTENT_REQUIRED",
+                "Para medir el impacto hace falta el tablero: pasa doc/tracking/items.json en board_content "
+                "(el hook freeform-fragment lo pone solo).",
+            )
+        return await _freeform_open_ucs(board_content), _parse_events(events_content or "")
+    return [], []
+
+
+def _event_line(measure: str, uc_id: str, outcome: str, at: str, by: str, reason: str = "") -> str:
+    event = {"measure": measure, "uc_id": uc_id, "outcome": outcome, "at": at, "by": by}
+    if reason:
+        event["reason"] = reason
+    return json.dumps(event, ensure_ascii=False)
+
+
+def _append_disk_event(target: _Target, line: str) -> None:
+    path = target.path.parent / EVENTS_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(line + "\n")
+
+
 # ── Tools ───────────────────────────────────────────────────────────
 
 
@@ -234,7 +402,10 @@ async def set_enforcement_mode(
     measure: str,
     mode: str,
     board_id: str = "",
+    confirm: str = "",
     policy_content: str | None = None,
+    board_content: str | None = None,
+    events_content: str | None = None,
     dev_token: str = "",
     actor: str = "",
 ) -> dict[str, Any]:
@@ -242,15 +413,51 @@ async def set_enforcement_mode(
 
     Ninguna medida pasa a «block» sola: lo cambia una persona (en native, quien tiene
     ``project_admin``; la plantilla de permisos pide confirmación). Queda quién y cuándo.
+
+    Pasar a «block» va en dos pasos (UC-12213): la primera llamada no cambia nada y devuelve el
+    informe de impacto de la medida y un código ``confirm``; la segunda, con ese código, la aplica.
+    Las UC abiertas en ese momento quedan «anteriores a la regla»: la medida no las detiene mientras
+    su texto o sus criterios no cambien.
     """
     try:
         target, error = await _resolve_target(ctx, board_id, policy_content, dev_token, actor)
         if error is not None:
             return error
         at = _now()
+        policy_mod.with_mode(target.raw, measure, mode, by=target.actor, at=at, backend_type=target.backend_type)
+        if target.kind == "native":
+            await _require_admin(target)
+        current =policy_mod.mode_of(policy_mod.effective_policy(target.raw, backend_type=target.backend_type), measure)
+        open_ucs: dict[str, str] | None = None
+        if mode == "block" and current != "block":
+            ucs, events = await _board_data(target, board_content, events_content)
+            report = policy_mod.impact_report(
+                target.raw, ucs, backend_type=target.backend_type, events=events,
+                now=datetime.now(timezone.utc), measures=[measure],
+            )
+            impact = report["measures"][measure]
+            expected = policy_mod.confirm_token(target.project_id or target.backend_type, measure, mode, current, impact)
+            if confirm != expected:
+                return {
+                    "success": False,
+                    "code": "CONFIRMATION_REQUIRED",
+                    "measure": measure,
+                    "confirm": expected,
+                    "impact": impact,
+                    "open_ucs": report["open_ucs"],
+                    "error": (
+                        f"Pasar {measure} de «{current}» a «block» detendría el trabajo que no la cumpla. "
+                        f"Hoy la incumplen {impact.get('would_block', 'no se sabe cuántas')} UC abiertas; todas "
+                        "quedarían «anteriores a la regla» mientras no cambien. Revisa el informe y, si sigues, "
+                        f"repite la llamada con confirm=\"{expected}\"."
+                    ),
+                }
+            open_ucs = policy_mod.open_uc_fingerprints(ucs)
 
         def mutate(raw):
-            return policy_mod.with_mode(raw, measure, mode, by=target.actor, at=at, backend_type=target.backend_type)
+            return policy_mod.with_mode(
+                raw, measure, mode, by=target.actor, at=at, backend_type=target.backend_type, open_ucs=open_ucs
+            )
 
         if target.kind == "native":
             stored, previous = await _native_apply(
@@ -311,16 +518,141 @@ async def skip_enforcement(
             )
         else:
             stored, skip = mutate(target.raw)
+            line = _event_line(measure, uc_id, "skipped", at, target.actor, skip["reason"])
             if target.kind == "freeform_disk":
                 _save_disk(target, stored)
+                _append_disk_event(target, line)
     except PolicyError as e:
         return policy_mod.policy_error(e, measure=measure)
     logger.info("enforcement_skip_recorded", backend=target.backend_type, measure=measure)
-    return _out(target, {"skip": skip}, stored)
+    out = _out(target, {"skip": skip}, stored)
+    if target.kind == "freeform_content":
+        out["event_line"] = line  # el hook lo añade a doc/tracking/enforcement_events.jsonl
+    return out
+
+
+async def get_enforcement_impact(
+    ctx: Context,
+    board_id: str = "",
+    policy_content: str | None = None,
+    board_content: str | None = None,
+    events_content: str | None = None,
+    dev_token: str = "",
+) -> dict[str, Any]:
+    """Cuántas UC abiertas detendría cada medida en «block» y por qué, sin cambiar nada (UC-12213).
+
+    Por medida: modo, si se puede medir desde el tablero, las UC que detendría con su motivo, cuántas
+    son «anteriores a la regla» (a salvo mientras su texto y sus criterios no cambien) y los bloqueos
+    de los últimos 14 días: corregidos, saltados con motivo y el porcentaje de saltos.
+    """
+    try:
+        target, error = await _resolve_target(ctx, board_id, policy_content, dev_token, "")
+        if error is not None:
+            return error
+        if target.kind == "capped":
+            return _out(target, {
+                "report": None,
+                "notice": f"Con {target.backend_type.capitalize()} ninguna medida pasa de «warn»: no hay impacto que medir.",
+            })
+        ucs, events = await _board_data(target, board_content, events_content)
+    except PolicyError as e:
+        return policy_mod.policy_error(e)
+    report = policy_mod.impact_report(
+        target.raw, ucs, backend_type=target.backend_type, events=events, now=datetime.now(timezone.utc)
+    )
+    return _out(target, {"report": report})
+
+
+async def record_enforcement_event(
+    ctx: Context,
+    measure: str,
+    uc_id: str,
+    outcome: str,
+    board_id: str = "",
+    policy_content: str | None = None,
+    dev_token: str = "",
+    actor: str = "",
+) -> dict[str, Any]:
+    """Registra que una medida detuvo una UC (``blocked``) o que la dejó pasar (``passed``).
+
+    La llaman las medidas que aplican los hooks (contexto, PR, CI, diff). Con un ``passed`` en las
+    24 h siguientes a un ``blocked`` de la misma medida y UC, el bloqueo cuenta como corregido; los
+    saltos los registra ``skip_enforcement`` con su motivo. Native: ``audit_log``. FreeForm:
+    ``doc/tracking/enforcement_events.jsonl`` (con el MCP remoto, el hook añade ``event_line``).
+    """
+    if outcome not in ("blocked", "passed"):
+        return {"success": False, "code": "INVALID_OUTCOME", "measure": measure,
+                "error": "outcome tiene que ser «blocked» o «passed»; los saltos los registra skip_enforcement."}
+    try:
+        if measure not in policy_mod.MEASURES:
+            raise PolicyError("UNKNOWN_MEASURE", f"No hay ninguna medida {measure!r}.")
+        if not policy_mod.UC_ID.match(uc_id or ""):
+            raise PolicyError("INVALID_UC_ID", "uc_id tiene que ser el id de la UC, como «UC-12212».")
+        target, error = await _resolve_target(ctx, board_id, policy_content, dev_token, actor)
+        if error is not None:
+            return error
+        if target.kind == "capped":
+            return _out(target, {"recorded": False, "notice": "Trello y Plane no guardan bloqueos: solo avisan."})
+        at = _now()
+        line = _event_line(measure, uc_id, outcome, at, target.actor)
+        if target.kind == "native":
+            from ..coordination.audit import record_destructive
+            from ..db.pool import get_pool
+
+            pool = await get_pool()
+            async with pool.acquire() as conn:
+                await record_destructive(
+                    conn,
+                    developer_id=target.developer_id,
+                    project_id=target.project_id,
+                    operation="enforcement_block" if outcome == "blocked" else "enforcement_pass",
+                    target_id=uc_id,
+                    metadata={"measure": measure, "uc_id": uc_id},
+                )
+        elif target.kind == "freeform_disk":
+            _append_disk_event(target, line)
+    except PolicyError as e:
+        return policy_mod.policy_error(e, measure=measure)
+    out = _out(target, {"recorded": True, "event": json.loads(line)})
+    if target.kind == "freeform_content":
+        out["event_line"] = line
+    return out
+
+
+async def enforcement_readiness(ctx: Context, dev_token: str = "") -> dict[str, Any]:
+    """Qué medidas podrían nacer en «block» en los proyectos nuevos (UC-12213 AC-05). Solo operador.
+
+    Recorre los tableros de EmbedBuild: por medida, bloqueos de los últimos 14 días, corregidos,
+    saltados y porcentaje de saltos. Candidata si lleva 14 días seguidos bloqueando, con al menos 20
+    bloqueos y un 10 % de saltos o menos. Es una lectura: el valor por defecto lo cambia una versión
+    del engine con su codename, nunca esta tool.
+    """
+    from ..coordination.access_log import is_operator
+    from ..coordination.identity import UnauthenticatedError
+    from ..coordination.scope import resolve_caller_scope
+    from .session_heartbeat import _unauthenticated
+
+    try:
+        scope = await resolve_caller_scope(ctx, token=dev_token)
+    except UnauthenticatedError:
+        return _unauthenticated()
+    if not await is_operator(scope.developer_id):
+        return {"success": False, "code": "FORBIDDEN", "error": "Solo el operador de SpecBox ve esta lectura."}
+    events = await _native_events(None, like="EmbedBuild/%")
+    return {
+        "success": True,
+        "boards": "EmbedBuild/*",
+        "rule": (
+            f"Candidata a «block» por defecto: {policy_mod.WINDOW_DAYS} días seguidos bloqueando, al menos "
+            f"{policy_mod.READINESS_MIN_BLOCKS} bloqueos y saltos ≤ {policy_mod.READINESS_MAX_SKIP_RATE:.0%}. "
+            "El cambio lo hace una versión del engine con su codename."
+        ),
+        "measures": policy_mod.readiness(events, now=datetime.now(timezone.utc)),
+    }
 
 
 def register_enforcement_tools(mcp_instance) -> None:
-    """Registra las tres tools de la política de medidas (UC-12212)."""
+    """Registra las tools de la política de medidas (UC-12212 y UC-12213)."""
     mcp_instance.tool(
         description=(
             "Modo («off», «warn» o «block») de cada medida de EP-20 que puede detener el trabajo en "
@@ -331,9 +663,30 @@ def register_enforcement_tools(mcp_instance) -> None:
     mcp_instance.tool(
         description=(
             "Cambia el modo de una medida de EP-20 en este tablero (off, warn o block). Native: solo "
-            "project_admin; queda en la auditoría. Trello y Plane: no se guarda (warn como máximo)."
+            "project_admin; queda en la auditoría. Pasar a block va en dos pasos: la primera llamada "
+            "devuelve el informe de impacto y un código confirm; la segunda, con confirm, lo aplica y "
+            "deja las UC abiertas como anteriores a la regla. Trello y Plane: warn como máximo."
         )
     )(set_enforcement_mode)
+    mcp_instance.tool(
+        description=(
+            "Informe de impacto de las medidas de EP-20 en este tablero, sin cambiar nada: cuántas UC "
+            "abiertas detendría cada medida en block y por qué, cuántas son anteriores a la regla y los "
+            "bloqueos de 14 días con su porcentaje de saltos. FreeForm remoto: board_content y events_content."
+        )
+    )(get_enforcement_impact)
+    mcp_instance.tool(
+        description=(
+            "Registra que una medida de EP-20 detuvo una UC (blocked) o la dejó pasar (passed). La usan "
+            "las medidas de los hooks; un passed en 24 h tras un blocked cuenta como corregido."
+        )
+    )(record_enforcement_event)
+    mcp_instance.tool(
+        description=(
+            "Solo operador: por medida, bloqueos, correcciones y saltos de 14 días en los tableros de "
+            "EmbedBuild y si es candidata a block por defecto (≥20 bloqueos, ≤10 % de saltos, 14 días)."
+        )
+    )(enforcement_readiness)
     mcp_instance.tool(
         description=(
             "Salta una vez el bloqueo de una medida en una UC con un motivo (mín. 10 caracteres). "

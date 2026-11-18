@@ -149,6 +149,7 @@ READ_ONLY_EXTRA = {
     "stitch_get_project", "stitch_get_screen", "stitch_list_projects", "stitch_list_screens",
     "stitch_list_design_systems", "stitch_fetch_screen_code", "stitch_fetch_screen_image",
     "claude_design_get_project", "claude_design_list_projects", "claude_design_status",
+    "enforcement_readiness",  # UC-12213: solo lee recuentos de bloqueos (y solo para el operador)
 }
 
 #: Escriben aunque el nombre parezca de lectura (auditoría del 2026-10-28): anotan en .quality/ del proyecto.

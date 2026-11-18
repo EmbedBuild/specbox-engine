@@ -568,11 +568,52 @@ class SpecBackend(ABC):
         uc_item_id: str,
         ac_id: str,
     ) -> None:
-        """Remove an AC from a UC.
+        """Remove an AC from a UC, with no trace left.
 
-        Used by delete_ac to implement deletion + renumbering. Raises
-        ValueError if the AC is not found.
+        delete_ac no longer calls it directly: it retires (``retire_acceptance_criterion``,
+        UC-12501), and only the default of that method, for backends with nowhere to keep a
+        retired criterion (Trello, Plane), falls back here. Raises ValueError if the AC is not
+        found.
         """
+
+    # ── Criterios retirados (UC-12501) ───────────────────────────
+    # Un criterio retirado sale de los vigentes y conserva su id, que no se vuelve a usar en su
+    # UC. Native lo guarda en acceptance_criteria_retired (migración 0039); FreeForm, en el
+    # ``meta.retired_criteria`` de la UC. Trello y Plane no tienen dónde: lo borran.
+    # Forma común de un retirado: {id, text, reason, retired_at, retired_by, done, internal,
+    # verdict, evidence, verification}.
+
+    async def retire_acceptance_criterion(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+        *,
+        reason: str,
+        retired_by: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Retira un criterio de su UC sin renumerar los demás.
+
+        Devuelve el retirado como quedó guardado, o None si el backend no tiene dónde guardarlo
+        (por defecto: lo borra, y delete_ac responde ``retired_not_stored``). ``retired_by`` es
+        quién lo retira cuando el backend no lo sabe por la sesión (FreeForm: el nombre de git que
+        pone el hook freeform-fragment). Raises ValueError si el criterio no existe.
+        """
+        await self.delete_acceptance_criterion(board_id, uc_item_id, ac_id)
+        return None
+
+    async def get_retired_criteria(self, board_id: str, uc_item_id: str) -> list[dict[str, Any]]:
+        """Los criterios retirados de la UC, del primero al último que se retiró."""
+        return []
+
+    async def import_retired_criteria(
+        self, board_id: str, uc_item_id: str, retired: list[dict[str, Any]],
+    ) -> int:
+        """Guarda retirados que vienen de otro tablero (migración de backend). Devuelve cuántos.
+
+        Un retirado que ya está (mismo id en la UC) se deja como está. Por defecto no guarda nada.
+        """
+        return 0
 
     # ── Archival ─────────────────────────────────────────────────
 

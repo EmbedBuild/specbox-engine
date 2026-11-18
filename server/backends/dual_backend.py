@@ -383,6 +383,28 @@ class DualBackendWrapper(SpecBackend):
         await self._guarded_mirror("delete_acceptance_criterion", _mirror)
         return result
 
+    # UC-12501: retirar va al primario (el que manda) y, como el resto de escrituras, al espejo.
+    async def retire_acceptance_criterion(
+        self, board_id: str, uc_item_id: str, ac_id: str, *, reason: str, retired_by: str | None = None,
+    ) -> dict[str, Any] | None:
+        result = await self.primary.retire_acceptance_criterion(
+            board_id, uc_item_id, ac_id, reason=reason, retired_by=retired_by
+        )
+
+        async def _mirror() -> None:
+            mirror_id = await self._resolve_mirror_id(board_id, uc_item_id)
+            if mirror_id is None:
+                return
+            await self.mirror.retire_acceptance_criterion(
+                self.mirror_board_id, mirror_id, ac_id, reason=reason, retired_by=retired_by
+            )
+
+        await self._guarded_mirror("retire_acceptance_criterion", _mirror)
+        return result
+
+    async def get_retired_criteria(self, board_id: str, uc_item_id: str) -> list[dict[str, Any]]:
+        return await self.primary.get_retired_criteria(board_id, uc_item_id)
+
     async def archive_item(
         self, board_id: str, item_id: str, *, reason: str
     ) -> dict[str, Any]:

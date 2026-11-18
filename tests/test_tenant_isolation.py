@@ -196,6 +196,11 @@ MUTATORS = [
     ("set_uc_implementer", lambda b, p: b.set_uc_implementer(p, SimpleNamespace(id="UC-001", meta={}), {"session_id": "x"})),
     ("record_review_verdict", lambda b, p: b.record_review_verdict(
         p, SimpleNamespace(id="UC-001", meta={}), {"verdict": "accepted", "by_kind": "agent", "independent": True})),
+    # US-125 / UC-12501: retirar un criterio y traer retirados de otro tablero.
+    ("retire_acceptance_criterion", lambda b, p: b.retire_acceptance_criterion(
+        p, "UC-001", "AC-03", reason="retirado por otro tenant")),
+    ("import_retired_criteria", lambda b, p: b.import_retired_criteria(
+        p, "UC-001", [{"id": "AC-77", "text": "retirado inyectado"}])),
 ]
 
 #: Métodos que reciben `board_id` y llevan verbo de escritura en el nombre pero
@@ -318,7 +323,8 @@ class TestMutatorInventory:
         from server.backends.native_backend import NativeBackend
 
         # Verbos de escritura. `set_`/`emit_` incluidos; los `get_`/`list_` no.
-        prefijos_escritura = ("create_", "update_", "mark_", "set_", "delete_", "archive_", "add_", "record_")
+        prefijos_escritura = ("create_", "update_", "mark_", "set_", "delete_", "archive_", "add_", "record_",
+                              "retire_", "import_")
         descubiertos = set()
         for nombre, miembro in inspect.getmembers(NativeBackend, inspect.isfunction):
             if nombre.startswith("_"):
@@ -405,6 +411,8 @@ READERS = [
     ("count_acceptance_criteria", lambda b, p: b.count_acceptance_criteria(p, ["UC-001"])),
     # US-124 / UC-12402: los veredictos de revisión de una UC.
     ("get_review_verdicts", lambda b, p: b.get_review_verdicts(p, SimpleNamespace(id="UC-001", meta={}))),
+    # US-125 / UC-12501: los criterios retirados de una UC.
+    ("get_retired_criteria", lambda b, p: b.get_retired_criteria(p, "UC-001")),
 ]
 
 #: Devuelven constantes del flujo sin consultar la base: nada que aislar.
@@ -412,7 +420,7 @@ READERS = [
 READ_STUBS = ["get_state_id", "get_states", "void_review_verdicts"]
 
 _PREFIJOS_ESCRITURA = ("create_", "update_", "mark_", "set_", "delete_", "archive_", "add_", "emit_", "ingest_", "purge_",
-                       "record_")
+                       "record_", "retire_", "import_")
 
 
 @pytestmark_pg

@@ -67,6 +67,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import asdict
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 import asyncpg
@@ -194,6 +195,35 @@ def _ac_receipts(row: Any) -> dict[str, Any]:
         "spec_rules": spec_rules_of(meta),  # UC-12302
         "verification": verification_of(meta),  # UC-12307
     }
+
+
+def _retired_row(row: Any) -> dict[str, Any]:
+    """Una fila de acceptance_criteria_retired con la forma común de un retirado (UC-12501)."""
+    meta = _from_jsonb(row["meta"]) or {}
+    out: dict[str, Any] = {
+        "id": row["ac_id"],
+        "text": row["text"],
+        "reason": row["reason"],
+        "retired_at": row["retired_at"].isoformat(),
+        "retired_by": row["retired_by"],
+        "done": row["done"],
+        "internal": row["internal"],
+    }
+    for key in ("verdict", "evidence", "verification"):
+        if meta.get(key) is not None:
+            out[key] = meta[key]
+    return out
+
+
+def _parse_ts(value: Any) -> datetime | None:
+    """Una fecha ISO de otro tablero, o None si no la hay o no se entiende."""
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
 _JSONB_COLUMNS = frozenset({"labels", "meta"})
@@ -963,7 +993,7 @@ class NativeBackend(SpecBackend):
         Returns:
             ``{"migrated": {us, uc, ac, comments}, "skipped": int, "id_map": {...}}``.
         """
-        from ..migration.writer import build_write_plan
+        from ..migration.writer import build_write_plan, meta_without_retired
         from ..tools.migration import ENGINE_SOURCE, _build_external_id
 
         # Re-validate identity + membership at commit time. The session may have
@@ -1037,7 +1067,8 @@ class NativeBackend(SpecBackend):
                         skipped += 1
                         continue
                     target_parent = id_map.get(puc.source_parent_id)
-                    meta = {**uc_item.meta, "uc_id": uc_id, "tipo": "UC"}
+                    # UC-12501: FreeForm's list of retired criteria goes to its table, not to meta.
+                    meta = {**meta_without_retired(uc_item.meta), "uc_id": uc_id, "tipo": "UC"}
                     await conn.execute(
                         """
                         INSERT INTO use_cases
@@ -1077,6 +1108,31 @@ class NativeBackend(SpecBackend):
                             _jsonb({"ac_id": ac_id, "tipo": "AC"}),
                         )
                         migrated["ac"] += 1
+
+                    # UC-12501: the retired criteria keep their id and stay visible on the target.
+                    for r in puc.retired:
+                        if not r.get("id") or not r.get("text"):
+                            continue
+                        status = await conn.execute(
+                            """
+                            INSERT INTO acceptance_criteria_retired
+                                (project_id, uc_id, ac_id, text, internal, done, meta, reason,
+                                 retired_by, retired_at)
+                            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, COALESCE($10::timestamptz, now()))
+                            ON CONFLICT (project_id, uc_id, ac_id) DO NOTHING
+                            """,
+                            board_id,
+                            uc_id,
+                            str(r["id"]),
+                            str(r["text"]),
+                            bool(r.get("internal")),
+                            bool(r.get("done")),
+                            _jsonb({k: r[k] for k in ("verdict", "evidence", "verification") if r.get(k) is not None}),
+                            str(r.get("reason") or "retirado antes de la migración"),
+                            r.get("retired_by"),
+                            _parse_ts(r.get("retired_at")),
+                        )
+                        migrated["retired_ac"] = migrated.get("retired_ac", 0) + int(status.split()[-1])
 
                 # ── Phase 3: Comments (audit trail) ──────────────────
                 for source_item_id, comments in plan.comments_data.items():
@@ -1802,6 +1858,118 @@ class NativeBackend(SpecBackend):
                 target_id=ac_id,
                 metadata={"uc_id": uc_item_id},  # UC-6405
             )
+
+    # ── SpecBackend: Criterios retirados (UC-12501) ──────────────
+
+    async def retire_acceptance_criterion(
+        self,
+        board_id: str,
+        uc_item_id: str,
+        ac_id: str,
+        *,
+        reason: str,
+        retired_by: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Pasa el criterio a acceptance_criteria_retired (0039) en una transacción.
+
+        Quién lo retira sale de la sesión (``retired_by`` del cliente no cuenta aquí). La fila de la
+        UC queda bloqueada mientras tanto, para que un add_ac a la vez no tome un id a medio retirar.
+        El audit_log conserva la operación de siempre (``delete_acceptance_criterion``), que el panel
+        y la app ya nombran, con ``retired`` y el motivo.
+        """
+        dev = await self._require_membership_cached(board_id)
+        from ..coordination.audit import OP_DELETE_AC, record_destructive
+
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                await conn.execute(
+                    "SELECT 1 FROM use_cases WHERE project_id = $1 AND id = $2 FOR UPDATE",
+                    board_id,
+                    uc_item_id,
+                )
+                row = await conn.fetchrow(
+                    "DELETE FROM acceptance_criteria WHERE project_id = $1 AND uc_id = $2 AND ac_id = $3 "
+                    "RETURNING text, internal, done, meta",
+                    board_id,
+                    uc_item_id,
+                    ac_id,
+                )
+                if row is None:
+                    raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
+                retired = await conn.fetchrow(
+                    """
+                    INSERT INTO acceptance_criteria_retired
+                        (project_id, uc_id, ac_id, text, internal, done, meta, reason, retired_by)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9)
+                    RETURNING *
+                    """,
+                    board_id,
+                    uc_item_id,
+                    ac_id,
+                    row["text"],
+                    row["internal"],
+                    row["done"],
+                    _jsonb(_from_jsonb(row["meta"]) or {}),
+                    reason,
+                    dev.developer_id,
+                )
+                await record_destructive(
+                    conn,
+                    developer_id=dev.developer_id,
+                    project_id=board_id,
+                    operation=OP_DELETE_AC,
+                    target_id=ac_id,
+                    metadata={"uc_id": uc_item_id, "retired": True, "reason": reason},
+                )
+        return _retired_row(retired)
+
+    async def get_retired_criteria(self, board_id: str, uc_item_id: str) -> list[dict[str, Any]]:
+        await self._require_read_access(board_id)
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM acceptance_criteria_retired WHERE project_id = $1 AND uc_id = $2 "
+                "ORDER BY retired_at, ac_id",
+                board_id,
+                uc_item_id,
+            )
+        return [_retired_row(r) for r in rows]
+
+    async def import_retired_criteria(
+        self, board_id: str, uc_item_id: str, retired: list[dict[str, Any]],
+    ) -> int:
+        """Los retirados de otro tablero (migración). Conserva fecha y motivo; quién, si se sabe."""
+        await self._require_membership_cached(board_id)
+        records = [r for r in retired if isinstance(r, dict) and r.get("id") and r.get("text")]
+        if not records:
+            return 0
+        pool = await self._pool()
+        added = 0
+        async with pool.acquire() as conn:
+            async with conn.transaction():
+                for r in records:
+                    meta = {k: r[k] for k in ("verdict", "evidence", "verification") if r.get(k) is not None}
+                    status = await conn.execute(
+                        """
+                        INSERT INTO acceptance_criteria_retired
+                            (project_id, uc_id, ac_id, text, internal, done, meta, reason, retired_by, retired_at)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, COALESCE($10::timestamptz, now()))
+                        ON CONFLICT (project_id, uc_id, ac_id) DO NOTHING
+                        """,
+                        board_id,
+                        uc_item_id,
+                        str(r["id"]),
+                        str(r["text"]),
+                        bool(r.get("internal")),
+                        bool(r.get("done")),
+                        _jsonb(meta),
+                        str(r.get("reason") or "retirado antes de la migración"),
+                        r.get("retired_by"),
+                        _parse_ts(r.get("retired_at")),
+                    )
+                    added += int(status.split()[-1])
+        return added
 
     # ── SpecBackend: Archival ────────────────────────────────────
 

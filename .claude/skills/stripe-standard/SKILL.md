@@ -231,6 +231,12 @@ Si `list_us(board_id)` ya devuelve un US-STRIPE-CHECKOUT:
 
 Por defecto la skill elige (1) si no hay TTY interactivo.
 
+Con (2), `import_spec` crea las UC que faltan y deja como están las que ya existían (UC-12501):
+cada una vuelve en `warnings` con `uc_exists` y su diferencia. Si el catálogo cambió los criterios
+de una UC que ya estaba, enséñale la diferencia a la persona y, si la acepta, repite con
+`import_spec(board_id=board_id, spec=spec, on_existing_uc="apply")`: añade los criterios nuevos con
+el siguiente id libre y nunca reescribe ni retira uno.
+
 ### 2.2 Fallback si el spec backend está offline
 
 Try/catch sobre `import_spec`. Si falla:

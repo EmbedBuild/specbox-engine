@@ -75,6 +75,9 @@ class UseCaseSpec(BaseModel):
             return data
         from .tools._mutation_helpers import normalize_verification
 
+        # Work on a copy: the caller's spec stays as it was (UC-12501 — a second import_spec with
+        # the same dict lost every `verification`, because this validator rewrote it in place).
+        data = dict(data)
         # Accept id/title as aliases for uc_id/name
         if "uc_id" not in data and "id" in data:
             data["uc_id"] = data.pop("id")

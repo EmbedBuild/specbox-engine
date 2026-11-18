@@ -761,8 +761,39 @@ async def get_board_status(
         await backend.close()
 
 
+def _uc_exists_warning(uc_id: str, plan: dict[str, Any], *, applied: bool) -> dict[str, Any]:
+    """El aviso ``uc_exists`` de import_spec para una UC que ya estaba (UC-12501 AC-04)."""
+    if applied:
+        added = len(plan["new"])
+        nuevos = "1 criterio nuevo" if added == 1 else f"{added} criterios nuevos"
+        message = (
+            f"{uc_id} ya existía: se ha aplicado la spec ({nuevos}). Los criterios que la spec no "
+            "trae siguen como estaban; para retirar uno, delete_ac con su motivo."
+        )
+    elif plan["identical"]:
+        message = f"{uc_id} ya existe y coincide con la spec: no se ha cambiado nada."
+    else:
+        message = (
+            f"{uc_id} ya existe y no se ha cambiado. Para aplicar la spec, repite import_spec con "
+            'on_existing_uc="apply": añade los criterios nuevos y nunca reescribe ni retira uno '
+            "(eso es update_ac o delete_ac)."
+        )
+    return {
+        "uc_id": uc_id,
+        "code": "uc_exists",
+        "applied": applied,
+        "identical": plan["identical"],
+        "message": message,
+        "differences": plan["differences"],
+    }
+
+
 async def import_spec(
-    board_id: str, spec: dict, ctx: Context, items_content: str | None = None
+    board_id: str,
+    spec: dict,
+    ctx: Context,
+    items_content: str | None = None,
+    on_existing_uc: str = "report",
 ) -> dict[str, Any]:
     """Import a full project specification into the board/project (idempotent).
 
@@ -791,12 +822,26 @@ async def import_spec(
         items_content: FreeForm content-passing (UC-660). Pass items.json as a
             string for remote MCP; the mutated string is returned under
             `items_content`. Omit for local MCP / disk mode.
+        on_existing_uc: what to do with a UC that already exists (UC-12501).
+            "report" (default): the UC is left exactly as it is and `warnings` carries
+            `uc_exists` with the differences (name, fields, criteria_added,
+            criteria_missing, verification_changed). "apply": updates its name,
+            description and fields, adds the spec's new criteria with the next free id
+            (criteria are matched by text, so the existing ones keep their ids) and
+            updates their verification; it never rewrites or retires a criterion
+            (that is update_ac / delete_ac). New UCs and the stories are created and
+            updated as always.
 
     Returns:
         Import results with counts of created/updated items and any errors,
         plus `items_content` (mutated items.json string) when `items_content`
         was provided.
     """
+    if on_existing_uc not in mh.ON_EXISTING_UC:
+        return {
+            "error": f"on_existing_uc must be one of {list(mh.ON_EXISTING_UC)}, got {on_existing_uc!r}",
+            "code": "INVALID_OPTION",
+        }
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         parsed = ImportSpec(**spec)
@@ -812,6 +857,7 @@ async def import_spec(
         updated_us = 0
         created_uc = 0
         updated_uc = 0
+        reported_uc = 0  # UC-12501: existing UCs left as they were (on_existing_uc="report")
         created_ac = 0
         errors: list[str] = []
         gate_inputs: list[dict[str, Any]] = []  # UC-12301 AC-04
@@ -941,19 +987,18 @@ async def import_spec(
 
                 for uc_spec in us_spec.use_cases:
                     try:
-                        # Build UC description
-                        ac_lines = "\n".join(
-                            f"- AC-{idx:02d}: {ac}" for idx, ac in enumerate(uc_spec.acceptance_criteria, 1)
-                        )
-                        uc_desc = (
-                            f"# {uc_spec.uc_id}: {uc_spec.name}\n\n"
-                            f"**User Story:** {us_spec.us_id}: {us_spec.name}\n"
-                            f"**Actor:** {uc_spec.actor}\n"
-                            f"**Horas estimadas:** {uc_spec.hours}\n"
-                            f"**Pantallas:** {uc_spec.screens}\n\n"
-                            f"## Criterios de Aceptacion\n{ac_lines}\n\n"
-                            f"## Contexto\n{uc_spec.context}"
-                        )
+                        def _uc_description(criteria_lines: list[tuple[str, str]]) -> str:
+                            # UC-12501: the criteria with their real ids, never by position.
+                            ac_lines = "\n".join(f"- {i}: {t}" for i, t in criteria_lines)
+                            return (
+                                f"# {uc_spec.uc_id}: {uc_spec.name}\n\n"
+                                f"**User Story:** {us_spec.us_id}: {us_spec.name}\n"
+                                f"**Actor:** {uc_spec.actor}\n"
+                                f"**Horas estimadas:** {uc_spec.hours}\n"
+                                f"**Pantallas:** {uc_spec.screens}\n\n"
+                                f"## Criterios de Aceptacion\n{ac_lines}\n\n"
+                                f"## Contexto\n{uc_spec.context}"
+                            )
 
                         # Build labels for UC
                         uc_labels = ["UC"]
@@ -975,24 +1020,68 @@ async def import_spec(
                             else:
                                 errors.append(f"UC {uc_spec.uc_id}: {err}")
 
-                        # Find-or-create UC item
+                        # UC-12307: how each criterion is checked, when the spec says it.
+                        if any(uc_spec.acceptance_verifications):
+                            verification_given = True
+
+                        def _create_kw(metas: dict[str, str]) -> dict[str, Any]:
+                            by_ac = {a: {"verification": v} for a, v in metas.items() if v}
+                            return {**seed_kw, **({"meta_by_ac": by_ac} if by_ac else {})}
+
                         existing_uc = await backend.find_item_by_field(board_id, "uc_id", uc_spec.uc_id)
                         if existing_uc:
-                            uc_item = await backend.update_item(
-                                board_id,
-                                existing_uc.id,
-                                name=with_item_id(uc_spec.uc_id, uc_spec.name),
-                                description=uc_desc,
-                                labels=uc_labels,
-                                parent_id=us_item.id,
-                                meta=uc_meta,
+                            # UC-12501 AC-04: a UC that exists is only changed when asked for.
+                            existing_acs = await backend.get_acceptance_criteria(board_id, existing_uc.id)
+                            plan = mh.plan_existing_uc(
+                                existing_name=_clean_name(existing_uc.name, uc_spec.uc_id),
+                                existing_meta=existing_uc.meta,
+                                existing_description=existing_uc.description,
+                                existing_acs=existing_acs,
+                                retired_ids=await mh.retired_ids(backend, board_id, existing_uc.id),
+                                spec_name=uc_spec.name,
+                                spec_meta=uc_meta,
+                                spec_context=uc_spec.context,
+                                spec_criteria=list(uc_spec.acceptance_criteria),
+                                spec_verifications=list(uc_spec.acceptance_verifications),
+                                stores_meta=bool(getattr(backend, "STORES_SPEC_META", False)),
                             )
-                            updated_uc += 1
+                            apply = on_existing_uc == "apply"
+                            warnings.append(_uc_exists_warning(uc_spec.uc_id, plan, applied=apply))
+                            gate_acs = [(ac.id, ac.text, ac.spec_rules) for ac in existing_acs]
+                            if apply:
+                                uc_item = await backend.update_item(
+                                    board_id,
+                                    existing_uc.id,
+                                    name=with_item_id(uc_spec.uc_id, uc_spec.name),
+                                    description=_uc_description(plan["final"]),
+                                    labels=uc_labels,
+                                    parent_id=us_item.id,
+                                    meta=uc_meta,
+                                )
+                                updated_uc += 1
+                                if plan["new"]:
+                                    await backend.create_acceptance_criteria(
+                                        board_id, uc_item.id, plan["new"], **_create_kw(plan["new_verifications"])
+                                    )
+                                    created_ac += len(plan["new"])
+                                    gate_acs += [(i, t, mh.SPEC_RULES_VERSION) for i, t in plan["new"]]
+                                for ac_id, wanted in plan["verification_updates"]:
+                                    await backend.update_acceptance_criterion(
+                                        board_id, uc_item.id, ac_id, meta={"verification": wanted}
+                                    )
+                                    updated_verifications += 1
+                            else:
+                                uc_item = existing_uc
+                                reported_uc += 1
                         else:
+                            criteria = [
+                                (f"AC-{idx:02d}", ac_text)
+                                for idx, ac_text in enumerate(uc_spec.acceptance_criteria, 1)
+                            ]
                             uc_item = await backend.create_item(
                                 board_id,
                                 name=with_item_id(uc_spec.uc_id, uc_spec.name),
-                                description=uc_desc,
+                                description=_uc_description(criteria),
                                 state="backlog",
                                 labels=uc_labels,
                                 parent_id=us_item.id,
@@ -1000,64 +1089,18 @@ async def import_spec(
                                 **seed_kw,
                             )
                             created_uc += 1
-
-                        # Acceptance criteria: create only missing ones
-                        criteria = [
-                            (f"AC-{idx:02d}", ac_text) for idx, ac_text in enumerate(uc_spec.acceptance_criteria, 1)
-                        ]
-                        # UC-12307: how each criterion is checked, when the spec says it.
-                        verif_by_ac = {
-                            f"AC-{idx:02d}": v
-                            for idx, v in enumerate(uc_spec.acceptance_verifications, 1)
-                            if v
-                        }
-                        if verif_by_ac:
-                            verification_given = True
-
-                        def _create_kw(ids: list[str], _v: dict[str, str] = verif_by_ac) -> dict[str, Any]:
-                            metas = {a: {"verification": _v[a]} for a in ids if a in _v}
-                            return {**seed_kw, **({"meta_by_ac": metas} if metas else {})}
-
-                        # UC-12301 AC-04: the criteria the UC ends up with, for the spec gate.
-                        gate_acs: list[tuple[str, str, int]] = [(i, t, mh.SPEC_RULES_VERSION) for i, t in criteria]
-                        if criteria:
-                            if existing_uc:
-                                existing_acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
-                                existing_ac_ids = {ac.id for ac in existing_acs}
-                                new_criteria = [
-                                    (ac_id, text) for ac_id, text in criteria if ac_id not in existing_ac_ids
-                                ]
-                                gate_acs = [(ac.id, ac.text, ac.spec_rules) for ac in existing_acs] + [
-                                    (i, t, mh.SPEC_RULES_VERSION) for i, t in new_criteria
-                                ]
-                                if new_criteria:
-                                    await backend.create_acceptance_criteria(
-                                        board_id,
-                                        uc_item.id,
-                                        new_criteria,
-                                        **_create_kw([a for a, _ in new_criteria]),
-                                    )
-                                    created_ac += len(new_criteria)
-                                # UC-12307: a criterion that already existed takes the spec's
-                                # verification when it changes (the text is never rewritten here).
-                                if getattr(backend, "STORES_SPEC_META", False):
-                                    for ac in existing_acs:
-                                        wanted = verif_by_ac.get(ac.id)
-                                        if wanted and getattr(ac, "verification", None) != wanted:
-                                            await backend.update_acceptance_criterion(
-                                                board_id, uc_item.id, ac.id, meta={"verification": wanted}
-                                            )
-                                            updated_verifications += 1
-                            else:
+                            if criteria:
+                                verifs = {
+                                    f"AC-{idx:02d}": v
+                                    for idx, v in enumerate(uc_spec.acceptance_verifications, 1)
+                                    if v
+                                }
                                 await backend.create_acceptance_criteria(
-                                    board_id, uc_item.id, criteria, **_create_kw([a for a, _ in criteria])
+                                    board_id, uc_item.id, criteria, **_create_kw(verifs)
                                 )
                                 created_ac += len(criteria)
-                        elif existing_uc:
-                            gate_acs = [
-                                (ac.id, ac.text, ac.spec_rules)
-                                for ac in await backend.get_acceptance_criteria(board_id, uc_item.id)
-                            ]
+                            gate_acs = [(i, t, mh.SPEC_RULES_VERSION) for i, t in criteria]
+                        # UC-12301 AC-04: the criteria the UC ends up with, for the spec gate.
                         gate_inputs.append({
                             "uc_id": uc_spec.uc_id,
                             "acs": [{"ac_id": i, "text": t, "spec_rules": r} for i, t, r in gate_acs],
@@ -1107,10 +1150,12 @@ async def import_spec(
             "updated": {"us": updated_us, "uc": updated_uc},
             "errors": errors,
         }
+        if reported_uc:
+            result["unchanged"] = {"uc": reported_uc}  # UC-12501: see the uc_exists warnings
         if epic_keys or epic_report["skipped"]:
             result["epics"] = epic_report
         if warnings:
-            result["warnings"] = warnings  # UC-12306 AC-03/AC-04: the stories are created anyway
+            result["warnings"] = warnings  # UC-12306 no_exclusions, UC-12501 uc_exists
         if exclusions_not_stored:
             result["exclusions_not_stored"] = True  # UC-12306: Trello and Plane
         if updated_verifications:
@@ -1528,6 +1573,9 @@ async def get_uc(
         receipt of type "test" passes) and, when false, the flag
         "sin_prueba_que_se_repita" in `flags` (UC-11703): nothing re-checks
         it automatically. A pending criterion has `repeatable_test: null`.
+        Retired criteria (UC-12501) come apart, under `retired_criteria`, with
+        their reason, date, who retired them and their receipts; they keep
+        their id, which is never used again in that UC.
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
@@ -1642,6 +1690,13 @@ async def get_uc(
             verdicts = []
         if verdicts:
             result["review_verdicts"] = verdicts[-SHOWN_VERDICTS:]
+        # UC-12501: los retirados, aparte de los vigentes, con su motivo y su fecha (solo si hay).
+        try:
+            retired = await backend.get_retired_criteria(board_id, uc_item.id)
+        except Exception:  # noqa: BLE001 — un tablero sin la tabla 0039 todavía: sin retirados
+            retired = []
+        if retired:
+            result["retired_criteria"] = retired
 
         return result
     finally:
@@ -2357,6 +2412,10 @@ async def mark_ac(
                 board_id, uc_item.id, ac_id, passed, evidence=receipt, **by_kw
             )
         except Exception as e:
+            # UC-12501: a retired criterion is not marked; say so instead of «not found».
+            retired = await mh.retired_error(backend, board_id, uc_item.id, uc_id, ac_id)
+            if retired is not None:
+                return retired
             return {
                 "error": f"AC {ac_id} not found in {uc_id}: {str(e)}",
                 "code": "AC_NOT_FOUND",
@@ -2449,6 +2508,10 @@ async def mark_ac_batch(
                     board_id, uc_item.id, ac_id, passed, evidence=receipt, **by_kw
                 )
             except Exception:
+                # UC-12501: a retired criterion is skipped and the answer says why.
+                if await mh.retired_error(backend, board_id, uc_item.id, uc_id, ac_id) is not None:
+                    details.append({"ac_id": ac_id, "passed": False, "receipt": None, "code": "AC_RETIRED"})
+                    continue
                 logger.warning("mark_ac_batch_skip", uc_id=uc_id, ac_id=ac_id, error="not_found")
 
             if passed:
@@ -2462,6 +2525,8 @@ async def mark_ac_batch(
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
         comment_lines = [f"Validacion AG-09b [{now}]:"]
         for d in details:
+            if d.get("code"):
+                continue  # UC-12501: retired, nothing was marked
             status_text = "PASSED" if d["passed"] else "FAILED"
             line = f"  {d['ac_id']}: {status_text}"
             if d["receipt"]:
@@ -2482,7 +2547,10 @@ async def mark_ac_batch(
             "total": len(results),
             "passed": passed_count,
             "failed": failed_count,
-            "details": [{"ac_id": d["ac_id"], "passed": d["passed"]} for d in details],
+            "details": [
+                {"ac_id": d["ac_id"], "passed": d["passed"], **({"code": d["code"]} if d.get("code") else {})}
+                for d in details
+            ],
             "summary": f"Marcados {passed_count}/{len(results)} criterios como done en {uc_id}",
         }
     finally:

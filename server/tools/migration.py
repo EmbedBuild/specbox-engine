@@ -126,6 +126,16 @@ async def _read_source(
         except Exception:
             ac_data[uc.id] = []
 
+    # UC-12501: retired criteria per UC (native and FreeForm keep them; the rest answer []).
+    retired_data: dict[str, list[dict]] = {}
+    for uc in classified["uc"]:
+        try:
+            retired = await backend.get_retired_criteria(board_id, uc.id)
+        except Exception:
+            retired = []
+        if retired:
+            retired_data[uc.id] = retired
+
     # Get comments for US and UC items
     comments_data: dict[str, list[dict]] = {}
     for item in classified["us"] + classified["uc"]:
@@ -156,6 +166,7 @@ async def _read_source(
         "items": items,
         "classified": classified,
         "ac_data": ac_data,
+        "retired_data": retired_data,
         "comments_data": comments_data,
         "labels": labels,
         "states": states,

@@ -23,6 +23,24 @@ from ..tools.migration import ENGINE_SOURCE, _build_external_id
 
 logger = structlog.get_logger(__name__)
 
+#: The UC meta key FreeForm keeps its retired criteria in (UC-12501). It is not copied as meta: the
+#: target backend stores retired criteria its own way (import_retired_criteria).
+RETIRED_META_KEY = "retired_criteria"
+
+
+def retired_for(uc_item: ItemDTO, retired_data: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """The retired criteria of a source UC: read from its backend, or from its FreeForm meta."""
+    found = retired_data.get(uc_item.id)
+    if found:
+        return [dict(r) for r in found if isinstance(r, dict)]
+    meta = uc_item.meta if isinstance(uc_item.meta, dict) else {}
+    return [dict(r) for r in meta.get(RETIRED_META_KEY) or [] if isinstance(r, dict) and r.get("id")]
+
+
+def meta_without_retired(meta: dict[str, Any]) -> dict[str, Any]:
+    """A UC's meta without the FreeForm list of retired criteria."""
+    return {k: v for k, v in (meta or {}).items() if k != RETIRED_META_KEY}
+
 
 @dataclass
 class PlannedUC:
@@ -32,6 +50,8 @@ class PlannedUC:
     source_parent_id: str  # the SOURCE item id of the parent US ("" if none)
     labels: list[str]
     acs: list[dict[str, Any]] = field(default_factory=list)
+    # UC-12501: its retired criteria (they keep their id and are never reused on the target).
+    retired: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -62,6 +82,7 @@ def build_write_plan(source_data: dict[str, Any], source_type: str | None = None
     classified = source_data["classified"]
     ac_data: dict[str, list[dict[str, Any]]] = source_data.get("ac_data", {})
     comments_data: dict[str, list[dict[str, Any]]] = source_data.get("comments_data", {})
+    retired_data: dict[str, list[dict[str, Any]]] = source_data.get("retired_data", {})
 
     ucs: list[PlannedUC] = []
     for uc_item in classified["uc"]:
@@ -84,6 +105,7 @@ def build_write_plan(source_data: dict[str, Any], source_type: str | None = None
                 source_parent_id=source_parent,
                 labels=uc_labels,
                 acs=ac_data.get(uc_item.id, []),
+                retired=retired_for(uc_item, retired_data),
             )
         )
 
@@ -132,6 +154,7 @@ async def write_target(
     classified = source_data["classified"]
     ac_data: dict[str, list[dict[str, Any]]] = source_data.get("ac_data", {})
     comments_data: dict[str, list[dict[str, Any]]] = source_data.get("comments_data", {})
+    retired_data: dict[str, list[dict[str, Any]]] = source_data.get("retired_data", {})
 
     id_map: dict[str, str] = {}  # source_item_id -> target_item_id
     errors: list[str] = []
@@ -216,7 +239,7 @@ async def write_target(
                 priority=uc_item.priority,
                 external_source=ENGINE_SOURCE,
                 external_id=ext_id,
-                meta=uc_item.meta,
+                meta=meta_without_retired(uc_item.meta),
             )
             id_map[uc_item.id] = new_uc.id
             migrated["uc"] += 1
@@ -237,6 +260,16 @@ async def write_target(
                     migrated["ac"] += len(acs)
                 except Exception as exc:  # noqa: BLE001 - per-UC isolation
                     errors.append(f"ACs for {uc_id}: {exc}")
+
+            # UC-12501: its retired criteria, so their ids are not reused on the target.
+            retired = retired_for(uc_item, retired_data)
+            if retired:
+                try:
+                    migrated["retired_ac"] = migrated.get("retired_ac", 0) + await target_backend.import_retired_criteria(
+                        target_id, new_uc.id, retired
+                    )
+                except Exception as exc:  # noqa: BLE001 - per-UC isolation
+                    errors.append(f"Retired ACs for {uc_id}: {exc}")
 
         except Exception as exc:  # noqa: BLE001 - per-item isolation
             errors.append(f"UC {uc_item.name}: {exc}")

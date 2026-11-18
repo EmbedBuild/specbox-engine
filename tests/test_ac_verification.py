@@ -114,10 +114,13 @@ async def test_reimporting_sets_the_verification_of_an_existing_criterion_withou
     first = await import_spec("ff", {"user_stories": [{"us_id": "US-09", "name": "Avisos", "use_cases": [
         {"uc_id": "UC-901", "name": "Avisar", "acceptance_criteria": ["El aviso queda enviado con su fecha"]}]}]},
         CTX, items_content="[]")
-    again = await import_spec("ff", json.loads(json.dumps(SPEC)), CTX, items_content=first["items_content"])
+    # UC-12501: a UC that exists is only changed when asked for.
+    again = await import_spec("ff", json.loads(json.dumps(SPEC)), CTX, items_content=first["items_content"],
+                              on_existing_uc="apply")
     assert again["created"]["ac"] == 2 and again["updated"]["ac_verification"] == 1
     assert _ac_meta(again["items_content"], "AC-01")["verification"] == "automated_test"
-    same = await import_spec("ff", json.loads(json.dumps(SPEC)), CTX, items_content=again["items_content"])
+    same = await import_spec("ff", json.loads(json.dumps(SPEC)), CTX, items_content=again["items_content"],
+                             on_existing_uc="apply")
     assert "ac_verification" not in same["updated"]  # nada cambia: no se reescribe
 
 

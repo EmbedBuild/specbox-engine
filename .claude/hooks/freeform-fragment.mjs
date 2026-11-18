@@ -26,7 +26,8 @@
  *
  * UC-12401: complete_uc gets the policy like start_uc (its measure is closing_evidence) and what
  * both return is saved the same way; mark_ac and mark_ac_batch get the git author as `marked_by`,
- * which FreeForm keeps with the verdict and the receipt of each criterion.
+ * which FreeForm keeps with the verdict and the receipt of each criterion. UC-12501: delete_ac gets
+ * it as `retired_by`, kept with the retired criterion in the UC's meta.
  *
  * UC-12402: start_uc and record_review_verdict get the Claude Code context (lib/agent-identity.mjs);
  * the agent-identity hook leaves these calls to this one.
@@ -58,8 +59,11 @@ import { IDENTITY_TOOLS, identityFields } from './lib/agent-identity.mjs';
 
 /** The tools whose measures read the board's policy and may record a block (UC-12301, UC-12401). */
 const GATE_TOOLS = new Set(['start_uc', 'complete_uc']);
-/** The tools that mark criteria: FreeForm keeps who marked them (UC-12401). */
-const MARK_TOOLS = new Set(['mark_ac', 'mark_ac_batch']);
+/**
+ * The tools whose author FreeForm keeps, and the argument it goes in: who marked a criterion
+ * (UC-12401) and who retired one (UC-12501).
+ */
+const AUTHOR_ARGS = { mark_ac: 'marked_by', mark_ac_batch: 'marked_by', delete_ac: 'retired_by' };
 
 const { event, toolName, toolInput, cwd, payload } = readHookInput();
 const parsed = parseToolName(toolName);
@@ -204,10 +208,12 @@ function pre() {
   if (GATE_TOOLS.has(parsed.tool) && typeof toolInput.policy_content !== 'string' && existsSync(policyPath)) {
     updatedInput.policy_content = readFileSync(policyPath, 'utf-8');
   }
-  // UC-12401: who marked each criterion, kept with its verdict and its receipt.
-  if (MARK_TOOLS.has(parsed.tool) && !toolInput.marked_by) {
+  // UC-12401: who marked each criterion, kept with its verdict and its receipt. UC-12501: who
+  // retired one, kept with the retired criterion.
+  const authorArg = AUTHOR_ARGS[parsed.tool];
+  if (authorArg && !toolInput[authorArg]) {
     const author = gitAuthor();
-    if (author) updatedInput.marked_by = author.slice(0, 100);
+    if (author) updatedInput[authorArg] = author.slice(0, 100);
   }
   // UC-12402: the Claude Code context that calls (this hook owns the call; agent-identity steps aside).
   if (IDENTITY_TOOLS.has(parsed.tool)) {

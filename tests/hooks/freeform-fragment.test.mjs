@@ -388,6 +388,10 @@ test('complete_uc gets the policy and its block is saved; mark_ac and mark_ac_ba
       const given = hook(p, 'PreToolUse', tool, { board_id: 'ff', uc_id: 'UC-007', marked_by: 'Ana' }, { tool_use_id: `toolu_${tool}2` });
       assert.equal(given.out.hookSpecificOutput.updatedInput.marked_by, 'Ana', `${tool}: lo que manda el cliente gana`);
     }
+    // UC-12501: who retired a criterion, kept with it in the UC's meta.
+    const retired = hook(p, 'PreToolUse', 'delete_ac', { board_id: 'ff', uc_id: 'UC-007', ac_id: 'AC-01', reason: 'la cubre otra' }, { tool_use_id: 'toolu_del' });
+    assert.equal(retired.out.hookSpecificOutput.updatedInput.retired_by, 't');
+    assert.equal(retired.out.hookSpecificOutput.updatedInput.marked_by, undefined);
   } finally {
     p.done();
   }

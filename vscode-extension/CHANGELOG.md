@@ -8,6 +8,11 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.43.0] — "Para siempre"
+
+- No changes in the extension itself. The version follows the engine, where a criterion keeps its id
+  forever, a retired one stays visible with its reason, and re-seeding no longer rewrites a UC.
+
 ## [6.42.0] — "Otra mirada"
 
 - No changes in the extension itself. The version follows the engine, where a UC needs the go-ahead

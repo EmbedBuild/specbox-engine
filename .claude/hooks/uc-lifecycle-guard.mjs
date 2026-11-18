@@ -6,6 +6,11 @@
  *
  * Also warns if mark_ac_batch hasn't been called (no ACs marked).
  *
+ * UC-12206: los ficheros que mira (.quality/evidence/<feature>/ac_marked.json y
+ * uc_moved_to_review.json) los escribe el hook uc-state-marker con lo que devuelven mark_ac_batch y
+ * move_uc; antes no los escribía nadie y el aviso salía en cada push. El aviso nombra lo que falta:
+ * los criterios sin marcar (con los de la UC que guarda el marcador) o la UC fuera de revisión.
+ *
  * v5.19.0 — Compliance Enforcement
  */
 
@@ -47,32 +52,38 @@ if (!activeUC) {
   process.exit(0);
 }
 
-const feature = activeUC.feature;
+const feature = activeUC.feature || activeUC.ucId;
 const warnings = [];
 
-// Check 1: Has mark_ac_batch been called?
-// We detect this by checking if any AC evidence exists
-const evidenceDir = `.quality/evidence/${feature}`;
-const acMarkerFile = `${evidenceDir}/ac_marked.json`;
-if (!fileExists(acMarkerFile)) {
-  // Also check the audit.json for any AC data
-  const audit = readJsonFile(`${evidenceDir}/audit.json`);
-  if (!audit || !audit.ac_results) {
-    warnings.push(
-      'No acceptance criteria have been marked (mark_ac_batch not called). ' +
-      'The board will not reflect which ACs passed.'
-    );
+// Los escribe el hook uc-state-marker con lo que devuelven mark_ac_batch y move_uc (UC-12206).
+const evidenceDir = `.quality/evidence/${String(feature).replace(/[^A-Za-z0-9._-]/g, '_')}`;
+
+// Check 1: criterios sin marcar como cumplidos.
+const marked = readJsonFile(`${evidenceDir}/ac_marked.json`);
+const audit = readJsonFile(`${evidenceDir}/audit.json`);
+const marker = readJsonFile('.quality/active_uc.json') || {};
+const acIds = Array.isArray(marker.ac_ids) ? marker.ac_ids : [];
+if (!marked && !audit?.ac_results) {
+  warnings.push(
+    'Criterios sin marcar: no consta ningún mark_ac_batch de esta UC, así que el board no dice cuáles se cumplen.' +
+      (acIds.length ? ` Faltan ${acIds.join(', ')}.` : '')
+  );
+} else if (marked) {
+  const passed = new Set(Array.isArray(marked.passed) ? marked.passed : []);
+  const missing = acIds.filter((id) => !passed.has(id));
+  const failed = Array.isArray(marked.failed) ? marked.failed : [];
+  if (missing.length) {
+    warnings.push(`Criterios sin marcar como cumplidos: ${missing.join(', ')}.`);
+  } else if (failed.length) {
+    warnings.push(`Criterios marcados como no cumplidos: ${failed.join(', ')}.`);
   }
 }
 
-// Check 2: Has the UC been moved to Review?
-// We detect this by checking if a move_uc marker exists
-const moveMarkerFile = `${evidenceDir}/uc_moved_to_review.json`;
-if (!fileExists(moveMarkerFile)) {
+// Check 2: la UC fuera de revisión.
+if (!fileExists(`${evidenceDir}/uc_moved_to_review.json`)) {
   warnings.push(
-    `UC "${activeUC.ucId}" has NOT been moved to Review. ` +
-    'Call move_uc(board_id, uc_id, "review") before or after creating the PR. ' +
-    'The board must reflect the current state.'
+    `UC fuera de revisión: ${activeUC.ucId} no se ha movido a «review». ` +
+      'Llama a move_uc(board_id, uc_id, "review") antes o después de abrir la PR.'
   );
 }
 

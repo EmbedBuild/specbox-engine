@@ -324,6 +324,16 @@
         ]
       },
       {
+        "matcher": "mcp__SpecBox-MCP__complete_uc",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/uc-usage.mjs",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "mcp__SpecBox-MCP__(move_uc|complete_uc)",
         "hooks": [
           {
@@ -504,6 +514,22 @@
             "type": "command",
             "command": "node .claude/hooks/on-session-end.mjs",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/uc-usage.mjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/uc-usage.mjs",
+            "timeout": 5
           }
         ]
       }

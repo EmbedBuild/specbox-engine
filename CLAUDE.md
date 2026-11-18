@@ -251,6 +251,7 @@ specbox-engine/
 │   │   ├── prd-sync-guard.mjs
 │   │   ├── merge-guard.mjs
 │   │   ├── agent-identity.mjs
+│   │   ├── uc-usage.mjs
 │   │   ├── healing-budget-guard.mjs
 │   │   ├── implement-checkpoint.mjs
 │   │   ├── implement-healing.mjs
@@ -475,6 +476,7 @@ Automatic enforcement — no need to remember running these manually:
 | **prd-sync-guard** | PreToolUse (`gh pr merge`) | The EP-20 measure `spec_in_pr` (UC-12211), «warn» by default: before merging the active UC's PR it checks that the PR changes the PRD of its story (found with `lib/prd-locate.mjs`, the same order as the server; in a satellite, the orchestrator's PRD), that its description links an orchestrator PR that changes it, or that the UC is marked without PRD with a reason (`update_uc(no_prd_reason=...)`, carried in the marker). Otherwise it notes it; in «block» the merge stops and the message names the expected PRD and how to go on, and the block (and the next pass of that UC) is recorded on the board (`lib/enforcement-events.mjs`). A UC open and unchanged since the measure became «block» passes (`predates_rule` in the marker). Without `gh` or an answer it does not stop anything. |
 | **merge-guard** | PreToolUse (`gh pr merge`) | Two EP-20 measures, «warn» by default, on the active UC with the board's data (`doc/tracking/items.json` in FreeForm, `get_uc` with the device identity in native). `closing_evidence` (UC-12401): every criterion done with at least one receipt that passes (the rule of `complete_uc`, `lib/closing-evidence.mjs`). `independent_review` (UC-12402): the UC has the go-ahead of someone who did not implement it (`lib/independent-review.mjs`, the rule of `server/review.py`): a person in the panel at any autopilot level; in «agresivo» (`specbox.autopilot.level`), or in FreeForm, an independent evaluator's «accepted» verdict also counts; a later «returned» stops it. Otherwise it notes what is missing; in «block» the merge stops and the block is recorded on the board. A UC open before a measure became «block» only gets a note. Without data or an answer it does not stop anything. |
 | **agent-identity** | PreToolUse (`start_uc`, `record_review_verdict`) | UC-12402: puts the Claude Code context of the hook input (`session_id`, and in a subagent `agent_id` and `agent_type`) in the call as `client_session_id`, `client_agent_id` and `client_agent_type`, replacing whatever the model sent. The board keeps who implemented the UC and rejects a review verdict from that same context (`SAME_AGENT_VERDICT`). In FreeForm with the remote MCP it steps aside: `freeform-fragment` owns those calls and adds the identity itself (one hook changes each call). |
+| **uc-usage** | Stop, SubagentStop, PreToolUse (`complete_uc`) | Silent, never blocks (UC-12403): reads the session's transcript (and each subagent's, `<session>/subagents/agent-<id>.jsonl`) from its cursor in `.quality/uc_usage/`, adds up `message.usage` counting each response once and only since the active UC started, and sends the four token figures to that UC with `report_uc_usage` in a background process (table `uc_usage`, migration 0038). Only numbers and ids, never conversation text; the cursor moves only when the board accepts. An unknown transcript format sends nothing (the UC stays «estimado» in `get_project_kpis`). Native boards only; `SPECBOX_UC_USAGE=off` turns it off. |
 | context-budget-guard | PreToolUse (Agent\|Task) | The EP-20 measure `context_budget` (UC-12210), «warn» by default: estimates the tokens of a subagent's prompt (budget 16000) and, over budget, notes it; in «block» the subagent is not launched and the message gives size, budget and how to reduce the context. The mode comes from `task_budget_mode` in `settings.local.json` (wins), then in `settings.json` unless it is the template's «warn», then from the board's policy; to make it block on a project: `set_enforcement_mode(measure="context_budget", mode="block")`. Every launch goes to `.quality/logs/context-budget.jsonl` (tokens, budget, mode, outcome); a block and the next launch of that UC within budget are recorded on the board (`record_enforcement_event`; FreeForm: `doc/tracking/enforcement_events.jsonl`). Claude Code launches subagents with «Agent» (older versions: «Task»); until UC-12208 the hook only listened to «Task» and never ran. v5.32 · UC-12208 · UC-12210. |
 | file-ownership-guard | PreToolUse (Write/Edit) | Note to the agent by default when an /implement subagent writes outside the files its role owns (`.claude/skills/implement/file-ownership.md`); `ownership_mode: strict` blocks. v5.32. |
 | pre-prd-discovery-check | PreToolUse (Skill) | Off unless `specbox.discovery.gate_mode` in `.claude/settings.local.json` is `warn` or `block`: then `/prd` without a discovery for the feature gets a note or is blocked (exit 2); spec-driven invocations (`US-XX`, `UC-XXX`) pass. v6.0. |
@@ -1929,6 +1931,14 @@ interactivos; **`coverage_pct`** dice qué fracción del done representa la mét
 **`specbox_analytics_ro`** (0014, GRANT solo vistas — el panel lee directo) y tool MCP
 read-only **`get_project_kpis`** (tenant = el de la sesión). NO confundir con la vista
 `project_kpis` (0011, US-08): dominio progreso/reservas, intacta.
+
+**Coste y revisión (UC-12403).** `get_project_kpis` añade el tiempo de revisión (`review_time_p50`,
+`review_time_p90` en segundos, `review_episodes`): de la entrada en revisión a la aceptación o la
+devolución de una persona, o a la vuelta a trabajo; los episodios abiertos no cuentan. Y `tokens`: p50 y
+p90 por UC y por criterio de las UC con dato real (tabla `uc_usage`, migración 0038, que llena el hook
+`uc-usage` con `report_uc_usage`), y `by_uc` con las 20 más recientes; una UC en revisión o hecha sin dato
+real lleva `estimated: true` y, si se puede, la mediana por criterio × sus criterios. Solo cifras: la
+tabla no tiene columnas de texto.
 
 ### Backfill histórico (0015) — preparado, NO ejecutado
 

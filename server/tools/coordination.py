@@ -413,14 +413,23 @@ async def get_project_kpis(ctx: Context) -> dict[str, Any]:
             data[key] = data[key].total_seconds()
     coverage = data.get("coverage_pct")
     data["coverage_pct"] = float(coverage) if coverage is not None else None
+    # UC-12403: tiempo de revisión (p50, p90) y tokens por UC y por criterio, con «estimado».
+    from .uc_usage import review_time_kpis, usage_kpis
+
+    review = await review_time_kpis(pool, project_id)
+    tokens = await usage_kpis(pool, project_id)
     return {
         "success": True,
         **data,
         "lead_time_unit": "seconds",
+        **review,
+        "tokens": tokens,
         "summary": (
             f"KPIs de lifecycle de {project_id}: {data['done_measurable']}/"
             f"{data['done_total']} done medibles ({data['coverage_pct']}% cobertura), "
-            f"wip={data['wip']}."
+            f"wip={data['wip']}; {review['review_episodes']} revisiones medidas; "
+            f"{tokens['ucs_with_usage']} UC con tokens reales"
+            f"{' (las demás, estimadas)' if tokens['estimated'] else ''}."
         ),
     }
 

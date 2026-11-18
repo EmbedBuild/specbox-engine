@@ -31,6 +31,7 @@ const EXEMPT = {
   'read-tracker': 'PostToolUse de Read: solo anota la lectura, en silencio',
   'session-heartbeat': 'Latido al board (UC-9901): nunca habla con el agente ni bloquea; lo manda en segundo plano',
   'uc-state-marker': 'PostToolUse de las tools de SpecBox (UC-12216): solo escribe o borra .quality/active_uc.json, en silencio',
+  'uc-usage': 'Stop, SubagentStop y antes de complete_uc (UC-12403): manda los tokens de la UC al board en segundo plano; nunca habla ni bloquea',
   'app-docs-fragment': 'PostToolUse de las tools de SpecBox (UC-12203): escribe la zona roadmap de app_prd.md y solo quita el cuerpo de la respuesta',
 };
 

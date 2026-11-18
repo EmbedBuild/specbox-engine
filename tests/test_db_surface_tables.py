@@ -53,7 +53,9 @@ BOARD_TABLES = (
     "session_heartbeats",
     "tool_access_log",
     "uc_reservations",
+    "uc_review_verdicts",
     "uc_state_transitions",
+    "uc_usage",
     "use_cases",
     "user_stories",
 )

@@ -379,6 +379,11 @@
             "type": "command",
             "command": "node .claude/hooks/uc-state-marker.mjs",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/app-docs-fragment.mjs",
+            "timeout": 5
           }
         ]
       },

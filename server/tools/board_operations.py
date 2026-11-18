@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from ..app_docs.roadmap import with_roadmap_sync  # UC-12203
 from fastmcp import Context
 
 from ..auth_gateway import get_session_backend
@@ -325,6 +326,7 @@ def _purged_response(
     }
 
 
+@with_roadmap_sync
 @returns_items_content
 async def delete_uc(
     board_id: str,

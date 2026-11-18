@@ -158,6 +158,36 @@ export function buildFreeformProjectSettings(workspaceRootAbsolute: string): Fre
 	};
 }
 
+/** UC-12207: discovery gate a new project starts with (discovery/SKILL.md promises «warn»). */
+export const NEW_PROJECT_DISCOVERY_GATE_MODE = 'warn';
+
+/**
+ * Merge the FreeForm fragment into the project's settings.local.json content.
+ *
+ * `existing` is null when the file did not exist: only then the project counts as new and gets
+ * `specbox.discovery.gate_mode = "warn"` (UC-12207). A file that already existed keeps whatever
+ * discovery mode it had — none means «off», as for any project that predates this setting. Other
+ * keys and env vars the user keeps survive.
+ */
+export function mergeFreeformProjectSettings(
+	existing: Record<string, unknown> | null,
+	workspaceRootAbsolute: string,
+): Record<string, unknown> {
+	const fragment = buildFreeformProjectSettings(workspaceRootAbsolute);
+	const settings: Record<string, unknown> = { ...(existing ?? {}) };
+	const specbox: Record<string, unknown> = {
+		...((settings.specbox as Record<string, unknown>) ?? {}),
+		...fragment.specbox,
+	};
+	if (existing === null) {
+		const discovery = (specbox.discovery as Record<string, unknown>) ?? {};
+		specbox.discovery = { gate_mode: NEW_PROJECT_DISCOVERY_GATE_MODE, ...discovery };
+	}
+	settings.specbox = specbox;
+	settings.env = { ...((settings.env as Record<string, unknown>) ?? {}), ...fragment.env };
+	return settings;
+}
+
 /**
  * How to install Engram. Engram is a native single-file binary with zero
  * dependencies — no extra language runtime needed. Preferred install is

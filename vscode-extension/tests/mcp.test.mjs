@@ -29,6 +29,8 @@ require.cache['vscode-stub'] = { id: 'vscode-stub', filename: 'vscode-stub', loa
 const {
 	buildEngramInstallPlan,
 	buildFreeformProjectSettings,
+	mergeFreeformProjectSettings,
+	NEW_PROJECT_DISCOVERY_GATE_MODE,
 	stripLegacySpecboxEntry,
 	FREEFORM_ROOT_RELATIVE,
 	LEGACY_REMOTE_MCP_URLS,
@@ -125,6 +127,32 @@ test('UC-662 AC-06: FreeForm settings contain NO python/uv/local-mode references
 	for (const forbidden of ['python', 'pip', 'venv', 'local', 'localhost', '127.0.0.1', 'server.server']) {
 		assert.ok(!json.includes(forbidden), `settings should not mention ${forbidden}: ${json}`);
 	}
+});
+
+// UC-12207 — a new project starts with the discovery gate in «warn»; an existing one is untouched.
+
+test('UC-12207: a project without settings.local.json starts with the discovery gate in warn', () => {
+	const s = mergeFreeformProjectSettings(null, '/abs/proj');
+	assert.equal(NEW_PROJECT_DISCOVERY_GATE_MODE, 'warn');
+	assert.equal(s.specbox.discovery.gate_mode, 'warn');
+	assert.equal(s.specbox.backend_type, 'freeform');
+	assert.equal(s.specbox.freeform_root_absolute, `/abs/proj/${FREEFORM_ROOT_RELATIVE}`);
+	assert.equal(s.env.SPECBOX_ENGINE_MCP_URL, REMOTE_MCP_URL);
+});
+
+test('UC-12207: an existing settings.local.json keeps its discovery mode (none = off)', () => {
+	const withoutGate = mergeFreeformProjectSettings({ specbox: { autopilot: { level: 'agresivo' } } }, '/abs/proj');
+	assert.equal(withoutGate.specbox.discovery, undefined);
+	assert.deepEqual(withoutGate.specbox.autopilot, { level: 'agresivo' });
+	const blocked = mergeFreeformProjectSettings({ specbox: { discovery: { gate_mode: 'block' } } }, '/abs/proj');
+	assert.equal(blocked.specbox.discovery.gate_mode, 'block');
+});
+
+test('UC-12207: the merge keeps the user env vars and other keys', () => {
+	const s = mergeFreeformProjectSettings({ env: { MINE: '1' }, permissions: { allow: ['x'] } }, '/abs/proj');
+	assert.equal(s.env.MINE, '1');
+	assert.equal(s.env.SPECBOX_ENGINE_MCP_URL, REMOTE_MCP_URL);
+	assert.deepEqual(s.permissions, { allow: ['x'] });
 });
 
 test('UC-662 AC-06: buildFreeformProjectSettings rejects a relative root (v5.29 BLOCKER)', () => {

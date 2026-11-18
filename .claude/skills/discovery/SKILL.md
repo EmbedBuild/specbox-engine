@@ -37,7 +37,7 @@ El comando requiere `feature_name` slug-friendly (letras, números, `_`, `-`). S
 > **Cambio v6.0.1**: las tools MCP de discovery ya no leen ni escriben el filesystem del cliente. La skill es responsable de leer los archivos locales y pasar el contenido como parámetro, y de escribir cualquier artefacto que la tool devuelva.
 
 1. **Leer settings** (`.claude/settings.local.json`) con la tool `Read`:
-   - `specbox.discovery.gate_mode` ∈ `{off, warn, block}` (default `off` en upgrade, `warn` en fresh-clone v6.0).
+   - `specbox.discovery.gate_mode` ∈ `{off, warn, block}`. Un proyecto dado de alta con `onboard_project` o configurado como FreeForm desde la extensión nace con `warn`; uno que ya existía y no tiene la clave sigue en `off` (`upgrade_project` no toca `settings.local.json`). UC-12207.
    - `specbox.discovery.pedagogical_mode` ∈ `{auto, on, off}` (default `auto` — verbose en primeras 5 features).
    - `specbox.engine_version_at_onboard` (v6.0+ presente).
 

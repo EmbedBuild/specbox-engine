@@ -248,6 +248,31 @@ async def test_ac02_review_time_ends_with_a_person_or_back_to_work():
         await _cleanup(pool, project_id, owner, stranger)
 
 
+@pg
+async def test_ac03_the_most_recent_ucs_come_first():
+    """by_uc: primero las UC en revisión, luego las hechas de la más reciente a la más antigua; las de sin
+    fecha (anteriores a 0012), al final. El id se ordena como número, no como texto."""
+    pool = await _pool()
+    project_id, owner, stranger = await _seed(pool)
+    try:
+        async with pool.acquire() as conn:
+            for uc, state, done_at in (("UC-900", "done", None), ("UC-1000", "done", "2026-11-18"),
+                                       ("UC-1001", "done", "2026-11-17"), ("UC-99", "review", None)):
+                await conn.execute(
+                    "INSERT INTO use_cases (project_id, id, us_id, name, state) VALUES ($1, $2, 'US-01', $2, $3)",
+                    project_id, uc, state,
+                )
+                if done_at:
+                    await conn.execute(
+                        "UPDATE use_cases SET completed_at = $3::date WHERE project_id = $1 AND id = $2",
+                        project_id, uc, datetime.fromisoformat(done_at).date(),
+                    )
+        order = [u["uc_id"] for u in (await usage_kpis(pool, project_id))["by_uc"]]
+        assert order == ["UC-99", "UC-1000", "UC-1001", "UC-900"]
+    finally:
+        await _cleanup(pool, project_id, owner, stranger)
+
+
 def test_the_migration_has_its_twin():
     from pathlib import Path
 

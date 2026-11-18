@@ -392,3 +392,21 @@ test('complete_uc gets the policy and its block is saved; mark_ac and mark_ac_ba
     p.done();
   }
 });
+
+// UC-12402 — start_uc y record_review_verdict llevan el contexto de Claude Code (este hook es el dueño).
+test('start_uc and record_review_verdict get the Claude Code context, not what the model sent', () => {
+  const p = project();
+  try {
+    for (const tool of ['start_uc', 'record_review_verdict']) {
+      const pre = hook(p, 'PreToolUse', tool, { board_id: 'ff', uc_id: 'UC-007', client_session_id: 'del modelo' },
+        { tool_use_id: `toolu_id_${tool}`, session_id: 'sess-1', agent_id: 'agent-9', agent_type: 'general-purpose' });
+      const input = pre.out.hookSpecificOutput.updatedInput;
+      assert.equal(input.client_session_id, 'sess-1', tool);
+      assert.equal(input.client_agent_id, 'agent-9', tool);
+      assert.equal(input.client_agent_type, 'general-purpose', tool);
+      assert.equal(typeof input.items_content, 'string', tool);
+    }
+  } finally {
+    p.done();
+  }
+});

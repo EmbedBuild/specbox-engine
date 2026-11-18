@@ -2160,6 +2160,8 @@ Auto-merge SOLO si se cumplen TODAS estas condiciones:
 - Todos los acceptance tests pasan
 - **Cada criterio de la UC está hecho con un recibo que pasa** (8.5.1b; lo comprueba el hook
   `merge-guard`, medida `closing_evidence`, UC-12401)
+- **La UC tiene el visto bueno de alguien que no la implementó** (8.5.1c; medida `independent_review`,
+  UC-12402): un evaluador aislado en autopilot «agresivo», una persona en el panel en los demás niveles
 - El usuario ha confirmado modo autopilot
 - **No hay feedback abierto con severity critical o major** (verificar feedback-summary.json)
 - **No hay VEG images pendientes** (`veg_images_pending == false`) — NUEVO v4.0.1
@@ -2257,6 +2259,23 @@ Antes del merge, escribir el Implementation Status en el PRD:
    La captura (de 7.5.6 o de la verificación de 6.5.5) va en su propio `mark_ac`: un criterio puede
    tener varios recibos. `get_uc` marca como «sin prueba que se repita» (`flags`) el criterio hecho
    que no tiene ningún recibo `test` que pase: la suite de no regresión no lo vuelve a comprobar.
+
+### 8.5.1c Veredicto independiente antes de fusionar (UC-12402)
+
+> Quien implementa no da el visto bueno a su propio trabajo. El hook `merge-guard` (medida
+> `independent_review`) mira el tablero antes de `gh pr merge`. El hook `agent-identity` pone el
+> contexto de Claude Code (sesión y agente) en `start_uc` y en `record_review_verdict`: el tablero sabe
+> quién implementó y rechaza el veredicto del mismo contexto (`SAME_AGENT_VERDICT`).
+
+- **Autopilot «agresivo»**: lanza un **evaluador aislado** (herramienta Agent, subagente `general-purpose`
+  con el encargo de AG-09b). No recibe tu razonamiento ni tu plan: solo la UC (`get_uc`), sus criterios,
+  sus recibos y el diff de la PR. Revisa que cada criterio está demostrado y llama a
+  `record_review_verdict(board_id, uc_id, verdict="accepted")`, o `verdict="returned"` con un `reason` de
+  10 a 500 caracteres que diga qué corregir. Un veredicto «devuelta» para el autopilot: corrige, vuelve a
+  marcar y repite el evaluador.
+- **Otros niveles**: una **persona** acepta la UC en revisión desde el panel (UC-12404). Avisa con el
+  enlace a la UC y espera: no fusiones antes.
+- En «warn» la fusión sigue y `merge-guard` avisa de lo que falta; en «block» la detiene hasta tenerlo.
 
 ### 8.5.2 Merge
 

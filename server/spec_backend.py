@@ -437,6 +437,28 @@ class SpecBackend(ABC):
         """
         return None
 
+    # ── Revisión independiente (UC-12402) ────────────────────────
+    # Por defecto en el ``meta`` de la UC (FreeForm lo guarda en items.json; Trello y Plane no
+    # tienen dónde y lo descartan). Native los sobrescribe con su columna y su tabla.
+
+    async def set_uc_implementer(self, board_id: str, uc_item: Any, implementer: dict[str, Any]) -> None:
+        """Guarda quién arrancó la UC (developer, sesión, agente y cuándo)."""
+        await self.update_item(board_id, uc_item.id, meta={"implementer": implementer})
+
+    async def record_review_verdict(self, board_id: str, uc_item: Any, record: dict[str, Any]) -> dict[str, Any]:
+        """Añade un veredicto de revisión a la UC y lo devuelve como quedó guardado."""
+        from .review import MAX_VERDICTS
+
+        current = uc_item.meta.get("review_verdicts") if isinstance(uc_item.meta, dict) else None
+        verdicts = [v for v in (current or []) if isinstance(v, dict)][-(MAX_VERDICTS - 1):] + [record]
+        await self.update_item(board_id, uc_item.id, meta={"review_verdicts": verdicts})
+        return record
+
+    async def get_review_verdicts(self, board_id: str, uc_item: Any) -> list[dict[str, Any]]:
+        """Los veredictos de revisión de la UC, del más antiguo al más reciente."""
+        current = uc_item.meta.get("review_verdicts") if isinstance(uc_item.meta, dict) else None
+        return [v for v in (current or []) if isinstance(v, dict)]
+
     @abstractmethod
     async def mark_acceptance_criterion(
         self,

@@ -314,6 +314,16 @@
         ]
       },
       {
+        "matcher": "mcp__SpecBox-MCP__(start_uc|record_review_verdict)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/agent-identity.mjs",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "mcp__SpecBox-MCP__(move_uc|complete_uc)",
         "hooks": [
           {

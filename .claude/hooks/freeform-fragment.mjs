@@ -27,6 +27,9 @@
  * UC-12401: complete_uc gets the policy like start_uc (its measure is closing_evidence) and what
  * both return is saved the same way; mark_ac and mark_ac_batch get the git author as `marked_by`,
  * which FreeForm keeps with the verdict and the receipt of each criterion.
+ *
+ * UC-12402: start_uc and record_review_verdict get the Claude Code context (lib/agent-identity.mjs);
+ * the agent-identity hook leaves these calls to this one.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -51,6 +54,7 @@ import {
   writeAtomic,
 } from './lib/freeform-fragment.mjs';
 import { readHookInput } from './lib/utils.mjs';
+import { IDENTITY_TOOLS, identityFields } from './lib/agent-identity.mjs';
 
 /** The tools whose measures read the board's policy and may record a block (UC-12301, UC-12401). */
 const GATE_TOOLS = new Set(['start_uc', 'complete_uc']);
@@ -204,6 +208,13 @@ function pre() {
   if (MARK_TOOLS.has(parsed.tool) && !toolInput.marked_by) {
     const author = gitAuthor();
     if (author) updatedInput.marked_by = author.slice(0, 100);
+  }
+  // UC-12402: the Claude Code context that calls (this hook owns the call; agent-identity steps aside).
+  if (IDENTITY_TOOLS.has(parsed.tool)) {
+    delete updatedInput.client_session_id;
+    delete updatedInput.client_agent_id;
+    delete updatedInput.client_agent_type;
+    Object.assign(updatedInput, identityFields(payload));
   }
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', updatedInput } }));
 }

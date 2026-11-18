@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.42.0 — "Otra mirada" (sobre v6.41 "Con recibo")<br/>
+  v 6.43.0 — "Para siempre" (sobre v6.42 "Otra mirada")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,20 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.43
+
+**v6.43.0 — "Para siempre"** hace que lo que se acepta al final sea lo que se pidió con ese id:
+
+- **Un criterio conserva su id para siempre** — `delete_ac` lo retira con un motivo y no renumera
+  los demás; el retirado sigue visible en `get_uc` con su motivo, su fecha y sus recibos, y su id no
+  se vuelve a usar.
+- **Volver a sembrar no reescribe en silencio** — `import_spec` deja como está una UC que ya existe
+  y avisa con la diferencia; solo la cambia con `on_existing_uc="apply"`.
+
+Los totales de criterios que ven el panel, el portal y la app no cambian con esta versión.
 
 ---
 
@@ -1022,7 +1036,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.42.0 — "Otra mirada" (over v6.41 "Con recibo")
+> v 6.43.0 — "Para siempre" (over v6.42 "Otra mirada")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -1036,6 +1050,20 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.43
+
+**v6.43.0 — "Para siempre"** makes what gets accepted at the end what was asked for under that id:
+
+- **A criterion keeps its id forever** — `delete_ac` retires it with a reason and does not renumber
+  the others; the retired one stays visible in `get_uc` with its reason, date and receipts, and its id
+  is never used again.
+- **Re-seeding does not rewrite silently** — `import_spec` leaves a UC that exists as it is and
+  reports the differences; it only changes it with `on_existing_uc="apply"`.
+
+The criteria totals the panel, the portal and the app show do not change with this version.
+
+---
 
 ## What's new in v6.42
 

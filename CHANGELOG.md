@@ -2,6 +2,71 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.43.0] - 2026-11-19 — "Para siempre"
+
+Primera tanda de US-125: un criterio conserva su id para siempre, el que se retira sigue visible con
+su motivo y `import_spec` ya no reescribe en silencio una UC que existe.
+
+### Added
+
+- **Retirar un criterio en vez de borrarlo** (UC-12501, #393) — `delete_ac` retira el criterio con un
+  motivo obligatorio (10 a 500 caracteres) y no renumera los demás: retirar AC-03 de AC-01 a AC-05
+  deja AC-04 y AC-05 con su id, su veredicto y sus recibos. El retirado queda con su texto, el
+  motivo, la fecha y quién, y `get_uc` lo devuelve aparte, en `retired_criteria`.
+- **Un id retirado no se vuelve a usar** — `add_ac` toma el siguiente id contando los retirados (si
+  se retira AC-05, el nuevo es AC-06). En native, el trigger de la migración 0039 rechaza reutilizarlo
+  lo escriba quien lo escriba.
+- **`import_spec` con `on_existing_uc`** — por defecto (`"report"`) no toca una UC que ya existe y
+  la devuelve en `warnings` con `uc_exists` y la diferencia:
+  - `name` y los campos que cambian;
+  - los criterios que la spec añade, los vigentes que no trae y los que coinciden con uno retirado;
+  - las `verification` que cambian.
+
+  Con `"apply"` actualiza la UC, empareja los criterios por texto (los que coinciden conservan su
+  id), añade los nuevos con el siguiente id libre y nunca reescribe ni retira uno.
+- Migración **0039** (`acceptance_criteria_retired` y sus triggers), con su copia en
+  `supabase/migrations`.
+
+### Changed
+
+- **`delete_ac` responde con `retired_ac_id`**, el motivo y el retirado; ya no hay `renumbered_acs`.
+  Sin motivo responde `REASON_REQUIRED` y no retira nada.
+- **`mark_ac`, `mark_ac_batch`, `update_ac` y `update_ac_batch` responden `AC_RETIRED`** ante un
+  criterio retirado, con su motivo.
+- **Retirar un criterio no interno anula la aceptación humana de la UC**, como ya pasaba al crear o
+  desmarcar uno (migración 0039, misma función que 0029).
+- **Las migraciones de backend llevan los retirados** entre native y FreeForm. El envoltorio dual une
+  los del primario y los del espejo.
+- **El validador de la spec ya no modifica el diccionario que recibe**: una segunda `import_spec` con
+  la misma spec perdía las `verification`.
+- `/prd`, `/stripe-standard` y `/stripe-connect` explican cuándo volver a sembrar con
+  `on_existing_uc="apply"`.
+
+### Para los proyectos que ya existían
+
+- **Volver a sembrar ya no actualiza las UC que existen.** `import_spec` sin opción crea las UC
+  nuevas y deja las existentes como estaban, con un aviso `uc_exists` por cada una. Quien resembraba
+  para actualizar criterios o nombres repite con `on_existing_uc="apply"` después de revisar la
+  diferencia. Para reescribir o retirar un criterio: `update_ac` o `delete_ac`.
+- **`delete_ac` pide un motivo.** Las llamadas sin él responden `REASON_REQUIRED`.
+- **Los totales no cambian.** La migración 0039 solo crea una tabla y dos triggers: no mueve ninguna
+  fila. El panel, el portal, la app y el site siguen contando los criterios vigentes.
+- **Trello y Plane** dejan de renumerar, pero no guardan el retirado: lo borran
+  (`retired_not_stored`) y el id del retirado más alto puede reutilizarse.
+- **Self-hosted**: aplica la migración 0039 de `supabase/migrations` en tu base antes de desplegar
+  esta versión: `add_ac` e `import_spec` la usan. En el MCP alojado ya está aplicada.
+
+### Security
+
+- **La tabla nueva está cerrada a los roles públicos**, con seguridad por filas y la política
+  restrictiva del board, como el resto (0024).
+
+### Tests
+
+- `tests/test_retired_criteria.py` (13, Postgres y FreeForm), prueba del hook `freeform-fragment`
+  con dos retiradas a la vez y pruebas de `import_spec` adaptadas. Revisión aislada en dos rondas: la
+  primera devolvió la UC por dos defectos que perdían criterios; la segunda la aceptó.
+
 ## [6.42.0] - 2026-11-18 — "Otra mirada"
 
 Segunda y última tanda de US-124: quien implementa una UC no le da el visto bueno, y el tablero mide lo

@@ -1,8 +1,8 @@
-version: 6.42.0
-codename: "Otra mirada"
+version: 6.43.0
+codename: "Para siempre"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
-release_date: 2026-11-18
+release_date: 2026-11-19
 min_claude_code: "1.0.0"
 
 stacks:
@@ -652,8 +652,21 @@ features:
   - review-verdicts-expire
   - uc-usage-hook
   - review-time-and-token-kpis
+  # New (v6.43.0) — Para siempre
+  - stable-criterion-ids
+  - retired-criteria
+  - import-spec-uc-exists
 
 changelog:
+  6.43.0:
+    date: 2026-11-19
+    codename: "Para siempre"
+    changes:
+      - "feat: a criterion keeps its id forever: delete_ac retires it with a required reason (10-500 chars) instead of deleting and renumbering the following ones, which lost their verdict and receipts; get_uc returns the retired ones apart (retired_criteria) with reason, date, who and receipts (UC-12501, #393)"
+      - "feat: a retired id is never used again in its UC: add_ac counts the retired ones and, in native, the trigger of migration 0039 rejects it from any writer; native keeps them in acceptance_criteria_retired (a separate table, so the totals the panel, the portal and the app read do not change), FreeForm in the UC's meta.retired_criteria, Trello and Plane delete them (retired_not_stored) (UC-12501, #393)"
+      - "feat: import_spec no longer rewrites a UC that exists: it answers uc_exists with the differences (name, fields, criteria added, missing and retired, verification) and only applies with on_existing_uc=\"apply\", which matches criteria by text, adds the new ones with the next free id and never rewrites or retires one (UC-12501, #393)"
+      - "fix: mark_ac, mark_ac_batch, update_ac and update_ac_batch answer AC_RETIRED for a retired criterion; backend migrations carry the retired criteria; the dual wrapper joins the retired ones of primary and mirror; freeform-fragment joins retired_criteria by id; retiring a non-internal criterion voids the UC's human acceptance; the spec validator no longer rewrites the caller's dict (UC-12501, #393)"
+
   6.42.0:
     date: 2026-11-18
     codename: "Otra mirada"

@@ -12,6 +12,7 @@ import {
 	GitRunner, defaultGitRunner, isManagedPath,
 	fetchRemote, latestReleaseTag, checkoutRelease, compareSemver,
 	shouldReinstallExtension, parseInstalledVersion,
+	cloneLocalChanges, restoreGeneratedFiles,
 } from './install';
 import { HealthChecker } from './health';
 
@@ -280,6 +281,22 @@ export class ExtensionUpdater {
 	 * upgrade applied and the user chose to reload.
 	 */
 	private async applyUpgrade(enginePath: string, tag: string): Promise<'reloading' | 'noop'> {
+		// UC-1405: what the extension's own rebuild left in the clone (package-lock.json) is put
+		// back before moving; anything else is the person's and blocks the update with its names.
+		const changes = await cloneLocalChanges(enginePath, this.gitRunner);
+		if (changes && changes.other.length > 0) {
+			vscode.window.showWarningMessage(
+				vscode.l10n.t(
+					'SpecBox: the engine copy in {0} has local changes in {1}, so it stays as it is. Undo or save them (git -C "{0}" stash), then reload the window to update.',
+					enginePath, changes.other.join(', '),
+				),
+			);
+			return 'noop';
+		}
+		if (changes && changes.generated.length > 0) {
+			await restoreGeneratedFiles(enginePath, changes.generated, this.gitRunner);
+		}
+
 		const moved = await vscode.window.withProgress({
 			location: vscode.ProgressLocation.Notification,
 			title: vscode.l10n.t('SpecBox: updating engine…'),

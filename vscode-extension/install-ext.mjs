@@ -43,6 +43,17 @@ export function parseListedVersion(listOutput) {
   return null;
 }
 
+/**
+ * How the rebuild installs dependencies, in order (UC-1405). `npm ci` installs exactly what the
+ * versioned package-lock.json says and never rewrites it; if it cannot, the fallback installs
+ * without touching the lock either. `npm install` rewrote it, left the managed clone with a local
+ * change, and every later update to a release tag failed.
+ */
+export const DEPENDENCY_INSTALL_COMMANDS = [
+  'npm ci --no-audit --no-fund',
+  'npm install --no-save --package-lock=false --no-audit --no-fund',
+];
+
 /** The value after `--expect`, or null. */
 export function expectedFromArgs(argv) {
   const i = argv.indexOf('--expect');
@@ -50,6 +61,16 @@ export function expectedFromArgs(argv) {
 }
 
 // --- Helpers ---
+
+/** True if the command exits 0 (works with stdio: 'inherit', where execSync returns null). */
+function runOk(cmd, opts = {}) {
+  try {
+    execSync(cmd, { encoding: 'utf-8', timeout: 300_000, stdio: 'pipe', ...opts });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function run(cmd, opts = {}) {
   try {
@@ -122,7 +143,9 @@ function buildVsix(version) {
   syncVersionFromEngine();
 
   console.log('  Installing dependencies...');
-  run('npm install', { cwd: __dirname, stdio: 'inherit' });
+  for (const cmd of DEPENDENCY_INSTALL_COMMANDS) {
+    if (runOk(cmd, { cwd: __dirname, stdio: 'inherit' })) { break; }
+  }
 
   console.log('  Compiling TypeScript...');
   const compiled = run('npm run compile', { cwd: __dirname });
@@ -202,7 +225,7 @@ function main(argv) {
     }
     if (!vsixPath) {
       console.error(`  No package for v${expected} available. Build the extension first:`);
-      console.error('    cd vscode-extension && npm install && npm run compile && npx vsce package');
+      console.error('    cd vscode-extension && npm ci && npm run compile && npx vsce package');
       process.exit(1);
     }
     console.log(`  Installing ${vsixPath}...`);

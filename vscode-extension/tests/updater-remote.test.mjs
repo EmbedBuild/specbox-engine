@@ -63,6 +63,7 @@ require.cache['vscode-stub'] = { id: 'vscode-stub', filename: 'vscode-stub', loa
 
 const {
 	compareSemver, fetchRemote, latestReleaseTag, checkoutRelease, managedEnginePath,
+	cloneLocalChanges, REBUILD_GENERATED_FILES,
 } = require(path.join(outDir, 'install.js'));
 const { ExtensionUpdater } = require(path.join(outDir, 'updater.js'));
 const { HealthChecker } = require(path.join(outDir, 'health.js'));
@@ -92,7 +93,9 @@ function scriptedGit(opts = {}) {
 			if (opts.remoteVersion === null) { return { code: 0, stdout: '', stderr: '' }; }
 			return { code: 0, stdout: `v${opts.remoteVersion ?? '0.0.0'}\nv6.0.0\n`, stderr: '' };
 		}
+		if (key === 'checkout' && args[1] === '--') { return opts.restore ?? { code: 0, stdout: '', stderr: '' }; }
 		if (key === 'checkout') { return opts.checkout ?? { code: 0, stdout: '', stderr: '' }; }
+		if (key === 'status') { return opts.status ?? { code: 0, stdout: '', stderr: '' }; }
 		return { code: 0, stdout: '', stderr: '' };
 	};
 	runner.recorded = recorded;
@@ -281,6 +284,51 @@ test('UC-10807: a failed checkout (local changes) only warns — nothing is rese
 	assert.equal(shown.warn.length, 1);
 	assert.match(shown.warn[0], /local changes/);
 	assert.ok(!git.recorded.some((a) => ['reset', 'branch', 'pull'].includes(a[0])), 'no reset, backup or pull');
+	assert.ok(!executed.includes('rebuild'));
+});
+
+// ============================================================
+// UC-1405 — the rebuild's own package-lock.json never blocks an update
+// ============================================================
+
+const LOCK = 'vscode-extension/package-lock.json';
+
+test('UC-1405: cloneLocalChanges splits the rebuild files from the rest', async () => {
+	const git = scriptedGit({ status: { code: 0, stdout: ` M ${LOCK}\n M .claude/skills/prd/SKILL.md\nR  a.md -> b.md\n`, stderr: '' } });
+	const changes = await cloneLocalChanges('/x', git);
+	assert.deepEqual(changes, { generated: [LOCK], other: ['.claude/skills/prd/SKILL.md', 'b.md'] });
+	assert.deepEqual(git.recorded[0], ['status', '--porcelain', '--untracked-files=no']);
+	assert.deepEqual(REBUILD_GENERATED_FILES, [LOCK]);
+	assert.equal(await cloneLocalChanges('/x', scriptedGit({ status: { code: 128, stdout: '', stderr: 'not a repo' } })), null);
+});
+
+test('UC-1405 AC-02: a clone whose only change is the lock moves to the new version', async () => {
+	reset();
+	infoAnswers = ['Update now'];
+	const git = scriptedGit({ remoteVersion: '6.38.0', status: { code: 0, stdout: ` M ${LOCK}\n`, stderr: '' } });
+	const u = makeUpdater(git, '6.38.0');
+	const res = await u.checkRemoteAndOffer(MANAGED, '6.34.0');
+	assert.equal(res, 'reloading');
+	const restore = git.recorded.findIndex((a) => a[0] === 'checkout' && a[1] === '--');
+	const move = git.recorded.findIndex((a) => a[0] === 'checkout' && a[1] === '--quiet');
+	assert.deepEqual(git.recorded[restore], ['checkout', '--', LOCK], 'the lock is restored');
+	assert.ok(restore >= 0 && restore < move, 'before moving to the tag');
+	assert.deepEqual(git.recorded[move], ['checkout', '--quiet', '--detach', 'v6.38.0']);
+	assert.equal(shown.warn.length, 0);
+});
+
+test('UC-1405 AC-03: changes in other files block the update and are named', async () => {
+	reset();
+	infoAnswers = ['Update now'];
+	const git = scriptedGit({ remoteVersion: '6.38.0', status: { code: 0, stdout: ` M ${LOCK}\n M rules/GLOBAL_RULES.md\n`, stderr: '' } });
+	const u = makeUpdater(git, '6.34.0');
+	const res = await u.checkRemoteAndOffer(MANAGED, '6.34.0');
+	assert.equal(res, 'noop');
+	assert.ok(!git.recorded.some((a) => a[0] === 'checkout'), 'nothing is restored and the clone does not move');
+	assert.equal(shown.warn.length, 1);
+	assert.match(shown.warn[0], /rules\/GLOBAL_RULES\.md/);
+	assert.ok(shown.warn[0].includes(MANAGED), 'it says where the copy is');
+	assert.match(shown.warn[0], /reload/);
 	assert.ok(!executed.includes('rebuild'));
 });
 

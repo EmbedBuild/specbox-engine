@@ -19,7 +19,7 @@ export const FRAGMENT_FORMAT = 'specbox-freeform-fragment/1';
 
 /** The SpecBox tools that take the FreeForm board as `items_content` (server registry, checked by a test). */
 export const CONTENT_TOOLS = new Set([
-  'add_ac', 'add_epic', 'add_uc', 'attach_evidence', 'bulk_update_hours_from_description', 'complete_uc',
+  'add_ac', 'add_epic', 'add_uc', 'approve_criteria', 'attach_evidence', 'bulk_update_hours_from_description', 'complete_uc',
   'delete_ac', 'delete_epic', 'delete_uc', 'estimate_from_ac', 'find_next_uc', 'get_ac_status',
   'get_board_status', 'get_cross_repo_dependencies', 'get_delivery_report', 'get_epic', 'get_evidence',
   'get_satellite_queue', 'get_sprint_status', 'get_uc', 'get_us', 'get_us_progress', 'import_spec',

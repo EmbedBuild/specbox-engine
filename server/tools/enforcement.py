@@ -265,7 +265,11 @@ async def _native_open_ucs(project_id: str) -> list[dict[str, Any]]:
                    AND (v.by_kind <> 'person' OR v.verdict <> 'accepted'
                         OR EXISTS (SELECT 1 FROM uc_acceptances x
                                     WHERE x.project_id = u.project_id AND x.uc_id = u.id))
-                 ORDER BY v.at DESC, v.id DESC LIMIT 1) AS latest_verdict
+                 ORDER BY v.at DESC, v.id DESC LIMIT 1) AS latest_verdict,
+               -- UC-12502: la huella de la última aprobación de sus criterios (0040).
+               (SELECT p.fingerprint FROM uc_criteria_approvals p
+                 WHERE p.project_id = u.project_id AND p.uc_id = u.id
+                 ORDER BY p.approved_at DESC, p.id DESC LIMIT 1) AS approval_fingerprint
           FROM use_cases u
           LEFT JOIN acceptance_criteria a ON a.project_id = u.project_id AND a.uc_id = u.id
          WHERE u.project_id = $1 AND u.state NOT IN ('done', 'archived')
@@ -280,7 +284,8 @@ async def _native_open_ucs(project_id: str) -> list[dict[str, Any]]:
         latest = json.loads(r["latest_verdict"]) if isinstance(r["latest_verdict"], str) else r["latest_verdict"]
         out.append({"uc_id": r["uc_id"], "name": r["name"], "description": r["description"], "state": r["state"],
                     "acs": acs, "human_accepted": bool(r["human_accepted"]),
-                    "review_verdicts": [latest] if latest else []})
+                    "review_verdicts": [latest] if latest else [],
+                    "approval_fingerprint": r["approval_fingerprint"]})
     return out
 
 
@@ -309,6 +314,8 @@ async def _freeform_open_ucs(items_content: str) -> list[dict[str, Any]]:
                      "verdict": ac.verdict, "spec_rules": ac.spec_rules} for ac in acs],
             # UC-12402: FreeForm no tiene panel; los veredictos van en el meta de la UC.
             "review_verdicts": await backend.get_review_verdicts("freeform", item),
+            # UC-12502: la huella de la última aprobación de sus criterios, en el meta de la UC.
+            "approval_fingerprint": ((await backend.get_criteria_approval("freeform", item)) or {}).get("fingerprint"),
         })
     return out
 
@@ -804,11 +811,16 @@ async def marker_policy_extras(
 #: revalida con las reglas nuevas (NFR de compatibilidad del PRD de EP-20).
 START_GATE_STATES = frozenset({"backlog", "user_stories"})
 #: Las medidas de start_uc, en el orden en que se comprueban (UC-12301, UC-12305).
-START_MEASURES: tuple[str, ...] = ("spec_quality", "pending_decisions")
-_START_CODES = {"spec_quality": "AC_QUALITY_BELOW_THRESHOLD", "pending_decisions": "PENDING_DECISIONS"}
+START_MEASURES: tuple[str, ...] = ("spec_quality", "pending_decisions", "ac_approval")
+_START_CODES = {
+    "spec_quality": "AC_QUALITY_BELOW_THRESHOLD",
+    "pending_decisions": "PENDING_DECISIONS",
+    "ac_approval": "AC_NOT_APPROVED",  # UC-12502
+}
 _START_HOW_TO = {
     "spec_quality": policy_mod.SPEC_QUALITY_HOW_TO,
     "pending_decisions": policy_mod.PENDING_HOW_TO,
+    "ac_approval": policy_mod.AC_APPROVAL_HOW_TO,
 }
 _CORRECTION_WINDOW_HOURS = 24
 
@@ -844,6 +856,13 @@ def _evaluate_start(measure: str, uc: dict[str, Any], raw: Any) -> tuple[bool, s
     if measure == "pending_decisions":
         marks = policy_mod.pending_marks(uc)
         return bool(marks), policy_mod.pending_reason(marks) or "", {"pending_marks": marks}
+    if measure == "ac_approval":
+        # UC-12502: la aprobación vale si su huella es la de los criterios de ahora.
+        from ..approval import is_approved, not_approved_reason
+
+        state = uc.get("criteria_approval") or {"state": "none"}
+        failed = not is_approved(state)
+        return failed, (not_approved_reason(uc["uc_id"], state) if failed else ""), {"criteria_approval": state}
     raise ValueError(f"start_uc no comprueba la medida {measure!r}")
 
 
@@ -1014,6 +1033,17 @@ async def start_gate(
             "state": uc_item.state,
             "acs": [{"ac_id": ac.id, "text": ac.text, "spec_rules": getattr(ac, "spec_rules", 1)} for ac in acs],
         }
+        if "ac_approval" in measures:
+            # UC-12502: la aprobación de sus criterios de ahora; anterior a la regla = «aprobada por
+            # migración» (solo con la medida en «block», como el resto de lo anterior a la regla).
+            from ..approval import approval_state, criteria_fingerprint
+
+            uc["criteria_approval"] = approval_state(
+                await backend.get_criteria_approval(board_id, uc_item),
+                criteria_fingerprint(acs),
+                predates=policy_mod.predates_rule(raw, "ac_approval", uc),
+            )
+            out["criteria_approval"] = uc["criteria_approval"]
         run = _GateRun(
             board_id=board_id, uc_id=uc_id, developer_id=developer_id, backend_type=backend_type,
             policy=policy, raw=raw, disk=disk, policy_content=policy_content, out=out,

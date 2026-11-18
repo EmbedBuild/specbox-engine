@@ -3,13 +3,14 @@
  *
  * Claude Code da a cada hook `session_id` y, dentro de un subagente, `agent_id` y `agent_type`. Esos
  * valores los pone Claude Code, no el modelo: con ellos el tablero sabe quién implementó una UC
- * (`start_uc`) y si quien la revisa es otro contexto (`record_review_verdict`). Los ponen en la
+ * (`start_uc`), si quien la revisa es otro contexto (`record_review_verdict`) y si quien aprueba los
+ * criterios es la sesión principal y no un subagente (`approve_criteria`, UC-12502). Los ponen en la
  * llamada el hook agent-identity o, en FreeForm con el MCP remoto, freeform-fragment (un solo hook
  * cambia cada llamada). Lo que mande el modelo en esos campos se sustituye.
  */
 
 /** Las tools que reciben la identidad del contexto. */
-export const IDENTITY_TOOLS = new Set(['start_uc', 'record_review_verdict']);
+export const IDENTITY_TOOLS = new Set(['start_uc', 'record_review_verdict', 'approve_criteria']);
 
 const ID_RE = /^[A-Za-z0-9_.:@/-]{1,128}$/;
 

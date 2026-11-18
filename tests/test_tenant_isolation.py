@@ -201,6 +201,9 @@ MUTATORS = [
         p, "UC-001", "AC-03", reason="retirado por otro tenant")),
     ("import_retired_criteria", lambda b, p: b.import_retired_criteria(
         p, "UC-001", [{"id": "AC-77", "text": "retirado inyectado"}])),
+    # US-125 / UC-12502: aprobar los criterios de una UC.
+    ("record_criteria_approval", lambda b, p: b.record_criteria_approval(
+        p, SimpleNamespace(id="UC-001", meta={}), {"fingerprint": "0" * 32, "criteria": []})),
 ]
 
 #: Métodos que reciben `board_id` y llevan verbo de escritura en el nombre pero
@@ -413,6 +416,8 @@ READERS = [
     ("get_review_verdicts", lambda b, p: b.get_review_verdicts(p, SimpleNamespace(id="UC-001", meta={}))),
     # US-125 / UC-12501: los criterios retirados de una UC.
     ("get_retired_criteria", lambda b, p: b.get_retired_criteria(p, "UC-001")),
+    # US-125 / UC-12502: la última aprobación de los criterios de una UC.
+    ("get_criteria_approval", lambda b, p: b.get_criteria_approval(p, SimpleNamespace(id="UC-001", meta={}))),
 ]
 
 #: Devuelven constantes del flujo sin consultar la base: nada que aislar.

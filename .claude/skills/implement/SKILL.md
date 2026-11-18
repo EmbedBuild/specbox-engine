@@ -173,6 +173,13 @@ US-XX recibida
 En un satélite, `find_next_uc(board_id, satellite="<clave>")` sustituye a construir
 `uc_scope` a mano.
 
+**Criterios sin aprobar (UC-12502, medida `ac_approval`).** Si `start_uc` responde
+`AC_NOT_APPROVED`, o `find_next_uc` responde `NO_APPROVED_UC`, **para y pide la aprobación a la
+persona**: enséñale los criterios (`get_uc`) y, si dice que sí, regístrala con
+`approve_criteria(board_id, uc_ids=[...])` desde la sesión principal. El autopilot no aprueba nunca,
+en ningún nivel (`decision_key` `criteria_approval`). En «warn», `start_uc` arranca y su respuesta
+trae el aviso; dilo en el resumen de la UC.
+
 ### 0.1b Si es plan local:
 
 ```bash

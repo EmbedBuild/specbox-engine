@@ -39,6 +39,8 @@ export const DECISION_KEYS = {
   feature_problem_definition: { family: 'spec_quality', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' } },
   // US-78 / UC-7805: a qué épica va la feature; la decide una persona (el PRD puede traerla ya declarada).
   feature_epic_assignment:    { family: 'spec_quality', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' } },
+  // US-125 / UC-12502: aprobar los criterios es el acto de una persona; el autopilot nunca lo da.
+  criteria_approval:          { family: 'spec_quality', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' } },
   feature_ui_interaction_profile: { family: 'spec_quality', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'auto_if_app_prd', agresivo: 'auto_if_app_prd' } },
   feedback_field_classification: { family: 'spec_quality', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' } },
 

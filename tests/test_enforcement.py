@@ -396,8 +396,8 @@ def test_the_report_counts_what_each_measure_would_stop_and_why_without_changing
     assert [u["uc_id"] for u in closing["ucs"]] == ["UC-4"] and "evidencia" in closing["ucs"][0]["reason"]
     # En «warn», todas las que detendría quedarían anteriores a la regla si pasara a «block» ahora.
     assert quality["predates_rule"] == quality["would_block"] and quality["blocks_now"] == 0
-    assert report["measures"]["ac_approval"] == {**report["measures"]["ac_approval"], "measurable": False}
-    assert "UC-12502" in report["measures"]["ac_approval"]["why_not"]
+    # UC-12502: desde la 6.44.0 la aprobación de criterios se mide desde el tablero.
+    assert report["measures"]["ac_approval"]["measurable"] is True
 
 
 def test_ucs_open_when_a_measure_blocks_are_safe_until_they_change():

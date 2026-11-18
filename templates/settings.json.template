@@ -314,7 +314,7 @@
         ]
       },
       {
-        "matcher": "mcp__SpecBox-MCP__(start_uc|record_review_verdict)",
+        "matcher": "mcp__SpecBox-MCP__(start_uc|record_review_verdict|approve_criteria)",
         "hooks": [
           {
             "type": "command",

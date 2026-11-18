@@ -1697,6 +1697,17 @@ async def get_uc(
             retired = []
         if retired:
             result["retired_criteria"] = retired
+        # UC-12502: si una persona aprobó estos criterios (approved), los aprobó y cambiaron (stale) o
+        # nunca (none). Solo native y FreeForm la guardan. «Aprobada por migración» la dicen start_uc y
+        # find_next_uc, que leen la política del tablero.
+        if getattr(backend, "STORES_SPEC_META", False):
+            from ..approval import approval_state, criteria_fingerprint
+
+            try:
+                latest = await backend.get_criteria_approval(board_id, uc_item)
+            except Exception:  # noqa: BLE001 — un tablero sin la tabla 0040 todavía
+                latest = None
+            result["criteria_approval"] = approval_state(latest, criteria_fingerprint(acs))
 
         return result
     finally:
@@ -1854,6 +1865,8 @@ async def start_uc(
             marker = dict(reservation_result.get("active_uc_marker") or {})
             marker.update(await _marker_extras(ctx, board_id, uc_id, uc_item, None, policy_content))
             detail["active_uc_marker"] = marker
+            if reservation_result.get("criteria_approval"):
+                detail["criteria_approval"] = reservation_result["criteria_approval"]  # UC-12502
             detail = attach_warnings(detail, reservation_result.get("enforcement_warnings") or [])
         return detail
 
@@ -1922,6 +1935,8 @@ async def start_uc(
         if us_state_change:
             detail["us_state_change"] = us_state_change
         detail["active_uc_marker"] = marker
+        if gate.get("criteria_approval"):
+            detail["criteria_approval"] = gate["criteria_approval"]  # UC-12502
         detail = attach_warnings(detail, gate["warnings"])
     return detail
 
@@ -1957,6 +1972,8 @@ def _gate_extras(gate: dict[str, Any]) -> dict[str, Any]:
     doc/tracking/enforcement_events.jsonl; ``policy_content``, a doc/tracking/policy.json.
     """
     extras: dict[str, Any] = {}
+    if gate.get("criteria_approval"):
+        extras["criteria_approval"] = gate["criteria_approval"]  # UC-12502, también «aprobada por migración»
     if gate.get("event_lines"):
         extras["event_line"] = "\n".join(gate["event_lines"])
     if gate.get("policy_content") is not None:
@@ -2054,6 +2071,7 @@ async def _start_uc_native(session: dict[str, str], board_id: str, uc_id: str, c
         "reserved_by": dev.developer_id,
         "active_uc_marker": marker,
         "enforcement_warnings": gate["warnings"],
+        **({"criteria_approval": gate["criteria_approval"]} if gate.get("criteria_approval") else {}),
     }
 
 
@@ -2924,6 +2942,8 @@ async def find_next_uc(
     items_content: str | None = None,
     epic: str | None = None,
     satellite: str | None = None,
+    include_unapproved: bool = False,
+    policy_content: str | None = None,
 ) -> dict[str, Any] | None:
     """Find the next Use Case to work on.
 
@@ -2944,9 +2964,16 @@ async def find_next_uc(
             items.json as a string for remote MCP so the lookup reflects the
             client's board without the server touching disk (enables the
             add_uc → mark_ac → find_next_uc chain in AC-02).
+        include_unapproved: UC-12502. With the measure ac_approval in «block», UCs whose
+            criteria a person has not approved are not proposed unless this is True; in
+            «warn», approved UCs come first and an unapproved one comes with a notice.
+            A UC that predates the rule counts as approved («aprobada por migración»).
+        policy_content: FreeForm content-passing: doc/tracking/policy.json (the
+            freeform-fragment hook passes it).
 
     Returns:
-        Full UC detail (same as get_uc) or None if nothing in Backlog.
+        Full UC detail (same as get_uc) or None if nothing in Backlog. With ac_approval
+        in «block» and only unapproved UCs left, an error NO_APPROVED_UC that lists them.
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
@@ -3007,21 +3034,30 @@ async def find_next_uc(
 
         priority1 = [c for c in ready_ucs if _get_item_us_id(c) in us_with_ip]
 
-        if priority1:
-            chosen = priority1[0]
-        else:
-            # Priority 2: US with most UCs in backlog
-            us_ready_count: dict[str, int] = {}
-            for c in ready_ucs:
-                uid = _get_item_us_id(c)
-                us_ready_count[uid] = us_ready_count.get(uid, 0) + 1
+        # Priority 2: US with most UCs in backlog; then the rest, in board order. The first of
+        # this list is the UC chosen until UC-12502 (the approval only reorders or filters it).
+        us_ready_count: dict[str, int] = {}
+        for c in ready_ucs:
+            uid = _get_item_us_id(c)
+            us_ready_count[uid] = us_ready_count.get(uid, 0) + 1
+        top_us = max(us_ready_count, key=lambda k: us_ready_count[k]) if us_ready_count else None
+        priority2 = [c for c in ready_ucs if _get_item_us_id(c) == top_us]
+        seen_ids: set[str] = set()
+        ordered = []
+        for candidate in [*priority1, *priority2, *ready_ucs]:
+            if candidate.id not in seen_ids:
+                seen_ids.add(candidate.id)
+                ordered.append(candidate)
 
-            if us_ready_count:
-                top_us = max(us_ready_count, key=lambda k: us_ready_count[k])
-                priority2 = [c for c in ready_ucs if _get_item_us_id(c) == top_us]
-                chosen = priority2[0] if priority2 else ready_ucs[0]
-            else:
-                chosen = ready_ucs[0]
+        approval_extra: dict[str, Any] = {}
+        if include_unapproved:
+            chosen = ordered[0]
+        else:
+            picked = await _pick_by_approval(ctx, backend, board_id, ordered, policy_content)
+            if "error" in picked:
+                return picked
+            chosen = picked["chosen"]
+            approval_extra = picked["extra"]
 
         uc_id = _get_uc_id(chosen)
         # Capture the board so get_uc (a fresh backend) sees the same
@@ -3031,7 +3067,80 @@ async def find_next_uc(
         await backend.close()
 
     # Return full UC detail (creates a new backend session — forward content).
-    return await get_uc(board_id, uc_id, ctx, items_content=mutated)
+    detail = await get_uc(board_id, uc_id, ctx, items_content=mutated)
+    if approval_extra and isinstance(detail, dict) and "error" not in detail:
+        detail.update(approval_extra)
+    return detail
+
+
+#: Cuántas UC candidatas mira find_next_uc para encontrar una aprobada (cada una lee sus criterios).
+APPROVAL_LOOKAHEAD = 25
+
+
+async def _pick_by_approval(
+    ctx: Context, backend: Any, board_id: str, ordered: list[Any], policy_content: str | None,
+) -> dict[str, Any]:
+    """La UC que propone find_next_uc según la medida ac_approval (UC-12502 AC-04).
+
+    Sin la medida (o en «off»), la primera, como siempre. En «warn», la primera aprobada de las
+    ``APPROVAL_LOOKAHEAD`` primeras; si ninguna lo está, la primera con el aviso. En «block», la
+    primera aprobada o anterior a la regla («aprobada por migración»); si no hay, ``NO_APPROVED_UC``.
+    """
+    from ..approval import approval_state, criteria_fingerprint, is_approved
+    from ..coordination import enforcement as policy_mod
+    from .enforcement import _gate_policy
+
+    try:
+        backend_type, raw, _ = await _gate_policy(ctx, board_id, policy_content)
+        policy = policy_mod.effective_policy(raw, backend_type=backend_type)
+        entry = policy["measures"]["ac_approval"]
+        mode = policy_mod.mode_of(policy, "ac_approval")
+    except Exception as e:  # noqa: BLE001 — sin política no se filtra: find_next_uc sigue como antes
+        logger.warning("find_next_uc_policy_failed", error=str(e))
+        return {"chosen": ordered[0], "extra": {}}
+    if not entry.get("active") or mode == "off":
+        return {"chosen": ordered[0], "extra": {}}
+
+    unapproved: list[str] = []
+    for item in ordered[:APPROVAL_LOOKAHEAD]:
+        acs = await backend.get_acceptance_criteria(board_id, item.id)
+        uc = {"uc_id": _get_uc_id(item), "name": item.name, "description": item.description, "state": item.state,
+              "acs": [{"ac_id": ac.id, "text": ac.text} for ac in acs]}
+        state = approval_state(
+            await backend.get_criteria_approval(board_id, item),
+            criteria_fingerprint(acs),
+            predates=policy_mod.predates_rule(raw, "ac_approval", uc),
+        )
+        if is_approved(state):
+            return {"chosen": item, "extra": {"criteria_approval": state}}
+        unapproved.append(uc["uc_id"])
+    if mode == "block":
+        return {
+            "error": (
+                f"Ninguna UC pendiente tiene sus criterios aprobados ({', '.join(unapproved)}). "
+                + policy_mod.AC_APPROVAL_HOW_TO
+            ),
+            "code": "NO_APPROVED_UC",
+            "unapproved_ucs": unapproved,
+            "how_to_continue": "Para verlas igualmente, find_next_uc con include_unapproved=True.",
+        }
+    first = ordered[0]
+    return {
+        "chosen": first,
+        "extra": {
+            "criteria_approval": {"state": "none"},
+            "enforcement_warnings": [{
+                "measure": "ac_approval",
+                "reason": f"Ninguna de las UC pendientes tiene sus criterios aprobados; la primera es {unapproved[0]}.",
+                "how_to_continue": policy_mod.AC_APPROVAL_HOW_TO,
+                "message": (
+                    f"Aviso de SpecBox: los criterios de {unapproved[0]} no están aprobados; con la medida "
+                    "ac_approval en «block», start_uc no la arrancaría."
+                ),
+                "outcome": "warned",
+            }],
+        },
+    }
 
 
 # ═══════════════════════════════════════════════════════════════════════

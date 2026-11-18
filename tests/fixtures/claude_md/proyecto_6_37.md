@@ -1,0 +1,403 @@
+# tienda-demo
+
+> Generado con SpecBox Engine v6.37.0
+
+## Stack
+
+| Tecnologia | Version |
+|------------|---------|
+| react | 19 |
+| Backend | supabase |
+| Database | postgres |
+
+## Arquitectura
+
+Monorepo con web y api.
+
+Ver patrones detallados en: specbox-engine/architecture/{stack}/
+
+## Qué es este repositorio
+
+La tienda online de Demo SL: web (Astro) y api (FastAPI). El cliente revisa cada viernes.
+
+## Memoria Persistente (Engram) — REQUERIDO
+
+Este proyecto usa Engram como memoria persistente FTS5 para sobrevivir compactaciones de contexto.
+Engram es una **dependencia obligatoria** del engine.
+
+### Verificacion al inicio de sesion
+
+**REGLA INNEGOCIABLE:** Al inicio de cada sesion, verifica que las tools de Engram (`mem_save`,
+`mem_search`, `mem_context`) estan disponibles. Si NO lo estan, **PARA INMEDIATAMENTE**.
+
+Detecta el sistema operativo del usuario y muestra las instrucciones de instalacion correspondientes:
+
+> Engram es un binario Go precompilado (~5 MB). NO se instala con pip/npm.
+> Releases: https://github.com/Gentleman-Programming/engram/releases
+
+**macOS:**
+```
+ENGRAM NO DETECTADO — Sesion detenida.
+
+Engram es requerido para la memoria persistente del engine.
+Sin el, las compactaciones de contexto causan perdida irreversible de estado.
+
+SO detectado: macOS
+
+Pasos para instalar:
+
+1. Descargar el binario desde GitHub Releases:
+   # Apple Silicon (M1/M2/M3/M4):
+   curl -sL https://github.com/Gentleman-Programming/engram/releases/latest/download/engram_1.7.1_darwin_arm64.tar.gz | tar xz
+   # Intel:
+   curl -sL https://github.com/Gentleman-Programming/engram/releases/latest/download/engram_1.7.1_darwin_amd64.tar.gz | tar xz
+
+2. Mover al PATH:
+   mv engram ~/.local/bin/   # o /usr/local/bin/ con sudo
+
+3. Verificar que el servidor MCP esta registrado en .vscode/mcp.json:
+   {
+     "servers": {
+       "engram": {
+         "command": "engram",
+         "args": ["mcp", "--tools=agent"]
+       }
+     }
+   }
+
+4. Reiniciar Claude Code para que cargue el servidor MCP.
+
+5. Verificar:
+   engram save "test" "hello engram"
+   engram search "hello"
+```
+
+**Linux:**
+```
+SO detectado: Linux
+
+1. Descargar:
+   # x86_64:
+   curl -sL https://github.com/Gentleman-Programming/engram/releases/latest/download/engram_1.7.1_linux_amd64.tar.gz | tar xz
+   # arm64:
+   curl -sL https://github.com/Gentleman-Programming/engram/releases/latest/download/engram_1.7.1_linux_arm64.tar.gz | tar xz
+
+2. mv engram ~/.local/bin/
+
+3-5. (mismos pasos que macOS)
+```
+
+**Windows:**
+```
+SO detectado: Windows
+
+1. Descargar desde GitHub Releases:
+   https://github.com/Gentleman-Programming/engram/releases/latest
+   Archivo: engram_1.7.1_windows_amd64.zip o engram_1.7.1_windows_arm64.zip
+
+2. Descomprimir y mover engram.exe a una carpeta en el PATH.
+
+3-5. (mismos pasos que macOS)
+```
+
+**NO continues trabajando sin Engram.** No hay fallback — es infraestructura critica.
+
+### Protocolo "Surviving Compaction"
+
+Si detectas que has sufrido una compactacion de contexto (pierdes memoria de lo que estabas haciendo,
+no reconoces archivos mencionados previamente, o el historial parece truncado), tu PRIMERA accion
+antes de hacer cualquier otra cosa debe ser:
+
+1. Ejecutar `mem_context` con el proyecto actual para recuperar el estado de sesiones previas.
+2. Ejecutar `mem_search` con keywords relevantes si `mem_context` no devuelve suficiente detalle.
+3. Solo despues de recuperar el contexto, continuar con la tarea en curso.
+
+**NUNCA** intentes continuar "de memoria" tras una compactacion. Siempre consulta Engram primero.
+
+### Protocolo de Persistencia Activa
+
+Durante el trabajo normal (sin compactacion), persiste informacion critica en Engram:
+
+- Al iniciar una feature: `mem_save` con titulo descriptivo, plan y archivos clave.
+- Al completar cada fase de /implement: `mem_save` con el resumen de la fase completada.
+- Al encontrar un problema complejo: `mem_save` con el diagnostico y la solucion.
+- Al iniciar sesion: ejecutar `mem_session_start` para registrar nueva sesion.
+- Al finalizar sesion: se ejecuta automaticamente `mem_session_summary` via hook.
+
+### Tools Engram (MCP)
+
+| Tool | Uso |
+|------|-----|
+| `mem_save` | Guardar observacion estructurada (title, content, type, project) |
+| `mem_search` | Buscar en memoria por keywords (FTS5 full-text search) |
+| `mem_context` | Recuperar contexto reciente de sesiones previas |
+| `mem_update` | Modificar una observacion existente por ID |
+| `mem_session_start` | Iniciar nueva sesion de trabajo |
+| `mem_session_end` | Finalizar sesion con resumen opcional |
+| `mem_session_summary` | Persistir resumen estructurado de fin de sesion |
+| `mem_timeline` | Ver contexto cronologico alrededor de una observacion |
+| `mem_stats` | Estadisticas del sistema de memoria |
+
+## Quality Contract — Calidad sobre velocidad
+
+> Este proyecto usa SpecBox Engine. Tú, el agente, pones la velocidad; SpecBox pone el control
+> y garantiza la calidad. Tu parte de ese control: lee antes de escribir, piensa antes de actuar,
+> verifica antes de marcar como hecho.
+
+### Reglas innegociables
+
+1. **Lee antes de escribir** — El hook `quality-first-guard.mjs` BLOQUEA modificaciones a archivos existentes si no los leiste primero en esta sesion. No hay excepciones.
+2. **Piensa antes de actuar** — Para tareas complejas (>3 archivos o logica no trivial), articula tu enfoque en texto visible antes de escribir codigo.
+3. **Verifica antes de cerrar** — No marques una tarea como completada sin verificar que funciona. "Deberia funcionar" no es verificacion.
+4. **Pregunta antes de adivinar** — Si no estas seguro del enfoque, pregunta al usuario. Una pregunta cuesta ~50 tokens. Una iteracion fallida cuesta miles.
+5. **Una correcta > tres rapidas** — Una implementacion bien pensada vale mas que tres intentos rapidos que cada uno necesita arreglo.
+
+### Antipatrones que cuestan tokens
+
+| Antipatron | Coste real | Alternativa |
+|------------|-----------|-------------|
+| Escribir sin leer | Rompe funcionalidad existente, requiere rollback | Leer primero (hook lo fuerza) |
+| Adivinar enfoque | 3-5 iteraciones de healing, ~5K tokens cada una | Preguntar al usuario (~50 tokens) |
+| "Ya esta" sin verificar | Bug descubierto tarde, requiere reabrir UC | Verificar lint + test + funcionalidad |
+| Copiar codigo generico | No encaja con patrones del proyecto, refactor posterior | Leer codigo existente, seguir patrones |
+
+## Reglas del Proyecto
+
+### Importar reglas globales
+Las reglas de specbox-engine/rules/GLOBAL_RULES.md aplican a este proyecto.
+
+### Reglas especificas de este proyecto
+
+- Los precios se guardan en céntimos.
+- Nada de SQL fuera de supabase/migrations.
+
+## Sistema de Diseño
+
+Estilo: Tinta (tinta-2)
+Diseños Stitch: `doc/design/{feature}/`
+Patrones: `specbox-engine/design/stitch/`
+
+## Agentes del Proyecto
+
+### Opcion A: Subagentes
+
+Los agentes viven en el engine, no se copian al proyecto: cada uno es `agents/<archivo>.md` del
+clon del engine (`~/.specbox/specbox-engine/agents/` si lo instaló la extensión de VSCode). La tool
+`list_agent_definitions` del MCP los lista. `/implement` los delega en Tasks aisladas.
+
+| ID | Agente | Archivo |
+|----|--------|---------|
+| AG-00 | Orchestrator | agents/orchestrator.md |
+| AG-01 | Feature Generator | agents/feature-generator.md |
+| AG-02 | UI/UX Designer | agents/uiux-designer.md |
+| AG-03 | DB Specialist | agents/db-specialist.md |
+| AG-04 | QA Validation | agents/qa-validation.md |
+| AG-05 | n8n Specialist | agents/n8n-specialist.md |
+| AG-06 | Design Specialist | agents/design-specialist.md |
+| AG-07 | Apps Script Specialist | agents/appscript-specialist.md |
+| AG-08 | Quality Auditor | agents/quality-auditor.md |
+| AG-09a | Acceptance Tester | agents/acceptance-tester.md |
+| AG-09b | Acceptance Validator | agents/acceptance-validator.md |
+| AG-10 | Developer Tester | agents/developer-tester.md |
+| AG-11 | Quality Auditor (externo, /audit) | agents/ag-10-quality-auditor.md |
+
+### Opcion B: Agent Teams (nativo Claude Code)
+
+Ver: specbox-engine/agent-teams/README.md
+Config: .claude/settings.json con CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+
+## Servicios Externos
+
+### Supabase (ej: Supabase)
+- Project ID: abcd1234
+- Entorno: desarrollo
+- Patrones: specbox-engine/infra/{service}/patterns.md
+
+### Google Stitch (si aplica UI)
+- Project ID: 987654
+- Device: {DESKTOP|MOBILE}
+- Model: GEMINI_3_8_FLASH
+- Diseños en: doc/design/{feature}/
+
+## Comandos Disponibles
+
+| Comando | Proposito |
+|---------|-----------|
+| /prd | Genera PRD + work item |
+| /plan | Plan de implementacion + diseños Stitch + VEG (si hay targets) |
+| /implement | Autopilot: rama + fases + design-to-code + QA + PR |
+| /adapt-ui | Escanea y mapea widgets existentes |
+| /optimize-agents | Audita y optimiza sistema agentico |
+| /feedback | Reporta bugs de testing manual → bloquea merge |
+
+## Flujo de Desarrollo
+
+```
+/prd → PRD + Trello/Plane (con Definition Quality Gate)
+  |
+/plan → Plan tecnico + Diseños Stitch + VEG (si hay targets en PRD)
+  |
+/implement → Autopilot: rama + imagenes VEG + design-to-code + QA + Acceptance Gate + PR
+  |        → AG-08 Quality Audit (GO/NO-GO)
+  |        → AG-09a Acceptance Tests (evidencia visual)
+  |        → AG-09b Acceptance Validator (ACCEPTED/REJECTED)
+  |        → Merge secuencial → pull main → siguiente card
+  |
+/optimize-agents → Validar configuracion agentica
+```
+
+**CI de GitHub, solo a mano.** Las pruebas (unitarias, lint, aceptación y E2E) se pasan en local
+antes de la PR; la CI de GitHub se lanza a mano (`workflow_dispatch`) al cerrar un bloque grande.
+Ni la PR ni el merge esperan a un check remoto. Las plantillas de workflow del engine
+(`templates/github-actions/`) solo traen `workflow_dispatch`, y una tarea programada (`schedule`)
+corre como mucho una vez al día: en un repo privado cada ejecución gasta minutos del plan de GitHub.
+
+## Trello — Fuente de Verdad (Spec-Driven)
+
+Si `trello.boardId` está configurado en `.claude/settings.local.json`,
+el engine opera en modo Spec-Driven:
+
+| Concepto | En Trello | Identificador |
+|----------|-----------|---------------|
+| User Story | Card con label "US" | US-XX |
+| Use Case | Card con label "UC" | UC-XXX |
+| Acceptance Criteria | Checklist items en card UC | AC-XX |
+
+### Flujo
+
+- /prd → Lee/crea US + UCs en Trello → adjunta PRD como PDF
+- /plan → Lee US/UCs → genera plan → adjunta como PDF
+- /implement → find_next_uc → start_uc → fases → complete_uc → merge
+
+### Tools disponibles (MCP specbox-engine)
+
+| Tool | Uso |
+|------|-----|
+| setup_board | Crear board nuevo con estructura correcta |
+| get_us, list_us | Leer User Stories |
+| get_uc, list_uc | Leer Use Cases |
+| start_uc | Iniciar implementación de un UC |
+| complete_uc | Marcar UC como completado |
+| find_next_uc | Determinar siguiente UC a implementar |
+| mark_ac_batch | Reportar resultados de ACs |
+| attach_evidence | Adjuntar PDF de evidencia a card |
+| import_spec | Importar estructura US/UC/AC completa |
+
+Si NO hay `trello.boardId`, el engine funciona en modo freeform (sin Trello).
+
+## Acceptance Testing — Gherkin BDD
+
+Los Acceptance Criteria (AC-XX) de cada Use Case se validan con Gherkin en español.
+
+### Estructura
+
+```
+test/acceptance/          # Flutter (o tests/acceptance/ en React/Python)
+├── features/
+│   └── UC-XXX_{nombre}.feature
+├── steps/
+│   ├── common_steps.{ext}
+│   └── UC-XXX_steps.{ext}
+└── reports/
+    ├── cucumber-report.json
+    └── acceptance-report.pdf
+```
+
+### Formato .feature
+
+```gherkin
+# language: es
+@US-01 @UC-001
+Característica: UC-001 — Nombre del caso de uso
+  Como [Actor]
+  Quiero [Objetivo]
+  Para [Beneficio]
+
+  @AC-01
+  Escenario: Descripción del criterio
+    Dado [precondición]
+    Cuando [acción]
+    Entonces [resultado esperado]
+```
+
+### Framework por stack
+
+| Stack | Paquete |
+|-------|---------|
+| Flutter | bdd_widget_test ^0.7.1 |
+| React | playwright-bdd ^8.4.2 |
+| Python | pytest-bdd >=8.1.0 |
+| Go | testing + testify |
+| GAS | jest-cucumber |
+
+## Visual Experience Generation — VEG (v3.9)
+
+Sistema que genera decisiones visuales intencionales (imagenes, animaciones, directivas de diseno) adaptadas a la audiencia del producto. Se activa automaticamente cuando el PRD incluye seccion Audiencia con targets.
+
+### Activacion
+
+- Incluir seccion **Audiencia** en el PRD (targets, JTBD, ICPs)
+- `/plan` detecta targets → genera artefactos VEG en `doc/veg/{feature}/`
+- `/implement` usa VEG para generar imagenes, instalar motion deps, y enriquecer design-to-code
+
+### 3 Pilares
+
+| Pilar | Que genera | Herramienta |
+|-------|-----------|-------------|
+| **Imagenes** | Prompts + generacion via MCP | Canva MCP (primary, €0) + lansespirit (fallback) |
+| **Motion** | Catalogo de animaciones por nivel | `flutter_animate` (Flutter) / `motion` (React) |
+| **Diseno** | Directivas para Stitch | Density, whitespace, hierarchy, CTA, typography |
+
+### Configuracion
+
+La seccion `veg` en `.claude/settings.local.json` controla providers y motion. Ver `templates/settings.json.template` para referencia completa de opciones.
+
+Config de MCP de imagenes: ver `veg.mcpServers` en settings template. Canva MCP se configura globalmente en `~/.claude/mcp.json`.
+
+### Sin targets = sin VEG
+
+Si el PRD no tiene seccion Audiencia, el pipeline funciona como siempre (legacy). VEG es opt-in y backward compatible.
+
+## E2E Testing
+
+| Aspecto | Detalle |
+|---------|---------|
+| Framework | Playwright |
+| Config | `e2e/playwright.config.ts` (Flutter) o `playwright.config.ts` (React) |
+| Run | Ver `architecture/{stack}/e2e-testing.md` |
+| Report | `doc/test_cases/reports/` |
+| Patterns | `specbox-engine/architecture/{stack}/e2e-testing.md` |
+
+## Permisos de Claude Code
+
+`.claude/settings.json` (versionado) deja leer y editar el proyecto sin preguntar, pero pide
+permiso para ejecutar comandos y para abrir webs, y prohíbe leer `~/.ssh`, `~/.specbox` y `.env`
+y usar `curl` o `wget`. Si quieres el modo sin preguntas (autopilot), actívalo solo en tu máquina
+con `.claude/settings.local.json`, que no se versiona y que `upgrade_project` no toca:
+
+```json
+{ "permissions": { "allow": ["Bash", "WebFetch"] } }
+```
+
+Las prohibiciones de `settings.json` siguen valiendo con ese modo. Guía:
+`specbox-engine/doc/guides/permisos.md`.
+
+## Despliegue
+
+Se publica con un script propio:
+
+```bash
+## esto no es un encabezado: va dentro del bloque de código
+./scripts/deploy.sh produccion
+```
+
+## Hooks
+
+```bash
+# Post-modificacion (hooks estandar para react)
+```
+
+---
+
+*Generado: 2026-10-01T10:00:00+00:00*
+*Engine: SpecBox Engine v6.37.0*

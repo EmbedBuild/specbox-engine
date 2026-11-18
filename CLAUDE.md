@@ -306,7 +306,7 @@ specbox-engine/
 │   ├── firebase/
 │   └── n8n/
 ├── templates/             ← Templates para nuevos proyectos
-│   ├── CLAUDE.md.template
+│   ├── CLAUDE.md.template ← ≤200 líneas; zonas @specbox:claude-md que upgrade_project actualiza (UC-12209, doc/guides/claude-md.md)
 │   ├── settings.json.template
 │   ├── team-config.json.template
 │   └── quality-baseline.json.template

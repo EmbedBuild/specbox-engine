@@ -459,6 +459,17 @@ class SpecBackend(ABC):
         current = uc_item.meta.get("review_verdicts") if isinstance(uc_item.meta, dict) else None
         return [v for v in (current or []) if isinstance(v, dict)]
 
+    async def void_review_verdicts(self, board_id: str, uc_item: Any, at: str) -> None:
+        """Caduca los veredictos vigentes de la UC (vuelve a trabajo, ``voids_review``).
+
+        Native lo hace el trigger de estado de la UC (migración 0037); aquí, en el ``meta``.
+        """
+        from .review import void_verdicts
+
+        current = await self.get_review_verdicts(board_id, uc_item)
+        if any(not v.get("voided_at") for v in current):
+            await self.update_item(board_id, uc_item.id, meta={"review_verdicts": void_verdicts(current, at)})
+
     @abstractmethod
     async def mark_acceptance_criterion(
         self,

@@ -1390,16 +1390,22 @@ class NativeBackend(SpecBackend):
         pool = await self._pool()
         async with pool.acquire() as conn:
             rows = await conn.fetch(
-                "SELECT verdict, by_kind, developer_id, session_id, agent_id, agent_type, independent, reason, at "
-                "FROM uc_review_verdicts WHERE project_id = $1 AND uc_id = $2 ORDER BY at DESC, id DESC LIMIT $3",
+                "SELECT verdict, by_kind, developer_id, session_id, agent_id, agent_type, independent, reason, at, "
+                "voided_at FROM uc_review_verdicts WHERE project_id = $1 AND uc_id = $2 "
+                "ORDER BY at DESC, id DESC LIMIT $3",
                 board_id,
                 uc_item.id,
                 MAX_VERDICTS,
             )
+        # 0037: voided_at solo si caducó (la UC volvió a trabajo); las fechas, en ISO.
         return [
-            {**{k: r[k] for k in r.keys() if k != "at" and r[k] is not None}, "at": r["at"].isoformat()}
+            {k: (r[k].isoformat() if k in ("at", "voided_at") else r[k]) for k in r.keys() if r[k] is not None}
             for r in reversed(rows)
         ]
+
+    async def void_review_verdicts(self, board_id: str, uc_item: Any, at: str) -> None:
+        """Nada que hacer: el trigger de estado de la UC los caduca en la misma transacción (0037)."""
+        return None
 
     async def get_acceptance_criteria(self, board_id: str, uc_item_id: str) -> list[ChecklistItemDTO]:
         await self._require_read_access(board_id)

@@ -12,6 +12,9 @@ La parte pura de la revisión independiente, sin tablero ni red:
 - **Lo que deja fusionar** (:func:`independent_review_result`): la aceptación de una persona (el panel)
   en cualquier nivel de autopilot; en «agresivo», y en FreeForm, que no tiene panel, también el último
   veredicto «aceptada» de un contexto independiente. Una UC devuelta después no se fusiona.
+- **Caducan** (:func:`voids_review`): al volver a trabajo desde revisión o hecha, o al reabrir una UC
+  hecha, los veredictos vigentes caducan (``voided_at``), igual que la aceptación de una persona. La
+  regla solo cuenta los vigentes: lo revisado tiene que ser el trabajo que se va a fusionar.
 
 El hook merge-guard aplica la misma regla en ``lib/independent-review.mjs`` (una prueba compara las dos).
 """
@@ -93,8 +96,36 @@ def validate_verdict(verdict: Any, reason: Any) -> tuple[str, str | None]:
     return verdict, (text or None)
 
 
+#: Estados de trabajo: volver a uno de ellos desde revisión o hecha caduca los veredictos.
+REVIEWED_STATES: frozenset[str] = frozenset({"review", "done"})
+
+
+def voids_review(old_state: str | None, new_state: str | None) -> bool:
+    """True si pasar de ``old_state`` a ``new_state`` caduca los veredictos y la aceptación humana.
+
+    La misma regla que el trigger de la migración 0037 (y que la aceptación humana de 0036): volver a
+    trabajo desde revisión o hecha, o reabrir una UC hecha. Pasar de revisión a hecha no caduca nada.
+    """
+    if old_state == new_state:
+        return False
+    return (old_state in REVIEWED_STATES and new_state not in REVIEWED_STATES) or (
+        old_state == "done" and new_state == "review"
+    )
+
+
+def void_verdicts(verdicts: list[dict[str, Any]], at: str) -> list[dict[str, Any]]:
+    """Los veredictos con ``voided_at`` puesto en los que estaban vigentes (FreeForm y el meta)."""
+    return [
+        {**v, "voided_at": at} if isinstance(v, dict) and not v.get("voided_at") else v
+        for v in verdicts or []
+    ]
+
+
 def _latest(verdicts: list[dict[str, Any]]) -> dict[str, Any] | None:
-    valid = [v for v in verdicts or [] if isinstance(v, dict) and v.get("verdict") in VERDICTS]
+    valid = [
+        v for v in verdicts or []
+        if isinstance(v, dict) and v.get("verdict") in VERDICTS and not v.get("voided_at")
+    ]
     return max(valid, key=lambda v: str(v.get("at") or "")) if valid else None
 
 
@@ -109,7 +140,7 @@ def independent_review_result(
 
     Devuelve ``{"ok", "reason_code"?, "reason"?}``. ``reason_code``: ``returned`` (devuelta después del
     último visto bueno), ``no_person_acceptance`` (fuera del autopilot «agresivo» hace falta una
-    persona) o ``no_independent_verdict``.
+    persona) o ``no_independent_verdict``. Solo cuentan los veredictos vigentes (sin ``voided_at``).
     """
     latest = _latest(verdicts)
     if latest is not None and latest.get("verdict") == "returned":

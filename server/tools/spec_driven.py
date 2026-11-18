@@ -1688,6 +1688,8 @@ async def move_uc(
 
         # Move UC
         await backend.update_item(board_id, uc_item.id, state=target)
+        # UC-12402: back to work, the review verdicts expire (0037).
+        await _void_review_if_needed(backend, board_id, uc_item, uc_item.state, target)
 
         # UC-1007 (US-10): moving a UC to `done` releases its native reservation,
         # symmetric to complete_uc. Without this, a UC closed via move_uc(done)
@@ -1816,6 +1818,7 @@ async def start_uc(
 
         # Move to in_progress
         await backend.update_item(board_id, uc_item.id, state="in_progress")
+        await _void_review_if_needed(backend, board_id, uc_item, uc_item.state, "in_progress")
         # UC-12402: who implements, to tell an independent review apart.
         await _record_implementer(backend, board_id, uc_item, implementer_record(
             "", identity, datetime.now(timezone.utc).isoformat()))
@@ -1874,6 +1877,22 @@ async def _record_implementer(backend: Any, board_id: str, uc_item: Any, impleme
         await backend.set_uc_implementer(board_id, uc_item, implementer)
     except Exception as e:  # noqa: BLE001 — sin implementador, la revisión pide un subagente
         logger.warning("record_implementer_failed", error=str(e))
+
+
+async def _void_review_if_needed(backend: Any, board_id: str, uc_item: Any, old_state: Any, new_state: str) -> None:
+    """UC-12402 (0037): al volver a trabajo, los veredictos de revisión de la UC caducan.
+
+    Native lo hace su trigger en la misma transacción; el resto, en el meta. Nunca hace fallar el
+    movimiento: la UC ya cambió de estado.
+    """
+    from ..review import voids_review
+
+    if not voids_review(old_state, new_state):
+        return
+    try:
+        await backend.void_review_verdicts(board_id, uc_item, datetime.now(timezone.utc).isoformat())
+    except Exception as e:  # noqa: BLE001
+        logger.warning("void_review_verdicts_failed", error=str(e))
 
 
 def _gate_extras(gate: dict[str, Any]) -> dict[str, Any]:

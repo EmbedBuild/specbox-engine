@@ -2,6 +2,67 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.41.0] - 2026-11-18 — "Con recibo"
+
+Primera tanda de US-124: «hecho» significa lo mismo para quien implementa y para quien revisa. Una UC
+solo se cierra, y su PR solo se fusiona, con cada criterio hecho y con un recibo que pasa.
+
+### Added
+
+- **`complete_uc` exige cada criterio con evidencia que pasa** (UC-12401, #385) — medida
+  `closing_evidence`. Un criterio está demostrado si está hecho y tiene al menos un recibo con
+  `passed: true`; cuentan todos los criterios, también los internos.
+  - En «block», `complete_uc` devuelve `AC_WITHOUT_PASSING_EVIDENCE` con cada criterio y su motivo
+    (`not_done`, `no_evidence`, `failing_evidence`); la UC queda en su estado y con su reserva.
+  - En «warn», cierra y la respuesta lleva `enforcement_warnings` con esos criterios.
+  - Una UC empezada antes de que la medida pasara a «block» cierra con aviso; un salto con
+    `skip_enforcement` y motivo deja cerrar una vez. Bloqueos y correcciones quedan en el tablero.
+- **Hook nuevo `merge-guard`** (UC-12401) — antes de `gh pr merge` aplica la misma regla a la UC activa
+  (`lib/closing-evidence.mjs`; una prueba la compara con la del servidor). En «warn» avisa; en «block»
+  detiene la fusión con cada criterio sin demostrar.
+- **FreeForm guarda veredicto y recibos de cada criterio** en `items.json` (UC-12401 AC-05), como
+  native, con quién lo marcó: `mark_ac` y `mark_ac_batch` aceptan `marked_by`, que el hook
+  `freeform-fragment` pone con el nombre de git. Así los recibos también se ven con el MCP remoto.
+
+### Changed
+
+- **/implement marca los criterios y pasa la UC a revisión antes de fusionar** (paso 8.5.1b, antes
+  8.5.4). Una prueba de aceptación que falla se marca con `passed: false` y el autopilot para antes
+  de la fusión, con el criterio que falla en el informe; la skill ya no dice «NO bloquear aquí».
+- `freeform-fragment` pasa la política a `complete_uc` y guarda lo que devuelve, como con `start_uc`.
+- En FreeForm, reescribir el texto de un criterio hecho deja su veredicto en «no pasa», como el
+  trigger de native.
+
+### Para los proyectos que ya existían
+
+- **`closing_evidence` empieza en «warn»** en todos los tableros, nuevos y existentes: avisa y no
+  detiene nada. Para que detenga el cierre y la fusión, quien administra el proyecto:
+  `set_enforcement_mode(measure="closing_evidence", mode="block")`, que primero enseña el informe de
+  impacto. Una UC empezada antes de ese momento cierra con aviso.
+- **Las UC que ya están cerradas no se revalidan.** Las que se marcaron antes de los recibos por
+  criterio (US-56) tienen criterios sin recibo; solo cuentan si se vuelven a abrir.
+- **FreeForm**: los criterios marcados antes de esta versión tienen su recibo en los comentarios de la
+  UC; `complete_uc` los sigue leyendo de ahí. Con el MCP remoto, que no ve esos comentarios, un
+  criterio así cuenta solo por «hecho» en el informe de impacto.
+- **No hay tipo de recibo nuevo.** Una nota escrita (un criterio comprobado a mano) es el recibo de
+  texto libre de siempre; el panel, el portal y la app lo enseñan sin cambios.
+- El hook `merge-guard` llega con la plantilla; hasta actualizar los hooks del proyecto
+  (`specbox hooks update`), la fusión sigue como antes y solo `complete_uc` aplica la medida.
+
+### Security
+
+- **Lo que se fusiona y se cierra está demostrado** — `complete_uc` y `merge-guard` comprueban los
+  recibos en el servidor o en el tablero, no en lo que dice el agente; `merge-guard` solo lee (`get_uc`
+  con la identidad del dispositivo, o `items.json`) y, sin datos, no detiene nada.
+- **El autor de un recibo de FreeForm es un nombre, no texto libre** — `marked_by` se recorta a 100
+  caracteres en una línea, y en native se ignora: firma siempre el developer de la sesión.
+
+### Tests
+
+- `tests/test_closing_evidence.py` (18, dos contra Postgres), `tests/hooks/merge-guard.test.mjs` (7),
+  la paridad de la regla entre el servidor y el hook, y los escenarios de `merge-guard` en
+  `hook-channels` y de `complete_uc` y `mark_ac` en `freeform-fragment`.
+
 ## [6.40.0] - 2026-11-18 — "Por escrito"
 
 Segunda y última tanda de US-123: la spec dice más y lo deja escrito junto a ella. Cada criterio dice cómo se

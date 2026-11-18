@@ -1,5 +1,5 @@
-version: 6.40.0
-codename: "Por escrito"
+version: 6.41.0
+codename: "Con recibo"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-18
@@ -641,8 +641,21 @@ features:
   - prd-format-v2
   - check-prd-format
   - prd-discarded-alternatives
+  # New (v6.41.0) — Con recibo
+  - measure-closing-evidence
+  - merge-guard-hook
+  - freeform-ac-receipts
 
 changelog:
+  6.41.0:
+    date: 2026-11-18
+    codename: "Con recibo"
+    changes:
+      - "feat: closing_evidence measure: complete_uc checks that every criterion is done with at least one receipt that passes before closing; in «block» it returns AC_WITHOUT_PASSING_EVIDENCE with each criterion and its reason (not_done, no_evidence, failing_evidence) and the UC keeps its state and reservation; in «warn» it closes and warns; a UC started before the block (started_at vs block_since) closes with a warning (UC-12401, #385)"
+      - "feat: new merge-guard hook (PreToolUse of gh pr merge) applies the same rule to the active UC (lib/closing-evidence.mjs, parity tested with the server) (UC-12401)"
+      - "feat: FreeForm keeps the verdict and the receipts of each criterion in items.json with who marked it (marked_by, set by freeform-fragment from git); rewriting a done criterion leaves its verdict failing (UC-12401)"
+      - "change: /implement marks the criteria and moves the UC to review before merging (8.5.1b); a failing acceptance test is marked passed:false and the autopilot stops before the merge (UC-12401)"
+
   6.40.0:
     date: 2026-11-18
     codename: "Por escrito"

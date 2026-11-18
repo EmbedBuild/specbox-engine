@@ -443,3 +443,95 @@ async def test_add_uc_assigns_next_uc_id(backend, ctx):
     )
     assert "milestone" not in new_item.meta
     assert new_item.meta["horas"] == 4.0
+
+
+# ── add_uc: numeración por historia (UC-12214) ──────────────────────
+
+
+async def _story(backend, us_id: str, uc_ids: list[str]):
+    us = await backend.create_item("board", name=f"{us_id}: Historia", labels=["US"], meta={"us_id": us_id})
+    for uc_id in uc_ids:
+        await backend.create_item(
+            "board", name=f"{uc_id}: caso", labels=["UC"], parent_id=us.id,
+            meta={"uc_id": uc_id, "us_id": us_id},
+        )
+    return us
+
+
+def _uc_ids(backend) -> list[str]:
+    return sorted(i.meta["uc_id"] for i in backend.items.values() if "UC" in i.labels)
+
+
+async def _add(ctx, us_id: str, **kwargs):
+    return await sm.add_uc("board", us_id, "Nuevo caso", "descr", ["El recibo aparece en el panel"], ctx, **kwargs)
+
+
+async def test_add_uc_continues_the_story_series_even_with_higher_numbers_elsewhere(backend, ctx):
+    # AC-01: el caso real del 2026-11-18 — UC-12801 en US-128 daba UC-12802 en US-122.
+    await _story(backend, "US-122", ["UC-12201", "UC-12212", "UC-12213"])
+    await _story(backend, "US-128", ["UC-12801"])
+    result = await _add(ctx, "US-122")
+    assert result["uc_id"] == "UC-12214"
+    assert result["numbering"] == "story"
+
+
+async def test_add_uc_keeps_the_board_maximum_on_correlative_boards(backend, ctx):
+    # AC-02: UC-001..UC-003 en dos historias → UC-004, como antes.
+    await _story(backend, "US-01", ["UC-001", "UC-002"])
+    await _story(backend, "US-02", ["UC-003"])
+    result = await _add(ctx, "US-01")
+    assert (result["uc_id"], result["numbering"]) == ("UC-004", "board")
+
+
+async def test_add_uc_uses_the_board_maximum_for_a_mixed_or_empty_story(backend, ctx):
+    # Solo se sigue la serie si TODAS las UC de la historia la siguen.
+    await _story(backend, "US-122", ["UC-12201", "UC-050"])
+    await _story(backend, "US-9", ["UC-13000"])
+    await _story(backend, "US-123", [])
+    mixed = await _add(ctx, "US-122")
+    assert (mixed["uc_id"], mixed["numbering"]) == ("UC-13001", "board")
+    empty = await _add(ctx, "US-123")
+    assert (empty["uc_id"], empty["numbering"]) == ("UC-13002", "board")
+
+
+async def test_add_uc_with_an_explicit_id(backend, ctx):
+    # AC-03: un uc_id libre se usa; uno que existe devuelve UC_ID_TAKEN y no crea nada.
+    await _story(backend, "US-122", ["UC-12212"])
+    created = await _add(ctx, "US-122", uc_id="UC-12299")
+    assert (created["uc_id"], created["numbering"]) == ("UC-12299", "explicit")
+    before = _uc_ids(backend)
+    taken = await _add(ctx, "US-122", uc_id="UC-12212")
+    assert taken["code"] == "UC_ID_TAKEN" and taken["us_id"] == "US-122"
+    assert _uc_ids(backend) == before
+    assert (await _add(ctx, "US-122", uc_id="no-es-uc"))["code"] == "INVALID_UC_ID"
+
+
+async def test_add_uc_refuses_an_id_another_story_already_has(backend, ctx):
+    # AC-04: el siguiente de la serie de US-122 ya está en US-7 → conflicto, nada se crea.
+    await _story(backend, "US-122", ["UC-12212", "UC-12213"])
+    await _story(backend, "US-7", ["UC-12214"])
+    before = _uc_ids(backend)
+    result = await _add(ctx, "US-122")
+    assert result["code"] == "UC_ID_CONFLICT"
+    assert (result["uc_id"], result["us_id"]) == ("UC-12214", "US-7")
+    assert "uc_id" in result["error"]  # dice cómo seguir: pasar uc_id
+    assert _uc_ids(backend) == before
+
+
+def test_add_uc_tool_description_states_the_numbering_rule():
+    # AC-05 (parte): la descripción con que se registra la herramienta enseña la regla.
+    class _Recorder:
+        def __init__(self):
+            self.descriptions: dict[str, str] = {}
+
+        def tool(self, description: str = ""):
+            def wrap(fn):
+                self.descriptions[fn.__name__] = description
+                return fn
+            return wrap
+
+    recorder = _Recorder()
+    sm.register_spec_mutations_tools(recorder)
+    description = recorder.descriptions["add_uc"]
+    for fragment in ("UC-{story number}{NN}", "UC-12214", "UC_ID_TAKEN", "UC_ID_CONFLICT"):
+        assert fragment in description

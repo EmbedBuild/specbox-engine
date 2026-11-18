@@ -153,6 +153,23 @@ def _parse_max_ids(raw: Any) -> dict[str, int]:
     return out
 
 
+def _parse_reserved(raw: Any) -> dict[str, frozenset[int]]:
+    """UC-12214: numbers parallel calls already took, `{"UC": [12215]}` (optional)."""
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"{FRAGMENT_FORMAT}: reserved must be an object like {{\"UC\": [12215]}}")
+    out: dict[str, frozenset[int]] = {}
+    for kind in _ID_KINDS:
+        values = raw.get(kind, [])
+        if not isinstance(values, list) or any(
+            isinstance(v, bool) or not isinstance(v, int) or v < 0 for v in values
+        ):
+            raise ValueError(f"{FRAGMENT_FORMAT}: reserved.{kind} must be a list of non-negative integers")
+        out[kind] = frozenset(values)
+    return out
+
+
 def _detect_item_type(name: str) -> str:
     """Detect US/UC/AC from name prefix."""
     import re
@@ -220,6 +237,8 @@ class FreeformBackend(SpecBackend):
         self._memory_mode = items_content is not None
         # UC-11103: the id floors of a fragment, or None for a whole board.
         self._fragment_max_ids: dict[str, int] | None = None
+        # UC-12214: the numbers parallel calls already took, from the fragment.
+        self._fragment_reserved: dict[str, frozenset[int]] = {}
 
         if self._memory_mode:
             # Memory mode: no filesystem. `root` is irrelevant.
@@ -239,6 +258,7 @@ class FreeformBackend(SpecBackend):
                     if not isinstance(parsed.get("items"), list):
                         raise ValueError(f"{FRAGMENT_FORMAT}: items must be an array of items.json entries")
                     self._fragment_max_ids = _parse_max_ids(parsed.get("max_ids", {}))
+                    self._fragment_reserved = _parse_reserved(parsed.get("reserved"))
                     self._mem_items = parsed["items"]
                     return
                 if not isinstance(parsed, list):
@@ -345,6 +365,10 @@ class FreeformBackend(SpecBackend):
     def logical_id_floor(self, kind: str) -> int:
         """Highest US/UC/EP number on the whole board as the fragment declares it (UC-11102)."""
         return (self._fragment_max_ids or {}).get(kind, 0)
+
+    def reserved_logical_numbers(self, kind: str) -> frozenset[int]:
+        """Numbers the client hook reserved for calls still in flight (UC-12214)."""
+        return self._fragment_reserved.get(kind, frozenset())
 
     def _load_labels(self) -> dict[str, dict[str, str]]:
         """Load labels. Returns {name: {id, name, color}}."""

@@ -33,8 +33,9 @@ export const CONTENT_TOOLS = new Set([
  * What each tool needs. `uc`: the UC, its criteria and, as context, its story;
  * `uc+siblings`: also the story's other UCs as context (a story's state is
  * derived from all of them); `story`: the story, its UCs and their criteria;
- * `parent-story`: only the story, as context; `epics`: every epic; `spec`: what
- * an import_spec names. Any other tool gets the whole board, as before.
+ * `parent-story`: only the story, as context (add_uc also gets the ids of the story's
+ * UCs as skeletons, UC-12214); `epics`: every epic; `spec`: what an import_spec
+ * names. Any other tool gets the whole board, as before.
  */
 export const FRAGMENT_TOOLS = {
   add_uc: 'parent-story',
@@ -165,6 +166,17 @@ function safeJson(text) {
   }
 }
 
+/**
+ * UC-12214: a UC that only has to say who it is (add_uc numbering): its id, its story and its
+ * parent. The merge compares what comes back with what was sent, so a skeleton the server leaves
+ * alone changes nothing in items.json.
+ */
+export function asSkeleton(item) {
+  const meta = {};
+  for (const key of ['uc_id', 'us_id']) if (item.meta?.[key]) meta[key] = item.meta[key];
+  return { id: item.id, name: item.name, labels: item.labels, parent_id: item.parent_id ?? null, meta };
+}
+
 /** A context item travels without what no fragment tool reads (description, long meta). */
 export function asContext(item) {
   const { description: _description, ...rest } = item;
@@ -183,14 +195,73 @@ export function asContext(item) {
 export function buildItemsContent({ tool, args, items, raw, reserved = {} }) {
   const selection = selectFragment(tool, args, items);
   if (!selection) return { itemsContent: raw, sent: items, whole: true, reserves: {} };
-  const sent = items
-    .filter((i) => selection.full.has(i.id) || selection.context.has(i.id))
-    .map((i) => (selection.full.has(i.id) ? i : asContext(i)));
   const max = maxIds(items);
   for (const kind of KINDS) for (const n of reserved[kind] ?? []) max[kind] = Math.max(max[kind], n);
-  const reserves = RESERVES[tool] ? { [RESERVES[tool]]: max[RESERVES[tool]] + 1 } : {};
-  const itemsContent = JSON.stringify({ format: FRAGMENT_FORMAT, max_ids: max, items: sent });
+  let reserves = RESERVES[tool] ? { [RESERVES[tool]]: max[RESERVES[tool]] + 1 } : {};
+  const payload = { format: FRAGMENT_FORMAT, max_ids: max };
+
+  // UC-12214: when the story follows its own series (UC-{story}{NN}), the server needs the ids of
+  // the story's UCs to continue it; with correlative numbering the board maximum is enough. It
+  // also gets the numbers parallel calls took and any UC elsewhere that already has the id it is
+  // about to give, to refuse a conflict instead of creating a duplicate. They travel as skeletons,
+  // and only when needed: the cost of creating a UC must not grow with the board (UC-11103).
+  const skeletons = new Set();
+  if (tool === 'add_uc') {
+    const wanted = args?.uc_id || null;
+    const next = wanted ? null : nextUcId(items, args?.us_id, reserved.UC ?? []);
+    const id = wanted ?? next.id;
+    const series = next?.numbering === 'story';
+    const storyIds = new Set(items.filter((i) => logicalId(i, 'US') === args?.us_id).map((i) => i.id));
+    for (const item of items) {
+      const uc = logicalId(item, 'UC');
+      if (!uc || selection.full.has(item.id)) continue;
+      const sibling = storyIds.has(item.parent_id) || item.meta?.us_id === args?.us_id;
+      if ((series && sibling) || uc === id) skeletons.add(item.id);
+    }
+    reserves = next ? { UC: next.number } : {};
+    if ((reserved.UC ?? []).length) payload.reserved = { UC: [...reserved.UC] };
+  }
+
+  const sent = items
+    .filter((i) => selection.full.has(i.id) || selection.context.has(i.id) || skeletons.has(i.id))
+    .map((i) => (selection.full.has(i.id) ? i : skeletons.has(i.id) ? asSkeleton(i) : asContext(i)));
+  payload.items = sent;
+  const itemsContent = JSON.stringify(payload);
   return { itemsContent, sent, whole: false, reserves };
+}
+
+const STORY_NUMBER = /^US-(\d+)$/;
+
+/**
+ * UC-12214: the id add_uc gives a new UC — the same rule as the server (choose_uc_id).
+ * When every UC of the story follows `UC-{story number}{NN}`, the next of that series;
+ * otherwise the next number of the whole board. `reservedUc`: numbers in-flight calls took.
+ */
+export function nextUcId(items, usId, reservedUc = []) {
+  const reserved = new Set(reservedUc);
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const owners = new Map();
+  for (const item of items) {
+    const uc = logicalId(item, 'UC');
+    if (!uc) continue;
+    let owner = item.meta?.us_id || '';
+    if (!owner) owner = logicalId(byId.get(item.parent_id), 'US') || '';
+    owners.set(uc, owner);
+  }
+  const story = STORY_NUMBER.exec(usId || '');
+  const siblings = [...owners].filter(([, owner]) => owner === usId).map(([uc]) => uc);
+  if (story && siblings.length) {
+    const series = new RegExp(`^UC-${story[1]}(\\d{2,})$`);
+    const matches = siblings.map((uc) => series.exec(uc));
+    if (matches.every(Boolean)) {
+      const pad = (nn) => String(nn).padStart(2, '0');
+      let nn = Math.max(...matches.map((m) => Number(m[1]))) + 1;
+      while (reserved.has(Number(`${story[1]}${pad(nn)}`))) nn += 1;
+      return { id: `UC-${story[1]}${pad(nn)}`, number: Number(`${story[1]}${pad(nn)}`), numbering: 'story' };
+    }
+  }
+  const top = Math.max(0, ...[...owners.keys()].map((uc) => idNumber(uc, 'UC')), ...reserved);
+  return { id: `UC-${String(top + 1).padStart(3, '0')}`, number: top + 1, numbering: 'board' };
 }
 
 // ── Merging what comes back ────────────────────────────────────────────

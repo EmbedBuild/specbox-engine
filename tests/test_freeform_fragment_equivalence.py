@@ -372,3 +372,70 @@ def test_the_hook_lists_exactly_the_tools_that_take_the_board():
     hook = _node("tools", {})
     assert set(hook["content"]) == server_side
     assert set(hook["fragment"]) <= server_side
+
+
+# ── UC-12214: add_uc sigue la serie de la historia también con un fragmento ──
+
+
+def series_board(extra: tuple[tuple[str, list[str]], ...] = ()) -> list[dict]:
+    """US-122 con UC-12201, UC-12212 y UC-12213, y US-128 con UC-12801 (el máximo del tablero)."""
+
+    async def _build() -> str:
+        backend = FreeformBackend(items_content="[]")
+        stories = (("US-122", ["UC-12201", "UC-12212", "UC-12213"]), ("US-128", ["UC-12801"]), *extra)
+        for us_id, ucs in stories:
+            us = await backend.create_item(
+                "ff", name=f"{us_id}: Historia", description=_text(us_id, 400), state="user_stories",
+                labels=["US"], meta={"us_id": us_id, "tipo": "US"},
+            )
+            for uc_id in ucs:
+                await backend.create_item(
+                    "ff", name=f"{uc_id}: Caso", description=_text(uc_id, 400), state="backlog",
+                    labels=["UC"], parent_id=us.id, meta={"uc_id": uc_id, "us_id": us_id, "tipo": "UC"},
+                )
+        return backend.get_items_content()
+
+    return json.loads(asyncio.run(_build()) if not _in_loop() else _sync(_build()))
+
+
+SERIES_ADD_UC = {**ADD_UC, "us_id": "US-122"}
+
+
+async def test_uc12214_ac05_a_fragment_continues_the_story_series_like_the_whole_board():
+    board = series_board()
+    whole = await call("add_uc", SERIES_ADD_UC, json.dumps(board))
+    result, merged, built = await via_fragment("add_uc", SERIES_ADD_UC, board)
+    assert (whole["uc_id"], whole["numbering"]) == ("UC-12214", "story")
+    assert (result["uc_id"], result["numbering"]) == ("UC-12214", "story")
+    assert built["reserves"] == {"UC": 12214}
+    assert _repeated(merged) == [] and "UC-12214" in _ids(merged)
+
+
+async def test_uc12214_two_add_uc_in_flight_on_the_same_story_take_the_next_two():
+    board = series_board()
+    first = build("add_uc", SERIES_ADD_UC, board)
+    second = build("add_uc", SERIES_ADD_UC, board, reserved={"UC": [first["reserves"]["UC"]]})
+    a = await call("add_uc", SERIES_ADD_UC, first["itemsContent"])
+    b = await call("add_uc", SERIES_ADD_UC, second["itemsContent"])
+    assert (a["uc_id"], b["uc_id"]) == ("UC-12214", "UC-12215")
+
+
+async def test_uc12214_ac04_a_fragment_refuses_an_id_another_story_has():
+    board = series_board(extra=(("US-7", ["UC-12214"]),))
+    result, merged, _ = await via_fragment("add_uc", SERIES_ADD_UC, board)
+    assert result["code"] == "UC_ID_CONFLICT" and result["us_id"] == "US-7"
+    assert merged == board  # nada se crea
+
+
+async def test_uc12214_ac03_a_fragment_refuses_an_explicit_id_that_exists():
+    board = series_board()
+    result, merged, _ = await via_fragment("add_uc", {**SERIES_ADD_UC, "uc_id": "UC-12801"}, board)
+    assert result["code"] == "UC_ID_TAKEN" and result["us_id"] == "US-128"
+    assert merged == board
+
+
+def test_uc12214_reserved_numbers_must_be_a_list_of_integers():
+    fragment = {"format": "specbox-freeform-fragment/1", "max_ids": {}, "items": []}
+    assert FreeformBackend(items_content=json.dumps({**fragment, "reserved": {"UC": [12214]}})).reserved_logical_numbers("UC") == {12214}
+    with pytest.raises(ValueError, match="reserved.UC"):
+        FreeformBackend(items_content=json.dumps({**fragment, "reserved": {"UC": ["x"]}}))

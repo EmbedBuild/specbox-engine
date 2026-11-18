@@ -870,6 +870,7 @@ async def add_uc(
     context_text: str | None = None,
     satellite: str | None = None,
     items_content: str | None = None,
+    uc_id: str | None = None,
 ) -> dict[str, Any]:
     """Create a single new Use Case under an existing User Story.
 
@@ -880,8 +881,14 @@ async def add_uc(
     `acceptance_criteria` is a list of plain text strings. ACs are created
     with ids AC-01, AC-02, ..., AC-NN automatically.
 
-    uc_id is auto-assigned by scanning `max(uc_id)` on the board and
-    incrementing (e.g. UC-001..UC-027 exist → new UC is UC-028).
+    Numbering (UC-12214):
+    - When every UC of the story follows `UC-{story number}{NN}`, the new one continues
+      that series (US-122 with UC-12212 and UC-12213 → UC-12214).
+    - Otherwise (correlative boards, an empty story) it takes the next number of the
+      whole board (UC-001..UC-027 → UC-028).
+    - `uc_id` chooses the id; `UC_ID_TAKEN` when the board already has it.
+    - If the computed id already belongs to another story, nothing is created and
+      `UC_ID_CONFLICT` names that story (pass `uc_id` to choose another).
 
     `items_content` (FreeForm content-passing, UC-660): when the MCP server is
     remote it cannot read the client's items.json. Pass its contents as a
@@ -889,9 +896,9 @@ async def add_uc(
     key for the client to write back. Omit it for local MCP / disk mode.
 
     Returns:
-        {uc_id, name, ac_count, backend_item_url, created_at}
-        plus `items_content` (mutated items.json string) when `items_content`
-        was provided.
+        {uc_id, name, ac_count, numbering, backend_item_url, created_at}
+        (`numbering`: "story", "board" or "explicit") plus `items_content`
+        (mutated items.json string) when `items_content` was provided.
     """
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
@@ -904,8 +911,29 @@ async def add_uc(
         if not us_item:
             return _mk_error("US_NOT_FOUND", f"User Story {us_id} not found", us_id=us_id)
 
-        max_num = await mh.find_max_uc_number(backend, board_id)
-        new_uc_id = mh.format_uc_id(max_num + 1)
+        if uc_id:
+            if not mh.is_valid_uc_id(uc_id):
+                return _mk_error(
+                    "INVALID_UC_ID", f"{uc_id!r} is not a UC id (UC- plus letters, digits or dashes)",
+                    uc_id=uc_id,
+                )
+            owner = await mh.uc_owner(backend, board_id, uc_id)
+            if owner is not None:
+                return _mk_error(
+                    "UC_ID_TAKEN", f"{uc_id} already exists in {owner or 'the board'}; nothing was created",
+                    uc_id=uc_id, us_id=owner,
+                )
+            new_uc_id, numbering = uc_id, "explicit"
+        else:
+            choice = await mh.choose_uc_id(backend, board_id, us_id)
+            if choice.taken_by is not None:
+                return _mk_error(
+                    "UC_ID_CONFLICT",
+                    f"The next id for {us_id} would be {choice.uc_id}, but {choice.taken_by or 'the board'} "
+                    "already has it; nothing was created. Pass uc_id to choose another.",
+                    uc_id=choice.uc_id, us_id=choice.taken_by, numbering=choice.numbering,
+                )
+            new_uc_id, numbering = choice.uc_id, choice.numbering
 
         full_name = with_item_id(new_uc_id, name)
         meta: dict[str, Any] = {
@@ -949,6 +977,7 @@ async def add_uc(
             "uc_id": new_uc_id,
             "name": name,
             "ac_count": len(ac_pairs),
+            "numbering": numbering,
             "backend_item_url": created.url,
             "created_at": mh.utc_now_iso(),
         }
@@ -994,6 +1023,10 @@ def register_spec_mutations_tools(mcp_instance) -> None:
         "logged as a comment on the UC for audit."
     )(delete_ac)
     mcp_instance.tool(
-        description="Create a single new Use Case under an existing US. Auto-assigns next "
-        "uc_id. Use for 1-3 additions; for bulk creation prefer import_spec."
+        description="Create a single new Use Case under an existing US. Use for 1-3 additions; "
+        "for bulk creation prefer import_spec. Numbering: if every UC of the story follows "
+        "UC-{story number}{NN} (US-122 → UC-12212, UC-12213), the new one continues that series "
+        "(UC-12214); otherwise it takes the next number of the whole board (UC-027 → UC-028). "
+        "Pass uc_id to choose it (UC_ID_TAKEN if it exists). If the computed id belongs to "
+        "another story, nothing is created (UC_ID_CONFLICT)."
     )(add_uc)

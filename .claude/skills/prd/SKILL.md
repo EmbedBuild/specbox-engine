@@ -240,6 +240,15 @@ Para cada Use Case, determinar:
 - [Exclusion explicita 1 — evita scope creep]
 - [Exclusion explicita 2]
 
+### Casos límite
+> Cada caso que roza el alcance, con lo que debe pasar. Las exclusiones de «No incluye» se siembran
+> por historia (`exclusions` en `import_spec`); una historia sin ellas sale con el aviso
+> `no_exclusions` (UC-12306).
+
+| Caso | Comportamiento esperado |
+|------|-------------------------|
+| [Entrada vacía, límite, permiso que falta, dato duplicado…] | [Lo que muestra o registra el sistema] |
+
 ---
 
 ## User Story
@@ -500,6 +509,15 @@ distintos y se reportan por separado.
 ### No incluye
 - [Exclusion explicita]
 
+### Casos límite
+> Cada caso que roza el alcance, con lo que debe pasar. Las exclusiones de «No incluye» se siembran
+> por historia (`exclusions` en `import_spec`); una historia sin ellas sale con el aviso
+> `no_exclusions` (UC-12306).
+
+| Caso | Comportamiento esperado |
+|------|-------------------------|
+| [Entrada vacía, límite, permiso que falta, dato duplicado…] | [Lo que muestra o registra el sistema] |
+
 ---
 
 ## Épicas
@@ -668,6 +686,15 @@ distintos y se reportan por separado.
 
 ### No incluye
 - [Exclusion explicita]
+
+### Casos límite
+> Cada caso que roza el alcance, con lo que debe pasar. Las exclusiones de «No incluye» se siembran
+> por historia (`exclusions` en `import_spec`); una historia sin ellas sale con el aviso
+> `no_exclusions` (UC-12306).
+
+| Caso | Comportamiento esperado |
+|------|-------------------------|
+| [Entrada vacía, límite, permiso que falta, dato duplicado…] | [Lo que muestra o registra el sistema] |
 
 ---
 
@@ -889,6 +916,7 @@ Al sembrar (`import_spec`):
   "epics": [{"name": "Épicas", "objective": "…", "link": "doc/prd/<feature>/prd.md"}],
   "user_stories": [
     {"us_id": "US-78", "name": "Cada historia pertenece a una épica", "epic": "Épicas",
+     "exclusions": ["…lo que la historia deja fuera (de «No incluye»)"],
      "use_cases": [{"uc_id": "UC-7801", "name": "…", "satellite": "engine", "acceptance_criteria": [
        {"text": "…", "verification": "automated_test"},
        {"text": "…", "verification": "manual_test"}
@@ -900,6 +928,9 @@ Al sembrar (`import_spec`):
 - Cada criterio va como `{text, verification}` con la forma de comprobación decidida en el
   Paso 2.5.1b; un criterio como texto suelto también se acepta, pero queda con el aviso
   `no_verification`.
+- Cada historia lleva `exclusions` con lo que su sección «No incluye» deja fuera. Una historia sin
+  exclusiones se crea igual, pero `import_spec` la devuelve en `warnings` con `no_exclusions`; se
+  corrige sin reimportar con `update_us(exclusions=[...])`.
 
 - `epics` crea las que no existen y reutiliza las que sí (por `epic_id` o por nombre); `epic`
   en cada historia acepta EP-NN o el nombre. La respuesta trae `epics.created/reused/assigned`.

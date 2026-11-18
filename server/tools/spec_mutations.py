@@ -412,9 +412,10 @@ async def update_us(
     description: str | None = None,
     hours: float | None = None,
     screens: list[str] | None = None,
+    exclusions: list[str] | None = None,
     items_content: str | None = None,
 ) -> dict[str, Any]:
-    """Update metadata of a User Story (name, description, hours, screens).
+    """Update metadata of a User Story (name, description, hours, screens, exclusions).
 
     Milestones were removed in v6.23.0: the story's epic (``set_us_epic``)
     groups the work now.
@@ -423,16 +424,30 @@ async def update_us(
     (typically 1-5 per project). Use repeated `update_us` calls when
     needed.
 
+    `exclusions` (UC-12306) replaces what the story leaves out (the PRD's «No incluye»);
+    `[]` clears it. It clears the `no_exclusions` warning of import_spec without
+    reimporting. Trello and Plane do not store it (`exclusions_not_stored`).
+
     Returns:
-        {us_id, updated_fields, backend_item_url, updated_at}
+        {us_id, updated_fields, backend_item_url, updated_at, exclusions_not_stored?}
     """
+    try:
+        exclusions = mh.normalize_exclusions(exclusions)
+    except ValueError as e:
+        return _mk_error("INVALID_EXCLUSIONS", str(e), us_id=us_id)
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         us_item = await mh.find_us(backend, board_id, us_id)
         if not us_item:
             return _mk_error("US_NOT_FOUND", f"User Story {us_id} not found", us_id=us_id)
 
+        not_stored: dict[str, Any] = {}
         meta_updates = _us_meta_updates(hours=hours, screens=screens)
+        if exclusions is not None:
+            if getattr(backend, "STORES_SPEC_META", False):
+                meta_updates["exclusions"] = exclusions
+            else:
+                not_stored = {"exclusions_not_stored": True}
         merged_meta, meta_changed = mh.merge_meta(us_item.meta, meta_updates)
 
         if name is not None:
@@ -447,6 +462,7 @@ async def update_us(
                 "backend_item_url": us_item.url,
                 "updated_at": mh.utc_now_iso(),
                 "reason": "no_change",
+                **not_stored,
             }
 
         if meta_changed or name_changed or desc_changed:
@@ -475,6 +491,7 @@ async def update_us(
             "updated_fields": fields,
             "backend_item_url": url,
             "updated_at": mh.utc_now_iso(),
+            **not_stored,
         }
     finally:
         await backend.close()
@@ -1133,8 +1150,9 @@ def register_spec_mutations_tools(mcp_instance) -> None:
         "when updating more than 2-3 UCs — saves round-trips and calls list_items once."
     )(update_uc_batch)
     mcp_instance.tool(
-        description="Update metadata of a User Story (name, description, hours, screens). "
-        "To group stories use epics (set_us_epic)."
+        description="Update metadata of a User Story (name, description, hours, screens, "
+        "exclusions: what the story leaves out, [] clears it). To group stories use epics "
+        "(set_us_epic)."
     )(update_us)
     mcp_instance.tool(
         description="Rewrite an AC's text, change its done state and/or set how it is checked "

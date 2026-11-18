@@ -773,7 +773,8 @@ async def import_spec(
         board_id: Board/project ID
         spec: JSON spec with structure: {epics?: [{epic_id?, name, objective?, link?,
               target_date?}], user_stories: [{us_id, name, hours, screens,
-              description, epic? (EP-NN or epic name), use_cases: [{uc_id, name, actor,
+              description, epic? (EP-NN or epic name), exclusions?: [str],
+              use_cases: [{uc_id, name, actor,
               hours, screens, acceptance_criteria: [str | {text, verification}], context,
               satellite?}]}]}.
               Declared epics that do not exist are created (an existing one, by id
@@ -782,6 +783,11 @@ async def import_spec(
               automated_test, manual_test, review or measurement. An existing criterion
               takes a new verification (`updated.ac_verification`); its text is never
               rewritten here. Trello and Plane do not store it (`verification_not_stored`).
+              `exclusions` (UC-12306, per story): what the story leaves out, the PRD's
+              «No incluye». A story that ends up with none is still created, and the
+              answer lists it in `warnings` with code `no_exclusions`. Omitting them keeps
+              what an existing story had. Trello and Plane do not store them
+              (`exclusions_not_stored`).
         items_content: FreeForm content-passing (UC-660). Pass items.json as a
             string for remote MCP; the mutated string is returned under
             `items_content`. Omit for local MCP / disk mode.
@@ -811,6 +817,11 @@ async def import_spec(
         gate_inputs: list[dict[str, Any]] = []  # UC-12301 AC-04
         verification_given = False  # UC-12307
         updated_verifications = 0
+        warnings: list[dict[str, Any]] = []  # UC-12306: no_exclusions per story
+        exclusions_not_stored = False
+
+        def exclusions_of_item(item: Any) -> list[str]:
+            return mh.exclusions_of(item.meta) if item is not None else []
 
         # US-78 / UC-7805: the epics the PRD declares — reuse what exists (by id
         # or name), create the rest — and the key → EP-NN map the stories use.
@@ -866,9 +877,26 @@ async def import_spec(
                     "horas": us_spec.hours,
                     "pantallas": us_spec.screens,
                 }
+                # UC-12306: the story's exclusions, only when the spec says them (an existing
+                # story keeps its own otherwise: native and FreeForm merge the meta).
+                stores_spec = bool(getattr(backend, "STORES_SPEC_META", False))
+                if us_spec.exclusions is not None and stores_spec:
+                    us_meta["exclusions"] = us_spec.exclusions
 
                 # Find-or-create US item
                 existing_us = await backend.find_item_by_field(board_id, "us_id", us_spec.us_id)
+                if us_spec.exclusions is not None:
+                    story_exclusions = us_spec.exclusions
+                    if us_spec.exclusions and not stores_spec:
+                        exclusions_not_stored = True
+                else:
+                    story_exclusions = exclusions_of_item(existing_us) if stores_spec else []
+                if not story_exclusions:
+                    warnings.append({
+                        "us_id": us_spec.us_id,
+                        "code": "no_exclusions",
+                        "message": mh.NO_EXCLUSIONS_MESSAGE,
+                    })
                 module: ModuleDTO | None = None
                 if existing_us:
                     # UC-7805: re-seeding a story keeps its state; it follows its
@@ -1081,6 +1109,10 @@ async def import_spec(
         }
         if epic_keys or epic_report["skipped"]:
             result["epics"] = epic_report
+        if warnings:
+            result["warnings"] = warnings  # UC-12306 AC-03/AC-04: the stories are created anyway
+        if exclusions_not_stored:
+            result["exclusions_not_stored"] = True  # UC-12306: Trello and Plane
         if updated_verifications:
             result["updated"]["ac_verification"] = updated_verifications
         if verification_given and not getattr(backend, "STORES_SPEC_META", False):
@@ -1220,6 +1252,8 @@ async def get_us(
             "epic_id": us_item.meta.get("epic_id") or None,
             "satellites": _satellites_of(uc_children),
             "description": us_item.description,
+            # UC-12306: what the story leaves out ([] when it does not say).
+            "exclusions": mh.exclusions_of(us_item.meta),
             "use_cases": use_cases,
             "attachments": attach_list,
         }

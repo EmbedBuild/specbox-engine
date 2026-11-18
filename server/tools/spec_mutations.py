@@ -873,6 +873,7 @@ async def add_uc(
     satellite: str | None = None,
     items_content: str | None = None,
     uc_id: str | None = None,
+    with_roadmap: bool = False,
 ) -> dict[str, Any]:
     """Create a single new Use Case under an existing User Story.
 

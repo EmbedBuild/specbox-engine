@@ -75,21 +75,27 @@ def _dto(d):
     return ItemDTO(id=d["id"], name=d["name"], state=d["state"], parent_id=d["parent_id"], labels=d["labels"], meta=d["meta"])
 
 
-@pytest.mark.parametrize("call", ["complete_uc", "move_uc", "add_uc", "delete_uc", "mark_ac_batch"])
-async def test_each_state_changing_tool_carries_the_roadmap(call):
-    """AC-01."""
-    content = json.dumps(BOARD)
-    calls = {
-        "complete_uc": lambda: complete_uc("ff", "UC-001", CTX, items_content=content),
-        "move_uc": lambda: move_uc("ff", "UC-001", "review", CTX, items_content=content),
+TOOLS = ["complete_uc", "move_uc", "add_uc", "delete_uc", "mark_ac_batch"]
+
+
+def _calls(content, want):
+    return {
+        "complete_uc": lambda: complete_uc("ff", "UC-001", CTX, items_content=content, with_roadmap=want),
+        "move_uc": lambda: move_uc("ff", "UC-001", "review", CTX, items_content=content, with_roadmap=want),
         "add_uc": lambda: add_uc("ff", "US-10", "Exportar", "Exportar a CSV",
-                                 ["El fichero CSV aparece con 3 columnas"], CTX, items_content=content),
+                                 ["El fichero CSV aparece con 3 columnas"], CTX, items_content=content,
+                                 with_roadmap=want),
         "delete_uc": lambda: delete_uc("ff", "UC-001", "Absorbida por UC-002", CTX, absorbed_by="UC-002",
-                                       items_content=content),
+                                       items_content=content, with_roadmap=want),
         "mark_ac_batch": lambda: mark_ac_batch("ff", "UC-001", [{"ac_id": "AC-01", "passed": True}], CTX,
-                                               items_content=content),
+                                               items_content=content, with_roadmap=want),
     }
-    out = await calls[call]()
+
+
+@pytest.mark.parametrize("call", TOOLS)
+async def test_each_state_changing_tool_carries_the_roadmap(call):
+    """UC-12203 AC-01: con with_roadmap (lo pone el hook), cada tool devuelve la zona."""
+    out = await _calls(json.dumps(BOARD), True)[call]()
     assert "error" not in out, out
     sync = out["app_docs_sync"]
     assert sync["ok"] is True and sync["zone"] == "roadmap" and sync["document"] == "doc/app/app_prd.md"
@@ -98,7 +104,7 @@ async def test_each_state_changing_tool_carries_the_roadmap(call):
 
 async def test_after_complete_uc_the_zone_counts_the_closed_uc():
     """AC-02 con el MCP remoto: el cuerpo viaja en la respuesta, calculado con el tablero ya cambiado."""
-    out = await complete_uc("ff", "UC-001", CTX, items_content=json.dumps(BOARD))
+    out = await complete_uc("ff", "UC-001", CTX, items_content=json.dumps(BOARD), with_roadmap=True)
     # Era la última UC abierta: la historia pasa a «done» y la zona lo cuenta (la archivada no cuenta).
     assert "| US-01 | Pagos \\| cobros | done | 2/2 |" in out["app_docs_sync"]["roadmap_body"]
 
@@ -106,7 +112,7 @@ async def test_after_complete_uc_the_zone_counts_the_closed_uc():
 async def test_a_fragment_leaves_the_zone_to_the_client():
     fragment = json.dumps({"format": "specbox-freeform-fragment/1", "max_ids": {"US": 10, "UC": 3, "EP": 0},
                            "items": BOARD[:3]})
-    out = await move_uc("ff", "UC-001", "review", CTX, items_content=fragment)
+    out = await move_uc("ff", "UC-001", "review", CTX, items_content=fragment, with_roadmap=True)
     assert out["app_docs_sync"] == {"ok": True, "document": "doc/app/app_prd.md", "zone": "roadmap", "render": "client"}
 
 
@@ -116,7 +122,7 @@ async def test_a_failed_sync_says_why_and_keeps_the_state_change(monkeypatch):
         raise RuntimeError("el tablero no respondió")
 
     monkeypatch.setattr(roadmap, "roadmap_sync", boom)
-    out = await move_uc("ff", "UC-001", "review", CTX, items_content=json.dumps(BOARD))
+    out = await move_uc("ff", "UC-001", "review", CTX, items_content=json.dumps(BOARD), with_roadmap=True)
     assert out["app_docs_sync"]["ok"] is False
     assert "el tablero no respondió" in out["app_docs_sync"]["reason"]
     moved = next(i for i in json.loads(out["items_content"]) if i["id"] == "uc1")
@@ -124,7 +130,7 @@ async def test_a_failed_sync_says_why_and_keeps_the_state_change(monkeypatch):
 
 
 async def test_an_error_of_the_tool_is_left_alone():
-    out = await move_uc("ff", "UC-999", "review", CTX, items_content=json.dumps(BOARD))
+    out = await move_uc("ff", "UC-999", "review", CTX, items_content=json.dumps(BOARD), with_roadmap=True)
     assert "error" in out and "app_docs_sync" not in out
 
 
@@ -193,3 +199,41 @@ async def test_native_rows_come_from_one_query():
     finally:
         async with pool.acquire() as conn:
             await conn.execute("DELETE FROM projects WHERE project_id = $1", project_id)
+
+
+# ── UC-12218: sin pedirla, la zona no viaja ─────────────────────────
+
+_VARIABLE = __import__("re").compile(r"\d{4}-\d{2}-\d{2}T[\d:.+]+|\b[a-z]+-[0-9a-f]{8}\b")
+
+
+def _same(value):
+    """La respuesta sin marcas de tiempo ni ids generados, para comparar dos llamadas."""
+    return json.loads(_VARIABLE.sub("<x>", json.dumps(value, sort_keys=True, ensure_ascii=False)))
+
+
+def _plain_args(call):
+    """Los argumentos de cada tool sin with_roadmap, como los mandaba un cliente de la 6.36.0."""
+    content = json.dumps(BOARD)
+    return {
+        "complete_uc": (("ff", "UC-001", CTX), {"items_content": content}),
+        "move_uc": (("ff", "UC-001", "review", CTX), {"items_content": content}),
+        "add_uc": (("ff", "US-10", "Exportar", "Exportar a CSV", ["El fichero CSV aparece con 3 columnas"], CTX),
+                   {"items_content": content}),
+        "delete_uc": (("ff", "UC-001", "Absorbida por UC-002", CTX), {"absorbed_by": "UC-002", "items_content": content}),
+        "mark_ac_batch": (("ff", "UC-001", [{"ac_id": "AC-01", "passed": True}], CTX), {"items_content": content}),
+    }[call]
+
+
+@pytest.mark.parametrize("call", TOOLS)
+async def test_without_asking_the_answer_is_the_one_before_the_roadmap(call):
+    """UC-12218 AC-01 y AC-04: sin with_roadmap, la respuesta es la de la tool sin el decorador (la de la 6.36.0)."""
+    import server.tools.board_operations as bo
+    import server.tools.spec_driven as sd
+    import server.tools.spec_mutations as sm
+
+    tool = getattr({"delete_uc": bo, "add_uc": sm}.get(call, sd), call)
+    args, kwargs = _plain_args(call)
+    out = await tool(*args, **kwargs)
+    before = await tool.__wrapped__(*args, **kwargs)
+    assert "app_docs_sync" not in out
+    assert _same(out) == _same(before)

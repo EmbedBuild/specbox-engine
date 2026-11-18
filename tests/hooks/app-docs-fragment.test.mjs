@@ -10,7 +10,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -99,7 +99,11 @@ test('FreeForm por fragmentos: el hook calcula el cuerpo con su items.json', () 
       { id: 'us1', name: 'US-01: Pagos', labels: ['US'], state: 'in_progress', meta: { us_id: 'US-01' } },
       { id: 'uc1', name: 'UC-001: Cobrar', labels: ['UC'], state: 'done', parent_id: 'us1', meta: { uc_id: 'UC-001' } },
     ];
-    const dir = repo(join(base, 'p'), 'main', { 'doc/app/app_prd.md': DOC, 'doc/tracking/items.json': items });
+    const dir = repo(join(base, 'p'), 'main', {
+      'doc/app/app_prd.md': DOC,
+      'doc/tracking/items.json': items,
+      '.claude/settings.local.json': { specbox: { backend_type: 'freeform' } },
+    });
     hook(dir, 'mark_ac_batch', remote({ uc_id: 'UC-001', app_docs_sync: { ok: true, document: 'doc/app/app_prd.md', zone: 'roadmap', render: 'client' } }));
     const doc = readFileSync(join(dir, 'doc/app/app_prd.md'), 'utf-8');
     assert.ok(doc.includes(render(rowsFromItems(items))));
@@ -118,6 +122,63 @@ test('sin app_prd.md, con un fallo o con otra tool, no toca nada', () => {
     assert.equal(readFileSync(join(dir, 'doc/app/app_prd.md'), 'utf-8'), DOC);
     const vacio = repo(join(base, 'q'), 'main');
     assert.equal(hook(vacio, 'complete_uc', remote({ app_docs_sync: SYNC })).code, 0);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+// UC-12218 — la zona solo se pide cuando hace falta, y en FreeForm sale del items.json ya fusionado.
+function pre(dir, tool, input = {}) {
+  const payload = { hook_event_name: 'PreToolUse', tool_name: `mcp__SpecBox-MCP__${tool}`, tool_input: input, cwd: dir };
+  const r = spawnSync(process.execPath, [HOOK], { cwd: dir, input: JSON.stringify(payload), encoding: 'utf8' });
+  return r.stdout ? JSON.parse(r.stdout) : null;
+}
+
+test('PreToolUse pide la zona solo con app_prd.md, en la rama principal y fuera de FreeForm (UC-12218 AC-02)', () => {
+  const base = mkdtempSync(join(tmpdir(), 'app-docs-'));
+  try {
+    const main = repo(join(base, 'main'), 'main', { 'doc/app/app_prd.md': DOC });
+    const out = pre(main, 'complete_uc', { board_id: 'Acme/web', uc_id: 'UC-1' });
+    assert.deepEqual(out.hookSpecificOutput.updatedInput, { board_id: 'Acme/web', uc_id: 'UC-1', with_roadmap: true });
+
+    const rama = repo(join(base, 'rama'), 'feature/UC-1-x', { 'doc/app/app_prd.md': DOC });
+    assert.equal(pre(rama, 'complete_uc', { uc_id: 'UC-1' }), null);
+    const sinCanon = repo(join(base, 'sin'), 'main');
+    assert.equal(pre(sinCanon, 'move_uc', { uc_id: 'UC-1' }), null);
+    const ff = repo(join(base, 'ff'), 'main', { 'doc/app/app_prd.md': DOC, '.claude/settings.local.json': { specbox: { backend_type: 'freeform' } } });
+    assert.equal(pre(ff, 'mark_ac_batch', { uc_id: 'UC-1' }), null);
+    assert.equal(pre(main, 'get_uc', { uc_id: 'UC-1' }), null);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('FreeForm: la zona sale del items.json ya fusionado por freeform-fragment (UC-12218 AC-03)', async () => {
+  const base = mkdtempSync(join(tmpdir(), 'app-docs-'));
+  try {
+    const before = [
+      { id: 'us1', name: 'US-01: Pagos', labels: ['US'], state: 'in_progress', meta: { us_id: 'US-01' } },
+      { id: 'uc1', name: 'UC-001: Cobrar', labels: ['UC'], state: 'in_progress', parent_id: 'us1', meta: { uc_id: 'UC-001' } },
+    ];
+    const dir = repo(join(base, 'p'), 'main', {
+      'doc/app/app_prd.md': DOC,
+      'doc/tracking/items.json': before,
+      '.claude/settings.local.json': { specbox: { backend_type: 'freeform' } },
+      '.quality/freeform-fragments/toolu_m1.json': { tool: 'complete_uc' },
+    });
+    const payload = { hook_event_name: 'PostToolUse', tool_name: 'mcp__SpecBox-MCP__complete_uc', tool_input: { uc_id: 'UC-001' },
+      tool_use_id: 'toolu_m1', tool_response: remote({ uc_id: 'UC-001', completed_at: 'x' }), cwd: dir };
+    const done = new Promise((ok) => {
+      const child = spawn(process.execPath, [HOOK], { cwd: dir });
+      child.on('close', ok);
+      child.stdin.end(JSON.stringify(payload));
+    });
+    // freeform-fragment fusiona un poco después y borra su pendiente.
+    await new Promise((r) => setTimeout(r, 300));
+    writeFileSync(join(dir, 'doc/tracking/items.json'), JSON.stringify([before[0], { ...before[1], state: 'done' }]));
+    rmSync(join(dir, '.quality/freeform-fragments/toolu_m1.json'));
+    await done;
+    assert.match(readFileSync(join(dir, 'doc/app/app_prd.md'), 'utf-8'), /\| US-01 \| Pagos \| in_progress \| 1\/1 \|/);
   } finally {
     rmSync(base, { recursive: true, force: true });
   }

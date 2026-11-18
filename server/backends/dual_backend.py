@@ -294,9 +294,12 @@ class DualBackendWrapper(SpecBackend):
         ac_id: str,
         passed: bool,
         evidence: dict[str, Any] | None = None,
+        *,
+        marked_by: str | None = None,
     ) -> ChecklistItemDTO:
+        kw: dict[str, Any] = {"marked_by": marked_by} if marked_by else {}  # UC-12401: only when given
         result = await self.primary.mark_acceptance_criterion(
-            board_id, uc_item_id, ac_id, passed, evidence=evidence
+            board_id, uc_item_id, ac_id, passed, evidence=evidence, **kw
         )
 
         async def _mirror() -> None:

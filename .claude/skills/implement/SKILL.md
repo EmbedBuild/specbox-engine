@@ -1843,7 +1843,9 @@ git add test/acceptance/ tests/acceptance/ e2e/acceptance/ .quality/evidence/{fe
 git commit -m "test(acceptance): E2E acceptance tests + evidence report for UC-XXX"
 ```
 
-**NOTA**: Si los acceptance tests fallan, NO bloquear aqui. Reportar fallos y dejar que AG-09b decida el veredicto en Paso 7.7.
+**NOTA (UC-12401)**: un acceptance test que falla no se esconde: su criterio se marca con
+`"passed": false` en 8.5.1b, antes de fusionar, y el autopilot para ahí con el criterio que falla
+en el informe. Aquí se reportan los fallos y AG-09b decide el veredicto en el Paso 7.7.
 
 ### 7.5.11 Commit comprobado (UC-11702)
 
@@ -1858,7 +1860,7 @@ printf '{"tested_commit":"%s","repo":"%s","branch":"%s"}\n' "$TESTED_COMMIT" "$R
   "$(git branch --show-current)" > .quality/evidence/{feature}/tested_commit.json
 ```
 
-- Se apunta aquí, en la rama: en 8.5.4 ya se ha vuelto a `main` (8.5.3) y `HEAD` no es el comprobado.
+- Se apunta aquí, en la rama: los recibos de 8.5.1b lo usan antes de fusionar, y tras 8.5.3 `HEAD` ya no es el comprobado.
 - Si el healing de 7.7.3 cambia código, se vuelven a pasar las pruebas y se reescribe el fichero con
   el `HEAD` nuevo. Un commit posterior que no toca código (evidencia, docs) no lo cambia.
 - El servidor del board no ve tu git: el commit solo llega si lo pone el recibo (`commit`, `repo`).
@@ -2156,6 +2158,8 @@ Auto-merge SOLO si se cumplen TODAS estas condiciones:
 - AG-08 verdict = **GO** o **CONDITIONAL GO**
 - AG-09b verdict = **ACCEPTED** (no INVALIDATED)
 - Todos los acceptance tests pasan
+- **Cada criterio de la UC está hecho con un recibo que pasa** (8.5.1b; lo comprueba el hook
+  `merge-guard`, medida `closing_evidence`, UC-12401)
 - El usuario ha confirmado modo autopilot
 - **No hay feedback abierto con severity critical o major** (verificar feedback-summary.json)
 - **No hay VEG images pendientes** (`veg_images_pending == false`) — NUEVO v4.0.1
@@ -2221,20 +2225,13 @@ Antes del merge, escribir el Implementation Status en el PRD:
 > que vuelve en `files_changed` antes del commit del paso 5. `get_implementation_status` igual,
 > sin nada que escribir.
 
-### 8.5.2 Merge
+### 8.5.1b Marcar criterios y pasar a revisión (antes de fusionar)
 
-```bash
-gh pr merge --squash --delete-branch
-```
-
-### 8.5.3 Actualizar main
-
-```bash
-git checkout main
-git pull origin main
-```
-
-### 8.5.4 Actualizar work item
+> **UC-12401.** Los criterios se marcan **antes** de `gh pr merge`, no después: el hook
+> `merge-guard` (medida `closing_evidence`) mira que cada criterio esté hecho con un recibo que
+> pase. Una prueba de aceptación que falla se marca con `"passed": false`; su criterio queda
+> sin demostrar y la fusión no sigue en «block» (en «warn», avisa). El autopilot **para aquí** y
+> el informe dice qué criterio falla: no se fusiona a la espera de arreglarlo después.
 
 #### Todos los backends (Trello/Plane/FreeForm):
 1. Llamar `move_uc(board_id, uc_id, "review")` — mueve UC a **Review** (NO a Done)
@@ -2260,6 +2257,24 @@ git pull origin main
    La captura (de 7.5.6 o de la verificación de 6.5.5) va en su propio `mark_ac`: un criterio puede
    tener varios recibos. `get_uc` marca como «sin prueba que se repita» (`flags`) el criterio hecho
    que no tiene ningún recibo `test` que pase: la suite de no regresión no lo vuelve a comprobar.
+
+### 8.5.2 Merge
+
+```bash
+gh pr merge --squash --delete-branch
+```
+
+### 8.5.3 Actualizar main
+
+```bash
+git checkout main
+git pull origin main
+```
+
+### 8.5.4 Actualizar work item (después de fusionar)
+
+Los criterios y el paso a revisión ya se hicieron en 8.5.1b, antes de fusionar. Aquí solo se
+comprueba con `get_uc` que la UC sigue en **Review** con sus recibos.
 
 > **IMPORTANTE**: El agente NUNCA mueve a Done. Solo a Review.
 > El humano revisa la PR, ejecuta flujos manuales, verifica E2E,

@@ -33,6 +33,7 @@ Dónde se lee y se escribe:
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -249,6 +250,7 @@ async def _native_open_ucs(project_id: str) -> list[dict[str, Any]]:
                COALESCE(
                    json_agg(json_build_object('ac_id', a.ac_id, 'text', a.text, 'done', a.done,
                                               'evidence', COALESCE(a.meta->'evidence', '[]'::jsonb),
+                                              'verdict', a.meta->'verdict',
                                               'spec_rules', COALESCE((a.meta->>'spec_rules')::int, 1))
                             ORDER BY a.ac_id) FILTER (WHERE a.ac_id IS NOT NULL),
                    '[]'::json) AS acs
@@ -264,7 +266,7 @@ async def _native_open_ucs(project_id: str) -> list[dict[str, Any]]:
     for r in rows:
         acs = json.loads(r["acs"]) if isinstance(r["acs"], str) else r["acs"]
         out.append({"uc_id": r["uc_id"], "name": r["name"], "description": r["description"], "state": r["state"],
-                    "acs": acs, "evidence_known": True})
+                    "acs": acs})
     return out
 
 
@@ -286,10 +288,11 @@ async def _freeform_open_ucs(items_content: str) -> list[dict[str, Any]]:
             "name": item.name,
             "description": item.description,
             "state": item.state,
-            # FreeForm guarda la evidencia en los comentarios, que no viajan con items.json.
-            "evidence_known": False,
-            "acs": [{"ac_id": ac.id, "text": ac.text, "done": ac.done, "evidence": [],
-                     "spec_rules": ac.spec_rules} for ac in acs],
+            # UC-12401: desde la 6.41.0 FreeForm guarda veredicto y recibos en el criterio. Un criterio
+            # marcado antes los tiene en comentarios, que no viajan con items.json: «no se sabe» (None).
+            "acs": [{"ac_id": ac.id, "text": ac.text, "done": ac.done,
+                     "evidence": ac.evidence if (ac.evidence or ac.verdict is not None) else None,
+                     "verdict": ac.verdict, "spec_rules": ac.spec_rules} for ac in acs],
         })
     return out
 
@@ -882,6 +885,81 @@ async def _native_record(project_id: str, developer_id: str, measure: str, uc_id
         )
 
 
+@dataclass
+class _GateRun:
+    """Lo que comparten las medidas de un mismo paso (start_uc o complete_uc) mientras se comprueban."""
+
+    board_id: str
+    uc_id: str
+    developer_id: str
+    backend_type: str
+    policy: dict[str, Any]
+    raw: Any
+    disk: Path | None
+    policy_content: str | None
+    out: dict[str, Any]
+    by: str
+    at: str = field(default_factory=_now)
+
+
+async def _apply_measure(
+    run: _GateRun,
+    measure: str,
+    *,
+    failed: bool,
+    reason: str,
+    detail: dict[str, Any],
+    how_to: str,
+    code: str,
+    predates: bool,
+) -> dict[str, Any] | None:
+    """Aplica una medida: salto, decisión según el modo y eventos. Devuelve el error si detiene el paso.
+
+    En «warn» o con la UC anterior a la regla o un salto, el aviso va a ``run.out["warnings"]`` y la
+    operación sigue (None). En «block» devuelve ``{"error", "event_lines", "policy_content"?}``.
+    """
+    mode = policy_mod.mode_of(run.policy, measure)
+    predates = failed and mode == "block" and predates
+    skip = None
+    if failed and mode == "block" and not predates:
+        if run.backend_type == "native":
+            skip = await _native_take_skip(run.board_id, measure, run.uc_id)
+        else:
+            stored, skip = policy_mod.take_skip(run.raw, measure, run.uc_id)
+            if skip is not None:
+                run.raw = stored
+                if run.disk is not None:
+                    run.disk.parent.mkdir(parents=True, exist_ok=True)
+                    run.disk.write_text(json.dumps(stored, ensure_ascii=False, indent=2) + "\n")
+                elif run.policy_content is not None:
+                    run.out["policy_content"] = json.dumps(stored, ensure_ascii=False, indent=2) + "\n"
+    how_to_continue = how_to + (policy_mod.SKIP_HOW_TO if mode == "block" else "")
+    decision = policy_mod.check(
+        run.policy, measure, failed=failed, reason=reason, how_to_continue=how_to_continue,
+        skip=skip, predates=predates,
+    )
+    outcome = decision["outcome"]
+    if outcome in ("blocked", "pass") and mode != "off":
+        event = "blocked" if outcome == "blocked" else "passed"
+        if run.backend_type == "native":
+            await _native_record(run.board_id, run.developer_id, measure, run.uc_id, event)
+        elif outcome == "blocked":
+            line = _event_line(measure, run.uc_id, "blocked", run.at, run.by)
+            if run.disk is not None:
+                with (run.disk.parent / EVENTS_FILE).open("a", encoding="utf-8") as fh:
+                    fh.write(line + "\n")
+            elif run.backend_type == "freeform":
+                run.out["event_lines"].append(line)
+    if outcome == "blocked":
+        error = {**decision["error"], "code": code, "uc_id": run.uc_id, **detail}
+        return {"error": error, "event_lines": run.out["event_lines"], **(
+            {"policy_content": run.out["policy_content"]} if "policy_content" in run.out else {}
+        )}
+    if decision.get("warning"):
+        run.out["warnings"].append({**decision["warning"], "outcome": outcome, **detail})
+    return None
+
+
 async def start_gate(
     ctx: Context | None,
     board_id: str,
@@ -920,51 +998,20 @@ async def start_gate(
             "state": uc_item.state,
             "acs": [{"ac_id": ac.id, "text": ac.text, "spec_rules": getattr(ac, "spec_rules", 1)} for ac in acs],
         }
-        at = _now()
-        by = developer_id or "start_uc"
+        run = _GateRun(
+            board_id=board_id, uc_id=uc_id, developer_id=developer_id, backend_type=backend_type,
+            policy=policy, raw=raw, disk=disk, policy_content=policy_content, out=out,
+            by=developer_id or "start_uc",
+        )
         for measure in measures:
-            failed, reason, detail = _evaluate_start(measure, uc, raw)
-            mode = policy_mod.mode_of(policy, measure)
-            predates = failed and mode == "block" and policy_mod.predates_rule(raw, measure, uc)
-            skip = None
-            if failed and mode == "block" and not predates:
-                if backend_type == "native":
-                    skip = await _native_take_skip(board_id, measure, uc_id)
-                else:
-                    stored, skip = policy_mod.take_skip(raw, measure, uc_id)
-                    if skip is not None:
-                        raw = stored
-                        if disk is not None:
-                            disk.parent.mkdir(parents=True, exist_ok=True)
-                            disk.write_text(json.dumps(stored, ensure_ascii=False, indent=2) + "\n")
-                        elif policy_content is not None:
-                            out["policy_content"] = json.dumps(stored, ensure_ascii=False, indent=2) + "\n"
-            how_to = _START_HOW_TO[measure] + (policy_mod.SKIP_HOW_TO if mode == "block" else "")
-            decision = policy_mod.check(
-                policy, measure, failed=failed, reason=reason, how_to_continue=how_to,
-                skip=skip, predates=predates,
+            failed, reason, detail = _evaluate_start(measure, uc, run.raw)
+            error = await _apply_measure(
+                run, measure, failed=failed, reason=reason, detail=detail, how_to=_START_HOW_TO[measure],
+                code=_START_CODES[measure], predates=policy_mod.predates_rule(run.raw, measure, uc),
             )
-            outcome = decision["outcome"]
-            if outcome in ("blocked", "pass") and mode != "off":
-                event = "blocked" if outcome == "blocked" else "passed"
-                if backend_type == "native":
-                    await _native_record(board_id, developer_id, measure, uc_id, event)
-                elif outcome == "blocked":
-                    line = _event_line(measure, uc_id, "blocked", at, by)
-                    if disk is not None:
-                        path = disk.parent / EVENTS_FILE
-                        with path.open("a", encoding="utf-8") as fh:
-                            fh.write(line + "\n")
-                    elif backend_type == "freeform":
-                        out["event_lines"].append(line)
-            if outcome == "blocked":
-                error = {**decision["error"], "code": _START_CODES[measure], "uc_id": uc_id, **detail}
+            if error is not None:
                 logger.info("start_uc_blocked", measure=measure, uc_id=uc_id, backend=backend_type)
-                return {"error": error, "event_lines": out["event_lines"], **(
-                    {"policy_content": out["policy_content"]} if "policy_content" in out else {}
-                )}
-            if decision.get("warning"):
-                out["warnings"].append({**decision["warning"], "outcome": outcome, **detail})
+                return error
     except Exception as e:  # noqa: BLE001 — la medida avisa de que no pudo mirar; start_uc sigue
         logger.warning("start_gate_failed", uc_id=uc_id, error=str(e))
         out["warnings"].append({
@@ -972,6 +1019,100 @@ async def start_gate(
             "reason": f"No se pudo comprobar la spec de {uc_id}: {e}",
             "how_to_continue": "La UC arranca igualmente. Repite start_uc si quieres la comprobación.",
             "message": f"Aviso de SpecBox: no se pudo comprobar la spec de {uc_id} ({e}); la UC arranca.",
+            "outcome": "unchecked",
+        })
+    return out
+
+
+# ── La medida que comprueba complete_uc antes de cerrar una UC (US-124) ──
+
+CLOSE_MEASURE = "closing_evidence"
+CLOSE_CODE = "AC_WITHOUT_PASSING_EVIDENCE"
+
+
+async def criteria_with_receipts(backend: Any, board_id: str, uc_item: Any) -> list[dict[str, Any]]:
+    """Los criterios de una UC con su veredicto y sus recibos, como los enseña get_uc.
+
+    Native y FreeForm (desde la 6.41.0) los guardan con el criterio. Si un criterio no los tiene
+    guardados (Trello, Plane, FreeForm anterior), se reconstruyen de los comentarios de la UC.
+    """
+    from ..ac_evidence import evidence_from_comments, verdicts_from_comments
+
+    acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
+    from_comments: dict[str, list[dict[str, Any]]] = {}
+    verdicts: dict[str, dict[str, Any]] = {}
+    if any(not getattr(ac, "evidence", None) and getattr(ac, "verdict", None) is None for ac in acs):
+        comments = await backend.get_comments(board_id, uc_item.id)
+        from_comments = evidence_from_comments(comments)
+        verdicts = verdicts_from_comments(comments)
+    out = []
+    for ac in acs:
+        stored = bool(getattr(ac, "evidence", None)) or getattr(ac, "verdict", None) is not None
+        out.append({
+            "ac_id": ac.id,
+            "text": ac.text,
+            "done": ac.done,
+            "evidence": list(ac.evidence) if stored else from_comments.get(ac.id, []),
+            "verdict": ac.verdict if stored else verdicts.get(ac.id),
+        })
+    return out
+
+
+async def closing_gate(
+    ctx: Context | None,
+    board_id: str,
+    uc_id: str,
+    uc_item: Any,
+    backend: Any,
+    *,
+    policy_content: str | None = None,
+    developer_id: str = "",
+) -> dict[str, Any]:
+    """La medida ``closing_evidence`` antes de que complete_uc cierre una UC (UC-12401).
+
+    Igual que :func:`start_gate`: ``{"error": …}`` si la medida en «block» detiene el cierre (la UC
+    queda en su estado y con su reserva) o ``{"warnings": […]}``. Una UC empezada antes de que la
+    medida pasara a «block» se cierra con aviso (``started_at`` frente a ``block_since``; sin fecha de
+    inicio, la huella de US-122). Una UC ya hecha no se revalida. Si no puede comprobar, avisa y sigue.
+    """
+    out: dict[str, Any] = {"warnings": [], "event_lines": []}
+    if (getattr(uc_item, "state", "") or "") == "done":
+        return out
+    try:
+        backend_type, raw, disk = await _gate_policy(ctx, board_id, policy_content)
+        policy = policy_mod.effective_policy(raw, backend_type=backend_type)
+        if not policy["measures"][CLOSE_MEASURE]["active"] or policy_mod.mode_of(policy, CLOSE_MEASURE) == "off":
+            return out
+        acs = await criteria_with_receipts(backend, board_id, uc_item)
+        uc = {"uc_id": uc_id, "name": uc_item.name, "description": uc_item.description,
+              "state": uc_item.state, "acs": acs}
+        result = policy_mod.closing_evidence_result(uc)
+        started_at = (getattr(uc_item, "raw", None) or {}).get("started_at")
+        predates = (
+            policy_mod.started_before_block(raw, CLOSE_MEASURE, started_at)
+            if started_at is not None
+            else policy_mod.predates_rule(raw, CLOSE_MEASURE, uc)
+        )
+        run = _GateRun(
+            board_id=board_id, uc_id=uc_id, developer_id=developer_id, backend_type=backend_type,
+            policy=policy, raw=raw, disk=disk, policy_content=policy_content, out=out,
+            by=developer_id or "complete_uc",
+        )
+        error = await _apply_measure(
+            run, CLOSE_MEASURE, failed=not result["ok"], reason=policy_mod.closing_evidence_reason(result) or "",
+            detail={"missing": result["missing"], "total": result["total"]}, how_to=policy_mod.CLOSING_HOW_TO,
+            code=CLOSE_CODE, predates=predates,
+        )
+        if error is not None:
+            logger.info("complete_uc_blocked", measure=CLOSE_MEASURE, uc_id=uc_id, backend=backend_type)
+            return error
+    except Exception as e:  # noqa: BLE001 — la medida avisa de que no pudo mirar; complete_uc sigue
+        logger.warning("closing_gate_failed", uc_id=uc_id, error=str(e))
+        out["warnings"].append({
+            "measure": CLOSE_MEASURE,
+            "reason": f"No se pudo comprobar la evidencia de {uc_id}: {e}",
+            "how_to_continue": "La UC se cierra igualmente. Revisa sus criterios con get_uc.",
+            "message": f"Aviso de SpecBox: no se pudo comprobar la evidencia de {uc_id} ({e}); la UC se cierra.",
             "outcome": "unchecked",
         })
     return out

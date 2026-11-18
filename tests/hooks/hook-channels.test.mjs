@@ -222,7 +222,32 @@ const SCENARIOS = {
     ['PR sin el PRD en modo bloqueante', 'block', () => prdMerge('block')],
     ['sin UC activa', 'silent', (p) => run('prd-sync-guard', p.dir, 'PreToolUse', 'Bash', { command: 'gh pr merge 12 --squash' })],
   ],
+  'merge-guard': [
+    ['criterio sin demostrar en modo aviso', 'note', () => closingMerge('warn')],
+    ['criterio sin demostrar en modo bloqueante', 'block', () => closingMerge('block')],
+    ['sin UC activa', 'silent', (p) => run('merge-guard', p.dir, 'PreToolUse', 'Bash', { command: 'gh pr merge 12 --squash' })],
+  ],
 };
+
+/** `gh pr merge` de la UC activa con un criterio sin marcar (UC-12401, medida closing_evidence). */
+function closingMerge(mode) {
+  const p = repo({ specDriven: false });
+  try {
+    p.write('.claude/settings.local.json', JSON.stringify({ specbox: { backend_type: 'freeform' } }));
+    p.write('doc/tracking/policy.json', JSON.stringify({
+      schema: 1, origin: 'new', skips: [],
+      measures: { closing_evidence: { mode, block_since: '2026-11-18T10:00:00+00:00' } },
+    }));
+    p.write('doc/tracking/items.json', JSON.stringify([
+      { id: 'uc1', name: 'UC-1: Demo', state: 'review', labels: ['UC'], meta: { uc_id: 'UC-1' } },
+      { id: 'ac1', name: '[AC-01] Algo', state: 'backlog', labels: ['AC'], parent_id: 'uc1', meta: { ac_id: 'AC-01' } },
+    ]));
+    p.write('.quality/active_uc.json', JSON.stringify({ uc_id: 'UC-1', started_at: '2026-11-19T10:00:00+00:00' }));
+    return run('merge-guard', p.dir, 'PreToolUse', 'Bash', { command: 'gh pr merge 12 --squash' });
+  } finally {
+    p.done();
+  }
+}
 
 /** `gh pr merge` de la UC activa con un `gh` falso cuya PR no toca el PRD (UC-12211). */
 function prdMerge(mode) {

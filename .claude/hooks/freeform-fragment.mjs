@@ -23,6 +23,10 @@
  * get_enforcement_impact also get items.json (`board_content`) and the blocks
  * (`events_content`); the `event_line` of skip_enforcement and
  * record_enforcement_event is appended to doc/tracking/enforcement_events.jsonl.
+ *
+ * UC-12401: complete_uc gets the policy like start_uc (its measure is closing_evidence) and what
+ * both return is saved the same way; mark_ac and mark_ac_batch get the git author as `marked_by`,
+ * which FreeForm keeps with the verdict and the receipt of each criterion.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -47,6 +51,11 @@ import {
   writeAtomic,
 } from './lib/freeform-fragment.mjs';
 import { readHookInput } from './lib/utils.mjs';
+
+/** The tools whose measures read the board's policy and may record a block (UC-12301, UC-12401). */
+const GATE_TOOLS = new Set(['start_uc', 'complete_uc']);
+/** The tools that mark criteria: FreeForm keeps who marked them (UC-12401). */
+const MARK_TOOLS = new Set(['mark_ac', 'mark_ac_batch']);
 
 const { event, toolName, toolInput, cwd, payload } = readHookInput();
 const parsed = parseToolName(toolName);
@@ -187,19 +196,24 @@ function pre() {
     return result;
   });
   const updatedInput = { ...toolInput, items_content: built.itemsContent };
-  // UC-12211: start_uc marks the UCs that predate a rule; it needs the board's policy.
-  if (parsed.tool === 'start_uc' && typeof toolInput.policy_content !== 'string' && existsSync(policyPath)) {
+  // UC-12211, UC-12401: start_uc and complete_uc check measures of the board's policy.
+  if (GATE_TOOLS.has(parsed.tool) && typeof toolInput.policy_content !== 'string' && existsSync(policyPath)) {
     updatedInput.policy_content = readFileSync(policyPath, 'utf-8');
+  }
+  // UC-12401: who marked each criterion, kept with its verdict and its receipt.
+  if (MARK_TOOLS.has(parsed.tool) && !toolInput.marked_by) {
+    const author = gitAuthor();
+    if (author) updatedInput.marked_by = author.slice(0, 100);
   }
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', updatedInput } }));
 }
 
 /**
- * start_uc (UC-12301): a block it records (`event_line`) and a skip it spends (`policy_content`)
- * go where the policy tools write them. Returns the note for the agent, or null.
+ * start_uc (UC-12301) and complete_uc (UC-12401): a block they record (`event_line`) and a skip they
+ * spend (`policy_content`) go where the policy tools write them. Returns the note for the agent, or null.
  */
-function saveStartUcEnforcement(response) {
-  if (parsed.tool !== 'start_uc') return null;
+function saveGateEnforcement(response) {
+  if (!GATE_TOOLS.has(parsed.tool)) return null;
   const saved = [];
   try {
     const lines = (extractField(response, 'event_line') || '').split('\n').filter((l) => l.trim());
@@ -217,7 +231,7 @@ function saveStartUcEnforcement(response) {
     }
   } catch (err) {
     process.stderr.write(
-      `SpecBox freeform-fragment: no se pudo guardar lo que devolvió start_uc (${err.message}). ` +
+      `SpecBox freeform-fragment: no se pudo guardar lo que devolvió ${parsed.tool} (${err.message}). ` +
         'Repite la llamada antes de seguir.\n',
     );
     process.exit(2);
@@ -228,11 +242,11 @@ function saveStartUcEnforcement(response) {
 function post() {
   if (!existsSync(pending)) return;
   const response = payload.tool_response;
-  const startNote = saveStartUcEnforcement(response);
+  const startNote = saveGateEnforcement(response);
   const content = extractItemsContent(response);
   if (content == null) {
     unlinkSync(pending); // a read, or an error: nothing to merge
-    if (startNote) writeHidden(response, startNote); // a start_uc that a measure stopped
+    if (startNote) writeHidden(response, startNote); // a start_uc or complete_uc that a measure stopped
     return;
   }
   try {

@@ -52,7 +52,7 @@ def test_ac01_ac02_the_rule(done, evidence, expected):
 
 def test_ac03_implement_leaves_a_test_receipt_per_acceptance_test():
     skill = (ROOT / ".claude/skills/implement/SKILL.md").read_text(encoding="utf-8")
-    section = skill[skill.index("### 8.5.4"): skill.index("### 8.5.5")]
+    section = skill[skill.index("### 8.5.1b"): skill.index("### 8.5.2")]  # UC-12401: antes de fusionar
     assert "Cada AC que cubre una prueba de aceptación lleva un recibo `test`" in section
     assert '"type": "test"' in section and "{scenario}" in section
     assert "además de su" in section and "captura" in section

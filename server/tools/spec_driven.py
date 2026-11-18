@@ -2118,12 +2118,21 @@ async def complete_uc(
     evidence: str | None = None,
     items_content: str | None = None,
     with_roadmap: bool = False,
+    policy_content: str | None = None,
 ) -> dict[str, Any]:
     """Mark a Use Case as complete.
 
     Moves to Done, updates the parent US module/checklist, moves the story to
     the state its UCs imply — Done when this was its last pending UC (UC-4305) —
     and optionally adds evidence as a comment.
+
+    Before closing, the `closing_evidence` measure (UC-12401): every criterion must be done, with a
+    last verdict that is not «fails» and at least one receipt that passes (mark_ac evidence). With
+    the measure in «block», a UC that misses any returns AC_WITHOUT_PASSING_EVIDENCE with each
+    criterion and its reason (not_done, no_evidence, failing_evidence) and stays as it was; in
+    «warn» it closes and `enforcement_warnings` lists them. A UC started before the measure went to
+    «block», or with a skip_enforcement, closes with a warning. `policy_content` is the FreeForm
+    doc/tracking/policy.json for the remote MCP (the freeform-fragment hook passes it).
 
     Args:
         board_id: Board/project ID
@@ -2145,6 +2154,23 @@ async def complete_uc(
         if not uc_item:
             return {"error": f"Use Case {uc_id} not found", "code": "UC_NOT_FOUND"}
 
+        # UC-12401: the closing_evidence measure, before anything moves. A block returns the error
+        # with the UC in its state and its reservation kept.
+        from .enforcement import closing_gate
+
+        native_session = await _get_native_session_config(ctx)
+        developer_id = ""
+        if native_session is not None and hasattr(backend, "_require_membership_cached"):
+            try:  # who closes: the bloqueo and its correction are signed with it in audit_log
+                developer_id = (await backend._require_membership_cached(board_id)).developer_id
+            except Exception:  # noqa: BLE001 — the update below re-checks membership and reports it
+                developer_id = ""
+        gate = await closing_gate(
+            ctx, board_id, uc_id, uc_item, backend, policy_content=policy_content, developer_id=developer_id,
+        )
+        if gate.get("error"):
+            return {**gate["error"], **_gate_extras(gate)}
+
         # Move to done
         await backend.update_item(board_id, uc_item.id, state="done")
 
@@ -2153,7 +2179,6 @@ async def complete_uc(
         # leaves an orphan reservation: the UC is "done" yet still shows in
         # "Reservas activas" / get_satellite_queue [US-NATIVE-RESERVATION-RELEASE].
         # No-op for non-native backends (no reservations to release) [AC-02].
-        native_session = await _get_native_session_config(ctx)
         if native_session is not None:
             await _release_uc_native(native_session, uc_id)
 
@@ -2192,6 +2217,8 @@ async def complete_uc(
         }
         if us_state_change:
             result["us_state_change"] = us_state_change
+        result = attach_warnings(result, gate.get("warnings") or [])  # UC-12401: «warn» y anteriores a la regla
+        result.update(_gate_extras(gate))
         if items_content is not None:
             result["items_content"] = backend.get_items_content()
         return result
@@ -2204,6 +2231,17 @@ async def complete_uc(
 # ═══════════════════════════════════════════════════════════════════════
 
 
+def _marked_by_kw(marked_by: str | None) -> dict[str, Any]:
+    """``{"marked_by": …}`` para el backend, solo si llega un nombre (UC-12401, FreeForm).
+
+    Un texto corto, de una línea y sin caracteres de control: es un nombre, no un comentario.
+    """
+    if not isinstance(marked_by, str):
+        return {}
+    name = " ".join(marked_by.split())[:100]
+    return {"marked_by": name} if name else {}
+
+
 async def mark_ac(
     board_id: str,
     uc_id: str,
@@ -2212,6 +2250,7 @@ async def mark_ac(
     ctx: Context,
     evidence: str | AcEvidenceInput | None = None,
     items_content: str | None = None,
+    marked_by: str | None = None,
 ) -> dict[str, Any]:
     """Mark a single Acceptance Criterion as passed or failed.
 
@@ -2233,6 +2272,9 @@ async def mark_ac(
         items_content: FreeForm content-passing (UC-660). Pass items.json as a
             string for remote MCP; the mutated string is returned under
             `items_content`. Omit for local MCP / disk mode.
+        marked_by: FreeForm only (UC-12401): who marked it, kept with the verdict
+            and the receipt in items.json (the freeform-fragment hook sends the
+            git user name). Native signs with the session developer and ignores it.
 
     Returns:
         AC status update result with totals, plus `items_content` (mutated
@@ -2242,6 +2284,7 @@ async def mark_ac(
         receipt = normalize_evidence(evidence)  # type: ignore[arg-type]
     except EvidenceError as e:
         return {"error": f"Evidencia no válida para {ac_id}: {e}", "code": "INVALID_EVIDENCE"}
+    by_kw = _marked_by_kw(marked_by)
 
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
@@ -2252,7 +2295,7 @@ async def mark_ac(
         # Mark the AC
         try:
             await backend.mark_acceptance_criterion(
-                board_id, uc_item.id, ac_id, passed, evidence=receipt
+                board_id, uc_item.id, ac_id, passed, evidence=receipt, **by_kw
             )
         except Exception as e:
             return {
@@ -2297,6 +2340,7 @@ async def mark_ac_batch(
     ctx: Context,
     items_content: str | None = None,
     with_roadmap: bool = False,
+    marked_by: str | None = None,
 ) -> dict[str, Any]:
     """Mark multiple Acceptance Criteria at once.
 
@@ -2309,10 +2353,12 @@ async def mark_ac_batch(
             Each evidence follows the same rules as in `mark_ac` (US-56/UC-5601):
             free text, or {type, label, link?, detail?, commit?, repo?}. If any
             evidence is invalid (an invalid commit included), nothing is marked.
+        marked_by: FreeForm only (UC-12401), as in `mark_ac`.
 
     Returns:
         Batch result with total/passed/failed counts.
     """
+    by_kw = _marked_by_kw(marked_by)
     # Validate every receipt before touching the board: a batch is either
     # recorded whole or not at all.
     receipts: list[dict[str, Any] | None] = []
@@ -2341,7 +2387,7 @@ async def mark_ac_batch(
 
             try:
                 await backend.mark_acceptance_criterion(
-                    board_id, uc_item.id, ac_id, passed, evidence=receipt
+                    board_id, uc_item.id, ac_id, passed, evidence=receipt, **by_kw
                 )
             except Exception:
                 logger.warning("mark_ac_batch_skip", uc_id=uc_id, ac_id=ac_id, error="not_found")
@@ -3019,7 +3065,9 @@ def register_spec_driven_tools(mcp_instance) -> None:
         "returns full detail."
     )(start_uc)
     mcp_instance.tool(
-        description="Complete a UC: moves to Done, updates parent US (Done when it was the last UC), adds evidence."
+        description="Complete a UC: moves to Done, updates parent US (Done when it was the last UC), adds evidence. "
+        "Measure closing_evidence (UC-12401): every criterion done with a receipt that passes; in «block» a "
+        "UC that misses any returns AC_WITHOUT_PASSING_EVIDENCE with each criterion and stays as it was."
     )(complete_uc)
 
     # Acceptance Criteria (3)

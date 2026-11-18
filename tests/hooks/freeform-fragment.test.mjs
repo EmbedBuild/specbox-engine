@@ -360,3 +360,35 @@ test('start_uc: a block is appended to the events, a spent skip saves the policy
     p.done();
   }
 });
+
+// UC-12401 — complete_uc lleva la política como start_uc; mark_ac lleva quién marcó.
+test('complete_uc gets the policy and its block is saved; mark_ac and mark_ac_batch get the git author', () => {
+  const p = project();
+  try {
+    const eventsPath = join(p.dir, 'doc/tracking/enforcement_events.jsonl');
+    const policy = { schema: 1, origin: 'new', measures: { closing_evidence: { mode: 'block' } }, skips: [] };
+    writeFileSync(join(p.dir, 'doc/tracking/policy.json'), `${JSON.stringify(policy)}\n`);
+    const before = readFileSync(join(p.dir, 'doc/tracking/items.json'), 'utf-8');
+
+    const pre = hook(p, 'PreToolUse', 'complete_uc', { board_id: 'ff', uc_id: 'UC-007' }, { tool_use_id: 'toolu_c1' });
+    assert.equal(JSON.parse(pre.out.hookSpecificOutput.updatedInput.policy_content).measures.closing_evidence.mode, 'block');
+    const line = JSON.stringify({ measure: 'closing_evidence', uc_id: 'UC-007', outcome: 'blocked', at: '2026-11-18T10:00:00+00:00', by: 'complete_uc' });
+    const blocked = { success: false, code: 'AC_WITHOUT_PASSING_EVIDENCE', error: 'SpecBox detuvo la operación…', event_line: line };
+    const post = hook(p, 'PostToolUse', 'complete_uc', {}, { tool_use_id: 'toolu_c1', tool_response: [{ type: 'text', text: JSON.stringify(blocked) }] });
+    assert.equal(post.code, 0, post.stderr);
+    assert.equal(JSON.parse(readFileSync(eventsPath, 'utf-8').trim()).measure, 'closing_evidence');
+    assert.equal(readFileSync(join(p.dir, 'doc/tracking/items.json'), 'utf-8'), before);
+    assert.ok(!JSON.stringify(post.out.hookSpecificOutput.updatedToolOutput).includes('event_line'));
+    assert.deepEqual(p.pending(), []);
+
+    spawnSync('git', ['config', 'user.name', 't'], { cwd: p.dir });
+    for (const tool of ['mark_ac', 'mark_ac_batch']) {
+      const marked = hook(p, 'PreToolUse', tool, { board_id: 'ff', uc_id: 'UC-007' }, { tool_use_id: `toolu_${tool}` });
+      assert.equal(marked.out.hookSpecificOutput.updatedInput.marked_by, 't', tool);
+      const given = hook(p, 'PreToolUse', tool, { board_id: 'ff', uc_id: 'UC-007', marked_by: 'Ana' }, { tool_use_id: `toolu_${tool}2` });
+      assert.equal(given.out.hookSpecificOutput.updatedInput.marked_by, 'Ana', `${tool}: lo que manda el cliente gana`);
+    }
+  } finally {
+    p.done();
+  }
+});

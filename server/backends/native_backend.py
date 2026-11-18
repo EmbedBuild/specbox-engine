@@ -1370,6 +1370,8 @@ class NativeBackend(SpecBackend):
         ac_id: str,
         passed: bool,
         evidence: dict[str, Any] | None = None,
+        *,
+        marked_by: str | None = None,  # UC-12401: FreeForm only; native signs with the session developer
     ) -> ChecklistItemDTO:
         dev = await self._require_membership_cached(board_id)
         from ..coordination.audit import OP_MARK_AC, OP_UNMARK_AC, record_destructive

@@ -46,6 +46,7 @@ export function modosDe(raw, backendType) {
   const guardadas = raw && typeof raw.measures === 'object' && raw.measures ? raw.measures : {};
   const modos = {};
   const explicitas = [];
+  const bloqueaDesde = {};
   for (const [clave, nuevo] of Object.entries(MEASURES)) {
     const entrada = guardadas[clave];
     const guardada = !!entrada && MODES.includes(entrada.mode);
@@ -54,8 +55,10 @@ export function modosDe(raw, backendType) {
     modos[clave] = modo;
     // UC-12215: la puso una persona (no es el valor por defecto del tablero).
     if (guardada && entrada.source !== 'default') explicitas.push(clave);
+    // UC-12401: desde cuándo bloquea, para saber si una UC empezó antes de la regla.
+    if (modo === 'block' && typeof entrada?.block_since === 'string') bloqueaDesde[clave] = entrada.block_since;
   }
-  return { origin, backendType, modos, explicitas };
+  return { origin, backendType, modos, explicitas, bloqueaDesde };
 }
 
 /** El modo de una medida en una política leída con leerPolitica («warn» si no la conoce). */
@@ -125,7 +128,10 @@ export async function leerPolitica({
           const policy = {
             origin: r.policy.origin,
             measures: Object.fromEntries(
-              Object.entries(r.policy.measures || {}).map(([k, v]) => [k, { mode: v?.mode, source: v?.source }]),
+              Object.entries(r.policy.measures || {}).map(([k, v]) => [
+                k,
+                { mode: v?.mode, source: v?.source, ...(v?.block_since ? { block_since: v.block_since } : {}) },
+              ]),
             ),
           };
           try {

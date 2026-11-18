@@ -72,7 +72,8 @@ MEASURES: dict[str, Measure] = {
         Measure("spec_quality", "calidad de la spec al empezar una UC", "US-123", since="6.39.0"),
         # UC-12305: start_uc no arranca una UC con marcas [POR DECIDIR (lo citado no cuenta).
         Measure("pending_decisions", "marcas «por decidir» al empezar una UC", "US-123", since="6.39.0"),
-        Measure("closing_evidence", "evidencia que pasa al cerrar una UC", "US-124"),
+        # UC-12401: complete_uc la comprueba antes de cerrar, y el hook merge-guard antes de fusionar.
+        Measure("closing_evidence", "evidencia que pasa al cerrar una UC", "US-124", since="6.41.0"),
         Measure("independent_review", "revisión independiente antes de fusionar", "US-124"),
         Measure("ac_approval", "criterios aprobados al empezar una UC", "US-125"),
         Measure("drift_gate", "puerta de desviación en el CI local", "US-126"),
@@ -561,17 +562,74 @@ def _eval_pending_decisions(uc: dict[str, Any]) -> str | None:
     return pending_reason(pending_marks(uc))
 
 
+#: Por qué un criterio no está demostrado (UC-12401 AC-02).
+CLOSING_REASONS = {
+    "not_done": "sin marcar",
+    "no_evidence": "sin evidencia",
+    "failing_evidence": "con evidencia que falla",
+}
+
+
+def closing_evidence_result(uc: dict[str, Any]) -> dict[str, Any]:
+    """Qué criterios de una UC no están demostrados (UC-12401, decisión 1 del plan de US-124).
+
+    Un criterio está demostrado si está hecho y tiene al menos un recibo con ``passed: true``.
+    ``mark_ac`` deja el último veredicto en «pasa» al marcarlo hecho, y reescribir su texto lo deja
+    sin hacer (trigger 0035 en native, UC-12401 en FreeForm): «hecho» ya lleva el veredicto. Cuentan
+    todos los criterios, también los internos. Una UC sin criterios no tiene nada demostrado. El hook
+    merge-guard aplica la misma regla (``lib/closing-evidence.mjs``; una prueba compara las dos).
+
+    Cada criterio de ``uc["acs"]`` trae ``done`` y ``evidence`` (lista de recibos, o None si no se
+    sabe: FreeForm por contenido no ve los comentarios antiguos; entonces solo cuenta «hecho»).
+    Devuelve ``{total, missing: [{ac_id, reason}], ok}``.
+    """
+    acs = uc.get("acs") or []
+    missing: list[dict[str, Any]] = []
+    if not acs:
+        missing.append({"ac_id": None, "reason": "no_criteria"})
+    for ac in acs:
+        ac_id = str(ac.get("ac_id", "?"))
+        evidence = ac.get("evidence")
+        if not ac.get("done"):
+            missing.append({"ac_id": ac_id, "reason": "not_done"})
+        elif evidence is None:
+            continue  # no se sabe: un criterio hecho cuenta como demostrado
+        elif not evidence:
+            missing.append({"ac_id": ac_id, "reason": "no_evidence"})
+        elif not any(isinstance(e, dict) and e.get("passed") is True for e in evidence):
+            missing.append({"ac_id": ac_id, "reason": "failing_evidence"})
+    return {"total": len(acs), "missing": missing, "ok": not missing}
+
+
+def closing_evidence_reason(result: dict[str, Any]) -> str | None:
+    """El motivo, en una frase y con cada criterio, de que una UC no se cierre; None si se puede."""
+    if result["ok"]:
+        return None
+    if any(m["reason"] == "no_criteria" for m in result["missing"]):
+        return "La UC no tiene criterios: no hay nada demostrado."
+    detail = ", ".join(f"{m['ac_id']} ({CLOSING_REASONS.get(m['reason'], m['reason'])})" for m in result["missing"])
+    return f"{len(result['missing'])} de {result['total']} criterios sin demostrar: {detail}."
+
+
+CLOSING_HOW_TO = (
+    "Marca cada criterio con mark_ac (o mark_ac_batch) y un recibo que pase: una prueba (`test`), una "
+    "captura, un enlace o una nota escrita si se comprobó a mano. Un criterio que falla se corrige y se "
+    "vuelve a marcar; después repite complete_uc."
+)
+
+
+def started_before_block(raw: Any, measure: str, started_at: Any) -> bool:
+    """True si la UC empezó antes de que ``measure`` pasara a «block» (UC-12401 AC-06, decisión 2)."""
+    entry = _stored(raw)["measures"].get(measure) or {}
+    since = _parse_at(entry.get("block_since")) if entry.get("mode") == "block" else None
+    started = _parse_at(started_at)
+    return since is not None and started is not None and started < since
+
+
 def _eval_closing_evidence(uc: dict[str, Any]) -> str | None:
     if uc.get("state") != "review":
         return None  # solo detiene al cerrar: lo que está en revisión es lo que se cerraría
-    # FreeForm guarda la evidencia en comentarios que no viajan con el tablero: ahí solo cuenta «hecho».
-    known = uc.get("evidence_known", True)
-    sin = [
-        str(ac.get("ac_id", "?"))
-        for ac in uc.get("acs") or []
-        if not ac.get("done") or (known and not ac.get("evidence"))
-    ]
-    return f"{len(sin)} criterio(s) sin hecho o sin evidencia: {', '.join(sin[:6])}." if sin else None
+    return closing_evidence_reason(closing_evidence_result(uc))
 
 
 #: Lo que cada medida detendría, medido con lo que el tablero sabe de una UC. Las que dependen del

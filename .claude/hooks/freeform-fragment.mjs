@@ -15,6 +15,11 @@
  * Never blocks a call: when it cannot act it stays silent and the call goes as
  * the model wrote it. A failed merge exits 2 with what was not saved; the
  * fragment stays in .quality/freeform-fragments/ for recovery.
+ *
+ * The EP-20 policy (UC-12212): the policy tools get doc/tracking/policy.json as
+ * `policy_content` (and the git author as `actor`); what set_enforcement_mode and
+ * skip_enforcement return is written back. A new board from setup_board writes
+ * the policy only when the project has none.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -23,7 +28,10 @@ import { isAbsolute, join } from 'node:path';
 import { isRemoteMcp } from './lib/freeform-path.mjs';
 import {
   CONTENT_TOOLS,
+  POLICY_TOOLS,
+  POLICY_WRITERS,
   buildItemsContent,
+  extractField,
   extractItemsContent,
   mergeFragment,
   parseToolName,
@@ -37,7 +45,8 @@ import { readHookInput } from './lib/utils.mjs';
 
 const { event, toolName, toolInput, cwd, payload } = readHookInput();
 const parsed = parseToolName(toolName);
-if (!parsed || !CONTENT_TOOLS.has(parsed.tool) || !payload.tool_use_id) process.exit(0);
+const isPolicyTool = !!parsed && POLICY_TOOLS.has(parsed.tool);
+if (!parsed || !(CONTENT_TOOLS.has(parsed.tool) || isPolicyTool) || !payload.tool_use_id) process.exit(0);
 
 const root = (() => {
   try {
@@ -57,12 +66,79 @@ const trackingDir =
     ? settings.freeform_root_absolute
     : join(root, 'doc', 'tracking');
 const itemsPath = join(trackingDir, 'items.json');
+const policyPath = join(trackingDir, 'policy.json');
 const stateDir = join(root, '.quality', 'freeform-fragments');
 const pending = pendingPath(stateDir, payload.tool_use_id);
 
+if (isPolicyTool) {
+  if (event === 'PreToolUse') prePolicy();
+  else if (event === 'PostToolUse') postPolicy();
+  process.exit(0);
+}
 if (event === 'PreToolUse') pre();
 else if (event === 'PostToolUse') post();
 process.exit(0);
+
+function gitAuthor() {
+  try {
+    return execFileSync('git', ['-C', root, 'config', 'user.name'], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return '';
+  }
+}
+
+function prePolicy() {
+  if (typeof toolInput.policy_content === 'string') return; // explicit content wins
+  const content = existsSync(policyPath) ? readFileSync(policyPath, 'utf-8') : '';
+  const updatedInput = { ...toolInput, policy_content: content };
+  const author = gitAuthor();
+  if (author && !toolInput.actor) updatedInput.actor = author.slice(0, 80);
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', updatedInput } }));
+}
+
+function postPolicy() {
+  const response = payload.tool_response;
+  const content = extractField(response, 'policy_content');
+  if (content == null) return; // a read, or an error
+  if (!POLICY_WRITERS.has(parsed.tool)) {
+    writeHidden(response, null);
+    return;
+  }
+  try {
+    JSON.parse(content);
+    writeAtomic(policyPath, content.endsWith('\n') ? content : `${content}\n`);
+    writeHidden(response, `SpecBox: la política está guardada en ${policyPath.replace(`${root}/`, '')}. No la escribas a mano.`);
+  } catch (err) {
+    process.stderr.write(
+      `SpecBox freeform-fragment: no se pudo guardar ${policyPath} tras ${parsed.tool} (${err.message}). ` +
+        'Repite la llamada antes de seguir.\n',
+    );
+    process.exit(2);
+  }
+}
+
+function writeHidden(response, note) {
+  const out = { hookEventName: 'PostToolUse', updatedToolOutput: withoutItemsContent(response) };
+  if (note) out.additionalContext = note;
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: out }));
+}
+
+/** setup_board of a new board: the policy with origin «new», only if the project has none. */
+function savePolicyOfNewBoard(response) {
+  if (parsed.tool !== 'setup_board' || existsSync(policyPath)) return false;
+  const content = extractField(response, 'policy_content');
+  if (content == null) return false;
+  try {
+    JSON.parse(content);
+    writeAtomic(policyPath, content.endsWith('\n') ? content : `${content}\n`);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function pre() {
   const raw = existsSync(itemsPath) ? readFileSync(itemsPath, 'utf-8') : '[]';
@@ -121,6 +197,7 @@ function post() {
       unlinkSync(pending);
       return merged.length - local.length;
     });
+    const policySaved = savePolicyOfNewBoard(response);
     process.stdout.write(
       JSON.stringify({
         hookSpecificOutput: {
@@ -129,6 +206,7 @@ function post() {
           additionalContext:
             `SpecBox: el tablero ya está guardado en ${itemsPath.replace(`${root}/`, '')}` +
             (changes ? ` (${changes > 0 ? '+' : ''}${changes} elementos)` : '') +
+            (policySaved ? `, con su política en ${policyPath.replace(`${root}/`, '')}` : '') +
             '. No lo escribas a mano.',
         },
       }),

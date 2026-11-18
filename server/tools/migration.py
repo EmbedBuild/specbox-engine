@@ -1625,6 +1625,8 @@ async def _maybe_auto_provision(pool, dev_token: str, target_project_id: str) ->
         developer_id=developer.developer_id,
         display_name=developer.display_name,
         role="project_admin",
+        # UC-12212: a project migrated into native already existed — its measures start in «warn».
+        enforcement_origin="existing",
     )
     # The membership edge is new; drop any cached (token, project) decision so
     # the gate below revalidates against Postgres.

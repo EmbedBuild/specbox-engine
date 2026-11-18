@@ -1023,6 +1023,12 @@ def register_onboarding_tools(
             board_id=board_id,
             engine_version=_read_engine_version(engine_path),
         )
+        # UC-12212: a FreeForm project onboarded from this version keeps the EP-20 policy with
+        # origin «new» next to its board. Native writes it when the board is created.
+        if backend_type == "freeform":
+            from ..coordination.enforcement import POLICY_FILE, new_policy
+
+            files[f"doc/tracking/{POLICY_FILE}"] = json.dumps(new_policy(), indent=2) + "\n"
 
         # Register in state registry
         registered = False

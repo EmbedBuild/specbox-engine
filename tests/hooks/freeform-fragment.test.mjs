@@ -234,3 +234,57 @@ test('nextUcId: the story series, the board maximum and the reserved numbers', (
   assert.deepEqual(nextUcId(items, 'US-01'), { id: 'UC-12802', number: 12802, numbering: 'board' });
   assert.deepEqual(nextUcId(items, 'US-999'), { id: 'UC-12802', number: 12802, numbering: 'board' });
 });
+
+// UC-12212 — la política de EP-20 viaja en policy_content y vuelve a doc/tracking/policy.json.
+test('policy tools: Pre sends policy.json and the git author; Post saves what set/skip return', () => {
+  const p = project();
+  try {
+    spawnSync('git', ['config', 'user.name', 'Ana Prueba'], { cwd: p.dir });
+    const policyPath = join(p.dir, 'doc/tracking/policy.json');
+    // Sin fichero: llega vacío (el servidor lo trata como un tablero que ya existía).
+    const read = hook(p, 'PreToolUse', 'get_enforcement_policy', {}, { tool_use_id: 'toolu_p0' });
+    assert.equal(read.out.hookSpecificOutput.updatedInput.policy_content, '');
+    assert.equal(read.out.hookSpecificOutput.updatedInput.actor, 'Ana Prueba');
+
+    writeFileSync(policyPath, `${JSON.stringify({ schema: 1, origin: 'new', measures: {}, skips: [] })}\n`);
+    const pre = hook(p, 'PreToolUse', 'set_enforcement_mode', { measure: 'spec_quality', mode: 'block' }, { tool_use_id: 'toolu_p1' });
+    assert.equal(JSON.parse(pre.out.hookSpecificOutput.updatedInput.policy_content).origin, 'new');
+
+    const changed = { schema: 1, origin: 'new', measures: { spec_quality: { mode: 'block', set_by: 'Ana Prueba' } }, skips: [] };
+    const response = [{ type: 'text', text: JSON.stringify({ success: true, mode: 'block', policy_content: JSON.stringify(changed) }) }];
+    const post = hook(p, 'PostToolUse', 'set_enforcement_mode', {}, { tool_use_id: 'toolu_p1', tool_response: response });
+    assert.equal(post.code, 0, post.stderr);
+    assert.deepEqual(JSON.parse(readFileSync(policyPath, 'utf-8')), changed);
+    assert.ok(!JSON.stringify(post.out.hookSpecificOutput.updatedToolOutput).includes('policy_content'));
+    assert.match(post.out.hookSpecificOutput.additionalContext, /policy\.json/);
+
+    // Una lectura no escribe nada; con MCP local el hook no interviene.
+    const readPost = hook(p, 'PostToolUse', 'get_enforcement_policy', {}, { tool_use_id: 'toolu_p2', tool_response: [{ type: 'text', text: JSON.stringify({ success: true, policy_content: '{"origin":"existing"}' }) }] });
+    assert.equal(readPost.code, 0);
+    assert.equal(JSON.parse(readFileSync(policyPath, 'utf-8')).origin, 'new');
+    const local = hook(p, 'PreToolUse', 'get_enforcement_policy', {}, { tool_use_id: 'toolu_p3' }, { SPECBOX_ENGINE_MCP_URL: '', HOME: p.dir });
+    assert.equal(local.out, null);
+  } finally {
+    p.done();
+  }
+});
+
+test('setup_board of a new board writes the policy only when the project has none', () => {
+  const p = project({ items: [] });
+  try {
+    const policyPath = join(p.dir, 'doc/tracking/policy.json');
+    const answer = (origin) => [{ type: 'text', text: JSON.stringify({ board_id: 'ff-1', items_content: '[]', policy_content: JSON.stringify({ schema: 1, origin, measures: {}, skips: [] }) }) }];
+    hook(p, 'PreToolUse', 'setup_board', { board_name: 'Nuevo' }, { tool_use_id: 'toolu_s1' });
+    const post = hook(p, 'PostToolUse', 'setup_board', {}, { tool_use_id: 'toolu_s1', tool_response: answer('new') });
+    assert.equal(post.code, 0, post.stderr);
+    assert.equal(JSON.parse(readFileSync(policyPath, 'utf-8')).origin, 'new');
+    assert.match(post.out.hookSpecificOutput.additionalContext, /con su política/);
+
+    writeFileSync(policyPath, `${JSON.stringify({ schema: 1, origin: 'existing', measures: {}, skips: [] })}\n`);
+    hook(p, 'PreToolUse', 'setup_board', { board_name: 'Otra vez' }, { tool_use_id: 'toolu_s2' });
+    hook(p, 'PostToolUse', 'setup_board', {}, { tool_use_id: 'toolu_s2', tool_response: answer('new') });
+    assert.equal(JSON.parse(readFileSync(policyPath, 'utf-8')).origin, 'existing');
+  } finally {
+    p.done();
+  }
+});

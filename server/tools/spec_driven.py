@@ -606,9 +606,28 @@ async def setup_board(
         }
         if new_content_board:
             result["items_content"] = backend.get_items_content()
+        if new_content_board or _empty_content_board(backend):
+            # UC-12212: a FreeForm board born from an empty items.json takes the EP-20 policy
+            # with origin «new». The freeform-fragment hook writes doc/tracking/policy.json only
+            # when the project does not have one.
+            from ..coordination.enforcement import new_policy
+
+            result["policy_content"] = json.dumps(new_policy(), indent=2) + "\n"
         return result
     finally:
         await backend.close()
+
+
+def _empty_content_board(backend: Any) -> bool:
+    """True for a FreeForm board in content mode that arrived with no items (UC-12212)."""
+    from ..backends.freeform_backend import FreeformBackend
+
+    return (
+        isinstance(backend, FreeformBackend)
+        and backend._memory_mode
+        and backend._fragment_max_ids is None
+        and not backend._load_items()
+    )
 
 
 async def _content_only_freeform(ctx: Context) -> bool:

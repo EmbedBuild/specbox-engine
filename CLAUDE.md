@@ -2957,6 +2957,37 @@ y no se registró ninguna desde junio; y no había señal de uso.
   y expone `adoption_active`, `adoption_mcp_people` y `adoption_summary` solo para `service_role`.
 - Tests: `vscode-extension/tests/activation.test.mjs` y `tests/heartbeat.test.mjs`.
 
+## Cada medida de EP-20 tiene un modo por proyecto (US-122, UC-12212)
+
+EP-20 añade medidas que pueden detener el trabajo (calidad de la spec al empezar, evidencia al cerrar,
+revisión independiente…). Un proyecto que ya existía no amanece bloqueado por una regla que no conocía.
+
+- **Catálogo** (`server/coordination/enforcement.py`): clave, modo de proyecto nuevo (hoy todas «warn»; pasa a
+  «block» solo con la prueba de UC-12213 y en una versión con codename) y `since` (versión en la que la medida
+  empieza a comprobar algo; `None` = declarada). Copia en `.claude/hooks/lib/enforcement-policy.mjs`; una prueba
+  compara las dos.
+- **Modos:** `off` (la respuesta queda como antes), `warn` (aviso en `enforcement_warnings`, la operación
+  sigue), `block` (error `ENFORCEMENT_BLOCKED` cuyo texto lleva medida, motivo y cómo seguir). `check()` y
+  `attach_warnings()` son lo que usará cada medida.
+- **Dónde vive:** native en `projects.meta.enforcement` (el alta de `provision_native_project` la escribe con
+  `origin: "new"`; una migración a native, con `"existing"`; un proyecto sin ella cuenta como «existing», todo
+  en «warn»). FreeForm en `doc/tracking/policy.json` (lo escriben `setup_board` en disco, `onboard_project` y,
+  con el MCP remoto, el hook freeform-fragment con lo que devuelve `setup_board` de un tablero vacío). Trello y
+  Plane: «warn» como máximo, y la respuesta lo dice.
+- **Tools:** `get_enforcement_policy`, `set_enforcement_mode` (native: solo `project_admin`, fila
+  `enforcement_mode` en `audit_log`) y `skip_enforcement` (motivo de 10 a 500 caracteres sin credenciales;
+  solo con la medida en «block»; queda quién, cuándo y por qué en la política y en `audit_log` como
+  `enforcement_skip`; `take_skip` lo gasta una vez). Con el MCP remoto en FreeForm reciben y devuelven
+  `policy_content`, que el hook freeform-fragment pone y guarda. La plantilla de permisos pone las dos que
+  cambian algo en `ask`.
+- **Hooks:** `leerPolitica()` lee `policy.json` en FreeForm y, en native, `get_enforcement_policy` con la
+  identidad del dispositivo y 10 minutos de caché en `.quality/enforcement_policy.json`; sin red, la última
+  copia; sin copia, «warn». `SPECBOX_ENFORCEMENT_POLICY=off` no pregunta.
+- **Changelog:** la versión que activa una medida lleva `### Para los proyectos que ya existían` con la clave
+  y cómo pasarla a «block» (`/release` Paso 5.5.4; prueba `measures_missing_from_changelog`).
+- Tests: `tests/test_enforcement.py`, `tests/test_enforcement_native.py`,
+  `tests/hooks/enforcement-policy.test.mjs` y los casos de la política en `tests/hooks/freeform-fragment.test.mjs`.
+
 ## Engine Version
 
 Current: v6.35.0 "Palabra"

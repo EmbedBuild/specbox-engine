@@ -19,6 +19,7 @@ module is safe: it can never leak ``SPECBOX_NATIVE_DSN``.
 
 from __future__ import annotations
 
+import json
 import secrets
 from typing import Any
 
@@ -27,6 +28,7 @@ import structlog
 
 from ..coordination import identity as identity_mod
 from ..coordination import reservations as reservations_mod
+from ..coordination.enforcement import new_policy
 
 logger = structlog.get_logger(__name__)
 
@@ -244,8 +246,12 @@ async def provision_native_project(
     name: str | None = None,
     validate_id: bool = True,
     organization_id: str | None = None,
+    enforcement_origin: str = "new",
 ) -> dict[str, Any]:
     """Create the tenant + add the caller as ``project_admin``, atomically.
+
+    ``enforcement_origin`` (UC-12212): «new» for a board born here; a migration into native
+    passes «existing», because the project already had its own way of working.
 
     This is the engine-side provisioning that breaks the egg-chicken bind
     (decision D2): when a native project is born from scratch, the caller
@@ -379,10 +385,13 @@ async def provision_native_project(
                         "show it to any tenant until the SuperAdmin assigns it."
                     ),
                 )
+            # UC-12212: a project born here carries the EP-20 policy with origin «new», so each
+            # measure takes its mode for new projects. The ON CONFLICT branch never touches meta:
+            # a project that already existed keeps no policy and reads as «existing» (all «warn»).
             await conn.execute(
                 """
                 INSERT INTO projects (project_id, name, backend_type, board_url, meta, organization_id)
-                VALUES ($1, $2, 'native', $3, '{}'::jsonb, $5)
+                VALUES ($1, $2, 'native', $3, jsonb_build_object('enforcement', $6::jsonb), $5)
                 ON CONFLICT (project_id) DO UPDATE
                     SET name = COALESCE($4, projects.name),
                         board_url = EXCLUDED.board_url,
@@ -393,6 +402,7 @@ async def provision_native_project(
                 board_url,
                 name,
                 resolved_org,
+                json.dumps({**new_policy(), "origin": enforcement_origin}),
             )
             # Do NOT degrade an existing admin: only set the requested role when
             # the caller is being (re)provisioned as the creator. add_project_member

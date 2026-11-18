@@ -127,6 +127,17 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _ac_receipts(meta: Any) -> dict[str, Any]:
+    """``evidence`` y ``verdict`` guardados en el ``meta`` de un criterio (UC-12401), como en native."""
+    meta = meta if isinstance(meta, dict) else {}
+    evidence = meta.get("evidence")
+    verdict = meta.get("verdict")
+    return {
+        "evidence": evidence if isinstance(evidence, list) else [],
+        "verdict": verdict if isinstance(verdict, dict) else None,
+    }
+
+
 def _id_number(item: dict[str, Any], kind: str) -> int:
     """The number of an item's US-/UC-/EP- id (UC-004b counts as 4), or 0."""
     if kind == "EP":
@@ -768,6 +779,7 @@ class FreeformBackend(SpecBackend):
                     backend_id=ac.id,
                     spec_rules=spec_rules_of(ac.meta),  # UC-12302
                     verification=verification_of(ac.meta),  # UC-12307
+                    **_ac_receipts(ac.meta),  # UC-12401
                 )
             )
         return result
@@ -778,8 +790,16 @@ class FreeformBackend(SpecBackend):
         uc_item_id: str,
         ac_id: str,
         passed: bool,
-        evidence: dict[str, Any] | None = None,  # UC-5601: no per-AC store here; the UC comment is the record
+        evidence: dict[str, Any] | None = None,
+        *,
+        marked_by: str | None = None,
     ) -> ChecklistItemDTO:
+        """Marca el criterio y guarda su veredicto y su recibo en ``items.json`` (UC-12401 AC-05).
+
+        Como native: ``meta.verdict`` = {passed, by, at} y el recibo se añade a ``meta.evidence`` con
+        quién, cuándo y si pasó. FreeForm no tiene sesión: ``by`` es lo que manda el cliente
+        (``marked_by``, el hook freeform-fragment pone el nombre de git) o None.
+        """
         items = self._load_items()
         for item in items:
             if item.get("parent_id") != uc_item_id:
@@ -788,8 +808,15 @@ class FreeformBackend(SpecBackend):
                 continue
             parsed_id, clean_name = parse_item_id(item.get("name", ""), "AC")
             if parsed_id == ac_id:
+                at = _now_iso()
+                meta = dict(item.get("meta") or {})
+                meta["verdict"] = {"passed": bool(passed), "by": marked_by, "at": at}
+                if evidence is not None:
+                    receipts = meta.get("evidence") if isinstance(meta.get("evidence"), list) else []
+                    meta["evidence"] = [*receipts, {**evidence, "by": marked_by, "at": at, "passed": bool(passed)}]
+                item["meta"] = meta
                 item["state"] = "done" if passed else "backlog"
-                item["updated_at"] = _now_iso()
+                item["updated_at"] = at
                 self._save_items(items)
                 self._regenerate_progress()
                 return ChecklistItemDTO(
@@ -797,6 +824,7 @@ class FreeformBackend(SpecBackend):
                     text=clean_name or item["name"],
                     done=passed,
                     backend_id=item["id"],
+                    **_ac_receipts(meta),
                 )
 
         raise ValueError(f"AC '{ac_id}' not found as child of '{uc_item_id}'")
@@ -868,6 +896,10 @@ class FreeformBackend(SpecBackend):
                 _, old_text = parse_item_id(item.get("name", ""), "AC")
                 if old_text != text:  # UC-12302: a rewritten criterion follows the current rules
                     item["meta"] = {**(item.get("meta") or {}), "spec_rules": SPEC_RULES_VERSION}
+                    if item.get("state") == "done":
+                        # UC-12401: lo comprobado era el texto anterior (como el trigger 0035 de native).
+                        item["meta"]["verdict"] = {"passed": False, "by": None, "at": _now_iso(),
+                                                   "source": "text_changed"}
                 item["name"] = f"[{ac_id}] {text}"
             if done is not None:
                 item["state"] = "done" if done else "backlog"

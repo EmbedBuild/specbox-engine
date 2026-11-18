@@ -433,6 +433,8 @@ class TrelloBackend(SpecBackend):
         ac_id: str,
         passed: bool,
         evidence: dict[str, Any] | None = None,  # UC-5601: no per-AC store here; the UC comment is the record
+        *,
+        marked_by: str | None = None,  # UC-12401: not stored here
     ) -> ChecklistItemDTO:
         checklists = await self.client.get_card_checklists(uc_item_id)
         parsed = parse_checklist_acs(checklists)

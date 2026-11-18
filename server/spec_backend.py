@@ -445,6 +445,8 @@ class SpecBackend(ABC):
         ac_id: str,
         passed: bool,
         evidence: dict[str, Any] | None = None,
+        *,
+        marked_by: str | None = None,
     ) -> ChecklistItemDTO:
         """Mark a single AC as passed/failed.
 

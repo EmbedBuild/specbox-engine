@@ -164,8 +164,15 @@ _NEW = re.compile(r"\b(item|ac)-[0-9a-f]{8}\b")
 
 
 def normalize(value: Any, known: set[str]) -> Any:
+    # app_docs_sync (UC-12203) differs on purpose: with the whole board the server renders the
+    # roadmap zone; with a fragment it leaves it to the client. The test below checks both give
+    # the same zone.
     if isinstance(value, dict):
-        return {k: normalize(v, known) for k, v in value.items() if k not in ("items_content", "backend_item_url")}
+        return {
+            k: normalize(v, known)
+            for k, v in value.items()
+            if k not in ("items_content", "backend_item_url", "app_docs_sync")
+        }
     if isinstance(value, list):
         return [normalize(v, known) for v in value]
     if isinstance(value, str):
@@ -233,6 +240,14 @@ async def test_a_fragment_gives_the_same_answer_and_board_as_the_whole_items_jso
     assert built["whole"] is False
     assert normalize(frag_result, known) == normalize(whole_result, known)
     assert normalize(frag_board, known) == normalize(whole_board, known)
+    if "app_docs_sync" in whole_result:
+        # UC-12203: the client renders, from the merged board, the zone the server rendered.
+        from server.app_docs import roadmap
+        from server.backends.freeform_backend import FreeformBackend
+
+        assert frag_result["app_docs_sync"]["render"] == "client"
+        merged = await FreeformBackend(items_content=json.dumps(frag_board)).list_items("ff")
+        assert roadmap.render(roadmap.rows_from_items(merged)) == whole_result["app_docs_sync"]["roadmap_body"]
 
 
 # ── AC-01..03: what a call sends ───────────────────────────────────────

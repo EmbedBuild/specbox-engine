@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
+from ..app_docs.roadmap import with_roadmap_sync  # UC-12203
 from fastmcp import Context
 
 from ..ac_evidence import (
@@ -1542,6 +1543,7 @@ async def get_uc(
         await backend.close()
 
 
+@with_roadmap_sync
 @returns_items_content
 async def move_uc(
     board_id: str,
@@ -1956,6 +1958,7 @@ async def _native_uc_ids_reserved_by_others(session: dict[str, str]) -> set[str]
         return set()
 
 
+@with_roadmap_sync
 async def complete_uc(
     board_id: str,
     uc_id: str,
@@ -2132,6 +2135,7 @@ async def mark_ac(
         await backend.close()
 
 
+@with_roadmap_sync
 @returns_items_content
 async def mark_ac_batch(
     board_id: str,

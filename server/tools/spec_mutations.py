@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import structlog
+from ..app_docs.roadmap import with_roadmap_sync  # UC-12203
 from fastmcp import Context
 
 from ..auth_gateway import get_session_backend
@@ -856,6 +857,7 @@ async def delete_ac(
 # ── 1.8 add_uc ───────────────────────────────────────────────────────
 
 
+@with_roadmap_sync
 async def add_uc(
     board_id: str,
     us_id: str,

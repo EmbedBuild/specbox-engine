@@ -13,8 +13,11 @@ Responsibilities:
   store the new signature in `.quality/app_docs_sync.lock` so the next
   drift check has a baseline.
 
-The decorators in PR-12 wrap spec-mutation tools with these helpers so
-every state change immediately flows into the canonical docs.
+The roadmap zone of app_prd.md follows the board through `app_docs/roadmap.py` (UC-12203):
+complete_uc, move_uc, add_uc, delete_uc and mark_ac_batch return the zone body computed from the
+board and the `app-docs-fragment` hook writes it on the client's main branch. The PR-12
+`@requires_app_docs_sync` decorator is not applied to any tool: it wrote to the server's disk and its
+UC payload carried no rows.
 
 **v6.0 (UC-D005)**: el sistema itera sobre `CANONICAL_DOCS` del módulo
 `registry.py` en lugar de tener ramas hardcoded para `app_prd`/`app_spec`.

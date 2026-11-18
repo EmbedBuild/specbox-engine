@@ -35,6 +35,7 @@ from .tools.access_log import register_access_log_tools  # UC-3803
 from .tools.session_heartbeat import register_session_heartbeat_tools  # US-99 UC-9901
 from .tools.autopilot_decisions import register_autopilot_decision_tools  # US-99 UC-9902
 from .tools.enforcement import register_enforcement_tools  # US-122 UC-12212
+from .tools.prd_format import register_prd_format_tools  # US-123 UC-12304
 from .coordination.access_log import ToolAccessLogMiddleware, build_default_store, configure_store
 from .coordination.rate_limit import RateLimitMiddleware  # UC-11401
 from .coordination.transport_auth import TransportAuthMiddleware, TransportNoticeMiddleware  # UC-3901
@@ -220,6 +221,9 @@ register_session_heartbeat_tools(mcp)
 register_autopilot_decision_tools(mcp)
 # US-122 UC-12212: el modo de cada medida de EP-20 por tablero.
 register_enforcement_tools(mcp)
+
+# UC-12304 — check_prd_format: el PRD dice qué; el plan, cómo (pura, sin disco).
+register_prd_format_tools(mcp)
 
 # UC-3901 — the transport authenticates every HTTP request (see main()); while
 # connections without a token are tolerated (grace period), every tool response

@@ -248,7 +248,8 @@ async def _native_open_ucs(project_id: str) -> list[dict[str, Any]]:
         SELECT u.id AS uc_id, u.name, u.description, u.state,
                COALESCE(
                    json_agg(json_build_object('ac_id', a.ac_id, 'text', a.text, 'done', a.done,
-                                              'evidence', COALESCE(a.meta->'evidence', '[]'::jsonb))
+                                              'evidence', COALESCE(a.meta->'evidence', '[]'::jsonb),
+                                              'spec_rules', COALESCE((a.meta->>'spec_rules')::int, 1))
                             ORDER BY a.ac_id) FILTER (WHERE a.ac_id IS NOT NULL),
                    '[]'::json) AS acs
           FROM use_cases u
@@ -287,7 +288,8 @@ async def _freeform_open_ucs(items_content: str) -> list[dict[str, Any]]:
             "state": item.state,
             # FreeForm guarda la evidencia en los comentarios, que no viajan con items.json.
             "evidence_known": False,
-            "acs": [{"ac_id": ac.id, "text": ac.text, "done": ac.done, "evidence": []} for ac in acs],
+            "acs": [{"ac_id": ac.id, "text": ac.text, "done": ac.done, "evidence": [],
+                     "spec_rules": ac.spec_rules} for ac in acs],
         })
     return out
 
@@ -716,7 +718,8 @@ async def _native_uc(project_id: str, uc_id: str) -> dict[str, Any] | None:
     row = await pool.fetchrow(
         """
         SELECT u.id AS uc_id, u.name, u.description, u.state,
-               COALESCE(json_agg(json_build_object('ac_id', a.ac_id, 'text', a.text) ORDER BY a.ac_id)
+               COALESCE(json_agg(json_build_object('ac_id', a.ac_id, 'text', a.text,
+                                             'spec_rules', COALESCE((a.meta->>'spec_rules')::int, 1)) ORDER BY a.ac_id)
                         FILTER (WHERE a.ac_id IS NOT NULL), '[]'::json) AS acs
           FROM use_cases u
           LEFT JOIN acceptance_criteria a ON a.project_id = u.project_id AND a.uc_id = u.id
@@ -915,7 +918,7 @@ async def start_gate(
             "name": uc_item.name,
             "description": uc_item.description,
             "state": uc_item.state,
-            "acs": [{"ac_id": ac.id, "text": ac.text} for ac in acs],
+            "acs": [{"ac_id": ac.id, "text": ac.text, "spec_rules": getattr(ac, "spec_rules", 1)} for ac in acs],
         }
         at = _now()
         by = developer_id or "start_uc"

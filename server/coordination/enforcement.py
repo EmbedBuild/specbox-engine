@@ -465,7 +465,7 @@ def spec_quality_result(uc: dict[str, Any], threshold: float = DEFAULT_THRESHOLD
     acs = uc.get("acs") or []
     failed = []
     for ac in acs:
-        issues = validate_ac_text(str(ac.get("text", "")))
+        issues = validate_ac_text(str(ac.get("text", "")), rules=int(ac.get("spec_rules") or 1))
         if issues:
             failed.append({"ac_id": str(ac.get("ac_id", "?")), "issues": issues})
     total = len(acs)

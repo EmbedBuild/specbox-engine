@@ -81,6 +81,8 @@ async def validate_ac_quality(
         total = 0
         failed: list[dict[str, Any]] = []
         warnings: list[dict[str, Any]] = []
+        exposure_count = 0
+        predating: list[dict[str, Any]] = []
 
         for uc in ucs:
             uid = _get_uc_id(uc)
@@ -91,7 +93,9 @@ async def validate_ac_quality(
 
             for ac in acs:
                 total += 1
-                issues = mh.validate_ac_text(ac.text)
+                # UC-12302: each criterion is judged by the rules it was written under.
+                rules = getattr(ac, "spec_rules", 1) or 1
+                issues = mh.validate_ac_text(ac.text, rules=rules)
                 if issues:
                     failed.append({
                         "uc_id": uid,
@@ -99,18 +103,27 @@ async def validate_ac_quality(
                         "text": ac.text,
                         "issues": issues,
                     })
+                if rules < mh.SPEC_RULES_VERSION:
+                    # AC-04: anterior a la regla. Lo que las reglas nuevas le dirían se enseña,
+                    # pero no cuenta para el umbral ni para `failed`.
+                    would = mh.spec_rule_issues(ac.text) + mh.ac_text_warnings(ac.text, rules=mh.SPEC_RULES_VERSION)
+                    if would:
+                        predating.append({"uc_id": uid, "ac_id": ac.id, "text": ac.text, "would_flag": would})
 
                 # US-33/UC-3303 — los avisos de exposición van en su PROPIA
                 # lista, no en `issues`. Un AC puede exponer credenciales y ser
                 # impecable como criterio: son dos ejes distintos, y meterlos en
                 # la misma lista los haría indistinguibles para el consumidor.
+                # UC-12302 AC-03: `threshold_without_condition` también es un aviso.
                 exposure = mh.detect_ac_exposure(ac.text)
-                if exposure:
+                exposure_count += 1 if exposure else 0
+                ac_warnings = exposure + mh.ac_text_warnings(ac.text, rules=rules)
+                if ac_warnings:
                     warnings.append({
                         "uc_id": uid,
                         "ac_id": ac.id,
                         "text": ac.text,
-                        "warnings": exposure,
+                        "warnings": ac_warnings,
                     })
 
         # AC-02: los avisos NO entran en el cómputo. `pass_rate` sigue midiendo
@@ -120,14 +133,23 @@ async def validate_ac_quality(
         # cuenta 0 (antes 1,0: una UC vacía «aprobaba» y start_uc la arrancaba).
         passed = total - len(failed)
         rate = round(passed / total, 4) if total else 0.0
-        return {
+        result = {
             "total_acs": total,
             "passed": passed,
             "failed": failed,
             "warnings": warnings,
-            "exposure_warnings": len(warnings),
+            "exposure_warnings": exposure_count,
             "pass_rate": rate,
         }
+        if predating:
+            result["predates_rule"] = predating
+            result["predates_rule_note"] = (
+                "Criterios anteriores a las reglas de la versión "
+                f"{mh.SPEC_RULES_VERSION} (weak_modal, no_threshold, threshold_without_condition): "
+                "se enseña lo que esas reglas les dirían, pero no cuenta para el umbral. "
+                "Al reescribirlos con update_ac pasan a juzgarse con ellas."
+            )
+        return result
     finally:
         await backend.close()
 

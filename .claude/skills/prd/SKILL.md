@@ -350,6 +350,11 @@ Los cuatro salen del board del orquestador. No son inventados.
 - `failed` → calidad de definicion. Es la medida del gate: /prd reescribe estos
   criterios antes de dar el PRD por bueno, y `start_uc` la impone al arrancar la
   UC (UC-12301): en «block» no arranca, en «warn» arranca y lo avisa.
+  Un criterio nuevo o reescrito tambien falla con `weak_modal` (debería, en lo
+  posible, should, may, intenta + infinitivo sin resultado) y con `no_threshold`
+  (un limite dicho sin cifra: en poco tiempo, muchos); `threshold_without_condition`
+  avisa de una cifra de rendimiento sin red, volumen ni dispositivo (UC-12302).
+  Los criterios anteriores salen en `predates_rule` y no cuentan.
 - `warnings` → exposicion (`exposure_credentials`, `exposure_internal_path`).
   **Solo avisa**: el objetivo es visibilidad, no fricción.
 

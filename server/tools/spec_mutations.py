@@ -761,7 +761,8 @@ async def add_ac(
 
         result["spec_gate"] = await spec_gate_summary(ctx, board_id, [{
             "uc_id": uc_id,
-            "acs": [{"ac_id": ac.id, "text": ac.text} for ac in existing] + [{"ac_id": new_id, "text": text}],
+            "acs": [{"ac_id": ac.id, "text": ac.text, "spec_rules": ac.spec_rules} for ac in existing]
+            + [{"ac_id": new_id, "text": text, "spec_rules": mh.SPEC_RULES_VERSION}],
         }])
         if items_content is not None:
             result["items_content"] = backend.get_items_content()

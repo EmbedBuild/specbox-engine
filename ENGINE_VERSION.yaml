@@ -1,5 +1,5 @@
-version: 6.41.0
-codename: "Con recibo"
+version: 6.42.0
+codename: "Otra mirada"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-18
@@ -645,8 +645,25 @@ features:
   - measure-closing-evidence
   - merge-guard-hook
   - freeform-ac-receipts
+  # New (v6.42.0) — Otra mirada
+  - measure-independent-review
+  - record-review-verdict
+  - agent-identity-hook
+  - review-verdicts-expire
+  - uc-usage-hook
+  - review-time-and-token-kpis
 
 changelog:
+  6.42.0:
+    date: 2026-11-18
+    codename: "Otra mirada"
+    changes:
+      - "feat: independent_review measure: before merging, the UC needs the go-ahead of someone who did not implement it: a person in the panel at any autopilot level, or in «agresivo» (and FreeForm) an isolated evaluator's «accepted» verdict; a later «returned» stops it. merge-guard applies it (lib/independent-review.mjs, parity tested with server/review.py) (UC-12402, #387)"
+      - "feat: new tool record_review_verdict (accepted/returned, reason 10-500 to return) and new hook agent-identity: start_uc keeps who implemented the UC (developer, Claude Code session and agent) and the board rejects a verdict from that same context (SAME_AGENT_VERDICT); get_uc returns implementer and review_verdicts; native table uc_review_verdicts (migration 0036), which also lets a person's acceptance count from review (UC-12402, #387)"
+      - "fix: a review verdict expires (voided_at, migration 0037) when the UC goes back to work from review or done, like the human acceptance; a person's «accepted» verdict counts only while their acceptance stands (UC-12402, #388, #389)"
+      - "feat: new hook uc-usage (Stop, SubagentStop, before complete_uc) and tool report_uc_usage: the real tokens of each UC per session and subagent, from message.usage of the transcript, each response once and only since the UC started; native table uc_usage (migration 0038), numbers only (UC-12403, #390)"
+      - "feat: get_project_kpis adds review time p50/p90 (from entering review to a person accepting or returning it, or back to work) and tokens per UC and per criterion, with estimated: true where there is no real data (UC-12403, #390, #391)"
+
   6.41.0:
     date: 2026-11-18
     codename: "Con recibo"

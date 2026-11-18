@@ -2,6 +2,88 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.42.0] - 2026-11-18 — "Otra mirada"
+
+Segunda y última tanda de US-124: quien implementa una UC no le da el visto bueno, y el tablero mide lo
+que cuesta cada UC y cuánto tarda su revisión.
+
+### Added
+
+- **Revisión independiente antes de fusionar** (UC-12402, #387) — medida `independent_review`. La UC
+  necesita el visto bueno de alguien que no la implementó:
+  - una persona que la acepta en el panel, en cualquier nivel de autopilot;
+  - en autopilot «agresivo», y en FreeForm (sin panel), el veredicto «aceptada» de un evaluador
+    aislado (subagente AG-09b) en otro contexto.
+  - Una devolución posterior la detiene. El hook `merge-guard` la aplica antes de `gh pr merge`
+    (`lib/independent-review.mjs`; una prueba la compara con `server/review.py`).
+- **Tool nueva `record_review_verdict`** — «accepted» o «returned», con un motivo de 10 a 500
+  caracteres para devolver; rechaza datos sensibles en el motivo. `start_uc` guarda quién implementó
+  la UC (developer, sesión y agente de Claude Code) y el tablero rechaza un veredicto del mismo
+  contexto (`SAME_AGENT_VERDICT`). `get_uc` devuelve `implementer` y `review_verdicts`.
+- **Hook nuevo `agent-identity`** — pone en `start_uc` y `record_review_verdict` la sesión y el agente
+  que da Claude Code a los hooks, en lugar de lo que diga el modelo. Sin el hook, un veredicto se
+  guarda pero no cuenta como independiente.
+- **Coste real de cada UC en tokens** (UC-12403, #390) — hook nuevo `uc-usage` (`Stop`,
+  `SubagentStop` y antes de `complete_uc`) y tool `report_uc_usage`:
+  - el hook lee la transcripción de la sesión y la de cada subagente desde su cursor;
+  - suma `message.usage` contando cada respuesta una vez, solo desde que empezó la UC activa;
+  - lo envía en segundo plano, y el cursor solo avanza si el tablero lo acepta.
+- **`get_project_kpis` añade tiempo de revisión y tokens** (UC-12403, #390, #391):
+  - `review_time_p50` y `review_time_p90` van de la entrada en revisión a la aceptación o la
+    devolución de una persona, o a la vuelta a trabajo;
+  - `tokens` da p50 y p90 por UC y por criterio, y las 20 UC más recientes;
+  - una UC sin dato real lleva `estimated: true`.
+- Migraciones **0036** (`uc_review_verdicts`), **0037** (`voided_at`) y **0038** (`uc_usage`), con su
+  copia en `supabase/migrations`.
+
+### Changed
+
+- **La aceptación de una persona vale ya en revisión** (0036). Se anula al volver a trabajo o al
+  reabrir una UC hecha, no al pasar de revisión a hecha. Es lo que permite aceptar antes de fusionar
+  desde el panel (UC-12404, panel v0.28.0 «Visto bueno»).
+- **Un veredicto caduca cuando la UC vuelve a trabajo** (#388, migración 0037). Ocurre desde
+  revisión o hecha, igual que la aceptación: lo revisado tiene que ser lo que se fusiona.
+- **El «aceptada» de una persona solo cuenta mientras su aceptación sigue en pie** (#389). Si se
+  retira, vuelve a mandar lo anterior.
+- `/implement` pide el veredicto de un evaluador aislado antes de fusionar (paso 8.5.1c).
+
+### Para los proyectos que ya existían
+
+- **`independent_review` empieza en «warn»** en todos los tableros, nuevos y existentes: avisa y no
+  detiene nada. Para que detenga la fusión, quien administra el proyecto ejecuta
+  `set_enforcement_mode(measure="independent_review", mode="block")`, que primero enseña el informe
+  de impacto. Una UC abierta antes de ese momento solo recibe aviso.
+- **Los hooks nuevos llegan con la plantilla.** Hasta actualizar los hooks del proyecto
+  (`specbox hooks update`):
+  - `agent-identity`, `merge-guard` y `uc-usage` no están, y la fusión sigue como antes;
+  - un veredicto registrado sin `agent-identity` no cuenta como independiente;
+  - no se mide el coste en tokens.
+- **Las UC empezadas antes de esta versión no tienen implementador.** Para ellas solo un subagente
+  cuenta como contexto independiente.
+- **Tokens**: solo native. Las UC anteriores no tienen dato real y salen «estimado».
+- **Self-hosted**: aplica en tu base las migraciones 0036, 0037 y 0038 de `supabase/migrations`, como
+  cada migración del board, antes de desplegar esta versión: `get_project_kpis` y los veredictos las
+  usan. En el MCP alojado ya están aplicadas.
+
+### Security
+
+- **El contexto de quien revisa no lo declara el modelo.** Lo pone el hook `agent-identity` con lo
+  que Claude Code da a los hooks; un veredicto del mismo contexto que implementó se rechaza.
+- **Solo cifras en el coste.** `report_uc_usage` rechaza todo lo que no sea un entero o un
+  identificador corto, la tabla `uc_usage` no tiene columnas de texto y el hook nunca envía texto de
+  la conversación.
+- **Las tablas nuevas están cerradas a los roles públicos**, con seguridad por filas y la política
+  restrictiva de denegación, como el resto del board.
+
+### Tests
+
+- `tests/test_independent_review.py`: la regla, la paridad con el hook, FreeForm y native con
+  Postgres, incluidas la caducidad y la aceptación retirada.
+- `tests/test_uc_usage.py`: 8 pruebas, Postgres incluido.
+- `tests/hooks/merge-guard.test.mjs`, `tests/hooks/agent-identity.test.mjs` y
+  `tests/hooks/uc-usage.test.mjs` (10).
+- `uc_review_verdicts` y `uc_usage` entran en las tablas del board que se comprueban cerradas.
+
 ## [6.41.0] - 2026-11-18 — "Con recibo"
 
 Primera tanda de US-124: «hecho» significa lo mismo para quien implementa y para quien revisa. Una UC

@@ -106,3 +106,65 @@ export function clearMarker(root, ucId) {
   unlinkSync(path);
   return true;
 }
+
+// ── Lo que mira uc-lifecycle-guard al hacer push (UC-12206) ─────────────
+
+export const AC_MARKED = 'ac_marked.json';
+export const MOVED_TO_REVIEW = 'uc_moved_to_review.json';
+
+/** Los id de los criterios de la UC según la respuesta de start_uc (para saber cuáles faltan). */
+export function acIdsFrom(response) {
+  const acs = topObject(response)?.acceptance_criteria;
+  return Array.isArray(acs) ? acs.map((a) => String(a?.id || a?.ac_id || '')).filter(Boolean) : [];
+}
+
+/** El marcador de UC activa del proyecto, o null. */
+export function readMarker(root) {
+  const path = join(root, MARKER_FILE);
+  return existsSync(path) ? parse(readFileSync(path, 'utf-8')) : null;
+}
+
+/** La carpeta de evidencia de una UC: la `feature` del marcador si es la activa; si no, su id. */
+export function evidenceDir(root, ucId) {
+  const marker = readMarker(root);
+  const feature = marker?.uc_id === ucId && marker.feature ? marker.feature : ucId;
+  return join(root, '.quality', 'evidence', String(feature).replace(/[^A-Za-z0-9._-]/g, '_'));
+}
+
+/**
+ * Suma a ac_marked.json lo que marcó mark_ac_batch: los criterios cumplidos y los no cumplidos.
+ * Un criterio que pasa después de haber fallado sale de los no cumplidos.
+ */
+export function recordMarkedAcs(root, ucId, response, now = new Date().toISOString()) {
+  const details = topObject(response)?.details;
+  if (!Array.isArray(details)) return null;
+  const path = join(evidenceDir(root, ucId), AC_MARKED);
+  const before = existsSync(path) ? parse(readFileSync(path, 'utf-8')) || {} : {};
+  const passed = new Set(Array.isArray(before.passed) ? before.passed : []);
+  const failed = new Set(Array.isArray(before.failed) ? before.failed : []);
+  for (const d of details) {
+    const id = String(d?.ac_id || '');
+    if (!id) continue;
+    if (d.passed) {
+      passed.add(id);
+      failed.delete(id);
+    } else {
+      failed.add(id);
+      passed.delete(id);
+    }
+  }
+  const out = { uc_id: ucId, passed: [...passed].sort(), failed: [...failed].sort(), at: now };
+  writeAtomic(path, `${JSON.stringify(out, null, 2)}\n`);
+  return out;
+}
+
+/** move_uc: a revisión deja uc_moved_to_review.json; a cualquier otro estado lo quita. */
+export function recordMove(root, ucId, target, now = new Date().toISOString()) {
+  const path = join(evidenceDir(root, ucId), MOVED_TO_REVIEW);
+  if (target === 'review') {
+    writeAtomic(path, `${JSON.stringify({ uc_id: ucId, at: now }, null, 2)}\n`);
+    return true;
+  }
+  if (existsSync(path)) unlinkSync(path);
+  return false;
+}

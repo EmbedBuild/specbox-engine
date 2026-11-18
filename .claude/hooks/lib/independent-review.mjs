@@ -6,14 +6,15 @@
  * - la aceptación de una persona (el panel) basta en cualquier nivel de autopilot;
  * - en «agresivo», y en FreeForm (sin panel), basta el último veredicto «aceptada» de un contexto
  *   independiente del que implementó;
- * - fuera de «agresivo», en native, hace falta la persona.
+ * - fuera de «agresivo», en native, hace falta la persona;
+ * - solo cuentan los veredictos vigentes: caducan (`voided_at`) cuando la UC vuelve a trabajo.
  */
 
 export const AGGRESSIVE = 'agresivo';
 const VERDICTS = new Set(['accepted', 'returned']);
 
 function latest(verdicts) {
-  const valid = (Array.isArray(verdicts) ? verdicts : []).filter((v) => v && VERDICTS.has(v.verdict));
+  const valid = (Array.isArray(verdicts) ? verdicts : []).filter((v) => v && VERDICTS.has(v.verdict) && !v.voided_at);
   if (!valid.length) return null;
   return valid.reduce((a, b) => (String(b.at ?? '') >= String(a.at ?? '') ? b : a));
 }

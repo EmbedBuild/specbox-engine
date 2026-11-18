@@ -408,7 +408,8 @@ READERS = [
 ]
 
 #: Devuelven constantes del flujo sin consultar la base: nada que aislar.
-READ_STUBS = ["get_state_id", "get_states"]
+# void_review_verdicts (UC-12402, 0037): en native no toca la base, lo hace el trigger de estado.
+READ_STUBS = ["get_state_id", "get_states", "void_review_verdicts"]
 
 _PREFIJOS_ESCRITURA = ("create_", "update_", "mark_", "set_", "delete_", "archive_", "add_", "emit_", "ingest_", "purge_",
                        "record_")

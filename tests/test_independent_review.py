@@ -6,7 +6,7 @@
 - **AC-02**: el veredicto registra quién lo dio (agente con su identificador) y el tablero rechaza el
   del mismo agente que implementó la UC.
 - **AC-03**: fuera de «agresivo», hace falta una persona; la aceptación de una persona vale ya en
-  revisión (migración 0036) y se anula al volver a trabajo.
+  revisión (migración 0036) y se anula al volver a trabajo; los veredictos caducan igual (0037).
 - **AC-04**: «warn»/«block» en merge-guard; aquí, el informe de impacto que mide la medida.
 
 FreeForm por contenido (el MCP remoto) aquí; native contra Postgres al final (SKIP sin base).
@@ -28,6 +28,8 @@ from server.review import (
     independent_review_result,
     is_independent,
     same_context,
+    void_verdicts,
+    voids_review,
 )
 from server.tools.review import record_review_verdict
 from server.tools.spec_driven import get_uc, move_uc, start_uc
@@ -72,6 +74,24 @@ def test_ac01_ac03_what_lets_a_uc_merge():
     assert back == {"ok": False, "reason_code": "returned", "reason": "La UC fue devuelta: falta el caso vacío."}
 
 
+def test_ac03_verdicts_expire_when_the_uc_goes_back_to_work():
+    """0037: lo revisado tiene que ser el trabajo que se fusiona; un veredicto caducado no cuenta."""
+    assert voids_review("review", "in_progress") and voids_review("done", "backlog")
+    assert voids_review("done", "review") and voids_review("review", "user_stories")
+    assert not voids_review("review", "done") and not voids_review("in_progress", "review")
+    assert not voids_review("review", "review") and not voids_review(None, "in_progress")
+    accepted = {"verdict": "accepted", "independent": True, "at": "2026-11-19T10:00:00Z"}
+    returned = {"verdict": "returned", "reason": "falta el caso vacío", "at": "2026-11-19T11:00:00Z"}
+    [voided] = void_verdicts([accepted], "2026-11-19T12:00:00Z")
+    assert voided["voided_at"] == "2026-11-19T12:00:00Z" and "voided_at" not in accepted
+    assert void_verdicts([voided], "otra")[0]["voided_at"] == "2026-11-19T12:00:00Z"  # no se reescribe
+    stale = independent_review_result(human_acceptance=None, verdicts=[voided], level=AGGRESSIVE)
+    assert stale["reason_code"] == "no_independent_verdict"
+    # Una persona que acepta tras una devolución ya caducada no queda tapada por ella.
+    old_return = {**returned, "voided_at": "2026-11-19T12:00:00Z"}
+    assert independent_review_result(human_acceptance={"by": "Ana"}, verdicts=[old_return], level="")["ok"]
+
+
 @pytest.mark.skipif(shutil.which("node") is None, reason="sin node")
 def test_ac01_merge_guard_applies_the_same_rule():
     acc = {"verdict": "accepted", "independent": True, "at": "2026-11-19T10:00:00Z"}
@@ -83,6 +103,10 @@ def test_ac01_merge_guard_applies_the_same_rule():
         {"human_acceptance": {"by": "Ana"}, "verdicts": [], "level": "", "backend_type": "native"},
         {"human_acceptance": None, "verdicts": [acc, ret], "level": AGGRESSIVE, "backend_type": "native"},
         {"human_acceptance": None, "verdicts": [], "level": AGGRESSIVE, "backend_type": "native"},
+        {"human_acceptance": None, "verdicts": [{**acc, "voided_at": "2026-11-19T12:00:00Z"}], "level": AGGRESSIVE,
+         "backend_type": "native"},
+        {"human_acceptance": {"by": "Ana"}, "verdicts": [acc, {**ret, "voided_at": "2026-11-19T12:00:00Z"}],
+         "level": "", "backend_type": "native"},
     ]
     lib = ROOT / ".claude" / "hooks" / "lib" / "independent-review.mjs"
     js_cases = [{"humanAcceptance": c["human_acceptance"], "verdicts": c["verdicts"], "level": c["level"],
@@ -137,6 +161,25 @@ async def test_a_verdict_without_the_hook_is_kept_but_not_independent():
     assert out["success"] and out["independent"] is False and "note" in out
 
 
+async def test_ac03_freeform_back_to_work_expires_the_verdicts():
+    board = await _in_review(MAIN)
+    out = await record_review_verdict("ff", "UC-701", "accepted", CTX, items_content=board, **EVALUATOR)
+    back = await move_uc("ff", "UC-701", "in_progress", CTX, items_content=out["items_content"])
+    again = await move_uc("ff", "UC-701", "review", CTX, items_content=back["items_content"])
+    detail = await get_uc("ff", "UC-701", CTX, items_content=again["items_content"])
+    [verdict] = detail["review_verdicts"]
+    assert verdict["voided_at"]
+    result = independent_review_result(human_acceptance=None, verdicts=detail["review_verdicts"],
+                                       backend_type="freeform")
+    assert result["reason_code"] == "no_independent_verdict"
+    # De revisión a hecha no caduca nada.
+    fresh = await record_review_verdict("ff", "UC-701", "accepted", CTX, items_content=again["items_content"],
+                                        **EVALUATOR)
+    done = await move_uc("ff", "UC-701", "done", CTX, items_content=fresh["items_content"])
+    kept = await get_uc("ff", "UC-701", CTX, items_content=done["items_content"])
+    assert not kept["review_verdicts"][-1].get("voided_at")
+
+
 async def test_returning_needs_a_reason_and_the_uc_must_be_in_review():
     board = await _in_review(MAIN)
     no_reason = await record_review_verdict("ff", "UC-701", "returned", CTX, items_content=board, **EVALUATOR)
@@ -184,9 +227,21 @@ async def test_native_verdicts_the_implementer_and_the_acceptance_in_review(monk
                 pid, dev)
             await conn.execute("UPDATE use_cases SET state = 'done' WHERE project_id = $1 AND id = 'UC-01'", pid)
             kept = await conn.fetchval("SELECT count(*) FROM uc_acceptances WHERE project_id = $1", pid)
+            live = await conn.fetchval(
+                "SELECT count(*) FROM uc_review_verdicts WHERE project_id = $1 AND voided_at IS NULL", pid)
             await conn.execute("UPDATE use_cases SET state = 'in_progress' WHERE project_id = $1 AND id = 'UC-01'", pid)
             voided = await conn.fetchval("SELECT count(*) FROM uc_acceptances WHERE project_id = $1", pid)
+            still_live = await conn.fetchval(
+                "SELECT count(*) FROM uc_review_verdicts WHERE project_id = $1 AND voided_at IS NULL", pid)
         assert kept == 1 and voided == 0
+        assert live == 1 and still_live == 0  # 0037: de revisión a hecha no caduca; a trabajo, sí
+
+        # De vuelta en revisión, el veredicto caducado no cuenta: hace falta otro.
+        await move_uc(board_id=pid, uc_id="UC-01", target="review", ctx=ctx)
+        detail = await get_uc(pid, "UC-01", ctx)
+        assert detail["review_verdicts"][-1]["voided_at"]
+        report = await pol_report(pid, token)
+        assert any(u["uc_id"] == "UC-01" for u in report["measures"]["independent_review"]["ucs"])
     finally:
         await _cleanup(pool, pid, dev)
 
@@ -199,7 +254,8 @@ async def pol_report(pid: str, token: str) -> dict:
     return out["report"]
 
 
-def test_the_migration_has_its_twin():
-    local = ROOT / "server" / "db" / "migrations" / "0036_review_verdicts.sql"
-    twin = ROOT / "supabase" / "migrations" / "20261118000036_review_verdicts.sql"
+@pytest.mark.parametrize("name", ["0036_review_verdicts", "0037_review_verdicts_void"])
+def test_the_migrations_have_their_twin(name):
+    local = ROOT / "server" / "db" / "migrations" / f"{name}.sql"
+    twin = ROOT / "supabase" / "migrations" / f"2026111800{name}.sql"
     assert local.read_bytes() == twin.read_bytes()

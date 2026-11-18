@@ -777,6 +777,14 @@ class SpecBackend(ABC):
         """
         return 0
 
+    def reserved_logical_numbers(self, kind: str) -> frozenset[int]:
+        """Numbers of ``kind`` that calls still in flight already took (UC-12214).
+
+        Only a FreeForm fragment knows them (the client hook reserves one per parallel
+        ``add_uc``); every other backend writes in one place. Default: none.
+        """
+        return frozenset()
+
     # ── Convenience (non-abstract) ───────────────────────────────
 
     async def find_us_items(self, board_id: str) -> list[ItemDTO]:

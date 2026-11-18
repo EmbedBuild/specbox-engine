@@ -20,6 +20,7 @@ import {
   asContext,
   extractItemsContent,
   mergeFragment,
+  nextUcId,
   reservedNumbers,
   withLock,
   withoutItemsContent,
@@ -216,4 +217,20 @@ test('reservations expire after an hour and a stale lock is taken over', () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// UC-12214 — add_uc sigue la serie de la historia; el hook calcula el mismo id que el servidor.
+test('nextUcId: the story series, the board maximum and the reserved numbers', () => {
+  const story = (id, us) => ({ id: `item-${us}`, name: `${us}: H`, labels: ['US'], meta: { us_id: us } });
+  const uc = (id, us) => ({ id: `item-${id}`, name: `${id}: C`, labels: ['UC'], parent_id: `item-${us}`, meta: { uc_id: id } });
+  const items = [
+    story('', 'US-122'), uc('UC-12201', 'US-122'), uc('UC-12213', 'US-122'),
+    story('', 'US-128'), uc('UC-12801', 'US-128'),
+    story('', 'US-01'), uc('UC-001', 'US-01'), uc('UC-050', 'US-01'),
+  ];
+  assert.deepEqual(nextUcId(items, 'US-122'), { id: 'UC-12214', number: 12214, numbering: 'story' });
+  assert.deepEqual(nextUcId(items, 'US-122', [12214]), { id: 'UC-12215', number: 12215, numbering: 'story' });
+  // US-01 no sigue la serie UC-01NN: el siguiente del tablero.
+  assert.deepEqual(nextUcId(items, 'US-01'), { id: 'UC-12802', number: 12802, numbering: 'board' });
+  assert.deepEqual(nextUcId(items, 'US-999'), { id: 'UC-12802', number: 12802, numbering: 'board' });
 });

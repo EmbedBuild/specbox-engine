@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
@@ -422,6 +423,91 @@ async def find_max_uc_number(backend: SpecBackend, board_id: str) -> int:
         if num > max_num:
             max_num = num
     return max_num
+
+
+_STORY_NUMBER_RE = re.compile(r"^US-(\d+)$")
+_UC_ID_RE = re.compile(r"^UC-[A-Za-z0-9][A-Za-z0-9-]*$")
+
+
+def is_valid_uc_id(uc_id: str | None) -> bool:
+    """An explicit UC id: `UC-` plus letters, digits or dashes (UC-12214, UC-004b)."""
+    return bool(_UC_ID_RE.fullmatch(uc_id or ""))
+
+
+def uc_owners(items: list[ItemDTO]) -> dict[str, str]:
+    """`{uc_id: us_id}` of every UC on the board (`us_id` from its meta or its parent story)."""
+    stories = {i.id: i for i in items if "US" in i.labels}
+    owners: dict[str, str] = {}
+    for item in items:
+        if "UC" not in item.labels:
+            continue
+        uc_id = item.meta.get("uc_id") or parse_item_id(item.name, "UC")[0]
+        if not uc_id:
+            continue
+        us_id = item.meta.get("us_id") or ""
+        if not us_id and item.parent_id in stories:
+            parent = stories[item.parent_id]
+            us_id = parent.meta.get("us_id") or parse_item_id(parent.name, "US")[0] or ""
+        owners[uc_id] = us_id
+    return owners
+
+
+def _uc_number(uc_id: str) -> int:
+    try:
+        return int(uc_id.split("-")[1])
+    except (IndexError, ValueError):
+        return 0
+
+
+@dataclass(frozen=True)
+class UcIdChoice:
+    """The id `add_uc` would give a new UC (UC-12214).
+
+    `numbering`: "story" when the story's UCs follow `UC-{story number}{NN}` and the new one
+    continues that series; "board" when it takes the next number of the whole board.
+    `taken_by`: the story that already has that id, if any (a conflict: nothing is created).
+    """
+
+    uc_id: str
+    numbering: str
+    taken_by: str | None = None
+
+
+async def choose_uc_id(backend: SpecBackend, board_id: str, us_id: str) -> UcIdChoice:
+    """Next UC id for a story (UC-12214).
+
+    - When every UC of the story follows `UC-{story number}{NN}` (US-122 → UC-12201, UC-12202…),
+      the new one continues that series: UC-12212 and UC-12213 → UC-12214.
+    - Otherwise (correlative boards, an empty story), the next number of the whole board, as
+      before: UC-001…UC-027 → UC-028.
+
+    Numbers that parallel calls already reserved (a FreeForm fragment, UC-11102) are skipped.
+    """
+    items = await backend.list_items(board_id)
+    owners = uc_owners(items)
+    reserved = backend.reserved_logical_numbers("UC")
+    siblings = [uc for uc, owner in owners.items() if owner == us_id]
+
+    story = _STORY_NUMBER_RE.fullmatch(us_id or "")
+    if story and siblings:
+        prefix = story.group(1)
+        series = re.compile(rf"^UC-{prefix}(\d{{2,}})$")
+        matches = [series.fullmatch(uc) for uc in siblings]
+        if all(matches):
+            nn = max(int(m.group(1)) for m in matches if m) + 1
+            while int(f"{prefix}{nn:02d}") in reserved:
+                nn += 1
+            candidate = f"UC-{prefix}{nn:02d}"
+            return UcIdChoice(candidate, "story", owners.get(candidate))
+
+    top = max([backend.logical_id_floor("UC"), *(_uc_number(uc) for uc in owners), *reserved, 0])
+    candidate = format_uc_id(top + 1)
+    return UcIdChoice(candidate, "board", owners.get(candidate))
+
+
+async def uc_owner(backend: SpecBackend, board_id: str, uc_id: str) -> str | None:
+    """The story that has `uc_id` (`""` when it has none), or None when the board does not."""
+    return uc_owners(await backend.list_items(board_id)).get(uc_id)
 
 
 def next_ac_id(existing: list[ChecklistItemDTO]) -> str:

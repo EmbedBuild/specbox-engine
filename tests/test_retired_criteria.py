@@ -65,10 +65,11 @@ def test_next_id_counts_the_retired_ones():
 
 
 def _plan(spec: list[str], verifs: list[str | None] | None = None, *, retired=(), existing=None, **kw):
+    retired = [{"id": r, "text": f"retirado {r}", "reason": "otra historia"} for r in retired]
     existing = existing if existing is not None else [_dto("AC-01", "Uno queda"), _dto("AC-02", "Dos queda")]
     return mh.plan_existing_uc(
         existing_name=kw.get("name", "Cobrar"), existing_meta={"actor": "Cliente", "horas": 2},
-        existing_description="# UC\n\n## Contexto\nCobro", existing_acs=existing, retired_ids=retired,
+        existing_description="# UC\n\n## Contexto\nCobro", existing_acs=existing, retired=retired,
         spec_name=kw.get("spec_name", "Cobrar"), spec_meta={"actor": kw.get("actor", "Cliente"), "horas": 2.0},
         spec_context=kw.get("context", "Cobro"), spec_criteria=spec, spec_verifications=verifs or [],
         stores_meta=True,
@@ -273,5 +274,61 @@ async def test_native_ingest_from_freeform_keeps_the_retired_criteria(monkeypatc
             meta = await conn.fetchval("SELECT meta FROM use_cases WHERE project_id = $1 AND id = 'UC-701'", pid)
         assert "retired_criteria" not in json.loads(meta)
         assert (await add_ac(pid, "UC-701", "El cobro duplicado se rechaza", ctx))["ac_id"] == "AC-06"
+    finally:
+        await _cleanup(pool, pid, dev)
+
+
+async def test_reimporting_a_retired_text_does_not_bring_it_back():
+    """Revisión de UC-12501: un retirado no vuelve con otro id; la diferencia lo dice."""
+    board = (await delete_ac("ff", "UC-701", "AC-05", CTX, reason=REASON, items_content=_board()))["items_content"]
+    spec = {"user_stories": [{"us_id": "US-07", "name": "Pagos", "exclusions": ["Reembolsos"], "use_cases": [{
+        "uc_id": "UC-701", "name": "Cobrar", "acceptance_criteria": TEXTS}]}]}
+    applied = await import_spec("ff", spec, CTX, items_content=board, on_existing_uc="apply")
+    [warning] = [w for w in applied["warnings"] if w["code"] == "uc_exists"]
+    assert warning["differences"]["criteria_retired"] == [{"id": "AC-05", "text": TEXTS[4], "reason": REASON}]
+    assert warning["differences"]["criteria_added"] == [] and applied["created"]["ac"] == 0
+    detail = await get_uc("ff", "UC-701", CTX, items_content=applied["items_content"])
+    assert [a["id"] for a in detail["acceptance_criteria"]] == ["AC-01", "AC-02", "AC-03", "AC-04"]
+
+
+async def test_the_dual_wrapper_joins_the_retired_ones_of_the_mirror():
+    """Revisión de UC-12501: con Trello o Plane de primario, el espejo native sabe los retirados."""
+    from types import SimpleNamespace
+
+    from server.backends.dual_backend import DualBackendWrapper
+
+    class _Primary:
+        async def get_retired_criteria(self, board_id, uc_item_id):
+            return []
+
+        async def get_item(self, board_id, item_id):
+            return SimpleNamespace(id=item_id, name="UC-01: Cobrar", labels=["UC"], meta={"uc_id": "UC-01"})
+
+    class _Mirror:
+        async def find_item_by_field(self, board_id, field, value):
+            return SimpleNamespace(id="UC-01")
+
+        async def get_retired_criteria(self, board_id, uc_item_id):
+            return [{"id": "AC-05", "text": "x", "reason": REASON}]
+
+    dual = DualBackendWrapper(_Primary(), _Mirror(), "Acme/espejo")
+    retired = await dual.get_retired_criteria("trello-board", "card-1")
+    assert [r["id"] for r in retired] == ["AC-05"]
+    assert mh.next_ac_id([_dto(f"AC-0{i}", "t") for i in range(1, 5)], [r["id"] for r in retired]) == "AC-06"
+
+
+@pg
+async def test_native_retiring_a_criterion_voids_the_human_acceptance(monkeypatch, tmp_path):
+    """Revisión de UC-12501: lo aceptado cambia al retirar un criterio no interno (como 0029)."""
+    pool, pid, dev, token, ctx = await _native_board(monkeypatch, tmp_path, criteria={"UC-01": TEXTS[:3]})
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO uc_acceptances (project_id, uc_id, accepted_by_developer_id) VALUES ($1, 'UC-01', $2)",
+                pid, dev)
+        await delete_ac(pid, "UC-01", "AC-03", ctx, reason=REASON)
+        async with pool.acquire() as conn:
+            left = await conn.fetchval("SELECT count(*) FROM uc_acceptances WHERE project_id = $1", pid)
+        assert left == 0
     finally:
         await _cleanup(pool, pid, dev)

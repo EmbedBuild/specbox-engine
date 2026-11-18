@@ -403,7 +403,23 @@ class DualBackendWrapper(SpecBackend):
         return result
 
     async def get_retired_criteria(self, board_id: str, uc_item_id: str) -> list[dict[str, Any]]:
-        return await self.primary.get_retired_criteria(board_id, uc_item_id)
+        """Los retirados del primario y los del espejo, unidos por id.
+
+        Trello y Plane no guardan retirados: sin los del espejo native, add_ac calcularía otra vez un
+        id retirado, el trigger de 0039 lo rechazaría en el espejo y los dos tableros se separarían.
+        Leer el espejo es best-effort: si falla, quedan los del primario.
+        """
+        retired = await self.primary.get_retired_criteria(board_id, uc_item_id)
+        try:
+            mirror_id = await self._resolve_mirror_id(board_id, uc_item_id)
+            mirrored = (
+                await self.mirror.get_retired_criteria(self.mirror_board_id, mirror_id) if mirror_id else []
+            )
+        except Exception as exc:  # noqa: BLE001 — el espejo nunca hace fallar al primario
+            logger.warning("mirror_retired_read_failed", uc_item_id=uc_item_id, error=str(exc))
+            mirrored = []
+        known = {r.get("id") for r in retired}
+        return [*retired, *(r for r in mirrored if r.get("id") not in known)]
 
     async def archive_item(
         self, board_id: str, item_id: str, *, reason: str

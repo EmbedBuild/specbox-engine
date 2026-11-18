@@ -1872,10 +1872,11 @@ class NativeBackend(SpecBackend):
     ) -> dict[str, Any] | None:
         """Pasa el criterio a acceptance_criteria_retired (0039) en una transacción.
 
-        Quién lo retira sale de la sesión (``retired_by`` del cliente no cuenta aquí). La fila de la
-        UC queda bloqueada mientras tanto, para que un add_ac a la vez no tome un id a medio retirar.
-        El audit_log conserva la operación de siempre (``delete_acceptance_criterion``), que el panel
-        y la app ya nombran, con ``retired`` y el motivo.
+        Quién lo retira sale de la sesión (``retired_by`` del cliente no cuenta aquí). Dos retiradas
+        a la vez de la misma UC esperan una a otra por el bloqueo de su fila. Que un add_ac a la vez
+        no reutilice el id lo garantiza el trigger de 0039, no este bloqueo. El audit_log conserva la
+        operación de siempre (``delete_acceptance_criterion``), que el panel y la app ya nombran, con
+        ``retired`` y el motivo; retirar un criterio no interno anula la aceptación humana de la UC.
         """
         dev = await self._require_membership_cached(board_id)
         from ..coordination.audit import OP_DELETE_AC, record_destructive

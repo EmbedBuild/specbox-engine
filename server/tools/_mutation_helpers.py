@@ -851,7 +851,7 @@ def plan_existing_uc(
     existing_meta: dict[str, Any],
     existing_description: str,
     existing_acs: list[ChecklistItemDTO],
-    retired_ids: Iterable[str],
+    retired: Iterable[dict[str, Any]],
     spec_name: str,
     spec_meta: dict[str, Any],
     spec_context: str,
@@ -863,7 +863,9 @@ def plan_existing_uc(
 
     Los criterios se emparejan por texto (``norm_text``): uno que coincide conserva su id; uno de
     la spec que no está toma el siguiente id libre, contando los retirados; uno vigente que la spec
-    no trae sigue igual y sale en ``criteria_missing``. Nunca se reescribe ni se retira un criterio.
+    no trae sigue igual y sale en ``criteria_missing``. Un texto de la spec que es el de un criterio
+    retirado no vuelve (se retiró a propósito) y sale en ``criteria_retired``. Nunca se reescribe ni
+    se retira un criterio.
 
     Devuelve ``differences`` (lo que se avisa), ``identical``, ``new`` [(id, texto)],
     ``new_verifications`` {id: verification}, ``verification_updates`` [(id, verification)] y
@@ -874,6 +876,7 @@ def plan_existing_uc(
         "fields": [],
         "criteria_added": [],
         "criteria_missing": [],
+        "criteria_retired": [],
         "verification_changed": [],
     }
     if norm_text(existing_name) != norm_text(spec_name):
@@ -899,10 +902,16 @@ def plan_existing_uc(
     new: list[tuple[str, str]] = []
     new_verifications: dict[str, str] = {}
     verification_updates: list[tuple[str, str]] = []
-    taken = [ac.id for ac in existing_acs] + list(retired_ids)
+    retired_list = [r for r in retired if isinstance(r, dict) and r.get("id")]
+    retired_by_text = {norm_text(r.get("text", "")): r for r in retired_list}
+    taken = [ac.id for ac in existing_acs] + [r["id"] for r in retired_list]
     for index, text in enumerate(spec_criteria):
         wanted = spec_verifications[index] if index < len(spec_verifications) else None
         match = next((ac for ac in unmatched if norm_text(ac.text) == norm_text(text)), None)
+        if match is None and norm_text(text) in retired_by_text:
+            gone = retired_by_text[norm_text(text)]
+            differences["criteria_retired"].append({"id": gone["id"], "text": text, "reason": gone.get("reason")})
+            continue
         if match is None:
             ac_id = next_ac_id([], taken)
             taken.append(ac_id)
@@ -921,7 +930,8 @@ def plan_existing_uc(
     final = sorted([(ac.id, ac.text) for ac in existing_acs] + new, key=lambda pair: _ac_number(pair[0]))
     identical = not (
         differences["name"] or differences["fields"] or differences["criteria_added"]
-        or differences["criteria_missing"] or differences["verification_changed"]
+        or differences["criteria_missing"] or differences["criteria_retired"]
+        or differences["verification_changed"]
     )
     return {
         "differences": differences,

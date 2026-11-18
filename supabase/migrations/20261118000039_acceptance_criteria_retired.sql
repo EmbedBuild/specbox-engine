@@ -11,6 +11,9 @@
 --     el site y las vistas del engine leen acceptance_criteria, y así sus totales no cambian.
 --   * trg_ac_reject_retired_id: un id retirado no se vuelve a usar en su UC, lo escriba quien lo
 --     escriba (una herramienta, una migración o SQL a mano).
+--   * trg_uc_acceptance_void_on_retire: retirar un criterio no interno cambia lo que se aceptó, así que
+--     la aceptación humana de su UC se anula, como cuando 0029 ve un criterio nuevo o desmarcado (usa
+--     la misma función, uc_acceptance_void_on_criterion).
 --   * Cerrada a los roles públicos como el resto del board (0024): la escribe y la lee el servidor.
 --
 -- No mueve ninguna fila: los totales de criterios de cada proyecto son los mismos antes y después.
@@ -52,6 +55,12 @@ DROP TRIGGER IF EXISTS trg_ac_reject_retired_id ON acceptance_criteria;
 CREATE TRIGGER trg_ac_reject_retired_id
     BEFORE INSERT OR UPDATE OF ac_id, uc_id ON acceptance_criteria
     FOR EACH ROW EXECUTE FUNCTION ac_reject_retired_id();
+
+DROP TRIGGER IF EXISTS trg_uc_acceptance_void_on_retire ON acceptance_criteria_retired;
+CREATE TRIGGER trg_uc_acceptance_void_on_retire
+    AFTER INSERT ON acceptance_criteria_retired
+    FOR EACH ROW WHEN (NOT NEW.internal)
+    EXECUTE FUNCTION uc_acceptance_void_on_criterion();
 
 DO $$
 DECLARE

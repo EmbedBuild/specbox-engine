@@ -795,9 +795,9 @@ async def add_ac(
     manual_test, review or measurement. Without it, validate_ac_quality warns
     `no_verification`. Trello and Plane do not store it (`verification_not_stored`).
 
-    Use this for 1-2 AC additions. For adding many ACs at once, prefer
-    rewriting the UC's full AC list via `import_spec` — it's idempotent and
-    cheaper than a loop.
+    Use this for 1-2 AC additions. For many at once, `import_spec` with
+    `on_existing_uc="apply"` adds the spec's new criteria (matched by text, with the
+    next free ids) in one call; without that option it leaves an existing UC as it is.
 
     `items_content` (FreeForm content-passing, UC-660): pass items.json as a
     string for remote MCP; the mutated string is returned under `items_content`.
@@ -1154,7 +1154,7 @@ def register_spec_mutations_tools(mcp_instance) -> None:
     mcp_instance.tool(
         description="Append a new AC to an existing UC. Auto-assigns next AC-NN id. Pass "
         "verification (automated_test, manual_test, review, measurement) to say how it is "
-        "checked. Use for 1-2 additions; for many at once prefer import_spec."
+        "checked. Use for 1-2 additions; for many at once, import_spec with on_existing_uc=\"apply\"."
     )(add_ac)
     mcp_instance.tool(
         description="Retire an AC from a UC with a required reason (10-500 chars). The other ACs "

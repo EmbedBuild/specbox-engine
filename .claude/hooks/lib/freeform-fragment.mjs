@@ -280,6 +280,25 @@ function same(a, b) {
   return canonical(a) === canonical(b);
 }
 
+/**
+ * Meta lists that only grow and that two calls in parallel can both add to: when a call changes one,
+ * its entries are joined by id with what is local, never replaced (UC-12501: two criteria retired at
+ * the same time from the same UC keep both).
+ */
+const APPEND_ONLY_META = new Set(['retired_criteria']);
+
+function unionById(local, incoming) {
+  const out = Array.isArray(local) ? [...local] : [];
+  const known = new Set(out.map((e) => e?.id));
+  for (const entry of Array.isArray(incoming) ? incoming : []) {
+    if (!known.has(entry?.id)) {
+      out.push(entry);
+      known.add(entry?.id);
+    }
+  }
+  return out;
+}
+
 function applyChanges(local, before, after) {
   const result = { ...local };
   for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
@@ -293,7 +312,9 @@ function applyChanges(local, before, after) {
     const meta = { ...(local.meta ?? {}) };
     for (const key of new Set([...Object.keys(b), ...Object.keys(a)])) {
       if (!(key in a)) delete meta[key];
-      else if (!(key in b) || !same(b[key], a[key])) meta[key] = a[key];
+      else if (!(key in b) || !same(b[key], a[key])) {
+        meta[key] = APPEND_ONLY_META.has(key) ? unionById(meta[key], a[key]) : a[key];
+      }
     }
     result.meta = meta;
   }

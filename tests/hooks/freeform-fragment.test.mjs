@@ -191,6 +191,22 @@ test('mergeFragment writes only the fields that changed, meta key by key, and re
   assert.equal(merged[1].state, 'review');
 });
 
+test('two criteria retired in parallel from the same UC keep both (UC-12501)', () => {
+  const ac2 = { ...AC, id: 'item-ac2', name: '[AC-02] Segundo' };
+  const local0 = [US, UC, AC, ac2];
+  const sentA = [asContext(US), UC, AC, ac2];
+  const sentB = [asContext(US), UC, AC, ac2];
+  const retiredA = { id: 'AC-01', text: 'x', reason: 'la cubre otra historia', retired_at: 'a' };
+  const retiredB = { id: 'AC-02', text: 'Segundo', reason: 'la cubre otra historia', retired_at: 'b' };
+  const returnedA = [asContext(US), { ...UC, meta: { ...UC.meta, retired_criteria: [retiredA] } }, ac2];
+  const returnedB = [asContext(US), { ...UC, meta: { ...UC.meta, retired_criteria: [retiredB] } }, AC];
+  const afterA = mergeFragment(local0, sentA, returnedA);
+  const afterB = mergeFragment(afterA, sentB, returnedB);
+  const uc = afterB.find((i) => i.id === UC.id);
+  assert.deepEqual(uc.meta.retired_criteria.map((r) => r.id), ['AC-01', 'AC-02']);
+  assert.deepEqual(afterB.filter((i) => i.labels?.includes('AC')).map((i) => i.id), []);
+});
+
 test('items_content is found and removed in any response shape', () => {
   const inner = { uc_id: 'UC-1', items_content: '{"items":[]}' };
   for (const shape of [inner, [{ type: 'text', text: JSON.stringify(inner) }], { content: [{ type: 'text', text: JSON.stringify(inner) }], structuredContent: inner }]) {

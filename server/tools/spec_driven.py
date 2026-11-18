@@ -1037,7 +1037,7 @@ async def import_spec(
                                 existing_meta=existing_uc.meta,
                                 existing_description=existing_uc.description,
                                 existing_acs=existing_acs,
-                                retired_ids=await mh.retired_ids(backend, board_id, existing_uc.id),
+                                retired=await backend.get_retired_criteria(board_id, existing_uc.id),
                                 spec_name=uc_spec.name,
                                 spec_meta=uc_meta,
                                 spec_context=uc_spec.context,

@@ -63,7 +63,11 @@ Leer el JSON y clasificar:
 El proyecto no está en la versión del engine. Ofrecer al usuario:
 
 1. **Mostrar qué cambiaría** — diff de versiones, features nuevas
-2. **Ejecutar upgrade** — `upgrade_project` via MCP o `./install.sh`
+2. **Ejecutar upgrade** — `upgrade_project` via MCP o `./install.sh`. Pasa el CLAUDE.md actual en
+   `claude_md_content` (cadena vacía si no hay): solo cambian sus zonas `@specbox:claude-md`. Si
+   `claude_md.status` es `proposal` (CLAUDE.md sin marcadores), enseña `sections_leaving` (qué sale y
+   adónde va) y repite con `confirm_claude_md=true` solo si el usuario está de acuerdo
+   (`doc/guides/claude-md.md`, UC-12209).
 3. **Re-auditar** — volver a ejecutar Paso 0 tras upgrade
 
 **IMPORTANTE**: No ejecutar upgrade sin confirmación del usuario.

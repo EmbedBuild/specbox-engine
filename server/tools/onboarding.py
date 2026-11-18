@@ -1146,12 +1146,21 @@ def register_onboarding_tools(
             )
         return result
 
-    def _upgrade_project_impl(project: str, scope: CallerScope) -> dict:
+    def _upgrade_project_impl(
+        project: str,
+        scope: CallerScope,
+        claude_md_content: str | None = None,
+        confirm_claude_md: bool = False,
+    ) -> dict:
         """Body of ``upgrade_project`` once the caller is identified (UC-3802).
 
         Shared with ``upgrade_all_projects`` so a sweep resolves the identity
         once. A project the caller cannot see is answered exactly like a
         project that is not registered, listing only the caller's own names.
+
+        The CLAUDE.md only changes in its template zones (UC-12209): it goes in
+        ``files`` when the client sent its current content and there is
+        something to write (``server/claude_md.py``).
         """
         if not state_path:
             return {"error": "State path not configured — cannot upgrade."}
@@ -1182,6 +1191,17 @@ def register_onboarding_tools(
         files, quality_dirs, warnings = _generate_onboarding_files(
             engine_path, project, detected_stack, infra_list, developer_name,
         )
+
+        # UC-12209: the CLAUDE.md keeps the project's sections; only the template zones change.
+        claude_md_report: dict | None = None
+        if "CLAUDE.md" in files:
+            from ..claude_md import claude_md_for_upgrade
+
+            new_claude_md, claude_md_report = claude_md_for_upgrade(
+                claude_md_content, files.pop("CLAUDE.md"), confirm=confirm_claude_md,
+            )
+            if new_claude_md is not None:
+                files["CLAUDE.md"] = new_claude_md
 
         # Record version info (do NOT re-register)
         current_engine_version = _read_engine_version(engine_path)
@@ -1317,6 +1337,7 @@ def register_onboarding_tools(
             "infra": infra_list,
             "roles": roles,
             "files": files,
+            "claude_md": claude_md_report,  # UC-12209
             "quality_dirs_to_create": quality_dirs,
             "engine_version": current_engine_version,
             "engine_version_at_onboard": engine_version_at_onboard,
@@ -1334,6 +1355,9 @@ def register_onboarding_tools(
                 "IMPORTANT: Replace .claude/settings.json FIRST — the old matcher format "
                 "was broken (object instead of string) and caused Claude Code to ignore all "
                 "hooks and permissions. Copy all files above to your project repo. "
+                "CLAUDE.md (UC-12209): it is in files only when claude_md says merged, applied or "
+                "created; with proposal, show sections_leaving to the person and repeat with "
+                "confirm_claude_md=true if they agree. "
                 "Then run get_e2e_gap_report and get_visual_gap_report on the project to detect "
                 "E2E evidence gaps and visual identity gaps respectively. "
                 "v6.0: review canonical_docs_to_create — for each entry, write the content "
@@ -1346,18 +1370,30 @@ def register_onboarding_tools(
         }
 
     @mcp.tool
-    async def upgrade_project(project: str, ctx: Context | None = None, dev_token: str = "") -> dict:
+    async def upgrade_project(
+        project: str,
+        ctx: Context | None = None,
+        dev_token: str = "",
+        claude_md_content: str | None = None,
+        confirm_claude_md: bool = False,
+    ) -> dict:
         """Regenerate onboarding files for an existing project using current engine templates.
 
         Args:
             project: Project name (must be already registered — by you, or bound
                 to a native project you belong to; UC-3802).
             dev_token: Developer token when the current session is not native.
+            claude_md_content: The project's current CLAUDE.md ("" if it has none).
+                Only the template zones change (UC-12209); without it the CLAUDE.md
+                is left out of ``files``.
+            confirm_claude_md: Apply the proposal for a CLAUDE.md without zone
+                markers, after showing the person ``claude_md.sections_leaving``.
 
         Reads existing meta (stack, infra, repo_url, developer_name) from
-        the state registry, then regenerates all onboarding files (CLAUDE.md,
-        settings.json, team-config.json, quality-baseline.json) with the
-        current engine templates. Records the engine and MCP version used.
+        the state registry, then regenerates the onboarding files (settings.json,
+        team-config.json, quality-baseline.json) with the current engine templates;
+        of CLAUDE.md, only the template zones (``claude_md`` says what changed).
+        Records the engine and MCP version used.
         Does NOT re-register the project. Without an identity the tool answers
         UNAUTHENTICATED; a project that is not yours is reported as not registered.
 
@@ -1367,7 +1403,7 @@ def register_onboarding_tools(
             scope = await resolve_caller_scope(ctx, token=dev_token)
         except UnauthenticatedError:
             return unauthenticated_envelope(ctx)
-        return _upgrade_project_impl(project, scope)
+        return _upgrade_project_impl(project, scope, claude_md_content, confirm_claude_md)
 
     @mcp.tool
     async def upgrade_all_projects(ctx: Context | None = None, dev_token: str = "") -> dict:
@@ -1376,7 +1412,9 @@ def register_onboarding_tools(
         Regenerates onboarding files for every project in the central registry
         that is visible to your identity (UC-3802) using current engine
         templates. Records engine and MCP version for each. Returns per-project
-        results so the user can copy files for each project.
+        results so the user can copy files for each project. CLAUDE.md is left
+        out (``claude_md.status = content_required``): upgrade it per project with
+        upgrade_project and its claude_md_content (UC-12209).
 
         Use when the engine has been updated and you want to refresh ALL projects at once."""
         if not state_path:

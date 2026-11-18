@@ -190,7 +190,8 @@ SELECT u.id AS uc_id, u.state, u.completed_at, COALESCE(c.criteria, 0) AS criter
   LEFT JOIN crit c ON c.uc_id = u.id
   LEFT JOIN usage us ON us.uc_id = u.id
  WHERE u.project_id = $1 AND (u.state IN ('review', 'done') OR us.uc_id IS NOT NULL)
- ORDER BY u.completed_at DESC NULLS FIRST, u.id DESC
+ ORDER BY (u.state = 'review') DESC, u.completed_at DESC NULLS LAST, u.started_at DESC NULLS LAST,
+          length(u.id) DESC, u.id DESC
 """
 
 

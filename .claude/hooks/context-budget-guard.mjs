@@ -1,24 +1,30 @@
 #!/usr/bin/env node
 /**
- * context-budget-guard.mjs — PreToolUse hook for Task (v5.32.0).
+ * context-budget-guard.mjs — PreToolUse hook for subagent launches (v5.32.0, UC-12208).
  *
- * Estimates tokens for the prompt of a Task spawned by /implement
+ * Estimates tokens for the prompt of a subagent spawned by /implement
  * (or any other skill that delegates to a sub-agent) and reports
- * a WARNING (default) or BLOCKS (strict mode) when the budget is
- * exceeded.
+ * a note (default) or BLOCKS (strict mode) when the budget is exceeded.
+ *
+ * Claude Code launches subagents with the «Agent» tool; older versions called
+ * it «Task». The hook is registered with the matcher «Agent|Task» and accepts
+ * both (until UC-12208 it only listened to «Task» and never ran).
  *
  * Behaviour:
- *   - mode=warn  (default) → stderr WARNING, exit 0
+ *   - mode=warn  (default) → note to the agent (additionalContext), exit 0
  *   - mode=strict          → stderr BLOCKED, exit 2
  *   - mode=off             → no-op, exit 0
  *
- * Settings (from .claude/settings.local.json):
- *   specbox.implement.task_isolation.task_budget_tokens (default 16000)
- *   specbox.implement.task_isolation.task_budget_mode  (default "warn")
+ * Settings — `task_isolation.task_budget_tokens` (default 16000) and
+ * `task_isolation.task_budget_mode` (default "warn"), read per key from:
+ *   1. .claude/settings.local.json → specbox.implement.task_isolation (wins)
+ *   2. .claude/settings.json       → implement.task_isolation (where the
+ *      settings template writes it) or specbox.implement.task_isolation
  *
  * Side-effects:
- *   Updates .quality/task_isolation.json counters for local inspection
- *   and external consumers (specbox_cloud, ad-hoc scripts).
+ *   Updates .quality/task_isolation.json counters, plus `last_tool_name`
+ *   (the tool name the hook received), for local inspection and external
+ *   consumers (specbox_cloud, ad-hoc scripts).
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -28,8 +34,11 @@ import { noteWith } from './lib/output.mjs';
 
 const DEFAULT_BUDGET = 16000;
 const DEFAULT_MODE = 'warn';
-const SETTINGS_PATH = '.claude/settings.local.json';
+// Local first: a key written in settings.local.json wins over settings.json.
+const SETTINGS_FILES = ['.claude/settings.local.json', '.claude/settings.json'];
 const TASK_ISOLATION_CACHE = '.quality/task_isolation.json';
+// The names Claude Code uses to launch a subagent: «Agent» today, «Task» before.
+const SUBAGENT_TOOLS = new Set(['Agent', 'Task']);
 
 // ── Read stdin payload ─────────────────────────────────────────────────
 
@@ -38,7 +47,7 @@ let payload = {};
 try { payload = JSON.parse(raw); } catch { /* ignore */ }
 
 const toolName = payload?.tool_name || payload?.toolName || '';
-if (toolName !== 'Task') {
+if (!SUBAGENT_TOOLS.has(toolName)) {
   process.exit(0);
 }
 
@@ -70,11 +79,11 @@ const overshoot = total - budget;
 
 if (mode === 'strict') {
   console.error(
-    `[context-budget-guard] BLOCKED — Task prompt is ~${total} tokens ` +
+    `[context-budget-guard] BLOCKED — the subagent prompt (${toolName}) is ~${total} tokens ` +
       `(budget ${budget}, overshoot ${overshoot}). Breakdown: ${breakdownStr}. ` +
       `Reduce the prompt body, move shared context to ` +
       `.quality/evidence/{feature}/execution_context.json, or split the work ` +
-      `into multiple Tasks.`
+      `into several subagents.`
   );
   process.exit(2);
 }
@@ -95,19 +104,22 @@ function readStdinSync() {
   }
 }
 
+function taskIsolationOf(settings) {
+  return settings?.specbox?.implement?.task_isolation ?? settings?.implement?.task_isolation ?? null;
+}
+
 function readSettings() {
-  let budget = DEFAULT_BUDGET;
-  let mode = DEFAULT_MODE;
-  if (!existsSync(SETTINGS_PATH)) {
-    return { budget, mode };
+  let budget;
+  let mode;
+  for (const file of SETTINGS_FILES) {
+    if (!existsSync(file)) continue;
+    try {
+      const ti = taskIsolationOf(JSON.parse(readFileSync(file, 'utf-8')));
+      if (budget === undefined && typeof ti?.task_budget_tokens === 'number') budget = ti.task_budget_tokens;
+      if (mode === undefined && typeof ti?.task_budget_mode === 'string') mode = ti.task_budget_mode;
+    } catch { /* ignore an unreadable file */ }
   }
-  try {
-    const settings = JSON.parse(readFileSync(SETTINGS_PATH, 'utf-8'));
-    const ti = settings?.specbox?.implement?.task_isolation;
-    if (typeof ti?.task_budget_tokens === 'number') budget = ti.task_budget_tokens;
-    if (typeof ti?.task_budget_mode === 'string') mode = ti.task_budget_mode;
-  } catch { /* ignore */ }
-  return { budget, mode };
+  return { budget: budget ?? DEFAULT_BUDGET, mode: mode ?? DEFAULT_MODE };
 }
 
 function bumpCounter(key) {
@@ -119,6 +131,7 @@ function bumpCounter(key) {
       } catch { cache = {}; }
     }
     cache[key] = (cache[key] || 0) + 1;
+    cache.last_tool_name = toolName;
     cache.last_event_at = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
     mkdirSync(dirname(TASK_ISOLATION_CACHE), { recursive: true });
     writeFileSync(

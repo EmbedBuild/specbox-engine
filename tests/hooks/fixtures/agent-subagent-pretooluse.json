@@ -1,0 +1,15 @@
+{
+  "_origen": "Carga PreToolUse de un subagente tal como la manda Claude Code (UC-12208). El nombre de la herramienta y las claves de tool_input salen de los tool_use de una sesión real del 2026-11-18 (4 lanzamientos, todos «Agent»); el texto del encargo se ha sustituido por uno genérico.",
+  "session_id": "00000000-0000-4000-8000-000000000000",
+  "transcript_path": "/tmp/transcript.jsonl",
+  "cwd": "/tmp/proyecto",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "Explore hooks and templates",
+    "prompt": "Investigación de solo lectura en el repo. Responde con hechos y fichero:línea, un apartado por pregunta.",
+    "run_in_background": true,
+    "subagent_type": "Explore"
+  }
+}

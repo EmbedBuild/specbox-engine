@@ -1182,7 +1182,11 @@ If the result exceeds 30% of context window → split the phase into sub-phases.
 > Pasos 7.5 (AG-09a) / 7.7 (AG-09b). Garantiza:
 > - aislamiento real de contexto por Task
 > - validacion mecanica de budget (16k tokens por defecto, ver
->   `context-budget-guard.mjs`)
+>   `context-budget-guard.mjs`, que vigila la herramienta de subagentes de
+>   Claude Code: `Agent`, o `Task` en versiones anteriores)
+>
+> `Task(AG-XX)` en esta skill nombra el paso de delegacion, no la herramienta:
+> el subagente se lanza con la herramienta `Agent`.
 > - validacion mecanica de file ownership por agente
 >   (`file-ownership-guard.mjs` lee `.quality/active_agent.json`)
 > - delta estructurado por fase escrito a `phase_outputs.jsonl` por el
@@ -1245,7 +1249,7 @@ del aislamiento real del contexto.
    `agent`, `file-ownership-guard.mjs` no actúa (es el orquestador quien escribe).
 2. **Telemetría local**: en `.quality/task_isolation.json` (`Read` + `Write`; si no existe, `{}`),
    poner `enabled: true`, `last_feature_slug: "{feature}"` y `last_event_at` (ahora, UTC). El
-   contador `tasks_run_total` ya lo subió `context-budget-guard.mjs` al lanzar el Task.
+   contador `tasks_run_total` ya lo subió `context-budget-guard.mjs` al lanzar el subagente.
 
 **Si el Task falla o se corta**: la limpieza del marcador va igual. El siguiente Task lo encuentra
 sin `agent` y el guard no supone ningún agente activo.

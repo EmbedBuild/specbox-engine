@@ -14,53 +14,15 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readStdin, fileExists, fileAge, git } from './lib/utils.mjs';
+import { readStdin, fileExists, fileAge, git, readJsonFile } from './lib/utils.mjs';
 import { blockWith, noteWith } from './lib/output.mjs';
 import { dirname, isAbsolute } from 'node:path';
 import { getProjectConfig, getActiveUC, getActiveUCReservation, getStaleUC } from './lib/config.mjs';
 import { decideNativeReservation } from './lib/native-reservation-revalidate.mjs';
-
-/**
- * Best-effort revalidation of a native reservation against the MCP. Returns
- * { reachable, reservation } for decideNativeReservation. Never throws — any
- * failure (no URL, network error, timeout, bad JSON) yields reachable:false
- * so the cache is trusted [AC-21]. Online conflicts are surfaced for AC-22.
- *
- * Endpoint: GET /api/native/reservation-status?uc_id=...
- * Expected response: { uc_id, reservation: { developer_id } | null }
- *
- * Wire-protocol compat (v5.35-v5.36): if the MCP returns the legacy shape
- * { uc_id, claim: {…} | null } we pass `claim` through too, and the pure
- * decision module accepts both. UC-612 removes the fallback in v5.37.0.
- */
-function probeNativeReservation(reservation) {
-  const mcpUrl = process.env.SPECBOX_ENGINE_MCP_URL || process.env.DEV_ENGINE_MCP_URL || '';
-  if (!mcpUrl) return { reachable: false };
-  try {
-    const url = `${mcpUrl.replace(/\/$/, '')}/api/native/reservation-status`;
-    const out = execFileSync(
-      'curl',
-      [
-        '-fsS', '--max-time', '3',
-        '-L', // follow redirects so a server still serving the legacy URL
-              // with a 301 to /reservation-status works transparently
-        '-G', url,
-        '--data-urlencode', `uc_id=${reservation.ucId}`,
-      ],
-      { encoding: 'utf8', timeout: 4000, stdio: ['ignore', 'pipe', 'ignore'] },
-    );
-    const data = JSON.parse(out);
-    return {
-      reachable: true,
-      reservation: data.reservation ?? null,
-      // Forward the legacy `claim` field too so the pure decision module
-      // can fall back if the server has not yet upgraded.
-      claim: data.claim ?? undefined,
-    };
-  } catch {
-    return { reachable: false };
-  }
-}
+// UC-12217: la reserva se revisa con la tool get_uc_reservation (identidad del dispositivo, 3 s).
+// Antes era un curl a /api/native/reservation-status, que el servidor no tiene: fallaba siempre,
+// se daba la caché por buena y el bloqueo por reserva perdida no saltaba nunca.
+import { probeReservation, shouldNoteOffline } from './lib/reservation-probe.mjs';
 
 const input = readStdin();
 
@@ -125,7 +87,15 @@ if (activeUC) {
   // dev [AC-22].
   const reservation = getActiveUCReservation();
   if (reservation) {
-    const decision = decideNativeReservation(reservation, probeNativeReservation(reservation));
+    const projectId = readJsonFile('.quality/active_uc.json')?.board_id || boardId;
+    const probe = await probeReservation({ root: process.cwd(), projectId, reservation });
+    const decision = decideNativeReservation(reservation, probe);
+    if (decision.reason === 'offline-cache-trusted' && shouldNoteOffline(process.cwd())) {
+      noteWith('PostToolUse', 'SPEC GUARD: reserva sin comprobar con el tablero', [
+        `UC: ${reservation.ucId} · no se pudo preguntar al tablero (${probe.why || 'sin respuesta'}).`,
+        'Se usa la reserva guardada en .quality/active_uc.json; se vuelve a comprobar en la siguiente escritura.',
+      ]);
+    }
     if (!decision.allow) {
       const actual = decision.conflict?.actual;
       blockWith('SPEC GUARD: la reserva de la UC ya no es tuya', [

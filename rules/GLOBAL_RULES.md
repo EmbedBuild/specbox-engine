@@ -130,7 +130,7 @@ salvo para corregir a mano.
 
 | Hook | Evento | Comportamiento | Tipo |
 |------|--------|---------------|------|
-| `spec-guard.mjs` | Despues de Write/Edit en `src/` o `lib/` | Rama main/master → bloqueo (la escritura ya esta hecha); sin UC activo → nota; reserva native perdida → pendiente (UC-12217) | **BLOQUEANTE** (rama, tras escribir) + NOTA (UC) |
+| `spec-guard.mjs` | Despues de Write/Edit en `src/` o `lib/` | Rama main/master → bloqueo (la escritura ya esta hecha); sin UC activo → nota; reserva native liberada o de otra persona → bloqueo, comprobado con `get_uc_reservation` (UC-12217); sin red → nota y se usa la reserva guardada | **BLOQUEANTE** (rama y reserva, tras escribir) + NOTA (UC) |
 | `branch-guard.mjs` | — | Sin registrar: la rama ya la vigilan `spec-guard` y `commit-spec-guard` | — |
 | `commit-spec-guard.mjs` | antes de git commit | Bloquea commits en main; warning UC/checkpoint/tamano | **BLOQUEANTE** (rama) + WARNING (resto) |
 | `design-gate.mjs` | Write/Edit de una pagina de UI | Avisa al agente en la misma sesion si la feature no tiene HTML de diseno; la escritura ya esta hecha y el aviso dice que hacer | **AVISO** (exit 2 al modelo) |

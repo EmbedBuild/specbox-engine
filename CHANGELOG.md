@@ -2,6 +2,90 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.38.0] - 2026-11-18 — "Lo justo"
+
+Cuarta y última tanda de US-122: el agente recibe lo que necesita y nada más, y la spec se actualiza en la misma
+PR que el código. El CLAUDE.md de plantilla se queda en lo que hace falta en cada sesión, la zona «roadmap» deja de
+viajar en cada respuesta, el presupuesto de contexto de los subagentes se mide y el PRD de la historia cambia con
+la PR de la UC.
+
+### Fixed
+
+- **La zona «roadmap» solo viaja cuando se pide** (UC-12218, #368) — desde la 6.37.0, `complete_uc`, `move_uc`,
+  `add_uc`, `delete_uc` y `mark_ac_batch` devolvían la zona entera (~8 KB en el tablero del orquestador) a todos
+  los clientes. Ahora solo la calculan con `with_roadmap=true`, que pone el hook `app-docs-fragment` cuando el
+  repo del canon tiene `app_prd.md` y está en main o master; sin él, la respuesta es la de la 6.36.0.
+- **`upgrade_project` deja de pisar el CLAUDE.md del proyecto** (UC-12209, #371) — antes devolvía un CLAUDE.md
+  regenerado entero y quien lo copiaba perdía sus secciones propias. Ahora recibe el actual en
+  `claude_md_content` y solo cambia las zonas de la plantilla; sin contenido, el CLAUDE.md no va en `files`.
+
+### Added
+
+- **El CLAUDE.md de plantilla pasa de 390 a 160 líneas** (UC-12209, #371) — siete zonas
+  `<!-- @specbox:claude-md start id="…" -->` (`version`, `memoria`, `calidad`, `recorrido`, `agentes`, `pruebas`,
+  `permisos`); lo de fuera (Stack, Arquitectura, Reglas del Proyecto, Sistema de Diseño, Servicios Externos y lo
+  que añada cada uno) es del proyecto. Se quedan las innegociables: Quality Contract, comprobación de Engram y
+  recorrido de la UC. Guía: `doc/guides/claude-md.md`.
+- **Medida `context_budget`** (UC-12210, #369) — `context-budget-guard` registra cada lanzamiento de subagente en
+  `.quality/logs/context-budget.jsonl` (tokens estimados, presupuesto, modo y resultado). En «block», el subagente
+  que pasa del presupuesto no se lanza y el mensaje da el tamaño, el presupuesto y cómo reducir el contexto; el
+  bloqueo y la corrección quedan en el tablero.
+- **Medida `spec_in_pr` y hook `prd-sync-guard`** (UC-12211, #370) — antes de `gh pr merge` comprueba que la PR de
+  la UC activa cambia el PRD de su historia (en un satélite, el del orquestador), que enlaza una PR del orquestador
+  que lo cambia, o que la UC está marcada «sin PRD» con `update_uc(no_prd_reason=...)`. En «warn» avisa; en
+  «block» detiene la fusión con el PRD esperado y cómo seguir. `write_implementation_status` acepta `behaviors`:
+  una frase por criterio con el comportamiento entregado.
+
+### Para los proyectos que ya existían
+
+- **`context_budget` y `spec_in_pr` empiezan en «warn»** en todos los tableros, nuevos y existentes: avisan y no
+  detienen nada. Para que bloqueen, quien administra el proyecto:
+  `set_enforcement_mode(measure="context_budget", mode="block")` o
+  `set_enforcement_mode(measure="spec_in_pr", mode="block")`, que primero enseña el informe de impacto. Las UC
+  abiertas y sin cambios cuando la medida pasa a «block» quedan como anteriores a la regla y no se detienen.
+- Un proyecto con `task_budget_mode` propio en `settings.local.json` lo conserva; ese valor manda sobre la
+  política del tablero.
+- **El CLAUDE.md de un proyecto no cambia sin `upgrade_project`.** Uno de la plantilla anterior (sin marcadores)
+  recibe una propuesta con las secciones que salen y adónde van, y solo se escribe con `confirm_claude_md=true`.
+  Adónde fue cada sección:
+
+| Sección de la plantilla anterior | Adónde va |
+|----------------------------------|-----------|
+| Memoria Persistente (Engram) — REQUERIDO | Zona `memoria`; instalación por sistema, persistencia y tools, a `doc/guides/memoria-engram.md` |
+| Quality Contract — Calidad sobre velocidad | Zona `calidad`; la tabla de antipatrones, a `rules/GLOBAL_RULES.md` |
+| Agentes del Proyecto | Zona `agentes`; Agent Teams, a `docs/agent-teams.md` |
+| Comandos Disponibles | Zona `recorrido` |
+| Flujo de Desarrollo | Zona `recorrido` |
+| Trello — Fuente de Verdad (Spec-Driven) | Zona `recorrido`; lo propio de Trello, a `doc/guides/claude-md.md` |
+| Acceptance Testing — Gherkin BDD | Zona `pruebas`; formato y paquete por stack, a la skill `/implement` (Paso 7.5) y `rules/GLOBAL_RULES.md` |
+| Visual Experience Generation — VEG (v3.9) | Zona `pruebas`; pilares y configuración, a las skills `/visual-setup` y `/plan` (Paso 2.5b) |
+| E2E Testing | Zona `pruebas`; patrones, a `architecture/{stack}/e2e-testing.md` |
+| Permisos de Claude Code | Zona `permisos`; detalle, a `doc/guides/permisos.md` |
+| Hooks | Zona `permisos`; cada hook, a `doc/guides/hooks.md` |
+
+- El hook nuevo `prd-sync-guard` llega con la plantilla; hasta actualizar los hooks del proyecto
+  (`specbox hooks update`), todo sigue como antes.
+
+### Security
+
+- **Las prohibiciones de permisos siguen en el CLAUDE.md compacto** — la zona `permisos` mantiene que no se lee
+  `~/.ssh`, `~/.specbox` ni `.env` y que no se usa `curl` ni `wget`; `upgrade_project` la actualiza sin tocar
+  `settings.local.json`.
+- **`upgrade_project` no lee ni escribe el disco del cliente** — el CLAUDE.md llega como contenido y vuelve como
+  contenido; el servidor no lo guarda.
+- **El registro del presupuesto de contexto guarda tamaños, no el texto** — cada línea lleva la tool, los tokens
+  estimados, el presupuesto, el modo y el resultado; nunca el encargo del subagente.
+- **El motivo «sin PRD» no admite credenciales** — `update_uc(no_prd_reason=...)` rechaza un texto que parece una
+  credencial, porque el motivo queda en el tablero y lo ve quien revisa la UC.
+
+### Tests
+
+- `tests/test_claude_md_template.py` (con un CLAUDE.md real de la 6.37 como estado sucio),
+  `tests/test_spec_in_pr.py`, `tests/hooks/prd-sync-guard.test.mjs`, `tests/hooks/context-budget-policy.test.mjs`
+  y la comparación de las cinco tools con su respuesta de la 6.36.0 (`tests/test_app_docs_roadmap.py`).
+- Las pruebas ya no escriben `.quality/active_uc.json` en la raíz del repo: una prueba native sustituía el
+  marcador real de quien trabajaba en él.
+
 ## [6.37.0] - 2026-11-18 — "A la vista"
 
 Tercera tanda de US-122: los hooks ven el proyecto de verdad. Con el MCP remoto, el de siempre, varios hooks

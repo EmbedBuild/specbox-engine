@@ -141,10 +141,11 @@ def test_uc_12202_the_hooks_table_describes_what_spec_guard_does():
     claude = _row("CLAUDE.md", "spec-guard")
     assert "after the write" in claude
     assert "main or master" in claude
-    assert "pending" in claude and "UC-12217" in claude, "la reserva perdida figura como pendiente"
+    # UC-12217: el bloqueo por reserva perdida ya funciona; la tabla lo dice con la tool que lo comprueba.
+    assert "get_uc_reservation" in claude and "UC-12217" in claude and "pending" not in claude
     rules = _row("rules/GLOBAL_RULES.md", "spec-guard")
     assert "Despues de Write/Edit" in rules
-    assert "main/master" in rules and "pendiente (UC-12217)" in rules
+    assert "main/master" in rules and "get_uc_reservation" in rules and "pendiente" not in rules
     assert "NOTA (UC)" in rules
 
 

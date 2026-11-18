@@ -67,6 +67,7 @@
       "mcp__SpecBox-MCP__get_supported_stacks",
       "mcp__SpecBox-MCP__get_tool_access_log",
       "mcp__SpecBox-MCP__get_uc",
+      "mcp__SpecBox-MCP__get_uc_reservation",
       "mcp__SpecBox-MCP__get_us",
       "mcp__SpecBox-MCP__get_us_progress",
       "mcp__SpecBox-MCP__get_version_matrix",

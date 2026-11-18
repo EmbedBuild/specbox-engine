@@ -345,6 +345,42 @@ async def register_native_branch(uc_id: str, branch: str, ctx: Context) -> dict[
     }
 
 
+async def get_uc_reservation(
+    ctx: Context, uc_id: str, project_id: str = "", dev_token: str = ""
+) -> dict[str, Any]:
+    """Quién tiene la reserva de una UC, o ``reservation: null`` si nadie (UC-12217). Solo lectura.
+
+    La usa spec-guard para revisar, al escribir código, que la reserva que guarda el marcador de
+    UC activa sigue siendo de quien escribe. Sin sesión del tablero: identidad del transporte o
+    ``dev_token`` (como las decisiones, UC-9902); el proyecto es ``project_id`` o el de la sesión;
+    un proyecto ajeno responde como inexistente.
+    """
+    from ..coordination.reservations import get_reservation
+    from ..coordination.scope import resolve_caller_scope
+    from .session_heartbeat import PROJECT_ID, UC_ID, _not_visible, _session_project, _unauthenticated
+
+    if not UC_ID.match(uc_id or ""):
+        return {"success": False, "code": "INVALID_UC_ID", "error": "uc_id no válido: «UC-1234»."}
+    pid = (project_id or "").strip() or await _session_project(ctx)
+    if not PROJECT_ID.match(pid or ""):
+        return {"success": False, "code": "INVALID_PROJECT_ID", "error": "project_id no válido."}
+    try:
+        scope = await resolve_caller_scope(ctx, token=dev_token)
+    except UnauthenticatedError:
+        return _unauthenticated()
+    if pid not in scope.project_ids:
+        return _not_visible(pid)
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        reservation = await get_reservation(conn, pid, uc_id)
+    return {
+        "success": True,
+        "project_id": pid,
+        "uc_id": uc_id,
+        "reservation": reservation.to_public() if reservation else None,
+    }
+
+
 async def get_project_kpis(ctx: Context) -> dict[str, Any]:
     """Lifecycle KPIs of the session's project (US-12 / UC-1204).
 
@@ -433,6 +469,13 @@ def register_coordination_tools(mcp_instance) -> None:
         description="Register a branch <-> UC mapping. Rejects branch-name collisions and "
         "suggests feature/{uc_id}-... naming. Native backend only."
     )(register_native_branch)
+    mcp_instance.tool(
+        description=(
+            "Quién tiene la reserva de una UC (developer_id, reserved_at, branch), o reservation=null "
+            "si nadie. Solo lectura; exige ser miembro del proyecto. La usa spec-guard para revisar "
+            "la reserva al escribir código. Native backend only."
+        )
+    )(get_uc_reservation)
     # US-12 — lifecycle analytics (read-only)
     mcp_instance.tool(
         description=(

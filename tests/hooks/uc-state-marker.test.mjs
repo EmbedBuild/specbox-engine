@@ -100,7 +100,8 @@ test('con el marcador escrito, spec-guard deja de avisar «código sin UC activa
       cwd: p.dir,
       input: JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: { file_path: join(p.dir, file) } }),
       encoding: 'utf8',
-      env: { ...process.env, SPECBOX_ENGINE_MCP_URL: '', DEV_ENGINE_MCP_URL: '' },
+      // Sin preguntar al tablero (UC-12217): la prueba no sale de la máquina ni usa su credencial.
+      env: { ...process.env, SPECBOX_ENGINE_MCP_URL: '', DEV_ENGINE_MCP_URL: '', SPECBOX_RESERVATION_CHECK: 'off', SPECBOX_HOME: p.dir },
     });
     const sin = write('src/app.ts');
     assert.match(`${sin.stdout}${sin.stderr}`, /código sin UC activa/);

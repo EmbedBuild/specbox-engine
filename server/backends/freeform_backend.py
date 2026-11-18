@@ -37,6 +37,7 @@ from typing import Any
 
 import structlog
 
+from ..tools._mutation_helpers import SPEC_RULES_VERSION, spec_rules_of  # UC-12302
 from ..spec_backend import (
     AC_METADATA_MARK,
     EPIC_EXISTS,
@@ -758,6 +759,7 @@ class FreeformBackend(SpecBackend):
                     text=clean_name or ac.name,
                     done=ac.state == "done",
                     backend_id=ac.id,
+                    spec_rules=spec_rules_of(ac.meta),  # UC-12302
                 )
             )
         return result
@@ -811,12 +813,15 @@ class FreeformBackend(SpecBackend):
                 "parent_id": uc_item_id,
                 "labels": ["AC"],
                 "priority": "none",
-                "meta": {"ac_id": ac_id, "tipo": "AC"},
+                # UC-12302: written under the current gate rules.
+                "meta": {"ac_id": ac_id, "tipo": "AC", "spec_rules": SPEC_RULES_VERSION},
                 "created_at": _now_iso(),
             }
             items.append(d)
             result.append(
-                ChecklistItemDTO(id=ac_id, text=text, done=False, backend_id=item_id)
+                ChecklistItemDTO(
+                    id=ac_id, text=text, done=False, backend_id=item_id, spec_rules=SPEC_RULES_VERSION
+                )
             )
 
         self._save_items(items)
@@ -842,6 +847,9 @@ class FreeformBackend(SpecBackend):
             if parsed_id != ac_id:
                 continue
             if text is not None:
+                _, old_text = parse_item_id(item.get("name", ""), "AC")
+                if old_text != text:  # UC-12302: a rewritten criterion follows the current rules
+                    item["meta"] = {**(item.get("meta") or {}), "spec_rules": SPEC_RULES_VERSION}
                 item["name"] = f"[{ac_id}] {text}"
             if done is not None:
                 item["state"] = "done" if done else "backlog"

@@ -269,7 +269,7 @@ def detect_ac_exposure(text: str) -> list[str]:
     return tags
 
 
-def validate_ac_text(text: str) -> list[str]:
+def validate_ac_text(text: str, *, rules: int = 1) -> list[str]:
     """Return a list of issue tags for an AC text. Empty list = passes.
 
     US-33/UC-3304 — el veredicto estaba INVERTIDO donde importaba.
@@ -370,7 +370,100 @@ def validate_ac_text(text: str) -> list[str]:
     if "no_observable_outcome" in issues or "subjective_language" in issues:
         issues.append("not_testable")  # alias de compatibilidad, se retira en el próximo release
 
+    if rules >= 2:
+        issues += spec_rule_issues(stripped)
+
     return issues
+
+
+# ── UC-12302 — lenguaje normativo y límites medibles (reglas versión 2) ──
+#
+# Solo para criterios escritos con estas reglas: el backend guarda `meta.spec_rules` al crear un
+# criterio o reescribir su texto (native y FreeForm). Un criterio sin sello es «anterior a la
+# regla» y se juzga con las reglas de antes. Calibradas contra los 1.835 criterios del tablero del
+# orquestador (plan de US-123, §2): «intenta» aparece 23 veces y siempre es una persona que intenta
+# algo, y casi todas las cifras con unidad de tiempo son plazos, no rendimiento.
+# «podría» queda fuera: en el tablero describe situaciones («…podrían disparar builds»), no promesas.
+
+#: Versión de las reglas del gate que estampa el backend en cada criterio nuevo o reescrito.
+SPEC_RULES_VERSION = 2
+
+#: Lo citado no es lo que el criterio afirma: «debería», "rápido" o `may` entre comillas son el
+#: nombre de algo (UC-12302 cita las palabras de su propia regla).
+_QUOTED_SPANS_RE = re.compile(r"`[^`\n]*`|«[^»\n]*»|\"[^\"\n]*\"|“[^”\n]*”")
+
+_WEAK_MODAL_RE = re.compile(
+    r"\b(?:deber[ií]an?|idealmente|procuran?|procurar[aá]n?|should|may|might|tries to|try to)\b"
+    r"|\ben lo posible\b|\bsi es posible\b|\ba ser posible\b",
+    re.IGNORECASE,
+)
+#: «intenta reenviar»: el criterio promete intentarlo, no conseguirlo. «Una sesión que intenta entrar
+#: recibe 401» sí afirma un resultado, y por eso solo cuenta si no queda ningún verbo de resultado.
+_TRY_RE = re.compile(r"\bintenta(?:r[aá]n?|n)?\s+(?:de\s+)?\w+(?:ar|er|ir)\b", re.IGNORECASE)
+#: «… que intenta entrar», «si lo intenta»: es el actor del caso, no la promesa del criterio.
+_ACTOR_TRIES_RE = re.compile(r"\b(?:que|quien(?:es)?|si|cuando|mientras)\s+(?:(?:lo|la|los|las|se|le)\s+)?$", re.IGNORECASE)
+
+_VAGUE_LIMIT_RE = re.compile(
+    r"\ben poco tiempo\b|\br[aá]pid(?:o|a|os|as|amente)\b|\blent(?:o|a|os|as|amente)\b"
+    r"|\bmuch[oa]s\b|\bpoc[oa]s\b|\bpronto\b|\benseguida\b|\bdemasiad[oa]s?\b",
+    re.IGNORECASE,
+)
+#: Lo que limita una cantidad o un tiempo. «una o varias pantallas» no limita nada.
+_LIMIT_VERB_RE = re.compile(
+    r"\b(?:responden?|cargan?|tardan?|admiten?|soportan?|procesan?|aceptan?|terminan?)\b"
+    r"|\bcomo m[aá]ximo\b|\bcomo mucho\b|\ben menos de\b|\bno m[aá]s de\b",
+    re.IGNORECASE,
+)
+
+_PERF_FIGURE_RE = re.compile(
+    r"\b(?:responden?|cargan?|tardan?|aparecen?|se abren?|terminan?|devuelven?|contestan?)\b[^.;\n]{0,60}?"
+    r"(?<![A-Za-z\d-])\d+(?:[.,]\d+)?\s*(?:ms|s|seg|segundos?|min|minutos?)\b",
+    re.IGNORECASE,
+)
+_CONDITION_RE = re.compile(
+    r"\bp\s?9[059]\b|percentil|\b[345]g\b|wi-?fi|\bred\b|conexi[oó]n|\bcon\s+\d+"
+    r"|\d+\s+(?:filas|registros|elementos|criterios|usuarios|ucs?|acs?|peticiones|ficheros|archivos)\b"
+    r"|dispositivo|iphone|android|m[oó]vil|escritorio|navegador|en local\b|en producci[oó]n|servidor|volumen",
+    re.IGNORECASE,
+)
+
+
+def _unquoted(text: str) -> str:
+    return _QUOTED_SPANS_RE.sub(" ", text or "")
+
+
+def spec_rule_issues(text: str) -> list[str]:
+    """Fallos de las reglas versión 2: ``weak_modal`` y ``no_threshold`` (UC-12302 AC-01, AC-02)."""
+    plain = _unquoted(text)
+    lower = plain.lower()
+    issues: list[str] = []
+    weak = bool(_WEAK_MODAL_RE.search(plain))
+    if not weak:
+        tried = _TRY_RE.search(plain)
+        if tried and not _ACTOR_TRIES_RE.search(plain[: tried.start()]):
+            rest = (lower[: tried.start()] + " " + lower[tried.end():])
+            weak = not any(v in rest for v in _OUTCOME_VERBS)
+    if weak:
+        issues.append("weak_modal")
+    if _VAGUE_LIMIT_RE.search(plain) and _LIMIT_VERB_RE.search(plain) and not _MEASUREMENT_RE.search(lower):
+        issues.append("no_threshold")
+    return issues
+
+
+def ac_text_warnings(text: str, *, rules: int = 1) -> list[str]:
+    """Avisos que no cuentan para el umbral: ``threshold_without_condition`` (UC-12302 AC-03)."""
+    if rules < 2:
+        return []
+    plain = _unquoted(text)
+    if _PERF_FIGURE_RE.search(plain) and not _CONDITION_RE.search(plain):
+        return ["threshold_without_condition"]
+    return []
+
+
+def spec_rules_of(meta: Any) -> int:
+    """La versión de reglas guardada en el ``meta`` de un criterio; 1 si no hay sello."""
+    value = meta.get("spec_rules") if isinstance(meta, dict) else None
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 1 else 1
 
 
 # ── Item finders (thin wrappers over list_items) ─────────────────────

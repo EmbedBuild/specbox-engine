@@ -83,6 +83,10 @@ class ChecklistItemDTO:
     # `get_uc` rebuilds them from the UC comments (server/ac_evidence.py).
     evidence: list[dict[str, Any]] = field(default_factory=list)
     verdict: dict[str, Any] | None = None
+    # UC-12302: the version of the quality-gate rules the AC was written under. Native and
+    # FreeForm stamp it (meta.spec_rules) when an AC is created or its text rewritten; 1 = the
+    # rules from before, so an older AC is never judged by rules it did not know.
+    spec_rules: int = 1
 
 
 @dataclass

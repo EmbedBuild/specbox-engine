@@ -73,6 +73,7 @@ import asyncpg
 import structlog
 
 from ..db.pool import get_pool
+from ..tools._mutation_helpers import SPEC_RULES_VERSION  # UC-12302
 from ..spec_backend import (
     AC_METADATA_MARK,
     EPIC_EXISTS,
@@ -182,12 +183,15 @@ def _from_jsonb(value: Any) -> Any:
 
 def _ac_receipts(row: Any) -> dict[str, Any]:
     """The receipts of an AC row (US-56/UC-5601): ``evidence`` list and last ``verdict``."""
+    from ..tools._mutation_helpers import spec_rules_of
+
     meta = _from_jsonb(row["meta"]) or {}
     evidence = meta.get("evidence")
     verdict = meta.get("verdict")
     return {
         "evidence": evidence if isinstance(evidence, list) else [],
         "verdict": verdict if isinstance(verdict, dict) else None,
+        "spec_rules": spec_rules_of(meta),  # UC-12302
     }
 
 
@@ -1521,7 +1525,8 @@ class NativeBackend(SpecBackend):
                         uc_item_id,
                         ac_id,
                         text,
-                        _jsonb({"ac_id": ac_id, "tipo": "AC"}),
+                        # UC-12302: written under the current gate rules.
+                        _jsonb({"ac_id": ac_id, "tipo": "AC", "spec_rules": SPEC_RULES_VERSION}),
                     )
                     result.append(
                         ChecklistItemDTO(
@@ -1530,6 +1535,7 @@ class NativeBackend(SpecBackend):
                             done=False,
                             backend_id=row["id"],
                             internal=False,
+                            spec_rules=SPEC_RULES_VERSION,
                         )
                     )
                 # UC-706: one audit event for the create. A single AC targets
@@ -1624,6 +1630,12 @@ class NativeBackend(SpecBackend):
         if text is not None:
             params.append(text)
             set_clauses.append(f"text = ${len(params)}")
+            # UC-12302: a rewritten criterion is judged by the current gate rules. SET reads the
+            # old row, so the comparison is against the text before this update.
+            set_clauses.append(
+                f"meta = CASE WHEN text IS DISTINCT FROM ${len(params)} "
+                f"THEN meta || jsonb_build_object('spec_rules', {SPEC_RULES_VERSION}) ELSE meta END"
+            )
         if done is not None:
             params.append(done)
             set_clauses.append(f"done = ${len(params)}")

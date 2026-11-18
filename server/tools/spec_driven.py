@@ -971,7 +971,7 @@ async def import_spec(
                             (f"AC-{idx:02d}", ac_text) for idx, ac_text in enumerate(uc_spec.acceptance_criteria, 1)
                         ]
                         # UC-12301 AC-04: the criteria the UC ends up with, for the spec gate.
-                        gate_acs: list[tuple[str, str]] = list(criteria)
+                        gate_acs: list[tuple[str, str, int]] = [(i, t, mh.SPEC_RULES_VERSION) for i, t in criteria]
                         if criteria:
                             if existing_uc:
                                 existing_acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
@@ -979,7 +979,9 @@ async def import_spec(
                                 new_criteria = [
                                     (ac_id, text) for ac_id, text in criteria if ac_id not in existing_ac_ids
                                 ]
-                                gate_acs = [(ac.id, ac.text) for ac in existing_acs] + new_criteria
+                                gate_acs = [(ac.id, ac.text, ac.spec_rules) for ac in existing_acs] + [
+                                    (i, t, mh.SPEC_RULES_VERSION) for i, t in new_criteria
+                                ]
                                 if new_criteria:
                                     await backend.create_acceptance_criteria(
                                         board_id, uc_item.id, new_criteria, **seed_kw
@@ -992,11 +994,12 @@ async def import_spec(
                                 created_ac += len(criteria)
                         elif existing_uc:
                             gate_acs = [
-                                (ac.id, ac.text) for ac in await backend.get_acceptance_criteria(board_id, uc_item.id)
+                                (ac.id, ac.text, ac.spec_rules)
+                                for ac in await backend.get_acceptance_criteria(board_id, uc_item.id)
                             ]
                         gate_inputs.append({
                             "uc_id": uc_spec.uc_id,
-                            "acs": [{"ac_id": ac_id, "text": text} for ac_id, text in gate_acs],
+                            "acs": [{"ac_id": i, "text": t, "spec_rules": r} for i, t, r in gate_acs],
                         })
 
                         # Only track new UCs for module linking

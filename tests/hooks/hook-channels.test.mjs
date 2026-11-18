@@ -66,7 +66,9 @@ function repo({ branch = 'feature/UC-1', specDriven = true, activeUC = false, fi
 function run(hook, dir, event, tool, toolInput, env = {}, extra = {}) {
   const payload = { hook_event_name: event, tool_name: tool, tool_input: toolInput, cwd: dir, ...extra };
   const res = spawnSync(process.execPath, [join(hooksDir, `${hook}.mjs`)], {
-    cwd: dir, input: JSON.stringify(payload), encoding: 'utf8', timeout: 60000, env: { ...process.env, ...env },
+    // Sin preguntar al tablero (UC-12215, UC-12217): las pruebas no salen de la máquina ni usan su credencial.
+    cwd: dir, input: JSON.stringify(payload), encoding: 'utf8', timeout: 60000,
+    env: { ...process.env, SPECBOX_ENFORCEMENT_POLICY: 'off', SPECBOX_RESERVATION_CHECK: 'off', ...env },
   });
   return { code: res.status, stdout: res.stdout || '', stderr: res.stderr || '' };
 }

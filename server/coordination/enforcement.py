@@ -75,6 +75,9 @@ MEASURES: dict[str, Measure] = {
         Measure("drift_gate", "puerta de desviación en el CI local", "US-126"),
         Measure("impact_radius", "radio de impacto del cambio", "US-126"),
         Measure("contract_first", "contrato antes de las pruebas", "US-128"),
+        # UC-12215: hoy ya bloquea en los proyectos que se reconocían por su configuración de
+        # siempre; los que se reconocen por primera vez (solo el bloque `specbox`) empiezan en «warn».
+        Measure("commit_on_main", "commit en main o master", "UC-12215", since="6.37.0"),
     )
 }
 
@@ -449,6 +452,7 @@ NOT_MEASURABLE = {
     "drift_gate": "Depende del CI local del repositorio, no del tablero.",
     "impact_radius": "Depende del diff del repositorio, no del tablero.",
     "contract_first": "Depende del orden de los cambios en el repositorio, no del tablero.",
+    "commit_on_main": "Depende de la rama del commit, no del tablero.",
 }
 
 

@@ -445,7 +445,7 @@ Automatic enforcement — no need to remember running these manually:
 | **read-tracker** | PostToolUse (Read) | Silent: records which files the agent reads in `.quality/read_tracker.jsonl` (kept out of git by `.quality/.gitignore`). Used by quality-first-guard. |
 | **spec-guard** | PostToolUse (Write/Edit on src/ or lib/) | Runs after the write, so it cannot undo it. Code written on main or master → exit 2, the agent must move it to a UC branch; code with no active UC → note to the agent (additionalContext); a native reservation that is no longer yours (released, or held by someone else, who is named) → exit 2. The reservation is checked with the read-only tool `get_uc_reservation` and the device identity (3 s, confirmed answers cached 60 s); offline it trusts the reservation in the marker and says so in a note at most every 10 minutes (UC-12217). The marker is written with the remote MCP too, by uc-state-marker (UC-12216). |
 | branch-guard | Not wired | Superseded: `spec-guard` already blocks writing code on main/master. The file stays for projects that wired it by hand. |
-| **commit-spec-guard** | PreToolUse (git commit) | **BLOCKING** (exit 2, before the commit): commits on main/master of a spec-driven project. No active UC, no checkpoint or more than 15 files → note. Checks the repo the command acts on. |
+| **commit-spec-guard** | PreToolUse (git commit) | **BLOCKING** (exit 2, before the commit): commits on main/master of a spec-driven project, by the EP-20 measure `commit_on_main` (UC-12215): a project recognized by its usual configuration (first-level keys or `.claude/project-config.json`) keeps the block; one recognized only by the `specbox` block of settings.local.json takes the board's mode, «warn» (note, the commit goes ahead) unless a person changed it; a mode set with `set_enforcement_mode` wins in both. spec-guard applies the same rule to code written on main. No active UC, no checkpoint or more than 15 files → note. Checks the repo the command acts on. |
 | **pre-commit-lint** | PreToolUse (git commit) | **BLOCKING** (exit 2, before the commit): the project's linter (ruff, eslint, dart analyze) fails on the files of the commit, including a `git add` in the same command and `commit -a`. No linter → silent. GGA (AI review) is no longer run here. |
 | **e2e-gate** | PreToolUse (git commit) | **BLOCKING** (exit 2, before the commit): acceptance evidence in the commit without a valid results.json, HTML Evidence Report or referenced files. Uses `validate-results-json.js`. |
 | **no-bypass-guard** | PreToolUse (`--no-verify`, push `--force`/`-f`/`+ref`, `reset --hard`) | **BLOCKING** (exit 2): the command does not run and the agent gets the reason. `--force-with-lease` and `--force-if-includes` pass. |
@@ -2969,7 +2969,8 @@ revisión independiente…). Un proyecto que ya existía no amanece bloqueado po
 - **Catálogo** (`server/coordination/enforcement.py`): clave, modo de proyecto nuevo (hoy todas «warn»; pasa a
   «block» solo con la prueba de UC-12213 y en una versión con codename) y `since` (versión en la que la medida
   empieza a comprobar algo; `None` = declarada). Copia en `.claude/hooks/lib/enforcement-policy.mjs`; una prueba
-  compara las dos.
+  compara las dos. `commit_on_main` (UC-12215, `since` 6.37.0) es la primera activa: la aplican commit-spec-guard
+  y spec-guard; `leerPolitica()` devuelve en `explicitas` las medidas cuyo modo puso una persona.
 - **Modos:** `off` (la respuesta queda como antes), `warn` (aviso en `enforcement_warnings`, la operación
   sigue), `block` (error `ENFORCEMENT_BLOCKED` cuyo texto lleva medida, motivo y cómo seguir). `check()` y
   `attach_warnings()` son lo que usará cada medida.

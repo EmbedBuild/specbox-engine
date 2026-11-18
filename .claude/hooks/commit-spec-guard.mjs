@@ -3,7 +3,12 @@
  * commit-spec-guard.mjs — PreToolUse hook for `git commit`
  *
  * BLOCKING (exit 2, before the commit exists):
- *   1. Commit on main/master in a spec-driven project.
+ *   1. Commit on main/master in a spec-driven project, with the EP-20 measure `commit_on_main`
+ *      in «block» (UC-12215): a project recognized by its usual configuration (first-level keys)
+ *      keeps the block it always had; one recognized for the first time by the `specbox` block of
+ *      settings.local.json takes the board's mode, «warn» unless a person changed it. A mode a
+ *      person set with set_enforcement_mode wins in both cases. In «warn» it is a note; in «off»,
+ *      nothing.
  * NOTE to the agent (additionalContext, the commit goes ahead):
  *   2. No active UC.
  *   3. No checkpoint saved for the active feature.
@@ -19,6 +24,7 @@
 import { readHookInput, gitDirForCommand, git, fileExists, readJsonFile } from './lib/utils.mjs';
 import { getProjectConfig } from './lib/config.mjs';
 import { blockWith, noteWith } from './lib/output.mjs';
+import { leerPolitica, modoDe } from './lib/enforcement-policy.mjs';
 
 const { toolInput, cwd } = readHookInput();
 const command = String(toolInput.command || '');
@@ -29,19 +35,32 @@ try {
   process.exit(0);
 }
 
-const { boardId, isSpecDriven } = getProjectConfig();
+const { boardId, backendType, isSpecDriven, recognizedBy, freeformRoot } = getProjectConfig();
 if (!isSpecDriven) process.exit(0);
 
+const notes = [];
 const branch = git('branch --show-current');
 if (branch === 'main' || branch === 'master') {
-  blockWith(`COMMIT BLOQUEADO: no se hace commit en ${branch}`, [
-    'Es un proyecto spec-driven: el trabajo va en una rama de la UC, nunca en main ni en master.',
-    'Para seguir: git checkout -b feature/{uc}-{nombre} (los cambios se van contigo) y haz el commit ahí.',
-  ]);
+  // UC-12215: el modo de commit_on_main. Lo que puso una persona manda; si no, los proyectos de
+  // siempre conservan el bloqueo y los reconocidos por primera vez toman el modo del tablero.
+  const politica = await leerPolitica({ root: process.cwd(), backendType, boardId, trackingDir: freeformRoot });
+  const puesto = politica.explicitas?.includes('commit_on_main');
+  const modo = puesto || recognizedBy !== 'legacy' ? modoDe(politica, 'commit_on_main') : 'block';
+  if (modo === 'block') {
+    blockWith(`COMMIT BLOQUEADO: no se hace commit en ${branch}`, [
+      'Es un proyecto spec-driven: el trabajo va en una rama de la UC, nunca en main ni en master.',
+      'Para seguir: git checkout -b feature/{uc}-{nombre} (los cambios se van contigo) y haz el commit ahí.',
+    ]);
+  }
+  if (modo === 'warn') {
+    notes.push(
+      `- Commit en ${branch}: en un proyecto spec-driven el trabajo va en una rama de la UC. La medida commit_on_main ` +
+        'está en «warn», así que el commit se hace. Para que bloquee: set_enforcement_mode(measure="commit_on_main", mode="block").',
+    );
+  }
 }
 
-const notes = [];
-const activeUC = fileExists('.quality/active_uc.json') ? readJsonFile('.quality/active_uc.json') : null;
+const activeUC =fileExists('.quality/active_uc.json') ? readJsonFile('.quality/active_uc.json') : null;
 if (!activeUC) {
   notes.push(`- No hay UC activa (board ${boardId}): llama a start_uc antes de implementar y a mark_ac_batch al terminar.`);
 } else if (activeUC.feature && !fileExists(`.quality/evidence/${activeUC.feature}/checkpoint.json`)) {

@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.37.0] — "A la vista"
+
+- No changes in the extension itself. The version follows the engine, whose hooks now recognize the projects the
+  extension sets up (the `specbox` block of `settings.local.json`); for them a commit on main warns instead of
+  blocking.
+
 ## [6.36.0] — "Convivencia"
 
 - No changes in the extension itself. The version follows the engine, which now keeps a mode per board for

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.36.0 — "Convivencia" (sobre v6.35 "Palabra")<br/>
+  v 6.37.0 — "A la vista" (sobre v6.36 "Convivencia")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,25 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.37
+
+**v6.37.0 — "A la vista"** hace que los hooks vean el proyecto de verdad, también con el MCP remoto:
+
+- **La UC activa queda marcada en el proyecto** — `start_uc` devuelve el marcador y un hook lo escribe; los
+  avisos de «código sin UC activa» dejan de salir con una UC en curso.
+- **El push deja de avisar en falso** — tras marcar los criterios y pasar la UC a revisión no hay aviso; si falta
+  algo, dice qué criterios o que la UC no está en revisión.
+- **La reserva se comprueba con el tablero** — si otra persona tiene la UC o la reserva se liberó, el aviso lo
+  dice; sin red se usa la reserva guardada y se avisa.
+- **Los proyectos dados de alta con la extensión se reconocen** — y la primera medida de EP-20 que actúa,
+  `commit_on_main`, empieza en «warn» para ellos; los de siempre conservan el bloqueo del commit en main.
+- **El roadmap del canon sigue al tablero** — la zona «roadmap» de `app_prd.md` se regenera tras cada cambio de
+  estado, en el orquestador y solo en main.
+
+100% backwards-compatible: nada que ya bloqueaba deja de hacerlo, y lo que se enciende por primera vez avisa.
 
 ---
 
@@ -915,7 +934,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.36.0 — "Convivencia" (over v6.35 "Palabra")
+> v 6.37.0 — "A la vista" (over v6.36 "Convivencia")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -929,6 +948,25 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.37
+
+**v6.37.0 — "A la vista"** makes the hooks see the real project, with the remote MCP too:
+
+- **The active UC is marked in the project** — `start_uc` returns the marker and a hook writes it; the «code
+  with no active UC» note stops appearing with a UC in progress.
+- **Pushing stops warning for nothing** — after marking the criteria and moving the UC to review there is no
+  note; when something is missing, it says which criteria or that the UC is not in review.
+- **The reservation is checked against the board** — when someone else holds the UC or the reservation was
+  released, the note says so; offline it uses the saved reservation and says that too.
+- **Projects onboarded by the extension are recognized** — and the first EP-20 measure that acts,
+  `commit_on_main`, starts in «warn» for them; the usual ones keep the commit-on-main block.
+- **The canon's roadmap follows the board** — the «roadmap» zone of `app_prd.md` is regenerated after each
+  state change, in the orchestrator and only on main.
+
+100% backwards-compatible: nothing that blocked stops blocking, and what turns on for the first time warns.
+
+---
 
 ## What's new in v6.36
 

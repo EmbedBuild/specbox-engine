@@ -5,7 +5,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync, utimesSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, utimesSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { execSync, spawnSync } from 'node:child_process';
@@ -163,6 +163,26 @@ test('extracts auto zones from app_spec.md', () => {
     assert.match(out.hookSpecificOutput.additionalContext, /Canonical/);
     assert.match(out.hookSpecificOutput.additionalContext, /freeform/);
     assert.match(out.hookSpecificOutput.additionalContext, /equilibrado/);
+  });
+});
+
+// UC-12205 AC-01/AC-03: la plantilla real, no un ejemplo escrito a mano. Sus marcadores llevan
+// `auto_sync_on` tras el id; la expresión anterior no casaba y esta prueba fallaba.
+const APP_SPEC_TEMPLATE = resolve(fileURLToPath(import.meta.url), '..', '..', '..', 'templates/app_spec.md.template');
+
+test('injects the three auto zones of the real app_spec template', () => {
+  const template = readFileSync(APP_SPEC_TEMPLATE, 'utf-8');
+  withTempRepo(() => {
+    mkdirSync('doc/app', { recursive: true });
+    writeFileSync('doc/app/app_spec.md', template);
+    const r = runHook();
+    assert.equal(r.status, 0);
+    const ctx = JSON.parse(r.stdout).hookSpecificOutput.additionalContext;
+    assert.match(ctx, /SpecBox Canonical/);
+    assert.match(ctx, /### Stack\n## 1\. Stack/, 'falta la zona stack');
+    assert.match(ctx, /### Tracking backend\n## 2\. Tracking backend/, 'falta la zona tracking_backend');
+    assert.match(ctx, /### Autopilot\n## 5\. Autopilot/, 'falta la zona autopilot');
+    assert.doesNotMatch(ctx, /Brand & Visual/, 'una zona manual no se inyecta');
   });
 });
 

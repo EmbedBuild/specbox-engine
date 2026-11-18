@@ -8,6 +8,11 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.36.0] — "Convivencia"
+
+- No changes in the extension itself. The version follows the engine, which now keeps a mode per board for
+  each measure that can stop work; projects that already existed stay in «warn».
+
 ## [6.35.0] — "Palabra"
 
 - **A new FreeForm project starts with the discovery gate in «warn».** When the extension creates

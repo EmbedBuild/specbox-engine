@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.35.0 — "Palabra" (sobre v6.34 "Foto fija")<br/>
+  v 6.36.0 — "Convivencia" (sobre v6.35 "Palabra")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,26 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.36
+
+**v6.36.0 — "Convivencia"** prepara SpecBox para imponer lo que la spec pide sin romper los proyectos
+que ya trabajaban con él:
+
+- **Un modo por medida y por proyecto** — cada medida que puede detener el trabajo está en «off», «warn» o
+  «block», y se guarda con el tablero (native o FreeForm). Un proyecto que ya existía empieza con todo en
+  «warn»; uno nuevo, con el modo de proyecto nuevo de cada medida, que hoy también es «warn».
+- **Nada se endurece a ciegas** — pasar una medida a «block» enseña antes cuántas UC abiertas detendría y
+  por qué, y pide confirmación. Las UC que ya estaban abiertas quedan «anteriores a la regla» hasta que cambie
+  su texto o sus criterios.
+- **Saltar un bloqueo deja rastro** — exige un motivo, vale una vez y queda quién, cuándo y por qué. El
+  informe enseña el porcentaje de saltos de cada medida.
+- **Una medida solo nace en «block» con datos** — 14 días bloqueando en los tableros de EmbedBuild, al menos
+  20 bloqueos y un 10 % de saltos o menos.
+
+100% backwards-compatible: ninguna medida pasa a «block» sola, y Trello y Plane solo avisan.
 
 ---
 
@@ -895,7 +915,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.35.0 — "Palabra" (over v6.34 "Foto fija")
+> v 6.36.0 — "Convivencia" (over v6.35 "Palabra")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -909,6 +929,26 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.36
+
+**v6.36.0 — "Convivencia"** gets SpecBox ready to enforce what the spec asks without breaking the projects
+that already worked with it:
+
+- **One mode per measure and per project** — every measure that can stop work is «off», «warn» or «block»,
+  stored with the board (native or FreeForm). A project that already existed starts with everything in
+  «warn»; a new one, with each measure's new-project mode, which today is also «warn».
+- **Nothing hardens blindly** — moving a measure to «block» first shows how many open UCs it would stop and
+  why, and asks for confirmation. UCs that were already open predate the rule until their text or criteria
+  change.
+- **Skipping a block leaves a trace** — it needs a reason, works once, and records who, when and why. The
+  report shows each measure's skip rate.
+- **A measure is only born in «block» with data** — 14 days blocking on the EmbedBuild boards, at least 20
+  blocks and 10 % skips or fewer.
+
+100% backwards-compatible: no measure goes to «block» by itself, and Trello and Plane only warn.
+
+---
 
 ## What's new in v6.35
 

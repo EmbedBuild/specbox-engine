@@ -1,5 +1,5 @@
-version: 6.35.0
-codename: "Palabra"
+version: 6.36.0
+codename: "Convivencia"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-18
@@ -608,8 +608,24 @@ features:
   - new-project-discovery-gate-warn
   - doc-promises-test
   - add-uc-story-numbering
+  # New (v6.36.0) — Convivencia
+  - enforcement-mode-per-measure
+  - enforcement-impact-report
+  - enforcement-predating-ucs
+  - enforcement-readiness
 
 changelog:
+  6.36.0:
+    date: 2026-11-18
+    codename: "Convivencia"
+    changes:
+      - "feat: each EP-20 measure that can stop work has a mode per board (off, warn or block); native keeps it in projects.meta.enforcement, FreeForm in doc/tracking/policy.json; Trello and Plane stay in warn at most and say so; a board created from this version is born with origin «new», one that already existed reads as «existing» with every measure in warn (UC-12212, #358)"
+      - "feat: get_enforcement_policy, set_enforcement_mode (native: project_admin only) and skip_enforcement (a reason of 10 to 500 characters, once per measure and UC); every change and skip stays in audit_log; the project template asks a person before changing a mode or skipping (UC-12212, #358)"
+      - "feat: get_enforcement_impact tells, without changing anything, how many open UCs each measure would stop in block and why, how many predate the rule and the blocks of the last 14 days with their skip rate (UC-12213, #359)"
+      - "feat: going to block takes two steps (CONFIRMATION_REQUIRED with the impact report and a confirm code); open UCs at that moment predate the rule and are not stopped until their text or criteria change (UC-12213, #359)"
+      - "feat: record_enforcement_event and enforcement_readiness (operator only): a measure is a block-by-default candidate for new projects only after 14 days blocking on the EmbedBuild boards with at least 20 blocks and 10 % skips or fewer, and a new default in block needs its proof in doc/enforcement/readiness (UC-12213, #359)"
+      - "feat: hooks read the same mode as the server (leerPolitica, 10-minute cache in native); the freeform-fragment hook carries policy.json, the board and the events for the policy tools with the remote MCP"
+
   6.35.0:
     date: 2026-11-18
     codename: "Palabra"

@@ -153,6 +153,7 @@
   "SpecBox Engine v{0} → v{1} available. Update?": "SpecBox Engine v{0} → v{1} available. Update?",
   "SpecBox: updating engine…": "SpecBox: updating engine…",
   "SpecBox: could not update the engine ({0}). Continuing with the local copy.": "SpecBox: could not update the engine ({0}). Continuing with the local copy.",
+  "SpecBox: the engine copy in {0} has local changes in {1}, so it stays as it is. Undo or save them (git -C \"{0}\" stash), then reload the window to update.": "SpecBox: the engine copy in {0} has local changes in {1}, so it stays as it is. Undo or save them (git -C \"{0}\" stash), then reload the window to update.",
   "Open Terminal": "Open Terminal",
   "SpecBox: the upgrade did not apply — still on v{0}. Update manually from a terminal.": "SpecBox: the upgrade did not apply — still on v{0}. Update manually from a terminal.",
   "(no description available)": "(no description available)",

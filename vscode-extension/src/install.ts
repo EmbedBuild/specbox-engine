@@ -88,6 +88,42 @@ export async function checkoutRelease(
 	return gitRunner(['checkout', '--quiet', '--detach', tag], enginePath);
 }
 
+// UC-1405 (US-14): the extension's own rebuild runs npm inside the managed clone. Until
+// 6.38.0, `npm install` rewrote the versioned package-lock.json (its licence said MIT, the
+// package.json FSL-1.1-ALv2), the clone was left with a local change and every later
+// `checkout` of a release tag failed: clones stuck on 6.34.0 while the extension moved on.
+
+/** Files the rebuild itself may rewrite in the managed clone: restoring them loses nothing. */
+export const REBUILD_GENERATED_FILES: readonly string[] = ['vscode-extension/package-lock.json'];
+
+/** Tracked files with local changes, split into the rebuild's own and the rest. */
+export interface CloneChanges { generated: string[]; other: string[]; }
+
+/** Local changes of tracked files in the clone, or null if git cannot tell. Never throws. */
+export async function cloneLocalChanges(
+	enginePath: string,
+	gitRunner: GitRunner = defaultGitRunner,
+): Promise<CloneChanges | null> {
+	const res = await gitRunner(['status', '--porcelain', '--untracked-files=no'], enginePath);
+	if (res.code !== 0) { return null; }
+	const changes: CloneChanges = { generated: [], other: [] };
+	for (const line of res.stdout.split('\n')) {
+		if (line.trim().length < 4) { continue; }
+		const file = line.slice(3).split(' -> ').pop()!.trim().replace(/^"|"$/g, '');
+		(REBUILD_GENERATED_FILES.includes(file) ? changes.generated : changes.other).push(file);
+	}
+	return changes;
+}
+
+/** Put back the versioned copy of the rebuild's own files. Returns the git result; never throws. */
+export async function restoreGeneratedFiles(
+	enginePath: string,
+	files: string[],
+	gitRunner: GitRunner = defaultGitRunner,
+): Promise<GitRunResult> {
+	return gitRunner(['checkout', '--', ...files], enginePath);
+}
+
 /**
  * Fetch from origin (tags included). Effects (git) but NEVER throws — returns the
  * GitRunResult so the caller stays fire-and-forget. A missing git resolves to

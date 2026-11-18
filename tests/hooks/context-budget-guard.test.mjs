@@ -6,7 +6,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -196,6 +196,112 @@ function testHookCustomBudget() {
   }
 }
 
+// ── UC-12208: «Agent» (hoy) y «Task» (antes) ─────────────────────────
+
+const realAgentPayload = JSON.parse(
+  readFileSync(join(repoRoot, 'tests/hooks/fixtures/agent-subagent-pretooluse.json'), 'utf-8')
+);
+
+function counters(cwd) {
+  return JSON.parse(readFileSync(join(cwd, '.quality/task_isolation.json'), 'utf-8'));
+}
+
+function writeSettings(cwd, file, content) {
+  mkdirSync(join(cwd, '.claude'), { recursive: true });
+  writeFileSync(join(cwd, '.claude', file), JSON.stringify(content));
+}
+
+// AC-01: queda registrado el nombre que llega al hook, con la carga real de un subagente.
+function testHookRunsForRealAgentPayloadAndRecordsTheName() {
+  const cwd = makeTempDir();
+  try {
+    const r = runHook(realAgentPayload, cwd);
+    assert.equal(r.code, 0);
+    assert.equal(r.note, '');
+    const c = counters(cwd);
+    assert.equal(c.tasks_run_total, 1, 'el guard no se ejecutó con «Agent»');
+    assert.equal(c.last_tool_name, 'Agent');
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
+// AC-02: el nombre anterior sigue valiendo.
+function testHookStillRunsForTask() {
+  const cwd = makeTempDir();
+  try {
+    const r = runHook({ tool_name: 'Task', tool_input: { prompt: 'small task' } }, cwd);
+    assert.equal(r.code, 0);
+    assert.equal(counters(cwd).last_tool_name, 'Task');
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
+// AC-02: el registro del hook (engine y plantilla) cubre los dos nombres y nada más.
+function testMatcherCoversAgentAndTask() {
+  for (const file of ['.claude/settings.json', 'templates/settings.json.template']) {
+    const settings = JSON.parse(readFileSync(join(repoRoot, file), 'utf-8'));
+    const groups = (settings.hooks?.PreToolUse ?? []).filter((g) =>
+      (g.hooks ?? []).some((h) => /context-budget-guard\.mjs/.test(h.command ?? ''))
+    );
+    assert.equal(groups.length, 1, `${file}: context-budget-guard debe registrarse una vez`);
+    const matcher = new RegExp(`^(?:${groups[0].matcher})$`);
+    assert.ok(matcher.test('Agent'), `${file}: el matcher no cubre «Agent»`);
+    assert.ok(matcher.test('Task'), `${file}: el matcher no cubre «Task»`);
+    assert.ok(!matcher.test('Read'), `${file}: el matcher cubre más de lo que debe`);
+  }
+}
+
+// AC-03: con un presupuesto de 1 token en «warn», lanzar un subagente muestra el aviso.
+function testRealAgentPayloadWarnsAtOneTokenBudget() {
+  const cwd = makeTempDir();
+  try {
+    writeSettings(cwd, 'settings.local.json', {
+      specbox: { implement: { task_isolation: { task_budget_tokens: 1, task_budget_mode: 'warn' } } },
+    });
+    const r = runHook(realAgentPayload, cwd);
+    assert.equal(r.code, 0);
+    assert.match(r.note, /se pasa de presupuesto/);
+    assert.match(r.note, /presupuesto 1,/);
+    assert.equal(counters(cwd).tasks_failed_budget, 1);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
+// La plantilla escribe task_isolation en settings.json: ahora el guard lo lee.
+function testReadsTheTemplateLocationInSettingsJson() {
+  const cwd = makeTempDir();
+  try {
+    writeSettings(cwd, 'settings.json', {
+      implement: { task_isolation: { task_budget_tokens: 100, task_budget_mode: 'strict' } },
+    });
+    const r = runHook({ tool_name: 'Agent', tool_input: { prompt: 'x'.repeat(500) } }, cwd);
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /budget 100/);
+    assert.match(r.stderr, /\(Agent\)/);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
+// Una clave escrita en settings.local.json gana a la de settings.json.
+function testLocalSettingsWinOverShared() {
+  const cwd = makeTempDir();
+  try {
+    writeSettings(cwd, 'settings.json', { implement: { task_isolation: { task_budget_mode: 'strict' } } });
+    writeSettings(cwd, 'settings.local.json', {
+      specbox: { implement: { task_isolation: { task_budget_mode: 'warn' } } },
+    });
+    const r = runHook({ tool_name: 'Agent', tool_input: { prompt: 'x'.repeat(80000) } }, cwd);
+    assert.equal(r.code, 0, 'el modo local («warn») debe ganar al compartido («strict»)');
+    assert.match(r.note, /se pasa de presupuesto/);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
 // ── runner ────────────────────────────────────────────────────────────
 
 const tests = [
@@ -210,6 +316,12 @@ const tests = [
   testHookBlocksInStrictMode,
   testHookOffModeIsNoOp,
   testHookCustomBudget,
+  testHookRunsForRealAgentPayloadAndRecordsTheName,
+  testHookStillRunsForTask,
+  testMatcherCoversAgentAndTask,
+  testRealAgentPayloadWarnsAtOneTokenBudget,
+  testReadsTheTemplateLocationInSettingsJson,
+  testLocalSettingsWinOverShared,
 ];
 
 let failed = 0;

@@ -6,6 +6,11 @@
  *   llega a fusionarse en «block», y el mensaje dice qué criterio falla y por qué.
  * - AC-06: en «warn» avisa y deja fusionar; una UC empezada antes de que la medida bloqueara avisa.
  * - Sin UC activa, con la medida apagada o con todo demostrado, calla.
+ *
+ * UC-12402 (medida independent_review):
+ * - AC-01/AC-03: sin el visto bueno de otro contexto la fusión no sigue en «block»; fuera de
+ *   «agresivo» hace falta la persona (en FreeForm, que no tiene panel, basta el evaluador).
+ * - AC-04: en «warn» avisa de que falta el veredicto independiente y deja fusionar.
  * Ejecutar: node --test tests/hooks/merge-guard.test.mjs
  */
 import { test } from 'node:test';
@@ -16,6 +21,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { closingEvidence, freeformCriteria, startedBeforeBlock } from '../../.claude/hooks/lib/closing-evidence.mjs';
+import { independentReview } from '../../.claude/hooks/lib/independent-review.mjs';
 
 const repoRoot = resolve(fileURLToPath(import.meta.url), '../../..');
 const HOOK = join(repoRoot, '.claude/hooks/merge-guard.mjs');
@@ -32,14 +38,17 @@ const ac = (n, state, evidence) => ({
   meta: { ac_id: `AC-0${n}`, ...(evidence ? { evidence, verdict: { passed: state === 'done' } } : {}) },
 });
 
-function project({ mode = 'block', items, marker = { uc_id: 'UC-701', started_at: '2026-11-19T09:00:00+00:00' } }) {
+function project({ mode = 'block', review = 'off', level = '', items, marker = { uc_id: 'UC-701', started_at: '2026-11-19T09:00:00+00:00' } }) {
   const dir = mkdtempSync(join(tmpdir(), 'merge-guard-'));
   spawnSync('git', ['init', '-q', '-b', 'feature/UC-701-x'], { cwd: dir });
   const files = {
-    '.claude/settings.local.json': { specbox: { backend_type: 'freeform' } },
+    '.claude/settings.local.json': { specbox: { backend_type: 'freeform', ...(level ? { autopilot: { level } } : {}) } },
     'doc/tracking/policy.json': {
       schema: 1, origin: 'existing', skips: [],
-      measures: { closing_evidence: { mode, ...(mode === 'block' ? { block_since: BLOCK_SINCE } : {}) } },
+      measures: {
+        closing_evidence: { mode, ...(mode === 'block' ? { block_since: BLOCK_SINCE } : {}) },
+        independent_review: { mode: review, ...(review === 'block' ? { block_since: BLOCK_SINCE } : {}) },
+      },
     },
     'doc/tracking/items.json': items,
     ...(marker ? { '.quality/active_uc.json': marker } : {}),
@@ -149,4 +158,55 @@ test('los criterios de FreeForm: evidencia desconocida si el criterio no la guar
   assert.equal(freeformCriteria([UC], 'UC-999'), null);
   assert.equal(startedBeforeBlock('2026-11-17T00:00:00Z', BLOCK_SINCE), true);
   assert.equal(startedBeforeBlock(undefined, BLOCK_SINCE), false);
+});
+
+// ── UC-12402: independent_review ─────────────────────────────────────
+
+const ACCEPTED = (independent, at = '2026-11-19T10:00:00Z') => ({ verdict: 'accepted', independent, at, by_kind: 'agent' });
+const ucWith = (verdicts) => ({ ...UC, meta: { ...UC.meta, review_verdicts: verdicts } });
+
+test('AC-01/AC-04: sin veredicto independiente, «block» detiene la fusión y «warn» avisa', () => {
+  for (const [review, code, re] of [['block', 2, null], ['warn', 0, /«warn»: la fusión sigue/]]) {
+    const dir = project({ mode: 'off', review, level: 'agresivo', items: [ucWith([ACCEPTED(false)]), ac(1, 'done', [PASS])] });
+    try {
+      const r = merge(dir);
+      assert.equal(r.code, code, review);
+      const text = review === 'block' ? r.stderr : r.note;
+      assert.match(text, /independent_review/);
+      assert.match(text, /contexto distinto del que implementó/);
+      if (re) assert.match(text, re);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+});
+
+test('AC-01: un evaluador independiente que acepta deja fusionar; una devolución posterior no', () => {
+  const ok = project({ mode: 'off', review: 'block', level: 'agresivo', items: [ucWith([ACCEPTED(true)]), ac(1, 'done', [PASS])] });
+  const back = project({
+    mode: 'off', review: 'block', level: 'agresivo',
+    items: [ucWith([ACCEPTED(true, '2026-11-19T10:00:00Z'), { verdict: 'returned', reason: 'falta el caso vacío', independent: true, at: '2026-11-19T11:00:00Z' }]), ac(1, 'done', [PASS])],
+  });
+  try {
+    assert.equal(merge(ok).code, 0);
+    const r = merge(back);
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /La UC fue devuelta: falta el caso vacío/);
+  } finally {
+    rmSync(ok, { recursive: true, force: true });
+    rmSync(back, { recursive: true, force: true });
+  }
+});
+
+test('AC-03: fuera de «agresivo» hace falta una persona (native); FreeForm, sin panel, acepta el evaluador', () => {
+  assert.equal(independentReview({ verdicts: [ACCEPTED(true)], level: 'equilibrado', backendType: 'native' }).reason_code, 'no_person_acceptance');
+  assert.equal(independentReview({ humanAcceptance: { by: 'Ana' }, verdicts: [], level: 'equilibrado', backendType: 'native' }).ok, true);
+  assert.equal(independentReview({ verdicts: [ACCEPTED(true)], level: 'agresivo', backendType: 'native' }).ok, true);
+  assert.equal(independentReview({ verdicts: [ACCEPTED(true)], level: 'equilibrado', backendType: 'freeform' }).ok, true);
+  const dir = project({ mode: 'off', review: 'block', level: 'equilibrado', items: [ucWith([ACCEPTED(true)]), ac(1, 'done', [PASS])] });
+  try {
+    assert.equal(merge(dir).code, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

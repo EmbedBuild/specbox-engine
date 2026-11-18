@@ -253,11 +253,19 @@ async def _native_open_ucs(project_id: str) -> list[dict[str, Any]]:
                                               'verdict', a.meta->'verdict',
                                               'spec_rules', COALESCE((a.meta->>'spec_rules')::int, 1))
                             ORDER BY a.ac_id) FILTER (WHERE a.ac_id IS NOT NULL),
-                   '[]'::json) AS acs
+                   '[]'::json) AS acs,
+               -- UC-12402: la aceptación de una persona y el último veredicto de revisión.
+               EXISTS (SELECT 1 FROM uc_acceptances x WHERE x.project_id = u.project_id AND x.uc_id = u.id)
+                   AS human_accepted,
+               (SELECT json_build_object('verdict', v.verdict, 'independent', v.independent,
+                                         'reason', v.reason, 'at', v.at)
+                  FROM uc_review_verdicts v
+                 WHERE v.project_id = u.project_id AND v.uc_id = u.id
+                 ORDER BY v.at DESC, v.id DESC LIMIT 1) AS latest_verdict
           FROM use_cases u
           LEFT JOIN acceptance_criteria a ON a.project_id = u.project_id AND a.uc_id = u.id
          WHERE u.project_id = $1 AND u.state NOT IN ('done', 'archived')
-         GROUP BY u.id, u.name, u.description, u.state
+         GROUP BY u.project_id, u.id, u.name, u.description, u.state
          ORDER BY u.id
         """,
         project_id,
@@ -265,8 +273,10 @@ async def _native_open_ucs(project_id: str) -> list[dict[str, Any]]:
     out = []
     for r in rows:
         acs = json.loads(r["acs"]) if isinstance(r["acs"], str) else r["acs"]
+        latest = json.loads(r["latest_verdict"]) if isinstance(r["latest_verdict"], str) else r["latest_verdict"]
         out.append({"uc_id": r["uc_id"], "name": r["name"], "description": r["description"], "state": r["state"],
-                    "acs": acs})
+                    "acs": acs, "human_accepted": bool(r["human_accepted"]),
+                    "review_verdicts": [latest] if latest else []})
     return out
 
 
@@ -293,6 +303,8 @@ async def _freeform_open_ucs(items_content: str) -> list[dict[str, Any]]:
             "acs": [{"ac_id": ac.id, "text": ac.text, "done": ac.done,
                      "evidence": ac.evidence if (ac.evidence or ac.verdict is not None) else None,
                      "verdict": ac.verdict, "spec_rules": ac.spec_rules} for ac in acs],
+            # UC-12402: FreeForm no tiene panel; los veredictos van en el meta de la UC.
+            "review_verdicts": await backend.get_review_verdicts("freeform", item),
         })
     return out
 

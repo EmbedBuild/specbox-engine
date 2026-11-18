@@ -1342,6 +1342,65 @@ class NativeBackend(SpecBackend):
             "at": row["accepted_at"].isoformat(),
         }
 
+    # ── Revisión independiente (UC-12402) ────────────────────────
+
+    async def set_uc_implementer(self, board_id: str, uc_item: Any, implementer: dict[str, Any]) -> None:
+        """Quién arrancó la UC, en su ``meta``: sin versión nueva ni evento (no es un cambio de la spec)."""
+        await self._require_membership_cached(board_id)
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE use_cases SET meta = meta || jsonb_build_object('implementer', $3::jsonb) "
+                "WHERE project_id = $1 AND id = $2",
+                board_id,
+                uc_item.id,
+                _jsonb(implementer),
+            )
+
+    async def record_review_verdict(self, board_id: str, uc_item: Any, record: dict[str, Any]) -> dict[str, Any]:
+        """Una fila de ``uc_review_verdicts`` (migración 0036), con la fecha del servidor."""
+        await self._require_membership_cached(board_id)
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO uc_review_verdicts
+                    (project_id, uc_id, verdict, by_kind, developer_id, session_id, agent_id, agent_type,
+                     independent, reason)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                RETURNING at
+                """,
+                board_id,
+                uc_item.id,
+                record["verdict"],
+                record.get("by_kind", "agent"),
+                record.get("developer_id"),
+                record.get("session_id"),
+                record.get("agent_id"),
+                record.get("agent_type"),
+                bool(record.get("independent")),
+                record.get("reason"),
+            )
+        return {**record, "at": row["at"].isoformat()}
+
+    async def get_review_verdicts(self, board_id: str, uc_item: Any) -> list[dict[str, Any]]:
+        from ..review import MAX_VERDICTS
+
+        await self._require_read_access(board_id)
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT verdict, by_kind, developer_id, session_id, agent_id, agent_type, independent, reason, at "
+                "FROM uc_review_verdicts WHERE project_id = $1 AND uc_id = $2 ORDER BY at DESC, id DESC LIMIT $3",
+                board_id,
+                uc_item.id,
+                MAX_VERDICTS,
+            )
+        return [
+            {**{k: r[k] for k in r.keys() if k != "at" and r[k] is not None}, "at": r["at"].isoformat()}
+            for r in reversed(rows)
+        ]
+
     async def get_acceptance_criteria(self, board_id: str, uc_item_id: str) -> list[ChecklistItemDTO]:
         await self._require_read_access(board_id)
         pool = await self._pool()

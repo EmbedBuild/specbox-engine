@@ -74,7 +74,8 @@ MEASURES: dict[str, Measure] = {
         Measure("pending_decisions", "marcas «por decidir» al empezar una UC", "US-123", since="6.39.0"),
         # UC-12401: complete_uc la comprueba antes de cerrar, y el hook merge-guard antes de fusionar.
         Measure("closing_evidence", "evidencia que pasa al cerrar una UC", "US-124", since="6.41.0"),
-        Measure("independent_review", "revisión independiente antes de fusionar", "US-124"),
+        # UC-12402: el hook merge-guard la comprueba antes de fusionar (veredictos en el tablero).
+        Measure("independent_review", "revisión independiente antes de fusionar", "US-124", since="6.42.0"),
         Measure("ac_approval", "criterios aprobados al empezar una UC", "US-125"),
         Measure("drift_gate", "puerta de desviación en el CI local", "US-126"),
         Measure("impact_radius", "radio de impacto del cambio", "US-126"),
@@ -632,17 +633,35 @@ def _eval_closing_evidence(uc: dict[str, Any]) -> str | None:
     return closing_evidence_reason(closing_evidence_result(uc))
 
 
+def _eval_independent_review(uc: dict[str, Any]) -> str | None:
+    """UC-12402: una UC en revisión sin aceptación de una persona ni veredicto independiente.
+
+    El nivel de autopilot es del cliente: el informe cuenta como suficiente lo que vale en «agresivo»
+    (una persona o un evaluador independiente); fuera de él, merge-guard pide además la persona.
+    """
+    if uc.get("state") != "review":
+        return None
+    from ..review import AGGRESSIVE, independent_review_result
+
+    result = independent_review_result(
+        human_acceptance={"accepted": True} if uc.get("human_accepted") else None,
+        verdicts=uc.get("review_verdicts") or [],
+        level=AGGRESSIVE,
+    )
+    return None if result["ok"] else result["reason"]
+
+
 #: Lo que cada medida detendría, medido con lo que el tablero sabe de una UC. Las que dependen del
 #: repositorio, de la sesión o de algo que aún no existe no se pueden medir aquí, y el informe lo dice.
 IMPACT_EVALUATORS = {
     "spec_quality": _eval_spec_quality,
     "pending_decisions": _eval_pending_decisions,
     "closing_evidence": _eval_closing_evidence,
+    "independent_review": _eval_independent_review,
 }
 NOT_MEASURABLE = {
     "context_budget": "Depende de la sesión de Claude Code, no del tablero.",
     "spec_in_pr": "Depende de la PR y del repositorio, no del tablero.",
-    "independent_review": "Depende del veredicto de revisión, que aún no guarda el tablero (US-124).",
     "ac_approval": "La aprobación de criterios llega con UC-12502; hasta entonces no hay qué medir.",
     "drift_gate": "Depende del CI local del repositorio, no del tablero.",
     "impact_radius": "Depende del diff del repositorio, no del tablero.",

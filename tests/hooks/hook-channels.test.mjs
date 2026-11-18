@@ -222,6 +222,11 @@ const SCENARIOS = {
     ['PR sin el PRD en modo bloqueante', 'block', () => prdMerge('block')],
     ['sin UC activa', 'silent', (p) => run('prd-sync-guard', p.dir, 'PreToolUse', 'Bash', { command: 'gh pr merge 12 --squash' })],
   ],
+  'agent-identity': [
+    ['start_uc con la sesión del hook: la identidad va en la llamada', 'decision', (p) =>
+      run('agent-identity', p.dir, 'PreToolUse', 'mcp__SpecBox-MCP__start_uc', { board_id: 'b', uc_id: 'UC-1' }, {}, { session_id: 'sess-1' })],
+    ['otra tool', 'silent', (p) => run('agent-identity', p.dir, 'PreToolUse', 'mcp__SpecBox-MCP__mark_ac', { board_id: 'b' }, {}, { session_id: 'sess-1' })],
+  ],
   'merge-guard': [
     ['criterio sin demostrar en modo aviso', 'note', () => closingMerge('warn')],
     ['criterio sin demostrar en modo bloqueante', 'block', () => closingMerge('block')],

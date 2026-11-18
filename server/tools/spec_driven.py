@@ -1630,6 +1630,18 @@ async def get_uc(
             "card_id": uc_item.id,
             "card_url": uc_item.url,
         }
+        # UC-12402: quién la implementa y los últimos veredictos de revisión (solo si hay).
+        from ..review import SHOWN_VERDICTS
+
+        implementer = uc_item.meta.get("implementer") if isinstance(uc_item.meta, dict) else None
+        if isinstance(implementer, dict):
+            result["implementer"] = implementer
+        try:
+            verdicts = await backend.get_review_verdicts(board_id, uc_item)
+        except Exception:  # noqa: BLE001 — un tablero sin la tabla 0036 todavía: sin veredictos
+            verdicts = []
+        if verdicts:
+            result["review_verdicts"] = verdicts[-SHOWN_VERDICTS:]
 
         return result
     finally:
@@ -1723,6 +1735,9 @@ async def start_uc(
     ctx: Context,
     items_content: str | None = None,
     policy_content: str | None = None,
+    client_session_id: str = "",
+    client_agent_id: str = "",
+    client_agent_type: str = "",
 ) -> dict[str, Any]:
     """Start working on a Use Case.
 
@@ -1737,11 +1752,19 @@ async def start_uc(
             string when the MCP server is remote; the mutated string is returned
             under `items_content`. Omit for local MCP / disk mode.
 
+    `client_session_id`, `client_agent_id` and `client_agent_type` (UC-12402) are the Claude Code
+    context that starts the UC; the agent-identity / freeform-fragment hooks fill them from the hook
+    input, never the model. They are kept as the UC's implementer, so that a review verdict from the
+    same context is rejected (record_review_verdict).
+
     Returns:
         Full UC detail (same as get_uc) for immediate use, plus `items_content`
         (mutated items.json string) when `items_content` was provided, and
         `us_state_change` when the story moved.
     """
+    from ..review import client_identity, implementer_record
+
+    identity = client_identity(client_session_id, client_agent_id, client_agent_type)
     # Native sessions go through the reservation-aware path: reserve + in_progress
     # in one transaction (no orphan reservation) [AC-18], conflict carries owner /
     # reserved_at / branch [AC-19].
@@ -1757,6 +1780,12 @@ async def start_uc(
             us_state_change = (
                 await _sync_parent_us_state(backend, board_id, uc_item, "in_progress") if uc_item else None
             )
+            if uc_item:  # UC-12402: who implements, to tell an independent review apart
+                developer = ((reservation_result.get("active_uc_marker") or {}).get("reservation") or {}).get(
+                    "developer_id", ""
+                )
+                await _record_implementer(backend, board_id, uc_item, implementer_record(
+                    developer, identity, datetime.now(timezone.utc).isoformat()))
         finally:
             await backend.close()
         # Fall through to return the full UC detail.
@@ -1787,6 +1816,9 @@ async def start_uc(
 
         # Move to in_progress
         await backend.update_item(board_id, uc_item.id, state="in_progress")
+        # UC-12402: who implements, to tell an independent review apart.
+        await _record_implementer(backend, board_id, uc_item, implementer_record(
+            "", identity, datetime.now(timezone.utc).isoformat()))
 
         # UC-4305: the story follows its UCs.
         us_state_change = await _sync_parent_us_state(backend, board_id, uc_item, "in_progress")
@@ -1834,6 +1866,14 @@ async def start_uc(
         detail["active_uc_marker"] = marker
         detail = attach_warnings(detail, gate["warnings"])
     return detail
+
+
+async def _record_implementer(backend: Any, board_id: str, uc_item: Any, implementer: dict[str, Any]) -> None:
+    """UC-12402: guarda quién arrancó la UC; nunca hace fallar start_uc."""
+    try:
+        await backend.set_uc_implementer(board_id, uc_item, implementer)
+    except Exception as e:  # noqa: BLE001 — sin implementador, la revisión pide un subagente
+        logger.warning("record_implementer_failed", error=str(e))
 
 
 def _gate_extras(gate: dict[str, Any]) -> dict[str, Any]:

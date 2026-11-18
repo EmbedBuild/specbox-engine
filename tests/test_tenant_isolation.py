@@ -20,6 +20,7 @@ mocks este fallo es invisible.
 from __future__ import annotations
 
 import uuid
+from types import SimpleNamespace
 
 import pytest
 
@@ -191,6 +192,10 @@ MUTATORS = [
     ("set_us_epic", lambda b, p: b.set_us_epic(p, "US-01", "EP-01")),
     # US-78 / UC-7803: la declaración de satélites del proyecto.
     ("set_board_satellites", lambda b, p: b.set_board_satellites(p, ["intruso"])),
+    # US-124 / UC-12402: el implementador de una UC y sus veredictos de revisión.
+    ("set_uc_implementer", lambda b, p: b.set_uc_implementer(p, SimpleNamespace(id="UC-001", meta={}), {"session_id": "x"})),
+    ("record_review_verdict", lambda b, p: b.record_review_verdict(
+        p, SimpleNamespace(id="UC-001", meta={}), {"verdict": "accepted", "by_kind": "agent", "independent": True})),
 ]
 
 #: Métodos que reciben `board_id` y llevan verbo de escritura en el nombre pero
@@ -313,7 +318,7 @@ class TestMutatorInventory:
         from server.backends.native_backend import NativeBackend
 
         # Verbos de escritura. `set_`/`emit_` incluidos; los `get_`/`list_` no.
-        prefijos_escritura = ("create_", "update_", "mark_", "set_", "delete_", "archive_", "add_")
+        prefijos_escritura = ("create_", "update_", "mark_", "set_", "delete_", "archive_", "add_", "record_")
         descubiertos = set()
         for nombre, miembro in inspect.getmembers(NativeBackend, inspect.isfunction):
             if nombre.startswith("_"):
@@ -398,12 +403,15 @@ READERS = [
     ("list_story_items", lambda b, p: b.list_story_items(p, uc_id="UC-001")),
     ("list_board_summary", lambda b, p: b.list_board_summary(p, with_acs=True)),
     ("count_acceptance_criteria", lambda b, p: b.count_acceptance_criteria(p, ["UC-001"])),
+    # US-124 / UC-12402: los veredictos de revisión de una UC.
+    ("get_review_verdicts", lambda b, p: b.get_review_verdicts(p, SimpleNamespace(id="UC-001", meta={}))),
 ]
 
 #: Devuelven constantes del flujo sin consultar la base: nada que aislar.
 READ_STUBS = ["get_state_id", "get_states"]
 
-_PREFIJOS_ESCRITURA = ("create_", "update_", "mark_", "set_", "delete_", "archive_", "add_", "emit_", "ingest_", "purge_")
+_PREFIJOS_ESCRITURA = ("create_", "update_", "mark_", "set_", "delete_", "archive_", "add_", "emit_", "ingest_", "purge_",
+                       "record_")
 
 
 @pytestmark_pg

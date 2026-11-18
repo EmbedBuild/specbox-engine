@@ -2985,6 +2985,18 @@ revisión independiente…). Un proyecto que ya existía no amanece bloqueado po
   copia; sin copia, «warn». `SPECBOX_ENFORCEMENT_POLICY=off` no pregunta.
 - **Changelog:** la versión que activa una medida lleva `### Para los proyectos que ya existían` con la clave
   y cómo pasarla a «block» (`/release` Paso 5.5.4; prueba `measures_missing_from_changelog`).
+- **Antes de endurecer (UC-12213):** `get_enforcement_impact` dice, sin cambiar nada, cuántas UC abiertas
+  detendría cada medida y por qué (`IMPACT_EVALUATORS`: `spec_quality` con `validate_ac_text`,
+  `pending_decisions` con `[POR DECIDIR`, `closing_evidence` en las UC en revisión; las demás dicen por qué no
+  se miden desde el tablero) y los bloqueos de 14 días (`event_stats`: corregido = pasa en 24 h; saltado = salto
+  con motivo; porcentaje de saltos). `set_enforcement_mode` a «block» devuelve primero `CONFIRMATION_REQUIRED`
+  con el informe y un código `confirm` que cambia si cambia el impacto; con él, guarda en `grandfathered` la
+  huella (`uc_fingerprint`: nombre, descripción y criterios; no el estado ni la evidencia) de las UC abiertas,
+  que quedan «anteriores a la regla» (`predates_rule`, outcome `predates_rule` de `check`) hasta que cambian.
+  `record_enforcement_event` (blocked/passed) va a `audit_log` (`enforcement_block`, `enforcement_pass`) o a
+  `doc/tracking/enforcement_events.jsonl` en FreeForm. `enforcement_readiness` (operador) lee los tableros
+  `EmbedBuild/*`: candidata con 14 días bloqueando, ≥20 bloqueos y ≤10 % de saltos; una medida con
+  `new_default="block"` exige su prueba en `doc/enforcement/readiness/<clave>.json`.
 - Tests: `tests/test_enforcement.py`, `tests/test_enforcement_native.py`,
   `tests/hooks/enforcement-policy.test.mjs` y los casos de la política en `tests/hooks/freeform-fragment.test.mjs`.
 

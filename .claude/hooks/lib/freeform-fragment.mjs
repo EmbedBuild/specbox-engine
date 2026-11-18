@@ -377,17 +377,24 @@ export function extractItemsContent(response) {
   return extractField(response, 'items_content');
 }
 
-/** The same response without any `items_content` (nor `policy_content`, UC-12212). */
+/** The same response without any `items_content` (nor `policy_content` or `event_line`, UC-12212/12213). */
 export function withoutItemsContent(response) {
-  return withoutFields(response, ['items_content', 'policy_content']);
+  return withoutFields(response, ['items_content', 'policy_content', 'event_line']);
 }
 
 // ── The EP-20 policy, doc/tracking/policy.json (UC-12212) ─────────────
 
 /** The tools that read or change the policy: they get the file as `policy_content`. */
-export const POLICY_TOOLS = new Set(['get_enforcement_policy', 'set_enforcement_mode', 'skip_enforcement']);
+export const POLICY_TOOLS = new Set([
+  'get_enforcement_policy', 'set_enforcement_mode', 'skip_enforcement',
+  'get_enforcement_impact', 'record_enforcement_event',
+]);
 /** Of those, the ones whose answer is the new file. */
 export const POLICY_WRITERS = new Set(['set_enforcement_mode', 'skip_enforcement']);
+/** The ones that measure the board: they also get items.json and the events (UC-12213). */
+export const POLICY_BOARD_TOOLS = new Set(['set_enforcement_mode', 'get_enforcement_impact']);
+/** The ones whose answer carries an `event_line` for doc/tracking/enforcement_events.jsonl. */
+export const POLICY_EVENT_TOOLS = new Set(['skip_enforcement', 'record_enforcement_event']);
 
 // ── Files: pending calls, the lock and atomic writes ───────────────────
 

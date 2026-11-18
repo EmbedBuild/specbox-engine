@@ -288,3 +288,34 @@ test('setup_board of a new board writes the policy only when the project has non
     p.done();
   }
 });
+
+// UC-12213 — el informe recibe el tablero y los bloqueos; los eventos que vuelven se apuntan.
+test('impact tools get items.json and the events; event_line is appended to enforcement_events.jsonl', () => {
+  const p = project();
+  try {
+    const eventsPath = join(p.dir, 'doc/tracking/enforcement_events.jsonl');
+    writeFileSync(eventsPath, '{"measure":"spec_quality","uc_id":"UC-007","outcome":"blocked","at":"2026-11-18T09:00:00+00:00"}\n');
+    const pre = hook(p, 'PreToolUse', 'get_enforcement_impact', {}, { tool_use_id: 'toolu_i1' });
+    const input = pre.out.hookSpecificOutput.updatedInput;
+    assert.deepEqual(JSON.parse(input.board_content).map((i) => i.id), ['item-us1', 'item-uc1', 'ac-1', 'item-us2']);
+    assert.match(input.events_content, /"outcome":"blocked"/);
+    assert.equal(input.policy_content, '');
+
+    const skipPre = hook(p, 'PreToolUse', 'skip_enforcement', { measure: 'spec_quality', uc_id: 'UC-007', reason: 'x' }, { tool_use_id: 'toolu_i2' });
+    assert.equal(skipPre.out.hookSpecificOutput.updatedInput.board_content, undefined); // un salto no necesita el tablero
+
+    const line = JSON.stringify({ measure: 'spec_quality', uc_id: 'UC-007', outcome: 'passed', at: '2026-11-18T10:00:00+00:00' });
+    const post = hook(p, 'PostToolUse', 'record_enforcement_event', {}, {
+      tool_use_id: 'toolu_i3',
+      tool_response: [{ type: 'text', text: JSON.stringify({ success: true, recorded: true, event_line: line }) }],
+    });
+    assert.equal(post.code, 0, post.stderr);
+    const lines = readFileSync(eventsPath, 'utf-8').trim().split('\n');
+    assert.equal(lines.length, 2);
+    assert.equal(JSON.parse(lines[1]).outcome, 'passed');
+    assert.ok(!JSON.stringify(post.out.hookSpecificOutput.updatedToolOutput).includes('event_line'));
+    assert.match(post.out.hookSpecificOutput.additionalContext, /enforcement_events\.jsonl/);
+  } finally {
+    p.done();
+  }
+});

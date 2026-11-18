@@ -32,6 +32,8 @@
       "mcp__SpecBox-MCP__get_cross_repo_dependencies",
       "mcp__SpecBox-MCP__get_delivery_report",
       "mcp__SpecBox-MCP__get_e2e_gap_report",
+      "mcp__SpecBox-MCP__enforcement_readiness",
+      "mcp__SpecBox-MCP__get_enforcement_impact",
       "mcp__SpecBox-MCP__get_enforcement_policy",
       "mcp__SpecBox-MCP__get_engine_status",
       "mcp__SpecBox-MCP__get_engine_version",

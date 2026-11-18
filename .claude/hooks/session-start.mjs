@@ -5,7 +5,8 @@
  * Reads, in order of priority:
  *   1. .quality/handoff.md (if fresh) — full content, capped at MAX_CHARS
  *   2. .quality/active_uc.json — UC en progreso
- *   3. doc/app/app_spec.md — auto-zones (tracking_backend, autopilot)
+ *   3. doc/app/app_spec.md — auto-zones (stack, tracking_backend, autopilot), with the
+ *      marker attributes in any order (lib/app-spec-zones.mjs, UC-12205)
  *   4. .quality/evidence/<feature>/checkpoint.json — last phase
  *   5. Board native: decisions a person resolved from the panel, the app or another session
  *      (take_resolved_decisions, US-99 · UC-9902), first in the context; 2.5 s cap, never fails.
@@ -18,6 +19,7 @@ import { readFileSync, statSync, existsSync } from 'fs';
 import { findFiles, readJsonFile, fileExists } from './lib/utils.mjs';
 import { getProjectConfig } from './lib/config.mjs';
 import { recogerDecisiones, textoDeDecisiones } from './lib/decisiones.mjs';
+import { parseAutoZones } from './lib/app-spec-zones.mjs';
 
 const HANDOFF_PATH = '.quality/handoff.md';
 const APP_SPEC_PATH = 'doc/app/app_spec.md';
@@ -77,15 +79,7 @@ function extractAutoZones(specPath) {
   } catch {
     return null;
   }
-  const zones = {};
-  const zoneRegex = /<!--\s*@specbox:zone start kind="auto" id="([^"]+)"\s*-->([\s\S]*?)<!--\s*@specbox:zone end\s*-->/g;
-  let match;
-  while ((match = zoneRegex.exec(content)) !== null) {
-    const id = match[1];
-    if (id === 'tracking_backend' || id === 'autopilot' || id === 'stack') {
-      zones[id] = match[2].trim();
-    }
-  }
+  const zones = parseAutoZones(content);
   return Object.keys(zones).length > 0 ? zones : null;
 }
 

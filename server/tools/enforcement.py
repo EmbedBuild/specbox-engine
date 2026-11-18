@@ -781,10 +781,13 @@ async def marker_policy_extras(
 #: Estados desde los que una UC «arranca». Retomar una UC en curso, en revisión o hecha no la
 #: revalida con las reglas nuevas (NFR de compatibilidad del PRD de EP-20).
 START_GATE_STATES = frozenset({"backlog", "user_stories"})
-#: Las medidas de start_uc, en el orden en que se comprueban. UC-12305 añade pending_decisions.
-START_MEASURES: tuple[str, ...] = ("spec_quality",)
-_START_CODES = {"spec_quality": "AC_QUALITY_BELOW_THRESHOLD"}
-_START_HOW_TO = {"spec_quality": policy_mod.SPEC_QUALITY_HOW_TO}
+#: Las medidas de start_uc, en el orden en que se comprueban (UC-12301, UC-12305).
+START_MEASURES: tuple[str, ...] = ("spec_quality", "pending_decisions")
+_START_CODES = {"spec_quality": "AC_QUALITY_BELOW_THRESHOLD", "pending_decisions": "PENDING_DECISIONS"}
+_START_HOW_TO = {
+    "spec_quality": policy_mod.SPEC_QUALITY_HOW_TO,
+    "pending_decisions": policy_mod.PENDING_HOW_TO,
+}
 _CORRECTION_WINDOW_HOURS = 24
 
 
@@ -816,6 +819,9 @@ def _evaluate_start(measure: str, uc: dict[str, Any], raw: Any) -> tuple[bool, s
         result = policy_mod.spec_quality_result(uc, policy_mod.threshold_of(raw))
         detail = {k: result[k] for k in ("pass_rate", "threshold", "total", "failed")}
         return not result["meets_threshold"], policy_mod.spec_quality_reason(result) or "", detail
+    if measure == "pending_decisions":
+        marks = policy_mod.pending_marks(uc)
+        return bool(marks), policy_mod.pending_reason(marks) or "", {"pending_marks": marks}
     raise ValueError(f"start_uc no comprueba la medida {measure!r}")
 
 
@@ -987,5 +993,6 @@ async def spec_gate_summary(
         out.append({
             "uc_id": uc.get("uc_id"),
             **{k: result[k] for k in ("pass_rate", "threshold", "total", "meets_threshold", "failed")},
+            "pending_marks": policy_mod.pending_marks(uc),  # UC-12305
         })
     return out

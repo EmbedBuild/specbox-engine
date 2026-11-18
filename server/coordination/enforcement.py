@@ -70,7 +70,8 @@ MEASURES: dict[str, Measure] = {
         Measure("spec_in_pr", "el PRD cambia en la misma PR que el código", "UC-12211", since="6.38.0"),
         # UC-12301: start_uc la comprueba antes de reservar (umbral por proyecto, 1,0 por defecto).
         Measure("spec_quality", "calidad de la spec al empezar una UC", "US-123", since="6.39.0"),
-        Measure("pending_decisions", "marcas «por decidir» al empezar una UC", "US-123"),
+        # UC-12305: start_uc no arranca una UC con marcas [POR DECIDIR (lo citado no cuenta).
+        Measure("pending_decisions", "marcas «por decidir» al empezar una UC", "US-123", since="6.39.0"),
         Measure("closing_evidence", "evidencia que pasa al cerrar una UC", "US-124"),
         Measure("independent_review", "revisión independiente antes de fusionar", "US-124"),
         Measure("ac_approval", "criterios aprobados al empezar una UC", "US-125"),
@@ -450,7 +451,6 @@ def open_uc_fingerprints(ucs: list[dict[str, Any]]) -> dict[str, str]:
     return {uc["uc_id"]: uc_fingerprint(uc) for uc in ucs if uc.get("uc_id") and uc.get("state") not in OPEN_EXCLUDED_STATES}
 
 
-_PENDING_MARK = re.compile(r"\[\s*POR DECIDIR", re.IGNORECASE)
 
 
 def spec_quality_result(uc: dict[str, Any], threshold: float = DEFAULT_THRESHOLD) -> dict[str, Any]:
@@ -514,12 +514,51 @@ def _eval_spec_quality(uc: dict[str, Any], threshold: float = DEFAULT_THRESHOLD)
     return spec_quality_reason(spec_quality_result(uc, threshold))
 
 
+#: Una marca «por decidir» con lo que falta decidir: ``[POR DECIDIR: el proveedor de pagos]``.
+_PENDING_FULL = re.compile(r"\[\s*POR DECIDIR\s*:?\s*([^\]\n]*)\]?", re.IGNORECASE)
+#: Lo citado no es una marca: la documentación y las UC que hablan de la marca la escriben entre
+#: comillas invertidas o angulares (UC-12305 nombra `[POR DECIDIR` en sus propios criterios).
+_QUOTED = re.compile(r"`[^`\n]*`|«[^»\n]*»")
+
+
+def pending_marks(uc: dict[str, Any]) -> list[dict[str, str]]:
+    """Cada marca ``[POR DECIDIR …]`` de una UC: dónde está y qué falta por decidir (UC-12305).
+
+    Mira los criterios, el nombre y la descripción. Una marca de la descripción que repite la de un
+    criterio no se cuenta dos veces (import_spec escribe los criterios también en la descripción).
+    """
+    marks: list[dict[str, str]] = []
+    seen: set[str] = set()
+    sources = [(str(ac.get("ac_id", "?")), ac.get("text", "")) for ac in uc.get("acs") or []]
+    sources += [("el nombre", uc.get("name", "")), ("la descripción", uc.get("description", ""))]
+    for where, text in sources:
+        for match in _PENDING_FULL.finditer(_QUOTED.sub(" ", str(text or ""))):
+            what = " ".join(match.group(1).split()) or "sin detalle"
+            if where.startswith("la ") or where.startswith("el "):
+                if what in seen:
+                    continue
+            seen.add(what)
+            marks.append({"where": where, "mark": what})
+    return marks
+
+
+def pending_reason(marks: list[dict[str, str]]) -> str | None:
+    """El motivo, en una frase y con cada marca, de que una UC no arranque; None sin marcas."""
+    if not marks:
+        return None
+    detail = "; ".join(f"{m['where']}: «{m['mark']}»" for m in marks)
+    return f"Quedan {len(marks)} marca(s) «por decidir»: {detail}."
+
+
+PENDING_HOW_TO = (
+    "Decide cada marca con quien corresponda y quítala del texto de la UC (update_uc) o del criterio "
+    "(update_ac). Si la decisión es de otra persona, déjala en la sección «Pendiente de decidir» del PRD "
+    "y arranca la UC cuando esté tomada."
+)
+
+
 def _eval_pending_decisions(uc: dict[str, Any]) -> str | None:
-    where = []
-    if _PENDING_MARK.search(str(uc.get("description", ""))):
-        where.append("la descripción")
-    where += [str(ac.get("ac_id", "?")) for ac in uc.get("acs") or [] if _PENDING_MARK.search(str(ac.get("text", "")))]
-    return f"Quedan marcas «por decidir» en {', '.join(where[:6])}." if where else None
+    return pending_reason(pending_marks(uc))
 
 
 def _eval_closing_evidence(uc: dict[str, Any]) -> str | None:

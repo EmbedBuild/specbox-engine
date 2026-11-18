@@ -208,6 +208,8 @@ reescribir los criterios de `failed`.
 2. Quien es el usuario objetivo?
 3. Cuales son las User Stories principales? (minimo 1 US con sus UCs)
 4. A quien va dirigida la app? (targets/audiencia — activa VEG si se responde)
+5. Que alternativas se plantearon y por que se descartaron? (opcion, motivo y quien la descarto;
+   las del discovery cuentan). Van a «Alternativas descartadas»; si no hubo, «Ninguna» (UC-12303)
 
 #### Preguntas para seccion UI (CRITICO):
 Para cada Use Case, determinar:
@@ -341,6 +343,18 @@ Para cada Use Case, determinar:
 | Seguridad | RLS por tenant | Test de aislamiento |
 | Accesibilidad | WCAG 2.1 AA | axe-core audit |
 | Offline | [Si aplica] | Test sin conexion |
+
+---
+
+## Alternativas descartadas
+
+> Cada opción que se planteó y no se eligió, con el motivo y quién la descartó (UC-12303). Salen de
+> la conversación de /prd y del discovery (`doc/discovery/<feature>/`). Si no hubo ninguna, escribir
+> «Ninguna»: la sección no se quita. `check_prd_format` avisa (`missing_alternatives`) si falta.
+
+| Opción | Motivo | Quién la descartó |
+|--------|--------|-------------------|
+| [Alternativa planteada] | [Por qué no] | [Persona o rol] |
 
 ---
 
@@ -620,6 +634,18 @@ distintos y se reportan por separado.
 
 ---
 
+## Alternativas descartadas
+
+> Cada opción que se planteó y no se eligió, con el motivo y quién la descartó (UC-12303). Salen de
+> la conversación de /prd y del discovery (`doc/discovery/<feature>/`). Si no hubo ninguna, escribir
+> «Ninguna»: la sección no se quita. `check_prd_format` avisa (`missing_alternatives`) si falta.
+
+| Opción | Motivo | Quién la descartó |
+|--------|--------|-------------------|
+| [Alternativa planteada] | [Por qué no] | [Persona o rol] |
+
+---
+
 ## Riesgos
 
 | Riesgo | Probabilidad | Impacto | Mitigacion |
@@ -756,6 +782,18 @@ distintos y se reportan por separado.
 ### Fase 3: Cleanup
 - Eliminar archivos no usados
 - Validar compilacion
+
+---
+
+## Alternativas descartadas
+
+> Cada opción que se planteó y no se eligió, con el motivo y quién la descartó (UC-12303). Salen de
+> la conversación de /prd y del discovery (`doc/discovery/<feature>/`). Si no hubo ninguna, escribir
+> «Ninguna»: la sección no se quita. `check_prd_format` avisa (`missing_alternatives`) si falta.
+
+| Opción | Motivo | Quién la descartó |
+|--------|--------|-------------------|
+| [Alternativa planteada] | [Por qué no] | [Persona o rol] |
 
 ---
 
@@ -918,6 +956,8 @@ VEG Readiness: {ENABLED (Modo X) / DISABLED}
    - `paths_outside_restrictions`: una ruta de fichero fuera de «Restricciones de implementación».
      Llévala al plan o, si este cambio obliga a respetarla, a esa sección.
    - `missing_pending_section`: hay marcas `[POR DECIDIR: …]` sin la sección «Pendiente de decidir».
+   - `missing_alternatives`: falta «Alternativas descartadas». Rellénala con lo que se descartó en la
+     conversación o en el discovery, o escribe «Ninguna» (UC-12303).
 3. Un PRD sin marca es de formato 1 (los de antes): `format_version: 1` y ningún aviso.
 
 ---

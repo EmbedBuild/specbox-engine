@@ -6,8 +6,9 @@ Un PRD nuevo lleva su versión de formato en un comentario invisible justo debaj
     <!-- @specbox:prd format="2" -->
 
 Sin marca, el PRD es de formato 1 (los de antes) y nada avisa. En el formato 2 el PRD no trae
-«Stack técnico» ni «Archivos principales» (eso va al plan) y solo nombra ficheros en su sección
-«Restricciones de implementación (opcional, de este cambio)».
+«Stack técnico» ni «Archivos principales» (eso va al plan), solo nombra ficheros en su sección
+«Restricciones de implementación (opcional, de este cambio)» y guarda lo descartado en
+«Alternativas descartadas» (UC-12303).
 
 ``check_prd_format`` es pura: recibe el texto del PRD y no lee el tablero ni el disco ni guarda nada,
 así que no añade superficie (modelo de amenazas, §4). /prd la llama al escribir el PRD y /plan antes
@@ -36,6 +37,7 @@ _PATHS_ALLOWED_RE = re.compile(
     re.IGNORECASE,
 )
 _PENDING_SECTION_RE = re.compile(r"^pendiente de decidir\b", re.IGNORECASE)
+_ALTERNATIVES_SECTION_RE = re.compile(r"^alternativas descartadas\b", re.IGNORECASE)
 _PENDING_MARK_RE = re.compile(r"\[\s*POR DECIDIR\b", re.IGNORECASE)
 #: Lo citado no es una marca (la documentación nombra `[POR DECIDIR` entre comillas).
 _QUOTED_RE = re.compile(r"`[^`\n]*`|«[^»\n]*»")
@@ -119,6 +121,19 @@ def _missing_pending_section(text: str) -> list[dict[str, Any]]:
     }]
 
 
+def _missing_alternatives(text: str) -> list[dict[str, Any]]:
+    """UC-12303: el formato 2 guarda lo descartado junto a la spec («Ninguna» también vale)."""
+    if any(level and _ALTERNATIVES_SECTION_RE.search(title) for title, level, _, _ in _sections(text)):
+        return []
+    return [{
+        "code": "missing_alternatives",
+        "message": (
+            "El PRD no tiene la sección «Alternativas descartadas». Añade cada opción que se planteó y no "
+            "se eligió, con el motivo y quién la descartó, o escribe «Ninguna»."
+        ),
+    }]
+
+
 def check_prd_format_content(prd_content: str) -> dict[str, Any]:
     """La versión de formato de un PRD y sus avisos. Pura: no lee ni escribe nada."""
     version = prd_format_version(prd_content)
@@ -126,6 +141,7 @@ def check_prd_format_content(prd_content: str) -> dict[str, Any]:
     if version >= 2:
         warnings += _paths_outside_restrictions(prd_content)
         warnings += _missing_pending_section(prd_content)
+        warnings += _missing_alternatives(prd_content)
     return {
         "format_version": version,
         "current_format": CURRENT_FORMAT,
@@ -147,7 +163,8 @@ async def check_prd_format(prd_content: str) -> dict[str, Any]:
 
     - ``paths_outside_restrictions``: una ruta de fichero fuera de «Restricciones de
       implementación» (con su línea, su sección y las rutas);
-    - ``missing_pending_section``: marcas ``[POR DECIDIR: …]`` sin la sección «Pendiente de decidir».
+    - ``missing_pending_section``: marcas ``[POR DECIDIR: …]`` sin la sección «Pendiente de decidir»;
+    - ``missing_alternatives``: falta «Alternativas descartadas» (UC-12303; «Ninguna» vale).
 
     Es pura: no lee el tablero ni el disco ni guarda el texto. Los avisos no detienen nada.
     """
@@ -162,7 +179,8 @@ def register_prd_format_tools(mcp_instance) -> None:
         description="Check a PRD's format (pure: pass its text as prd_content; nothing is read or "
         "stored). Returns format_version (1 when it has no <!-- @specbox:prd format=\"2\" --> mark) "
         "and warnings for format 2: file paths outside «Restricciones de implementación» "
-        "(paths_outside_restrictions) and [POR DECIDIR: …] marks without a «Pendiente de decidir» "
-        "section (missing_pending_section). /prd calls it after writing a PRD and /plan before "
-        "planning; the warnings do not stop anything."
+        "(paths_outside_restrictions), [POR DECIDIR: …] marks without a «Pendiente de decidir» "
+        "section (missing_pending_section) and no «Alternativas descartadas» section "
+        "(missing_alternatives). /prd calls it after writing a PRD and /plan before planning; the "
+        "warnings do not stop anything."
     )(check_prd_format)

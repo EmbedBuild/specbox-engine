@@ -140,6 +140,9 @@ El PRD dice **qué**; el plan, **cómo**. Si hay PRD en el repositorio, antes de
    - `paths_outside_restrictions`: rutas de fichero fuera de «Restricciones de implementación»;
      el plan las recoge en «Archivos a Crear/Modificar» y el PRD debería quitarlas.
    - `missing_pending_section`: marcas `[POR DECIDIR: …]` sin su sección «Pendiente de decidir».
+   - `missing_alternatives`: el PRD no tiene «Alternativas descartadas» (UC-12303). El plan sigue,
+     pero pide al usuario las opciones que se descartaron antes de decidir las suyas en
+     «Alternativas y Tradeoffs».
 3. Un PRD sin la marca `<!-- @specbox:prd format="2" -->` es de formato 1: se lee igual que
    siempre y no recibe avisos.
 4. El stack y los ficheros salen de aquí (Paso 1 y sección «Archivos a Crear/Modificar»), no del

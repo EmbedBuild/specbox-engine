@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.38.0 — "Lo justo" (sobre v6.37 "A la vista")<br/>
+  v 6.38.1 — "Sin atascos" (sobre v6.38.0 "Lo justo")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -43,6 +43,10 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 
 100% backwards-compatible: las dos medidas nuevas empiezan en «warn» y el CLAUDE.md de un proyecto no cambia sin
 `upgrade_project`.
+
+**v6.38.1 — "Sin atascos"** desatasca la copia del engine que gestiona la extensión: desde la 6.34.0 se quedaba en
+esa versión porque la reconstrucción dejaba un cambio en `package-lock.json`; ahora no lo deja y la extensión cura
+las copias ya atascadas al actualizar. Y `prd-sync-guard` encuentra los PRD con nombre propio en su carpeta.
 
 ---
 
@@ -954,7 +958,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.38.0 — "Lo justo" (over v6.37 "A la vista")
+> v 6.38.1 — "Sin atascos" (over v6.38.0 "Lo justo")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -985,6 +989,10 @@ A system that turns Claude Code into a serious teammate:
 
 100% backwards-compatible: both new measures start in «warn» and a project's CLAUDE.md does not change without
 `upgrade_project`.
+
+**v6.38.1 — "Sin atascos"** unsticks the engine copy the extension manages: since 6.34.0 it stayed on that version
+because the rebuild left a change in `package-lock.json`; now it leaves none and the extension heals copies already
+stuck when it updates. And `prd-sync-guard` finds PRDs with their own name inside their folder.
 
 ---
 

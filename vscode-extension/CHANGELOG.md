@@ -8,6 +8,14 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.38.1] — "Sin atascos"
+
+- **The managed engine copy updates again.** Since 6.34.0 it stayed on that version: the rebuild ran `npm install`
+  inside `~/.specbox/specbox-engine`, which rewrote `vscode-extension/package-lock.json`, and the next update to a
+  release tag could not overwrite it. The rebuild now uses `npm ci`, and before updating the extension restores that
+  file, so a copy already stuck moves to the new version. Any other local change in the copy blocks the update and
+  the warning names the files and how to go on.
+
 ## [6.38.0] — "Lo justo"
 
 - No changes in the extension itself. The version follows the engine, whose template CLAUDE.md is now 160 lines

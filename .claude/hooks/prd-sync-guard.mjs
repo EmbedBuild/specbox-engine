@@ -107,7 +107,7 @@ if (ok) {
 
 const where = prd
   ? `${satellite ? `${relative(root, canonRoot) || '.'}/` : ''}${prd}`
-  : `un PRD de ${marker.us_id || 'la historia'} (doc/prd/<slug>/prd.md, doc/prd/<feature>.md o doc/prds/)`;
+  : `un PRD de ${marker.us_id || 'la historia'} (doc/prd/<slug>/prd.md, PRD.md o <slug>_prd.md, doc/prd/<feature>.md o doc/prds/; con la historia en un encabezado o una línea «>»)`;
 const reason = prd
   ? `la PR de ${marker.uc_id} no cambia el PRD de su historia (${where})${satellite ? ' ni enlaza una PR del orquestador que lo cambie' : ''}.`
   : `no se encontró ${where}.`;

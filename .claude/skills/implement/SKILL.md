@@ -2176,9 +2176,10 @@ Si existe `.quality/evidence/${feature}/feedback-summary.json`:
 
 Antes del merge, escribir el Implementation Status en el PRD:
 
-1. Localizar el PRD de la historia: `doc/prd/<slug>/prd.md`, `doc/prd/{feature}.md` o
-   `doc/prds/…`, y el único que nombra la US si no está por nombre; en un satélite, el del
-   orquestador (el mismo orden en el servidor y en `lib/prd-locate.mjs`, UC-12211).
+1. Localizar el PRD de la historia: `doc/prd/<slug>/prd.md` (o `PRD.md` o `<slug>_prd.md`),
+   `doc/prd/{feature}.md` o `doc/prds/…`; si no está por nombre, el único que define la US (un
+   encabezado o una línea `>` la nombra) o el único que la nombra; en un satélite, el del
+   orquestador (el mismo orden en el servidor y en `lib/prd-locate.mjs`, UC-12211, UC-12219).
    - Si freeform: ya se hizo en Paso 7.7a (saltar este paso)
 2. **(v5.32.0)** Construir el aggregate desde phase_outputs.jsonl con la tool
    `aggregate_phase_outputs` (Paso 5.1.1b). Sus `phase_deltas` son los bloques Markdown que

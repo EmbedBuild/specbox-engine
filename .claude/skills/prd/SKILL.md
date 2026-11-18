@@ -173,8 +173,9 @@ Ejecutar el Definition Quality Gate sobre los AC-XX que vienen de Trello.
 Si algun criterio no pasa → proponer mejoras al usuario ANTES de continuar.
 
 Aplicar tambien la **Regla de redaccion cara-al-cliente** (ver abajo). El gate
-devuelve ahora dos listas separadas: `failed` (calidad, bloquea) y `warnings`
-(exposicion, solo avisa). Revisar las dos.
+devuelve dos listas separadas: `failed` (calidad de definicion) y `warnings`
+(exposicion). Las dos avisan: el servidor no detiene nada. Revisar las dos y
+reescribir los criterios de `failed`.
 
 ### S5: Adjuntar evidencia a Trello
 
@@ -344,9 +345,11 @@ Los cuatro salen del board del orquestador. No son inventados.
 
 `validate_ac_quality` devuelve dos listas **separadas**:
 
-- `failed` → calidad de definicion. **Bloquea** el gate.
+- `failed` → calidad de definicion. Es la medida del gate: /prd reescribe estos
+  criterios antes de dar el PRD por bueno. Hoy el servidor solo avisa; `start_uc`
+  lo impondra cuando llegue UC-12301.
 - `warnings` → exposicion (`exposure_credentials`, `exposure_internal_path`).
-  **Avisa, no bloquea**: el objetivo es visibilidad, no fricción.
+  **Solo avisa**: el objetivo es visibilidad, no fricción.
 
 Un AC puede exponer credenciales y ser impecable como criterio: son dos ejes
 distintos y se reportan por separado.
@@ -716,10 +719,12 @@ distintos y se reportan por separado.
 
 ---
 
-## Paso 2.5: Validar Calidad de Definicion (BLOQUEANTE)
+## Paso 2.5: Validar Calidad de Definicion (aviso)
 
 > Antes de crear el Work Item, validar que los acceptance criteria permiten testing automatizado.
-> El Work Item NO se crea hasta que este gate pase.
+> La medida es `validate_ac_quality`: su lista `failed` dice que criterios no pasan. El gate
+> **avisa**, no detiene nada en el servidor; es /prd quien itera hasta que `failed` sale vacia
+> y muestra el resultado (Paso 2.5.7). El bloqueo real llegara en `start_uc` (UC-12301).
 
 ### 2.5.1 Asignar ID a cada criterio
 
@@ -797,7 +802,8 @@ ICPs definidos: {N}
 Continuar a Paso 3 con los AC-XX numerados incorporados al PRD.
 Reportar:
 ```
-Definition Quality Gate: APROBADO
+Definition Quality Gate: APROBADO (aviso: el servidor no lo impone)
+validate_ac_quality: {passed}/{total} pasan · failed {0} · warnings {N}
 Criterios funcionales: {N} (promedio: {score}/2.0)
 Cobertura: {N} Use Cases cubiertos de {M}
 VEG Readiness: {ENABLED (Modo X) / DISABLED}

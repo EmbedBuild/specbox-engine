@@ -82,6 +82,8 @@ function runHook(payload, cwd) {
     input: JSON.stringify(payload),
     cwd,
     encoding: 'utf-8',
+    // Sin preguntar al tablero (UC-12210): la prueba no sale de la máquina.
+    env: { ...process.env, SPECBOX_ENFORCEMENT_POLICY: 'off' },
   });
   // A warning reaches the agent as additionalContext (US-93/UC-9302), not on stderr.
   let note = '';
@@ -147,7 +149,7 @@ function testHookBlocksInStrictMode() {
       cwd
     );
     assert.equal(r.code, 2);
-    assert.match(r.stderr, /BLOCKED/);
+    assert.match(r.stderr, /SpecBox detuvo la operación por la medida context_budget/);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -190,7 +192,7 @@ function testHookCustomBudget() {
       cwd
     );
     assert.equal(r.code, 2);
-    assert.match(r.stderr, /budget 100/);
+    assert.match(r.stderr, /el presupuesto es 100/);
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
@@ -279,7 +281,7 @@ function testReadsTheTemplateLocationInSettingsJson() {
     });
     const r = runHook({ tool_name: 'Agent', tool_input: { prompt: 'x'.repeat(500) } }, cwd);
     assert.equal(r.code, 2);
-    assert.match(r.stderr, /budget 100/);
+    assert.match(r.stderr, /el presupuesto es 100/);
     assert.match(r.stderr, /\(Agent\)/);
   } finally {
     rmSync(cwd, { recursive: true, force: true });

@@ -65,7 +65,7 @@ class Measure:
 MEASURES: dict[str, Measure] = {
     m.key: m
     for m in (
-        Measure("context_budget", "presupuesto de contexto por subagente", "UC-12210"),
+        Measure("context_budget", "presupuesto de contexto por subagente", "UC-12210", since="6.38.0"),
         Measure("spec_in_pr", "el PRD cambia en la misma PR que el código", "UC-12211"),
         Measure("spec_quality", "calidad de la spec al empezar una UC", "US-123"),
         Measure("pending_decisions", "marcas «por decidir» al empezar una UC", "US-123"),

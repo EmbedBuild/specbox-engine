@@ -143,8 +143,11 @@ async def roadmap_sync(ctx: Any, board_id: str, items_content: str | None, resul
 def with_roadmap_sync(fn):
     """Tras una tool que cambia el tablero, ``app_docs_sync`` con la zona «roadmap» (UC-12203).
 
-    Va por fuera de ``@returns_items_content`` para ver el tablero ya cambiado. Nunca cambia el
-    resultado de la tool más allá de añadir ``app_docs_sync``, ni lanza.
+    Solo si la llamada trae ``with_roadmap=True``, que pone el hook app-docs-fragment cuando el
+    proyecto tiene app_prd.md y su repositorio está en la rama principal (UC-12218): sin pedirla, la
+    respuesta queda como antes y no gasta contexto. Va por fuera de ``@returns_items_content`` para
+    ver el tablero ya cambiado. Nunca cambia el resultado de la tool más allá de añadir
+    ``app_docs_sync``, ni lanza.
     """
     signature = inspect.signature(fn)
 
@@ -155,6 +158,8 @@ def with_roadmap_sync(fn):
             return result
         try:
             bound = signature.bind_partial(*args, **kwargs).arguments
+            if bound.get("with_roadmap") is not True:
+                return result
             result["app_docs_sync"] = await roadmap_sync(
                 bound.get("ctx"), str(bound.get("board_id") or ""), bound.get("items_content"), result
             )

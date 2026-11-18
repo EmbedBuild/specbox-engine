@@ -337,6 +337,7 @@ async def delete_uc(
     absorbed_by: str | None = None,
     purge: bool = False,
     items_content: str | None = None,
+    with_roadmap: bool = False,
 ) -> dict[str, Any]:
     """Archive a UC, or delete it for real with `purge=True` (US-55 / UC-5501).
 

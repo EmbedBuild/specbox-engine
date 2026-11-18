@@ -1551,6 +1551,7 @@ async def move_uc(
     target: str,
     ctx: Context,
     items_content: str | None = None,
+    with_roadmap: bool = False,
 ) -> dict[str, Any]:
     """Move a Use Case to a workflow state.
 
@@ -1965,6 +1966,7 @@ async def complete_uc(
     ctx: Context,
     evidence: str | None = None,
     items_content: str | None = None,
+    with_roadmap: bool = False,
 ) -> dict[str, Any]:
     """Mark a Use Case as complete.
 
@@ -2143,6 +2145,7 @@ async def mark_ac_batch(
     results: list[dict],
     ctx: Context,
     items_content: str | None = None,
+    with_roadmap: bool = False,
 ) -> dict[str, Any]:
     """Mark multiple Acceptance Criteria at once.
 

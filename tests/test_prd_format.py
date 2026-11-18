@@ -67,6 +67,9 @@ Cobrar con tarjeta.
 ### UC-901: Cobrar
 - [ ] **AC-01**: El cobro queda registrado con su recibo
 
+## Alternativas descartadas
+Ninguna
+
 ## Pendiente de decidir
 - Ninguno
 """

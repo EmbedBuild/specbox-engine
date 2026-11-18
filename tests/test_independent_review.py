@@ -92,6 +92,21 @@ def test_ac03_verdicts_expire_when_the_uc_goes_back_to_work():
     assert independent_review_result(human_acceptance={"by": "Ana"}, verdicts=[old_return], level="")["ok"]
 
 
+
+def test_a_persons_accepted_verdict_counts_only_with_its_acceptance():
+    """UC-12404: el panel guarda un «aceptada» de persona al aceptar; retirada la aceptación, no cuenta."""
+    returned = {"verdict": "returned", "by_kind": "agent", "reason": "falta el caso vacío", "independent": True,
+                "at": "2026-11-19T10:00:00Z"}
+    person = {"verdict": "accepted", "by_kind": "person", "independent": True, "at": "2026-11-19T11:00:00Z"}
+    # La persona acepta después de la devolución del evaluador: manda la persona.
+    assert independent_review_result(human_acceptance={"by": "Ana"}, verdicts=[returned, person], level="")["ok"]
+    # Retirada la aceptación, vuelve a mandar la devolución, también en «agresivo».
+    back = independent_review_result(human_acceptance=None, verdicts=[returned, person], level=AGGRESSIVE)
+    assert back["reason_code"] == "returned"
+    alone = independent_review_result(human_acceptance=None, verdicts=[person], level=AGGRESSIVE)
+    assert alone["reason_code"] == "no_independent_verdict"
+
+
 @pytest.mark.skipif(shutil.which("node") is None, reason="sin node")
 def test_ac01_merge_guard_applies_the_same_rule():
     acc = {"verdict": "accepted", "independent": True, "at": "2026-11-19T10:00:00Z"}
@@ -106,6 +121,10 @@ def test_ac01_merge_guard_applies_the_same_rule():
         {"human_acceptance": None, "verdicts": [{**acc, "voided_at": "2026-11-19T12:00:00Z"}], "level": AGGRESSIVE,
          "backend_type": "native"},
         {"human_acceptance": {"by": "Ana"}, "verdicts": [acc, {**ret, "voided_at": "2026-11-19T12:00:00Z"}],
+         "level": "", "backend_type": "native"},
+        {"human_acceptance": None, "verdicts": [ret, {**acc, "by_kind": "person", "at": "2026-11-19T12:00:00Z"}],
+         "level": AGGRESSIVE, "backend_type": "native"},
+        {"human_acceptance": {"by": "Ana"}, "verdicts": [ret, {**acc, "by_kind": "person", "at": "2026-11-19T12:00:00Z"}],
          "level": "", "backend_type": "native"},
     ]
     lib = ROOT / ".claude" / "hooks" / "lib" / "independent-review.mjs"
@@ -242,6 +261,32 @@ async def test_native_verdicts_the_implementer_and_the_acceptance_in_review(monk
         assert detail["review_verdicts"][-1]["voided_at"]
         report = await pol_report(pid, token)
         assert any(u["uc_id"] == "UC-01" for u in report["measures"]["independent_review"]["ucs"])
+    finally:
+        await _cleanup(pool, pid, dev)
+
+
+@pg
+async def test_native_a_withdrawn_acceptance_brings_back_the_return(monkeypatch, tmp_path):
+    """UC-12404: devuelta por un evaluador, aceptada por una persona (panel) y retirada: manda la devolución."""
+    pool, pid, dev, token, ctx = await _native_board(monkeypatch, tmp_path, criteria={"UC-01": ["El cobro queda registrado"]})
+    try:
+        await start_uc(board_id=pid, uc_id="UC-01", ctx=ctx, **MAIN)
+        await move_uc(board_id=pid, uc_id="UC-01", target="review", ctx=ctx)
+        returned = await record_review_verdict(pid, "UC-01", "returned", ctx, reason="falta el caso vacío", **EVALUATOR)
+        assert returned["success"]
+        ucs = lambda r: [u["uc_id"] for u in r["measures"]["independent_review"]["ucs"]]  # noqa: E731
+        assert "UC-01" in ucs(await pol_report(pid, token))
+        async with pool.acquire() as conn:  # lo que escribe el panel al aceptar
+            await conn.execute(
+                "INSERT INTO uc_acceptances (project_id, uc_id, accepted_by_developer_id) VALUES ($1, 'UC-01', $2)",
+                pid, dev)
+            await conn.execute(
+                "INSERT INTO uc_review_verdicts (project_id, uc_id, verdict, by_kind, developer_id, independent, at)"
+                " VALUES ($1, 'UC-01', 'accepted', 'person', $2, true, now() + interval '1 second')", pid, dev)
+        assert "UC-01" not in ucs(await pol_report(pid, token))
+        async with pool.acquire() as conn:  # se retira la aceptación (el panel no caducara el veredicto)
+            await conn.execute("DELETE FROM uc_acceptances WHERE project_id = $1", pid)
+        assert "UC-01" in ucs(await pol_report(pid, token))
     finally:
         await _cleanup(pool, pid, dev)
 

@@ -98,6 +98,16 @@ CASES = [
     ({"doc/prds/unico.md": "# PRD\n"}, "", "US-99"),
     ({"doc/prd/a/prd.md": "US-07", "doc/prd/b/prd.md": "US-07"}, "", "US-07"),
     ({}, "x", "US-07"),
+    # UC-12219: la carpeta con el PRD con nombre propio, como en el orquestador.
+    ({"doc/prd/vscode-engine-autoupdate/vscode-engine-autoupdate_prd.md": "# PRD\n> Historia: **US-14**\n"}, "UC-1405", "US-14"),
+    ({"doc/prd/projects-native-specs/PRD.md": "# PRD\nUS-11 y US-03\n"}, "UC-1101", "US-11"),
+    ({"doc/prd/pagos/pagos_prd.md": "# PRD\n"}, "pagos", ""),
+    ({"doc/prd/pagos/PRD.md": "# PRD\n"}, "pagos", ""),
+    # Una nota de la carpeta que nombra la historia no es un PRD: solo cuenta el <carpeta>_prd.md.
+    ({"doc/prd/pagos/notas.md": "US-07", "doc/prd/pagos/pagos_prd.md": "## US-07\n"}, "", "US-07"),
+    # El que define la historia gana al que solo la cita (US-14 en el orquestador).
+    ({"doc/prd/a/prd.md": "Como en US-14, ...\n", "doc/prd/b/b_prd.md": "> Historia: **US-14**\n"}, "", "US-14"),
+    ({"doc/prd/a/prd.md": "### US-14: Algo\n", "doc/prd/b/prd.md": "## US-14 bis\n"}, "", "US-14"),
 ]
 
 
@@ -116,3 +126,11 @@ def test_the_hook_finds_the_same_prd_as_the_server(tmp_path, files, feature, us_
     )
     js = json.loads(subprocess.run(["node", "-e", code], capture_output=True, text=True, check=True).stdout)
     assert js == expected
+
+
+def test_the_prd_path_keeps_its_case_on_disk(tmp_path):
+    """UC-12219 AC-02: en un disco que no distingue mayúsculas, pedir prd.md también «encuentra» PRD.md."""
+    (tmp_path / "doc" / "prd" / "pagos").mkdir(parents=True)
+    (tmp_path / "doc" / "prd" / "pagos" / "PRD.md").write_text("# PRD US-07\n")
+    for found in (find_prd_path(tmp_path, feature="pagos"), find_prd_path(tmp_path, us_id="US-07")):
+        assert found is not None and found.relative_to(tmp_path).as_posix() == "doc/prd/pagos/PRD.md"

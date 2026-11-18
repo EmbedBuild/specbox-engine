@@ -430,6 +430,16 @@ distintos y se reportan por separado.
 
 ---
 
+## Pendiente de decidir
+
+> Cada decision abierta se marca en el texto con `[POR DECIDIR: que falta y quien lo decide]`
+> y se lista aqui. `start_uc` no arranca una UC con una marca en su texto o en sus criterios
+> (medida `pending_decisions`, UC-12305). Si no queda nada, escribir «Ninguno».
+
+- [POR DECIDIR: decision abierta — quien la toma]
+
+---
+
 ## Stack Tecnico (estimado)
 
 - **Modelo**: [Nuevo / Existente: nombre]
@@ -594,6 +604,16 @@ distintos y se reportan por separado.
 
 ---
 
+## Pendiente de decidir
+
+> Cada decision abierta se marca en el texto con `[POR DECIDIR: que falta y quien lo decide]`
+> y se lista aqui. `start_uc` no arranca una UC con una marca en su texto o en sus criterios
+> (medida `pending_decisions`, UC-12305). Si no queda nada, escribir «Ninguno».
+
+- [POR DECIDIR: decision abierta — quien la toma]
+
+---
+
 ## Stack Tecnico (estimado)
 
 - **Modelo**: [Nuevo / Existente: nombre]
@@ -702,6 +722,16 @@ distintos y se reportan por separado.
 | Riesgo | Probabilidad | Impacto | Mitigacion |
 |--------|-------------|---------|------------|
 | [Riesgo identificado] | [B/M/A] | [B/M/A] | [Plan] |
+
+---
+
+## Pendiente de decidir
+
+> Cada decision abierta se marca en el texto con `[POR DECIDIR: que falta y quien lo decide]`
+> y se lista aqui. `start_uc` no arranca una UC con una marca en su texto o en sus criterios
+> (medida `pending_decisions`, UC-12305). Si no queda nada, escribir «Ninguno».
+
+- [POR DECIDIR: decision abierta — quien la toma]
 
 ---
 

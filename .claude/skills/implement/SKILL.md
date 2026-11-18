@@ -349,8 +349,12 @@ en el prompt. Ver Paso 5.X.0 para el bloque reusable de invocacion.
    siempre caen en `user_dependent` aunque el nivel sea `agresivo` — el gate nunca
    las auto-confirma (AC-05). "Mas autonomia" jamas significa "menos seguridad".
 
-> **Degradacion**: si la tool no esta disponible (engine viejo), el gate se omite
-> y `/implement` se comporta como antes — backwards-compatible.
+> **Sin triaje no hay rama** (UC-12305): si `analyze_preflight_decisions` no existe o no
+> responde, /implement **para aqui**, antes de `start_uc` y de crear la rama, y lo dice:
+> «El triaje previo no esta disponible ({motivo}); sin el no se que decisiones del plan son
+> tuyas. Actualiza el engine o reconecta el MCP con /mcp y vuelve a lanzar /implement.»
+> No se sigue sin el triaje. Las marcas `[POR DECIDIR: …]` del plan son decisiones del
+> usuario para el triaje, y las de la UC las detiene `start_uc` (medida `pending_decisions`).
 
 ### 0.5 Validacion pre-vuelo (HARD BLOCKS)
 

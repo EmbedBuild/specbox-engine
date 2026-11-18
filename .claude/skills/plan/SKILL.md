@@ -520,6 +520,16 @@ flutter test --coverage
 
 ---
 
+## Pendiente de decidir
+
+> Lo que el plan deja abierto se marca con `[POR DECIDIR: que falta y quien lo decide]` y se
+> lista aqui. El triaje de /implement (Paso 0.4c) lo encuentra y para antes de crear la rama.
+> Si no queda nada, escribir «Ninguno».
+
+- [POR DECIDIR: decision abierta — quien la toma]
+
+---
+
 ## Alternativas y Tradeoffs
 
 | Decision | Opcion elegida | Alternativa descartada | Razon |

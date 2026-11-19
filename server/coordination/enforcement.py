@@ -79,7 +79,8 @@ MEASURES: dict[str, Measure] = {
         Measure("ac_approval", "criterios aprobados al empezar una UC", "US-125", since="6.44.0"),
         # UC-12602: la orden `specbox drift` (el bloque «desviacion» del CI local) la lee del tablero.
         Measure("drift_gate", "puerta de desviación en el CI local", "US-126", since="6.46.0"),
-        Measure("impact_radius", "radio de impacto del cambio", "US-126"),
+        # UC-12606: el hook impact-radius-guard la lee del tablero en cada commit.
+        Measure("impact_radius", "radio de impacto del cambio", "US-126", since="6.47.0"),
         Measure("contract_first", "contrato antes de las pruebas", "US-128"),
         # UC-12215: hoy ya bloquea en los proyectos que se reconocían por su configuración de
         # siempre; los que se reconocen por primera vez (solo el bloque `specbox`) empiezan en «warn».
@@ -310,6 +311,12 @@ def with_skip(
     skip = {"measure": measure, "uc_id": uc_id, "reason": text, "by": by, "at": at}
     stored["skips"] = [*stored["skips"], skip][-MAX_SKIPS:]
     return stored, skip
+
+
+#: Medidas cuyo salto es la aprobación de una persona: un subagente no puede pedirlo (UC-12606).
+PERSON_ONLY_SKIPS = frozenset({"impact_radius"})
+#: Medidas que comprueba un hook en el equipo y cuyo salto gasta ese hook con use_enforcement_skip.
+CLIENT_SPENT_SKIPS = frozenset({"impact_radius"})
 
 
 def take_skip(raw: Any, measure: str, uc_id: str) -> tuple[dict, dict | None]:

@@ -73,6 +73,13 @@ DECISION_KEYS: dict[str, dict[str, Any]] = {
         "family": "spec_quality",
         "tiers": {"low": "ask", "conservador": "ask", "equilibrado": "ask", "agresivo": "ask"},
     },
+    # US-126 / UC-12606: aprobar un cambio de contrato de API o de migración de datos (medida
+    # impact_radius) es el acto de una persona, también en agresivo; ni los overrides lo cambian.
+    "impact_radius_approval": {
+        "family": "spec_quality",
+        "tiers": {"low": "ask", "conservador": "ask", "equilibrado": "ask", "agresivo": "ask"},
+        "inviolable": True,
+    },
     "feature_ui_interaction_profile": {
         "family": "spec_quality",
         "tiers": {"low": "ask", "conservador": "ask", "equilibrado": "auto_if_app_prd", "agresivo": "auto_if_app_prd"},

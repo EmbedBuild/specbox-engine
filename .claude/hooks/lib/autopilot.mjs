@@ -41,6 +41,9 @@ export const DECISION_KEYS = {
   feature_epic_assignment:    { family: 'spec_quality', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' } },
   // US-125 / UC-12502: aprobar los criterios es el acto de una persona; el autopilot nunca lo da.
   criteria_approval:          { family: 'spec_quality', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' } },
+  // US-126 / UC-12606: aprobar un cambio de contrato de API o de migración de datos (medida
+  // impact_radius) es el acto de una persona, también en agresivo; ni los overrides lo cambian.
+  impact_radius_approval:     { family: 'spec_quality', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' }, inviolable: true },
   feature_ui_interaction_profile: { family: 'spec_quality', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'auto_if_app_prd', agresivo: 'auto_if_app_prd' } },
   feedback_field_classification: { family: 'spec_quality', tiers: { low: 'ask', conservador: 'ask', equilibrado: 'ask', agresivo: 'ask' } },
 
@@ -75,6 +78,7 @@ export const NOT_QUEUEABLE = new Set([
   'definition_quality_gate',
   'feature_problem_definition',
   'feedback_field_classification',
+  'impact_radius_approval',
 ]);
 
 // ── Config loading ───────────────────────────────────────────────────

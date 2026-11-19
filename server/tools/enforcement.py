@@ -524,13 +524,29 @@ async def skip_enforcement(
     policy_content: str | None = None,
     dev_token: str = "",
     actor: str = "",
+    client_session_id: str = "",
+    client_agent_id: str = "",
+    client_agent_type: str = "",
 ) -> dict[str, Any]:
     """Salta una vez el bloqueo de una medida en una UC, con un motivo que queda en el tablero.
 
     Exige un motivo (al menos 10 caracteres, sin credenciales). Quedan quién, cuándo y por qué, y la
     siguiente comprobación de esa medida en esa UC pasa una vez y lo dice. Solo se salta lo que
-    bloquea: con la medida en «warn» u «off» responde NOTHING_TO_SKIP.
+    bloquea: con la medida en «warn» u «off» responde NOTHING_TO_SKIP. En ``impact_radius`` el salto
+    es la aprobación de una persona (UC-12606): un subagente no puede darla (SUBAGENT_CANNOT_APPROVE;
+    el contexto lo pone el hook agent-identity).
     """
+    from ..review import client_identity
+
+    if measure in policy_mod.PERSON_ONLY_SKIPS and client_identity(
+        client_session_id, client_agent_id, client_agent_type
+    ).get("agent_id"):
+        return _invalid(
+            "SUBAGENT_CANNOT_APPROVE",
+            f"Aprobar un cambio de la medida {measure} es una decisión de una persona: un subagente no "
+            "puede hacerlo. Pregúntaselo a la persona en la sesión principal y llama a skip_enforcement "
+            "desde ahí.",
+        )
     try:
         target, error = await _resolve_target(ctx, board_id, policy_content, dev_token, actor)
         if error is not None:
@@ -565,6 +581,45 @@ async def skip_enforcement(
     if target.kind == "freeform_content":
         out["event_line"] = line  # el hook lo añade a doc/tracking/enforcement_events.jsonl
     return out
+
+
+async def use_enforcement_skip(
+    ctx: Context,
+    measure: str,
+    uc_id: str,
+    board_id: str = "",
+    policy_content: str | None = None,
+    dev_token: str = "",
+) -> dict[str, Any]:
+    """Gasta el salto pendiente de una medida que comprueba un hook en el equipo (UC-12606).
+
+    Hoy, ``impact_radius``: el hook impact-radius-guard la llama antes de un commit de contrato de API
+    o de migración de datos con la medida en «block». Devuelve ``used`` y el salto (quién, cuándo y
+    por qué) o ``used: false`` si no hay ninguno; un salto se gasta una sola vez. Native: exige ser
+    miembro. FreeForm por contenido: devuelve ``policy_content`` sin el salto.
+    """
+    if measure not in policy_mod.CLIENT_SPENT_SKIPS:
+        return _invalid(
+            "NOT_CLIENT_SPENT",
+            f"La medida {measure} la comprueba el servidor y gasta su salto él solo; "
+            f"esta tool solo vale para {', '.join(sorted(policy_mod.CLIENT_SPENT_SKIPS))}.",
+        )
+    if not policy_mod.UC_ID.match(uc_id or ""):
+        return _invalid("INVALID_UC_ID", "uc_id tiene que ser el id de la UC, como «UC-12606».")
+    target, error = await _resolve_target(ctx, board_id, policy_content, dev_token, "")
+    if error is not None:
+        return error
+    if target.kind == "capped":
+        return {"success": True, "backend_type": target.backend_type, "used": False, "skip": None}
+    if target.kind == "native":
+        skip = await _native_take_skip(target.project_id, measure, uc_id)
+        if skip is not None:
+            logger.info("enforcement_skip_used", backend="native", measure=measure)
+        return {"success": True, "backend_type": "native", "used": skip is not None, "skip": skip}
+    stored, skip = policy_mod.take_skip(target.raw, measure, uc_id)
+    if skip is not None and target.kind == "freeform_disk":
+        _save_disk(target, stored)
+    return _out(target, {"used": skip is not None, "skip": skip}, stored if skip is not None else None)
 
 
 async def get_enforcement_impact(
@@ -728,9 +783,19 @@ def register_enforcement_tools(mcp_instance) -> None:
     mcp_instance.tool(
         description=(
             "Salta una vez el bloqueo de una medida en una UC con un motivo (mín. 10 caracteres). "
-            "Quedan quién, cuándo y por qué en el tablero. Solo para medidas en «block»."
+            "Quedan quién, cuándo y por qué en el tablero. Solo para medidas en «block». En "
+            "impact_radius es la aprobación de una persona de un cambio de contrato de API o de "
+            "migración de datos: llámala solo cuando la persona dijo que sí (decision_key "
+            "impact_radius_approval, siempre ask); un subagente no puede (SUBAGENT_CANNOT_APPROVE)."
         )
     )(skip_enforcement)
+    mcp_instance.tool(
+        description=(
+            "Gasta el salto pendiente de una medida que comprueba un hook en el equipo (hoy "
+            "impact_radius, que llama el hook impact-radius-guard antes del commit). Devuelve used y "
+            "el salto (quién, cuándo y por qué), o used=false si no hay ninguno."
+        )
+    )(use_enforcement_skip)
 
 
 # ── Lo que el marcador de UC activa sabe de la política (UC-12211) ───

@@ -129,6 +129,13 @@ function prePolicy() {
   }
   const author = gitAuthor();
   if (author && !toolInput.actor) updatedInput.actor = author.slice(0, 80);
+  // UC-12606: skip_enforcement needs the context too (a subagent cannot approve impact_radius).
+  if (IDENTITY_TOOLS.has(parsed.tool)) {
+    delete updatedInput.client_session_id;
+    delete updatedInput.client_agent_id;
+    delete updatedInput.client_agent_type;
+    Object.assign(updatedInput, identityFields(payload));
+  }
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', updatedInput } }));
 }
 

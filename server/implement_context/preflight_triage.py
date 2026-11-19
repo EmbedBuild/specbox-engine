@@ -224,6 +224,13 @@ def build_decision_inventory(
         if _is_ad_hoc_decision(line_lower):
             _add(line, line, AD_HOC)
 
+    # UC-12606: las fases cuyos ficheros son contrato de API o migración de datos, una sola pregunta.
+    from ..impact_radius import impact_decision
+
+    impact = impact_decision(plan_content)
+    if impact is not None:
+        _add(impact["description"], impact["source"], impact["decision_key"])
+
     for extra in extra_decisions or []:
         desc = str(extra.get("description", "")).strip()
         if not desc:

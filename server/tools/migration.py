@@ -136,6 +136,16 @@ async def _read_source(
         if retired:
             retired_data[uc.id] = retired
 
+    # UC-12502: the last approval of each UC's criteria (native: its table; FreeForm: the UC's meta).
+    approval_data: dict[str, dict] = {}
+    for uc in classified["uc"]:
+        try:
+            approval = await backend.get_criteria_approval(board_id, uc)
+        except Exception:
+            approval = None
+        if approval:
+            approval_data[uc.id] = approval
+
     # Get comments for US and UC items
     comments_data: dict[str, list[dict]] = {}
     for item in classified["us"] + classified["uc"]:
@@ -167,6 +177,7 @@ async def _read_source(
         "classified": classified,
         "ac_data": ac_data,
         "retired_data": retired_data,
+        "approval_data": approval_data,
         "comments_data": comments_data,
         "labels": labels,
         "states": states,

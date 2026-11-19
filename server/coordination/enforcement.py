@@ -76,7 +76,7 @@ MEASURES: dict[str, Measure] = {
         Measure("closing_evidence", "evidencia que pasa al cerrar una UC", "US-124", since="6.41.0"),
         # UC-12402: el hook merge-guard la comprueba antes de fusionar (veredictos en el tablero).
         Measure("independent_review", "revisión independiente antes de fusionar", "US-124", since="6.42.0"),
-        Measure("ac_approval", "criterios aprobados al empezar una UC", "US-125"),
+        Measure("ac_approval", "criterios aprobados al empezar una UC", "US-125", since="6.44.0"),
         Measure("drift_gate", "puerta de desviación en el CI local", "US-126"),
         Measure("impact_radius", "radio de impacto del cambio", "US-126"),
         Measure("contract_first", "contrato antes de las pruebas", "US-128"),
@@ -443,6 +443,15 @@ def predates_rule(raw: Any, measure: str, uc: dict[str, Any]) -> bool:
     return bool(uc.get("uc_id")) and snapshot.get(uc["uc_id"]) == uc_fingerprint(uc)
 
 
+def grandfathered_ids(raw: Any, measure: str) -> set[str]:
+    """Las UC que estaban abiertas cuando ``measure`` pasó a «block» (vacío si no está en «block»)."""
+    entry = _stored(raw)["measures"].get(measure) or {}
+    if entry.get("mode") != "block":
+        return set()
+    snapshot = entry.get("grandfathered") or {}
+    return set(snapshot) if isinstance(snapshot, dict) else set()
+
+
 def predating_measures(raw: Any, uc: dict[str, Any]) -> list[str]:
     """Las medidas en «block» para las que la UC es anterior a la regla (va en el marcador de UC activa)."""
     return [key for key in MEASURES if predates_rule(raw, key, uc)]
@@ -558,6 +567,12 @@ PENDING_HOW_TO = (
     "y arranca la UC cuando esté tomada."
 )
 
+AC_APPROVAL_HOW_TO = (
+    "Enséñale a la persona responsable los criterios de la UC (get_uc) y, si los aprueba, regístralo "
+    "con approve_criteria desde la sesión principal (/prd lo pregunta al sembrar). Después, repite "
+    "start_uc. Si un criterio cambió después de aprobarlo, hace falta aprobarlo otra vez."
+)
+
 
 def _eval_pending_decisions(uc: dict[str, Any]) -> str | None:
     return pending_reason(pending_marks(uc))
@@ -651,6 +666,17 @@ def _eval_independent_review(uc: dict[str, Any]) -> str | None:
     return None if result["ok"] else result["reason"]
 
 
+def _eval_ac_approval(uc: dict[str, Any]) -> str | None:
+    """UC-12502: una UC que arrancaría sin que una persona apruebe sus criterios de ahora."""
+    if uc.get("state") not in ("backlog", "user_stories"):
+        return None  # la medida actúa al arrancar
+    from ..approval import approval_state, criteria_fingerprint, is_approved, not_approved_reason
+
+    latest = {"fingerprint": uc["approval_fingerprint"]} if uc.get("approval_fingerprint") else None
+    state = approval_state(latest, criteria_fingerprint(uc.get("acs") or []))
+    return None if is_approved(state) else not_approved_reason(uc.get("uc_id", "la UC"), state)
+
+
 #: Lo que cada medida detendría, medido con lo que el tablero sabe de una UC. Las que dependen del
 #: repositorio, de la sesión o de algo que aún no existe no se pueden medir aquí, y el informe lo dice.
 IMPACT_EVALUATORS = {
@@ -658,11 +684,11 @@ IMPACT_EVALUATORS = {
     "pending_decisions": _eval_pending_decisions,
     "closing_evidence": _eval_closing_evidence,
     "independent_review": _eval_independent_review,
+    "ac_approval": _eval_ac_approval,
 }
 NOT_MEASURABLE = {
     "context_budget": "Depende de la sesión de Claude Code, no del tablero.",
     "spec_in_pr": "Depende de la PR y del repositorio, no del tablero.",
-    "ac_approval": "La aprobación de criterios llega con UC-12502; hasta entonces no hay qué medir.",
     "drift_gate": "Depende del CI local del repositorio, no del tablero.",
     "impact_radius": "Depende del diff del repositorio, no del tablero.",
     "contract_first": "Depende del orden de los cambios en el repositorio, no del tablero.",

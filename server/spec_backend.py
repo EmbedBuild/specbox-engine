@@ -470,6 +470,34 @@ class SpecBackend(ABC):
         if any(not v.get("voided_at") for v in current):
             await self.update_item(board_id, uc_item.id, meta={"review_verdicts": void_verdicts(current, at)})
 
+    # ── Aprobación de los criterios (UC-12502) ───────────────────
+    # Por defecto en el ``meta.criteria_approval`` de la UC (FreeForm lo guarda en items.json;
+    # Trello y Plane no tienen dónde y lo descartan). Native lo sobrescribe con su tabla (0040).
+
+    async def record_criteria_approval(
+        self, board_id: str, uc_item: Any, record: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Guarda una aprobación ``{fingerprint, criteria, by, session_id, at, source}`` y la devuelve."""
+        await self.update_item(board_id, uc_item.id, meta={"criteria_approval": record})
+        return record
+
+    async def get_criteria_approval(self, board_id: str, uc_item: Any) -> dict[str, Any] | None:
+        """La última aprobación de los criterios de la UC, o None."""
+        current = uc_item.meta.get("criteria_approval") if isinstance(uc_item.meta, dict) else None
+        return current if isinstance(current, dict) else None
+
+    async def import_criteria_approval(
+        self, board_id: str, uc_item: Any, record: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Una aprobación que viene de otro tablero (migración o espejo), con su autor y su fecha.
+
+        Por defecto como ``record_criteria_approval``; un backend que no guarda el meta (Trello,
+        Plane) no la guarda y devuelve None.
+        """
+        if not self.STORES_SPEC_META:
+            return None
+        return await self.record_criteria_approval(board_id, uc_item, record)
+
     @abstractmethod
     async def mark_acceptance_criterion(
         self,

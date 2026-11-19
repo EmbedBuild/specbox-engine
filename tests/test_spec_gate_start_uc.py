@@ -123,12 +123,18 @@ async def test_block_stops_a_uc_without_criteria():
     assert out["code"] == "AC_QUALITY_BELOW_THRESHOLD" and out["pass_rate"] == 0 and out["total"] == 0
 
 
+
+def _warnings(out: dict, measure: str = "spec_quality") -> list[dict]:
+    """Los avisos de una medida (desde la 6.44.0 «ac_approval» también avisa al arrancar, UC-12502)."""
+    return [w for w in out.get("enforcement_warnings") or [] if w.get("measure") == measure]
+
+
 async def test_warn_starts_and_lists_what_fails():
     """AC-06: «warn» (lo de partida) arranca y avisa con los criterios que fallan."""
     board = json.dumps([US, UC, GOOD, BAD])
     out = await start_uc("ff", "UC-701", CTX, items_content=board)
     assert out["status"] == "in_progress" and _state(out["items_content"]) == "in_progress"
-    [warning] = out["enforcement_warnings"]
+    [warning] = _warnings(out)
     assert warning["measure"] == "spec_quality" and warning["outcome"] == "warned"
     assert [f["ac_id"] for f in warning["failed"]] == ["AC-02"]
     assert "skip_enforcement" not in warning["how_to_continue"]  # en «warn» no hay bloqueo que saltar
@@ -143,7 +149,7 @@ async def test_a_uc_that_predates_the_rule_starts_in_block():
     stored = _policy(open_ucs=pol.open_uc_fingerprints([uc]))
     out = await start_uc("ff", "UC-701", CTX, items_content=board, policy_content=json.dumps(stored))
     assert out["status"] == "in_progress"
-    assert out["enforcement_warnings"][0]["outcome"] == "predates_rule"
+    assert _warnings(out)[0]["outcome"] == "predates_rule"
 
     # Si cambia un criterio deja de ser anterior a la regla.
     changed = json.dumps([US, UC, GOOD, {**BAD, "name": "[AC-02] La app es muy buena"}])
@@ -157,7 +163,7 @@ async def test_a_skip_lets_it_start_once_and_comes_back_spent():
     board = json.dumps([US, UC, GOOD, BAD])
     out = await start_uc("ff", "UC-701", CTX, items_content=board, policy_content=json.dumps(stored))
     assert out["status"] == "in_progress"
-    assert out["enforcement_warnings"][0]["outcome"] == "skipped"
+    assert _warnings(out)[0]["outcome"] == "skipped"
     assert json.loads(out["policy_content"])["skips"] == []
 
 
@@ -166,13 +172,13 @@ async def test_a_lower_threshold_lets_half_the_criteria_fail():
     board = json.dumps([US, UC, GOOD, BAD])
     out = await start_uc("ff", "UC-701", CTX, items_content=board,
                          policy_content=json.dumps(_policy(threshold=0.5)))
-    assert out["status"] == "in_progress" and "enforcement_warnings" not in out
+    assert out["status"] == "in_progress" and not _warnings(out)
 
 
 async def test_off_says_nothing_and_resuming_a_uc_is_not_checked():
     board = json.dumps([US, UC, GOOD, BAD])
     off = await start_uc("ff", "UC-701", CTX, items_content=board, policy_content=json.dumps(_policy("off")))
-    assert off["status"] == "in_progress" and "enforcement_warnings" not in off
+    assert off["status"] == "in_progress" and not _warnings(off)
     # Retomar una UC en curso no la revalida (NFR de compatibilidad).
     resumed = await start_uc("ff", "UC-701", CTX, items_content=off["items_content"],
                              policy_content=json.dumps(_policy()))
@@ -305,7 +311,7 @@ async def test_native_block_leaves_the_uc_unreserved_and_in_backlog_then_a_fix_p
         fixed = await update_ac(pid, "UC-01", "AC-02", ctx, text="La pantalla de pago muestra el importe con IVA")
         assert "error" not in fixed, fixed
         started = await start_uc(board_id=pid, uc_id="UC-01", ctx=ctx)
-        assert started["status"] == "in_progress" and "enforcement_warnings" not in started
+        assert started["status"] == "in_progress" and not _warnings(started)
         async with pool.acquire() as conn:
             passes = await conn.fetchval(
                 "SELECT count(*) FROM audit_log WHERE project_id = $1 AND operation = 'enforcement_pass'", pid
@@ -324,11 +330,11 @@ async def test_native_warn_starts_and_an_old_uc_starts_in_block(monkeypatch, tmp
     try:
         warned = await start_uc(board_id=pid, uc_id="UC-01", ctx=ctx)
         assert warned["status"] == "in_progress"
-        assert warned["enforcement_warnings"][0]["pass_rate"] == 0
+        assert _warnings(warned)[0]["pass_rate"] == 0
         await _to_block(pid, token)
         old = await start_uc(board_id=pid, uc_id="UC-02", ctx=ctx)
         assert old["status"] == "in_progress"
-        assert old["enforcement_warnings"][0]["outcome"] == "predates_rule"
+        assert _warnings(old)[0]["outcome"] == "predates_rule"
     finally:
         await _cleanup(pool, pid, dev)
 

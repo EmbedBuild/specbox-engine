@@ -1061,6 +1061,32 @@ Usar `plane:create_work_item`:
 
 ---
 
+## Paso 3.5: Pedir la aprobación de los criterios (UC-12502)
+
+Cuando la siembra termina (native o FreeForm), una persona aprueba los criterios antes de que nadie
+implemente. Pregúntalo una vez por PRD con `AskUserQuestion` (`decision_key` `criteria_approval`,
+«ask» en todos los niveles de autopilot: aprobar es el acto de una persona, nunca del agente):
+
+```
+¿Apruebas los criterios de estas N UC para empezar a implementarlas?
+  UC-XXX — <nombre> (K criterios)
+  ...
+  (1) Aprobar todas   (2) Revisar antes   (3) Más tarde
+```
+
+- **Aprobar todas** → `approve_criteria(board_id, us_id="US-XX")` por historia (o
+  `uc_ids=[...]`), desde la sesión principal: un subagente no puede aprobar
+  (`SUBAGENT_CANNOT_APPROVE`). Di en el resumen del Paso 4 cuántas quedaron aprobadas.
+- **Revisar antes** → enséñale los criterios de cada UC (`get_uc`), aplica lo que corrija con
+  `update_ac` / `add_ac` / `delete_ac` y vuelve a preguntar.
+- **Más tarde** → no apruebes nada y dilo en el resumen: con la medida `ac_approval` en «block»,
+  `start_uc` responde `AC_NOT_APPROVED` y `find_next_uc` no propone esas UC.
+
+Cambiar el texto de un criterio aprobado, añadir uno o retirarlo deja la UC sin aprobar
+(`get_uc` → `criteria_approval.state = "stale"`): pide otra vez la aprobación de esa UC.
+
+---
+
 ## Paso 4: Confirmar
 
 ### Si destino es Trello (spec-driven):

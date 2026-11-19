@@ -57,13 +57,18 @@ import {
 import { readHookInput } from './lib/utils.mjs';
 import { IDENTITY_TOOLS, identityFields } from './lib/agent-identity.mjs';
 
-/** The tools whose measures read the board's policy and may record a block (UC-12301, UC-12401). */
-const GATE_TOOLS = new Set(['start_uc', 'complete_uc']);
+/**
+ * The tools whose measures read the board's policy and may record a block (UC-12301, UC-12401);
+ * find_next_uc reads it to skip or reorder UCs whose criteria are not approved (UC-12502).
+ */
+const GATE_TOOLS = new Set(['start_uc', 'complete_uc', 'find_next_uc']);
 /**
  * The tools whose author FreeForm keeps, and the argument it goes in: who marked a criterion
- * (UC-12401) and who retired one (UC-12501).
+ * (UC-12401), who retired one (UC-12501) and who approved a UC's criteria (UC-12502).
  */
-const AUTHOR_ARGS = { mark_ac: 'marked_by', mark_ac_batch: 'marked_by', delete_ac: 'retired_by' };
+const AUTHOR_ARGS = {
+  mark_ac: 'marked_by', mark_ac_batch: 'marked_by', delete_ac: 'retired_by', approve_criteria: 'approved_by',
+};
 
 const { event, toolName, toolInput, cwd, payload } = readHookInput();
 const parsed = parseToolName(toolName);

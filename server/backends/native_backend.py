@@ -1134,6 +1134,25 @@ class NativeBackend(SpecBackend):
                         )
                         migrated["retired_ac"] = migrated.get("retired_ac", 0) + int(status.split()[-1])
 
+                    # UC-12502: the approval of its criteria travels with who and when.
+                    if puc.approval and puc.approval.get("fingerprint"):
+                        await conn.execute(
+                            """
+                            INSERT INTO uc_criteria_approvals
+                                (project_id, uc_id, fingerprint, criteria, approved_by, session_id,
+                                 source, approved_at)
+                            VALUES ($1, $2, $3, $4::jsonb, $5, $6, 'person', COALESCE($7::timestamptz, now()))
+                            """,
+                            board_id,
+                            uc_id,
+                            puc.approval["fingerprint"],
+                            _jsonb(puc.approval.get("criteria") or []),
+                            puc.approval.get("by"),
+                            puc.approval.get("session_id"),
+                            _parse_ts(puc.approval.get("at")),
+                        )
+                        migrated["approvals"] = migrated.get("approvals", 0) + 1
+
                 # ── Phase 3: Comments (audit trail) ──────────────────
                 for source_item_id, comments in plan.comments_data.items():
                     target_item_id = id_map.get(source_item_id)
@@ -1462,6 +1481,80 @@ class NativeBackend(SpecBackend):
     async def void_review_verdicts(self, board_id: str, uc_item: Any, at: str) -> None:
         """Nada que hacer: el trigger de estado de la UC los caduca en la misma transacción (0037)."""
         return None
+
+    # ── Aprobación de los criterios (UC-12502, migración 0040) ──
+
+    async def record_criteria_approval(
+        self, board_id: str, uc_item: Any, record: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Una fila de ``uc_criteria_approvals``: quién sale de la sesión, la fecha del servidor."""
+        dev = await self._require_membership_cached(board_id)
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO uc_criteria_approvals
+                    (project_id, uc_id, fingerprint, criteria, approved_by, session_id, source)
+                VALUES ($1, $2, $3, $4::jsonb, $5, $6, 'person')
+                RETURNING approved_at
+                """,
+                board_id,
+                uc_item.id,
+                record["fingerprint"],
+                _jsonb(record.get("criteria") or []),
+                dev.developer_id,
+                record.get("session_id"),
+            )
+        return {**record, "by": dev.developer_id, "at": row["approved_at"].isoformat(), "source": "person"}
+
+    async def import_criteria_approval(
+        self, board_id: str, uc_item: Any, record: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Una aprobación de otro tablero (migración o espejo): conserva quién y cuándo."""
+        await self._require_membership_cached(board_id)
+        if not record.get("fingerprint"):
+            return None
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO uc_criteria_approvals
+                    (project_id, uc_id, fingerprint, criteria, approved_by, session_id, source, approved_at)
+                VALUES ($1, $2, $3, $4::jsonb, $5, $6, 'person', COALESCE($7::timestamptz, now()))
+                """,
+                board_id,
+                uc_item.id,
+                record["fingerprint"],
+                _jsonb(record.get("criteria") or []),
+                record.get("by"),
+                record.get("session_id"),
+                _parse_ts(record.get("at")),
+            )
+        return record
+
+    async def get_criteria_approval(self, board_id: str, uc_item: Any) -> dict[str, Any] | None:
+        await self._require_read_access(board_id)
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT fingerprint, criteria, approved_by, session_id, source, approved_at "
+                "FROM uc_criteria_approvals WHERE project_id = $1 AND uc_id = $2 "
+                "ORDER BY approved_at DESC, id DESC LIMIT 1",
+                board_id,
+                uc_item.id,
+            )
+        if row is None:
+            return None
+        out = {
+            "fingerprint": row["fingerprint"],
+            "criteria": _from_jsonb(row["criteria"]) or [],
+            "by": row["approved_by"],
+            "at": row["approved_at"].isoformat(),
+            "source": row["source"],
+        }
+        if row["session_id"]:
+            out["session_id"] = row["session_id"]
+        return out
 
     async def get_acceptance_criteria(self, board_id: str, uc_item_id: str) -> list[ChecklistItemDTO]:
         await self._require_read_access(board_id)

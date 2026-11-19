@@ -22,6 +22,7 @@ from typing import Any
 
 import structlog
 from ..app_docs.roadmap import with_roadmap_sync  # UC-12203
+from ..behavior_doc import with_behavior_doc_sync  # UC-12605
 from fastmcp import Context
 
 from ..ac_evidence import (
@@ -2305,6 +2306,7 @@ async def _native_uc_ids_reserved_by_others(session: dict[str, str]) -> set[str]
         return set()
 
 
+@with_behavior_doc_sync
 @with_roadmap_sync
 async def complete_uc(
     board_id: str,
@@ -2316,6 +2318,7 @@ async def complete_uc(
     policy_content: str | None = None,
     files: list[str] | None = None,
     repo: str | None = None,
+    with_behavior_doc: bool = False,
 ) -> dict[str, Any]:
     """Mark a Use Case as complete.
 
@@ -2349,6 +2352,11 @@ async def complete_uc(
             the files a closed UC changed in the same repository (a UC with PRs in two
             repositories keeps two lists). A PR over 1000 files closes and keeps the most recent
             (`closed_files_truncated`).
+        with_behavior_doc: UC-12605. Put by the app-docs-fragment hook: the answer carries
+            `behavior_doc` with the section of the UC's story for `doc/spec/<feature>.md` (its
+            closed UCs with their criteria) and `complete_stories` (stories with every UC done),
+            for the hook to write the behavior document and mark a PRD as superseded. Without it
+            the answer is as before.
 
     Returns:
         Completion result with US update status, plus `items_content` (mutated

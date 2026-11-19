@@ -9,6 +9,7 @@
  *   4. el único PRD que define la historia (un encabezado o una línea «>» la nombra), o si no, el
  *      único que la nombra (prdCandidates)
  *   5. el único fichero de doc/prds/
+ * En el paso 4 salta los PRD superados (UC-12605), salvo con `includeSuperseded`.
  * Devuelve la ruta relativa a `root` con el nombre que tiene en disco (un disco que no distingue
  * mayúsculas también «encuentra» PRD.md al pedir prd.md, y el hook la compara con los ficheros
  * de la PR), o null.
@@ -16,6 +17,9 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
+
+/** La marca de un PRD superado (UC-12605); la misma que lib/behavior-doc.mjs y el servidor. */
+const SUPERSEDED_RE = /<!--\s*@specbox:prd\s+status="superseded"/;
 
 const isFile = (path) => {
   try {
@@ -56,7 +60,7 @@ export function prdCandidates(root) {
   return out;
 }
 
-export function locatePrd({ root, feature = '', usId = '' } = {}) {
+export function locatePrd({ root, feature = '', usId = '', includeSuperseded = false } = {}) {
   const first = (rels) => rels.map((rel) => exact(root, rel)).find(Boolean) ?? null;
   if (feature) {
     const found = first([`doc/prds/${feature}_prd.md`, `doc/prds/${feature}.md`]);
@@ -83,7 +87,7 @@ export function locatePrd({ root, feature = '', usId = '' } = {}) {
       } catch {
         return [rel, ''];
       }
-    });
+    }).filter(([, text]) => includeSuperseded || !SUPERSEDED_RE.test(text));
     // El que define la historia (un encabezado o una línea «>» la nombra) gana al que solo la cita.
     const defining = texts.filter(([, text]) => text.split('\n').some((line) => /^\s*[#>]/.test(line) && word.test(line)));
     if (defining.length === 1) return defining[0][0];

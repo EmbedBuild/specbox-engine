@@ -18,6 +18,7 @@ def find_prd_path(
     project_path: str | Path,
     feature: str | None = None,
     us_id: str | None = None,
+    include_superseded: bool = False,
 ) -> Path | None:
     """Find the PRD file for a project/feature/US.
 
@@ -30,6 +31,8 @@ def find_prd_path(
          the only one that mentions it (``prd_candidates``; UC-12211)
       5. doc/prds/*.md (single file → that's the one)
       6. None if not found
+
+    Step 4 skips the PRDs marked as superseded (UC-12605) unless ``include_superseded``.
 
     Every path is returned with the name it has on disk: a disk that ignores case would also
     find ``PRD.md`` when asked for ``prd.md``, and the hook compares it with the files of a PR
@@ -66,7 +69,11 @@ def find_prd_path(
         import re
 
         word = re.compile(rf"\b{re.escape(us_id)}\b")
+        from .behavior_doc import is_superseded
+
         texts = {p: _read(p) for p in prd_candidates(root)}
+        if not include_superseded:
+            texts = {p: text for p, text in texts.items() if not is_superseded(text)}
         defining = [p for p, text in texts.items() if any(
             line.lstrip().startswith(("#", ">")) and word.search(line) for line in text.splitlines()
         )]

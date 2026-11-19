@@ -2363,6 +2363,14 @@ revisar sus criterios. Sin `files`, la UC no avisa nunca y la respuesta lo dice
 (`closed_files_missing`); `move_uc` a «done» tampoco guarda la lista. Trello y Plane no la guardan
 (`closed_files_not_stored`).
 
+**El documento de comportamiento (UC-12605).** Al cerrar la UC con `complete_uc`, el hook
+`app-docs-fragment` escribe en `doc/spec/<funcionalidad>.md` (la carpeta del PRD de la historia, en el
+orquestador si es multirepo) la sección de la historia con sus UC cerradas y sus criterios: lo que el
+sistema hace hoy. Si todas las historias que define el PRD quedan cerradas, marca el PRD como
+superado con la fecha y ese documento, y desde entonces `run_acceptance_check` lee el documento y no
+el PRD. Lo hace solo con el repositorio del canon en su rama principal (como el roadmap): el cierre que
+/implement hace tras fusionar y volver a main lo deja escrito; súbelo con el siguiente cambio de docs.
+
 ### 8.5.5 Siguiente UC/card
 
 #### Si origen es una épica (EP-NN mode, US-78):

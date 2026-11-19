@@ -33,7 +33,14 @@ from fastmcp import FastMCP
 
 
 def _find_prd_files(project_path: Path) -> list[Path]:
-    """Search for PRD markdown files in common locations."""
+    """Search for PRD markdown files in common locations.
+
+    UC-12605: a PRD marked as superseded is left out, and the behavior documents
+    (``doc/spec/*.md``) come after the PRDs. With no PRD superseded and no doc/spec the list is the
+    same as before.
+    """
+    from ..behavior_doc import is_superseded
+
     candidates: list[Path] = []
     for subdir in ("doc/prd", "doc/prds"):
         d = project_path / subdir
@@ -42,7 +49,18 @@ def _find_prd_files(project_path: Path) -> list[Path]:
     # Also check root-level PRD files
     candidates.extend(project_path.glob("*.prd.md"))
     candidates.extend(project_path.glob("PRD*.md"))
-    return sorted(candidates)
+
+    def current(path: Path) -> bool:
+        try:
+            return not is_superseded(path.read_text(encoding="utf-8"))
+        except OSError:
+            return True
+
+    found = sorted(p for p in candidates if current(p))
+    spec = project_path / "doc" / "spec"
+    if spec.is_dir():
+        found += sorted(spec.glob("*.md"))
+    return found
 
 
 #: UC-12601: una línea de criterio, con o sin casilla y negrita.
@@ -1121,6 +1139,10 @@ def run_acceptance_check_from_content(
           "total_criteria": int,
         }
     """
+    # UC-12605: solo los PRD vigentes (los superados quedan fuera; sin ninguno, igual que antes).
+    from ..behavior_doc import current_prd_content
+
+    prd_content, superseded_prds = current_prd_content(prd_content or "")
     if not prd_content or not prd_content.strip():
         return {
             "error": "prd_content is empty",
@@ -1272,6 +1294,8 @@ def run_acceptance_check_from_content(
         # UC-12601: cómo se juzgó cada criterio.
         "method": "results" if results is not None else "heuristic",
     }
+    if superseded_prds:
+        out["superseded_prds"] = superseded_prds
     if results is None:
         out["note"] = (
             "Sin results.json: cada criterio se juzgó buscando su id en el código y palabras en las "
@@ -1337,6 +1361,10 @@ def get_e2e_gap_report_from_content(
             ``.quality/acceptance-check/`` (i.e. the client found one).
         code_index: Optional code snippets for per-AC evidence detection.
     """
+    # UC-12605: solo los PRD vigentes (los superados quedan fuera; sin ninguno, igual que antes).
+    from ..behavior_doc import current_prd_content
+
+    prd_content, superseded_prds = current_prd_content(prd_content or "")
     if not prd_content or not prd_content.strip():
         return {
             "project": project_name,
@@ -1483,6 +1511,7 @@ def get_e2e_gap_report_from_content(
         "uc_results": uc_results,
         "e2e_plan": plan_items if plan_items else None,
         "summary": summary,
+        **({"superseded_prds": superseded_prds} if superseded_prds else {}),
     }
 
 

@@ -620,7 +620,14 @@ Antes de guardar, llama a `check_plan_contract(plan_content=<el plan>, uc_criter
 
 - `ok: true` → sigue.
 - `uncovered` → añade esos criterios a la línea **Criterios:** de la fase que los implementa y repite.
+- `incomplete_phases` → a esa fase le falta la línea **Criterios:** o **Ficheros:**: añádela y repite.
+- `unattributed` → el plan cubre varias UC y esos criterios no dicen de cuál son: escribe la UC delante
+  («UC-XXXX AC-01») y repite.
 - Aviso de «Dependencias nuevas» → añade la sección (o «Ninguna»).
+
+Las líneas que van dentro de un bloque de código son ejemplos y no cuentan. Los ficheros se escriben
+separados por comas (o entre comillas invertidas, o en una lista debajo de **Ficheros:**); un rango
+de criterios («AC-01 a AC-04») cubre todos los de en medio.
 
 Un plan sin las líneas (`contract_version: 0`) no se entrega: la plantilla de arriba las lleva.
 

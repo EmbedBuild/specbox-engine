@@ -180,16 +180,20 @@ def evidence_comment_text(evidence: dict[str, Any]) -> str:
     """Texto de la evidencia en el comentario de la UC.
 
     Una evidencia en texto libre se escribe tal cual, así el comentario de las
-    llamadas de siempre no cambia ni un carácter (AC-02). El commit (UC-11702)
-    va al final, `` · commit owner/nombre@sha``, y `evidence_from_comments` lo
-    recupera.
+    llamadas de siempre no cambia ni un carácter (AC-02). La fase, la prueba y
+    los ficheros (UC-12604) van detrás, `` · fase …``, `` · prueba …`` y
+    `` · ficheros a, b``, y el commit (UC-11702) al final,
+    `` · commit owner/nombre@sha``; `evidence_from_comments` los recupera, así
+    Trello y Plane guardan el recibo entero como native y FreeForm.
     """
     commit = evidence.get("commit")
+    links = [(key, evidence.get(key)) for key in ("phase", "test", "files")]
     if (
         evidence["type"] == FREE_TEXT_TYPE
         and evidence["link"] is None
         and evidence["detail"] is None
         and not commit
+        and not any(value for _, value in links)
     ):
         return evidence["label"]
     text = f"[{evidence['type']}] {evidence['label']}"
@@ -197,6 +201,9 @@ def evidence_comment_text(evidence: dict[str, Any]) -> str:
         text += f" <{evidence['link']}>"
     if evidence["detail"]:
         text += f" — {evidence['detail']}"
+    for key, value in links:
+        if value:
+            text += f" · {_LINK_WORDS[key]} {', '.join(value) if key == 'files' else value}"
     if commit:
         repo = evidence.get("repo")
         text += f" · commit {repo}@{commit}" if repo else f" · commit {commit}"
@@ -207,6 +214,8 @@ def evidence_comment_text(evidence: dict[str, Any]) -> str:
 _STRUCTURED_RE = re.compile(r"^\[(test|screenshot|diff|url|pr)\] (.+)$", re.DOTALL)
 _COMMIT_SUFFIX_RE = re.compile(r" · commit (?:([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@)?([0-9a-f]{7,40})$")
 _LINK_RE = re.compile(r"^(.*?) <(https?://\S+)>(?: — (.*))?$", re.DOTALL)
+#: UC-12604: cómo se escriben en el comentario la fase, la prueba y los ficheros del recibo.
+_LINK_WORDS = {"phase": "fase", "test": "prueba", "files": "ficheros"}
 
 
 def _receipt_from_text(text: str) -> dict[str, Any]:
@@ -227,6 +236,13 @@ def _receipt_from_text(text: str) -> dict[str, Any]:
     if suffix:
         repo, commit = suffix[1], suffix[2]
         rest = rest[: suffix.start()]
+    found: dict[str, Any] = {}
+    for key in ("files", "test", "phase"):  # al revés de como se escriben
+        tail = re.search(rf" · {_LINK_WORDS[key]} (.+)$", rest, re.DOTALL)
+        if tail:
+            value = tail[1].strip()
+            found[key] = [f for f in value.split(", ") if f] if key == "files" else value
+            rest = rest[: tail.start()]
     link = detail = None
     linked = _LINK_RE.match(rest)
     if linked:
@@ -237,7 +253,11 @@ def _receipt_from_text(text: str) -> dict[str, Any]:
         label = rest
     if not label.strip():
         return free
-    return {"type": ev_type, "label": label, "link": link, "detail": detail, "commit": commit, "repo": repo}
+    receipt = {"type": ev_type, "label": label, "link": link, "detail": detail, "commit": commit, "repo": repo}
+    for key in ("files", "test", "phase"):
+        if found.get(key):
+            receipt[key] = found[key]
+    return receipt
 
 
 # ── Lectura de los comentarios de siempre ────────────────────────────────

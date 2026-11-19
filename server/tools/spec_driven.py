@@ -1581,7 +1581,9 @@ async def get_uc(
         "sin_prueba_que_se_repita" in `flags` (UC-11703): nothing re-checks
         it automatically. A pending criterion has `repeatable_test: null`.
         Each criterion also has `phase`, `files` and `test` (UC-12604): from its last
-        passing receipt that brings them, the phase otherwise from `plan_content`.
+        passing receipt that brings them, the phase otherwise from `plan_content`;
+        `files` are only the receipt's, and the files the plan expects for that
+        phase come apart in `plan_files`.
         Retired criteria (UC-12501) come apart, under `retired_criteria`, with
         their reason, date, who retired them and their receipts; they keep
         their id, which is never used again in that UC.
@@ -1734,8 +1736,14 @@ async def get_uc(
 def _criterion_links(
     evidence: list[dict[str, Any]], contract: Any, uc_id: str, ac_id: str,
 ) -> dict[str, Any]:
-    """UC-12604: fase, ficheros y prueba de un criterio, del último recibo que pasa y los trae."""
-    links: dict[str, Any] = {"phase": None, "files": [], "test": None}
+    """UC-12604: fase, ficheros y prueba de un criterio.
+
+    `phase`, `files` y `test` salen del último recibo que pasa y los trae; la fase, si ningún recibo la
+    trae, de la fase del plan que cubre el criterio. `files` son solo los ficheros que lo implementan
+    según sus recibos; los que el plan espera para esa fase van aparte, en `plan_files`, para no
+    confundir lo hecho con lo previsto.
+    """
+    links: dict[str, Any] = {"phase": None, "files": [], "test": None, "plan_files": []}
     for receipt in reversed(evidence):
         if receipt.get("passed") is False:
             continue
@@ -1745,14 +1753,14 @@ def _criterion_links(
             links["files"] = list(receipt["files"])
         if links["test"] is None and receipt.get("test"):
             links["test"] = receipt["test"]
-    if links["phase"] is None and contract is not None:
+    if contract is not None:
         from ..plan_contract import phase_of
 
         phase = phase_of(contract, uc_id, ac_id)
         if phase is not None:
-            links["phase"] = phase.title
-            if not links["files"]:
-                links["files"] = list(phase.files)
+            if links["phase"] is None:
+                links["phase"] = phase.title
+            links["plan_files"] = list(phase.files)
     return links
 
 
@@ -2443,6 +2451,11 @@ async def mark_ac(
             is the hash the check ran against (7-40 hex chars, UC-11702) and
             `repo` its repository ("owner/name"); the server cannot see your
             git, so send them yourself. An invalid commit marks nothing.
+            `files` (up to 50 paths relative to the repo), `test` and `phase`
+            (UC-12604) say which files implement the criterion, which test
+            checks it and in which phase of the plan. Native and FreeForm keep
+            them with the receipt; Trello and Plane, in the comment, from
+            which `get_uc` reads them back.
         items_content: FreeForm content-passing (UC-660). Pass items.json as a
             string for remote MCP; the mutated string is returned under
             `items_content`. Omit for local MCP / disk mode.
@@ -3368,14 +3381,16 @@ def register_spec_driven_tools(mcp_instance) -> None:
     mcp_instance.tool(
         description=(
             "Mark a single AC as passed/failed with optional evidence: free text, or a receipt "
-            "{type: test|screenshot|diff|url|pr, label, link?, detail?} stored with the AC, "
-            "the session developer and the date."
+            "{type: test|screenshot|diff|url|pr, label, link?, detail?, commit?, repo?, files?, test?, "
+            "phase?} stored with the AC, the session developer and the date. files (up to 50 relative "
+            "paths), test and phase (UC-12604) say which files implement the criterion, which test "
+            "checks it and in which phase of the plan; every backend keeps them."
         )
     )(mark_ac)
     mcp_instance.tool(
         description=(
             "Mark multiple ACs at once (batch AG-09b validation); each result may carry "
-            "evidence like mark_ac."
+            "evidence like mark_ac, files, test and phase included."
         )
     )(mark_ac_batch)
     mcp_instance.tool(description="Get status of all Acceptance Criteria for a UC.")(get_ac_status)

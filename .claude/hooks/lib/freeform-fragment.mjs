@@ -67,7 +67,7 @@ const RESERVES = { add_uc: 'UC', add_epic: 'EP' };
 
 const KINDS = ['US', 'UC', 'EP'];
 // UC-12603: closed_files (los ficheros de la PR de una UC cerrada) tampoco viaja en el contexto.
-const CONTEXT_META_KEYS = ['context', 'comments', 'attachments', 'closed_files'];
+const CONTEXT_META_KEYS = ['context', 'comments', 'attachments', 'closed_files', 'closed_files_by_repo'];
 const PENDING_TTL_MS = 60 * 60 * 1000;
 
 // ── Reading items ──────────────────────────────────────────────────────

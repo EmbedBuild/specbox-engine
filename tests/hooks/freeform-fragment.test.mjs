@@ -458,3 +458,8 @@ test('UC-12603: las listas por repositorio se suman por repositorio y la unión 
   assert.equal(capped.meta.closed_files.length, 1000);
   assert.equal(capped.meta.closed_files.at(-1), 'nuevo.py');
 });
+
+test('UC-12603: closed_files_by_repo tampoco viaja en el contexto', () => {
+  const sibling = { id: 'uc2', name: 'UC-702', labels: ['UC'], state: 'done', meta: { uc_id: 'UC-702', closed_files_by_repo: { 'o/r': ['a.py'] } } };
+  assert.equal(asContext(sibling).meta.closed_files_by_repo, undefined);
+});

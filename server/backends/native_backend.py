@@ -613,7 +613,7 @@ class NativeBackend(SpecBackend):
     #: What the board-wide tools never show, left in the database.
     # UC-12603: closed_files (the files of a closed UC's PR) too; the drift gate reads it with
     # list_done_ucs.
-    _LIGHT_META = "meta - 'comments' - 'context' - 'attachments' - 'closed_files' AS meta"
+    _LIGHT_META = "meta - 'comments' - 'context' - 'attachments' - 'closed_files' - 'closed_files_by_repo' AS meta"
 
     async def list_done_ucs(self, board_id: str) -> list[ItemDTO]:
         """The stories (light) and the UCs in «done» with their whole meta (UC-12603)."""

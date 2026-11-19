@@ -53,7 +53,7 @@ def normalize_closed_files(raw: Any) -> list[str]:
         return []
     if not isinstance(raw, list) or not all(isinstance(f, str) for f in raw):
         raise ClosedFilesError("files debe ser una lista de rutas (texto)")
-    out: list[str] = []
+    out: dict[str, None] = {}  # en orden y sin repetir, sin recorrer la lista por cada ruta
     for item in raw:
         path = normalize_path(item)
         if not path:
@@ -62,9 +62,8 @@ def normalize_closed_files(raw: Any) -> list[str]:
             raise ClosedFilesError(f"files: {item!r} tiene que ser una ruta relativa al repositorio, sin «..»")
         if len(path) > MAX_CLOSED_PATH:
             raise ClosedFilesError(f"files: una ruta admite como mucho {MAX_CLOSED_PATH} caracteres")
-        if path not in out:
-            out.append(path)
-    return out  # el tope se aplica al guardar (merge_closed_files), y una PR enorme también cierra
+        out[path] = None
+    return list(out)  # el tope se aplica al guardar (merge_closed_files), y una PR enorme también cierra
 
 
 def merge_closed_files(existing: Any, new: list[str]) -> tuple[list[str], bool]:
@@ -109,11 +108,13 @@ def files_for(uc: ClosedUc, repo: str | None, satellite: str | None) -> set[str]
     sin repositorio; si no lo sabe, se mira su satélite; sin ninguno de los dos, cuentan todas.
     """
     files = set(uc.files or [])
+    other_satellite = bool(satellite and uc.satellite and uc.satellite.lower() != satellite.lower())
     if repo and uc.by_repo:
         labelled = {p for paths in uc.by_repo.values() for p in paths}
         same = {p for name, paths in uc.by_repo.items() if name.lower() == repo.lower() for p in paths}
-        return same | (files - labelled)
-    if satellite and uc.satellite and uc.satellite.lower() != satellite.lower():
+        # Las rutas guardadas sin repositorio cuentan, salvo que la UC sea de otro satélite.
+        return same if other_satellite else same | (files - labelled)
+    if other_satellite:
         return set()
     return files
 

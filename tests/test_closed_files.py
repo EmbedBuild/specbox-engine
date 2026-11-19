@@ -192,10 +192,13 @@ async def test_native_keeps_the_files_and_reports_them(monkeypatch, tmp_path):
         # Las lecturas de tablero entero no cargan la lista; list_done_ucs sí.
         backend = await get_session_backend(ctx)
         try:
+            await complete_uc(pid, "UC-02", ctx, files=["x.py"], repo="EmbedBuild/specbox-engine")
             summary = {i.name: i.meta for i in await backend.list_board_summary(pid)}
-            assert all("closed_files" not in m for m in summary.values())
-            done = [i for i in await backend.list_done_ucs(pid) if i.meta.get("closed_files")]
-            assert [i.meta["closed_files"] for i in done] == [["server/cobros.py", "server/recibos.py"]]
+            assert all("closed_files" not in m and "closed_files_by_repo" not in m for m in summary.values())
+            done = {i.name: i.meta for i in await backend.list_done_ucs(pid) if i.meta.get("closed_files")}
+            assert sorted(m["closed_files"] for m in done.values()) == [["server/cobros.py", "server/recibos.py"], ["x.py"]]
+            assert [m["closed_files_by_repo"] for m in done.values() if "closed_files_by_repo" in m] == [
+                {"EmbedBuild/specbox-engine": ["x.py"]}]
         finally:
             await backend.close()
     finally:
@@ -225,3 +228,15 @@ async def test_a_pr_over_the_cap_still_closes_and_keeps_the_most_recent():
     uc = next(i for i in json.loads(out["items_content"]) if i["id"] == "uc1")
     assert uc["state"] == "done" and out["closed_files_truncated"] is True
     assert len(uc["meta"]["closed_files"]) == MAX_CLOSED_FILES and uc["meta"]["closed_files"][-1] == big[-1]
+
+
+def test_unlabelled_paths_of_another_satellite_do_not_count_and_long_lists_normalize_fast():
+    import time
+
+    uc = ClosedUc("UC-9", "US-1", "Del engine", ["CLAUDE.md", "server/x.py"], "2026-11-01",
+                  by_repo={"EmbedBuild/specbox-engine": ["server/x.py"]}, satellite="engine")
+    assert closed_uc_touches([uc], ["CLAUDE.md"], repo="EmbedBuild/specbox_cloud", satellite="cloud")["touches"] == []
+    assert closed_uc_touches([uc], ["CLAUDE.md"], repo="EmbedBuild/specbox_cloud")["touches_total"] == 1  # sin satélite: cuenta
+    start = time.perf_counter()
+    assert len(normalize_closed_files([f"d/f{i}.py" for i in range(20_000)])) == 20_000
+    assert time.perf_counter() - start < 0.5

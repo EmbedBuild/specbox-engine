@@ -50,12 +50,11 @@ async def approve_criteria(
     Call it only after the person said yes (/prd asks at the end of seeding). A call from a
     subagent is rejected (SUBAGENT_CANNOT_APPROVE); the Claude Code context comes from a hook.
     `approved_by` is only used by FreeForm (the freeform-fragment hook puts the git author);
-    native takes it from the session. Trello and Plane do not store it (`approval_not_stored`).
+    native takes it from the session. Trello and Plane cannot keep it (APPROVAL_NOT_SUPPORTED).
     The measure ac_approval reads it in start_uc and find_next_uc.
 
     Returns:
-        {success, approved: [{uc_id, criteria, fingerprint, by, at}], errors: [{uc_id, code, error}],
-         approval_not_stored?}
+        {success, approved: [{uc_id, criteria, fingerprint, by, at}], errors: [{uc_id, code, error}]}
     """
     identity = client_identity(client_session_id, client_agent_id, client_agent_type)
     if identity.get("agent_id"):
@@ -72,6 +71,14 @@ async def approve_criteria(
 
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
+        if not getattr(backend, "STORES_SPEC_META", False):
+            # Trello y Plane no tienen dónde guardarla (y escribir el meta reescribiría la descripción
+            # en Plane): la medida ac_approval no se aplica en esos tableros.
+            return _error(
+                "APPROVAL_NOT_SUPPORTED",
+                "This board (Trello or Plane) has nowhere to keep the approval of criteria; the "
+                "measure ac_approval does not apply to it. Native and FreeForm keep it.",
+            )
         targets: list[tuple[str, Any]] = []
         errors: list[dict[str, Any]] = []
         if wanted:
@@ -89,11 +96,13 @@ async def approve_criteria(
                     targets.append((uc_id, uc_item))
             if not targets:
                 return _error("US_NOT_FOUND", f"{story} has no UCs on this board.", us_id=story)
+            if len(targets) > MAX_UCS:
+                return _error("TOO_MANY_UCS", f"{story} has {len(targets)} UCs; approve them with uc_ids, "
+                              f"at most {MAX_UCS} per call.", us_id=story)
 
-        stores = bool(getattr(backend, "STORES_SPEC_META", False))
         now = datetime.now(timezone.utc).isoformat()
         approved: list[dict[str, Any]] = []
-        for uc_id, uc_item in targets[:MAX_UCS]:
+        for uc_id, uc_item in targets:
             acs = await backend.get_acceptance_criteria(board_id, uc_item.id)
             if not acs:
                 errors.append({"uc_id": uc_id, "code": "NO_CRITERIA",
@@ -120,8 +129,6 @@ async def approve_criteria(
                 "at": saved.get("at"),
             })
         result: dict[str, Any] = {"success": bool(approved), "approved": approved, "errors": errors}
-        if approved and not stores:
-            result["approval_not_stored"] = True  # Trello y Plane no tienen dónde guardarla
         if items_content is not None:
             result["items_content"] = backend.get_items_content()
         logger.info("criteria_approved", board=board_id, ucs=[a["uc_id"] for a in approved], errors=len(errors))

@@ -204,6 +204,8 @@ MUTATORS = [
     # US-125 / UC-12502: aprobar los criterios de una UC.
     ("record_criteria_approval", lambda b, p: b.record_criteria_approval(
         p, SimpleNamespace(id="UC-001", meta={}), {"fingerprint": "0" * 32, "criteria": []})),
+    ("import_criteria_approval", lambda b, p: b.import_criteria_approval(
+        p, SimpleNamespace(id="UC-001", meta={}), {"fingerprint": "0" * 32, "criteria": [], "by": "x"})),
 ]
 
 #: Métodos que reciben `board_id` y llevan verbo de escritura en el nombre pero

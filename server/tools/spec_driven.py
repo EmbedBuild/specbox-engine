@@ -3073,23 +3073,24 @@ async def find_next_uc(
     return detail
 
 
-#: Cuántas UC candidatas mira find_next_uc para encontrar una aprobada (cada una lee sus criterios).
-APPROVAL_LOOKAHEAD = 25
-
-
 async def _pick_by_approval(
     ctx: Context, backend: Any, board_id: str, ordered: list[Any], policy_content: str | None,
 ) -> dict[str, Any]:
     """La UC que propone find_next_uc según la medida ac_approval (UC-12502 AC-04).
 
-    Sin la medida (o en «off»), la primera, como siempre. En «warn», la primera aprobada de las
-    ``APPROVAL_LOOKAHEAD`` primeras; si ninguna lo está, la primera con el aviso. En «block», la
-    primera aprobada o anterior a la regla («aprobada por migración»); si no hay, ``NO_APPROVED_UC``.
+    Sin la medida (o en «off»), o con Trello y Plane (no guardan la aprobación), la primera, como
+    siempre. En «warn», la primera aprobada; si ninguna lo está, la primera con su estado y el aviso.
+    En «block», la primera aprobada o anterior a la regla («aprobada por migración»); si no hay,
+    ``NO_APPROVED_UC``. Recorre todas las candidatas, pero solo lee los criterios de las que tienen
+    una aprobación o están en la foto de «anteriores a la regla»; las demás no pueden estar aprobadas.
+    Si no puede leer las aprobaciones, propone la primera como antes y lo deja en el log.
     """
     from ..approval import approval_state, criteria_fingerprint, is_approved
     from ..coordination import enforcement as policy_mod
     from .enforcement import _gate_policy
 
+    if not getattr(backend, "STORES_SPEC_META", False):
+        return {"chosen": ordered[0], "extra": {}}
     try:
         backend_type, raw, _ = await _gate_policy(ctx, board_id, policy_content)
         policy = policy_mod.effective_policy(raw, backend_type=backend_type)
@@ -3101,19 +3102,35 @@ async def _pick_by_approval(
     if not entry.get("active") or mode == "off":
         return {"chosen": ordered[0], "extra": {}}
 
+    grandfathered = policy_mod.grandfathered_ids(raw, "ac_approval")
     unapproved: list[str] = []
-    for item in ordered[:APPROVAL_LOOKAHEAD]:
-        acs = await backend.get_acceptance_criteria(board_id, item.id)
-        uc = {"uc_id": _get_uc_id(item), "name": item.name, "description": item.description, "state": item.state,
-              "acs": [{"ac_id": ac.id, "text": ac.text} for ac in acs]}
-        state = approval_state(
-            await backend.get_criteria_approval(board_id, item),
-            criteria_fingerprint(acs),
-            predates=policy_mod.predates_rule(raw, "ac_approval", uc),
-        )
-        if is_approved(state):
-            return {"chosen": item, "extra": {"criteria_approval": state}}
-        unapproved.append(uc["uc_id"])
+    first_state: dict[str, Any] | None = None
+    try:
+        for item in ordered:
+            uc_id = _get_uc_id(item)
+            latest = await backend.get_criteria_approval(board_id, item)
+            if latest is None and uc_id not in grandfathered:
+                state: dict[str, Any] = {"state": "none"}
+            else:
+                acs = await backend.get_acceptance_criteria(board_id, item.id)
+                predates = False
+                if uc_id in grandfathered:
+                    # La huella de «anterior a la regla» lleva nombre y descripción, y el resumen del
+                    # tablero no siempre trae la descripción (native): se lee la UC entera.
+                    full = await backend.get_item(board_id, item.id)
+                    predates = policy_mod.predates_rule(raw, "ac_approval", {
+                        "uc_id": uc_id, "name": full.name, "description": full.description,
+                        "state": full.state, "acs": [{"ac_id": ac.id, "text": ac.text} for ac in acs],
+                    })
+                state = approval_state(latest, criteria_fingerprint(acs), predates=predates)
+            if is_approved(state):
+                return {"chosen": item, "extra": {"criteria_approval": state}}
+            if first_state is None:
+                first_state = state
+            unapproved.append(uc_id)
+    except Exception as e:  # noqa: BLE001 — sin las aprobaciones (p. ej. sin la tabla 0040), como antes
+        logger.warning("find_next_uc_approval_failed", error=str(e))
+        return {"chosen": ordered[0], "extra": {}}
     if mode == "block":
         return {
             "error": (
@@ -3124,11 +3141,10 @@ async def _pick_by_approval(
             "unapproved_ucs": unapproved,
             "how_to_continue": "Para verlas igualmente, find_next_uc con include_unapproved=True.",
         }
-    first = ordered[0]
     return {
-        "chosen": first,
+        "chosen": ordered[0],
         "extra": {
-            "criteria_approval": {"state": "none"},
+            "criteria_approval": first_state or {"state": "none"},
             "enforcement_warnings": [{
                 "measure": "ac_approval",
                 "reason": f"Ninguna de las UC pendientes tiene sus criterios aprobados; la primera es {unapproved[0]}.",

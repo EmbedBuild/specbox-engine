@@ -443,6 +443,15 @@ def predates_rule(raw: Any, measure: str, uc: dict[str, Any]) -> bool:
     return bool(uc.get("uc_id")) and snapshot.get(uc["uc_id"]) == uc_fingerprint(uc)
 
 
+def grandfathered_ids(raw: Any, measure: str) -> set[str]:
+    """Las UC que estaban abiertas cuando ``measure`` pasó a «block» (vacío si no está en «block»)."""
+    entry = _stored(raw)["measures"].get(measure) or {}
+    if entry.get("mode") != "block":
+        return set()
+    snapshot = entry.get("grandfathered") or {}
+    return set(snapshot) if isinstance(snapshot, dict) else set()
+
+
 def predating_measures(raw: Any, uc: dict[str, Any]) -> list[str]:
     """Las medidas en «block» para las que la UC es anterior a la regla (va en el marcador de UC activa)."""
     return [key for key in MEASURES if predates_rule(raw, key, uc)]

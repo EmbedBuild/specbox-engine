@@ -242,3 +242,103 @@ def test_the_migration_has_its_twin():
     src = ROOT / "server/db/migrations/0040_uc_criteria_approvals.sql"
     [twin] = list((ROOT / "supabase/migrations").glob("*_uc_criteria_approvals.sql"))
     assert src.read_bytes() == twin.read_bytes()
+
+
+# ── Revisión aislada de UC-12502 ────────────────────────────────────
+
+
+async def test_find_next_uc_looks_past_25_candidates():
+    """Sin tope: con 30 UC y solo la última aprobada, «block» la propone."""
+    items = [US]
+    for n in range(1, 31):
+        uc_id = f"UC-7{n:02d}"
+        items.append({"id": f"uc{n}", "name": f"{uc_id}: Caso {n}", "description": "", "state": "backlog",
+                      "labels": ["UC"], "parent_id": "us7", "meta": {"uc_id": uc_id, "us_id": "US-07"}})
+        items.append({"id": f"ac{n}", "name": f"[AC-01] El caso {n} queda registrado", "state": "backlog",
+                      "labels": ["AC"], "parent_id": f"uc{n}", "meta": {"ac_id": "AC-01"}})
+    board = json.dumps(items)
+    approved = await approve_criteria("ff", CTX, uc_ids=["UC-730"], items_content=board)
+    picked = await find_next_uc("ff", CTX, items_content=approved["items_content"], policy_content=_policy("block"))
+    assert picked["uc_id"] == "UC-730"
+    many = [US] + [{"id": f"x{n}", "name": f"UC-8{n:02d}: Caso {n}", "description": "", "state": "backlog",
+                    "labels": ["UC"], "parent_id": "us7", "meta": {"uc_id": f"UC-8{n:02d}", "us_id": "US-07"}}
+                   for n in range(1, 52)]
+    too_many = await approve_criteria("ff", CTX, us_id="US-07", items_content=json.dumps(many))
+    assert too_many["code"] == "TOO_MANY_UCS"
+
+
+async def test_warn_keeps_the_stale_state_of_the_first_uc():
+    approved = await approve_criteria("ff", CTX, uc_ids=["UC-701"], approved_by="Ana", items_content=_board())
+    changed = await update_ac("ff", "UC-701", "AC-01", CTX, text="El cobro queda registrado con su hora",
+                              items_content=approved["items_content"])
+    warned = await find_next_uc("ff", CTX, items_content=changed["items_content"], policy_content=_policy("warn"))
+    assert warned["uc_id"] == "UC-701" and warned["criteria_approval"]["state"] == "stale"
+
+
+async def test_trello_and_plane_do_not_apply_the_measure(monkeypatch):
+    """No guardan la aprobación: approve_criteria no escribe nada y start_uc no avisa por ella."""
+    from server.tools import approval as approval_mod
+    from server.tools.enforcement import start_gate
+
+    class _Capped:
+        STORES_SPEC_META = False
+
+        async def get_acceptance_criteria(self, board_id, uc_item_id):
+            return []
+
+        async def close(self):
+            return None
+
+    async def _backend(ctx, items_content=None):
+        return _Capped()
+
+    monkeypatch.setattr(approval_mod, "get_session_backend", _backend)
+    out = await approve_criteria("trello-board", CTX, uc_ids=["UC-1"])
+    assert out["code"] == "APPROVAL_NOT_SUPPORTED"
+    uc_item = type("UC", (), {"id": "c1", "name": "UC-1: X", "description": "", "state": "backlog", "meta": {}})()
+    gate = await start_gate(None, "trello-board", "UC-1", uc_item, _Capped())
+    assert all(w["measure"] != "ac_approval" for w in gate["warnings"])
+
+
+@pg
+async def test_native_find_next_uc_counts_predating_ucs_with_description(monkeypatch, tmp_path):
+    """El caso de la revisión: una UC con descripción, abierta al pasar a «block», no se detiene."""
+    pool, pid, dev, token, ctx = await _native_board(
+        monkeypatch, tmp_path, criteria={"UC-01": ["El cobro queda registrado con su recibo"]})
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE use_cases SET description = 'Cobrar con tarjeta y dejar el recibo' "
+                "WHERE project_id = $1 AND id = 'UC-01'", pid)
+        await _to_block(pid, token)
+        picked = await find_next_uc(pid, ctx)
+        assert picked["uc_id"] == "UC-01" and picked["criteria_approval"]["state"] == "migration"
+    finally:
+        await _cleanup(pool, pid, dev)
+
+
+@pg
+async def test_a_freeform_approval_travels_to_native(monkeypatch, tmp_path):
+    """Cambiar de backend conserva la aprobación con su autor (los ids y textos viajan igual)."""
+    from server.backends.freeform_backend import FreeformBackend
+    from server.tools.migration import _read_source
+    from server.tools.spec_driven import get_session_backend
+
+    board = (await approve_criteria("ff", CTX, uc_ids=["UC-701"], approved_by="Ana", items_content=_board()))
+    pool, pid, dev, token, ctx = await _native_board(monkeypatch, tmp_path, criteria={})
+    try:
+        src = FreeformBackend(items_content=board["items_content"])
+        try:
+            source = await _read_source(src, ".")
+        finally:
+            await src.close()
+        backend = await get_session_backend(ctx)
+        try:
+            result = await backend.ingest_atomic(pid, source, source_type="freeform")
+        finally:
+            await backend.close()
+        assert result["migrated"]["approvals"] == 1
+        state = (await get_uc(pid, "UC-701", ctx))["criteria_approval"]
+        assert state["state"] == "approved" and state["by"] == "Ana"
+    finally:
+        await _cleanup(pool, pid, dev)

@@ -1036,14 +1036,32 @@ async def start_gate(
         if "ac_approval" in measures:
             # UC-12502: la aprobación de sus criterios de ahora; anterior a la regla = «aprobada por
             # migración» (solo con la medida en «block», como el resto de lo anterior a la regla).
+            # Trello y Plane no guardan la aprobación: la medida no se aplica allí. Si no se puede
+            # leer, esta medida avisa de que no pudo mirar y las demás siguen comprobándose.
             from ..approval import approval_state, criteria_fingerprint
 
-            uc["criteria_approval"] = approval_state(
-                await backend.get_criteria_approval(board_id, uc_item),
-                criteria_fingerprint(acs),
-                predates=policy_mod.predates_rule(raw, "ac_approval", uc),
-            )
-            out["criteria_approval"] = uc["criteria_approval"]
+            if not getattr(backend, "STORES_SPEC_META", False):
+                measures = [m for m in measures if m != "ac_approval"]
+            else:
+                try:
+                    latest = await backend.get_criteria_approval(board_id, uc_item)
+                except Exception as e:  # noqa: BLE001
+                    logger.warning("start_gate_approval_failed", uc_id=uc_id, error=str(e))
+                    measures = [m for m in measures if m != "ac_approval"]
+                    out["warnings"].append({
+                        "measure": "ac_approval",
+                        "reason": f"No se pudo leer la aprobación de los criterios de {uc_id}: {e}",
+                        "how_to_continue": "La UC arranca igualmente. Repite start_uc si quieres la comprobación.",
+                        "message": f"Aviso de SpecBox: no se pudo leer la aprobación de {uc_id}; la UC arranca.",
+                        "outcome": "unchecked",
+                    })
+                else:
+                    uc["criteria_approval"] = approval_state(
+                        latest,
+                        criteria_fingerprint(acs),
+                        predates=policy_mod.predates_rule(raw, "ac_approval", uc),
+                    )
+                    out["criteria_approval"] = uc["criteria_approval"]
         run = _GateRun(
             board_id=board_id, uc_id=uc_id, developer_id=developer_id, backend_type=backend_type,
             policy=policy, raw=raw, disk=disk, policy_content=policy_content, out=out,

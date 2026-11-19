@@ -1134,6 +1134,25 @@ class NativeBackend(SpecBackend):
                         )
                         migrated["retired_ac"] = migrated.get("retired_ac", 0) + int(status.split()[-1])
 
+                    # UC-12502: the approval of its criteria travels with who and when.
+                    if puc.approval and puc.approval.get("fingerprint"):
+                        await conn.execute(
+                            """
+                            INSERT INTO uc_criteria_approvals
+                                (project_id, uc_id, fingerprint, criteria, approved_by, session_id,
+                                 source, approved_at)
+                            VALUES ($1, $2, $3, $4::jsonb, $5, $6, 'person', COALESCE($7::timestamptz, now()))
+                            """,
+                            board_id,
+                            uc_id,
+                            puc.approval["fingerprint"],
+                            _jsonb(puc.approval.get("criteria") or []),
+                            puc.approval.get("by"),
+                            puc.approval.get("session_id"),
+                            _parse_ts(puc.approval.get("at")),
+                        )
+                        migrated["approvals"] = migrated.get("approvals", 0) + 1
+
                 # ── Phase 3: Comments (audit trail) ──────────────────
                 for source_item_id, comments in plan.comments_data.items():
                     target_item_id = id_map.get(source_item_id)
@@ -1487,6 +1506,31 @@ class NativeBackend(SpecBackend):
                 record.get("session_id"),
             )
         return {**record, "by": dev.developer_id, "at": row["approved_at"].isoformat(), "source": "person"}
+
+    async def import_criteria_approval(
+        self, board_id: str, uc_item: Any, record: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Una aprobación de otro tablero (migración o espejo): conserva quién y cuándo."""
+        await self._require_membership_cached(board_id)
+        if not record.get("fingerprint"):
+            return None
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO uc_criteria_approvals
+                    (project_id, uc_id, fingerprint, criteria, approved_by, session_id, source, approved_at)
+                VALUES ($1, $2, $3, $4::jsonb, $5, $6, 'person', COALESCE($7::timestamptz, now()))
+                """,
+                board_id,
+                uc_item.id,
+                record["fingerprint"],
+                _jsonb(record.get("criteria") or []),
+                record.get("by"),
+                record.get("session_id"),
+                _parse_ts(record.get("at")),
+            )
+        return record
 
     async def get_criteria_approval(self, board_id: str, uc_item: Any) -> dict[str, Any] | None:
         await self._require_read_access(board_id)

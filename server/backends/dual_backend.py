@@ -402,6 +402,25 @@ class DualBackendWrapper(SpecBackend):
         await self._guarded_mirror("retire_acceptance_criterion", _mirror)
         return result
 
+    # UC-12502: la aprobación se guarda en el primario y, best-effort, en el espejo con su autor.
+    async def record_criteria_approval(
+        self, board_id: str, uc_item: Any, record: dict[str, Any],
+    ) -> dict[str, Any]:
+        saved = await self.primary.record_criteria_approval(board_id, uc_item, record)
+
+        async def _mirror() -> None:
+            mirror_id = await self._resolve_mirror_id(board_id, uc_item.id)
+            if mirror_id is None:
+                return
+            mirror_item = await self.mirror.get_item(self.mirror_board_id, mirror_id)
+            await self.mirror.import_criteria_approval(self.mirror_board_id, mirror_item, saved)
+
+        await self._guarded_mirror("record_criteria_approval", _mirror)
+        return saved
+
+    async def get_criteria_approval(self, board_id: str, uc_item: Any) -> dict[str, Any] | None:
+        return await self.primary.get_criteria_approval(board_id, uc_item)
+
     async def get_retired_criteria(self, board_id: str, uc_item_id: str) -> list[dict[str, Any]]:
         """Los retirados del primario y los del espejo, unidos por id.
 

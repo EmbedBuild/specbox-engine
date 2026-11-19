@@ -26,6 +26,18 @@ logger = structlog.get_logger(__name__)
 #: The UC meta key FreeForm keeps its retired criteria in (UC-12501). It is not copied as meta: the
 #: target backend stores retired criteria its own way (import_retired_criteria).
 RETIRED_META_KEY = "retired_criteria"
+#: The UC meta key FreeForm keeps the approval of its criteria in (UC-12502); same treatment.
+APPROVAL_META_KEY = "criteria_approval"
+
+
+def approval_for(uc_item: ItemDTO, approval_data: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+    """The last approval of a source UC's criteria: read from its backend, or from its FreeForm meta."""
+    found = approval_data.get(uc_item.id)
+    if isinstance(found, dict) and found.get("fingerprint"):
+        return dict(found)
+    meta = uc_item.meta if isinstance(uc_item.meta, dict) else {}
+    current = meta.get(APPROVAL_META_KEY)
+    return dict(current) if isinstance(current, dict) and current.get("fingerprint") else None
 
 
 def retired_for(uc_item: ItemDTO, retired_data: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
@@ -38,8 +50,8 @@ def retired_for(uc_item: ItemDTO, retired_data: dict[str, list[dict[str, Any]]])
 
 
 def meta_without_retired(meta: dict[str, Any]) -> dict[str, Any]:
-    """A UC's meta without the FreeForm list of retired criteria."""
-    return {k: v for k, v in (meta or {}).items() if k != RETIRED_META_KEY}
+    """A UC's meta without the FreeForm keys that each backend keeps its own way (retired, approval)."""
+    return {k: v for k, v in (meta or {}).items() if k not in (RETIRED_META_KEY, APPROVAL_META_KEY)}
 
 
 @dataclass
@@ -52,6 +64,8 @@ class PlannedUC:
     acs: list[dict[str, Any]] = field(default_factory=list)
     # UC-12501: its retired criteria (they keep their id and are never reused on the target).
     retired: list[dict[str, Any]] = field(default_factory=list)
+    # UC-12502: the last approval of its criteria (the ids and texts travel, so it stays valid).
+    approval: dict[str, Any] | None = None
 
 
 @dataclass
@@ -83,6 +97,7 @@ def build_write_plan(source_data: dict[str, Any], source_type: str | None = None
     ac_data: dict[str, list[dict[str, Any]]] = source_data.get("ac_data", {})
     comments_data: dict[str, list[dict[str, Any]]] = source_data.get("comments_data", {})
     retired_data: dict[str, list[dict[str, Any]]] = source_data.get("retired_data", {})
+    approval_data: dict[str, dict[str, Any]] = source_data.get("approval_data", {})
 
     ucs: list[PlannedUC] = []
     for uc_item in classified["uc"]:
@@ -106,6 +121,7 @@ def build_write_plan(source_data: dict[str, Any], source_type: str | None = None
                 labels=uc_labels,
                 acs=ac_data.get(uc_item.id, []),
                 retired=retired_for(uc_item, retired_data),
+                approval=approval_for(uc_item, approval_data),
             )
         )
 
@@ -155,6 +171,7 @@ async def write_target(
     ac_data: dict[str, list[dict[str, Any]]] = source_data.get("ac_data", {})
     comments_data: dict[str, list[dict[str, Any]]] = source_data.get("comments_data", {})
     retired_data: dict[str, list[dict[str, Any]]] = source_data.get("retired_data", {})
+    approval_data: dict[str, dict[str, Any]] = source_data.get("approval_data", {})
 
     id_map: dict[str, str] = {}  # source_item_id -> target_item_id
     errors: list[str] = []
@@ -270,6 +287,15 @@ async def write_target(
                     )
                 except Exception as exc:  # noqa: BLE001 - per-UC isolation
                     errors.append(f"Retired ACs for {uc_id}: {exc}")
+
+            # UC-12502: the approval of its criteria, with who and when (ids and texts travel as they are).
+            approval = approval_for(uc_item, approval_data)
+            if approval:
+                try:
+                    if await target_backend.import_criteria_approval(target_id, new_uc, approval):
+                        migrated["approvals"] = migrated.get("approvals", 0) + 1
+                except Exception as exc:  # noqa: BLE001 - per-UC isolation
+                    errors.append(f"Approval for {uc_id}: {exc}")
 
         except Exception as exc:  # noqa: BLE001 - per-item isolation
             errors.append(f"UC {uc_item.name}: {exc}")

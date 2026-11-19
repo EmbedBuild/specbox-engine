@@ -486,6 +486,18 @@ class SpecBackend(ABC):
         current = uc_item.meta.get("criteria_approval") if isinstance(uc_item.meta, dict) else None
         return current if isinstance(current, dict) else None
 
+    async def import_criteria_approval(
+        self, board_id: str, uc_item: Any, record: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Una aprobación que viene de otro tablero (migración o espejo), con su autor y su fecha.
+
+        Por defecto como ``record_criteria_approval``; un backend que no guarda el meta (Trello,
+        Plane) no la guarda y devuelve None.
+        """
+        if not self.STORES_SPEC_META:
+            return None
+        return await self.record_criteria_approval(board_id, uc_item, record)
+
     @abstractmethod
     async def mark_acceptance_criterion(
         self,

@@ -198,7 +198,7 @@ async def get_drift_report(
         the spec does not change), `ok`, `mode` of the `drift_gate` measure (off|warn|block) and
         `board` (read | why it could not be read).
     """
-    from ..drift import MAX_DRIFT_PATH, MAX_EXCLUDE, MAX_EXCLUDE_LEN, ExcludeTooCostly
+    from ..drift import MAX_DRIFT_PATH, MAX_EXCLUDE, MAX_EXCLUDE_LEN, MAX_EXCLUDE_WILDCARDS, ExcludeTooCostly
 
     if (
         not isinstance(files, list) or len(files) > MAX_DRIFT_FILES
@@ -212,16 +212,20 @@ async def get_drift_report(
 
     if exclude is not None and (
         not isinstance(exclude, list) or len(exclude) > MAX_EXCLUDE
-        or not all(isinstance(p, str) and len(p) <= MAX_EXCLUDE_LEN for p in exclude)
+        or not all(
+            isinstance(p, str) and len(p) <= MAX_EXCLUDE_LEN and p.count("*") + p.count("?") <= MAX_EXCLUDE_WILDCARDS
+            for p in exclude
+        )
     ):
-        return {"error": f"exclude admite hasta {MAX_EXCLUDE} globs de hasta {MAX_EXCLUDE_LEN} caracteres",
-                "code": "INVALID_EXCLUDE"}
+        return {"error": f"exclude admite hasta {MAX_EXCLUDE} globs de hasta {MAX_EXCLUDE_LEN} caracteres y "
+                f"{MAX_EXCLUDE_WILDCARDS} comodines", "code": "INVALID_EXCLUDE"}
     branch = [str(u).strip().upper() for u in (uc_ids or []) if str(u).strip()]
     contracts = [(str(path), parse_plan_contract(str(text)), str(text)) for path, text in plans.items()]
 
     receipts: dict[str, set[str]] = {}
     closed: list[ClosedUc] = []
     known: set[str] | None = None
+    done: set[str] = set()
     board_note = "leído"
     mode = "warn"
     backend, backend_type = await _board_backend(ctx, board_id, items_content, backend_type)
@@ -234,6 +238,7 @@ async def get_drift_report(
                 closed = closed_ucs_of(await backend.list_done_ucs(board_id))
             ucs = {_get_uc_id(i).upper(): i for i in items if _is_uc(i)}
             known = set(ucs)
+            done = {u for u, i in ucs.items() if getattr(i, "state", "") == "done"}
             for uc_id in branch:
                 item = ucs.get(uc_id)
                 if item is None:
@@ -258,7 +263,8 @@ async def get_drift_report(
     try:
         report = build_drift_report(
             files=files, uc_ids=branch, contracts=contracts, receipts=receipts, closed=closed,
-            dependencies_added=dependencies_added, exclude=exclude, known_ucs=known, repo=repo, satellite=satellite,
+            dependencies_added=dependencies_added, exclude=exclude, known_ucs=known, done_ucs=done, repo=repo,
+            satellite=satellite,
         )
     except ExcludeTooCostly as e:
         return {"error": str(e), "code": "EXCLUDE_TOO_COSTLY", "mode": mode}

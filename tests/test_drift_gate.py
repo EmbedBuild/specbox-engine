@@ -227,21 +227,39 @@ def test_costly_exclusions_stop_within_budget():
 
     start = time.perf_counter()
     with pytest.raises(ExcludeTooCostly):
-        build_drift_report(files=["a" * 200 + f"/{i}.py" for i in range(2000)], uc_ids=[], contracts=[],
-                           exclude=["*a" * 98 + "*.py"] * 200)
+        build_drift_report(files=["a" * 1019 + f"{i:05d}" for i in range(19_999)], uc_ids=[], contracts=[],
+                           exclude=["a*" * 19 + "x*"] * 200)
     assert time.perf_counter() - start < 3
     # El caso normal no gasta casi nada: los trozos literales descartan antes.
     budget = GlobBudget()
     matcher = glob_matcher("docs/**")
-    assert not any(matcher(f"server/m{i}.py", budget) for i in range(20_000)) and budget.spent == 0
+    assert not any(matcher(f"server/m{i}.py", budget) for i in range(20_000)) and budget.spent < 2_000_000
 
 
 async def test_the_tool_rejects_long_paths_and_costly_exclusions():
     long_path = await get_drift_report("x", ["a" * (MAX_DRIFT_PATH + 1)], CTX)
     assert long_path["code"] == "INVALID_FILES"
-    costly = await get_drift_report("x", ["a" * 200 + f"/{i}.py" for i in range(2000)], CTX,
-                                    exclude=["*a" * 98 + "*.py"] * 200)
-    assert costly["code"] == "EXCLUDE_TOO_COSTLY"
+    wild = await get_drift_report("x", ["a.py"], CTX, exclude=["*" * 21])
+    assert wild["code"] == "INVALID_EXCLUDE"
+    costly = await get_drift_report("x", ["a" * 1019 + f"{i:05d}" for i in range(19_999)], CTX,
+                                    exclude=["a*" * 19 + "x*"] * 200)
+    assert costly["code"] == "EXCLUDE_TOO_COSTLY" and costly["mode"] == "warn"
+
+
+def test_a_closed_uc_with_an_old_plan_does_not_switch_the_gate_off():
+    old = [("doc/plans/US-126_plan.md", parse_plan_contract(OLD_PLAN), OLD_PLAN)]
+    out = build_drift_report(files=["server/a.py"], uc_ids=["UC-12602"], contracts=old, known_ucs={"UC-12602"},
+                             done_ucs={"UC-12602"})
+    assert out["unclaimed"] == ["server/a.py"] and out["not_judged"] == [] and out["ok"] is False
+
+
+def test_with_one_new_plan_and_one_open_old_plan_the_unclaimed_files_are_not_judged():
+    old = [("doc/plans/US-126_plan.md", parse_plan_contract(OLD_PLAN), OLD_PLAN), *CONTRACTS]
+    out = build_drift_report(files=["server/a.py", "server/b.py"], uc_ids=["UC-701", "UC-12602"], contracts=old,
+                             known_ucs={"UC-701", "UC-12602"})
+    by = {f["path"]: f for f in out["files"]}
+    assert by["server/a.py"]["claimed_by"] == ["UC-701"]
+    assert out["not_judged"] == ["server/b.py"] and out["unclaimed"] == [] and out["old_plan_ucs"] == ["UC-12602"]
 
 
 def test_the_plan_of_another_uc_does_not_claim_the_branch_files():

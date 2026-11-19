@@ -299,6 +299,13 @@ test("revisión 2: lo que no se juzga queda «sin comprobar», un tablero sin le
     await runDrift({ root, base: "main", summaryFile: summary }, deps(fakeMcp(blind), []));
     assert.match(readFileSync(summary, "utf8"), /^aviso: .*sin leer el tablero/);
 
+    // Las exclusiones cuestan demasiado con los ficheros de la rama: en «block» falla, en «warn» no comprueba.
+    const costly = { code: "EXCLUDE_TOO_COSTLY", error: "demasiado", mode: "block" };
+    assert.equal(await runDrift({ root, base: "main", summaryFile: summary }, deps(fakeMcp(costly), [])), 1);
+    assert.match(readFileSync(summary, "utf8"), /^fallo: La rama .* no se pudo comparar/);
+    assert.equal(await runDrift({ root, base: "main", summaryFile: summary }, deps(fakeMcp({ ...costly, mode: "warn" }), [])), 0);
+    assert.match(readFileSync(summary, "utf8"), /^sin comprobar: /);
+
     // La rama se excluye todo en su settings.json: no cuenta, vale el de la base.
     write(root, ".claude/settings.json", { drift: { exclude: ["**"] } });
     git(root, "commit", "-q", "-am", "UC-701: excluirlo todo");

@@ -535,6 +535,11 @@ export async function runDrift(opts, deps = {}) {
   } catch (err) {
     return finish(0, "sin comprobar", `El MCP de SpecBox no respondió (${err.message}): la puerta no se ejecuta.`);
   }
+  if (report?.code === "EXCLUDE_TOO_COSTLY") {
+    // Los ficheros los pone la rama: en «block» no puede salirse de la puerta por esta vía.
+    const text = `La rama ${branch} no se pudo comparar con las exclusiones del proyecto (${report.error ?? "demasiado costoso"}).`;
+    return finish(report.mode === "block" ? 1 : 0, report.mode === "block" ? "fallo" : "sin comprobar", text);
+  }
   if (!report?.success) {
     return finish(0, "sin comprobar", `El MCP no dio el informe (${report?.code ?? report?.error ?? "sin respuesta"}): la puerta no se ejecuta.`);
   }

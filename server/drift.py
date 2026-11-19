@@ -43,6 +43,8 @@ def dependency_key(ecosystem: str, name: str) -> str:
 #: Lo que admite la lista de exclusiones de un proyecto.
 MAX_EXCLUDE = 200
 MAX_EXCLUDE_LEN = 200
+#: Los comodines («*» y «?») que admite un glob de exclusión: ninguno real pasa de unos pocos.
+MAX_EXCLUDE_WILDCARDS = 20
 #: El largo máximo de una ruta que se compara (más largo no lo genera ningún repositorio real).
 MAX_DRIFT_PATH = 1024
 #: El trabajo máximo de una llamada al comparar con las exclusiones (casillas de la programación
@@ -202,6 +204,9 @@ def glob_matcher(pattern: str):
 
     def match(path: str, budget: GlobBudget | None = None) -> bool:
         for tokens, chunks, at_start, at_end in prepared:
+            if budget is not None:
+                # La comprobación previa también cuesta: un trozo buscado y la ruta recorrida.
+                budget.spend(len(chunks) + len(path) // 16 + 1)
             if not _could_match(chunks, at_start, at_end, path):
                 continue
             if budget is not None:
@@ -283,12 +288,14 @@ def plan_claims(
 
 def _old_plan_ucs(
     docs: list[tuple[str, PlanContract, str | None, set[str]]], branch: list[str], known: set[str], claiming: set[str],
+    done: set[str] | None = None,
 ) -> list[str]:
-    """Las UC de la rama que existen en el tablero, no reclaman ningún fichero y tienen un plan que no
-    declara ficheros por fase (anterior al contrato, o sin líneas **Ficheros:** en sus fases)."""
+    """Las UC de la rama que existen en el tablero, siguen abiertas (no «done»), no reclaman ningún
+    fichero y tienen un plan que no declara ficheros por fase (anterior al contrato, o sin líneas
+    **Ficheros:** en sus fases)."""
     out: list[str] = []
     for uc in branch:
-        if uc not in known or uc in claiming:
+        if uc not in known or uc in claiming or uc in (done or set()):
             continue
         for _path, contract, owner, mentions in docs:
             if contract.contract_version == 0:
@@ -314,6 +321,7 @@ def build_drift_report(
     dependencies_added: list[dict[str, str]] | None = None,
     exclude: list[str] | None = None,
     known_ucs: set[str] | None = None,
+    done_ucs: set[str] | None = None,
     repo: str | None = None,
     satellite: str | None = None,
 ) -> dict[str, Any]:
@@ -322,7 +330,8 @@ def build_drift_report(
     ``contracts`` son ``(ruta del plan, contrato)`` o ``(ruta, contrato, texto)``: con el texto se sabe
     de qué UC es un plan cuyos criterios no dicen la suya. ``receipts``, los ficheros de los recibos de
     los criterios de cada UC de la rama; ``closed``, las UC cerradas con su lista; ``known_ucs``, las UC
-    que existen en el tablero (None si no se pudo leer). ``ok`` es falso si queda algún fichero sin UC
+    que existen en el tablero (None si no se pudo leer); ``done_ucs``, las que están cerradas. ``ok`` es
+    falso si queda algún fichero sin UC
     o alguna dependencia sin declarar. Lanza ExcludeTooCostly si las exclusiones cuestan demasiado.
     """
     branch = [u.upper() for u in dict.fromkeys(uc_ids)]
@@ -379,17 +388,18 @@ def build_drift_report(
         if f"{ecosystem_key(d.get('ecosystem', ''))}:{dependency_key(d.get('ecosystem', ''), d['name'])}" not in declared
     ]
 
-    # La puerta no juzga solo cuando ninguna UC de la rama reclama ficheros y alguna existe en el
-    # tablero con un plan que no declara ficheros por fase (anterior al contrato): lo dice, y esos
-    # ficheros no son «sin UC». Una UC que el tablero no tiene, o sin plan, no frena nada: sus
-    # ficheros cuentan como «sin UC».
+    # La puerta no juzga los ficheros que ninguna UC reclama cuando alguna UC de la rama existe en el
+    # tablero, sigue abierta y tiene un plan que no declara ficheros por fase (anterior al contrato):
+    # lo dice, y esos ficheros no son «sin UC». Una UC que el tablero no tiene, una cerrada o una sin
+    # plan no frena nada: sus ficheros cuentan como «sin UC».
     claiming = {u for _, ucs in claims for u in ucs if u in mine} | {u for u in branch if receipt_files.get(u)}
     known = {k.upper() for k in known_ucs} if known_ucs is not None else set()
-    old_plan = [] if claiming else _old_plan_ucs(docs, branch, known, claiming)
-    judgeable = not old_plan
-    not_judged = [] if judgeable else list(unclaimed)
-    if not judgeable:
+    done = {k.upper() for k in done_ucs or ()}
+    old_plan = _old_plan_ucs(docs, branch, known, claiming, done)
+    not_judged = list(unclaimed) if old_plan else []
+    if not_judged:
         unclaimed = []
+    judgeable = not not_judged
     touches = closed_uc_touches(
         closed or [], [f["path"] for f in report_files if "excluded_by" not in f], branch, repo=repo, satellite=satellite,
     )

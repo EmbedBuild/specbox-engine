@@ -8,6 +8,8 @@
  *   specbox logout   desconecta el dispositivo y borra la credencial local
  *   specbox hooks [status|update]   los hooks del proyecto frente a los publicados;
  *                    update no pisa los retocados (UC-11201)
+ *   specbox drift    la puerta de desviación del CI local (UC-12602): cada fichero de la
+ *                    rama con su UC o «sin UC», y las dependencias que el plan no declara
  *
  * Todo se puede inyectar (`run`) para las pruebas.
  */
@@ -18,6 +20,7 @@ import { pathToFileURL } from "node:url";
 import { claudeUsesHelper, configureClaudeCode, helperCommand, stableNodePath } from "../lib/claude.mjs";
 import { CLIENT, HOW_TO_CONNECT_URL, accountFor, resolveConfig, specboxHome } from "../lib/config.mjs";
 import { deviceId, hostLabel } from "../lib/device.mjs";
+import { runDrift } from "../lib/drift.mjs";
 import { hooksStatus, loadPackaged, updateHooks } from "../lib/hooks.mjs";
 import { installHelper, packageVersion } from "../lib/install.mjs";
 import { readStdinJson, runInternal } from "../lib/internal.mjs";
@@ -26,13 +29,19 @@ import { messages, pickLang } from "../lib/messages.mjs";
 import { createStore } from "../lib/store.mjs";
 
 export function parseArgs(argv) {
-  const opts = { command: null, server: null, cloud: null, browser: true, args: [], project: null, overwrite: [] };
+  const opts = {
+    command: null, server: null, cloud: null, browser: true, args: [], project: null, overwrite: [],
+    base: null, json: false, summary: null,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--server") opts.server = argv[(i += 1)];
     else if (arg === "--cloud") opts.cloud = argv[(i += 1)];
     else if (arg === "--no-browser") opts.browser = false;
     else if (arg === "--project") opts.project = argv[(i += 1)];
+    else if (arg === "--base") opts.base = argv[(i += 1)];
+    else if (arg === "--summary") opts.summary = argv[(i += 1)];
+    else if (arg === "--json") opts.json = true;
     else if (arg === "--overwrite") opts.overwrite.push(...String(argv[(i += 1)] ?? "").split(",").filter(Boolean));
     else if (arg === "--version" || arg === "-v") opts.command = "version";
     else if (arg === "--help" || arg === "-h") opts.command = "help";
@@ -207,6 +216,15 @@ export async function run(argv, deps = {}) {
       if (!status.differs) return 0;
       print(t.hooksUpdated(updateHooks({ projectRoot, packaged, overwrite: opts.overwrite })));
       return 0;
+    }
+    case "drift": {
+      // UC-12602: la puerta de desviación. El tablero se lee con la identidad de este equipo.
+      const root = projectRootOf(resolve(opts.project ?? deps.cwd ?? process.cwd()));
+      const headersFor = deps.headersFor ?? (async (o) => (await import("../lib/mcp-headers.mjs")).headersFor({ ...o, store }));
+      return runDrift(
+        { root, base: opts.base, json: opts.json, summaryFile: opts.summary, mcpUrl: config.mcpUrl },
+        { print, env, fetchImpl, headersFor },
+      );
     }
     case "help":
     case null:

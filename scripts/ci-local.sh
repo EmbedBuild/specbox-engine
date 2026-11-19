@@ -13,6 +13,7 @@
 #   cli           CLI specbox: espera de npm, pruebas y contenido del paquete               ← specbox-cli.yml
 #   hooks         hooks, documentos, design-review, visual-setup y comprobaciones del MCP   ← hooks.yml, mcp-hosts.yml
 #   contenedor    la imagen del servidor arranca sana y su proceso no es root (Docker)     ← container-nonroot.yml
+#   desviacion    puerta de desviación (specbox drift): cada fichero de la rama con su UC o «sin UC»  ← UC-12602
 # Requisitos: uv, node ≥ 22, npm, docker y gitleaks. Las pruebas en Windows (extension-windows.yml) y la
 # comprobación semanal de los dos nombres del MCP (mcp-hosts.yml) siguen en GitHub, a mano o programadas.
 # Cada bloque con Postgres o con la imagen usa sus propios contenedores, con nombre y puerto propios, y los borra al acabar.
@@ -22,7 +23,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$ROOT/scripts/ci-local/lib.sh"
 
 CI_NOMBRE="SpecBox Engine"
-CI_BLOQUES="secretos dependencias python native migraciones inventario extension cli hooks contenedor"
+CI_BLOQUES="secretos dependencias python native migraciones inventario extension cli hooks contenedor desviacion"
 CI_DOCKER="native migraciones contenedor"
 CI_NECESITA_python="dependencias"
 CI_NECESITA_native="dependencias"
@@ -164,6 +165,23 @@ hooks() {
     ci_paso "Comprobaciones del MCP" node --test scripts/check-mcp-hosts.test.mjs scripts/smoke-freeform-remote.test.mjs
 }
 
+# UC-12602: la puerta lee el tablero con la identidad de este equipo (specbox login). Con la medida
+# drift_gate en «warn» y desvíos queda en «aviso»; en «block», en fallo. Si no pudo comprobar (sin
+# identidad, sin MCP o sin la tool) también queda en «aviso», nunca en verde. Su primera línea va al
+# resumen (ci_detalle).
+desviacion() {
+  cd "$ROOT" || return 1
+  ci_paso "Puerta de desviación" node packages/specbox-cli/bin/specbox.mjs drift --summary "$CI_DIR/desviacion.resumen" || return 1
+  grep -qE '^(aviso|sin comprobar):' "$CI_DIR/desviacion.resumen" 2>/dev/null && return 3
+  return 0
+}
+
+ci_detalle() { # $1 = bloque → su línea de detalle en el resumen
+  case "$1" in
+    desviacion) sed -E 's/^[a-z ]+: //' "$CI_DIR/desviacion.resumen" 2>/dev/null ;;
+  esac
+}
+
 esperar_salud() { # $1 = contenedor
   local i
   for i in $(seq 1 30); do
@@ -204,6 +222,7 @@ ci_correr extension & P_EXTENSION=$!
 ci_correr cli & P_CLI=$!
 ci_correr hooks & P_HOOKS=$!
 ci_correr contenedor & P_CONTENEDOR=$!
+ci_correr desviacion & P_DESVIACION=$!
 if ci_correr dependencias; then
   ci_correr python & P_PYTHON=$!
   ci_correr native & P_NATIVE=$!
@@ -213,5 +232,5 @@ if ci_correr dependencias; then
 else
   for b in python native migraciones inventario; do ci_saltar "$b" "falló dependencias"; done
 fi
-wait "$P_SECRETOS" "$P_EXTENSION" "$P_CLI" "$P_HOOKS" "$P_CONTENEDOR"
+wait "$P_SECRETOS" "$P_EXTENSION" "$P_CLI" "$P_HOOKS" "$P_CONTENEDOR" "$P_DESVIACION"
 ci_cerrar

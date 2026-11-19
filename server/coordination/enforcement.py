@@ -77,7 +77,8 @@ MEASURES: dict[str, Measure] = {
         # UC-12402: el hook merge-guard la comprueba antes de fusionar (veredictos en el tablero).
         Measure("independent_review", "revisión independiente antes de fusionar", "US-124", since="6.42.0"),
         Measure("ac_approval", "criterios aprobados al empezar una UC", "US-125", since="6.44.0"),
-        Measure("drift_gate", "puerta de desviación en el CI local", "US-126"),
+        # UC-12602: la orden `specbox drift` (el bloque «desviacion» del CI local) la lee del tablero.
+        Measure("drift_gate", "puerta de desviación en el CI local", "US-126", since="6.46.0"),
         Measure("impact_radius", "radio de impacto del cambio", "US-126"),
         Measure("contract_first", "contrato antes de las pruebas", "US-128"),
         # UC-12215: hoy ya bloquea en los proyectos que se reconocían por su configuración de

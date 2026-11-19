@@ -538,15 +538,25 @@ async def skip_enforcement(
     """
     from ..review import client_identity
 
-    if measure in policy_mod.PERSON_ONLY_SKIPS and client_identity(
-        client_session_id, client_agent_id, client_agent_type
-    ).get("agent_id"):
-        return _invalid(
-            "SUBAGENT_CANNOT_APPROVE",
-            f"Aprobar un cambio de la medida {measure} es una decisión de una persona: un subagente no "
-            "puede hacerlo. Pregúntaselo a la persona en la sesión principal y llama a skip_enforcement "
-            "desde ahí.",
-        )
+    identity = client_identity(client_session_id, client_agent_id, client_agent_type)
+    extra: dict[str, Any] = {}
+    if measure in policy_mod.PERSON_ONLY_SKIPS:
+        if identity.get("agent_id"):
+            return _invalid(
+                "SUBAGENT_CANNOT_APPROVE",
+                f"Aprobar un cambio de la medida {measure} es una decisión de una persona: un subagente no "
+                "puede hacerlo. Pregúntaselo a la persona en la sesión principal y llama a skip_enforcement "
+                "desde ahí.",
+            )
+        if not identity.get("session_id"):
+            # Sin el contexto de Claude Code (lo pone el hook agent-identity) no se sabe quién lo pide.
+            return _invalid(
+                "PERSON_REQUIRED",
+                f"La aprobación de la medida {measure} tiene que llegar desde la sesión de Claude Code que habla "
+                "con la persona (el hook agent-identity pone su contexto): sin él no cuenta como de una persona. "
+                "Instala los hooks con `specbox hooks update`.",
+            )
+        extra = {"session_id": identity["session_id"]}
     try:
         target, error = await _resolve_target(ctx, board_id, policy_content, dev_token, actor)
         if error is not None:
@@ -560,13 +570,13 @@ async def skip_enforcement(
 
         def mutate(raw):
             return policy_mod.with_skip(
-                raw, measure, uc_id, reason, by=target.actor, at=at, backend_type=target.backend_type
+                raw, measure, uc_id, reason, by=target.actor, at=at, backend_type=target.backend_type, extra=extra
             )
 
         if target.kind == "native":
             stored, skip = await _native_apply(
                 target, mutate, operation=OP_ENFORCEMENT_SKIP, admin_only=False,
-                metadata=lambda s: {"target": uc_id, "measure": measure, "uc_id": uc_id, "reason": s["reason"]},
+                metadata=lambda s: {"target": uc_id, "measure": measure, "uc_id": uc_id, "reason": s["reason"], **extra},
             )
         else:
             stored, skip = mutate(target.raw)
@@ -587,6 +597,8 @@ async def use_enforcement_skip(
     ctx: Context,
     measure: str,
     uc_id: str,
+    head: str,
+    fingerprint: str,
     board_id: str = "",
     policy_content: str | None = None,
     dev_token: str = "",
@@ -594,32 +606,42 @@ async def use_enforcement_skip(
     """Gasta el salto pendiente de una medida que comprueba un hook en el equipo (UC-12606).
 
     Hoy, ``impact_radius``: el hook impact-radius-guard la llama antes de un commit de contrato de API
-    o de migración de datos con la medida en «block». Devuelve ``used`` y el salto (quién, cuándo y
-    por qué) o ``used: false`` si no hay ninguno; un salto se gasta una sola vez. Native: exige ser
-    miembro. FreeForm por contenido: devuelve ``policy_content`` sin el salto.
+    o de migración de datos con la medida en «block», con ``head`` (el commit sobre el que se hace) y
+    ``fingerprint`` (la huella sha256 del contenido que decidió la clase). El salto se gasta en ese
+    intento; si el commit falla y se repite con el mismo ``head`` y el mismo contenido, devuelve el
+    mismo (``reused``), y otro contenido u otro commit gastan uno nuevo. Devuelve ``used`` y el salto
+    (quién, cuándo y por qué). Native: exige ser miembro. FreeForm por contenido: devuelve
+    ``policy_content`` con el salto gastado.
     """
-    if measure not in policy_mod.CLIENT_SPENT_SKIPS:
+    if not isinstance(measure, str) or measure not in policy_mod.CLIENT_SPENT_SKIPS:
         return _invalid(
             "NOT_CLIENT_SPENT",
-            f"La medida {measure} la comprueba el servidor y gasta su salto él solo; "
-            f"esta tool solo vale para {', '.join(sorted(policy_mod.CLIENT_SPENT_SKIPS))}.",
+            "Esta tool solo vale para las medidas que comprueba un hook en el equipo: "
+            f"{', '.join(sorted(policy_mod.CLIENT_SPENT_SKIPS))}.",
         )
-    if not policy_mod.UC_ID.match(uc_id or ""):
+    if not isinstance(uc_id, str) or not policy_mod.UC_ID.match(uc_id):
         return _invalid("INVALID_UC_ID", "uc_id tiene que ser el id de la UC, como «UC-12606».")
-    target, error = await _resolve_target(ctx, board_id, policy_content, dev_token, "")
-    if error is not None:
-        return error
-    if target.kind == "capped":
-        return {"success": True, "backend_type": target.backend_type, "used": False, "skip": None}
-    if target.kind == "native":
-        skip = await _native_take_skip(target.project_id, measure, uc_id)
-        if skip is not None:
-            logger.info("enforcement_skip_used", backend="native", measure=measure)
-        return {"success": True, "backend_type": "native", "used": skip is not None, "skip": skip}
-    stored, skip = policy_mod.take_skip(target.raw, measure, uc_id)
-    if skip is not None and target.kind == "freeform_disk":
-        _save_disk(target, stored)
-    return _out(target, {"used": skip is not None, "skip": skip}, stored if skip is not None else None)
+    try:
+        target, error = await _resolve_target(ctx, board_id, policy_content, dev_token, "")
+        if error is not None:
+            return error
+        if target.kind == "capped":
+            return {"success": True, "backend_type": target.backend_type, "used": False, "skip": None}
+        at = _now()
+        if target.kind == "native":
+            skip, reused = await _native_use_skip(target.project_id, measure, uc_id, head, fingerprint, at)
+            if skip is not None:
+                logger.info("enforcement_skip_used", backend="native", measure=measure, reused=reused)
+            return {"success": True, "backend_type": "native", "used": skip is not None, "reused": reused, "skip": skip}
+        stored, skip, reused = policy_mod.use_skip(target.raw, measure, uc_id, head=head, fingerprint=fingerprint, at=at)
+        if skip is not None and not reused and target.kind == "freeform_disk":
+            _save_disk(target, stored)
+        return _out(target, {"used": skip is not None, "reused": reused, "skip": skip},
+                    stored if skip is not None and not reused else None)
+    except PolicyError as e:
+        return policy_mod.policy_error(e, measure=measure)
+    except (ValueError, RecursionError) as e:
+        return _invalid("INVALID_POLICY_CONTENT", f"La política no se puede leer: {type(e).__name__}.")
 
 
 async def get_enforcement_impact(
@@ -792,8 +814,10 @@ def register_enforcement_tools(mcp_instance) -> None:
     mcp_instance.tool(
         description=(
             "Gasta el salto pendiente de una medida que comprueba un hook en el equipo (hoy "
-            "impact_radius, que llama el hook impact-radius-guard antes del commit). Devuelve used y "
-            "el salto (quién, cuándo y por qué), o used=false si no hay ninguno."
+            "impact_radius, que llama el hook impact-radius-guard antes del commit) en un intento "
+            "concreto: head (el commit) y fingerprint (sha256 del contenido). Repetir el mismo intento "
+            "devuelve el mismo salto (reused); otro contenido u otro commit gasta uno nuevo. Devuelve "
+            "used y el salto (quién, cuándo y por qué), o used=false si no hay ninguno."
         )
     )(use_enforcement_skip)
 
@@ -929,6 +953,30 @@ def _evaluate_start(measure: str, uc: dict[str, Any], raw: Any) -> tuple[bool, s
         failed = not is_approved(state)
         return failed, (not_approved_reason(uc["uc_id"], state) if failed else ""), {"criteria_approval": state}
     raise ValueError(f"start_uc no comprueba la medida {measure!r}")
+
+
+async def _native_use_skip(
+    project_id: str, measure: str, uc_id: str, head: str, fingerprint: str, at: str
+) -> tuple[dict | None, bool]:
+    """``use_skip`` bajo bloqueo de fila (UC-12606)."""
+    from ..db.pool import get_pool
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            raw = await conn.fetchval(
+                "SELECT meta->'enforcement' FROM projects WHERE project_id = $1 FOR UPDATE", project_id
+            )
+            raw = json.loads(raw) if isinstance(raw, str) else raw
+            stored, skip, reused = policy_mod.use_skip(raw, measure, uc_id, head=head, fingerprint=fingerprint, at=at)
+            if skip is not None and not reused:
+                await conn.execute(
+                    "UPDATE projects SET meta = meta || jsonb_build_object('enforcement', $2::jsonb), "
+                    "updated_at = now() WHERE project_id = $1",
+                    project_id,
+                    json.dumps(stored),
+                )
+    return skip, reused
 
 
 async def _native_take_skip(project_id: str, measure: str, uc_id: str) -> dict | None:

@@ -46,6 +46,8 @@ UC_ID = re.compile(r"^UC-[0-9]{1,6}[a-z]?$")
 REASON_MIN = 10
 REASON_MAX = 500
 MAX_SKIPS = 200
+#: Los saltos gastados por un hook que se recuerdan (UC-12606), para dejar repetir el mismo commit.
+MAX_USED_SKIPS = 20
 
 
 @dataclass(frozen=True)
@@ -116,7 +118,12 @@ def _stored(raw: Any) -> dict[str, Any]:
     for key, entry in measures.items():
         if key in MEASURES and isinstance(entry, dict) and entry.get("mode") in MODES:
             clean[key] = dict(entry)
-    return {"schema": SCHEMA, "origin": origin, "measures": clean, "skips": skips}
+    out: dict[str, Any] = {"schema": SCHEMA, "origin": origin, "measures": clean, "skips": skips}
+    # UC-12606: los saltos ya gastados por un hook, con el commit y el contenido en que se gastaron.
+    used = [u for u in raw.get("used_skips") or [] if isinstance(u, dict)] if isinstance(raw.get("used_skips"), list) else []
+    if used:
+        out["used_skips"] = used[-MAX_USED_SKIPS:]
+    return out
 
 
 def effective_policy(raw: Any, *, backend_type: str) -> dict[str, Any]:
@@ -293,7 +300,8 @@ def validate_skip(measure: str, uc_id: str, reason: str) -> str:
 
 
 def with_skip(
-    raw: Any, measure: str, uc_id: str, reason: str, *, by: str, at: str, backend_type: str
+    raw: Any, measure: str, uc_id: str, reason: str, *, by: str, at: str, backend_type: str,
+    extra: dict[str, Any] | None = None,
 ) -> tuple[dict, dict]:
     """La política guardada con un salto pendiente de ``measure`` en ``uc_id``, y ese salto.
 
@@ -308,7 +316,7 @@ def with_skip(
             "hay bloqueo que saltar.",
         )
     stored = _stored(raw)
-    skip = {"measure": measure, "uc_id": uc_id, "reason": text, "by": by, "at": at}
+    skip = {"measure": measure, "uc_id": uc_id, "reason": text, "by": by, "at": at, **(extra or {})}
     stored["skips"] = [*stored["skips"], skip][-MAX_SKIPS:]
     return stored, skip
 
@@ -317,6 +325,35 @@ def with_skip(
 PERSON_ONLY_SKIPS = frozenset({"impact_radius"})
 #: Medidas que comprueba un hook en el equipo y cuyo salto gasta ese hook con use_enforcement_skip.
 CLIENT_SPENT_SKIPS = frozenset({"impact_radius"})
+
+
+_HEAD_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
+_FINGERPRINT_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def use_skip(
+    raw: Any, measure: str, uc_id: str, *, head: str, fingerprint: str, at: str
+) -> tuple[dict, dict | None, bool]:
+    """Gasta un salto en un commit concreto, o devuelve el ya gastado en ese mismo commit (UC-12606).
+
+    ``head`` es el commit sobre el que se hace y ``fingerprint`` la huella del contenido que decidió la
+    clase. Si ese mismo intento ya gastó un salto (el commit falló y se repite sin cambiar nada), se
+    devuelve otra vez con ``reused``; un contenido o un commit distinto gasta uno nuevo. La copia la
+    guarda el tablero, no el equipo: un fichero local no puede inventarse una aprobación.
+    """
+    if not _HEAD_RE.match(head or "") or not _FINGERPRINT_RE.match(fingerprint or ""):
+        raise PolicyError("INVALID_ATTEMPT", "head tiene que ser un commit (40 hex) y fingerprint una huella sha256 (64 hex).")
+    stored = _stored(raw)
+    used = list(stored.get("used_skips") or [])
+    for entry in used:
+        key = (entry.get("measure"), entry.get("uc_id"), entry.get("head"), entry.get("fingerprint"))
+        if key == (measure, uc_id, head, fingerprint) and isinstance(entry.get("skip"), dict):
+            return stored, entry["skip"], True
+    stored, skip = take_skip(stored, measure, uc_id)
+    if skip is not None:
+        entry = {"measure": measure, "uc_id": uc_id, "head": head, "fingerprint": fingerprint, "skip": skip, "at": at}
+        stored["used_skips"] = [*used, entry][-MAX_USED_SKIPS:]
+    return stored, skip, False
 
 
 def take_skip(raw: Any, measure: str, uc_id: str) -> tuple[dict, dict | None]:

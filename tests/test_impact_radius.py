@@ -64,8 +64,10 @@ def test_the_path_rules_are_the_same_as_the_hook_defaults():
         pytest.skip("sin node")
     paths = [
         "api/openapi.yaml", "docs/openapi-v2.json", "proto/cobros.proto", "web/schema.graphql",
-        "server/db/migrations/0041_x.sql", "supabase/migrations/2026_x.sql", "db/seed.sql",
-        "prisma/schema.prisma", "server/a.py", "package.json", "README.md", "openapi.md",
+        "web/api.graphql", "api/swagger.yml", "server/db/migrations/0041_x.sql", "supabase/migrations/2026_x.sql",
+        "db/seed.sql", "prisma/schema.prisma", "apps/api/prisma/schema.prisma", "app/alembic/versions/0001_x.py",
+        "db/migrate/20260101_x.rb", "docs/migrations/README.md", "server/a.py", "package.json", "README.md",
+        "openapi.md", "db/esquema_señal.sql",
     ]
     script = (
         "import { classifyCommit } from './.claude/hooks/lib/impact-radius.mjs';"
@@ -100,9 +102,13 @@ async def test_a_subagent_cannot_approve_and_the_main_session_can():
     sub = await skip_enforcement(None, "impact_radius", "UC-7", MOTIVO, policy_content=BLOCK, actor="Ana",
                                  client_session_id="s1", client_agent_id="agent-1", client_agent_type="general")
     assert sub["code"] == "SUBAGENT_CANNOT_APPROVE"
+    # Sin el contexto de Claude Code (lo pone el hook) no consta que sea una persona.
+    anon = await skip_enforcement(None, "impact_radius", "UC-7", MOTIVO, policy_content=BLOCK, actor="Ana")
+    assert anon["code"] == "PERSON_REQUIRED"
     ok = await skip_enforcement(None, "impact_radius", "UC-7", MOTIVO, policy_content=BLOCK, actor="Ana",
                                 client_session_id="s1")
     assert ok["success"] and ok["skip"]["by"] == "Ana" and ok["skip"]["measure"] == "impact_radius"
+    assert ok["skip"]["session_id"] == "s1"  # queda desde qué sesión se aprobó
     # Las demás medidas siguen como estaban: su salto no es la aprobación de una persona.
     other = json.dumps({"schema": 1, "origin": "existing", "skips": [],
                         "measures": {"spec_quality": {"mode": "block"}}})
@@ -110,18 +116,52 @@ async def test_a_subagent_cannot_approve_and_the_main_session_can():
                                    client_agent_id="agent-1"))["success"]
 
 
-async def test_the_approval_is_spent_once():
-    approved = await skip_enforcement(None, "impact_radius", "UC-7", MOTIVO, policy_content=BLOCK, actor="Ana")
-    first = await use_enforcement_skip(None, "impact_radius", "UC-7", policy_content=approved["policy_content"])
-    assert first["used"] is True and first["skip"]["reason"] == MOTIVO
-    assert json.loads(first["policy_content"])["skips"] == []
-    again = await use_enforcement_skip(None, "impact_radius", "UC-7", policy_content=first["policy_content"])
-    assert again["used"] is False and again["skip"] is None
-    other_uc = await use_enforcement_skip(None, "impact_radius", "UC-8", policy_content=approved["policy_content"])
+HEAD = "a" * 40
+FP1 = "1" * 64
+FP2 = "2" * 64
+
+
+async def test_the_approval_is_spent_on_one_attempt_and_reused_only_for_that_same_attempt():
+    approved = await skip_enforcement(None, "impact_radius", "UC-7", MOTIVO, policy_content=BLOCK, actor="Ana",
+                                      client_session_id="s1")
+    first = await use_enforcement_skip(None, "impact_radius", "UC-7", HEAD, FP1, policy_content=approved["policy_content"])
+    assert first["used"] is True and first["reused"] is False and first["skip"]["reason"] == MOTIVO
+    stored = json.loads(first["policy_content"])
+    assert stored["skips"] == [] and stored["used_skips"][0]["fingerprint"] == FP1
+    # El commit falló y se repite igual: la misma aprobación, sin gastar otra.
+    again = await use_enforcement_skip(None, "impact_radius", "UC-7", HEAD, FP1, policy_content=first["policy_content"])
+    assert again["used"] is True and again["reused"] is True and "policy_content" not in again
+    # Otro contenido (o otro commit) necesita otra aprobación.
+    other = await use_enforcement_skip(None, "impact_radius", "UC-7", HEAD, FP2, policy_content=first["policy_content"])
+    assert other["used"] is False
+    other_uc = await use_enforcement_skip(None, "impact_radius", "UC-8", HEAD, FP1, policy_content=approved["policy_content"])
     assert other_uc["used"] is False
-    server_side = await use_enforcement_skip(None, "spec_quality", "UC-7", policy_content=BLOCK)
-    assert server_side["code"] == "NOT_CLIENT_SPENT"
-    assert (await use_enforcement_skip(None, "impact_radius", "x", policy_content=BLOCK))["code"] == "INVALID_UC_ID"
+    # La lista de lo gastado sobrevive a otros cambios de la política.
+    assert "used_skips" in __import__("server.coordination.enforcement", fromlist=["_stored"])._stored(stored)
+
+
+async def test_use_enforcement_skip_rejects_bad_input_with_a_code():
+    assert (await use_enforcement_skip(None, "spec_quality", "UC-7", HEAD, FP1, policy_content=BLOCK))["code"] == "NOT_CLIENT_SPENT"
+    assert (await use_enforcement_skip(None, "x" * 100_000, "UC-7", HEAD, FP1, policy_content=BLOCK))["code"] == "NOT_CLIENT_SPENT"
+    assert (await use_enforcement_skip(None, "impact_radius", "x", HEAD, FP1, policy_content=BLOCK))["code"] == "INVALID_UC_ID"
+    assert (await use_enforcement_skip(None, "impact_radius", "UC-7", "zz", FP1, policy_content=BLOCK))["code"] == "INVALID_ATTEMPT"
+    for bad in ("{roto", "[1, 2]", "[" * 200_000 + "]" * 200_000):
+        out = await use_enforcement_skip(None, "impact_radius", "UC-7", HEAD, FP1, policy_content=bad)
+        assert out.get("success") is False and out["code"] in ("INVALID_POLICY_CONTENT", "INVALID_POLICY"), out
+
+
+def test_the_triage_follows_the_measure_mode_and_the_project_globs():
+    warn = analyze_preflight_decisions_impl(PLAN, autopilot_level="agresivo", impact_radius_mode="warn")
+    assert not [d for d in warn["decisions"] if d["decision_key"] == "impact_radius_approval"]
+    tools_plan = "# Plan\n### Fase 1: Tool\n**Criterios:** UC-1 AC-01\n**Ficheros:** server/tools/enforcement.py\n"
+    plain = analyze_preflight_decisions_impl(tools_plan, impact_radius_mode="block")
+    assert not [d for d in plain["decisions"] if d["decision_key"] == "impact_radius_approval"]
+    with_globs = analyze_preflight_decisions_impl(tools_plan, impact_radius_mode="block",
+                                                  impact={"signature_globs": ["server/tools/*.py"]})
+    [d] = [d for d in with_globs["user_dependent_decisions"] if d["decision_key"] == "impact_radius_approval"]
+    assert "server/tools/enforcement.py (si cambia la firma" in d["description"]
+    bad = analyze_preflight_decisions_impl(tools_plan, impact={"api_globs": ["*" * 30]})
+    assert bad["code"] == "INVALID_IMPACT"
 
 
 def test_the_template_sends_the_identity_and_registers_the_hook():
@@ -168,14 +208,24 @@ async def test_native_spends_the_approval_once_and_only_for_members():
         sub = await skip_enforcement(None, "impact_radius", "UC-7", MOTIVO, board_id=project_id, dev_token=member[1],
                                      client_session_id="s1", client_agent_id="agent-1")
         assert sub["code"] == "SUBAGENT_CANNOT_APPROVE"
-        ok = await skip_enforcement(None, "impact_radius", "UC-7", MOTIVO, board_id=project_id, dev_token=member[1])
+        anon = await skip_enforcement(None, "impact_radius", "UC-7", MOTIVO, board_id=project_id, dev_token=member[1])
+        assert anon["code"] == "PERSON_REQUIRED"
+        ok = await skip_enforcement(None, "impact_radius", "UC-7", MOTIVO, board_id=project_id, dev_token=member[1],
+                                    client_session_id="s1")
         assert ok["success"]
-        hidden = await use_enforcement_skip(None, "impact_radius", "UC-7", board_id=project_id, dev_token=stranger[1])
+        hidden = await use_enforcement_skip(None, "impact_radius", "UC-7", HEAD, FP1, board_id=project_id,
+                                            dev_token=stranger[1])
         assert not hidden.get("success")
-        used = await use_enforcement_skip(None, "impact_radius", "UC-7", board_id=project_id, dev_token=member[1])
-        assert used["used"] is True and used["skip"]["by"] == member[0]
-        again = await use_enforcement_skip(None, "impact_radius", "UC-7", board_id=project_id, dev_token=member[1])
-        assert again["used"] is False
+        used = await use_enforcement_skip(None, "impact_radius", "UC-7", HEAD, FP1, board_id=project_id, dev_token=member[1])
+        assert used["used"] is True and used["skip"]["by"] == member[0] and used["reused"] is False
+        again = await use_enforcement_skip(None, "impact_radius", "UC-7", HEAD, FP1, board_id=project_id, dev_token=member[1])
+        assert again["used"] is True and again["reused"] is True
+        other = await use_enforcement_skip(None, "impact_radius", "UC-7", HEAD, FP2, board_id=project_id, dev_token=member[1])
+        assert other["used"] is False
+        meta = await pool.fetchval(
+            "SELECT metadata FROM audit_log WHERE project_id = $1 AND operation = 'enforcement_skip'", project_id
+        )
+        assert (json.loads(meta) if isinstance(meta, str) else meta)["session_id"] == "s1"
         row = await pool.fetchval(
             "SELECT count(*) FROM audit_log WHERE project_id = $1 AND operation = 'enforcement_skip'", project_id
         )

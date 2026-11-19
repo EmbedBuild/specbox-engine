@@ -135,7 +135,7 @@ test('AC-03/AC-04: un cambio interno no pide aprobación ni en «block» y queda
     assert.equal(line.needs_approval, false);
     assert.equal(line.outcome, 'passed');
     assert.equal(line.uc_id, 'UC-701');
-    assert.deepEqual(line.files, [{ path: 'server/a.py', why: 'código interno' }]);
+    assert.deepEqual(line.files.internal, [{ path: 'server/a.py', why: 'código interno' }]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -201,7 +201,9 @@ test('AC-02: con la aprobación el commit sigue; vale para repetirlo si falló, 
     assert.deepEqual(policy(dir).skips, []); // gastada
     const [line] = logLines(dir);
     assert.equal(line.outcome, 'approved');
-    assert.deepEqual(line.approval, { by: 'Ana', at: SKIP.at, reason: SKIP.reason, reused: false });
+    assert.deepEqual({ ...line.approval, fingerprint: undefined }, { by: 'Ana', at: SKIP.at, reason: SKIP.reason, reused: false, fingerprint: undefined });
+    assert.match(line.approval.fingerprint, /^[0-9a-f]{64}$/);
+    assert.equal(policy(dir).used_skips.length, 1); // el tablero guarda en qué intento se gastó
     // El commit falló (lint, por ejemplo) y se repite sin que HEAD cambie: la misma aprobación vale.
     const retry = commit(dir);
     assert.equal(retry.code, 0);
@@ -243,4 +245,97 @@ test('una orden que no es un commit no hace nada', () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// ── Revisión de la PR #402 ───────────────────────────────────────────
+
+test('revisión: la aprobación no se inventa con un fichero local y no vale para otro contenido', () => {
+  const dir = project({ mode: 'block', skips: [SKIP] });
+  try {
+    write(dir, 'server/db/migrations/0041_x.sql', 'ALTER TABLE a ADD b int;\n');
+    git(dir, 'add', '-A');
+    const head = git(dir, 'rev-parse', 'HEAD');
+    assert.equal(commit(dir).code, 0);
+    // Mismo HEAD, otro contenido: la aprobación era para lo de antes.
+    write(dir, 'server/db/migrations/0041_x.sql', 'DROP TABLE a;\n');
+    git(dir, 'add', '-A');
+    assert.equal(commit(dir).code, 2);
+    // Un fichero local que imita una aprobación no cuenta.
+    write(dir, '.quality/impact-radius-approved.json', { head, uc_id: 'UC-701', files: ['server/db/migrations/0041_x.sql'], skip: SKIP });
+    assert.equal(commit(dir).code, 2);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('revisión: add en la misma orden, borrados, rutas del commit y nombres con tildes se ven', () => {
+  const dir = project({ mode: 'block', settings: { impact: { signature_globs: ['server/tools/*.py'] } } });
+  try {
+    write(dir, 'db/migrations/0001_a.sql', 'CREATE TABLE a (id int);\n');
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'UC-701: base');
+    // git add + commit en la misma orden: la firma nueva está en el disco, no aún en el índice.
+    write(dir, 'server/tools/x.py', 'async def get_uc(board_id: str, uc_id: str, plan: str = ""):\n    return 1\n');
+    assert.equal(commit(dir, 'git add server/tools/x.py && git commit -m "UC-701: firma"').code, 2);
+    git(dir, 'checkout', '-q', '--', 'server/tools/x.py');
+    // Un borrado de migración.
+    assert.equal(commit(dir, 'git rm -q db/migrations/0001_a.sql && git commit -m "UC-701: fuera"').code, 2);
+    // Un commit por ruta.
+    write(dir, 'db/migrations/0001_a.sql', 'CREATE TABLE a (id int, b int);\n');
+    assert.equal(commit(dir, 'git commit -m "UC-701: x" db/migrations/0001_a.sql').code, 2);
+    git(dir, 'checkout', '-q', '--', 'db/migrations/0001_a.sql');
+    // Un nombre con tilde.
+    write(dir, 'db/esquema_señal.sql', 'ALTER TABLE a ADD c int;\n');
+    git(dir, 'add', '-A');
+    const r = commit(dir);
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /db\/esquema_señal\.sql/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('revisión: un nombre de fichero no ejecuta órdenes y un commit con las dos clases enseña las dos', () => {
+  const dir = project({ mode: 'block', settings: { impact: { signature_globs: ['server/tools/*.py'] } } });
+  try {
+    write(dir, 'server/tools/$(touch PWNED).py', 'def f(a):\n    pass\n');
+    write(dir, 'api/openapi.yaml', 'openapi: 3.1.0\n');
+    write(dir, 'db/migrations/0002_b.sql', 'DROP TABLE a;\n');
+    git(dir, 'add', '-A');
+    const r = commit(dir);
+    assert.equal(existsSync(join(dir, 'PWNED')), false);
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /contrato de API — .*api\/openapi\.yaml.*; migración de datos — .*db\/migrations\/0002_b\.sql/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('revisión: la configuración sale de la rama base y la documentación no es una migración', () => {
+  const dir = project({ mode: 'block', settings: { impact: { signature_globs: ['server/tools/*.py'] } } });
+  try {
+    // La rama se quita los ficheros de firmas en su settings.json: no cuenta.
+    write(dir, '.claude/settings.json', {});
+    write(dir, 'server/tools/x.py', 'async def get_uc(board_id: str, uc_id: str, plan: str = ""):\n    return 1\n');
+    git(dir, 'add', '-A');
+    assert.equal(commit(dir).code, 2);
+    git(dir, 'reset', '-q');
+    git(dir, 'checkout', '-q', '--', '.');
+    write(dir, 'docs/migrations/README.md', '# Cómo migrar\n');
+    git(dir, 'add', '-A');
+    assert.equal(commit(dir).code, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('revisión: firmas de tools anidadas, métodos y valores por defecto con «):»; reformatear no cuenta', () => {
+  const tools = (sig) => `def register_x(mcp):\n    @mcp.tool()\n    def read_plan(${sig}):\n        """Doc con def falso(a):"""\n        return 1\n`;
+  assert.deepEqual(changedSignatures(tools('plan_name'), tools('plan_name, version=0')), ['read_plan']);
+  assert.deepEqual(changedSignatures(tools('plan_name'), tools('\n        plan_name,  # el plan\n    ')), []);
+  assert.deepEqual(changedSignatures('def f(a=")", b=1):\n  pass', 'def f(a=")", b=2):\n  pass'), ['f']);
+  assert.deepEqual(changedSignatures('', 'def nuevo_impl(a):\n  pass\ndef register_y(m):\n  pass'), []);
+  assert.equal(classifyCommit(['app/alembic/versions/0001_x.py']).class, 'data_migration');
+  assert.equal(classifyCommit(['apps/api/prisma/schema.prisma']).class, 'data_migration');
+  assert.equal(classifyCommit(['api/swagger.yaml']).class, 'api_contract');
 });

@@ -330,7 +330,9 @@ en el prompt. Ver Paso 5.X.0 para el bloque reusable de invocacion.
    ```
    analyze_preflight_decisions(
      plan_content="<contenido de doc/plans/{feature}_plan.md>",
-     autopilot_level="<specbox.autopilot.level de settings.local.json>"
+     autopilot_level="<specbox.autopilot.level de settings.local.json>",
+     impact_radius_mode="<modo de impact_radius en get_enforcement_policy>",
+     impact=<specbox.impact de .claude/settings.json, si lo hay>
    )
    ```
 

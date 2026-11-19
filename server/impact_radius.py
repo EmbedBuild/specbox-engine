@@ -11,6 +11,7 @@ compartido y no compara globs que mande el cliente. Puro: no lee disco.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from .plan_contract import parse_plan_contract
@@ -18,32 +19,89 @@ from .plan_contract import parse_plan_contract
 LABELS = {"api_contract": "contrato de API", "data_migration": "migración de datos"}
 
 
-def classify_path(path: str) -> str | None:
-    """``api_contract``, ``data_migration`` o None (dependencias o interno) para una ruta del plan."""
+#: Los globs del proyecto que admite el triaje (los mismos topes que la puerta de desviación).
+MAX_IMPACT_GLOBS = 20
+_DOC_RE = re.compile(r"\.(md|markdown|txt|rst)$", re.IGNORECASE)
+
+
+def _clean(path: str) -> str:
     p = (path or "").strip().strip("`").replace("\\", "/")
     while p.startswith("./"):
         p = p[2:]
-    p = p.lstrip("/")
+    return p.lstrip("/")
+
+
+def classify_path(path: str) -> str | None:
+    """``api_contract``, ``data_migration`` o None (dependencias o interno) para una ruta del plan.
+
+    Las mismas reglas por defecto que el hook (``DEFAULT_API`` y ``DEFAULT_MIGRATION`` de
+    lib/impact-radius.mjs; una prueba lo compara).
+    """
+    p = _clean(path)
     if not p:
         return None
     base = p.rstrip("/").rsplit("/", 1)[-1]
-    if (base.startswith("openapi") and base.endswith((".yaml", ".yml", ".json"))) or base.endswith(".proto") \
-            or base == "schema.graphql":
+    if (base.startswith(("openapi", "swagger")) and base.endswith((".yaml", ".yml", ".json"))) \
+            or base.endswith((".proto", ".graphql", ".graphqls")):
         return "api_contract"
-    if "/migrations/" in f"/{p}" or (p.endswith("/") and base == "migrations") or base.endswith(".sql") \
-            or p == "prisma/schema.prisma":
+    if _DOC_RE.search(base):
+        return None
+    folder = f"/{p}" if p.endswith("/") else f"/{p.rsplit('/', 1)[0]}/" if "/" in p else "/"
+    if any(seg in folder or seg in f"/{p}/" for seg in ("/migrations/", "/alembic/versions/", "/db/migrate/")) \
+            or base.endswith(".sql") or base == "schema.prisma":
         return "data_migration"
     return None
 
 
-def plan_impact(plan_content: str | None) -> list[dict[str, Any]]:
-    """Las fases del plan con contrato de API o migración de datos: ``{phase, class, label, files}``."""
+class ImpactConfigError(ValueError):
+    """Los globs del proyecto no son válidos."""
+
+
+def _matchers(impact: dict[str, Any] | None) -> dict[str, list]:
+    from .drift import MAX_EXCLUDE_LEN, MAX_EXCLUDE_WILDCARDS, glob_matcher
+
+    out: dict[str, list] = {"api_globs": [], "migration_globs": [], "signature_globs": []}
+    if not impact:
+        return out
+    if not isinstance(impact, dict):
+        raise ImpactConfigError("impact tiene que ser {api_globs, migration_globs, signature_globs}")
+    for key in out:
+        globs = impact.get(key) or []
+        if not isinstance(globs, list) or len(globs) > MAX_IMPACT_GLOBS or not all(
+            isinstance(g, str) and len(g) <= MAX_EXCLUDE_LEN and g.count("*") + g.count("?") <= MAX_EXCLUDE_WILDCARDS
+            for g in globs
+        ):
+            raise ImpactConfigError(
+                f"{key}: hasta {MAX_IMPACT_GLOBS} globs de hasta {MAX_EXCLUDE_LEN} caracteres y {MAX_EXCLUDE_WILDCARDS} comodines"
+            )
+        out[key] = [glob_matcher(g) for g in globs if g.strip()]
+    return out
+
+
+def plan_impact(plan_content: str | None, impact: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Las fases del plan con contrato de API o migración de datos: ``{phase, class, label, files}``.
+
+    Con ``impact`` (los globs del proyecto, ``specbox.impact``), también sus rutas de contrato o de
+    migración y los ficheros de firmas, que pueden cambiar el contrato si cambian sus parámetros.
+    """
+    from .drift import GlobBudget
+
+    matchers = _matchers(impact)
+    budget = GlobBudget()
     contract = parse_plan_contract(plan_content or "")
     out: list[dict[str, Any]] = []
     for phase in contract.phases:
         found: dict[str, list[str]] = {}
-        for path in phase.files:
+        for raw in phase.files:
+            path = _clean(raw)
             cls = classify_path(path)
+            if cls is None and any(m(path, budget) for m in matchers["api_globs"]):
+                cls = "api_contract"
+            if cls is None and not _DOC_RE.search(path) and any(m(path, budget) for m in matchers["migration_globs"]):
+                cls = "data_migration"
+            if cls is None and any(m(path, budget) for m in matchers["signature_globs"]):
+                cls = "api_contract"
+                path = f"{path} (si cambia la firma de una función pública)"
             if cls:
                 found.setdefault(cls, []).append(path)
         for cls in ("api_contract", "data_migration"):
@@ -52,9 +110,16 @@ def plan_impact(plan_content: str | None) -> list[dict[str, Any]]:
     return out
 
 
-def impact_decision(plan_content: str | None) -> dict[str, str] | None:
-    """La decisión del triaje (``impact_radius_approval``) si el plan toca contrato o migración."""
-    phases = plan_impact(plan_content)
+def impact_decision(plan_content: str | None, *, mode: str | None = None,
+                    impact: dict[str, Any] | None = None) -> dict[str, str] | None:
+    """La decisión del triaje (``impact_radius_approval``) si el plan toca contrato o migración.
+
+    Con ``mode`` (el de la medida en el tablero), solo en «block»: en «warn» u «off» no hay nada que
+    aprobar y el triaje no pregunta. Sin él, pregunta (el lado seguro).
+    """
+    if mode is not None and mode != "block":
+        return None
+    phases = plan_impact(plan_content, impact)
     if not phases:
         return None
     parts = [f"{p['phase']}: {p['label']} ({', '.join(p['files'][:3])}{'…' if len(p['files']) > 3 else ''})"
@@ -64,7 +129,8 @@ def impact_decision(plan_content: str | None) -> dict[str, str] | None:
         "description": (
             "El plan cambia un contrato de API o una migración de datos (" + "; ".join(parts) + more + "). "
             "Con la medida impact_radius en «block», esos commits necesitan la aprobación de una persona: "
-            "si la das ahora, queda registrada (skip_enforcement con measure=\"impact_radius\") y el commit no se detiene."
+            "si la das ahora, queda registrada (skip_enforcement con measure=\"impact_radius\", una por fase) "
+            "y el commit no se detiene."
         ),
         "source": "plan · fases con contrato de API o migración de datos",
         "decision_key": "impact_radius_approval",

@@ -119,10 +119,12 @@ function gitAuthor() {
 }
 
 function prePolicy() {
-  if (typeof toolInput.policy_content === 'string') return; // explicit content wins
   const read = (path) => (existsSync(path) ? readFileSync(path, 'utf-8') : '');
-  const updatedInput = { ...toolInput, policy_content: read(policyPath) };
-  if (POLICY_BOARD_TOOLS.has(parsed.tool)) {
+  const updatedInput = { ...toolInput };
+  // Explicit content wins; the identity below is added anyway (UC-12606: a subagent cannot pass its
+  // own policy_content to skip the check of who approves).
+  if (typeof toolInput.policy_content !== 'string') updatedInput.policy_content = read(policyPath);
+  if (typeof toolInput.policy_content !== 'string' && POLICY_BOARD_TOOLS.has(parsed.tool)) {
     // UC-12213: the impact report needs the open UCs and the blocks of the last days.
     if (typeof toolInput.board_content !== 'string') updatedInput.board_content = read(itemsPath) || '[]';
     if (typeof toolInput.events_content !== 'string') updatedInput.events_content = read(eventsPath);

@@ -233,6 +233,14 @@ CASES = [
      "criteria": ["AC-01"], "uc": None, "results": None},
     {"contract": json.dumps(GOOD), "criteria": ["AC-01"], "uc": None, "results": '{"results": 3}'},
     {"contract": "", "criteria": None, "uc": None, "results": None},
+    # Espacios y caracteres raros: solo los espacios ASCII cuentan, en los dos lados.
+    {"contract": json.dumps({"schema": 1, "uc_id": "UC-900", "criteria": {
+        "AC-01\u00a0": {"pre": [{"id": "AC-01.pre1", "text": "x"}], "post": [], "undefined": []},
+        "AC-02": {"pre": [{"id": "AC-02.pre1", "text": "\x1c"}], "post": [{"id": "AC-02.post1", "text": "\ufeff"}],
+                  "undefined": ["\u00a0"]}}}), "criteria": ["AC-01", "AC-02"], "uc": "UC-900", "results": None},
+    {"contract": '{"schema": 1, "criteria": {"AC-01": {"pre": [{"id": "AC-01.pre1", "text": NaN}]}}}',
+     "criteria": None, "uc": None, "results": None},
+    {"contract": "[" * 20000 + "]" * 20000, "criteria": None, "uc": None, "results": None},
 ]
 
 
@@ -249,7 +257,20 @@ def test_the_server_and_the_hook_say_the_same():
     )
     js = json.loads(subprocess.run(["node", "--input-type=module", "-e", script], cwd=ROOT, input=json.dumps(CASES),
                                    capture_output=True, text=True, check=True).stdout)
-    assert js == py
+
+    for n, (j, p) in enumerate(zip(js, py, strict=True)):
+        if "no es JSON" in str(j.get("error")) + str(p.get("error")):
+            # Lo que no se entiende lo explica cada analizador con sus palabras (o, con un anidamiento
+            # enorme, uno lo lee y el otro se queda sin pila): basta con que los dos lo rechacen igual.
+            assert (j["success"], j["code"]) == (p["success"], p["code"]) == (False, "INVALID_CONTRACT"), n
+        else:
+            assert j == p, n
+
+
+def test_hostile_content_is_an_invalid_contract_never_a_crash():
+    for content in ("\ud800", "[" * 50000 + "]" * 50000, '{"schema": 1, "criteria": {}, "x": Infinity}'):
+        assert contract_report(content, None)["code"] == "INVALID_CONTRACT"
+    assert contract_report(json.dumps(GOOD), None, None, "[" * 50000 + "]" * 50000)["code"] == "INVALID_RESULTS"
 
 
 # ── AC-03 / AC-06: el informe de aceptación enseña el contrato junto al resultado ──────────────
@@ -294,6 +315,18 @@ def test_ac06_an_empty_contract_means_the_uc_has_none_and_omitted_keeps_the_old_
     old = _check()
     assert all("contract" not in c for c in old["uc_results"][0]["criteria"])
     assert "Contrato" not in old["reports"][".quality/acceptance-check/UC-900/report.md"]
+
+
+def test_ac06_an_incomplete_contract_says_what_it_lacks_in_the_report():
+    contract = json.loads(json.dumps(GOOD))
+    contract["criteria"]["AC-02"] = {"pre": [{"id": "AC-02.pre1", "text": "Sin líneas"}]}
+    out = _check(contract_content=json.dumps(contract))
+    [uc] = out["uc_results"]
+    assert "contract_warning" not in uc["criteria"][0]
+    assert uc["criteria"][1]["contract_warning"] == "Contrato incompleto: le falta post y undefined."
+    report = json.loads(out["reports"][".quality/acceptance-check/UC-900/report.json"])
+    assert report["criteria_with_incomplete_contract"] == ["AC-02"] and report["criteria_without_contract"] == []
+    assert "**Aviso**: Contrato incompleto" in out["reports"][".quality/acceptance-check/UC-900/report.md"]
 
 
 def test_an_unreadable_contract_answers_invalid_contract():

@@ -1136,12 +1136,14 @@ def _parse_contracts(contract_content: str | None) -> dict[str, dict] | None:
     return out
 
 
-def _criterion_contract(contracts: dict[str, dict], uc_id: str, ac_id: str) -> dict | None:
+def _criterion_contract(contracts: dict[str, dict], uc_id: str, ac_id: str) -> tuple[dict | None, list[str]]:
+    """El contrato de un criterio y lo que le falta (``pre``, ``post`` o ``undefined`` sin escribir)."""
     contract = contracts.get(uc_id.upper()) or contracts.get("")
     entry = contract["criteria"].get(_ac_key(ac_id)) if contract else None
-    if not entry:
-        return None
-    return {"pre": entry["pre"], "post": entry["post"], "undefined": entry["undefined"] or []}
+    if entry is None:
+        return None, []
+    lacks = [kind for kind in ("pre", "post") if not entry[kind]] + (["undefined"] if entry["undefined"] is None else [])
+    return {"pre": entry["pre"], "post": entry["post"], "undefined": entry["undefined"] or []}, lacks
 
 
 def _contract_md(contract: dict | None) -> list[str]:
@@ -1305,9 +1307,11 @@ def run_acceptance_check_from_content(
                 "evidence": evidence[:10],
             }
             if contracts is not None:  # UC-12801: el contrato junto al resultado
-                criterion["contract"] = _criterion_contract(contracts, uc_id, ac_id)
+                criterion["contract"], lacks = _criterion_contract(contracts, uc_id, ac_id)
                 if criterion["contract"] is None:
                     criterion["contract_warning"] = CONTRACT_MISSING
+                elif lacks:
+                    criterion["contract_warning"] = f"Contrato incompleto: le falta {' y '.join(lacks)}."
             uc_criteria_results.append(criterion)
 
         verdicts = [c["verdict"] for c in uc_criteria_results]
@@ -1332,6 +1336,9 @@ def run_acceptance_check_from_content(
             report["from_superseded_prd"] = True
         if contracts is not None:
             report["criteria_without_contract"] = [c["ac_id"] for c in uc_criteria_results if c["contract"] is None]
+            report["criteria_with_incomplete_contract"] = [
+                c["ac_id"] for c in uc_criteria_results if c["contract"] is not None and c.get("contract_warning")
+            ]
         report_json_rel = f".quality/acceptance-check/{uc_id}/report.json"
         report_files[report_json_rel] = json.dumps(report, indent=2, ensure_ascii=False)
 
@@ -1359,6 +1366,8 @@ def run_acceptance_check_from_content(
                     md_lines.append(f"- `{e}`")
             if contracts is not None:
                 md_lines.extend(_contract_md(c.get("contract")))
+                if c.get("contract") is not None and c.get("contract_warning"):
+                    md_lines.append(f"**Aviso**: {c['contract_warning']}")
             md_lines.append("")
 
         md_lines.append("---")

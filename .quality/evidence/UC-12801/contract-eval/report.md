@@ -29,6 +29,7 @@ Regla fijada antes de empezar: el contrato gana si, sumando las 5 UC y las dos p
 **Total B**: 94/100 mutantes detectados, 0 falsos positivos.
 
 **Resultado**: el contrato gana (B detecta más sin más falsos positivos).
+Margen: +3 mutantes de 100 sumando las dos pasadas; B escribe 584 pruebas frente a 419 de A, lo que explica parte de la diferencia.
 
 ## Coste medio por pasada
 
@@ -56,6 +57,6 @@ Regla fijada antes de empezar: el contrato gana si, sumando las 5 UC y las dos p
 
 ## Límites
 
-- El aislamiento de los subagentes es una instrucción, no una barrera; cada informe lo confirma.
+- El aislamiento de los subagentes es una instrucción, no una barrera; cada uno lo declaró en su informe al orquestador, y esos informes no se guardan aquí.
 - Los tokens son los del subagente entero (incluye el contexto que recibe al empezar), no solo los de escribir las pruebas.
 - Cinco UC del propio engine, de lógica pura en Python; 10 mutantes por UC escritos por agentes aislados (ver `scripts/contract-eval/README.md`).

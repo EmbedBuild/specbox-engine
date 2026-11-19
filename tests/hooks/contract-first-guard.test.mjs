@@ -13,7 +13,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -159,6 +159,40 @@ test('una UC anterior a la regla solo recibe la nota, aunque la medida esté en 
   }
 });
 
+test('una carpeta de aceptación que es un enlace simbólico también se mira', () => {
+  const dir = project();
+  try {
+    mkdirSync(join(dir, 'qa/acc'), { recursive: true });
+    mkdirSync(join(dir, 'tests'), { recursive: true });
+    symlinkSync('../qa/acc', join(dir, 'tests/acceptance'));
+    const r = writeTest(dir, 'tests/acceptance/UC-701.feature');
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /UC-701 no tiene contrato/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('sin los criterios en el marcador, un contrato vacío no vale; uno que no se lee lo dice', () => {
+  let dir = project({ marker: { ac_ids: undefined }, contract: { schema: 1, uc_id: 'UC-701', criteria: {} } });
+  try {
+    const r = writeTest(dir);
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /no está completo: no tiene ningún criterio/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  dir = project();
+  try {
+    mkdirSync(join(dir, '.quality/evidence/facturas/acceptance/contract.json'), { recursive: true });
+    const r = writeTest(dir);
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /no se puede leer \(EISDIR\)/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // ── e2e-gate: la misma medida al hacer commit ─────────────────────────────────────────────────
 
 const result = (id, contract) => ({
@@ -209,6 +243,19 @@ test('AC-03: e2e-gate detiene la evidencia cuyas pruebas no citan su contrato y 
     const ok = commit(dir);
     assert.equal(ok.code, 0, ok.stderr);
     assert.equal(`${ok.stdout}${ok.stderr}`.trim(), '');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('e2e-gate también mira los flujos de Maestro', () => {
+  const dir = project();
+  try {
+    write(dir, '.maestro/flows/AC-01.yaml', 'appId: x\n---\n- launchApp\n');
+    git(dir, 'add', '.maestro/flows/AC-01.yaml');
+    const r = commit(dir);
+    assert.equal(r.code, 2);
+    assert.match(r.stderr, /UC-701 no tiene contrato/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

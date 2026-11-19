@@ -20,8 +20,8 @@ export const MAX_CONDITIONS = 50;
 export const MAX_TEXT = 2000;
 const KINDS = ['pre', 'post'];
 
-const AC_RE = /^\s*AC-(\d{1,4})\s*$/i;
-const CONDITION_RE = /^\s*AC-(\d{1,4})\.(pre|post)(\d{1,4})\s*$/i;
+const AC_RE = /^[ \t\r\n]*AC-(\d{1,4})[ \t\r\n]*$/i;
+const CONDITION_RE = /^[ \t\r\n]*AC-(\d{1,4})\.(pre|post)(\d{1,4})[ \t\r\n]*$/i;
 
 export class ContractError extends Error {}
 export class ResultsError extends Error {}
@@ -32,6 +32,8 @@ const pad = (n) => String(Number.parseInt(n, 10)).padStart(2, '0');
 /** Corta por caracteres, no por unidades UTF-16 (como Python). */
 const cut = (s, n) => Array.from(s).slice(0, n).join('');
 const chars = (s) => Array.from(s).length;
+/** Solo los espacios ASCII cuentan como espacio, igual que en el servidor. */
+const strip = (s) => String(s).replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '');
 
 function acId(raw) {
   const m = typeof raw === 'string' ? AC_RE.exec(raw) : null;
@@ -60,7 +62,7 @@ function show(raw) {
 
 /** Lee el contrato y lo deja normalizado; lo que no vale va a `invalid`. */
 export function parseContract(content) {
-  if (content === null || content === undefined || !String(content).trim()) throw new ContractError('está vacío');
+  if (content === null || content === undefined || !strip(content)) throw new ContractError('está vacío');
   if (Buffer.byteLength(content, 'utf8') > MAX_CONTRACT_BYTES) {
     throw new ContractError(`pasa de ${MAX_CONTRACT_BYTES} bytes`);
   }
@@ -79,7 +81,7 @@ export function parseContract(content) {
 
   const invalid = [];
   let ucId = data.uc_id;
-  if (typeof ucId !== 'string' || !ucId.trim()) {
+  if (typeof ucId !== 'string' || !strip(ucId)) {
     invalid.push({ ac_id: '', problem: 'falta «uc_id»' });
     ucId = '';
   }
@@ -130,7 +132,7 @@ export function parseContract(content) {
           invalid.push({ ac_id: ac, problem: `«${condId}» aparece dos veces` });
           continue;
         }
-        if (typeof text !== 'string' || !text.trim()) {
+        if (typeof text !== 'string' || !strip(text)) {
           invalid.push({ ac_id: ac, problem: `«${condId}» no tiene texto` });
           continue;
         }
@@ -139,22 +141,22 @@ export function parseContract(content) {
           continue;
         }
         seen.add(condId);
-        parsed[kind].push({ id: condId, text: text.trim() });
+        parsed[kind].push({ id: condId, text: strip(text) });
       }
     }
     const undef = has(entry, 'undefined') ? entry.undefined : null;
     if (undef !== null) {
-      if (!Array.isArray(undef) || !undef.every((u) => typeof u === 'string' && u.trim())) {
+      if (!Array.isArray(undef) || !undef.every((u) => typeof u === 'string' && strip(u))) {
         invalid.push({ ac_id: ac, problem: '«undefined» no es una lista de textos' });
       } else if (undef.length > MAX_CONDITIONS || undef.some((u) => chars(u) > MAX_TEXT)) {
         invalid.push({ ac_id: ac, problem: '«undefined» es demasiado largo' });
       } else {
-        parsed.undefined = undef.map((u) => u.trim());
+        parsed.undefined = undef.map((u) => strip(u));
       }
     }
     criteria[ac] = parsed;
   }
-  return { uc_id: ucId.trim().toUpperCase(), criteria, invalid };
+  return { uc_id: strip(ucId).toUpperCase(), criteria, invalid };
 }
 
 /** Qué falta en el contrato para los criterios vigentes de la UC (AC-01). */
@@ -176,7 +178,7 @@ export function checkContract(contract, criteriaIds, ucId = null) {
   }
   const extra = wanted.length ? Object.keys(entries).filter((ac) => !wanted.includes(ac)) : [];
   const out = { missing, incomplete, extra };
-  const expected = String(ucId || '').trim().toUpperCase();
+  const expected = strip(ucId || '').toUpperCase();
   if (expected && contract.uc_id && contract.uc_id !== expected) {
     out.uc_mismatch = { expected, found: contract.uc_id };
   }
@@ -185,7 +187,7 @@ export function checkContract(contract, criteriaIds, ucId = null) {
 
 /** Las ejecuciones de results.json (una o una lista), en orden: la más reciente, la última. */
 export function parseResults(content) {
-  if (content === null || content === undefined || !String(content).trim()) throw new ResultsError('está vacío');
+  if (content === null || content === undefined || !strip(content)) throw new ResultsError('está vacío');
   if (Buffer.byteLength(content, 'utf8') > MAX_RESULTS_BYTES) {
     throw new ResultsError(`pasa de ${MAX_RESULTS_BYTES} bytes`);
   }
@@ -211,7 +213,7 @@ export function parseResults(content) {
 function latestTests(runs, ucId) {
   const out = new Map();
   for (const run of runs) {
-    const runUc = String(run.uc_id || '').trim().toUpperCase();
+    const runUc = strip(run.uc_id || '').toUpperCase();
     if (ucId && runUc && runUc !== ucId) continue;
     const thisRun = new Map();
     for (const result of run.results) {

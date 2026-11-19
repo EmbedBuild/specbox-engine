@@ -60,7 +60,8 @@ las dos pasadas). El detalle está en
 ## Límites
 
 - Los subagentes trabajan en la copia del repositorio: el aislamiento (no leer `tests/` ni
-  `scripts/contract-eval/`) es una instrucción, no una barrera. Cada pasada lo declara en su informe.
+  `scripts/contract-eval/`) es una instrucción, no una barrera. Cada pasada lo declaró en su informe al
+  orquestador; esos informes no se guardan en la evidencia.
 - Los mutantes son de un agente, no de una herramienta de mutación (`mutmut` metería una dependencia
   y cambios sintácticos que no prueban los criterios); su sesgo se compensa con la revisión de
   equivalentes y con que los dos brazos se miden contra los mismos.

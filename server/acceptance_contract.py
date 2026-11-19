@@ -30,8 +30,8 @@ MAX_CONDITIONS = 50
 MAX_TEXT = 2000
 KINDS = ("pre", "post")
 
-_AC = re.compile(r"^\s*AC-(\d{1,4})\s*$", re.IGNORECASE | re.ASCII)
-_CONDITION = re.compile(r"^\s*AC-(\d{1,4})\.(pre|post)(\d{1,4})\s*$", re.IGNORECASE | re.ASCII)
+_AC = re.compile(r"^[ \t\r\n]*AC-(\d{1,4})[ \t\r\n]*$", re.IGNORECASE | re.ASCII)
+_CONDITION = re.compile(r"^[ \t\r\n]*AC-(\d{1,4})\.(pre|post)(\d{1,4})[ \t\r\n]*$", re.IGNORECASE | re.ASCII)
 
 
 class ContractError(ValueError):
@@ -56,8 +56,26 @@ def normalize_condition(raw: object) -> tuple[str, str, str] | None:
     return f"{ac}.{kind}{int(match[3])}", ac, kind
 
 
+#: Solo los espacios ASCII cuentan como espacio, igual que en el hook (Python y JS no coinciden con los demás).
+_WS = " \t\r\n"
+
+
+def _strip(text: str) -> str:
+    return text.strip(_WS)
+
+
 def _size(text: str) -> int:
-    return len(text.encode("utf-8"))
+    # «surrogatepass»: un carácter suelto no hace fallar la medida (cuenta 3 bytes, como Buffer.byteLength).
+    return len(text.encode("utf-8", "surrogatepass"))
+
+
+def _reject_constant(name: str) -> None:
+    raise ValueError(f"{name} no es JSON")
+
+
+def _loads(content: str):
+    """JSON estricto (sin NaN ni Infinity, como JSON.parse); un anidamiento sin fin es un error, no un fallo."""
+    return json.loads(content, parse_constant=_reject_constant)
 
 
 def _show(raw: object) -> str:
@@ -77,13 +95,13 @@ def parse_contract(content: str | None) -> dict[str, Any]:
     ``undefined`` es None cuando el criterio no lo escribe (vacío vale: se escribe aunque no haya
     nada). Un contenido que no es un contrato es un ``ContractError``.
     """
-    if content is None or not str(content).strip():
+    if content is None or not _strip(str(content)):
         raise ContractError("está vacío")
     if _size(content) > MAX_CONTRACT_BYTES:
         raise ContractError(f"pasa de {MAX_CONTRACT_BYTES} bytes")
     try:
-        data = json.loads(content)
-    except (TypeError, ValueError) as e:
+        data = _loads(content)
+    except (TypeError, ValueError, RecursionError) as e:
         raise ContractError(f"no es JSON ({e})") from e
     if not isinstance(data, dict):
         raise ContractError("no es un objeto JSON")
@@ -98,7 +116,7 @@ def parse_contract(content: str | None) -> dict[str, Any]:
 
     invalid: list[dict[str, str]] = []
     uc_id = data.get("uc_id")
-    if not isinstance(uc_id, str) or not uc_id.strip():
+    if not isinstance(uc_id, str) or not _strip(uc_id):
         invalid.append({"ac_id": "", "problem": "falta «uc_id»"})
         uc_id = ""
     criteria: dict[str, dict[str, Any]] = {}
@@ -138,24 +156,24 @@ def parse_contract(content: str | None) -> dict[str, Any]:
                 if cond_id in seen:
                     invalid.append({"ac_id": ac, "problem": f"«{cond_id}» aparece dos veces"})
                     continue
-                if not isinstance(text, str) or not text.strip():
+                if not isinstance(text, str) or not _strip(text):
                     invalid.append({"ac_id": ac, "problem": f"«{cond_id}» no tiene texto"})
                     continue
                 if len(text) > MAX_TEXT:
                     invalid.append({"ac_id": ac, "problem": f"«{cond_id}» pasa de {MAX_TEXT} caracteres"})
                     continue
                 seen.add(cond_id)
-                parsed[kind].append({"id": cond_id, "text": text.strip()})
+                parsed[kind].append({"id": cond_id, "text": _strip(text)})
         undefined = entry.get("undefined")
         if undefined is not None:
-            if not isinstance(undefined, list) or not all(isinstance(u, str) and u.strip() for u in undefined):
+            if not isinstance(undefined, list) or not all(isinstance(u, str) and _strip(u) for u in undefined):
                 invalid.append({"ac_id": ac, "problem": "«undefined» no es una lista de textos"})
             elif len(undefined) > MAX_CONDITIONS or any(len(u) > MAX_TEXT for u in undefined):
                 invalid.append({"ac_id": ac, "problem": "«undefined» es demasiado largo"})
             else:
-                parsed["undefined"] = [u.strip() for u in undefined]
+                parsed["undefined"] = [_strip(u) for u in undefined]
         criteria[ac] = parsed
-    return {"uc_id": uc_id.strip().upper(), "criteria": criteria, "invalid": invalid}
+    return {"uc_id": _strip(uc_id).upper(), "criteria": criteria, "invalid": invalid}
 
 
 def check_contract(contract: dict[str, Any], criteria_ids: list[str], uc_id: str | None = None) -> dict[str, Any]:
@@ -184,7 +202,7 @@ def check_contract(contract: dict[str, Any], criteria_ids: list[str], uc_id: str
             incomplete.append({"ac_id": ac, "missing": lacks})
     extra = [ac for ac in entries if ac not in wanted] if wanted else []
     out: dict[str, Any] = {"missing": missing, "incomplete": incomplete, "extra": extra}
-    expected = (uc_id or "").strip().upper()
+    expected = _strip(uc_id or "").upper()
     if expected and contract["uc_id"] and contract["uc_id"] != expected:
         out["uc_mismatch"] = {"expected": expected, "found": contract["uc_id"]}
     return out
@@ -192,13 +210,13 @@ def check_contract(contract: dict[str, Any], criteria_ids: list[str], uc_id: str
 
 def parse_results(content: str | None) -> list[dict[str, Any]]:
     """Las ejecuciones de ``results.json`` (una o una lista), en orden: la más reciente, la última."""
-    if content is None or not str(content).strip():
+    if content is None or not _strip(str(content)):
         raise ResultsError("está vacío")
     if _size(content) > MAX_RESULTS_BYTES:
         raise ResultsError(f"pasa de {MAX_RESULTS_BYTES} bytes")
     try:
-        data = json.loads(content)
-    except (TypeError, ValueError) as e:
+        data = _loads(content)
+    except (TypeError, ValueError, RecursionError) as e:
         raise ResultsError(f"no es JSON ({e})") from e
     runs = data if isinstance(data, list) else [data]
     if not runs:
@@ -215,7 +233,7 @@ def _latest_tests(runs: list[dict[str, Any]], uc_id: str) -> dict[str, list[dict
     """Las pruebas de cada criterio en la ejecución más reciente que lo trae (como run_acceptance_check)."""
     out: dict[str, list[dict[str, Any]]] = {}
     for run in runs:
-        run_uc = str(run.get("uc_id") or "").strip().upper()
+        run_uc = _strip(str(run.get("uc_id") or "")).upper()
         if uc_id and run_uc and run_uc != uc_id:
             continue
         this_run: dict[str, list[dict[str, Any]]] = {}

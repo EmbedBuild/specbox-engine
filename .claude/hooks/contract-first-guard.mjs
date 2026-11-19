@@ -52,8 +52,18 @@ function real(path) {
     return path;
   }
 }
-const rel = relative(real(root), real(isAbsolute(target) ? target : resolve(cwd, target))).split('\\').join('/');
-if (rel.startsWith('..') || !ACCEPTANCE_PATH.test(rel)) process.exit(0);
+// La ruta dentro del repositorio, tal cual y con los enlaces resueltos: una carpeta de aceptación que
+// es un enlace simbólico (tests/acceptance -> ../qa/acc) también cuenta.
+const abs = isAbsolute(target) ? target : resolve(cwd, target);
+const rels = [];
+for (const r of new Set([root, real(root)])) {
+  for (const a of new Set([abs, real(abs), `/private${abs}`])) {
+    const candidate = relative(r, a).split('\\').join('/');
+    if (candidate && !candidate.startsWith('..') && !isAbsolute(candidate)) rels.push(candidate);
+  }
+}
+const rel = rels.find((candidate) => ACCEPTANCE_PATH.test(candidate));
+if (!rel) process.exit(0);
 
 process.chdir(root);
 const config = getProjectConfig();

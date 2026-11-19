@@ -142,6 +142,26 @@ test('AC-03: un criterio sin contrato lo dice en su tarjeta, y sin contract.json
   }
 });
 
+test('un id «AC-1» encuentra su contrato y un flujo «AC-01» no se queda con «AC-010»', () => {
+  const w = workspace();
+  try {
+    writeFileSync(join(w.dir, 'cucumber.json'), JSON.stringify([{ elements: [
+      { name: 'Total', tags: [{ name: '@AC-1' }, { name: '@pre:AC-01.pre1' }, { name: '@post:AC-01.post1' }],
+        steps: [{ keyword: 'Entonces ', name: 'ok', result: { status: 'passed', duration: 1 } }] },
+    ] }]));
+    const api = generate(GENERATORS[0], w);
+    assert.doesNotMatch(api.html, /Sin contrato para este criterio/);
+    assert.match(api.html, /Hay una factura con dos líneas de 60,00 €/);
+    writeFileSync(join(w.dir, '.maestro/ac01.yaml'), '# contract: AC-01.pre1, AC-01.post1\nname: AC-01\n---\n- launchApp\n');
+    rmSync(join(w.dir, '.maestro/sin-lineas.yaml'));
+    writeFileSync(join(w.dir, 'junit.xml'), '<testsuite tests="1" failures="0"><testcase name="AC-010 otra cosa" classname="x" time="1"/></testsuite>');
+    const maestro = generate(GENERATORS[1], w);
+    assert.equal(maestro.results.results[0].contract, undefined);
+  } finally {
+    w.done();
+  }
+});
+
 test('el bloque del contrato es el mismo en los tres generadores', () => {
   const blocks = GENERATORS.map((script) => {
     const text = readFileSync(script, 'utf8');

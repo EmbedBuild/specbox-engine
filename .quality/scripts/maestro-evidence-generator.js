@@ -66,6 +66,12 @@ function normalizeConditionId(raw) {
   return m ? `AC-${String(Number(m[1])).padStart(2, '0')}.${m[2].toLowerCase()}${Number(m[3])}` : null;
 }
 
+/** «AC-1» y «ac-01» son AC-01, como en el contrato. */
+function normalizeAcId(raw) {
+  const m = /^\s*AC-(\d{1,4})\s*$/i.exec(String(raw));
+  return m ? `AC-${String(Number(m[1])).padStart(2, '0')}` : String(raw);
+}
+
 /** Citations from Gherkin tags: the tag says the kind (@pre: / @post:). */
 function citationsFromTags(tags) {
   const out = { pre: [], post: [] };
@@ -117,7 +123,7 @@ function loadContract(explicitPath, reportDir) {
 /** The contract of a criterion in its card, with the conditions this test cites marked. */
 function contractHtml(contract, acId, cited) {
   if (!contract) return '';
-  const entry = contract.criteria[acId];
+  const entry = contract.criteria[normalizeAcId(acId)];
   const box = 'margin-top:8px;padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px';
   if (!entry) {
     return `<div class="contract" style="${box};color:#b45309">Sin contrato para este criterio</div>`;
@@ -138,13 +144,25 @@ function contractHtml(contract, acId, cited) {
       </div>`;
 }
 
+/** The test name contains the flow or test name as a whole word («AC-01» is not «AC-010»). */
+function namesMatch(scenario, name) {
+  if (!name) return false;
+  if (scenario === name) return true;
+  const at = scenario.indexOf(name);
+  if (at < 0) return false;
+  const before = at === 0 ? '' : scenario[at - 1];
+  const after = scenario[at + name.length] || '';
+  return !/[\w-]/.test(before) && !/[\w]/.test(after);
+}
+
 /** Which «contract:» comment belongs to a test: by its name, else the only one of its criterion. */
 function matchCitations(result, sources, results) {
-  const byName = sources.find((s) => s.names.some((n) => n && (result.scenario === n || result.scenario.includes(n))));
+  const byName = sources.find((s) => s.names.some((n) => namesMatch(result.scenario, n)));
   if (byName) return byName.citations;
-  const sameAc = results.filter((r) => r.id === result.id);
+  const acId = normalizeAcId(result.id);
+  const sameAc = results.filter((r) => normalizeAcId(r.id) === acId);
   if (sameAc.length !== 1) return null;
-  const mine = sources.filter((s) => [...s.citations.pre, ...s.citations.post].every((id) => id.startsWith(`${result.id}.`))
+  const mine = sources.filter((s) => [...s.citations.pre, ...s.citations.post].every((id) => id.startsWith(`${acId}.`))
     && hasCitations(s.citations));
   return mine.length === 1 ? mine[0].citations : null;
 }

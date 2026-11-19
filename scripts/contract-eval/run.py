@@ -225,6 +225,8 @@ def report(rows: list[dict]) -> str:
         "",
         f"**Resultado**: {'el contrato gana' if wins else 'el contrato no gana'} "
         f"({'B detecta más sin más falsos positivos' if wins else 'B no detecta más, o lo hace con más falsos positivos'}).",
+        f"Margen: {b_k - a_k:+d} mutantes de {b_m} sumando las dos pasadas; B escribe "
+        f"{total('B', 'tests')} pruebas frente a {total('A', 'tests')} de A, lo que explica parte de la diferencia.",
         "",
         "## Coste medio por pasada",
         "",
@@ -244,7 +246,8 @@ def report(rows: list[dict]) -> str:
         "",
         "## Límites",
         "",
-        "- El aislamiento de los subagentes es una instrucción, no una barrera; cada informe lo confirma.",
+        "- El aislamiento de los subagentes es una instrucción, no una barrera; cada uno lo declaró en su "
+        "informe al orquestador, y esos informes no se guardan aquí.",
         "- Los tokens son los del subagente entero (incluye el contexto que recibe al empezar), no solo los "
         "de escribir las pruebas.",
         "- Cinco UC del propio engine, de lógica pura en Python; 10 mutantes por UC escritos por agentes "

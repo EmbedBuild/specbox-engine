@@ -38,7 +38,7 @@ try {
 if (!git('rev-parse --show-toplevel')) process.exit(0);
 
 const files = commitFiles(command);
-const hasAcceptanceFiles = files.some((f) => /(test\/acceptance\/|tests\/acceptance\/|e2e\/acceptance\/|e2e\/.*\.spec\.)/.test(f));
+const hasAcceptanceFiles = files.some((f) => /(test\/acceptance\/|tests\/acceptance\/|e2e\/acceptance\/|e2e\/.*\.spec\.|(^|\/)\.maestro\/)/.test(f));
 const hasEvidenceFiles = files.some((f) => /\.quality\/evidence\/.*\/acceptance\//.test(f));
 if (!hasAcceptanceFiles && !hasEvidenceFiles) process.exit(0);
 

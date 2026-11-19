@@ -53,11 +53,25 @@ export function findContract(root, marker) {
 export function contractProblem({ root, marker, resultsPaths = [] }) {
   const contractPath = findContract(root, marker);
   if (!contractPath) return { reason: `${marker.uc_id} no tiene contrato (${expectedContractPath(marker)}).`, contractPath: null };
-  const contractContent = readFileSync(join(root, contractPath), 'utf-8');
+  let contractContent;
+  try {
+    contractContent = readFileSync(join(root, contractPath), 'utf-8');
+  } catch (e) {
+    return { reason: `el contrato de ${marker.uc_id} (${contractPath}) no se puede leer (${e.code || e.message}).`, contractPath };
+  }
   const criteria = Array.isArray(marker.ac_ids) ? marker.ac_ids : [];
   const report = contractReport({ contractContent, criteriaIds: criteria, ucId: marker.uc_id });
   if (!report.success) return { reason: `el contrato de ${marker.uc_id} no se puede leer: ${report.error}`, contractPath };
   const parts = [];
+  if (!criteria.length) {
+    // Sin los criterios del marcador, un contrato vacío no vale: al menos uno.
+    let count = 0;
+    try {
+      const data = JSON.parse(contractContent);
+      count = data && typeof data.criteria === 'object' && data.criteria ? Object.keys(data.criteria).length : 0;
+    } catch { /* contractReport ya lo habría dicho */ }
+    if (!count) parts.push('no tiene ningún criterio');
+  }
   if (report.missing.length) parts.push(`criterios sin contrato: ${report.missing.join(', ')}`);
   if (report.incomplete.length) {
     parts.push(`incompletos: ${report.incomplete.map((i) => `${i.ac_id} (sin ${i.missing.join(' ni ')})`).join('; ')}`);

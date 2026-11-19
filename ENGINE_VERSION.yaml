@@ -1,5 +1,5 @@
-version: 6.48.0
-codename: "Remiendo"
+version: 6.49.0
+codename: "Cláusula"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-19
@@ -672,8 +672,23 @@ features:
   - behavior-doc
   # New (v6.48.0) — Remiendo
   - fix-skill
+  # New (v6.49.0) — Cláusula
+  - acceptance-contract
+  - contract-first
 
 changelog:
+  6.49.0:
+    date: 2026-11-19
+    codename: "Cláusula"
+    changes:
+      - "feat: the contract of each acceptance criterion: .quality/evidence/<feature>/acceptance/contract.json (schema 1) with pre and post conditions (AC-NN.preN / AC-NN.postN) and what the criterion leaves undefined; pure module server/acceptance_contract.py with its mirror lib/acceptance-contract.mjs and a parity test (UC-12801, #408)"
+      - "feat: new pure tool check_acceptance_contract(contract_content, uc_criteria, uc_id, results_content): missing, incomplete, invalid and extra entries and, with results.json, the tests that do not cite a pre and a post of their criterion (uncited, unknown, not_cited); validate-results-json.js --check-contract applies the same rules (UC-12801, #408)"
+      - "feat: AG-09a writes the contract before the tests (/implement step 7.5.0) and each test cites what it checks (@pre:/@post: tags, a contract: comment in Maestro flows and Patrol tests); the three evidence generators carry the citations to results[].contract and show the contract in each criterion's card (UC-12801, #408)"
+      - "feat: contract_first measure (since 6.49.0, born in «warn»): new hook contract-first-guard (PreToolUse Write/Edit on acceptance folders) and the same measure in e2e-gate at commit time; in «block» they stop until the contract is complete; /fix UCs are not measured; blocks and corrections go to the board (UC-12801, #408)"
+      - "feat: run_acceptance_check(contract_content) shows each criterion's contract next to its verdict, or «Sin contrato» / an incomplete-contract warning (UC-12801, #408)"
+      - "feat: the measurement that decided the default (scripts/contract-eval/): 50 seeded faults in 5 UCs, two arms × two passes: 94/100 caught with the contract, 91/100 without, 0 false positives; acceptance.contract: true in the template (UC-12801, #408)"
+      - "fix: /implement attaches the acceptance evidence with the type ag09 (acceptance answered INVALID_EVIDENCE_TYPE) (UC-12801, #408)"
+
   6.48.0:
     date: 2026-11-19
     codename: "Remiendo"

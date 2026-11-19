@@ -131,7 +131,7 @@ async def test_without_plan_phase_or_plan_lines_there_is_nothing_to_compare(serv
                                        "plan_content": "# Plan\n```\n" + PLAN + "```\n"})
     assert fenced["plan_comparison"]["available"] is False
     old = await _aggregate(server, {"feature_slug": "uc-701", "phase_outputs_content": tagged})
-    assert NO_PLAN_COMPARISON in old["phase_deltas"][0] and old["plan_comparison"]["available"] is False
+    assert "no llegó el plan" in old["phase_deltas"][0] and old["plan_comparison"]["available"] is False
 
 
 async def test_a_retried_phase_does_not_report_the_other_attempts_files_as_missing(server):
@@ -277,3 +277,23 @@ def test_an_empty_results_file_is_an_error_and_the_newest_run_wins_by_time():
         prd_content=PRD, item_id="UC-12601", code_index={}, results_content=runs)["uc_results"][0]["criteria"]}
     assert by_ac["AC-01"]["verdict"] == "ACCEPTED"  # el PASS es más reciente que el FAIL aunque vaya antes
     assert by_ac["AC-02"]["verdict"] == "ACCEPTED"  # la ejecución sin uc_id, más reciente, manda
+
+
+def test_title_form_plan_phase_and_the_reason_of_the_whole_comparison():
+    from server.implement_context.phase_outputs import PhaseOutput
+
+    base = {"phase": "x", "phase_index": 1, "agent": "AG-01", "status": "ok"}
+    assert PhaseOutput(**base, plan_phase="Fase 1: Base").plan_phase == 1
+    assert PhaseOutput(**base, plan_phase="Fase 2. Lectura").plan_phase == 2
+    assert PhaseOutput(**base, plan_phase="2.1").plan_phase is None
+
+
+async def test_plan_comparison_says_its_true_reason(server):
+    untagged = _phase_line(1, ["server/a.py"])
+    no_plan = await _aggregate(server, {"feature_slug": "uc-701", "phase_outputs_content": untagged})
+    assert "no llegó el plan" in no_plan["plan_comparison"]["reason"] and "no llegó el plan" in no_plan["phase_deltas"][0]
+    with_plan = await _aggregate(server, {"feature_slug": "uc-701", "phase_outputs_content": untagged, "plan_content": PLAN})
+    assert with_plan["plan_comparison"]["reason"] == NO_PLAN_PHASE
+    missing = await _aggregate(server, {"feature_slug": "uc-701", "plan_content": PLAN,
+                                        "phase_outputs_content": _phase_line(1, ["a.py"], plan_phase=9)})
+    assert "«Fase 9»" in missing["plan_comparison"]["reason"]

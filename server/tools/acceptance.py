@@ -1107,7 +1107,8 @@ def run_acceptance_check_from_content(
         results_content: UC-12601. The acceptance tests' ``results.json`` (one object, or a
             list of them). With it each criterion is judged by its tagged test and its status
             (``method: "results"``); without it, by the old search for its id in the code
-            (``method: "heuristic"``, with a note).
+            (``method: "heuristic"``, with a note). Without a results.json omit it (or pass
+            null): an empty string is an empty file and answers INVALID_RESULTS.
 
     Returns:
         {
@@ -1514,7 +1515,8 @@ def register_acceptance_tools(mcp: FastMCP, engine_path: Path, state_path: Path)
             results_content: UC-12601. The acceptance tests' ``results.json`` (one object or a
                 list). With it each criterion passes only when its tagged test passes
                 (``method: "results"``); a criterion without a test is «sin prueba». Without
-                it, the old search by id (``method: "heuristic"``, with a note).
+                it, the old search by id (``method: "heuristic"``, with a note). Without a
+                results.json omit it (or pass null): an empty string answers INVALID_RESULTS.
 
         Returns:
             Includes ``verdict`` (overall), ``feature_files`` and ``reports``

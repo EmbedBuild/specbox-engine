@@ -163,6 +163,7 @@ def _format_file_list(files: list[str]) -> str:
 NO_PLAN_COMPARISON = "Comparación no disponible: el plan no declara ficheros por fase"
 NO_PLAN_PHASE = "Comparación no disponible: la tarea no dice qué «Fase N» del plan hizo (plan_phase)"
 PLAN_PHASE_NOT_FOUND = "Comparación no disponible: el plan no tiene una única «Fase {n}»"
+NO_PLAN_GIVEN = "Comparación no disponible: no llegó el plan (plan_content)"
 NO_DELTAS = "Sin deltas — implementación conforme al plan"
 #: Los que caben en el bloque de una fase; la lista entera va en ``plan_comparison``.
 MAX_DELTA_FILES = 50

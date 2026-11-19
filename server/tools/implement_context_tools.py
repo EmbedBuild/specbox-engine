@@ -21,6 +21,7 @@ from pydantic import ValidationError
 
 from ..delta_generator import (
     NO_PLAN_COMPARISON,
+    NO_PLAN_GIVEN,
     NO_PLAN_PHASE,
     PLAN_PHASE_NOT_FOUND,
     compare_files,
@@ -79,8 +80,10 @@ def _plan_phase(contract: PlanContract, entry: PhaseOutput):
     return phase if phase is not None and phase.has_files_line else None
 
 
-def _why_not_compared(contract: PlanContract, entry: PhaseOutput) -> str | None:
+def _why_not_compared(contract: PlanContract, entry: PhaseOutput, plan_given: bool = True) -> str | None:
     """El motivo verdadero de que una tarea no se compare (UC-12601), o None si se compara."""
+    if not plan_given:
+        return NO_PLAN_GIVEN
     if contract.contract_version == 0:
         return NO_PLAN_COMPARISON
     if entry.plan_phase is None:
@@ -110,7 +113,7 @@ def _expected_for(contract: PlanContract, entry: PhaseOutput, entries: list[Phas
     return [f for f in phase.files if normalize_repo_path(f) in mine or normalize_repo_path(f) not in others]
 
 
-def _plan_comparison(contract: PlanContract, entries: list[PhaseOutput]) -> dict[str, Any]:
+def _plan_comparison(contract: PlanContract, entries: list[PhaseOutput], plan_given: bool = True) -> dict[str, Any]:
     """Lo hecho frente a lo que esperaban las fases del plan que se ejecutaron (UC-12601 AC-01).
 
     Solo las fases que alguna tarea dice haber hecho (``plan_phase``): el plan es de la historia y
@@ -118,7 +121,14 @@ def _plan_comparison(contract: PlanContract, entries: list[PhaseOutput]) -> dict
     """
     compared = [e for e in entries if _plan_phase(contract, e) is not None]
     if not compared:
-        return {"available": False, "reason": NO_PLAN_COMPARISON}
+        if not plan_given:
+            reason = NO_PLAN_GIVEN
+        elif contract.contract_version == 0:
+            reason = NO_PLAN_COMPARISON
+        else:
+            reasons = [r for r in (_why_not_compared(contract, e) for e in entries) if r]
+            reason = reasons[0] if reasons else NO_PLAN_PHASE
+        return {"available": False, "reason": reason}
     phases = {e.plan_phase: _plan_phase(contract, e) for e in compared}
     expected = [f for n in sorted(phases) for f in phases[n].files]
     touched = [f for e in compared for f in _touched(e)]
@@ -250,9 +260,10 @@ def register_implement_context_tools(mcp, engine_path: Path) -> None:
         entries = parse_phase_outputs(phase_outputs_content)
         result = asdict(aggregate_phase_entries(feature_slug, entries))
         contract = parse_plan_contract(plan_content or "")
+        plan_given = bool((plan_content or "").strip())
         result["phase_deltas"] = [
-            _phase_delta(entry, _expected_for(contract, entry, entries), _why_not_compared(contract, entry))
+            _phase_delta(entry, _expected_for(contract, entry, entries), _why_not_compared(contract, entry, plan_given))
             for entry in entries
         ]
-        result["plan_comparison"] = _plan_comparison(contract, entries)
+        result["plan_comparison"] = _plan_comparison(contract, entries, plan_given)
         return result

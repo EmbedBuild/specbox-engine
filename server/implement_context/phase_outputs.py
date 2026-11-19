@@ -77,8 +77,13 @@ class PhaseOutput(BaseModel):
         if isinstance(value, int):
             return value if value >= 0 else None
         if isinstance(value, str):
-            match = re.fullmatch(r"\s*(?:(?:fase|phase)\s+)?(\d{1,3})\s*", value, re.IGNORECASE)
-            return int(match[1]) if match else None
+            # «3», «Fase 3» y el título de la fase tal como está en el plan («Fase 3: Base»); «2.1», no.
+            match = re.fullmatch(
+                r"\s*(?:(?:fase|phase)\s+(\d{1,3})(?:\s*(?:[:·—–(\[-]|\.(?!\d)).*)?|(\d{1,3}))\s*",
+                value,
+                re.IGNORECASE | re.DOTALL,
+            )
+            return int(match[1] or match[2]) if match else None
         return None
 
 

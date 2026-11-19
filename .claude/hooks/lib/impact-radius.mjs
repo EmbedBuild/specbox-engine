@@ -29,10 +29,15 @@ export const DEFAULT_API = [
 export const DEFAULT_MIGRATION = [
   '**/migrations/**', '**/alembic/versions/**', '**/db/migrate/**', '**/*.sql', '**/schema.prisma',
 ];
-/** Lo que nunca es una migración: la documentación, las semillas y los datos de prueba. */
+/**
+ * Lo que nunca es una migración: la documentación, y las semillas y los datos de prueba que no están
+ * en una carpeta de migraciones (dentro de una, `seed_roles.sql` o `apps/test/migrations/` sí cuentan).
+ */
 const DOC_FILE = /\.(md|markdown|txt|rst)$/i;
 const SEED_OR_FIXTURE = /(^|\/)(seeds?|fixtures?|tests?|__tests__|spec)\/|(^|\/)seed[^/]*$/i;
-export const notMigration = (path) => DOC_FILE.test(path) || SEED_OR_FIXTURE.test(path);
+const IN_MIGRATION_DIR = /(^|\/)(migrations|alembic\/versions|db\/migrate)\//;
+export const notMigration = (path) =>
+  DOC_FILE.test(path) || (SEED_OR_FIXTURE.test(path) && !IN_MIGRATION_DIR.test(path));
 /** Funciones públicas que no son contrato por convención: los registros de tools y los `*_impl`. */
 export const DEFAULT_SIGNATURE_IGNORE = ['register_*', '*_impl'];
 const DEPENDENCY_FILES = new Set([

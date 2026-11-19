@@ -369,6 +369,20 @@ test('revisión 2: -am, mensajes con «;» o «|», grupos -qm y heredocs no dej
   }
 });
 
+test('revisión 3: una orden que solo menciona el commit no se detiene', () => {
+  const dir = project({ mode: 'block' });
+  try {
+    write(dir, 'db/migrations/0001_a.sql', 'CREATE TABLE a (id int);\n');
+    git(dir, 'add', '-A');
+    for (const cmd of ["echo 'listo para git commit' && git status", 'git commit-tree HEAD^{tree} -m x']) {
+      assert.equal(commit(dir, cmd).code, 0, cmd);
+    }
+    assert.equal(existsSync(join(dir, '.quality', 'logs', 'impact-radius.jsonl')), false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('revisión 2: -i suma el índice a las rutas y unas rutas que no resuelven nada miran el índice', () => {
   const dir = project({ mode: 'block' });
   try {
@@ -412,5 +426,8 @@ test('revisión 2: las firmas son las del módulo, las clases y las tools de reg
   assert.equal(classifyCommit(['src/graphql/queries/getUser.graphql']).class, 'internal');
   assert.equal(classifyCommit(['supabase/seed.sql']).class, 'internal');
   assert.equal(classifyCommit(['tests/fixtures/data.sql']).class, 'internal');
+  // Dentro de una carpeta de migraciones, una semilla o un paquete llamado «test» siguen contando.
+  assert.equal(classifyCommit(['db/migrations/seed_roles.sql']).class, 'data_migration');
+  assert.equal(classifyCommit(['apps/test/migrations/001.sql']).class, 'data_migration');
   assert.equal(classifyCommit(['web/schema.graphql']).class, 'api_contract');
 });

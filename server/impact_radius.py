@@ -23,6 +23,12 @@ LABELS = {"api_contract": "contrato de API", "data_migration": "migración de da
 MAX_IMPACT_GLOBS = 20
 _DOC_RE = re.compile(r"\.(md|markdown|txt|rst)$", re.IGNORECASE)
 _SEED_RE = re.compile(r"(^|/)(seeds?|fixtures?|tests?|__tests__|spec)/|(^|/)seed[^/]*$", re.IGNORECASE)
+_IN_MIGRATION_DIR_RE = re.compile(r"(^|/)(migrations|alembic/versions|db/migrate)/")
+
+
+def _seed_or_fixture(path: str) -> bool:
+    """Semillas y datos de prueba fuera de una carpeta de migraciones (dentro de una, cuentan)."""
+    return bool(_SEED_RE.search(path)) and not _IN_MIGRATION_DIR_RE.search(path)
 
 
 def _clean(path: str) -> str:
@@ -45,7 +51,7 @@ def classify_path(path: str) -> str | None:
     if (base.startswith(("openapi", "swagger")) and base.endswith((".yaml", ".yml", ".json"))) \
             or base.endswith((".proto", ".graphqls")) or (base.startswith("schema") and base.endswith(".graphql")):
         return "api_contract"
-    if _DOC_RE.search(base) or _SEED_RE.search(p):
+    if _DOC_RE.search(base) or _seed_or_fixture(p):
         return None
     folder = f"/{p}" if p.endswith("/") else f"/{p.rsplit('/', 1)[0]}/" if "/" in p else "/"
     if any(seg in folder or seg in f"/{p}/" for seg in ("/migrations/", "/alembic/versions/", "/db/migrate/")) \
@@ -98,7 +104,7 @@ def plan_impact(plan_content: str | None, impact: dict[str, Any] | None = None) 
             cls = classify_path(path)
             if cls is None and any(m(path, budget) for m in matchers["api_globs"]):
                 cls = "api_contract"
-            if cls is None and not _DOC_RE.search(path) and not _SEED_RE.search(path) \
+            if cls is None and not _DOC_RE.search(path) and not _seed_or_fixture(path) \
                     and any(m(path, budget) for m in matchers["migration_globs"]):
                 cls = "data_migration"
             if cls is None and any(m(path, budget) for m in matchers["signature_globs"]):

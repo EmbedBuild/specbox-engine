@@ -215,7 +215,10 @@ const VALUE_LONG = new Set(['--message', '--file', '--reuse-message', '--reedit-
 let all = false;
 let include = false;
 let pathspecs = [];
-for (const args of gitCalls('commit')) {
+// Una orden que solo menciona el commit («echo 'git commit'», «git commit-tree») no es un commit.
+const commitCalls = gitCalls('commit');
+if (!commitCalls.length) process.exit(0);
+for (const args of commitCalls) {
   for (let i = 0; i < args.length; i += 1) {
     const a = args[i];
     if (a === '--') { pathspecs.push(...args.slice(i + 1)); break; }

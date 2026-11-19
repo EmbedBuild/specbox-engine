@@ -319,6 +319,17 @@ test("revisión 2: lo que no se juzga queda «sin comprobar», un tablero sin le
     git(root, "update-index", "--force-remove", `${deep}/x.md`);
     git(root, "commit", "-q", "-m", "UC-701: sin ruta larga");
 
+    // Una ruta con tildes llega con su nombre, sin comillas ni escapes, y la exclusión la cubre.
+    write(root, "docs/guía.md", "nota\n");
+    write(root, "server/año.py", "x = 1\n");
+    git(root, "add", "-A");
+    git(root, "commit", "-q", "-m", "UC-701: tildes");
+    const accents = fakeMcp(REPORT());
+    await runDrift({ root, base: "main" }, deps(accents, []));
+    const sent = accents.calls[0].arguments.files;
+    assert.ok(sent.includes("docs/guía.md") && sent.includes("server/año.py"), sent.join(", "));
+    assert.ok(!sent.some((f) => f.includes("\\") || f.startsWith('"')));
+
     // La rama se excluye todo en su settings.json: no cuenta, vale el de la base.
     write(root, ".claude/settings.json", { drift: { exclude: ["**"] } });
     git(root, "commit", "-q", "-am", "UC-701: excluirlo todo");

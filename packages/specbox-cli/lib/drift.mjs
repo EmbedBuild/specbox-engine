@@ -49,9 +49,11 @@ export function resolveBase(root, wanted) {
   return null;
 }
 
+/** Los ficheros que cambia la rama (sin los borrados), con su nombre tal cual: sin las comillas ni los
+ * escapes con que git cita las rutas con tildes o eñes (`core.quotePath`). */
 export function changedFiles(root, base) {
-  return gitOr(root, ["diff", "--name-only", "--diff-filter=d", `${base}...HEAD`])
-    .split("\n").map((l) => l.trim()).filter(Boolean);
+  return gitOr(root, ["-c", "core.quotePath=false", "diff", "--name-only", "-z", "--diff-filter=d", `${base}...HEAD`])
+    .split("\0").filter(Boolean);
 }
 
 /** Las UC de la rama: asuntos de los commits y nombre de la rama; si no hay, el marcador de UC activa. */

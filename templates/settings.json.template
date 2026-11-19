@@ -7,6 +7,7 @@
       "mcp__SpecBox-MCP__aggregate_phase_outputs",
       "mcp__SpecBox-MCP__analyze_preflight_decisions",
       "mcp__SpecBox-MCP__build_execution_context",
+      "mcp__SpecBox-MCP__check_acceptance_contract",
       "mcp__SpecBox-MCP__check_audit_tools_status",
       "mcp__SpecBox-MCP__check_prd_format",
       "mcp__SpecBox-MCP__claude_design_get_project",

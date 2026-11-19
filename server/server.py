@@ -41,6 +41,7 @@ from .tools.review import register_review_tools  # US-124 UC-12402
 from .tools.approval import register_approval_tools  # US-125 UC-12502
 from .tools.plan_contract import register_plan_contract_tools  # US-126 UC-12604
 from .tools.drift import register_spec_drift_tools  # US-126 UC-12603
+from .tools.acceptance_contract import register_acceptance_contract_tools  # US-128 UC-12801
 from .coordination.access_log import ToolAccessLogMiddleware, build_default_store, configure_store
 from .coordination.rate_limit import RateLimitMiddleware  # UC-11401
 from .coordination.transport_auth import TransportAuthMiddleware, TransportNoticeMiddleware  # UC-3901
@@ -243,6 +244,9 @@ register_plan_contract_tools(mcp)
 
 # UC-12603 — get_closed_uc_files: qué UC cerradas cambiaron unos ficheros (la puerta de desviación).
 register_spec_drift_tools(mcp)
+
+# UC-12801 — check_acceptance_contract: el contrato de cada criterio antes de las pruebas.
+register_acceptance_contract_tools(mcp)
 
 # UC-3901 — the transport authenticates every HTTP request (see main()); while
 # connections without a token are tolerated (grace period), every tool response

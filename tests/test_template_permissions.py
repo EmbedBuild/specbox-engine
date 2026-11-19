@@ -151,6 +151,7 @@ READ_ONLY_EXTRA = {
     "claude_design_get_project", "claude_design_list_projects", "claude_design_status",
     "enforcement_readiness",  # UC-12213: solo lee recuentos de bloqueos (y solo para el operador)
     "check_prd_format",  # UC-12304: pura, solo lee el texto del PRD que recibe
+    "check_acceptance_contract",  # UC-12801: pura, solo lee el contrato y los resultados que recibe
 }
 
 #: Escriben aunque el nombre parezca de lectura (auditoría del 2026-10-28): anotan en .quality/ del proyecto.

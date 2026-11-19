@@ -8,6 +8,11 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.48.0] — "Remiendo"
+
+- The skills sidebar knows **/fix** (Pipeline category), with its help card: a small bug fixed with
+  its UC, an approved criterion and a test that fails first, without a PRD or a plan.
+
 ## [6.47.0] — "Spec viva"
 
 - No changes in the extension itself. The version follows the engine, where a hook classifies each commit

@@ -1,5 +1,5 @@
-version: 6.46.0
-codename: "La puerta"
+version: 6.47.0
+codename: "Spec viva"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-19
@@ -667,8 +667,21 @@ features:
   # New (v6.46.0) — La puerta
   - closed-uc-files
   - drift-gate
+  # New (v6.47.0) — Spec viva
+  - impact-radius
+  - behavior-doc
 
 changelog:
+  6.47.0:
+    date: 2026-11-19
+    codename: "Spec viva"
+    changes:
+      - "feat: the impact radius of a change: new hook impact-radius-guard (PreToolUse of git commit) classifies the commit by its files as API contract (openapi, swagger, .proto, schema*.graphql, .graphqls, or a change in the parameters of a public function of impact.signature_globs), data migration (migrations/, alembic/versions/, db/migrate/, .sql, schema.prisma; never docs, nor seeds or fixtures outside a migrations folder), dependencies or internal, says it in its message and logs it with the deciding files in .quality/logs/impact-radius.jsonl (UC-12606, #402)"
+      - "feat: impact_radius measure (since 6.47.0, born in «warn»): in «block» a contract or migration commit stops until a person approves it with skip_enforcement from the main session (SUBAGENT_CANNOT_APPROVE, PERSON_REQUIRED); new tool use_enforcement_skip spends the approval on that attempt (commit and content fingerprint, used_skips); the /implement triage asks for it in advance (impact_radius_approval, «ask» at every autopilot level) (UC-12606, #402)"
+      - "feat: a living spec per feature: complete_uc, move_uc and add_uc accept with_behavior_doc and behavior_doc_us_ids (put by the app-docs-fragment hook, only with a 6.47.0 server) and return behavior_doc with a section per story of the PRD and the stories with nothing pending; the hook writes doc/spec/<feature>.md next to the PRD (in the orchestrator when multirepo), marks the PRD as superseded when all its stories are closed and their sections fresh, and takes its own mark off on any branch when a story has work again (UC-12605, #404)"
+      - "feat: run_acceptance_check, get_e2e_gap_report and regenerate_evidence leave out superseded PRDs (superseded_prds) and read the behavior documents; a UC asked for without criteria in the current PRDs takes them from a superseded one (from_superseded_prd); the superseded mark only counts as its own line in the PRD header, outside code (UC-12605, #404)"
+      - "change: find_prd_path and lib/prd-locate.mjs find superseded PRDs too: they are still the PRD of their stories (UC-12605, #404)"
+
   6.46.0:
     date: 2026-11-19
     codename: "La puerta"

@@ -2,6 +2,79 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.47.0] - 2026-11-19 — "Spec viva"
+
+Tercera y última tanda de US-126: el gobierno de cada commit depende de lo que toca, y cada
+funcionalidad tiene un documento que dice lo que el sistema hace hoy, aparte de los PRD de cada cambio.
+
+### Added
+
+- **El radio de impacto del cambio** (UC-12606, #402).
+  - Hook nuevo `impact-radius-guard` (PreToolUse de `git commit`): clasifica el commit en contrato de
+    API, migración de datos, dependencias o código interno por sus ficheros, y lo dice en su mensaje y
+    en `.quality/logs/impact-radius.jsonl` con los ficheros de cada clase.
+  - Un contrato es openapi, swagger, `.proto`, `schema*.graphql`, `.graphqls` o un cambio en los
+    parámetros de una función pública de los ficheros de `impact.signature_globs`. Una migración es lo
+    de `migrations/`, `alembic/versions/`, `db/migrate/`, un `.sql` o `schema.prisma`, sin documentación
+    ni semillas o datos de prueba fuera de una carpeta de migraciones.
+  - Tool nueva `use_enforcement_skip`: el hook gasta la aprobación de una persona en un intento
+    concreto (el commit y la huella del contenido que decide la clase).
+  - El triaje de /implement pide la aprobación por adelantado para las fases cuyos ficheros son
+    contrato o migración (decisión `impact_radius_approval`, «ask» en los cuatro niveles de autopilot).
+- **Medida `impact_radius`**, activa desde 6.47.0 y en «warn» por defecto. En «block», un commit de
+  contrato o de migración se detiene hasta que una persona lo aprueba con
+  `skip_enforcement(measure="impact_radius", uc_id, reason)` desde la sesión principal.
+- **Una spec viva por funcionalidad** (UC-12605, #404).
+  - `doc/spec/<funcionalidad>.md`: una sección por historia con sus UC cerradas y sus criterios. La
+    escribe el hook `app-docs-fragment` al cerrar una UC, junto al PRD de la historia (en el
+    orquestador si es multirepo).
+  - `complete_uc`, `move_uc` y `add_uc` aceptan `with_behavior_doc` y `behavior_doc_us_ids`, que pone
+    el hook, y devuelven `behavior_doc` con la sección de cada historia del PRD y las historias sin nada
+    pendiente.
+  - Un PRD cuyas historias están todas cerradas (o archivadas) queda marcado como superado, con la
+    fecha y el documento que lo sustituye; si una vuelve a tener trabajo (`start_uc`, `import_spec`,
+    `add_uc`, `move_uc` fuera de «done»), pierde la marca en cualquier rama.
+  - `run_acceptance_check`, `get_e2e_gap_report` y `regenerate_evidence` dejan fuera los PRD superados
+    (`superseded_prds`) y leen el documento. /acceptance-check une cada fichero con su marca. Una UC
+    pedida sin criterios en lo vigente los toma del PRD superado (`from_superseded_prd`).
+
+### Changed
+
+- **`skip_enforcement`** pasa por el hook `agent-identity`: en `impact_radius` un subagente recibe
+  `SUBAGENT_CANNOT_APPROVE` y una llamada sin el contexto de Claude Code, `PERSON_REQUIRED`.
+- **El localizador del PRD de una historia** (`find_prd_path`, `lib/prd-locate.mjs`) encuentra
+  también los superados: siguen siendo el PRD de sus historias.
+
+### Para los proyectos que ya existían
+
+- **La medida `impact_radius` nace en «warn»**: el hook dice la clase del commit y lo deja seguir.
+  Para que detenga los commits de contrato o de migración,
+  `set_enforcement_mode(measure="impact_radius", mode="block")`, con el informe de impacto antes.
+- **El engine declara sus propios contratos** en `.claude/settings.json` (`impact.signature_globs`:
+  `server/tools/*.py`). Un proyecto añade los suyos ahí; se leen de la rama base.
+- **Ningún PRD queda superado por actualizar**: la marca solo la pone el hook al cerrar una UC en la
+  rama principal del canon, con un servidor 6.47.0. Sin ningún PRD superado, la comprobación de
+  aceptación lee exactamente lo de antes.
+- **Los hooks** llegan con `specbox hooks update` (o la extensión); un hook anterior no pide el
+  documento y el servidor responde como antes.
+
+### Security
+
+- **Una aprobación no se inventa en local** (native): la guarda el tablero con quién, cuándo, por qué
+  y desde qué sesión, y se gasta ligada al commit y a la huella del contenido.
+- **El documento de comportamiento solo se escribe dentro del repositorio del canon**, sin `..` ni
+  enlaces simbólicos, y un `<!--` o `-->` de un criterio va como texto.
+- **El hook solo manda `with_behavior_doc` a un servidor que lo conoce** (`/health`, 6.47.0 o
+  posterior).
+
+### Tests
+
+- `tests/test_impact_radius.py` y `tests/hooks/impact-radius-guard.test.mjs` (20 casos): formas de la
+  orden, opciones de `git commit`, firmas, paridad JS/Python, aprobaciones en native y FreeForm.
+- `tests/test_behavior_doc.py` (16) y `tests/hooks/behavior-doc.test.mjs` (17): secciones, marca solo
+  en la cabecera, PRD de varias historias, reapertura en cualquier rama, respaldo de los lectores,
+  enlaces, paridad con FreeForm y versión del servidor.
+
 ## [6.46.0] - 2026-11-19 — "La puerta"
 
 Segunda tanda de US-126: el tablero recuerda qué ficheros cambió cada UC cerrada, y el CI local tiene

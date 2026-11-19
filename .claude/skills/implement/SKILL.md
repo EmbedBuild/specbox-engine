@@ -330,7 +330,9 @@ en el prompt. Ver Paso 5.X.0 para el bloque reusable de invocacion.
    ```
    analyze_preflight_decisions(
      plan_content="<contenido de doc/plans/{feature}_plan.md>",
-     autopilot_level="<specbox.autopilot.level de settings.local.json>"
+     autopilot_level="<specbox.autopilot.level de settings.local.json>",
+     impact_radius_mode="<modo de impact_radius en get_enforcement_policy>",
+     impact=<specbox.impact de .claude/settings.json, si lo hay>
    )
    ```
 
@@ -355,6 +357,18 @@ en el prompt. Ver Paso 5.X.0 para el bloque reusable de invocacion.
 5. **Inviolables**: las decisiones destructivas / push-a-main / coste-sobre-budget
    siempre caen en `user_dependent` aunque el nivel sea `agresivo` — el gate nunca
    las auto-confirma (AC-05). "Mas autonomia" jamas significa "menos seguridad".
+
+6. **Contrato de API o migracion de datos** (UC-12606, `decision_key`
+   `impact_radius_approval`, inviolable): si el plan declara en sus `**Ficheros:**` un
+   contrato (openapi, `.proto`, `schema.graphql`) o una migracion (`migrations/`, `.sql`,
+   `prisma/schema.prisma`), el triaje lo trae como una decision de la persona. Pregunta
+   **una vez**, ensenando las fases y sus ficheros. Si dice que si, registra la aprobacion
+   por adelantado con una llamada por fase de las que lista:
+   `skip_enforcement(measure="impact_radius", uc_id="UC-XXX", reason="Aprobado en el triaje de /implement: <fase y por que>")`.
+   El hook `impact-radius-guard` gasta una en cada commit de contrato o migracion. Con la
+   medida en «warn» u «off» la respuesta `NOTHING_TO_SKIP` es normal: no hay nada que
+   aprobar. Si dice que no, el commit se detendra (en «block») y se pregunta entonces. Esta
+   llamada solo la hace la sesion principal: un subagente recibe `SUBAGENT_CANNOT_APPROVE`.
 
 > **Sin triaje no hay rama** (UC-12305): si `analyze_preflight_decisions` no existe o no
 > responde, /implement **para aqui**, antes de `start_uc` y de crear la rama, y lo dice:

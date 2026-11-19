@@ -226,7 +226,14 @@ const SCENARIOS = {
   'agent-identity': [
     ['start_uc con la sesión del hook: la identidad va en la llamada', 'decision', (p) =>
       run('agent-identity', p.dir, 'PreToolUse', 'mcp__SpecBox-MCP__start_uc', { board_id: 'b', uc_id: 'UC-1' }, {}, { session_id: 'sess-1' })],
+    ['skip_enforcement: la identidad va en la llamada (UC-12606)', 'decision', (p) =>
+      run('agent-identity', p.dir, 'PreToolUse', 'mcp__SpecBox-MCP__skip_enforcement', { measure: 'impact_radius', uc_id: 'UC-1', reason: 'x' }, {}, { session_id: 'sess-1' })],
     ['otra tool', 'silent', (p) => run('agent-identity', p.dir, 'PreToolUse', 'mcp__SpecBox-MCP__mark_ac', { board_id: 'b' }, {}, { session_id: 'sess-1' })],
+  ],
+  'impact-radius-guard': [
+    ['migración en modo aviso', 'note', () => impactCommit('warn')],
+    ['migración en modo bloqueante sin aprobar', 'block', () => impactCommit('block')],
+    ['no es un commit', 'silent', (p) => run('impact-radius-guard', p.dir, 'PreToolUse', 'Bash', { command: 'git status' })],
   ],
   'merge-guard': [
     ['criterio sin demostrar en modo aviso', 'note', () => closingMerge('warn')],
@@ -250,6 +257,21 @@ function closingMerge(mode) {
     ]));
     p.write('.quality/active_uc.json', JSON.stringify({ uc_id: 'UC-1', started_at: '2026-11-19T10:00:00+00:00' }));
     return run('merge-guard', p.dir, 'PreToolUse', 'Bash', { command: 'gh pr merge 12 --squash' });
+  } finally {
+    p.done();
+  }
+}
+
+/** `git commit` de una migración con la medida impact_radius en `mode` (UC-12606). */
+function impactCommit(mode) {
+  const p = repo({ specDriven: false });
+  try {
+    p.write('.claude/settings.local.json', JSON.stringify({ specbox: { backend_type: 'freeform' } }));
+    p.write('doc/tracking/policy.json', JSON.stringify({ schema: 1, origin: 'new', skips: [], measures: { impact_radius: { mode } } }));
+    p.write('.quality/active_uc.json', JSON.stringify({ uc_id: 'UC-1', started_at: '2026-11-19T10:00:00+00:00' }));
+    p.write('db/migrations/0001_x.sql', 'ALTER TABLE a ADD b int;\n');
+    p.git('add', 'db/migrations/0001_x.sql');
+    return run('impact-radius-guard', p.dir, 'PreToolUse', 'Bash', { command: 'git commit -m "UC-1: columna"' });
   } finally {
     p.done();
   }

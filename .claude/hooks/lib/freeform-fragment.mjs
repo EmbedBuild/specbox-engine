@@ -432,10 +432,10 @@ export function withoutItemsContent(response) {
 /** The tools that read or change the policy: they get the file as `policy_content`. */
 export const POLICY_TOOLS = new Set([
   'get_enforcement_policy', 'set_enforcement_mode', 'skip_enforcement',
-  'get_enforcement_impact', 'record_enforcement_event',
+  'get_enforcement_impact', 'record_enforcement_event', 'use_enforcement_skip',
 ]);
 /** Of those, the ones whose answer is the new file. */
-export const POLICY_WRITERS = new Set(['set_enforcement_mode', 'skip_enforcement']);
+export const POLICY_WRITERS = new Set(['set_enforcement_mode', 'skip_enforcement', 'use_enforcement_skip']);
 /** The ones that measure the board: they also get items.json and the events (UC-12213). */
 export const POLICY_BOARD_TOOLS = new Set(['set_enforcement_mode', 'get_enforcement_impact']);
 /** The ones whose answer carries an `event_line` for doc/tracking/enforcement_events.jsonl. */

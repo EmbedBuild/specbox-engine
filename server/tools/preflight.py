@@ -30,6 +30,8 @@ def analyze_preflight_decisions_impl(
     *,
     autopilot_level: str | None = None,
     extra_decisions: list[dict[str, Any]] | None = None,
+    impact_radius_mode: str | None = None,
+    impact: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Pure entry point: inventory → classify → package (testable in isolation).
 
@@ -39,7 +41,16 @@ def analyze_preflight_decisions_impl(
     default (``low`` — ask everything), which is the safe default for a remote
     call with no level provided.
     """
-    entries = build_decision_inventory(plan_content, extra_decisions=extra_decisions)
+    from ..impact_radius import ImpactConfigError
+
+    try:
+        entries = build_decision_inventory(
+            plan_content, extra_decisions=extra_decisions, impact_radius_mode=impact_radius_mode, impact=impact,
+        )
+    except ImpactConfigError as e:
+        return {"success": False, "code": "INVALID_IMPACT", "error": str(e)}
+    except ValueError as e:  # ExcludeTooCostly: los globs cuestan demasiado
+        return {"success": False, "code": "INVALID_IMPACT", "error": str(e)[:300]}
 
     # The classifier delegates catalogued keys to evaluate_decision, which by
     # default reads the level from a settings file under ``projectPath``. On a
@@ -71,6 +82,8 @@ def register_preflight_tools(mcp, engine_path: Path) -> None:
     def analyze_preflight_decisions(
         plan_content: str,
         autopilot_level: str | None = None,
+        impact_radius_mode: str | None = None,
+        impact: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Analyze a plan and return its decisions classified for the gate.
 
@@ -88,6 +101,13 @@ def register_preflight_tools(mcp, engine_path: Path) -> None:
             autopilot_level: Active autopilot level
                 (``low``/``conservador``/``equilibrado``/``agresivo``). When
                 omitted, the conservative default applies (ask).
+            impact_radius_mode: UC-12606. The mode of the ``impact_radius`` measure on the
+                board (``get_enforcement_policy``): only in «block» does a plan phase with an API
+                contract or a data migration bring the ``impact_radius_approval`` decision.
+                Omitted, it is asked (the safe side).
+            impact: UC-12606. The project's ``specbox.impact`` globs (``api_globs``,
+                ``migration_globs``, ``signature_globs``; up to 20 each), so the plan's files
+                are classified like the hook does.
 
         Returns:
             ``{decisions[], total, catalogued, ad_hoc, autonomous,
@@ -96,5 +116,5 @@ def register_preflight_tools(mcp, engine_path: Path) -> None:
             ``no_user_decisions`` (the gate proceeds straight to start_uc).
         """
         return analyze_preflight_decisions_impl(
-            plan_content, autopilot_level=autopilot_level
+            plan_content, autopilot_level=autopilot_level, impact_radius_mode=impact_radius_mode, impact=impact,
         )

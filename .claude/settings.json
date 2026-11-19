@@ -7,6 +7,9 @@
       ".quality/logs/**"
     ]
   },
+  "impact": {
+    "signature_globs": ["server/tools/*.py"]
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -126,6 +129,12 @@
           },
           {
             "type": "command",
+            "if": "Bash(*git commit*)",
+            "command": "node .claude/hooks/impact-radius-guard.mjs",
+            "timeout": 15
+          },
+          {
+            "type": "command",
             "if": "Bash(*gh pr merge*)",
             "command": "node .claude/hooks/prd-sync-guard.mjs",
             "timeout": 20
@@ -169,7 +178,7 @@
         ]
       },
       {
-        "matcher": "mcp__SpecBox-MCP__(start_uc|record_review_verdict|approve_criteria)",
+        "matcher": "mcp__SpecBox-MCP__(start_uc|record_review_verdict|approve_criteria|skip_enforcement)",
         "hooks": [
           {
             "type": "command",

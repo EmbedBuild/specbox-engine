@@ -19,8 +19,8 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
-from ..delta_generator import NO_PLAN_COMPARISON, generate_phase_delta
-from ..plan_contract import PlanContract, expected_files, parse_plan_contract
+from ..delta_generator import NO_PLAN_COMPARISON, compare_files, generate_phase_delta, normalize_repo_path
+from ..plan_contract import PlanContract, parse_plan_contract, phase_by_number
 from ..implement_context import (
     PhaseOutput,
     aggregate_phase_entries,
@@ -63,29 +63,52 @@ def _phase_delta(entry: PhaseOutput, expected: list[str] | None = None) -> str:
     )
 
 
-def _expected_for(contract: PlanContract, entry: PhaseOutput) -> list[str] | None:
-    """Los ficheros de la fase N del plan para la fase con ``phase_index`` N, o None si el plan no
-    tiene esa fase o la fase no trae su línea **Ficheros:** (no se compara con lo que no se dijo)."""
-    if contract.contract_version == 0 or not 1 <= entry.phase_index <= len(contract.phases):
+def _plan_phase(contract: PlanContract, entry: PhaseOutput):
+    """La «Fase N» del plan que hizo esta tarea (su ``plan_phase``), si el plan la declara con ficheros."""
+    if contract.contract_version == 0 or entry.plan_phase is None:
         return None
-    phase = contract.phases[entry.phase_index - 1]
-    return list(phase.files) if phase.has_files_line else None
+    phase = phase_by_number(contract, entry.plan_phase)
+    return phase if phase is not None and phase.has_files_line else None
+
+
+def _touched(entry: PhaseOutput) -> set[str]:
+    return {normalize_repo_path(f) for f in (*entry.files_created, *entry.files_modified, *entry.files_deleted)}
+
+
+def _expected_for(contract: PlanContract, entry: PhaseOutput, entries: list[PhaseOutput]) -> list[str] | None:
+    """Los ficheros que el plan espera en la fase de esta tarea, o None si no hay con qué comparar
+    (sin ``plan_phase``, un plan anterior o una fase sin su línea **Ficheros:**).
+
+    Si la misma fase del plan se hizo en varias tareas (un reintento), lo que tocó otra de ellas no
+    falta en esta.
+    """
+    phase = _plan_phase(contract, entry)
+    if phase is None:
+        return None
+    mine = _touched(entry)
+    others = {f for e in entries if e is not entry and e.plan_phase == entry.plan_phase for f in _touched(e)}
+    return [f for f in phase.files if normalize_repo_path(f) in mine or normalize_repo_path(f) not in others]
 
 
 def _plan_comparison(contract: PlanContract, entries: list[PhaseOutput]) -> dict[str, Any]:
-    """Toda la ejecución frente a todo lo que el plan esperaba (UC-12601 AC-01)."""
-    if contract.contract_version == 0 or not any(p.has_files_line for p in contract.phases):
+    """Lo hecho frente a lo que esperaban las fases del plan que se ejecutaron (UC-12601 AC-01).
+
+    Solo las fases que alguna tarea dice haber hecho (``plan_phase``): el plan es de la historia y
+    /implement hace una UC cada vez, así que las fases de otras UC no «faltan».
+    """
+    compared = [e for e in entries if _plan_phase(contract, e) is not None]
+    if not compared:
         return {"available": False, "reason": NO_PLAN_COMPARISON}
-    expected = set(expected_files(contract))
-    # Solo cuenta lo tocado en fases que el plan describe con ficheros: lo de una fase que no los
-    # declara no es «de más», es que no hay con qué compararlo.
-    compared = [e for e in entries if _expected_for(contract, e) is not None]
-    touched = {f for e in compared for f in (*e.files_created, *e.files_modified, *e.files_deleted)}
+    phases = {e.plan_phase: _plan_phase(contract, e) for e in compared}
+    expected = [f for n in sorted(phases) for f in phases[n].files]
+    touched = [f for e in compared for f in _touched(e)]
+    extra, missing = compare_files(touched, expected)
     return {
         "available": True,
-        "expected": sorted(expected),
-        "extra": sorted(touched - expected),
-        "missing": sorted(expected - touched),
+        "phases": sorted(phases),
+        "expected": sorted({normalize_repo_path(f) for f in expected}),
+        "extra": extra,
+        "missing": missing,
     }
 
 
@@ -207,6 +230,6 @@ def register_implement_context_tools(mcp, engine_path: Path) -> None:
         entries = parse_phase_outputs(phase_outputs_content)
         result = asdict(aggregate_phase_entries(feature_slug, entries))
         contract = parse_plan_contract(plan_content or "")
-        result["phase_deltas"] = [_phase_delta(entry, _expected_for(contract, entry)) for entry in entries]
+        result["phase_deltas"] = [_phase_delta(entry, _expected_for(contract, entry, entries)) for entry in entries]
         result["plan_comparison"] = _plan_comparison(contract, entries)
         return result

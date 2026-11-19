@@ -303,11 +303,14 @@ def register_evidence_regen_tools(mcp, engine_path: Path, state_path: Path):
         for idx, (uc_id, meta) in enumerate(normalized, start=1):
             n_acs = int(meta.get("n_acs", 0))
             try:
+                # UC-12601: con su results.json, cada criterio se juzga por su prueba.
+                results_json = meta.get("results_json_content")
                 run = run_acceptance_check_from_content(
                     prd_content=prd_content,
                     item_id=uc_id,
                     branch=branch,
                     code_index=meta.get("code_index"),
+                    results_content=results_json if isinstance(results_json, str) else None,
                 )
             except Exception:
                 run = {"error": "runner raised exception"}

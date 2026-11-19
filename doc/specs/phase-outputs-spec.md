@@ -48,6 +48,9 @@ Before v5.32 the orchestrator relied on `git diff` from its own session to know 
 - `task_id` — UUID for cross-correlation with other telemetry.
 - `duration_s` — wall-clock seconds.
 - `files_created` / `files_modified` / `files_deleted` — repo-relative paths. Default empty arrays.
+- `plan_phase` — integer, the N of the plan's «Fase N» this task implemented (UC-12601). The close
+  compares the task's files with that phase's **Ficheros:** line. Without it, or with an older plan,
+  the phase says «Comparación no disponible». It is not `phase_index` (the SKILL.md order).
 - `summary` — human-readable 1-3 sentence summary. Highly recommended.
 - `tokens_used_prompt` / `tokens_used_response` — for budget telemetry.
 - `healing_attempts` — number of self-healing retries within this phase. Default `0`.

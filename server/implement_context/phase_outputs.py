@@ -50,6 +50,7 @@ class PhaseOutput(BaseModel):
     ts: str = Field(default_factory=_now)
     phase: str  # e.g. "feature", "db", "design-to-code"
     phase_index: int  # 1-indexed; matches the SKILL.md phase order
+    plan_phase: int | None = None  # UC-12601: the N of the plan's «Fase N» this task implemented
     agent: str  # e.g. "AG-01"
     task_id: str | None = None  # uuid; optional for legacy entries
     duration_s: float | None = None

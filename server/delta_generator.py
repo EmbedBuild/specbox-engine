@@ -157,6 +157,35 @@ def _format_file_list(files: list[str]) -> str:
 #: UC-12601: lo que dice el bloque cuando el plan no declara ficheros por fase.
 NO_PLAN_COMPARISON = "Comparación no disponible: el plan no declara ficheros por fase"
 NO_DELTAS = "Sin deltas — implementación conforme al plan"
+#: Los que caben en el bloque de una fase; la lista entera va en ``plan_comparison``.
+MAX_DELTA_FILES = 50
+
+
+def normalize_repo_path(path: str) -> str:
+    """``./server\\x.py`` → ``server/x.py``: como se comparan lo hecho y lo previsto."""
+    clean = (path or "").strip().replace("\\", "/")
+    while clean.startswith("./"):
+        clean = clean[2:]
+    return clean
+
+
+def compare_files(touched: list[str], expected: list[str]) -> tuple[list[str], list[str]]:
+    """``(sobran, faltan)`` (UC-12601). Un previsto que acaba en «/» es una carpeta: la cubre
+    cualquier fichero de dentro. Rutas normalizadas, sin repetir, en orden."""
+    done = sorted({normalize_repo_path(f) for f in touched if normalize_repo_path(f)})
+    plan = sorted({normalize_repo_path(f) for f in expected if normalize_repo_path(f)})
+
+    def covers(entry: str, path: str) -> bool:
+        return path == entry or (entry.endswith("/") and path.startswith(entry))
+
+    extra = [p for p in done if not any(covers(e, p) for e in plan)]
+    missing = [e for e in plan if not any(covers(e, p) for p in done)]
+    return extra, missing
+
+
+def _listed(files: list[str]) -> str:
+    shown = ", ".join(f"`{f}`" for f in files[:MAX_DELTA_FILES])
+    return shown + (f" y {len(files) - MAX_DELTA_FILES} más" if len(files) > MAX_DELTA_FILES else "")
 
 
 def _compute_deltas(
@@ -165,21 +194,18 @@ def _compute_deltas(
     plan_files_expected: list[str] | None,
     files_deleted: list[str] | None = None,
 ) -> str:
-    """Lo hecho frente a lo que el plan esperaba en la fase (UC-12601): todos los que sobran y
-    todos los que faltan, sin recorte; un fichero borrado cuenta como tocado."""
+    """Lo hecho frente a lo que el plan esperaba en la fase (UC-12601): los que sobran y los que
+    faltan (hasta 50 de cada, con el total; la lista entera va en ``plan_comparison``); un fichero
+    borrado cuenta como tocado."""
     if plan_files_expected is None:
         return NO_PLAN_COMPARISON
 
-    actual_set = set(files_created) | set(files_modified) | set(files_deleted or [])
-    expected_set = set(plan_files_expected)
-
-    extra = sorted(actual_set - expected_set)
-    missing = sorted(expected_set - actual_set)
+    extra, missing = compare_files([*files_created, *files_modified, *(files_deleted or [])], plan_files_expected)
     parts: list[str] = []
     if extra:
-        parts.append("Archivos adicionales: " + ", ".join(f"`{f}`" for f in extra))
+        parts.append(f"Archivos adicionales ({len(extra)}): " + _listed(extra))
     if missing:
-        parts.append("Archivos esperados no tocados: " + ", ".join(f"`{f}`" for f in missing))
+        parts.append(f"Archivos esperados no tocados ({len(missing)}): " + _listed(missing))
     return "; ".join(parts) if parts else NO_DELTAS
 
 

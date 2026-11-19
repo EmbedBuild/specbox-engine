@@ -54,28 +54,47 @@ def _names_item(text: str, item_upper: str) -> bool:
     return re.search(rf"(?<![\w-]){re.escape(item_upper)}(?![\w])", text.upper()) is not None
 
 
+class ResultsError(ValueError):
+    """``results_content`` no es un ``results.json`` que se entienda."""
+
+
+#: UC-12601: las secciones que escribe el engine con lo entregado; sus «- **AC-01**: …» no son criterios.
+_STATUS_HEADING = re.compile(r"^#{1,6}\s+(?:Implementation Status|Estado de implementaci[oó]n)\b", re.IGNORECASE)
+
+
+def _ac_key(raw: object) -> str:
+    from ..plan_contract import normalize_ac  # «AC-1» y « AC-01 » son AC-01
+
+    return normalize_ac(str(raw))
+
+
 def _parse_results(results_content: str | None) -> dict[tuple[str, str], list[dict]] | None:
     """Los resultados de las pruebas de aceptación (``results.json``, uno o una lista), por (UC, AC).
 
-    None si no hay contenido o no se entiende; así la comprobación vuelve a la búsqueda de siempre.
+    None si no llega contenido (la comprobación usa la búsqueda de siempre y lo dice). Un contenido
+    que no se entiende es un ``ResultsError``: nunca se vuelve a la búsqueda en silencio. Con varias
+    ejecuciones (una lista), la más reciente (la última) manda para cada criterio que trae.
     """
     if not results_content or not results_content.strip():
         return None
     try:
         data = json.loads(results_content)
-    except (ValueError, TypeError):
-        return None
+    except (ValueError, TypeError) as e:
+        raise ResultsError(f"no es JSON ({e})") from e
     runs = data if isinstance(data, list) else [data]
+    if not runs:
+        raise ResultsError("no trae ninguna ejecución")
     out: dict[tuple[str, str], list[dict]] = {}
-    for run in runs:
-        if not isinstance(run, dict):
-            continue
-        uc_id = str(run.get("uc_id") or "").upper()
-        for result in run.get("results") or []:
-            if not isinstance(result, dict) or not result.get("id"):
-                continue
-            ac_id = str(result["id"]).upper()
-            out.setdefault((uc_id, ac_id), []).append(result)
+    for n, run in enumerate(runs, 1):
+        if not isinstance(run, dict) or not isinstance(run.get("results"), list):
+            raise ResultsError(f"la ejecución {n} no tiene una lista «results»")
+        uc_id = str(run.get("uc_id") or "").strip().upper()
+        this_run: dict[tuple[str, str], list[dict]] = {}
+        for result in run["results"]:
+            if not isinstance(result, dict) or not str(result.get("id") or "").strip():
+                raise ResultsError(f"la ejecución {n} tiene un resultado sin «id»")
+            this_run.setdefault((uc_id, _ac_key(result["id"])), []).append(result)
+        out.update(this_run)  # la ejecución más reciente sustituye a las anteriores
     return out
 
 
@@ -87,14 +106,19 @@ def _verdict_from_results(
     Pasa si sus pruebas (``results[].id`` = el criterio) pasan todas; falla si alguna falla; sin
     prueba, «sin prueba»: nunca cuenta como que pasa.
     """
-    found = results.get((uc_id.upper(), ac_id.upper())) or results.get(("", ac_id.upper())) or []
+    key = _ac_key(ac_id)
+    found = results.get((uc_id.upper(), key)) or results.get(("", key)) or []
     if not found:
         return "REJECTED", "Sin prueba: ningún resultado de results.json lleva su etiqueta", []
     evidence = [f"{r.get('scenario') or r['id']}: {str(r.get('status', '')).upper()}" for r in found]
-    failing = [r for r in found if str(r.get("status", "")).upper() != "PASS"]
+    failing = [r for r in found if str(r.get("status", "")).upper() == "FAIL"]
     if failing:
         error = failing[0].get("error") or "sin detalle"
         return "REJECTED", f"Su prueba falla ({len(failing)} de {len(found)}): {error}", evidence
+    other = [r for r in found if str(r.get("status", "")).upper() != "PASS"]
+    if other:
+        status = str(other[0].get("status") or "sin estado").upper()
+        return "REJECTED", f"Su prueba no dio un resultado ({status}): no demuestra que se cumpla", evidence
     return "ACCEPTED", f"Su prueba pasa ({len(found)} escenario{'s' if len(found) != 1 else ''})", evidence
 
 
@@ -112,6 +136,7 @@ def _extract_ac_from_prd(prd_text: str, item_id: str) -> list[dict]:
     in_section = False
     section_depth = 0
 
+    skip_depth = 0  # UC-12601: dentro de una sección «Implementation Status» (lo entregado, no criterios)
     for line in prd_text.splitlines():
         stripped = line.strip()
 
@@ -119,6 +144,14 @@ def _extract_ac_from_prd(prd_text: str, item_id: str) -> list[dict]:
         heading_match = re.match(r"^(#{1,6})\s+", line)
         if heading_match:
             level = len(heading_match.group(1))
+            if skip_depth and level > skip_depth:
+                continue
+            skip_depth = 0
+            if _STATUS_HEADING.match(stripped):
+                skip_depth = level
+                if in_section and level <= section_depth:
+                    in_section = False
+                continue
             # Check if this heading names our item_id (UC-12601: whole id, «UC-12» is not «UC-12601»)
             if _names_item(stripped, item_upper):
                 in_section = True
@@ -129,12 +162,14 @@ def _extract_ac_from_prd(prd_text: str, item_id: str) -> list[dict]:
                 in_section = False
                 continue
 
+        if skip_depth:
+            continue
         if in_section:
             m = ac_pattern.match(stripped)
             if m:
                 criteria.append(
                     {
-                        "ac_id": m.group(1).upper(),
+                        "ac_id": _ac_key(m.group(1)),
                         "description": m.group(2).strip(),
                     }
                 )
@@ -143,17 +178,32 @@ def _extract_ac_from_prd(prd_text: str, item_id: str) -> list[dict]:
 
 
 def _find_ucs_for_us(prd_text: str, us_id: str) -> list[str]:
-    """Find all UC-XXX identifiers under a US-XX section."""
-    uc_pattern = re.compile(r"(UC-\d+)", re.IGNORECASE)
+    """Find all UC-XXX identifiers under a US-XX section.
+
+    UC-12601: only the UCs a heading, a list item or a table row opens with («#### UC-12601: …»,
+    «- UC-12601 …», «| UC-12601 | …»);
+    one mentioned in a sentence of the section is not one of its UCs, and «Implementation Status»
+    sections are skipped.
+    """
+    uc_pattern = re.compile(r"^(?:#{1,6}\s+|[-*]\s+|\|\s*)(?:\[[ xX]\]\s*)?\**\s*(UC-\d+[a-z]?)\b", re.IGNORECASE)
     us_upper = us_id.upper()
     in_section = False
     section_depth = 0
+    skip_depth = 0
     ucs: list[str] = []
 
     for line in prd_text.splitlines():
         heading_match = re.match(r"^(#{1,6})\s+", line)
         if heading_match:
             level = len(heading_match.group(1))
+            if skip_depth and level > skip_depth:
+                continue
+            skip_depth = 0
+            if _STATUS_HEADING.match(line.strip()):
+                skip_depth = level
+                if in_section and level <= section_depth:
+                    in_section = False
+                continue
             if _names_item(line, us_upper):
                 in_section = True
                 section_depth = level
@@ -162,8 +212,8 @@ def _find_ucs_for_us(prd_text: str, us_id: str) -> list[str]:
                 in_section = False
                 continue
 
-        if in_section:
-            for m in uc_pattern.finditer(line):
+        if in_section and not skip_depth:
+            for m in uc_pattern.finditer(line.strip()):
                 uc_id = m.group(1).upper()
                 if uc_id not in ucs:
                     ucs.append(uc_id)
@@ -1091,7 +1141,10 @@ def run_acceptance_check_from_content(
     all_results: list[dict] = []
     feature_files: dict[str, str] = {}
     report_files: dict[str, str] = {}
-    results = _parse_results(results_content)
+    try:
+        results = _parse_results(results_content)
+    except ResultsError as e:
+        return {"error": f"results_content no es un results.json válido: {e}", "code": "INVALID_RESULTS"}
 
     for uc_id in uc_ids_to_check:
         criteria = _extract_ac_from_prd(prd_content, uc_id)

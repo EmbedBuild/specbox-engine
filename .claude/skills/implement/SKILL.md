@@ -1257,6 +1257,8 @@ REQUIRED FINAL ACTION (before returning):
   Mandatory fields: schema_version=1, phase, phase_index, agent, status.
   Recommended: files_created, files_modified, summary, duration_s,
                tokens_used_prompt, tokens_used_response, healing_attempts.
+  plan_phase: the N of the plan's «Fase N» you implemented ({plan_phase}); the close
+              compares your files with that phase's **Ficheros:** line (UC-12601).
 
 RETURN FORMAT (besides the JSONL append):
   - phase_status: complete | failed | needs_healing
@@ -1381,6 +1383,7 @@ Despues de guardar el checkpoint, agregar el delta block:
 mcp__SpecBox-MCP__aggregate_phase_outputs(
   feature_slug=feature,
   phase_outputs_content=<contenido de .quality/evidence/{feature}/phase_outputs.jsonl, o "" si no existe>,
+  plan_content=<el texto del plan, doc/plans/...>,
 )
 → agg:
   overall_status ∈ {ok, partial, error, empty}
@@ -1388,6 +1391,7 @@ mcp__SpecBox-MCP__aggregate_phase_outputs(
   files_created / files_modified / files_deleted   — listas sin repetidos
   phases                                      — una por fase, en orden de ejecución
   phase_deltas                                — el bloque Markdown de cada fase (para write_implementation_status)
+  plan_comparison                             — lo hecho frente a las fases del plan ejecutadas (UC-12601)
   total_duration_s, total_healing_attempts
 ```
 
@@ -1397,11 +1401,12 @@ Reglas de uso:
 - Si `agg.overall_status == "error"` → linea: "Fase {phase} fallida — pendiente de resolucion"
 - Si `agg.total_healing_attempts > 0` → linea adicional con count y nivel maximo
 - Pasa el plan (`plan_content`, el texto de `doc/plans/...`) a `aggregate_phase_outputs`
-  (UC-12601): la fase con `phase_index` N se compara con la fase N del plan (su línea
-  **Ficheros:**) y el bloque lista los ficheros que sobran y los que faltan; `plan_comparison`
-  da la ejecución entera frente al plan. Escribe `phase_index` con el número de la fase del plan
-  que ejecutas. Con un plan anterior (contrato 0) el bloque dice «Comparación no disponible»: no
-  afirmes que la fase sigue el plan.
+  (UC-12601): cada línea de `phase_outputs.jsonl` con `plan_phase` N se compara con la «Fase N»
+  del plan (su línea **Ficheros:**, por número, no por posición) y el bloque lista los ficheros que
+  sobran y los que faltan; `plan_comparison` da lo hecho frente a las fases del plan ejecutadas (no
+  las de otras UC). Pon `plan_phase` en el encargo de cada Task ({plan_phase}); `phase_index` sigue
+  siendo el orden de esta skill. Sin `plan_phase`, o con un plan anterior (contrato 0), el bloque dice
+  «Comparación no disponible»: no afirmes que la fase sigue el plan.
 
 El orquestador YA NO mantiene `implementation_deltas: list[str]` en memoria.
 Cualquier consulta posterior (Paso 7.7a, Paso 8.5.1a) vuelve a llamar a

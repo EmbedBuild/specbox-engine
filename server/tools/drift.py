@@ -3,16 +3,24 @@
 UC-12603: ``get_closed_uc_files`` dice, para unas rutas cambiadas, qué UC cerradas las cambiaron en su
 cierre (``complete_uc(files=[…])``), con la propuesta de revisar sus criterios. Solo lee: la spec no
 cambia hasta que una persona lo decide.
+
+UC-12602: ``get_drift_report`` es lo que llama ``specbox drift`` (el bloque «desviacion» del CI local):
+cada fichero de la rama con la UC que lo reclama o «sin UC», las dependencias que el plan no declara,
+las exclusiones y las UC cerradas que toca, más el modo de la medida ``drift_gate``. Solo lee.
 """
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from fastmcp import Context
 
+from ..ac_evidence import evidence_from_comments
 from ..auth_gateway import get_session_backend
 from ..closed_files import NOT_SUPPORTED_NOTICE, ClosedUc, closed_uc_touches
+from ..drift import build_drift_report
+from ..plan_contract import parse_plan_contract
 from .spec_driven import _get_uc_id, _get_us_id, _is_uc, _is_us
 
 
@@ -93,6 +101,140 @@ async def get_closed_uc_files(
         await backend.close()
 
 
+MAX_DRIFT_FILES = 5000
+MAX_PLAN_BYTES = 2_000_000
+
+
+async def _board_backend(ctx: Context, board_id: str, items_content: str | None) -> tuple[Any | None, str]:
+    """El tablero para leer, y su tipo: la sesión; si no hay, el ``items.json`` de FreeForm que llega o
+    el tablero native del proyecto con el token de la conexión (la identidad del dispositivo, como
+    ``set_auth_token``). ``(None, motivo)`` si no hay forma de leerlo."""
+    from ..auth_gateway import BACKEND_STATE_KEY
+
+    config = await ctx.get_state(BACKEND_STATE_KEY)
+    if config:
+        backend = await get_session_backend(ctx, items_content=items_content)
+        return backend, str(config.get("backend_type") or "")
+    if items_content is not None:
+        from ..backends.freeform_backend import FreeformBackend
+
+        return FreeformBackend(items_content=items_content), "freeform"
+    from ..coordination.transport_auth import transport_token
+    from .session_heartbeat import PROJECT_ID
+
+    token = transport_token(ctx)
+    if token and PROJECT_ID.match(board_id or ""):
+        from ..backends.native_backend import NativeBackend
+
+        return NativeBackend(project_id=board_id, dev_token=token), "native"
+    return None, "sin sesión del tablero ni identidad del dispositivo (specbox login)"
+
+
+async def _drift_mode(backend_type: str, board_id: str, policy_content: str | None) -> str:
+    """El modo de la medida ``drift_gate`` del tablero («warn» si no se puede leer)."""
+    from ..coordination.enforcement import effective_policy, mode_of
+
+    raw: Any = None
+    try:
+        if backend_type == "native":
+            from ..db.pool import get_pool
+
+            pool = await get_pool()
+            raw = await pool.fetchval("SELECT meta->'enforcement' FROM projects WHERE project_id = $1", board_id)
+            raw = json.loads(raw) if isinstance(raw, str) else raw
+        elif backend_type == "freeform" and policy_content:
+            raw = json.loads(policy_content)
+    except Exception:  # noqa: BLE001 — sin política legible, la puerta avisa y no detiene
+        raw = None
+    try:
+        return mode_of(effective_policy(raw, backend_type=backend_type or "native"), "drift_gate")
+    except Exception:  # noqa: BLE001
+        return "warn"
+
+
+async def get_drift_report(
+    board_id: str,
+    files: list[str],
+    ctx: Context,
+    uc_ids: list[str] | None = None,
+    plan_contents: dict[str, str] | None = None,
+    dependencies_added: list[dict[str, str]] | None = None,
+    exclude: list[str] | None = None,
+    items_content: str | None = None,
+    policy_content: str | None = None,
+) -> dict[str, Any]:
+    """The drift gate's report for a branch (UC-12602). Read-only; `specbox drift` calls it.
+
+    Args:
+        board_id: Board/project ID (in multirepo, the orchestrator's).
+        files: Files the branch changed (not deleted ones), relative to the repo.
+        uc_ids: The branch's UCs (commit subjects, branch name or the active UC marker).
+        plan_contents: The plans of those UCs, path → text, read from the orchestrator.
+        dependencies_added: Dependencies the branch adds to its manifests, [{ecosystem, name, manifest}].
+        exclude: The project's exclusion globs (specbox.drift.exclude).
+        items_content: FreeForm content-passing: the whole items.json.
+        policy_content: FreeForm: doc/tracking/policy.json, for the mode of the measure.
+
+    Returns:
+        `files` (each with `claimed_by`, `source` plan|receipt|plan+receipt, or `excluded_by`),
+        `unclaimed` («sin UC»), `exclude` and `excluded`, `dependencies` (`added`, `undeclared`),
+        `closed_touches` (closed UCs the change touches, with a proposal to review their criteria;
+        the spec does not change), `ok`, `mode` of the `drift_gate` measure (off|warn|block) and
+        `board` (read | why it could not be read).
+    """
+    if not isinstance(files, list) or not all(isinstance(f, str) for f in files) or len(files) > MAX_DRIFT_FILES:
+        return {"error": f"files debe ser una lista de hasta {MAX_DRIFT_FILES} rutas (texto)", "code": "INVALID_FILES"}
+    plans = plan_contents or {}
+    if not isinstance(plans, dict) or sum(len(str(v)) for v in plans.values()) > MAX_PLAN_BYTES:
+        return {"error": "plan_contents debe ser {ruta: texto} de hasta 2 MB", "code": "INVALID_PLANS"}
+    branch = [str(u).strip().upper() for u in (uc_ids or []) if str(u).strip()]
+    contracts = [(path, parse_plan_contract(str(text))) for path, text in plans.items()]
+
+    receipts: dict[str, set[str]] = {}
+    closed: list[ClosedUc] = []
+    known: set[str] | None = None
+    board_note = "leído"
+    mode = "warn"
+    backend, backend_type = await _board_backend(ctx, board_id, items_content)
+    if backend is None:
+        board_note = backend_type
+    else:
+        try:
+            if getattr(backend, "STORES_SPEC_META", False):
+                items = await backend.list_board_summary(board_id)
+                closed = closed_ucs_of(items)
+            else:
+                items = await backend.list_board_summary(board_id)
+            ucs = {_get_uc_id(i).upper(): i for i in items if _is_uc(i)}
+            known = set(ucs)
+            for uc_id in branch:
+                item = ucs.get(uc_id)
+                if item is None:
+                    continue
+                acs = await backend.get_acceptance_criteria(board_id, item.id)
+                from_comments: dict[str, list[dict[str, Any]]] = {}
+                if any(not ac.evidence for ac in acs):
+                    from_comments = evidence_from_comments(await backend.get_comments(board_id, item.id))
+                found: set[str] = set()
+                for ac in acs:
+                    for receipt in (ac.evidence or from_comments.get(ac.id, [])):
+                        if receipt.get("passed") is not False and isinstance(receipt.get("files"), list):
+                            found |= {f for f in receipt["files"] if isinstance(f, str)}
+                receipts[uc_id] = found
+            mode = await _drift_mode(backend_type, board_id, policy_content)
+        except Exception as e:  # noqa: BLE001 — sin acceso al tablero, el informe sale con el plan
+            board_note = f"no se pudo leer: {str(e)[:160]}"
+            closed, receipts, known = [], {}, None
+        finally:
+            await backend.close()
+
+    report = build_drift_report(
+        files=files, uc_ids=branch, contracts=contracts, receipts=receipts, closed=closed,
+        dependencies_added=dependencies_added, exclude=exclude, known_ucs=known,
+    )
+    return {"success": True, "board": board_note, "mode": mode, **report}
+
+
 def register_spec_drift_tools(mcp_instance) -> None:
     """Registra las tools de la puerta de desviación (US-126)."""
     mcp_instance.tool(
@@ -101,3 +243,11 @@ def register_spec_drift_tools(mcp_instance) -> None:
         "its files, and a proposal to review its criteria; the spec does not change), by_path and "
         "closed_without_files (closed without their file list, before 6.46.0: they never warn)."
     )(get_closed_uc_files)
+    mcp_instance.tool(
+        description="The drift gate's report for a branch (read-only, UC-12602; `specbox drift` calls it): pass "
+        "the changed files, the branch's uc_ids, the plans of those UCs (plan_contents {path: text}), the "
+        "dependencies the branch adds and the project's exclusion globs. Returns each file with the UC that "
+        "claims it (by the plan's **Ficheros:** lines or the criteria receipts) or «sin UC» (unclaimed), the "
+        "undeclared dependencies, the excluded files, the closed UCs the change touches, ok and the mode of "
+        "the drift_gate measure."
+    )(get_drift_report)

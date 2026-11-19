@@ -1,0 +1,86 @@
+{
+  "uc_id": "UC-12502",
+  "module": "server/approval.py",
+  "mutants": [
+    {
+      "id": "M01",
+      "file": "server/approval.py",
+      "find": "    joined = \"\\n\".join(f\"{p['id']}:{p['text']}\" for p in snapshot)\n",
+      "replace": "    joined = \"\\n\".join(f\"{p['id']}\" for p in snapshot)\n",
+      "criterion": "AC-03",
+      "description": "El texto deja de entrar en la huella: reescribir un criterio aprobado no deja la UC sin aprobar."
+    },
+    {
+      "id": "M02",
+      "file": "server/approval.py",
+      "find": "    for ac in acs:\n        ac_id = (ac.get(\"id\") or ac.get(\"ac_id\"))",
+      "replace": "    for ac in acs:\n        if (ac.get(\"internal\") if isinstance(ac, dict) else getattr(ac, \"internal\", False)):\n            continue\n        ac_id = (ac.get(\"id\") or ac.get(\"ac_id\"))",
+      "criterion": "AC-03",
+      "description": "Los criterios internos quedan fuera de la huella: añadir o reescribir uno interno no anula la aprobación (y pasarlo a interno sí)."
+    },
+    {
+      "id": "M03",
+      "file": "server/approval.py",
+      "find": "        pairs.append({\"id\": str(ac_id), \"text\": norm_text(text)})\n    return sorted(pairs, key=lambda p: _ac_number(p[\"id\"]))\n\n\ndef criteria_fingerprint(acs: Iterable[Any]) -> str:\n    \"\"\"La huella de los criterios vigentes: cambia si cambia su id o su texto, o si hay uno más o menos.\"\"\"\n    snapshot = criteria_snapshot(acs)\n    joined = \"\\n\".join(f\"{p['id']}:{p['text']}\" for p in snapshot)\n",
+      "replace": "        verification = ac.get(\"verification\") if isinstance(ac, dict) else getattr(ac, \"verification\", None)\n        pairs.append({\"id\": str(ac_id), \"text\": norm_text(text), \"verification\": str(verification or \"\")})\n    return sorted(pairs, key=lambda p: _ac_number(p[\"id\"]))\n\n\ndef criteria_fingerprint(acs: Iterable[Any]) -> str:\n    \"\"\"La huella de los criterios vigentes: cambia si cambia su id o su texto, o si hay uno más o menos.\"\"\"\n    snapshot = criteria_snapshot(acs)\n    joined = \"\\n\".join(f\"{p['id']}:{p['text']}:{p['verification']}\" for p in snapshot)\n",
+      "criterion": "AC-03",
+      "description": "La verificación entra en la huella: cambiar cómo se comprueba un criterio deja la UC sin aprobar."
+    },
+    {
+      "id": "M04",
+      "file": "server/approval.py",
+      "find": "\"text\": norm_text(text)})",
+      "replace": "\"text\": str(text or \"\")})",
+      "criterion": "AC-03",
+      "description": "Sin normalizar espacios: el mismo texto con espacios distintos cambia la huella y deja sin aprobar una UC que no cambió."
+    },
+    {
+      "id": "M05",
+      "file": "server/approval.py",
+      "find": "    return sorted(pairs, key=lambda p: _ac_number(p[\"id\"]))\n",
+      "replace": "    return pairs\n",
+      "criterion": "AC-03",
+      "description": "Sin ordenar por id: los mismos criterios en otro orden dan otra huella y la UC aprobada pasa a «stale»."
+    },
+    {
+      "id": "M06",
+      "file": "server/approval.py",
+      "find": "        for key in (\"by\", \"at\", \"session_id\", \"source\"):\n",
+      "replace": "        for key in (\"at\", \"session_id\", \"source\"):\n",
+      "criterion": "AC-01",
+      "description": "El estado aprobado deja de decir quién dio la aprobación (falta «by»)."
+    },
+    {
+      "id": "M07",
+      "file": "server/approval.py",
+      "find": "APPROVED_STATES = frozenset({\"approved\", \"migration\"})\n",
+      "replace": "APPROVED_STATES = frozenset({\"approved\"})\n",
+      "criterion": "AC-06",
+      "description": "«migration» no cuenta como aprobada: una UC anterior a la regla no arranca en «block»."
+    },
+    {
+      "id": "M08",
+      "file": "server/approval.py",
+      "find": "        return {\"state\": \"migration\", \"source\": \"migration\", \"label\": MIGRATION_LABEL}\n",
+      "replace": "        return {\"state\": \"migration\", \"source\": \"migration\"}\n",
+      "criterion": "AC-06",
+      "description": "La UC anterior a la regla cuenta como aprobada pero pierde la marca «aprobada por migración»."
+    },
+    {
+      "id": "M09",
+      "file": "server/approval.py",
+      "find": "    if predates:\n",
+      "replace": "    if predates or latest is None:\n",
+      "criterion": "AC-02",
+      "description": "Una UC sin ninguna aprobación se toma por anterior a la regla y cuenta como aprobada por migración."
+    },
+    {
+      "id": "M10",
+      "file": "server/approval.py",
+      "find": "    return isinstance(state, dict) and state.get(\"state\") in APPROVED_STATES\n",
+      "replace": "    return isinstance(state, dict) and state.get(\"state\") != \"none\"\n",
+      "criterion": "AC-03",
+      "description": "«stale» cuenta como aprobada: cambiar, añadir o retirar un criterio no deja la UC sin aprobar."
+    }
+  ]
+}

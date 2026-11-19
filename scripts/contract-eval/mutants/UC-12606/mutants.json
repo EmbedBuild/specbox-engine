@@ -1,0 +1,86 @@
+{
+  "uc_id": "UC-12606",
+  "module": "server/impact_radius.py",
+  "mutants": [
+    {
+      "id": "M01",
+      "file": "server/impact_radius.py",
+      "find": "base.endswith((\".yaml\", \".yml\", \".json\"))",
+      "replace": "base.endswith((\".yaml\", \".json\"))",
+      "criterion": "AC-01",
+      "description": "Un openapi.yml o swagger.yml deja de contar como contrato de API (solo .yaml y .json)."
+    },
+    {
+      "id": "M02",
+      "file": "server/impact_radius.py",
+      "find": "base.endswith((\".proto\", \".graphqls\"))",
+      "replace": "base.endswith((\".graphqls\",))",
+      "criterion": "AC-01",
+      "description": "Un fichero .proto deja de contar como contrato de API."
+    },
+    {
+      "id": "M03",
+      "file": "server/impact_radius.py",
+      "find": "for seg in (\"/migrations/\", \"/alembic/versions/\", \"/db/migrate/\")",
+      "replace": "for seg in (\"/migrations/\", \"/db/migrate/\")",
+      "criterion": "AC-01",
+      "description": "Una revisión de alembic/versions/ (p. ej. un .py) deja de contar como migración de datos."
+    },
+    {
+      "id": "M04",
+      "file": "server/impact_radius.py",
+      "find": "    if _DOC_RE.search(base) or _seed_or_fixture(p):\n        return None\n",
+      "replace": "    if _seed_or_fixture(p):\n        return None\n",
+      "criterion": "AC-03",
+      "description": "Un fichero de documentación dentro de una carpeta de migraciones (migrations/README.md) pasa a contar como migración y pide aprobación."
+    },
+    {
+      "id": "M05",
+      "file": "server/impact_radius.py",
+      "find": "_SEED_RE = re.compile(r\"(^|/)(seeds?|fixtures?|tests?|__tests__|spec)/|(^|/)seed[^/]*$\", re.IGNORECASE)",
+      "replace": "_SEED_RE = re.compile(r\"(^|/)(fixtures?|tests?|__tests__|spec)/|(^|/)seed[^/]*$\", re.IGNORECASE)",
+      "criterion": "AC-03",
+      "description": "Un .sql de una carpeta de semillas (db/seeds/users.sql) pasa a contar como migración de datos y pide aprobación."
+    },
+    {
+      "id": "M06",
+      "file": "server/impact_radius.py",
+      "find": "    if (base.startswith((\"openapi\", \"swagger\")) and base.endswith((\".yaml\", \".yml\", \".json\"))) \\\n            or base.endswith((\".proto\", \".graphqls\")) or (base.startswith(\"schema\") and base.endswith(\".graphql\")):\n        return \"api_contract\"\n    if _DOC_RE.search(base) or _seed_or_fixture(p):\n        return None\n",
+      "replace": "    if _DOC_RE.search(base) or _seed_or_fixture(p):\n        return None\n    if (base.startswith((\"openapi\", \"swagger\")) and base.endswith((\".yaml\", \".yml\", \".json\"))) \\\n            or base.endswith((\".proto\", \".graphqls\")) or (base.startswith(\"schema\") and base.endswith(\".graphql\")):\n        return \"api_contract\"\n",
+      "criterion": "AC-01",
+      "description": "La exclusión de documentación y datos de prueba se mira antes que el contrato: spec/openapi.yaml deja de ser contrato de API."
+    },
+    {
+      "id": "M07",
+      "file": "server/impact_radius.py",
+      "find": "    for key in out:\n        globs = impact.get(key) or []\n",
+      "replace": "    for key in (\"api_globs\", \"signature_globs\"):\n        globs = impact.get(key) or []\n",
+      "criterion": "AC-02",
+      "description": "Los migration_globs del proyecto se ignoran: una fase que solo toca rutas de migración propias no pide aprobación en el triaje."
+    },
+    {
+      "id": "M08",
+      "file": "server/impact_radius.py",
+      "find": "        for cls in (\"api_contract\", \"data_migration\"):\n",
+      "replace": "        for cls in (\"data_migration\",):\n",
+      "criterion": "AC-02",
+      "description": "Las fases que tocan un contrato de API no salen en plan_impact y el triaje no pide su aprobación."
+    },
+    {
+      "id": "M09",
+      "file": "server/impact_radius.py",
+      "find": "    if mode is not None and mode != \"block\":\n",
+      "replace": "    if mode != \"block\":\n",
+      "criterion": "AC-02",
+      "description": "Sin el modo de la medida, impact_decision no pregunta (debería preguntar por el lado seguro) y el contrato o la migración no pide aprobación."
+    },
+    {
+      "id": "M10",
+      "file": "server/impact_radius.py",
+      "find": "    if mode is not None and mode != \"block\":\n",
+      "replace": "    if mode is not None and mode == \"off\":\n",
+      "criterion": "AC-04",
+      "description": "Con la medida en «warn», el triaje pide la aprobación como si estuviera en «block» en vez de dejar seguir."
+    }
+  ]
+}

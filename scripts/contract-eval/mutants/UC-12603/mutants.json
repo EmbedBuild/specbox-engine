@@ -1,0 +1,86 @@
+{
+  "uc_id": "UC-12603",
+  "module": "server/closed_files.py",
+  "mutants": [
+    {
+      "id": "M01",
+      "file": "server/closed_files.py",
+      "find": "    return out[-MAX_CLOSED_FILES:], len(out) > MAX_CLOSED_FILES",
+      "replace": "    return out[:MAX_CLOSED_FILES], len(out) > MAX_CLOSED_FILES",
+      "criterion": "AC-01",
+      "description": "Por encima del tope de 1000 rutas se quedan las más antiguas en vez de las más recientes."
+    },
+    {
+      "id": "M02",
+      "file": "server/closed_files.py",
+      "find": "    return out[-MAX_CLOSED_FILES:], len(out) > MAX_CLOSED_FILES",
+      "replace": "    return out[-MAX_CLOSED_FILES:], len(out) >= MAX_CLOSED_FILES",
+      "criterion": "AC-01",
+      "description": "Una lista de exactamente 1000 rutas se marca como recortada sin haberse recortado nada."
+    },
+    {
+      "id": "M03",
+      "file": "server/closed_files.py",
+      "find": "    out = [p for p in dict.fromkeys(before) if p and p not in fresh] + [p for p in new if p]",
+      "replace": "    out = [p for p in new if p]",
+      "criterion": "AC-01",
+      "description": "Una UC que se reabre y se vuelve a cerrar pierde los ficheros de su cierre anterior en vez de sumarlos."
+    },
+    {
+      "id": "M04",
+      "file": "server/closed_files.py",
+      "find": "if path.startswith(\"/\") or \"..\" in path.split(\"/\") or \"\\n\" in path",
+      "replace": "if path.startswith(\"/\") or \"\\n\" in path",
+      "criterion": "AC-01",
+      "description": "Una ruta con «..» se acepta y se guarda en la lista de la UC cerrada en lugar de rechazarse."
+    },
+    {
+      "id": "M05",
+      "file": "server/closed_files.py",
+      "find": "    clean = path.strip().replace(\"\\\\\", \"/\")",
+      "replace": "    clean = path.strip()",
+      "criterion": "AC-02",
+      "description": "Desaparece la normalización de «\\» a «/»: un cambio en server\\x.py ya no casa con server/x.py de la UC cerrada."
+    },
+    {
+      "id": "M06",
+      "file": "server/closed_files.py",
+      "find": "    skip = {u.upper() for u in ([exclude] if isinstance(exclude, str) else exclude or [])}",
+      "replace": "    skip = {u.upper() for u in (exclude or [])}",
+      "criterion": "AC-02",
+      "description": "Un exclude pasado como texto se trocea en letras: la UC de la rama no se excluye y sus propios ficheros salen como de otra UC."
+    },
+    {
+      "id": "M07",
+      "file": "server/closed_files.py",
+      "find": "        return same if other_satellite else same | (files - labelled)",
+      "replace": "        return same if other_satellite else same | files",
+      "criterion": "AC-02",
+      "description": "En multirepo cuentan también las rutas guardadas para otro repositorio: avisa de UC cerradas de otro repo."
+    },
+    {
+      "id": "M08",
+      "file": "server/closed_files.py",
+      "find": "    touches.sort(key=lambda t: (len(t[\"files\"]), t[\"closed_at\"] or \"\"), reverse=True)",
+      "replace": "    touches.sort(key=lambda t: (len(t[\"files\"]), t[\"closed_at\"] or \"\"), reverse=False)",
+      "criterion": "AC-02",
+      "description": "El orden se invierte: salen primero las UC que menos ficheros comparten y, con el tope, se pierden las que más."
+    },
+    {
+      "id": "M09",
+      "file": "server/closed_files.py",
+      "find": "            \"files\": hit,\n            \"proposal\": proposal(uc.uc_id, uc.name, hit),\n",
+      "replace": "            \"files\": hit,\n",
+      "criterion": "AC-03",
+      "description": "Cada aviso de UC cerrada deja de llevar la propuesta de revisar sus criterios (falta el campo proposal)."
+    },
+    {
+      "id": "M10",
+      "file": "server/closed_files.py",
+      "find": "    if without:\n        out[\"notice\"]",
+      "replace": "    if without > 1:\n        out[\"notice\"]",
+      "criterion": "AC-04",
+      "description": "Con una sola UC cerrada sin lista de ficheros el informe no incluye el aviso que la cuenta."
+    }
+  ]
+}

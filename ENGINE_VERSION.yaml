@@ -1,5 +1,5 @@
-version: 6.47.0
-codename: "Spec viva"
+version: 6.48.0
+codename: "Remiendo"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-19
@@ -670,8 +670,20 @@ features:
   # New (v6.47.0) — Spec viva
   - impact-radius
   - behavior-doc
+  # New (v6.48.0) — Remiendo
+  - fix-skill
 
 changelog:
+  6.48.0:
+    date: 2026-11-19
+    codename: "Remiendo"
+    changes:
+      - "feat: new skill /fix (direct): a small bug without PRD or plan: a test that reproduces it and fails first (never in the acceptance folders), a UC with one criterion in the given story or in «Arreglos sin PRD» (explicit uc_id, add_uc, validate_ac_quality, update_uc no_prd_reason), the person approves the criterion (approve_criteria), start_uc, branch fix/UC-XXXX-<slug>, receipt with the test and the files before the CI, independent review (isolated evaluator in «agresivo» or FreeForm, a person in the panel otherwise), merge and complete_uc(files, repo) (UC-12701, #406)"
+      - "feat: /fix scripts/scope.mjs: counts the fix files against the base branch without its tests, .quality/ or doc/tracking/, classifies them with the impact-radius rule (test folders included: spec/openapi.yaml is a contract) and stops over 5 files, an API contract or a data migration; untracked files that were not added do not count; a --base that does not exist exits with 2 (UC-12701, #406)"
+      - "feat: /fix stops and proposes /feedback when no test can reproduce the bug, and says it needs a board without one; when it stops being small the UC goes back to backlog (release_uc in native) and /prd picks it up (UC-12701, #406)"
+      - "change: /manual-test with a board fixes each code bug with /fix (bug table with UC and PR) and does not change the code when /fix cannot reproduce it; without a board it works as before (UC-12701, #406)"
+      - "change: uc-lifecycle-guard also watches fix/ branches; commit-spec-guard and checkpoint-freshness-guard do not ask a /fix UC on its fix/ branch for a checkpoint; getActiveUC carries no_prd_reason; the extension knows /fix (27 skills) (UC-12701, #406)"
+
   6.47.0:
     date: 2026-11-19
     codename: "Spec viva"

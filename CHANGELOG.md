@@ -2,6 +2,43 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.48.0] - 2026-11-19 — "Remiendo"
+
+Primera pieza de US-127: un camino ligero para los bugs pequeños, sin PRD ni plan pero con su UC, su
+criterio aprobado y una prueba que falla primero.
+
+### Added
+
+- **/fix** (UC-12701, #406), skill nueva (`context: direct`).
+  - Antes de tocar el tablero escribe una prueba que reproduce el bug y comprueba que falla por el bug,
+    en la carpeta de pruebas normal (nunca en las de aceptación), y también en la rama principal.
+  - Crea la UC con un criterio en la historia indicada o en «Arreglos sin PRD» (con `uc_id` explícito,
+    `validate_ac_quality` y `update_uc(no_prd_reason=…)`); una persona aprueba el criterio.
+  - `start_uc`, rama `fix/UC-XXXX-<slug>`, commit de la prueba sola, el arreglo, el recibo con la prueba
+    y los ficheros antes del CI, el visto bueno independiente (evaluador aislado en «agresivo» o en
+    FreeForm; una persona en el panel en los demás casos) y `complete_uc(files, repo)`.
+  - Sin tablero dice que lo necesita y termina sin error; si el bug no se reproduce con una prueba,
+    propone /feedback.
+- **`scripts/scope.mjs` de /fix**: cuenta los ficheros del arreglo frente a la rama base sin sus
+  pruebas, `.quality/` ni `doc/tracking/`, los clasifica con la regla del radio de impacto (también los
+  de carpetas de pruebas: un `spec/openapi.yaml` es un contrato) y para con más de 5 ficheros, un
+  contrato de API o una migración de datos; entonces la UC vuelve a pendiente para /prd. Los ficheros
+  nuevos sin añadir no cuentan; una `--base` que no existe sale con 2.
+
+### Changed
+
+- **/manual-test con tablero** arregla cada bug de código con /fix (la tabla de bugs lleva UC y PR) y
+  no cambia el código si /fix no puede reproducir el bug; sin tablero, como siempre.
+- **Hooks**: `uc-lifecycle-guard` mira también las ramas `fix/`; `commit-spec-guard` y
+  `checkpoint-freshness-guard` no piden checkpoint a una UC de /fix en su rama `fix/`; `getActiveUC`
+  lleva `no_prd_reason`.
+- **Extensión**: conoce /fix (27 skills, categoría Pipeline).
+
+### Para los proyectos que ya existían
+
+- No hay medida nueva ni nada que pase a «block». /fix llega con las skills al actualizar; sin
+  tablero solo dice que lo necesita.
+
 ## [6.47.0] - 2026-11-19 — "Spec viva"
 
 Tercera y última tanda de US-126: el gobierno de cada commit depende de lo que toca, y cada

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.47.0 — "Spec viva" (sobre v6.46 "La puerta")<br/>
+  v 6.48.0 — "Remiendo" (sobre v6.47 "Spec viva")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,23 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.48
+
+**v6.48.0 — "Remiendo"** trae un camino ligero para los bugs pequeños:
+
+- **/fix**: un arreglo sin PRD ni plan, pero con rastro. Primero una prueba que reproduce el bug y
+  falla; después una UC con un criterio que aprueba una persona (en la historia que digas o en
+  «Arreglos sin PRD»), la rama `fix/`, el arreglo, el recibo con la prueba, la revisión y el cierre
+  en el tablero.
+- **Para cuando deja de ser pequeño**: con más de 5 ficheros (sin contar sus pruebas), un contrato de
+  API o una migración de datos, /fix para y propone /prd. Si el bug no se puede reproducir con una
+  prueba, propone /feedback.
+- **/manual-test con tablero** arregla cada bug de código con /fix, y sin tablero sigue como siempre.
+
+100% backwards-compatible: no hay medida nueva y sin tablero /fix solo dice que lo necesita.
 
 ---
 
@@ -1095,7 +1112,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.47.0 — "Spec viva" (over v6.46 "La puerta")
+> v 6.48.0 — "Remiendo" (over v6.47 "Spec viva")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -1109,6 +1126,21 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.48
+
+**v6.48.0 — "Remiendo"** brings a light path for small bugs:
+
+- **/fix**: a fix without a PRD or a plan, but with a trail. First a test that reproduces the bug and
+  fails; then a UC with one criterion a person approves (in the story you name or in «Arreglos sin
+  PRD»), the `fix/` branch, the fix, the receipt with the test, the review and the close on the board.
+- **When it stops being small**: over 5 files (tests aside), an API contract or a data migration, /fix
+  stops and proposes /prd. If no test can reproduce the bug, it proposes /feedback.
+- **/manual-test with a board** fixes each code bug with /fix, and without a board works as before.
+
+100% backwards-compatible: no new measure, and without a board /fix only says it needs one.
+
+---
 
 ## What's new in v6.47
 

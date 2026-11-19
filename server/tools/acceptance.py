@@ -1103,6 +1103,58 @@ def _verdict_from_index(
     return verdict, reason, evidence
 
 
+CONTRACT_MISSING = (
+    "Sin contrato: AG-09a no escribió las precondiciones, las postcondiciones ni lo no definido de este "
+    "criterio antes de sus pruebas (UC-12801)."
+)
+MAX_CONTRACTS_BYTES = 5_000_000
+
+
+def _parse_contracts(contract_content: str | None) -> dict[str, dict] | None:
+    """Los contratos de aceptación (UC-12801), por UC: uno o una lista de ``contract.json``.
+
+    None si no llega contenido (el informe queda como antes). Una cadena vacía es «la UC no tiene
+    contrato»: cada criterio sale con «Sin contrato». Un contenido que no se entiende es un
+    ``ContractError``: nunca se ignora en silencio. Un contrato sin ``uc_id`` vale para cualquier UC.
+    """
+    from ..acceptance_contract import ContractError, parse_contract
+
+    if contract_content is None:
+        return None
+    if not contract_content.strip():
+        return {}
+    if len(contract_content.encode("utf-8")) > MAX_CONTRACTS_BYTES:
+        raise ContractError(f"pasa de {MAX_CONTRACTS_BYTES} bytes")
+    try:
+        data = json.loads(contract_content)
+    except (TypeError, ValueError) as e:
+        raise ContractError(f"no es JSON ({e})") from e
+    out: dict[str, dict] = {}
+    for item in data if isinstance(data, list) else [data]:
+        contract = parse_contract(json.dumps(item, ensure_ascii=False))
+        out[contract["uc_id"]] = contract
+    return out
+
+
+def _criterion_contract(contracts: dict[str, dict], uc_id: str, ac_id: str) -> dict | None:
+    contract = contracts.get(uc_id.upper()) or contracts.get("")
+    entry = contract["criteria"].get(_ac_key(ac_id)) if contract else None
+    if not entry:
+        return None
+    return {"pre": entry["pre"], "post": entry["post"], "undefined": entry["undefined"] or []}
+
+
+def _contract_md(contract: dict | None) -> list[str]:
+    """El contrato de un criterio en report.md (UC-12801)."""
+    if contract is None:
+        return [f"**Contrato**: {CONTRACT_MISSING}"]
+    lines = ["**Contrato**:"]
+    lines += [f"- Pre `{c['id']}`: {c['text']}" for c in contract["pre"]]
+    lines += [f"- Post `{c['id']}`: {c['text']}" for c in contract["post"]]
+    lines += [f"- Sin definir: {u}" for u in contract["undefined"]] or ["- Sin definir: nada"]
+    return lines
+
+
 def run_acceptance_check_from_content(
     *,
     prd_content: str,
@@ -1110,6 +1162,7 @@ def run_acceptance_check_from_content(
     branch: str = "unknown",
     code_index: dict[str, str] | None = None,
     results_content: str | None = None,
+    contract_content: str | None = None,
 ) -> dict:
     """Content-passing version of run_acceptance_check.
 
@@ -1132,6 +1185,13 @@ def run_acceptance_check_from_content(
             (``method: "results"``); without it, by the old search for its id in the code
             (``method: "heuristic"``, with a note). Without a results.json omit it (or pass
             null): an empty string is an empty file and answers INVALID_RESULTS.
+        contract_content: UC-12801. The UC's acceptance contract (``contract.json``, one object
+            or a list for several UCs). Each criterion gets its ``contract`` (pre, post and
+            undefined) next to its verdict, in the answer, ``report.json`` and ``report.md``; a
+            criterion the contract does not cover gets ``contract: null`` and a
+            ``contract_warning`` («Sin contrato»). An empty string means «the UC has no contract»
+            (every criterion «Sin contrato»); omitted, the report is as before. A content that
+            cannot be read answers INVALID_CONTRACT.
 
     Returns:
         {
@@ -1197,6 +1257,12 @@ def run_acceptance_check_from_content(
         results = _parse_results(results_content)
     except ResultsError as e:
         return {"error": f"results_content no es un results.json válido: {e}", "code": "INVALID_RESULTS"}
+    from ..acceptance_contract import ContractError
+
+    try:
+        contracts = _parse_contracts(contract_content)
+    except ContractError as e:
+        return {"error": f"contract_content no es un contrato válido: {e}", "code": "INVALID_CONTRACT"}
 
     from_superseded: list[str] = []
     for uc_id in uc_ids_to_check:
@@ -1231,15 +1297,18 @@ def run_acceptance_check_from_content(
                 verdict, reason, evidence = _verdict_from_index(
                     ac_id, desc, code_index,
                 )
-            uc_criteria_results.append(
-                {
-                    "ac_id": ac_id,
-                    "description": desc,
-                    "verdict": verdict,
-                    "reason": reason,
-                    "evidence": evidence[:10],
-                }
-            )
+            criterion = {
+                "ac_id": ac_id,
+                "description": desc,
+                "verdict": verdict,
+                "reason": reason,
+                "evidence": evidence[:10],
+            }
+            if contracts is not None:  # UC-12801: el contrato junto al resultado
+                criterion["contract"] = _criterion_contract(contracts, uc_id, ac_id)
+                if criterion["contract"] is None:
+                    criterion["contract_warning"] = CONTRACT_MISSING
+            uc_criteria_results.append(criterion)
 
         verdicts = [c["verdict"] for c in uc_criteria_results]
         if all(v == "ACCEPTED" for v in verdicts):
@@ -1261,6 +1330,8 @@ def run_acceptance_check_from_content(
         }
         if uc_id in from_superseded:
             report["from_superseded_prd"] = True
+        if contracts is not None:
+            report["criteria_without_contract"] = [c["ac_id"] for c in uc_criteria_results if c["contract"] is None]
         report_json_rel = f".quality/acceptance-check/{uc_id}/report.json"
         report_files[report_json_rel] = json.dumps(report, indent=2, ensure_ascii=False)
 
@@ -1286,6 +1357,8 @@ def run_acceptance_check_from_content(
                 md_lines.append("**Evidence**:")
                 for e in c["evidence"][:5]:
                     md_lines.append(f"- `{e}`")
+            if contracts is not None:
+                md_lines.extend(_contract_md(c.get("contract")))
             md_lines.append("")
 
         md_lines.append("---")
@@ -1548,6 +1621,7 @@ def register_acceptance_tools(mcp: FastMCP, engine_path: Path, state_path: Path)
         branch: str = "unknown",
         code_index: dict[str, str] | None = None,
         results_content: str | None = None,
+        contract_content: str | None = None,
     ) -> dict:
         """Run standalone acceptance check for a UC or US.
 
@@ -1570,6 +1644,10 @@ def register_acceptance_tools(mcp: FastMCP, engine_path: Path, state_path: Path)
                 (``method: "results"``); a criterion without a test is «sin prueba». Without
                 it, the old search by id (``method: "heuristic"``, with a note). Without a
                 results.json omit it (or pass null): an empty string answers INVALID_RESULTS.
+            contract_content: UC-12801. The UC's ``contract.json`` (one or a list): each
+                criterion gets its ``contract`` (pre, post, undefined) next to its verdict, or
+                ``contract: null`` with «Sin contrato». An empty string = the UC has no contract;
+                omitted, the report is as before. Unreadable: INVALID_CONTRACT.
 
         Returns:
             Includes ``verdict`` (overall), ``feature_files`` and ``reports``
@@ -1582,6 +1660,7 @@ def register_acceptance_tools(mcp: FastMCP, engine_path: Path, state_path: Path)
             branch=branch,
             code_index=code_index,
             results_content=results_content,
+            contract_content=contract_content,
         )
 
     @mcp.tool

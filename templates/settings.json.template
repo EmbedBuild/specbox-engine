@@ -194,6 +194,11 @@
             "type": "command",
             "command": "node .claude/hooks/stripe-safety-guard.mjs",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/contract-first-guard.mjs",
+            "timeout": 10
           }
         ]
       },
@@ -224,6 +229,11 @@
             "type": "command",
             "command": "node .claude/hooks/stripe-safety-guard.mjs",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node .claude/hooks/contract-first-guard.mjs",
+            "timeout": 10
           }
         ]
       },

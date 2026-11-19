@@ -235,6 +235,11 @@ const SCENARIOS = {
     ['migración en modo bloqueante sin aprobar', 'block', () => impactCommit('block')],
     ['no es un commit', 'silent', (p) => run('impact-radius-guard', p.dir, 'PreToolUse', 'Bash', { command: 'git status' })],
   ],
+  'contract-first-guard': [
+    ['prueba de aceptación sin contrato en modo aviso', 'note', () => contractWrite('warn')],
+    ['prueba de aceptación sin contrato en modo bloqueante', 'block', () => contractWrite('block')],
+    ['fuera de las carpetas de aceptación', 'silent', (p) => run('contract-first-guard', p.dir, 'PreToolUse', 'Write', { file_path: join(p.dir, 'src/x.ts'), content: 'x' })],
+  ],
   'merge-guard': [
     ['criterio sin demostrar en modo aviso', 'note', () => closingMerge('warn')],
     ['criterio sin demostrar en modo bloqueante', 'block', () => closingMerge('block')],
@@ -272,6 +277,20 @@ function impactCommit(mode) {
     p.write('db/migrations/0001_x.sql', 'ALTER TABLE a ADD b int;\n');
     p.git('add', 'db/migrations/0001_x.sql');
     return run('impact-radius-guard', p.dir, 'PreToolUse', 'Bash', { command: 'git commit -m "UC-1: columna"' });
+  } finally {
+    p.done();
+  }
+}
+
+/** Escribir una prueba de aceptación de la UC activa sin su contrato, con contract_first en `mode` (UC-12801). */
+function contractWrite(mode) {
+  const p = repo({ specDriven: false });
+  try {
+    p.write('.claude/settings.local.json', JSON.stringify({ specbox: { backend_type: 'freeform' } }));
+    p.write('doc/tracking/policy.json', JSON.stringify({ schema: 1, origin: 'new', skips: [], measures: { contract_first: { mode } } }));
+    p.write('.quality/active_uc.json', JSON.stringify({ uc_id: 'UC-1', feature: 'demo', ac_ids: ['AC-01'] }));
+    return run('contract-first-guard', p.dir, 'PreToolUse', 'Write',
+      { file_path: join(p.dir, 'tests/acceptance/features/UC-1.feature'), content: '# language: es\n' });
   } finally {
     p.done();
   }

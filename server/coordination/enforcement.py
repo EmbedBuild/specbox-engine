@@ -83,7 +83,9 @@ MEASURES: dict[str, Measure] = {
         Measure("drift_gate", "puerta de desviación en el CI local", "US-126", since="6.46.0"),
         # UC-12606: el hook impact-radius-guard la lee del tablero en cada commit.
         Measure("impact_radius", "radio de impacto del cambio", "US-126", since="6.47.0"),
-        Measure("contract_first", "contrato antes de las pruebas", "US-128"),
+        # UC-12801: el hook contract-first-guard (Write/Edit en carpetas de aceptación), e2e-gate al hacer
+        # commit y el Paso 7.5.0 de /implement con check_acceptance_contract.
+        Measure("contract_first", "contrato antes de las pruebas", "US-128", since="6.49.0"),
         # UC-12215: hoy ya bloquea en los proyectos que se reconocían por su configuración de
         # siempre; los que se reconocen por primera vez (solo el bloque `specbox`) empiezan en «warn».
         Measure("commit_on_main", "commit en main o master", "UC-12215", since="6.37.0"),

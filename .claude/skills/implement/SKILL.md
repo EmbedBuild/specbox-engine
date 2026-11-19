@@ -1979,6 +1979,8 @@ Delegar a AG-09b (ver `agents/acceptance-validator.md`). El validador recibe:
 - `git diff main..HEAD` (código implementado)
 - Resultados de tests unitarios (AG-04, Paso 7)
 - Resultados de acceptance tests (AG-09a, Paso 7.5)
+- El contrato de la UC (`contract.json`, Paso 7.5.0): comprueba que cada prueba cita su `pre` y su
+  `post` y que cada `post` acaba en una aserción de la prueba (UC-12801)
 - Screenshots/evidencia generada
 - audit.json de AG-08 (Paso 7.6)
 

@@ -250,3 +250,52 @@ def test_the_server_and_the_hook_say_the_same():
     js = json.loads(subprocess.run(["node", "--input-type=module", "-e", script], cwd=ROOT, input=json.dumps(CASES),
                                    capture_output=True, text=True, check=True).stdout)
     assert js == py
+
+
+# ── AC-03 / AC-06: el informe de aceptación enseña el contrato junto al resultado ──────────────
+
+PRD = """# Facturas
+
+## US-09: Totales
+
+#### UC-900: Total de la factura
+- [ ] **AC-01**: El total queda en 120,00 € con dos líneas de 60,00 €
+- [ ] **AC-02**: El total queda en 0,00 € sin líneas
+"""
+
+
+def _check(**kwargs):
+    from server.tools.acceptance import run_acceptance_check_from_content
+
+    return run_acceptance_check_from_content(prd_content=PRD, item_id="UC-900", results_content=json.dumps(GOOD_RESULTS),
+                                             **kwargs)
+
+
+def test_ac03_the_report_shows_the_contract_next_to_each_result():
+    contract = json.loads(json.dumps(GOOD))
+    del contract["criteria"]["AC-02"]
+    out = _check(contract_content=json.dumps(contract))
+    [uc] = out["uc_results"]
+    ac01, ac02 = uc["criteria"]
+    assert ac01["verdict"] == "ACCEPTED" and [c["id"] for c in ac01["contract"]["post"]] == ["AC-01.post1"]
+    assert ac01["contract"]["undefined"] == [] and "contract_warning" not in ac01
+    # AC-06: sin contrato, el informe lo dice en ese criterio.
+    assert ac02["contract"] is None and ac02["contract_warning"].startswith("Sin contrato")
+    report = json.loads(out["reports"][".quality/acceptance-check/UC-900/report.json"])
+    assert report["criteria_without_contract"] == ["AC-02"]
+    md = out["reports"][".quality/acceptance-check/UC-900/report.md"]
+    assert "- Pre `AC-01.pre1`: Hay una factura con dos líneas de 60,00 €" in md
+    assert "- Sin definir: nada" in md and "**Contrato**: Sin contrato" in md
+
+
+def test_ac06_an_empty_contract_means_the_uc_has_none_and_omitted_keeps_the_old_report():
+    empty = _check(contract_content="")
+    assert all(c["contract"] is None for c in empty["uc_results"][0]["criteria"])
+    old = _check()
+    assert all("contract" not in c for c in old["uc_results"][0]["criteria"])
+    assert "Contrato" not in old["reports"][".quality/acceptance-check/UC-900/report.md"]
+
+
+def test_an_unreadable_contract_answers_invalid_contract():
+    out = _check(contract_content='{"schema": 3}')
+    assert out["code"] == "INVALID_CONTRACT" and "schema" in out["error"]

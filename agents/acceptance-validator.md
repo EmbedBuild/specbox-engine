@@ -50,6 +50,7 @@ Validar de forma INDEPENDIENTE que cada acceptance criterion (AC-XX) del PRD est
 | JSON Cucumber report | AG-09a output en `{test_dir}/acceptance/reports/cucumber-report.json` | Resultados de ejecución |
 | Screenshots | `.quality/evidence/{feature}/acceptance/` | Evidencia visual |
 | results.json | AG-09a output | Resumen estándar de resultados |
+| contract.json | AG-09a output en `.quality/evidence/{feature}/acceptance/` (UC-12801) | Precondiciones, postcondiciones y lo no definido de cada criterio |
 | Código implementado | `git diff main..HEAD` | Verificar implementación |
 
 ---
@@ -62,8 +63,14 @@ Validar de forma INDEPENDIENTE que cada acceptance criterion (AC-XX) del PRD est
 
 ```bash
 node .quality/scripts/validate-results-json.js \
-  .quality/evidence/{feature}/acceptance/results.json --check-evidence
+  .quality/evidence/{feature}/acceptance/results.json --check-evidence \
+  --check-contract .quality/evidence/{feature}/acceptance/contract.json   # si la UC tiene contrato
 ```
+
+Con contrato (UC-12801), comprueba además en el juicio que cada `post` que cita una prueba acaba en
+una aserción de esa prueba: una prueba que cita una postcondición que no comprueba es un criterio sin
+demostrar. Sin contrato, con la medida `contract_first` en «warn», dilo en el informe («Sin
+contrato») y sigue; en «block» no hay pruebas que validar (no se generaron).
 
 **Si falla (exit code 1):**
 - Veredicto automático: **REJECTED**

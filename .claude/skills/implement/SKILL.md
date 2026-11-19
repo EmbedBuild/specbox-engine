@@ -315,6 +315,18 @@ mcp__SpecBox-MCP__build_execution_context(
 debe arrancar leyendo este archivo en lugar de recibir branch/feature/stack
 en el prompt. Ver Paso 5.X.0 para el bloque reusable de invocacion.
 
+### 0.4d Contrato del plan (UC-12604)
+
+Llama a `check_plan_contract(plan_content=<el plan>, uc_criteria={"UC-XXX": [ids de sus AC]},
+default_uc="UC-XXX")` y guarda la respuesta en `.quality/evidence/{feature}/plan_contract.json`.
+
+- `contract_version: 1` → cada criterio tiene su fase y sus ficheros: los usan los recibos de 8.5.1b
+  y la comparación al cerrar. Si hay `uncovered`, dilo en el resumen de la UC (el plan no dice qué
+  fase cubre esos criterios) y sigue.
+- `contract_version: 0` (plan anterior) → /implement trabaja igual, pero **el informe de la UC dice
+  que el plan no relaciona fases y criterios** (copia el `notice`), y los recibos van sin fase ni
+  ficheros.
+
 ### 0.4c Pre-flight Autonomy Triage (US-06 — BLOQUEANTE)
 
 > **Por que aqui**: este paso corre **antes** de `start_uc` y de crear la rama
@@ -2260,8 +2272,17 @@ Antes del merge, escribir el Implementation Status en el PRD:
      "label": "{fichero .feature o de la prueba}: {scenario}",
      "link": "https://github.com/{repo}/blob/{tested_commit}/{ruta del fichero de la prueba}",
      "detail": "{status} · {N} pasos · {duration_ms} ms",
-     "commit": "{tested_commit}", "repo": "{repo}"}}
+     "commit": "{tested_commit}", "repo": "{repo}",
+     "test": "{fichero de la prueba}::{scenario}",
+     "phase": "{título de la fase del plan que cubre el AC}",
+     "files": ["{ficheros de esa fase que la rama cambió}"]}}
    ```
+
+   **Criterio, fase, ficheros y prueba (UC-12604).** `phase` y `files` salen de la fase del plan
+   cuya línea **Criterios:** nombra el AC (`check_plan_contract`, Paso 0.4d), y `files` se queda con
+   los de esa fase que la rama cambió de verdad (`git diff --name-only origin/main...HEAD`). `get_uc`
+   los devuelve en cada criterio. Con un plan anterior (`contract_version: 0`) el recibo va sin
+   `phase` ni `files`, como siempre.
 
    La captura (de 7.5.6 o de la verificación de 6.5.5) va en su propio `mark_ac`: un criterio puede
    tener varios recibos. `get_uc` marca como «sin prueba que se repita» (`flags`) el criterio hecho

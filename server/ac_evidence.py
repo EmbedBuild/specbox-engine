@@ -28,7 +28,13 @@ EVIDENCE_TYPES: tuple[str, ...] = ("test", "screenshot", "diff", "url", "pr")
 #: completo es la etiqueta y no hay enlace.
 FREE_TEXT_TYPE = "url"
 
-_FIELDS = ("type", "label", "link", "detail", "commit", "repo")
+_FIELDS = ("type", "label", "link", "detail", "commit", "repo", "files", "test", "phase")
+
+#: UC-12604: lo que enlaza un criterio con su código y su prueba. Solo se guardan si llegan, así un
+#: recibo de los de siempre no cambia ni un campo.
+MAX_RECEIPT_FILES = 50
+MAX_RECEIPT_TEXT = 300
+MAX_PHASE_TEXT = 200
 
 #: UC-11702: el commit con el que se comprobó el criterio (lo manda quien marca:
 #: el servidor no ve su git) y el repositorio donde vive, para enlazarlo.
@@ -47,6 +53,12 @@ class AcEvidenceInput(TypedDict, total=False):
     commit: str | None
     #: UC-11702: repositorio del commit, «owner/nombre» (p. ej. EmbedBuild/specbox-engine).
     repo: str | None
+    #: UC-12604: los ficheros que implementan el criterio (rutas relativas al repo, hasta 50).
+    files: list[str] | None
+    #: UC-12604: la prueba que lo comprueba («fichero::nombre» o «fichero: escenario»).
+    test: str | None
+    #: UC-12604: la fase del plan que lo cubre.
+    phase: str | None
 
 
 class EvidenceError(ValueError):
@@ -115,7 +127,7 @@ def normalize_evidence(raw: str | dict[str, Any] | None) -> dict[str, Any] | Non
             raise EvidenceError("evidence.repo debe ser «owner/nombre» (p. ej. EmbedBuild/specbox-engine) o null")
         repo = repo.strip()
 
-    return {
+    out: dict[str, Any] = {
         "type": ev_type,
         "label": label.strip(),
         "link": link,
@@ -123,6 +135,45 @@ def normalize_evidence(raw: str | dict[str, Any] | None) -> dict[str, Any] | Non
         "commit": commit,
         "repo": repo,
     }
+    files = _receipt_files(raw.get("files"))
+    if files:
+        out["files"] = files
+    for key, limit in (("test", MAX_RECEIPT_TEXT), ("phase", MAX_PHASE_TEXT)):
+        value = _receipt_text(raw.get(key), key, limit)
+        if value:
+            out[key] = value
+    return out
+
+
+def _receipt_files(raw: Any) -> list[str]:
+    """UC-12604: rutas relativas al repo, sin ``..`` ni ruta absoluta, sin repetir."""
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or not all(isinstance(f, str) for f in raw):
+        raise EvidenceError("evidence.files debe ser una lista de rutas (texto) o null")
+    clean: list[str] = []
+    for path in raw:
+        path = path.strip().replace("\\", "/")
+        if not path:
+            continue
+        if path.startswith("/") or ".." in path.split("/") or len(path) > MAX_RECEIPT_TEXT or "\n" in path:
+            raise EvidenceError(f"evidence.files: {path!r} tiene que ser una ruta relativa al repositorio, sin «..»")
+        if path not in clean:
+            clean.append(path)
+    if len(clean) > MAX_RECEIPT_FILES:
+        raise EvidenceError(f"evidence.files admite como mucho {MAX_RECEIPT_FILES} rutas")
+    return clean
+
+
+def _receipt_text(raw: Any, key: str, limit: int) -> str | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        raise EvidenceError(f"evidence.{key} debe ser un texto o null")
+    value = " ".join(raw.split())
+    if len(value) > limit:
+        raise EvidenceError(f"evidence.{key} admite como mucho {limit} caracteres")
+    return value or None
 
 
 def evidence_comment_text(evidence: dict[str, Any]) -> str:

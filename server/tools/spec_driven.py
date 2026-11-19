@@ -1552,7 +1552,11 @@ async def list_uc(
 
 
 async def get_uc(
-    board_id: str, uc_id: str, ctx: Context, items_content: str | None = None
+    board_id: str,
+    uc_id: str,
+    ctx: Context,
+    items_content: str | None = None,
+    plan_content: str | None = None,
 ) -> dict[str, Any]:
     """Get full details of a Use Case, optimized for LLM consumption.
 
@@ -1566,6 +1570,9 @@ async def get_uc(
             items.json as a string for remote MCP so the detail reflects the
             client's board without the server touching disk. Used by start_uc
             and find_next_uc to forward the in-memory board.
+        plan_content: UC-12604. The text of the UC's plan (the client reads it): when a
+            criterion's receipt does not say its phase, it comes from the plan's
+            **Criterios:** lines.
 
     Returns:
         Complete UC detail with acceptance criteria, context, and attachments.
@@ -1573,6 +1580,8 @@ async def get_uc(
         receipt of type "test" passes) and, when false, the flag
         "sin_prueba_que_se_repita" in `flags` (UC-11703): nothing re-checks
         it automatically. A pending criterion has `repeatable_test: null`.
+        Each criterion also has `phase`, `files` and `test` (UC-12604): from its last
+        passing receipt that brings them, the phase otherwise from `plan_content`.
         Retired criteria (UC-12501) come apart, under `retired_criteria`, with
         their reason, date, who retired them and their receipts; they keep
         their id, which is never used again in that UC.
@@ -1611,6 +1620,11 @@ async def get_uc(
             comments = await backend.get_comments(board_id, uc_item.id)
             from_comments = evidence_from_comments(comments)
             verdicts = verdicts_from_comments(comments)
+        contract = None
+        if plan_content:
+            from ..plan_contract import parse_plan_contract
+
+            contract = parse_plan_contract(plan_content, default_uc=uc_id)
         ac_list = []
         for ac in acs:
             stored = bool(ac.evidence) or ac.verdict is not None
@@ -1638,6 +1652,9 @@ async def get_uc(
                     "accepted": verified,
                     "repeatable_test": repeatable,
                     "flags": [NO_REPEATABLE_TEST] if repeatable is False else [],
+                    # UC-12604: su fase del plan, sus ficheros y su prueba, del último recibo que
+                    # pasa y los trae; la fase, si no, del plan que pase el cliente.
+                    **_criterion_links(evidence, contract, uc_id, ac.id),
                 }
             )
 
@@ -1712,6 +1729,31 @@ async def get_uc(
         return result
     finally:
         await backend.close()
+
+
+def _criterion_links(
+    evidence: list[dict[str, Any]], contract: Any, uc_id: str, ac_id: str,
+) -> dict[str, Any]:
+    """UC-12604: fase, ficheros y prueba de un criterio, del último recibo que pasa y los trae."""
+    links: dict[str, Any] = {"phase": None, "files": [], "test": None}
+    for receipt in reversed(evidence):
+        if receipt.get("passed") is False:
+            continue
+        if links["phase"] is None and receipt.get("phase"):
+            links["phase"] = receipt["phase"]
+        if not links["files"] and receipt.get("files"):
+            links["files"] = list(receipt["files"])
+        if links["test"] is None and receipt.get("test"):
+            links["test"] = receipt["test"]
+    if links["phase"] is None and contract is not None:
+        from ..plan_contract import phase_of
+
+        phase = phase_of(contract, uc_id, ac_id)
+        if phase is not None:
+            links["phase"] = phase.title
+            if not links["files"]:
+                links["files"] = list(phase.files)
+    return links
 
 
 @with_roadmap_sync

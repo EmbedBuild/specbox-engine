@@ -64,9 +64,7 @@ def normalize_closed_files(raw: Any) -> list[str]:
             raise ClosedFilesError(f"files: una ruta admite como mucho {MAX_CLOSED_PATH} caracteres")
         if path not in out:
             out.append(path)
-    if len(out) > MAX_CLOSED_FILES:
-        raise ClosedFilesError(f"files admite como mucho {MAX_CLOSED_FILES} rutas")
-    return out
+    return out  # el tope se aplica al guardar (merge_closed_files), y una PR enorme también cierra
 
 
 def merge_closed_files(existing: Any, new: list[str]) -> tuple[list[str], bool]:
@@ -87,7 +85,7 @@ class ClosedUc:
     name: str
     files: list[str] | None  # None = se cerró sin lista
     closed_at: str | None = None  # el último cierre con lista
-    repo: str | None = None  # el repositorio de su PR («owner/name»)
+    by_repo: dict[str, list[str]] | None = None  # los ficheros por repositorio de su PR («owner/name»)
     satellite: str | None = None  # su satélite en multirepo
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -103,14 +101,21 @@ def proposal(uc_id: str, name: str, files: list[str]) -> str:
     )
 
 
-def _same_repo(uc: ClosedUc, repo: str | None, satellite: str | None) -> bool:
-    """En multirepo una ruta solo es «la misma» en el mismo repositorio: por el de su PR si los dos lo
-    saben; si no, por el satélite. Sin ninguno de los dos, cuenta."""
-    if repo and uc.repo:
-        return uc.repo.lower() == repo.lower()
-    if satellite and uc.satellite:
-        return uc.satellite.lower() == satellite.lower()
-    return True
+def files_for(uc: ClosedUc, repo: str | None, satellite: str | None) -> set[str]:
+    """Los ficheros de una UC cerrada que cuentan para un cambio en ``repo`` (o ``satellite``).
+
+    En multirepo una ruta solo es «la misma» en el mismo repositorio. Si la UC sabe de qué repositorio
+    es cada lista (``by_repo``, una por PR), cuentan la de ese repositorio y las rutas que se guardaron
+    sin repositorio; si no lo sabe, se mira su satélite; sin ninguno de los dos, cuentan todas.
+    """
+    files = set(uc.files or [])
+    if repo and uc.by_repo:
+        labelled = {p for paths in uc.by_repo.values() for p in paths}
+        same = {p for name, paths in uc.by_repo.items() if name.lower() == repo.lower() for p in paths}
+        return same | (files - labelled)
+    if satellite and uc.satellite and uc.satellite.lower() != satellite.lower():
+        return set()
+    return files
 
 
 def closed_uc_touches(
@@ -138,9 +143,9 @@ def closed_uc_touches(
         if uc.files is None:
             without += 1
             continue
-        if uc.uc_id.upper() in skip or not _same_repo(uc, repo, satellite):
+        if uc.uc_id.upper() in skip:
             continue
-        own = set(uc.files)
+        own = files_for(uc, repo, satellite)
         hit = [p for p in wanted if p in own]
         if not hit:
             continue

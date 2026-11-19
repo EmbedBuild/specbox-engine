@@ -288,10 +288,21 @@ function same(a, b) {
  */
 const APPEND_ONLY_META = new Set(['retired_criteria']);
 /** UC-12603: los ficheros de una UC cerrada se suman, no se sustituyen (dos cierres a la vez). */
-const UNION_META = new Set(['closed_files']);
+const UNION_META = new Set(['closed_files', 'closed_files_by_repo']);
+const MAX_CLOSED_FILES = 1000; // el tope del servidor (server/closed_files.py): se quedan los más recientes
+
+function unionList(local, incoming) {
+  const merged = [...new Set([...(Array.isArray(local) ? local : []), ...(Array.isArray(incoming) ? incoming : [])])];
+  return merged.slice(-MAX_CLOSED_FILES);
+}
 
 function unionValues(local, incoming) {
-  return [...new Set([...(Array.isArray(local) ? local : []), ...(Array.isArray(incoming) ? incoming : [])])];
+  if (Array.isArray(incoming) || Array.isArray(local)) return unionList(local, incoming);
+  const isObject = (v) => v && typeof v === 'object';
+  if (!isObject(incoming)) return incoming;
+  const out = { ...(isObject(local) ? local : {}) };
+  for (const [repo, files] of Object.entries(incoming)) out[repo] = unionList(out[repo], files);
+  return out;
 }
 
 function unionById(local, incoming) {

@@ -2344,8 +2344,11 @@ async def complete_uc(
             gate with this UC. Native and FreeForm keep it; Trello and Plane answer
             `closed_files_not_stored`. An invalid list closes nothing (INVALID_FILES).
             Calling it again with `files` on a UC already done adds the list without moving it.
-        repo: UC-12603. The repository of that PR («owner/name»): in multirepo the drift gate
-            only compares a change with closed UCs of the same repository.
+        repo: UC-12603. The repository of that PR («owner/name»), kept with its own list in
+            `meta.closed_files_by_repo`: in multirepo the drift gate only compares a change with
+            the files a closed UC changed in the same repository (a UC with PRs in two
+            repositories keeps two lists). A PR over 1000 files closes and keeps the most recent
+            (`closed_files_truncated`).
 
     Returns:
         Completion result with US update status, plus `items_content` (mutated
@@ -2396,7 +2399,11 @@ async def complete_uc(
                 "closed_files": kept_files, "closed_files_at": datetime.now(timezone.utc).isoformat(),
             }
             if closed_repo:
-                closed_meta["closed_repo"] = closed_repo
+                # Una lista por repositorio: una UC con PR en dos repositorios no mezcla sus ficheros.
+                by_repo = dict((uc_item.meta or {}).get("closed_files_by_repo") or {})
+                by_repo[closed_repo], repo_truncated = merge_closed_files(by_repo.get(closed_repo), closed_files)
+                truncated = truncated or repo_truncated
+                closed_meta["closed_files_by_repo"] = by_repo
             await backend.update_item(board_id, uc_item.id, state="done", meta=closed_meta)
         else:
             await backend.update_item(board_id, uc_item.id, state="done")

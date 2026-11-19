@@ -31,10 +31,17 @@ def closed_ucs_of(items: list[Any]) -> list[ClosedUc]:
             name=_display_name(item.name, _get_uc_id(item)),
             files=[f for f in files if isinstance(f, str)] if isinstance(files, list) else None,
             closed_at=meta.get("closed_files_at") if isinstance(meta.get("closed_files_at"), str) else None,
-            repo=meta.get("closed_repo") if isinstance(meta.get("closed_repo"), str) else None,
+            by_repo=_by_repo(meta.get("closed_files_by_repo")),
             satellite=meta.get("satellite") if isinstance(meta.get("satellite"), str) else None,
         ))
     return out
+
+
+def _by_repo(raw: Any) -> dict[str, list[str]] | None:
+    if not isinstance(raw, dict):
+        return None
+    out = {str(k): [f for f in v if isinstance(f, str)] for k, v in raw.items() if isinstance(v, list)}
+    return out or None
 
 
 def _display_name(name: str, uc_id: str) -> str:

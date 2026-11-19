@@ -47,7 +47,7 @@ def _board(**overrides) -> str:
 def test_the_list_of_a_close_is_relative_without_repeats_and_has_a_cap():
     assert normalize_closed_files(["./server/a.py", "server\\a.py", " docs/b.md ", ""]) == ["server/a.py", "docs/b.md"]
     assert normalize_closed_files(None) == []
-    for bad in (["../x.py"], ["/abs.py"], "server/a.py", ["a" * 301], [f"f{i}" for i in range(MAX_CLOSED_FILES + 1)]):
+    for bad in (["../x.py"], ["/abs.py"], "server/a.py", ["a" * 301]):
         with pytest.raises(ClosedFilesError):
             normalize_closed_files(bad)
     assert merge_closed_files(["a.py", "b.py"], ["b.py", "c.py"]) == (["a.py", "b.py", "c.py"], False)
@@ -75,8 +75,9 @@ def test_touches_name_the_closed_uc_its_files_and_a_proposal_and_skip_the_branch
 
 def test_in_multirepo_only_closed_ucs_of_the_same_repo_count_and_the_most_shared_come_first():
     closed = [
-        ClosedUc("UC-1", "US-1", "Del engine", ["CLAUDE.md", "package.json"], "2026-11-01", repo="EmbedBuild/specbox-engine"),
-        ClosedUc("UC-2", "US-1", "Del panel", ["CLAUDE.md"], "2026-11-02", repo="EmbedBuild/specbox_cloud"),
+        ClosedUc("UC-1", "US-1", "Del engine", ["CLAUDE.md", "package.json"], "2026-11-01",
+                 by_repo={"EmbedBuild/specbox-engine": ["CLAUDE.md", "package.json"]}),
+        ClosedUc("UC-2", "US-1", "Del panel", ["CLAUDE.md"], "2026-11-02", by_repo={"EmbedBuild/specbox_cloud": ["CLAUDE.md"]}),
         ClosedUc("UC-3", "US-1", "Sin repo, satélite cloud", ["package.json", "CLAUDE.md"], "2026-11-03", satellite="cloud"),
         ClosedUc("UC-4", "US-1", "Sin nada", ["CLAUDE.md"], "2026-11-04"),
     ]
@@ -144,7 +145,7 @@ async def test_an_invalid_list_closes_nothing_and_no_list_closes_with_a_warning(
     later = await complete_uc("ff", "UC-701", CTX, items_content=plain["items_content"], files=["a.py"],
                               repo="EmbedBuild/specbox-engine")
     uc = next(i for i in json.loads(later["items_content"]) if i["id"] == "uc1")
-    assert uc["meta"]["closed_files"] == ["a.py"] and uc["meta"]["closed_repo"] == "EmbedBuild/specbox-engine"
+    assert uc["meta"]["closed_files"] == ["a.py"] and uc["meta"]["closed_files_by_repo"] == {"EmbedBuild/specbox-engine": ["a.py"]}
     out = await get_closed_uc_files("ff", "server/a.py", CTX, items_content=_board())  # type: ignore[arg-type]
     assert out["code"] == "INVALID_PATHS"
 
@@ -199,3 +200,28 @@ async def test_native_keeps_the_files_and_reports_them(monkeypatch, tmp_path):
             await backend.close()
     finally:
         await _cleanup(pool, pid, dev)
+
+
+async def test_a_uc_with_prs_in_two_repos_keeps_one_list_per_repo():
+    from server.tools.drift import closed_ucs_of
+    from server.backends.freeform_backend import FreeformBackend
+
+    first = await complete_uc("ff", "UC-701", CTX, items_content=_board(), files=["server/solo_engine.py"],
+                              repo="EmbedBuild/specbox-engine")
+    second = await complete_uc("ff", "UC-701", CTX, items_content=first["items_content"], files=["apps/web/x.tsx"],
+                               repo="EmbedBuild/specbox_cloud")
+    uc = next(i for i in json.loads(second["items_content"]) if i["id"] == "uc1")
+    assert uc["meta"]["closed_files_by_repo"] == {"EmbedBuild/specbox-engine": ["server/solo_engine.py"],
+                                                  "EmbedBuild/specbox_cloud": ["apps/web/x.tsx"]}
+    closed = closed_ucs_of(await FreeformBackend(items_content=second["items_content"]).list_done_ucs("ff"))
+    engine = closed_uc_touches(closed, ["server/solo_engine.py"], repo="EmbedBuild/specbox-engine")
+    cloud = closed_uc_touches(closed, ["server/solo_engine.py"], repo="EmbedBuild/specbox_cloud")
+    assert [t["uc_id"] for t in engine["touches"]] == ["UC-701"] and cloud["touches"] == []
+
+
+async def test_a_pr_over_the_cap_still_closes_and_keeps_the_most_recent():
+    big = [f"f{i}.py" for i in range(MAX_CLOSED_FILES + 5)]
+    out = await complete_uc("ff", "UC-701", CTX, items_content=_board(), files=big)
+    uc = next(i for i in json.loads(out["items_content"]) if i["id"] == "uc1")
+    assert uc["state"] == "done" and out["closed_files_truncated"] is True
+    assert len(uc["meta"]["closed_files"]) == MAX_CLOSED_FILES and uc["meta"]["closed_files"][-1] == big[-1]

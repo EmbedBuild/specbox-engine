@@ -64,18 +64,23 @@ def _phase_delta(entry: PhaseOutput, expected: list[str] | None = None) -> str:
 
 
 def _expected_for(contract: PlanContract, entry: PhaseOutput) -> list[str] | None:
-    """Los ficheros de la fase N del plan para la fase con ``phase_index`` N, o None."""
+    """Los ficheros de la fase N del plan para la fase con ``phase_index`` N, o None si el plan no
+    tiene esa fase o la fase no trae su línea **Ficheros:** (no se compara con lo que no se dijo)."""
     if contract.contract_version == 0 or not 1 <= entry.phase_index <= len(contract.phases):
         return None
-    return list(contract.phases[entry.phase_index - 1].files)
+    phase = contract.phases[entry.phase_index - 1]
+    return list(phase.files) if phase.has_files_line else None
 
 
 def _plan_comparison(contract: PlanContract, entries: list[PhaseOutput]) -> dict[str, Any]:
     """Toda la ejecución frente a todo lo que el plan esperaba (UC-12601 AC-01)."""
-    if contract.contract_version == 0:
+    if contract.contract_version == 0 or not any(p.has_files_line for p in contract.phases):
         return {"available": False, "reason": NO_PLAN_COMPARISON}
     expected = set(expected_files(contract))
-    touched = {f for e in entries for f in (*e.files_created, *e.files_modified, *e.files_deleted)}
+    # Solo cuenta lo tocado en fases que el plan describe con ficheros: lo de una fase que no los
+    # declara no es «de más», es que no hay con qué compararlo.
+    compared = [e for e in entries if _expected_for(contract, e) is not None]
+    touched = {f for e in compared for f in (*e.files_created, *e.files_modified, *e.files_deleted)}
     return {
         "available": True,
         "expected": sorted(expected),

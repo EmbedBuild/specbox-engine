@@ -90,6 +90,15 @@ async def test_each_phase_is_compared_with_its_phase_of_the_plan(server):
     old = await _aggregate(server, {"feature_slug": "uc-701", "phase_outputs_content": content})
     assert all(NO_PLAN_COMPARISON in block for block in old["phase_deltas"])
     assert old["plan_comparison"]["available"] is False
+    # Una fase del plan sin su línea de ficheros no se compara: no se da todo por sobrante.
+    no_files = PLAN.replace("**Ficheros:** server/c.py\n", "")
+    partial = await _aggregate(server, {"feature_slug": "uc-701", "phase_outputs_content": content, "plan_content": no_files})
+    assert "Sin deltas" in partial["phase_deltas"][0] and NO_PLAN_COMPARISON in partial["phase_deltas"][1]
+    assert partial["plan_comparison"]["extra"] == [] and partial["plan_comparison"]["missing"] == []
+    # Un ejemplo dentro de un bloque de código no es el plan.
+    example = "# Plan\n```\n" + PLAN + "```\n"
+    fenced = await _aggregate(server, {"feature_slug": "uc-701", "phase_outputs_content": content, "plan_content": example})
+    assert fenced["plan_comparison"]["available"] is False
 
 
 def test_comparison_not_available_is_not_a_deviation():

@@ -27,6 +27,7 @@ def generate_phase_delta(
     healing_events: list[dict] | None = None,
     error_summary: str | None = None,
     files_deleted: list[str] | None = None,
+    comparison_note: str | None = None,
 ) -> str:
     """Generate a Markdown delta block for a completed phase.
 
@@ -39,6 +40,8 @@ def generate_phase_delta(
         plan_files_expected: Files the plan expected for this phase (UC-12601: from the plan's
             **Ficheros:** line, ``server/plan_contract.py``). None = the plan does not say.
         files_deleted: Files deleted in this phase; they count as touched in the comparison.
+        comparison_note: Why there is nothing to compare when ``plan_files_expected`` is None
+            (UC-12601); by default the plan does not declare files per phase.
         decisions: Key decisions made by the sub-agent during this phase.
         healing_events: List of healing event dicts with keys: type, resolved (bool).
         error_summary: Error description if phase failed.
@@ -63,6 +66,8 @@ def generate_phase_delta(
 
     # Deltas vs plan
     deltas_text = _compute_deltas(files_created, files_modified, plan_files_expected, files_deleted or [])
+    if plan_files_expected is None and comparison_note:
+        deltas_text = comparison_note
     lines.append(f"- **Deltas vs plan:** {deltas_text}")
 
     # Decisions
@@ -156,6 +161,8 @@ def _format_file_list(files: list[str]) -> str:
 
 #: UC-12601: lo que dice el bloque cuando el plan no declara ficheros por fase.
 NO_PLAN_COMPARISON = "Comparación no disponible: el plan no declara ficheros por fase"
+NO_PLAN_PHASE = "Comparación no disponible: la tarea no dice qué «Fase N» del plan hizo (plan_phase)"
+PLAN_PHASE_NOT_FOUND = "Comparación no disponible: el plan no tiene una única «Fase {n}»"
 NO_DELTAS = "Sin deltas — implementación conforme al plan"
 #: Los que caben en el bloque de una fase; la lista entera va en ``plan_comparison``.
 MAX_DELTA_FILES = 50

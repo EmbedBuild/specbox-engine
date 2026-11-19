@@ -16,7 +16,11 @@ from pathlib import Path
 import pytest
 from fastmcp import Client, FastMCP
 
-from server.delta_generator import NO_PLAN_COMPARISON, compare_files, generate_phase_delta
+import subprocess
+
+from server.delta_generator import NO_PLAN_COMPARISON, NO_PLAN_PHASE, compare_files, generate_phase_delta
+from server.implement_context.phase_outputs import parse_phase_outputs
+from server.tools.evidence_regen import _results_for_check
 from server.prd_parser import parse_implementation_status
 from server.tools.acceptance import (
     AC_LINE_PATTERN,
@@ -118,7 +122,7 @@ async def test_each_task_is_compared_with_the_plan_phase_it_names_by_number(serv
 async def test_without_plan_phase_or_plan_lines_there_is_nothing_to_compare(server):
     content = _phase_line(1, ["server/a.py"])  # sin plan_phase: el orden de la skill no es la fase del plan
     out = await _aggregate(server, {"feature_slug": "uc-701", "phase_outputs_content": content, "plan_content": PLAN})
-    assert NO_PLAN_COMPARISON in out["phase_deltas"][0] and out["plan_comparison"]["available"] is False
+    assert NO_PLAN_PHASE in out["phase_deltas"][0] and out["plan_comparison"]["available"] is False
     tagged = _phase_line(1, ["server/a.py"], plan_phase=2)
     no_files = await _aggregate(server, {"feature_slug": "uc-701", "phase_outputs_content": tagged,
                                          "plan_content": PLAN.replace("**Ficheros:** server/c.py, server/vistas/\n", "")})
@@ -207,3 +211,69 @@ def test_the_latest_run_wins_ids_are_normalized_and_a_skip_is_not_a_pass():
     by_ac = {c["ac_id"]: c for c in out["uc_results"][0]["criteria"]}
     assert by_ac["AC-01"]["verdict"] == "ACCEPTED"  # la ejecución más reciente manda
     assert by_ac["AC-02"]["verdict"] == "REJECTED" and "SKIP" in by_ac["AC-02"]["reason"]
+
+
+# ── Segunda vuelta de la revisión de la PR #398 ──────────────────────
+
+
+async def test_a_bad_plan_phase_never_drops_the_line(server):
+    lines = [_phase_line(1, ["server/a.py"], plan_phase=1),
+             json.dumps({**json.loads(_phase_line(2, ["server/roto.py"])), "status": "error", "plan_phase": "{plan_phase}"}),
+             json.dumps({**json.loads(_phase_line(3, ["server/c.py"])), "plan_phase": "Fase 2"}),
+             json.dumps({**json.loads(_phase_line(4, ["server/d.py"])), "plan_phase": "2.1"})]
+    entries = parse_phase_outputs("\n".join(lines))
+    assert [e.plan_phase for e in entries] == [1, None, 2, None]  # las cuatro líneas siguen
+    out = await _aggregate(server, {"feature_slug": "uc-701", "phase_outputs_content": "\n".join(lines), "plan_content": PLAN})
+    assert out["overall_status"] == "error" and len(out["phase_deltas"]) == 4  # la fase fallida sigue ahí
+    assert NO_PLAN_PHASE in out["phase_deltas"][1]
+    missing = await _aggregate(server, {"feature_slug": "uc-701", "phase_outputs_content": _phase_line(1, ["a.py"], plan_phase=9),
+                                        "plan_content": PLAN})
+    assert "no tiene una única «Fase 9»" in missing["phase_deltas"][0]  # el motivo verdadero
+
+
+def test_the_phase_outputs_validator_accepts_plan_phase(tmp_path):
+    jsonl = tmp_path / "phase_outputs.jsonl"
+    jsonl.write_text(json.dumps({"schema_version": 1, **json.loads(_phase_line(1, ["server/a.py"], plan_phase=2))}) + "\n")
+    run = subprocess.run(["node", str(ROOT / ".quality/scripts/validate-phase-outputs.mjs"), str(jsonl)],
+                         capture_output=True, text=True, check=False)
+    assert run.returncode == 0, run.stderr
+
+
+def test_regeneration_says_why_a_uc_is_pending_and_keeps_the_old_results_format():
+    assert _results_for_check('{"uc_id": "UC-1", "results": []}')[0] is not None
+    assert _results_for_check('{"criteria": [{"ac": "AC-01"}]}') == (
+        None, "results.json en el formato anterior (sin «results»): juzgado por la búsqueda del id")
+    assert _results_for_check('{"results": [').__getitem__(0) == '{"results": ['  # roto: se pasa y la comprobación lo rechaza
+    assert _results_for_check(None) == (None, "")
+
+
+def test_criterion_ids_are_whole_a_reopened_section_does_not_repeat_and_prefixed_ids_open():
+    prd = """### US-20: Algo
+#### UC-501: Uno
+- AC-01: Lo primero queda
+- AC-02.1.1: Un subapartado que no es un criterio
+- **AC-03b**: Tampoco
+#### UC-501 — Schema (resumen)
+- AC-01: Lo primero queda
+### MGR-US-21: Con prefijo
+#### UC-601: Otra
+- AC-01: Algo queda
+"""
+    assert [c["ac_id"] for c in _extract_ac_from_prd(prd, "UC-501")] == ["AC-01"]
+    assert _find_ucs_for_us(prd, "US-21") == ["UC-601"]  # «MGR-US-21» nombra US-21
+
+
+def test_an_empty_results_file_is_an_error_and_the_newest_run_wins_by_time():
+    out = run_acceptance_check_from_content(prd_content=PRD, item_id="UC-12601", code_index={"x.py": "AC-01"},
+                                            results_content="   ")
+    assert out["code"] == "INVALID_RESULTS"
+    runs = json.dumps([
+        {"uc_id": "UC-12601", "timestamp": "2026-11-19T10:00:00Z", "results": [{"id": "AC-01", "status": "PASS"}]},
+        {"uc_id": "UC-12601", "timestamp": "2026-11-18T10:00:00Z", "results": [{"id": "AC-01", "status": "FAIL"}]},
+        {"timestamp": "2026-11-19T11:00:00Z", "results": [{"id": "AC-02", "status": "PASS"}]},
+        {"uc_id": "UC-12601", "timestamp": "2026-11-19T09:00:00Z", "results": [{"id": "AC-02", "status": "FAIL"}]},
+    ])
+    by_ac = {c["ac_id"]: c for c in run_acceptance_check_from_content(
+        prd_content=PRD, item_id="UC-12601", code_index={}, results_content=runs)["uc_results"][0]["criteria"]}
+    assert by_ac["AC-01"]["verdict"] == "ACCEPTED"  # el PASS es más reciente que el FAIL aunque vaya antes
+    assert by_ac["AC-02"]["verdict"] == "ACCEPTED"  # la ejecución sin uc_id, más reciente, manda

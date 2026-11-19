@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 PHASE_OUTPUTS_FILENAME = "phase_outputs.jsonl"
 EVIDENCE_DIR = Path(".quality/evidence")
@@ -63,6 +63,23 @@ class PhaseOutput(BaseModel):
     tokens_used_response: int | None = None
     healing_attempts: int = 0
     error: str | None = None
+
+    @field_validator("plan_phase", mode="before")
+    @classmethod
+    def _tolerant_plan_phase(cls, value: Any) -> int | None:
+        """UC-12601: ``3``, ``"3"`` o ``"Fase 3"`` → 3. Cualquier otra cosa (``"2.1"``, el hueco
+        ``"{plan_phase}"`` sin rellenar) se queda en None: esa tarea no se compara con el plan, pero la
+        línea no se pierde (con ella se perderían su estado y sus ficheros)."""
+        import re
+
+        if isinstance(value, bool) or value is None:
+            return None
+        if isinstance(value, int):
+            return value if value >= 0 else None
+        if isinstance(value, str):
+            match = re.fullmatch(r"\s*(?:(?:fase|phase)\s+)?(\d{1,3})\s*", value, re.IGNORECASE)
+            return int(match[1]) if match else None
+        return None
 
 
 # ── Path resolution ────────────────────────────────────────────────────

@@ -19,7 +19,14 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
-from ..delta_generator import NO_PLAN_COMPARISON, compare_files, generate_phase_delta, normalize_repo_path
+from ..delta_generator import (
+    NO_PLAN_COMPARISON,
+    NO_PLAN_PHASE,
+    PLAN_PHASE_NOT_FOUND,
+    compare_files,
+    generate_phase_delta,
+    normalize_repo_path,
+)
 from ..plan_contract import PlanContract, parse_plan_contract, phase_by_number
 from ..implement_context import (
     PhaseOutput,
@@ -37,7 +44,7 @@ _FEATURE_SLUG = re.compile(r"^(?!\.{1,2}$)[A-Za-z0-9._-]{1,120}$")
 _DELTA_STATUS = {"ok": "complete", "error": "failed", "partial": "needs_healing"}
 
 
-def _phase_delta(entry: PhaseOutput, expected: list[str] | None = None) -> str:
+def _phase_delta(entry: PhaseOutput, expected: list[str] | None = None, note: str | None = None) -> str:
     """The Markdown block of one phase, as ``write_implementation_status`` expects it.
 
     ``expected`` (UC-12601) are the files the plan's phase of the same number declares; None when
@@ -57,6 +64,7 @@ def _phase_delta(entry: PhaseOutput, expected: list[str] | None = None) -> str:
         files_modified=entry.files_modified,
         files_deleted=entry.files_deleted,
         plan_files_expected=expected,
+        comparison_note=note,
         decisions=[entry.summary] if entry.summary else None,
         healing_events=healing,
         error_summary=entry.error,
@@ -69,6 +77,18 @@ def _plan_phase(contract: PlanContract, entry: PhaseOutput):
         return None
     phase = phase_by_number(contract, entry.plan_phase)
     return phase if phase is not None and phase.has_files_line else None
+
+
+def _why_not_compared(contract: PlanContract, entry: PhaseOutput) -> str | None:
+    """El motivo verdadero de que una tarea no se compare (UC-12601), o None si se compara."""
+    if contract.contract_version == 0:
+        return NO_PLAN_COMPARISON
+    if entry.plan_phase is None:
+        return NO_PLAN_PHASE
+    phase = phase_by_number(contract, entry.plan_phase)
+    if phase is None:
+        return PLAN_PHASE_NOT_FOUND.format(n=entry.plan_phase)
+    return None if phase.has_files_line else NO_PLAN_COMPARISON
 
 
 def _touched(entry: PhaseOutput) -> set[str]:
@@ -230,6 +250,9 @@ def register_implement_context_tools(mcp, engine_path: Path) -> None:
         entries = parse_phase_outputs(phase_outputs_content)
         result = asdict(aggregate_phase_entries(feature_slug, entries))
         contract = parse_plan_contract(plan_content or "")
-        result["phase_deltas"] = [_phase_delta(entry, _expected_for(contract, entry, entries)) for entry in entries]
+        result["phase_deltas"] = [
+            _phase_delta(entry, _expected_for(contract, entry, entries), _why_not_compared(contract, entry))
+            for entry in entries
+        ]
         result["plan_comparison"] = _plan_comparison(contract, entries)
         return result

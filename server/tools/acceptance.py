@@ -46,12 +46,15 @@ def _find_prd_files(project_path: Path) -> list[Path]:
 
 
 #: UC-12601: una línea de criterio, con o sin casilla y negrita.
-AC_LINE_PATTERN = re.compile(r"^[-*]\s*(?:\[[ xX]\]\s*)?\**\s*(AC-\d+)\s*\**\s*[:.]?\s*\**\s*(.+)$", re.IGNORECASE)
+AC_LINE_PATTERN = re.compile(
+    r"^[-*]\s*(?:\[[ xX]\]\s*)?\**\s*(AC-\d+)(?![\w]|\.\d)\s*\**\s*[:.]?\s*\**\s*(.+)$", re.IGNORECASE
+)
 
 
 def _names_item(text: str, item_upper: str) -> bool:
-    """True si ``text`` nombra el id entero (UC-12601: «UC-12» no abre la sección de «UC-12601»)."""
-    return re.search(rf"(?<![\w-]){re.escape(item_upper)}(?![\w])", text.upper()) is not None
+    """True si ``text`` nombra el id entero (UC-12601: «UC-12» no abre la sección de «UC-12601»; un
+    prefijo con guion, «MGR-US-20», sí nombra US-20)."""
+    return re.search(rf"(?<![A-Za-z0-9]){re.escape(item_upper)}(?![\w])", text.upper()) is not None
 
 
 class ResultsError(ValueError):
@@ -75,8 +78,10 @@ def _parse_results(results_content: str | None) -> dict[tuple[str, str], list[di
     que no se entiende es un ``ResultsError``: nunca se vuelve a la búsqueda en silencio. Con varias
     ejecuciones (una lista), la más reciente (la última) manda para cada criterio que trae.
     """
-    if not results_content or not results_content.strip():
+    if results_content is None:
         return None
+    if not results_content.strip():
+        raise ResultsError("está vacío")
     try:
         data = json.loads(results_content)
     except (ValueError, TypeError) as e:
@@ -84,17 +89,27 @@ def _parse_results(results_content: str | None) -> dict[tuple[str, str], list[di
     runs = data if isinstance(data, list) else [data]
     if not runs:
         raise ResultsError("no trae ninguna ejecución")
-    out: dict[tuple[str, str], list[dict]] = {}
+    parsed: list[tuple[str, str, dict[str, list[dict]]]] = []  # (timestamp, uc_id, {ac: resultados})
     for n, run in enumerate(runs, 1):
         if not isinstance(run, dict) or not isinstance(run.get("results"), list):
             raise ResultsError(f"la ejecución {n} no tiene una lista «results»")
-        uc_id = str(run.get("uc_id") or "").strip().upper()
-        this_run: dict[tuple[str, str], list[dict]] = {}
+        this_run: dict[str, list[dict]] = {}
         for result in run["results"]:
             if not isinstance(result, dict) or not str(result.get("id") or "").strip():
                 raise ResultsError(f"la ejecución {n} tiene un resultado sin «id»")
-            this_run.setdefault((uc_id, _ac_key(result["id"])), []).append(result)
-        out.update(this_run)  # la ejecución más reciente sustituye a las anteriores
+            this_run.setdefault(_ac_key(result["id"]), []).append(result)
+        parsed.append((str(run.get("timestamp") or ""), str(run.get("uc_id") or "").strip().upper(), this_run))
+    # La más reciente manda: por su «timestamp» si todas lo traen; si no, por su posición.
+    if all(ts for ts, _, _ in parsed):
+        parsed.sort(key=lambda r: r[0])
+    out: dict[tuple[str, str], list[dict]] = {}
+    for _, uc_id, this_run in parsed:
+        for ac, found in this_run.items():
+            out[(uc_id, ac)] = found
+            # Una ejecución sin uc_id vale para cualquier UC: sustituye también a las anteriores con UC.
+            if not uc_id:
+                for key in [k for k in out if k[1] == ac and k[0]]:
+                    out[key] = found
     return out
 
 
@@ -166,7 +181,8 @@ def _extract_ac_from_prd(prd_text: str, item_id: str) -> list[dict]:
             continue
         if in_section:
             m = ac_pattern.match(stripped)
-            if m:
+            # UC-12601: una UC cuya sección vuelve a abrirse (un resumen consolidado) no duplica criterios.
+            if m and all(c["ac_id"] != _ac_key(m.group(1)) for c in criteria):
                 criteria.append(
                     {
                         "ac_id": _ac_key(m.group(1)),

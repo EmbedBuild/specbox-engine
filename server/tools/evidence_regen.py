@@ -31,6 +31,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
+
+def _results_for_check(content: object) -> tuple[str | None, str]:
+    """``(results_content, nota)`` para la comprobación de una UC (UC-12601).
+
+    Un results.json del contrato (con su lista «results») se pasa tal cual y cada criterio se juzga
+    por su prueba; uno que no es JSON también, y la comprobación responde INVALID_RESULTS. Uno del
+    formato anterior (sin «results», p. ej. ``criteria[].ac``) no se pasa: la comprobación busca el id
+    como antes y la nota lo dice.
+    """
+    if not isinstance(content, str) or not content.strip():
+        return None, ""
+    try:
+        data = json.loads(content)
+    except ValueError:
+        return content, ""
+    runs = data if isinstance(data, list) else [data]
+    if all(isinstance(r, dict) and isinstance(r.get("results"), list) for r in runs) and runs:
+        return content, ""
+    return None, "results.json en el formato anterior (sin «results»): juzgado por la búsqueda del id"
+
+
 # A runner takes (project_path, uc_id, branch) and returns a dict carrying a
 # "verdict" key (ACCEPTED / CONDITIONAL / REJECTED). It is responsible for
 # rewriting the relevant results.json with a fresh timestamp.
@@ -303,21 +324,25 @@ def register_evidence_regen_tools(mcp, engine_path: Path, state_path: Path):
         for idx, (uc_id, meta) in enumerate(normalized, start=1):
             n_acs = int(meta.get("n_acs", 0))
             try:
-                # UC-12601: con su results.json, cada criterio se juzga por su prueba.
-                results_json = meta.get("results_json_content")
+                # UC-12601: con su results.json, cada criterio se juzga por su prueba. Uno del
+                # formato anterior (sin «results») se queda fuera y se dice; uno roto, también.
+                results_json, results_note = _results_for_check(meta.get("results_json_content"))
                 run = run_acceptance_check_from_content(
                     prd_content=prd_content,
                     item_id=uc_id,
                     branch=branch,
                     code_index=meta.get("code_index"),
-                    results_content=results_json if isinstance(results_json, str) else None,
+                    results_content=results_json,
                 )
             except Exception:
                 run = {"error": "runner raised exception"}
+                results_note = ""
 
+            reason = ""
             if not isinstance(run, dict) or run.get("error"):
                 status = "SKIP"
                 pending.append(uc_id)
+                reason = str(run.get("error") if isinstance(run, dict) else "runner sin respuesta")
             else:
                 verdict = run.get("verdict", "")
                 status = _verdict_to_status(verdict)
@@ -328,14 +353,13 @@ def register_evidence_regen_tools(mcp, engine_path: Path, state_path: Path):
                 else:
                     pending.append(uc_id)
 
-            uc_results.append({
-                "uc_id": uc_id,
-                "status": status,
-                "n_acs": n_acs,
-                "report": run if isinstance(run, dict) else None,
-            })
+            entry = {"uc_id": uc_id, "status": status, "n_acs": n_acs, "report": run if isinstance(run, dict) else None}
+            note = reason or results_note
+            if note:
+                entry["reason"] = note
+            uc_results.append(entry)
             progress_lines.append(
-                f"[{idx}/{total}] {uc_id}: {status} ({n_acs} ACs con evidencia)"
+                f"[{idx}/{total}] {uc_id}: {status} ({n_acs} ACs con evidencia)" + (f" — {note}" if note else "")
             )
 
         ts_token = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")

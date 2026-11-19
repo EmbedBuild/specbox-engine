@@ -151,7 +151,7 @@ test('una rama base que no existe no da el arreglo por pequeño: lo dice y sale 
     const out = JSON.parse(wrong.stdout);
     assert.equal(out.error, 'base_not_found');
     assert.equal(out.stop, true);
-    const right = spawnSync(process.execPath, [SCOPE, '--base', 'trunk'], { cwd: p.dir, encoding: 'utf8' });
+    const right = spawnSync(process.execPath, [SCOPE, '--base=trunk'], { cwd: p.dir, encoding: 'utf8' });
     assert.equal(JSON.parse(right.stdout).count, 6);
     assert.equal(JSON.parse(right.stdout).stop, true);
   } finally {
@@ -193,6 +193,10 @@ test('una UC de /fix no pide checkpoint: no tiene fases de /implement que retoma
     assert.doesNotMatch(call('checkpoint-freshness-guard', fix), /checkpoint/);
     assert.match(call('commit-spec-guard', plain), /no tiene checkpoint/);
     assert.doesNotMatch(call('commit-spec-guard', fix), /no tiene checkpoint/);
+    // Una UC sin PRD fuera de una rama fix/ (la ejecuta /implement) sigue con su aviso.
+    p.run('switch', '-qc', 'feature/UC-13102-otra');
+    assert.match(call('checkpoint-freshness-guard', fix), /no tiene checkpoint/);
+    assert.match(call('commit-spec-guard', fix), /no tiene checkpoint/);
   } finally {
     p.done();
   }

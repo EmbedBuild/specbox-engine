@@ -55,7 +55,8 @@ Antes de tocar el tablero:
    un error de importación, de sintaxis o de entorno. Apunta la orden exacta que la ejecuta.
    Si no estás en la rama principal, comprueba que el bug también está en ella (la rama `fix/` sale
    de ahí): ejecuta la prueba en un worktree de `origin/<rama principal>`
-   (`git worktree add <dir temporal> origin/<rama principal>`, y bórralo al acabar). Si allí no
+   (`git worktree add <dir temporal> origin/<rama principal>`, copia allí el fichero de la prueba,
+   que aún no tiene commit, y borra el worktree al acabar). Si allí no
    falla, el bug es de una rama sin fusionar: no va por /fix; se arregla en esa rama, dentro de su
    UC, o se apunta con /feedback.
 4. Todavía no hagas commit: la prueba viaja a la rama de la UC en el Paso 5.

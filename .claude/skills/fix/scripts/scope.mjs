@@ -116,6 +116,8 @@ async function loadClassifier(root) {
 
 async function main(argv) {
   const arg = (name) => {
+    const joined = argv.find((a) => a.startsWith(`${name}=`));
+    if (joined) return joined.slice(name.length + 1);
     const i = argv.indexOf(name);
     return i >= 0 ? argv[i + 1] : undefined;
   };

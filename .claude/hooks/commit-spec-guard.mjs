@@ -61,10 +61,11 @@ if (branch === 'main' || branch === 'master') {
 }
 
 const activeUC =fileExists('.quality/active_uc.json') ? readJsonFile('.quality/active_uc.json') : null;
+const fixUc = (uc) => typeof uc.no_prd_reason === 'string' && !!uc.no_prd_reason.trim() && branch.startsWith('fix/');
 if (!activeUC) {
   notes.push(`- No hay UC activa (board ${boardId}): llama a start_uc antes de implementar y a mark_ac_batch al terminar.`);
-} else if (activeUC.feature && !activeUC.no_prd_reason && !fileExists(`.quality/evidence/${activeUC.feature}/checkpoint.json`)) {
-  // Una UC de /fix (sin PRD) no tiene fases de /implement que retomar: sin checkpoint (UC-12701).
+} else if (activeUC.feature && !fixUc(activeUC) && !fileExists(`.quality/evidence/${activeUC.feature}/checkpoint.json`)) {
+  // Una UC de /fix (sin PRD y en su rama fix/) no tiene fases de /implement que retomar (UC-12701).
   notes.push(`- La feature «${activeUC.feature}» no tiene checkpoint: llama a report_checkpoint para poder retomarla.`);
 }
 const staged = git('diff --cached --name-only').split('\n').filter(Boolean).length;

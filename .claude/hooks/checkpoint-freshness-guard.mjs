@@ -10,7 +10,7 @@
 import { fileExists, fileAge, readJsonFile } from './lib/utils.mjs';
 import { getActiveUC } from './lib/config.mjs';
 import { noteWith } from './lib/output.mjs';
-import { readHookInput, gitDirForCommand } from './lib/utils.mjs';
+import { readHookInput, gitDirForCommand, git } from './lib/utils.mjs';
 
 // The repo the commit went to (`cd <dir> && git commit`, `git -C <dir> commit`).
 {
@@ -27,8 +27,9 @@ const activeUC = getActiveUC();
 if (!activeUC || !activeUC.feature) {
   process.exit(0);
 }
-// A /fix UC (marked without PRD) has no /implement phases to resume: no checkpoint (UC-12701).
-if (typeof activeUC.no_prd_reason === 'string' && activeUC.no_prd_reason.trim()) {
+// A /fix UC (marked without PRD, on its fix/ branch) has no /implement phases to resume: no
+// checkpoint (UC-12701). A UC without PRD run with /implement keeps the warning.
+if (activeUC.no_prd_reason.trim() && git('branch --show-current').startsWith('fix/')) {
   process.exit(0);
 }
 

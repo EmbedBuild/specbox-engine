@@ -85,6 +85,8 @@ export function getActiveUC() {
     ucId: data.uc_id || '',
     feature: data.feature || '',
     timestamp: data.timestamp || '',
+    // UC-12701: una UC de /fix va marcada sin PRD, con su motivo.
+    no_prd_reason: typeof data.no_prd_reason === 'string' ? data.no_prd_reason : '',
     fresh: true,
   };
 }

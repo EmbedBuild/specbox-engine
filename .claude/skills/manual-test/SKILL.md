@@ -46,10 +46,11 @@ Antes de cualquier acción:
 3. Identificar BD: buscar config de Supabase, PostgreSQL, Firebase, etc.
 4. Detectar rutas: leer el router (GoRouter, React Router, etc.) para mapear URLs a features
 5. Detectar roles de usuario: buscar enum/constantes de roles (rider, sponsor, team_admin, etc.)
-6. **¿Hay tablero?** Lo hay si `.claude/settings.local.json` tiene `boardId`, `backend_type` o
-   `specbox.backend_type`, o `.claude/project-config.json` tiene `backend_type` (la regla de los
-   hooks, `lib/config.mjs`). Con tablero, cada arreglo de código del Paso 4 va por /fix (US-127 ·
-   UC-12701); sin él, se arregla como siempre.
+6. **¿Hay tablero?** Con la regla de los hooks (`isSpecDriven` de `.claude/hooks/lib/config.mjs`):
+   `.claude/project-config.json` o `.claude/settings.local.json` tienen `boardId`, `board_id` o
+   `backend_type`, o el bloque `specbox` de `.claude/settings.local.json` tiene `backend_type`,
+   `board_id`, `trello_board_id`, `project_id` o `native_project_id`. Con tablero, cada arreglo de
+   código del Paso 4 va por /fix (US-127 · UC-12701); sin él, se arregla como siempre.
 
 Guardar hallazgos en variables internas para los pasos siguientes.
 
@@ -185,6 +186,10 @@ Para cada paso del itinerario:
   está delante), la rama `fix/`, el arreglo, el recibo, el visto bueno independiente (el evaluador
   aislado, o la persona en el panel según el tablero y el nivel de autopilot) y la PR. **Cada
   arreglo se fusiona antes de seguir con el itinerario**; ramas apiladas solo si la persona lo pide.
+  Al terminar /fix, vuelve a la rama que se estaba probando y, si es una rama de trabajo, trae el
+  arreglo (`git merge origin/<rama principal>`) antes de repetir el paso.
+- Si el bug solo existe en la rama que se está probando (no en la principal), no va por /fix: se
+  arregla en esa rama, dentro de su UC, o se apunta con /feedback.
 - Si /fix para porque el arreglo es grande (más de 5 ficheros, un contrato de API o una migración
   de datos), el paso queda BLOCKED con la UC que dejó /fix (si llegó a crearla) y se propone /prd.
 - Si /fix para porque el bug no se reproduce con una prueba, **no se cambia el código**: el bug se

@@ -27,6 +27,10 @@ const activeUC = getActiveUC();
 if (!activeUC || !activeUC.feature) {
   process.exit(0);
 }
+// A /fix UC (marked without PRD) has no /implement phases to resume: no checkpoint (UC-12701).
+if (typeof activeUC.no_prd_reason === 'string' && activeUC.no_prd_reason.trim()) {
+  process.exit(0);
+}
 
 const feature = activeUC.feature;
 const checkpointFile = `.quality/evidence/${feature}/checkpoint.json`;

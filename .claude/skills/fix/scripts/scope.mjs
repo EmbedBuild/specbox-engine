@@ -14,7 +14,8 @@
  *
  * Uso: node scope.mjs [--base <ref>] [--limit 5]
  * Escribe un JSON: {base, count, limit, files, excluded, untracked, class, classes, stop, reasons}.
- * Sale con 0 aunque `stop` sea true (lo decide la skill); con 2 si no está en un repositorio git.
+ * Sale con 0 aunque `stop` sea true (lo decide la skill); con 2 si no está en un repositorio git o
+ * si la rama de --base no existe (no se puede medir: nunca da por pequeño lo que no midió).
  */
 
 import { execFileSync } from 'node:child_process';
@@ -121,6 +122,14 @@ async function main(argv) {
   const root = git(process.cwd(), ['rev-parse', '--show-toplevel']);
   if (!root) {
     process.stdout.write(`${JSON.stringify({ error: 'not_a_git_repo', stop: true, reasons: ['no estás en un repositorio git'] })}\n`);
+    return 2;
+  }
+  const asked = arg('--base');
+  if (asked && !git(root, ['rev-parse', '--verify', '-q', `${asked}^{commit}`])) {
+    process.stdout.write(`${JSON.stringify({
+      error: 'base_not_found', base: asked, stop: true,
+      reasons: [`la rama base «${asked}» no existe: mide otra vez con --base <rama principal>`],
+    })}\n`);
     return 2;
   }
   const foundBase = baseRef(root, arg('--base'));

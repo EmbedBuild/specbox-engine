@@ -135,6 +135,30 @@ test('sin rama base lo dice y cuenta solo lo pendiente', () => {
   }
 });
 
+test('una rama base que no existe no da el arreglo por pequeño: lo dice y sale con 2', () => {
+  const p = repo();
+  try {
+    p.run('switch', '-qc', 'trunk');
+    p.write('a.py', 'x = 1\n');
+    p.run('add', 'a.py');
+    p.run('commit', '-qm', 'base');
+    p.run('switch', '-qc', 'fix/UC-1-x');
+    for (let i = 0; i < 6; i += 1) p.write(`m${i}.py`, 'y = 1\n');
+    p.run('add', '-A');
+    p.run('commit', '-qm', 'seis');
+    const wrong = spawnSync(process.execPath, [SCOPE, '--base', 'devlop'], { cwd: p.dir, encoding: 'utf8' });
+    assert.equal(wrong.status, 2);
+    const out = JSON.parse(wrong.stdout);
+    assert.equal(out.error, 'base_not_found');
+    assert.equal(out.stop, true);
+    const right = spawnSync(process.execPath, [SCOPE, '--base', 'trunk'], { cwd: p.dir, encoding: 'utf8' });
+    assert.equal(JSON.parse(right.stdout).count, 6);
+    assert.equal(JSON.parse(right.stdout).stop, true);
+  } finally {
+    p.done();
+  }
+});
+
 test('fuera de un repositorio git lo dice y sale con 2', () => {
   const dir = mkdtempSync(join(tmpdir(), 'fix-scope-nogit-'));
   try {
@@ -143,5 +167,33 @@ test('fuera de un repositorio git lo dice y sale con 2', () => {
     assert.equal(r.json.error, 'not_a_git_repo');
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('una UC de /fix no pide checkpoint: no tiene fases de /implement que retomar', () => {
+  const p = repo();
+  try {
+    p.write('.claude/project-config.json', JSON.stringify({ boardId: 'b', backend_type: 'freeform' }));
+    p.write('README.md', 'x\n');
+    p.run('add', '-A');
+    p.run('commit', '-qm', 'base');
+    p.run('switch', '-qc', 'fix/UC-13101-total');
+    const hooks = join(repoRoot, '.claude/hooks');
+    const call = (hook, marker) => {
+      p.write('.quality/active_uc.json', JSON.stringify(marker));
+      const r = spawnSync(process.execPath, [join(hooks, `${hook}.mjs`)], {
+        cwd: p.dir, encoding: 'utf8', env: { ...process.env, SPECBOX_ENFORCEMENT_POLICY: 'off' },
+        input: JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'git commit -m x' }, cwd: p.dir }),
+      });
+      return `${r.stdout}${r.stderr}`;
+    };
+    const plain = { uc_id: 'UC-13101', feature: 'UC-13101' };
+    const fix = { ...plain, no_prd_reason: 'Arreglo con /fix: el total sale a cero' };
+    assert.match(call('checkpoint-freshness-guard', plain), /no tiene checkpoint/);
+    assert.doesNotMatch(call('checkpoint-freshness-guard', fix), /checkpoint/);
+    assert.match(call('commit-spec-guard', plain), /no tiene checkpoint/);
+    assert.doesNotMatch(call('commit-spec-guard', fix), /no tiene checkpoint/);
+  } finally {
+    p.done();
   }
 });

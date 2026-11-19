@@ -53,6 +53,11 @@ Antes de tocar el tablero:
    (`tests/acceptance/`, `test/acceptance/`, `e2e/acceptance/`, `.maestro/`): esas son de AG-09a.
 3. Ejecútala y comprueba que **falla por el bug** (la aserción sobre el comportamiento roto), no por
    un error de importación, de sintaxis o de entorno. Apunta la orden exacta que la ejecuta.
+   Si no estás en la rama principal, comprueba que el bug también está en ella (la rama `fix/` sale
+   de ahí): ejecuta la prueba en un worktree de `origin/<rama principal>`
+   (`git worktree add <dir temporal> origin/<rama principal>`, y bórralo al acabar). Si allí no
+   falla, el bug es de una rama sin fusionar: no va por /fix; se arregla en esa rama, dentro de su
+   UC, o se apunta con /feedback.
 4. Todavía no hagas commit: la prueba viaja a la rama de la UC en el Paso 5.
 
 **Si no se puede reproducir con una prueba** (un problema visual sin pruebas de interfaz, de
@@ -214,6 +219,8 @@ Con más de 5 ficheros, un contrato de API o una migración de datos (UC-12701 A
    - **En los demás casos** (native en «low», «conservador» o «equilibrado»): una **persona** acepta
      la UC en revisión desde el panel. Avísala con el enlace a la UC y a la PR y espera: no fusiones
      antes. El veredicto de un subagente no cuenta ahí para la medida.
+   - **En Trello o Plane** (sin panel; `merge-guard` no los mira): una persona revisa la PR y dice
+     en la conversación que la acepta; en «agresivo», el evaluador aislado.
    - Con la medida en «block», `merge-guard` detiene la fusión hasta tenerlo; en «warn» avisa, pero
      /fix espera igual.
 

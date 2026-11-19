@@ -9,6 +9,7 @@
  *   4. el único PRD que define la historia (un encabezado o una línea «>» la nombra), o si no, el
  *      único que la nombra (prdCandidates)
  *   5. el único fichero de doc/prds/
+ * Un PRD superado (UC-12605) sigue siendo el PRD de sus historias: el localizador lo encuentra igual.
  * Devuelve la ruta relativa a `root` con el nombre que tiene en disco (un disco que no distingue
  * mayúsculas también «encuentra» PRD.md al pedir prd.md, y el hook la compara con los ficheros
  * de la PR), o null.
@@ -56,6 +57,25 @@ export function prdCandidates(root) {
   return out;
 }
 
+const prdTexts = (root) => prdCandidates(root).map((rel) => {
+  try {
+    return [rel, readFileSync(join(root, rel), 'utf-8')];
+  } catch {
+    return [rel, ''];
+  }
+});
+
+/**
+ * El único PRD que nombra la UC en un encabezado, una línea «>», un punto de lista o una fila de tabla
+ * (UC-12605: el hook busca así el PRD de una UC cuya historia no conoce), o null.
+ */
+export function prdForUc(root, ucId) {
+  if (!/^UC-\d+[a-z]?$/i.test(String(ucId || ''))) return null;
+  const word = new RegExp(`\\b${ucId}\\b`, 'i');
+  const found = prdTexts(root).filter(([, text]) => text.split('\n').some((line) => /^\s*([#>|]|[-*+]\s)/.test(line) && word.test(line)));
+  return found.length === 1 ? found[0][0] : null;
+}
+
 export function locatePrd({ root, feature = '', usId = '' } = {}) {
   const first = (rels) => rels.map((rel) => exact(root, rel)).find(Boolean) ?? null;
   if (feature) {
@@ -77,13 +97,7 @@ export function locatePrd({ root, feature = '', usId = '' } = {}) {
   }
   if (usId) {
     const word = new RegExp(`\\b${usId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
-    const texts = prdCandidates(root).map((rel) => {
-      try {
-        return [rel, readFileSync(join(root, rel), 'utf-8')];
-      } catch {
-        return [rel, ''];
-      }
-    });
+    const texts = prdTexts(root);
     // El que define la historia (un encabezado o una línea «>» la nombra) gana al que solo la cita.
     const defining = texts.filter(([, text]) => text.split('\n').some((line) => /^\s*[#>]/.test(line) && word.test(line)));
     if (defining.length === 1) return defining[0][0];

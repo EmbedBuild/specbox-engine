@@ -276,7 +276,8 @@ def register_evidence_regen_tools(mcp, engine_path: Path, state_path: Path):
 
         The MCP no longer touches the client filesystem. The caller supplies:
 
-        * ``prd_content`` — concatenated PRD markdown (joined ``doc/prd/*.md``).
+        * ``prd_content`` — concatenated PRD markdown (joined ``doc/prd/*.md``), with a line
+          ``<!-- @specbox:file path="<relative path>" -->`` before each file (UC-12605): the PRDs marked as superseded are then left out exactly, and ``doc/spec/*.md`` adds the behavior documents; without the marks a superseded PRD that may hide another one is kept.
         * ``uc_evidence_inputs`` — mapping ``{uc_id: {"n_acs": int,
           "evidence_relpath": str, "results_json_content": str | None,
           "code_index": dict[str, str] | None}}`` listing each UC that has

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import re
 import secrets
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -42,6 +42,7 @@ INVIOLABLE_FOR_QUEUE: frozenset[str] = frozenset(
         "definition_quality_gate",
         "feature_problem_definition",
         "feedback_field_classification",
+        "impact_radius_approval",
     }
 )
 

@@ -16,16 +16,20 @@
  * Solo en main o master: la zona sale del tablero, así que en una rama de trabajo se deja para el
  * siguiente cambio en main y dos ramas no chocan al fusionar. Nunca bloquea.
  *
- * UC-12605 · el documento de comportamiento: en `complete_uc` pide además `with_behavior_doc` y
- * escribe la sección de la historia (sus UC cerradas con sus criterios) en
- * doc/spec/<funcionalidad>.md del mismo repositorio, junto al PRD de la historia (la funcionalidad
- * es la carpeta del PRD). Si todas las historias que define el PRD tienen sus UC cerradas, lo marca
- * como superado con la fecha y el documento. En FreeForm lo calcula con items.json
- * (lib/behavior-doc.mjs). Oculta el bloque a quien llama.
+ * UC-12605 · el documento de comportamiento: en `complete_uc`, `move_uc` y `add_uc` pide además
+ * `with_behavior_doc` (solo a un servidor 6.47.0 o posterior, lib/server-version.mjs) y, en
+ * `behavior_doc_us_ids`, las historias que define el PRD de la UC (por el marcador de UC activa o por
+ * el PRD que nombra la UC). Escribe la sección de cada historia (sus UC cerradas con sus criterios) en
+ * doc/spec/<funcionalidad>.md del mismo repositorio, junto al PRD de la historia (la funcionalidad es
+ * la carpeta del PRD); nada si el PRD no define la historia. Un documento nuevo solo nace al cerrar
+ * una UC. El PRD queda superado cuando todas sus historias están sin nada pendiente y el documento
+ * tiene recién escrita la sección de cada una; si una vuelve a tener trabajo, le quita la marca que
+ * puso. Escribe solo dentro del repositorio del canon y nunca a través de un enlace simbólico. En
+ * FreeForm lo calcula con items.json (lib/behavior-doc.mjs). Oculta el bloque a quien llama.
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { parseToolName, pendingPath, withoutFields } from './lib/freeform-fragment.mjs';
 import { readHookInput } from './lib/utils.mjs';
@@ -34,15 +38,22 @@ import {
   completeStoriesFromItems,
   featureOf,
   markSuperseded,
+  MAX_STORIES,
   prdStories,
   replaceStorySection,
-  sectionFromItems,
+  sectionForStory,
   SPEC_DIR,
+  storyIdFromItems,
+  unmarkSuperseded,
 } from './lib/behavior-doc.mjs';
-import { locatePrd } from './lib/prd-locate.mjs';
-import { topObject } from './lib/uc-state.mjs';
+import { locatePrd, prdForUc } from './lib/prd-locate.mjs';
+import { serverAtLeast } from './lib/server-version.mjs';
+import { readMarker, topObject } from './lib/uc-state.mjs';
 
 const TOOLS = new Set(['complete_uc', 'move_uc', 'add_uc', 'delete_uc', 'mark_ac_batch']);
+const SPEC_TOOLS = new Set(['complete_uc', 'move_uc', 'add_uc']);
+/** El primer servidor que acepta `with_behavior_doc` y `behavior_doc_us_ids`. */
+const SPEC_MIN_SERVER = '6.47.0';
 const DOC = join('doc', 'app', 'app_prd.md');
 const MERGE_WAIT_MS = 4000;
 
@@ -80,16 +91,65 @@ const onMain = () => ['main', 'master'].includes(git(canonRoot, ['branch', '--sh
 const wanted = () => existsSync(docPath) && onMain();
 // UC-12605: el documento de comportamiento vive junto a los PRD, en el repositorio del canon.
 const specWanted = () =>
-  parsed.tool === 'complete_uc' &&
+  SPEC_TOOLS.has(parsed.tool) &&
   (existsSync(join(canonRoot, 'doc', 'prd')) || existsSync(join(canonRoot, 'doc', 'prds'))) &&
   onMain();
+
+/** La ruta absoluta de `rel` dentro del repositorio del canon, o null si sale de él o pasa por un enlace. */
+function insideCanon(rel) {
+  let real;
+  try {
+    real = realpathSync(canonRoot);
+  } catch {
+    return null;
+  }
+  const parts = String(rel || '').split('/');
+  if (!parts.length || parts.some((p) => !p || p === '.' || p === '..')) return null;
+  let cur = real;
+  for (const part of parts) {
+    cur = join(cur, part);
+    let st;
+    try {
+      st = lstatSync(cur);
+    } catch {
+      break; // no existe: lo que falta lo crea este hook, sin enlaces
+    }
+    if (st.isSymbolicLink()) return null;
+  }
+  return join(real, ...parts);
+}
+
+const readText = (rel) => {
+  const path = insideCanon(rel);
+  try {
+    return path ? readFileSync(path, 'utf-8') : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Las historias que define el PRD de la UC (o de la historia de add_uc), hasta MAX_STORIES. */
+function prdStoriesFor(input) {
+  let usId = parsed.tool === 'add_uc' ? String(input.us_id || '') : '';
+  if (!usId && input.uc_id) {
+    const marker = readMarker(root);
+    if (marker?.uc_id && String(marker.uc_id).toUpperCase() === String(input.uc_id).toUpperCase()) usId = marker.us_id || '';
+  }
+  const prdRel = (usId && locatePrd({ root: canonRoot, usId })) || (input.uc_id ? prdForUc(canonRoot, input.uc_id) : null);
+  const text = prdRel ? readText(prdRel) : null;
+  return text ? prdStories(text).slice(0, MAX_STORIES) : [];
+}
 
 if (event === 'PreToolUse') {
   // FreeForm: la zona y el documento los calcula el hook; además, freeform-fragment ya cambia la entrada.
   if (!freeform) {
     const extra = {};
     if (toolInput.with_roadmap !== true && wanted()) extra.with_roadmap = true;
-    if (toolInput.with_behavior_doc !== true && specWanted()) extra.with_behavior_doc = true;
+    if (toolInput.with_behavior_doc !== true && specWanted() && (await serverAtLeast(SPEC_MIN_SERVER, { root }))) {
+      extra.with_behavior_doc = true;
+      const stories = Array.isArray(toolInput.behavior_doc_us_ids) ? [] : prdStoriesFor(toolInput);
+      if (stories.length) extra.behavior_doc_us_ids = stories;
+    }
     if (Object.keys(extra).length) {
       process.stdout.write(
         JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', updatedInput: { ...toolInput, ...extra } } }),
@@ -148,32 +208,64 @@ const itemsOf = () => {
   return freeformItems;
 };
 
-/** UC-12605: la sección de la historia en doc/spec/<funcionalidad>.md y, si toca, el PRD superado. */
+/**
+ * UC-12605: las secciones de las historias del PRD en doc/spec/<funcionalidad>.md y la marca del PRD:
+ * superado si todas sus historias están sin nada pendiente y sus secciones son de ahora; sin la marca
+ * que puso el engine si alguna vuelve a tener trabajo.
+ */
 function writeBehaviorDoc() {
+  const today = new Date().toISOString().slice(0, 10);
+  const fromInput = parsed.tool === 'add_uc' ? { usId: toolInput.us_id } : { ucId: toolInput.uc_id };
   let block = top?.behavior_doc;
+  let items = null;
   if (freeform || block?.render === 'client') {
-    const items = itemsOf();
-    const found = Array.isArray(items) ? sectionFromItems(items, toolInput.uc_id) : null;
-    block = found ? { ok: true, ...found, complete_stories: completeStoriesFromItems(items), date: new Date().toISOString().slice(0, 10) } : null;
+    items = itemsOf();
+    const usId = Array.isArray(items) ? storyIdFromItems(items, fromInput) : '';
+    if (!usId) return;
+    block = { ok: true, us_id: usId, complete_stories: completeStoriesFromItems(items), date: today };
   }
-  if (!block?.ok || typeof block.section !== 'string' || !block.us_id) return;
-  const prdRel = locatePrd({ root: canonRoot, usId: block.us_id, includeSuperseded: true });
-  if (!prdRel) return;
-  const feature = featureOf(prdRel);
-  const specRel = `${SPEC_DIR}/${feature}.md`;
-  const specPath = join(canonRoot, specRel);
-  const current = existsSync(specPath) ? readFileSync(specPath, 'utf-8') : '';
-  const next = replaceStorySection(current, block.us_id, block.section, feature);
-  if (next !== current) writeAtomic(specPath, next);
-  const prdPath = join(canonRoot, prdRel);
+  if (!block?.ok || typeof block.us_id !== 'string' || !block.us_id) return;
+  const usId = block.us_id.toUpperCase();
+  const prdRel = locatePrd({ root: canonRoot, usId });
+  const prdPath = prdRel ? insideCanon(prdRel) : null;
+  if (!prdPath) return;
   const prd = readFileSync(prdPath, 'utf-8');
   const stories = prdStories(prd);
-  const complete = new Set(Array.isArray(block.complete_stories) ? block.complete_stories : []);
-  const needed = stories.length ? stories : [block.us_id];
-  if (needed.every((us) => complete.has(us))) {
-    const marked = markSuperseded(prd, block.date || new Date().toISOString().slice(0, 10), specRel);
-    if (marked !== prd) writeAtomic(prdPath, marked);
+  // El PRD tiene que definir la historia (o llamarse como ella): el único fichero de doc/prds no basta.
+  if (!stories.includes(usId) && prdRel !== `doc/prds/${usId.toLowerCase().replace(/-/g, '_')}_prd.md`) return;
+  const needed = [...new Set([...stories, usId])];
+  const fresh = new Map();
+  if (items) {
+    for (const us of needed.slice(0, MAX_STORIES + 1)) {
+      const found = sectionForStory(items, us);
+      if (found) fresh.set(us, found.section);
+    }
+  } else {
+    const sections = block.sections && typeof block.sections === 'object' ? block.sections : {};
+    for (const [us, text] of Object.entries(sections)) if (typeof text === 'string' && needed.includes(us)) fresh.set(us, text);
+    if (!fresh.has(usId) && typeof block.section === 'string') fresh.set(usId, block.section);
   }
+  const feature = featureOf(prdRel);
+  const specRel = `${SPEC_DIR}/${feature}.md`;
+  const specPath = insideCanon(specRel);
+  if (!specPath) return;
+  const exists = existsSync(specPath);
+  const create = parsed.tool === 'complete_uc' || (parsed.tool === 'move_uc' && toolInput.target === 'done');
+  if (exists || create) {
+    const current = exists ? readFileSync(specPath, 'utf-8') : '';
+    let next = current;
+    for (const [us, text] of fresh) next = replaceStorySection(next, us, text, feature);
+    if (next !== current) writeAtomic(specPath, next);
+  }
+  const complete = new Set((Array.isArray(block.complete_stories) ? block.complete_stories : []).map((u) => String(u).toUpperCase()));
+  const allComplete = needed.every((us) => complete.has(us));
+  let updated = prd;
+  if (allComplete && (exists || create) && needed.every((us) => fresh.has(us))) {
+    updated = markSuperseded(prd, block.date || today, specRel);
+  } else if (!allComplete) {
+    updated = unmarkSuperseded(prd, specRel);
+  }
+  if (updated !== prd) writeAtomic(prdPath, updated);
 }
 
 /** FreeForm: espera a que freeform-fragment fusione lo que cambió la tool en items.json. */

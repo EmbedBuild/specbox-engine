@@ -306,6 +306,19 @@ test("revisión 2: lo que no se juzga queda «sin comprobar», un tablero sin le
     assert.equal(await runDrift({ root, base: "main", summaryFile: summary }, deps(fakeMcp({ ...costly, mode: "warn" }), [])), 0);
     assert.match(readFileSync(summary, "utf8"), /^sin comprobar: /);
 
+    // Una ruta de más de 1024 caracteres no se manda: en «block» falla.
+    // (en macOS no se puede crear en disco: va directa al índice de git)
+    const deep = Array.from({ length: 5 }, (_, i) => `${String(i)}${"d".repeat(209)}`).join("/");
+    const blob = execFileSync("git", ["-C", root, "hash-object", "-w", "--stdin"], { input: "nota\n", encoding: "utf8" }).trim();
+    git(root, "update-index", "--add", "--cacheinfo", `100644,${blob},${deep}/x.md`);
+    git(root, "commit", "-q", "-m", "UC-701: ruta larga");
+    const longMcp = fakeMcp(REPORT({ mode: "block" }));
+    assert.equal(await runDrift({ root, base: "main", summaryFile: summary }, deps(longMcp, [])), 1);
+    assert.deepEqual(longMcp.calls[0].arguments.files, []);
+    assert.match(readFileSync(summary, "utf8"), /^fallo: .*ruta\(s\) de más de 1024 caracteres/);
+    git(root, "update-index", "--force-remove", `${deep}/x.md`);
+    git(root, "commit", "-q", "-m", "UC-701: sin ruta larga");
+
     // La rama se excluye todo en su settings.json: no cuenta, vale el de la base.
     write(root, ".claude/settings.json", { drift: { exclude: ["**"] } });
     git(root, "commit", "-q", "-am", "UC-701: excluirlo todo");

@@ -23,6 +23,8 @@ const UC_ID = /\bUC-\d+[a-z]?\b/gi;
 const MAX_PLAN_FILES = 20;
 /** Lo que el servidor compara fichero a fichero (MAX_DRIFT_FILES). */
 const MAX_FILES = 20_000;
+/** El largo de una ruta que el servidor compara (MAX_DRIFT_PATH). */
+const MAX_PATH = 1024;
 const MAX_PLAN_BYTES = 400_000;
 
 // ── Git ────────────────────────────────────────────────────────────────
@@ -489,7 +491,8 @@ export async function runDrift(opts, deps = {}) {
   const files = changedFiles(root, base);
   if (!files.length) return finish(0, "ok", `La rama ${branch} no cambia ficheros frente a ${base}.`);
   const maxFiles = deps.maxFiles ?? MAX_FILES;
-  const tooMany = files.length > maxFiles;
+  const tooLong = files.filter((f) => f.length > MAX_PATH);
+  const tooMany = files.length > maxFiles || tooLong.length > 0;
   const { ucs, source } = branchUcs(root, base, branch);
   const args = {
     board_id: board.boardId,
@@ -550,7 +553,9 @@ export async function runDrift(opts, deps = {}) {
   const boardRead = !report.board || report.board === "leído";
   if (tooMany) {
     // Una rama así suele llevar node_modules o vendor por error: no se compara fichero a fichero.
-    const text = `La rama ${branch} cambia ${files.length} ficheros (más de ${maxFiles}): no se comparan uno a uno. Revisa que no se hayan subido dependencias o ficheros generados.`;
+    const text = tooLong.length
+      ? `La rama ${branch} tiene ${tooLong.length} ruta(s) de más de ${MAX_PATH} caracteres (${tooLong[0].slice(0, 80)}…): no se compara.`
+      : `La rama ${branch} cambia ${files.length} ficheros (más de ${maxFiles}): no se comparan uno a uno. Revisa que no se hayan subido dependencias o ficheros generados.`;
     return finish(report.mode === "block" ? 1 : 0, report.mode === "block" ? "fallo" : "aviso", text);
   }
   const text = formatReport(report, { branch, base, ucSource: source, satellite: board.satellite, orchestratorRoot: board.orchestratorRoot, boardId: board.boardId });

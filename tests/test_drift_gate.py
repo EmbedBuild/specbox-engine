@@ -253,13 +253,13 @@ def test_a_closed_uc_with_an_old_plan_does_not_switch_the_gate_off():
     assert out["unclaimed"] == ["server/a.py"] and out["not_judged"] == [] and out["ok"] is False
 
 
-def test_with_one_new_plan_and_one_open_old_plan_the_unclaimed_files_are_not_judged():
+def test_an_open_old_plan_uc_named_in_a_commit_does_not_hide_the_other_ucs_drift():
     old = [("doc/plans/US-126_plan.md", parse_plan_contract(OLD_PLAN), OLD_PLAN), *CONTRACTS]
     out = build_drift_report(files=["server/a.py", "server/b.py"], uc_ids=["UC-701", "UC-12602"], contracts=old,
                              known_ucs={"UC-701", "UC-12602"})
     by = {f["path"]: f for f in out["files"]}
     assert by["server/a.py"]["claimed_by"] == ["UC-701"]
-    assert out["not_judged"] == ["server/b.py"] and out["unclaimed"] == [] and out["old_plan_ucs"] == ["UC-12602"]
+    assert out["unclaimed"] == ["server/b.py"] and out["not_judged"] == [] and out["ok"] is False
 
 
 def test_the_plan_of_another_uc_does_not_claim_the_branch_files():

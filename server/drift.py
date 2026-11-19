@@ -388,14 +388,15 @@ def build_drift_report(
         if f"{ecosystem_key(d.get('ecosystem', ''))}:{dependency_key(d.get('ecosystem', ''), d['name'])}" not in declared
     ]
 
-    # La puerta no juzga los ficheros que ninguna UC reclama cuando alguna UC de la rama existe en el
+    # La puerta no juzga solo cuando ninguna UC de la rama reclama ficheros y alguna existe en el
     # tablero, sigue abierta y tiene un plan que no declara ficheros por fase (anterior al contrato):
-    # lo dice, y esos ficheros no son «sin UC». Una UC que el tablero no tiene, una cerrada o una sin
-    # plan no frena nada: sus ficheros cuentan como «sin UC».
+    # lo dice, y esos ficheros no son «sin UC». Si alguna UC reclama ficheros, se juzga todo (una UC
+    # de plan viejo citada en un commit no esconde los desvíos de la otra). Una UC que el tablero no
+    # tiene, una cerrada o una sin plan no frena nada: sus ficheros cuentan como «sin UC».
     claiming = {u for _, ucs in claims for u in ucs if u in mine} | {u for u in branch if receipt_files.get(u)}
     known = {k.upper() for k in known_ucs} if known_ucs is not None else set()
     done = {k.upper() for k in done_ucs or ()}
-    old_plan = _old_plan_ucs(docs, branch, known, claiming, done)
+    old_plan = [] if claiming else _old_plan_ucs(docs, branch, known, claiming, done)
     not_judged = list(unclaimed) if old_plan else []
     if not_judged:
         unclaimed = []

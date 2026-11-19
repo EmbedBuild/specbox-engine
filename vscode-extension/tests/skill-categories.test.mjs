@@ -23,7 +23,7 @@ const { getCategoryFor, CATEGORY_ORDER, CATEGORY_LABELS, CATEGORY_ICONS } = requ
 const { KNOWN_SKILLS } = require(path.join(outDir, 'constants.js'));
 
 const CANONICAL_SKILLS = {
-	pipeline: ['prd', 'plan', 'implement', 'feedback'],
+	pipeline: ['prd', 'plan', 'implement', 'feedback', 'fix'],
 	quality: ['audit', 'compliance', 'quality-gate', 'acceptance-check'],
 	visual: ['visual-setup', 'adapt-ui', 'check-designs', 'design-review'],
 	tracking: ['switch-backend', 'app-init', 'app-sync', 'queue-review'],

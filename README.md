@@ -945,7 +945,7 @@ Cada paso del pipeline tiene su skill, su hook bloqueante, y su evidencia audita
 
 ## Skills disponibles
 
-23 skills auto-descubribles. Las que más vas a usar:
+27 skills auto-descubribles. Las que más vas a usar:
 
 | Skill | Para qué |
 |-------|----------|
@@ -956,6 +956,7 @@ Cada paso del pipeline tiene su skill, su hook bloqueante, y su evidencia audita
 | `/visual-setup` | Brand kit + Stitch + VEG |
 | `/plan` | Plan técnico por UC con designs |
 | `/implement` | Auto-implementación con acceptance gates |
+| `/fix` | Un bug pequeño sin PRD ni plan: prueba que falla primero, UC con su criterio, rama `fix/` y cierre en el tablero |
 | `/feedback` | Captura bugs como evidencia + GitHub issue |
 | `/release` | Audita, bumpa version, push |
 

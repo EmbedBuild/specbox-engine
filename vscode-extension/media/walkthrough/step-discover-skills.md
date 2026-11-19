@@ -6,7 +6,7 @@ SpecBox installed a suite of agentic skills (slash commands like `/prd`, `/plan`
 
 Click the **SpecBox** icon on the activity bar (the left rail) to expand the sidebar. You'll see a **Skills** view grouped into 7 categories:
 
-- **Pipeline** — the spec-driven workflow (`/prd` → `/plan` → `/implement` → `/feedback`)
+- **Pipeline** — the spec-driven workflow (`/prd` → `/plan` → `/implement` → `/feedback`), and `/fix` for a small bug with its UC and criterion
 - **Quality** — `/audit`, `/compliance`, `/quality-gate`, `/acceptance-check`
 - **Visual** — `/visual-setup`, `/adapt-ui`, `/check-designs`
 - **Tracking** — `/switch-backend`, `/app-init`, `/app-sync`, `/queue-review`

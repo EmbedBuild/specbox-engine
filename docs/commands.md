@@ -27,6 +27,7 @@ Instala:
 | /quality-gate | direct | Gates de calidad adaptativos |
 | /explore | fork:Explore | Exploracion read-only del codebase |
 | /feedback | direct | Captura feedback manual + GitHub issues |
+| /fix | direct | Arreglo pequeño sin PRD ni plan: UC con su criterio aprobado, prueba que reproduce el bug y falla primero, rama `fix/`, recibo y cierre; si toca más de 5 ficheros, un contrato de API o una migración, propone /prd (US-127) |
 | /check-designs | fork:Explore | Compliance retroactivo de diseños Stitch |
 | /acceptance-check | direct | Standalone BDD acceptance sin /implement |
 | /quickstart | direct | Tutorial interactivo para nuevos usuarios |

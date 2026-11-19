@@ -37,6 +37,7 @@ const SKILL_TO_CATEGORY: Record<string, SkillCategory> = {
 	plan: 'pipeline',
 	implement: 'pipeline',
 	feedback: 'pipeline',
+	fix: 'pipeline',
 	// Quality
 	audit: 'quality',
 	compliance: 'quality',

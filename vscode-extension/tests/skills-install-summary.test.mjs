@@ -53,6 +53,8 @@ require.cache['vscode-stub'] = { id: 'vscode-stub', filename: 'vscode-stub', loa
 const { InstallManager, buildInstallSummary } = require(path.join(root, 'out', 'install.js'));
 const { specboxSkillsState } = require(path.join(root, 'out', 'health.js'));
 const { KNOWN_SKILLS, CLAUDE_SKILLS_DIR } = require(path.join(root, 'out', 'constants.js'));
+/** Las skills de SpecBox que se esperan (26 hasta la 6.47.0; /fix es la 27). */
+const N = KNOWN_SKILLS.length;
 
 /** Una copia del engine con hooks, settings y las 26 skills; `withoutSkillMd` quedan sin SKILL.md. */
 function engine(withoutSkillMd = [], extraWithoutSkillMd = []) {
@@ -84,8 +86,8 @@ test('AC-01 · el recuento son las skills cuyo SKILL.md se lee a través de su a
 	config = { enginePath: engine(['plan']) };
 	await new InstallManager({}).runFullInstall();
 	const all = [...shown.info, ...shown.warn].map((x) => x.msg).join('\n');
-	assert.match(all, /25 of 26 SpecBox skills|could not install 1 of 26/, 'cuenta 25 legibles, no 26 accesos creados');
-	assert.doesNotMatch(all, /26 skills/);
+	assert.match(all, new RegExp(`${N - 1} of ${N} SpecBox skills|could not install 1 of ${N}`), 'cuenta las legibles, no los accesos creados');
+	assert.doesNotMatch(all, new RegExp(`${N} skills`));
 	assert.deepEqual(specboxSkillsState(CLAUDE_SKILLS_DIR).missing, ['plan']);
 });
 
@@ -95,9 +97,9 @@ test('AC-01 · 27 accesos creados y uno sin SKILL.md: el aviso dice 26 skills', 
 	await new InstallManager({}).runFullInstall();
 	const all = [...shown.info, ...shown.warn].map((x) => x.msg);
 	assert.equal(all.length, 1);
-	assert.match(all[0], /\(26 skills, 1 hooks\)|installed: 26 skills/, 'las legibles');
-	assert.doesNotMatch(all[0], /27/, 'no los accesos creados');
-	assert.equal(fs.readdirSync(CLAUDE_SKILLS_DIR).length, 27);
+	assert.match(all[0], new RegExp(`\\(${N} skills, 1 hooks\\)|installed: ${N} skills`), 'las legibles');
+	assert.doesNotMatch(all[0], new RegExp(`\\b${N + 1}\\b`), 'no los accesos creados');
+	assert.equal(fs.readdirSync(CLAUDE_SKILLS_DIR).length, N + 1);
 });
 
 test('AC-02 · con una skill sin SKILL.md el aviso no dice que ha terminado bien y nombra la que falta', async () => {
@@ -108,7 +110,7 @@ test('AC-02 · con una skill sin SKILL.md el aviso no dice que ha terminado bien
 	assert.equal(shown.info.length, 0, 'ningún aviso de éxito');
 	assert.equal(shown.warn.length, 1);
 	const { msg, buttons } = shown.warn[0];
-	assert.match(msg, /could not install 2 of 26 SpecBox skills: plan, prd\./);
+	assert.match(msg, new RegExp(`could not install 2 of ${N} SpecBox skills: plan, prd\\.`));
 	assert.doesNotMatch(msg, /\binstalled\b/);
 	assert.ok(buttons.includes('Open Health Check'));
 	assert.deepEqual(shown.commands, ['specbox.healthCheck'], 'el botón abre el Health Check');
@@ -122,9 +124,9 @@ test('buildInstallSummary · con las 26 legibles y los MCP listos, éxito con 26
 });
 
 test('buildInstallSummary · faltan skills y MCP: aviso con los dos botones y sin «installed»', () => {
-	const s = buildInstallSummary({ engineVersion: '6.25.0', readableSkills: 24, missingSkills: ['plan', 'prd'], hooks: 28, missingPieces: ['MCP SpecBox server'] });
+	const s = buildInstallSummary({ engineVersion: '6.25.0', readableSkills: N - 2, missingSkills: ['plan', 'prd'], hooks: 28, missingPieces: ['MCP SpecBox server'] });
 	assert.equal(s.level, 'warning');
-	assert.equal(s.text, 'SpecBox could not install 2 of 26 SpecBox skills: plan, prd. Also missing: MCP SpecBox server.');
+	assert.equal(s.text, `SpecBox could not install 2 of ${N} SpecBox skills: plan, prd. Also missing: MCP SpecBox server.`);
 	assert.deepEqual(s.actions, ['healthCheck', 'configureMcp']);
 });
 
@@ -144,6 +146,6 @@ test('specboxSkillsState · un acceso cuyo SKILL.md no se abre cuenta como ausen
 	fs.mkdirSync(path.join(dir, KNOWN_SKILLS[3], 'SKILL.md'), { recursive: true }); // una carpeta, no un fichero
 	const state = specboxSkillsState(dir);
 	assert.deepEqual(state.present, KNOWN_SKILLS.slice(0, 3));
-	assert.equal(state.missing.length, 23);
+	assert.equal(state.missing.length, N - 3);
 	assert.ok(state.missing.includes(KNOWN_SKILLS[3]));
 });

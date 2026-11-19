@@ -7,7 +7,7 @@ description: >
   validate features interactively before a demo or release.
   The user provides screenshots, the agent diagnoses and fixes bugs in real-time.
 context: direct
-allowed-tools: Read, Grep, Glob, Write, Edit, Bash(*), Agent, WebFetch, mcp__supabase__execute_sql, mcp__supabase__list_tables, mcp__supabase__apply_migration
+allowed-tools: Read, Grep, Glob, Write, Edit, Bash(*), Agent, WebFetch, Skill, AskUserQuestion, mcp__SpecBox-MCP, mcp__supabase__execute_sql, mcp__supabase__list_tables, mcp__supabase__apply_migration
 triggers:
   - manual-test
   - pruebas manuales
@@ -46,6 +46,11 @@ Antes de cualquier acción:
 3. Identificar BD: buscar config de Supabase, PostgreSQL, Firebase, etc.
 4. Detectar rutas: leer el router (GoRouter, React Router, etc.) para mapear URLs a features
 5. Detectar roles de usuario: buscar enum/constantes de roles (rider, sponsor, team_admin, etc.)
+6. **¿Hay tablero?** Con la regla de los hooks (`isSpecDriven` de `.claude/hooks/lib/config.mjs`):
+   `.claude/project-config.json` o `.claude/settings.local.json` tienen `boardId`, `board_id` o
+   `backend_type`, o el bloque `specbox` de `.claude/settings.local.json` tiene `backend_type`,
+   `board_id`, `trello_board_id`, `project_id` o `native_project_id`. Con tablero, cada arreglo de
+   código del Paso 4 va por /fix (US-127 · UC-12701); sin él, se arregla como siempre.
 
 Guardar hallazgos en variables internas para los pasos siguientes.
 
@@ -113,8 +118,8 @@ Crear `doc/testing/manual-test-evidence.md` usando la plantilla:
 
 ## Bugs encontrados y resueltos durante testing
 
-| # | Bug | Severidad | Commit fix | Estado |
-|---|-----|-----------|-----------|--------|
+| # | Bug | Severidad | Commit fix | UC | PR | Estado |
+|---|-----|-----------|-----------|----|----|--------|
 
 ---
 
@@ -166,10 +171,32 @@ Para cada paso del itinerario:
 4. **Si FAIL/BUG detectado**:
    a. Leer el error (en pantalla, en logs, en consola)
    b. Diagnosticar causa raíz leyendo el código
-   c. Aplicar fix en el código
-   d. Verificar que compila (`flutter analyze` / `npm run lint` / etc.)
-   e. Registrar como BUG-XXX en la tabla de bugs
-   f. Pedir al usuario que recargue y reintente el paso
+   c. **Con tablero y el arreglo en el código del repositorio**: arreglarlo con **/fix** (4.2b).
+      **Sin tablero, o si el arreglo es de configuración o de datos** (la base, el entorno): aplicar
+      el fix como siempre y verificar que compila (`flutter analyze` / `npm run lint` / etc.)
+   d. Registrar como BUG-XXX en la tabla de bugs (con su UC y su PR si fue por /fix)
+   e. Pedir al usuario que recargue y reintente el paso
+
+### 4.2b — Con tablero: cada arreglo de código por /fix (UC-12701 AC-05)
+
+- Llamar a /fix (herramienta Skill) con el bug: qué falla, cómo se reproduce y la causa que viste.
+  La historia es la de la UC del paso que falla (`/fix US-XX "…"`); si no se sabe, la de bugs del
+  proyecto.
+- /fix escribe la prueba que reproduce el bug, crea la UC con su criterio (la persona lo aprueba,
+  está delante), la rama `fix/`, el arreglo, el recibo, el visto bueno independiente (el evaluador
+  aislado, o la persona en el panel según el tablero y el nivel de autopilot) y la PR. **Cada
+  arreglo se fusiona antes de seguir con el itinerario**; ramas apiladas solo si la persona lo pide.
+  Al terminar /fix, vuelve a la rama que se estaba probando y, si es una rama de trabajo, trae el
+  arreglo (`git merge origin/<rama principal>`) antes de repetir el paso.
+- Si el bug solo existe en la rama que se está probando (no en la principal), no va por /fix: se
+  arregla en esa rama, dentro de su UC, o se apunta con /feedback.
+- Si /fix para porque el arreglo es grande (más de 5 ficheros, un contrato de API o una migración
+  de datos), el paso queda BLOCKED con la UC que dejó /fix (si llegó a crearla) y se propone /prd.
+- Si /fix para porque el bug no se reproduce con una prueba, **no se cambia el código**: el bug se
+  apunta en la tabla sin UC ni PR, el paso queda FAIL y se propone /feedback. Un arreglo de código
+  sin prueba ni UC es justo lo que /fix evita, aunque sea un bug visual.
+- Los arreglos de configuración o de datos (severidad «Configuración») no son de /fix: se aplican
+  y se apuntan como siempre, con su motivo.
 
 ### 4.3 — Cierre del itinerario
 1. Actualizar tabla de resumen ejecutivo (pass/fail/blocked counts)

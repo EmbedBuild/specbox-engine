@@ -26,9 +26,9 @@ const START = remote({
   active_uc_marker: { uc_id: 'UC-12206', board_id: 'EmbedBuild/specbox-manager', feature: 'UC-12206', us_id: 'US-122' },
 });
 
-function project() {
+function project(branch = 'feature/UC-12206-x') {
   const dir = mkdtempSync(join(tmpdir(), 'uc-lifecycle-'));
-  spawnSync('git', ['init', '-q', '-b', 'feature/UC-12206-x'], { cwd: dir });
+  spawnSync('git', ['init', '-q', '-b', branch], { cwd: dir });
   mkdirSync(join(dir, '.claude'), { recursive: true });
   writeFileSync(join(dir, '.claude/project-config.json'), JSON.stringify({ boardId: 'EmbedBuild/specbox-manager', backend_type: 'native' }));
   return { dir, done: () => rmSync(dir, { recursive: true, force: true }) };
@@ -101,5 +101,19 @@ test('una respuesta de error del MCP no cuenta como marcado ni como movido (AC-0
     assert.match(out, /UC fuera de revisión/);
   } finally {
     p.done();
+  }
+});
+
+test('UC-12701: una rama fix/ de /fix recibe el mismo aviso; otra rama no', () => {
+  for (const [branch, warns] of [['fix/UC-12206-total-a-cero', true], ['chore/limpieza', false]]) {
+    const p = project(branch);
+    try {
+      tool(p, 'start_uc', { uc_id: 'UC-12206' }, START);
+      const out = push(p);
+      if (warns) assert.match(out, /Criterios sin marcar/, branch);
+      else assert.equal(out, '', branch);
+    } finally {
+      p.done();
+    }
   }
 });

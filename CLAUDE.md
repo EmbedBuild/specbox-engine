@@ -216,6 +216,7 @@ specbox-engine/
 │   │   ├── discovery/SKILL.md
 │   │   ├── explore/SKILL.md
 │   │   ├── feedback/SKILL.md
+│   │   ├── fix/SKILL.md
 │   │   ├── handoff/SKILL.md
 │   │   ├── implement/SKILL.md
 │   │   ├── manual-test/SKILL.md
@@ -417,6 +418,7 @@ Skills are auto-discoverable. Claude will use them when relevant. You can also i
 | /quality-gate | "check quality", "run gates", "coverage check" | direct | Lint+Read | |
 | /explore | "analyze codebase", "explore code", "understand architecture" | fork:Explore | Read-only | |
 | /feedback | "report feedback", "found a bug", "this doesn't work" | direct | Full | AG-10 + GitHub issue + invalida acceptance |
+| /fix | "fix", "arregla este bug", "quick fix", or /manual-test with a board | direct | Full | US-127 — a small bug without PRD or plan: a test that reproduces it and fails first, a UC with one approved criterion (in the given story or «Arreglos sin PRD»), branch `fix/UC-XXXX-<slug>`, receipt, independent review (an isolated evaluator in «agresivo» or FreeForm, a person in the panel otherwise) and `complete_uc`; untracked files that were not added do not count; stops and proposes /prd over 5 files (tests aside), an API contract or a data migration (`scripts/scope.mjs`, the impact-radius rule), and /feedback when no test can reproduce the bug; without a board it says it needs one |
 | /check-designs | "check designs", "design compliance", "verify designs" | fork:Explore | Read-only | Retroactive Stitch compliance scan |
 | /design-review | "design review", "brief de pantalla", "dirección visual", "verifica la pantalla", "anti AI slop" | direct | Full | US-90/US-91 — brief y dirección por pantalla (sin brief no hay diseño); `verify`: capturas a 1440 y 390 (web) o a 390 y 820 con pruebas de widgets (Flutter), reglas deterministas y revisor aislado con la rúbrica |
 | /acceptance-check | "check acceptance", "validate AC", "acceptance gate" | direct | Full | v5.0 — Standalone BDD acceptance without /implement |
@@ -465,7 +467,7 @@ Automatic enforcement — no need to remember running these manually:
 | **pipeline-phase-guard** | PreToolUse (Write/Edit) | **BLOCKING** (exit 2): reads pipeline_state.json and blocks code of a phase whose prerequisites are not done (e.g., feature code before design-to-code). |
 | **stripe-safety-guard** | PreToolUse (Write/Edit on billing paths) | **BLOCKING**: scans `src/billing/`, `lib/billing/`, `supabase/functions/stripe-*`. Blocks 5 anti-patterns: sk_live_* hardcoded, webhook sin firma, webhook sin idempotencia (`stripe_processed_events`), `redirectToCheckout`/`ui_mode:hosted`, Payment Links. Escape hatches: `// stripe-safety-guard:ignore` / `:disable-file`. v5.25 — scaffoldeado por `/stripe-connect`. |
 | checkpoint-freshness-guard | PostToolUse (git commit) | Note to the agent: checkpoint stale (>30min) or missing during active UC implementation. |
-| uc-lifecycle-guard | PostToolUse (git push) | Note to the agent: pushing the active UC's feature branch with criteria not marked as passed (it names them) or with the UC out of review. Reads `.quality/evidence/<feature>/ac_marked.json` and `uc_moved_to_review.json`, written by uc-state-marker (UC-12206); before, nobody wrote them and the note came on every push. |
+| uc-lifecycle-guard | PostToolUse (git push) | Note to the agent: pushing the active UC's branch (`feature/`, or `fix/` from /fix) with criteria not marked as passed (it names them) or with the UC out of review. Reads `.quality/evidence/<feature>/ac_marked.json` and `uc_moved_to_review.json`, written by uc-state-marker (UC-12206); before, nobody wrote them and the note came on every push. |
 | **session-start** | SessionStart | Non-blocking: injects `.quality/handoff.md` (if fresh), active UC + checkpoint, and auto zones from `app_spec.md` as `additionalContext` for the new session. Capped at 14k chars. v5.30. On native boards it first asks the board for the deferred decisions a person resolved from the panel, the app or another session (`take_resolved_decisions`, 2.5 s cap, one line each, marked as data; `SPECBOX_DECISIONS=off` turns it off). US-99 · UC-9902. |
 | **session-heartbeat** | SessionStart, PostToolUse (Bash/Write/Edit/mcp), Notification, UserPromptSubmit, SessionEnd | Non-blocking, silent: sends the session heartbeat (project, UC, pipeline phase, waiting for a permission or a decision) to the board with `report_session_heartbeat`, in a background process with a 3 s cap, at start, on any change and at most every 2 minutes; `SessionEnd` closes it. Failures go to `.quality/logs/heartbeat.log` at most once a minute. Native boards only; `SPECBOX_HEARTBEAT=off` turns it off. US-99 · UC-9901. |
 | **pre-read-budget-guard** | PreToolUse (Read) | Note to the agent: estimates tokens for the file being read; notes when ≥ `specbox.context_budget.warn_pct` of the window (default 5% of 1M). v5.30. |

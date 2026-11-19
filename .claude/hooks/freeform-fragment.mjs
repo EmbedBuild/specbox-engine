@@ -119,16 +119,25 @@ function gitAuthor() {
 }
 
 function prePolicy() {
-  if (typeof toolInput.policy_content === 'string') return; // explicit content wins
   const read = (path) => (existsSync(path) ? readFileSync(path, 'utf-8') : '');
-  const updatedInput = { ...toolInput, policy_content: read(policyPath) };
-  if (POLICY_BOARD_TOOLS.has(parsed.tool)) {
+  const updatedInput = { ...toolInput };
+  // Explicit content wins; the identity below is added anyway (UC-12606: a subagent cannot pass its
+  // own policy_content to skip the check of who approves).
+  if (typeof toolInput.policy_content !== 'string') updatedInput.policy_content = read(policyPath);
+  if (typeof toolInput.policy_content !== 'string' && POLICY_BOARD_TOOLS.has(parsed.tool)) {
     // UC-12213: the impact report needs the open UCs and the blocks of the last days.
     if (typeof toolInput.board_content !== 'string') updatedInput.board_content = read(itemsPath) || '[]';
     if (typeof toolInput.events_content !== 'string') updatedInput.events_content = read(eventsPath);
   }
   const author = gitAuthor();
   if (author && !toolInput.actor) updatedInput.actor = author.slice(0, 80);
+  // UC-12606: skip_enforcement needs the context too (a subagent cannot approve impact_radius).
+  if (IDENTITY_TOOLS.has(parsed.tool)) {
+    delete updatedInput.client_session_id;
+    delete updatedInput.client_agent_id;
+    delete updatedInput.client_agent_type;
+    Object.assign(updatedInput, identityFields(payload));
+  }
   process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', updatedInput } }));
 }
 

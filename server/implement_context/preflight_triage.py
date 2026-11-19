@@ -170,6 +170,8 @@ def build_decision_inventory(
     plan_content: str | None,
     *,
     extra_decisions: list[dict[str, Any]] | None = None,
+    impact_radius_mode: str | None = None,
+    impact: dict[str, Any] | None = None,
 ) -> list[DecisionEntry]:
     """Scan a plan and return the inventory of decisions it contains (UC-601).
 
@@ -223,6 +225,13 @@ def build_decision_inventory(
 
         if _is_ad_hoc_decision(line_lower):
             _add(line, line, AD_HOC)
+
+    # UC-12606: las fases cuyos ficheros son contrato de API o migración de datos, una sola pregunta.
+    from ..impact_radius import impact_decision
+
+    decision = impact_decision(plan_content, mode=impact_radius_mode, impact=impact)
+    if decision is not None:
+        _add(decision["description"], decision["source"], decision["decision_key"])
 
     for extra in extra_decisions or []:
         desc = str(extra.get("description", "")).strip()

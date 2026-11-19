@@ -83,6 +83,7 @@ native: las mismas tools para los cuatro). Una UC se recorre así:
 | /plan | Plan técnico + diseños (Stitch) + VEG si el PRD tiene audiencia |
 | /implement | Autopilot: rama, fases, design-to-code, QA, aceptación y PR |
 | /feedback | Fallos de las pruebas manuales; el grave impide fusionar |
+| /fix | Bug pequeño sin PRD ni plan: UC con su criterio, prueba que falla primero, rama `fix/` y cierre |
 | /adapt-ui · /optimize-agents | Mapa de componentes · revisión del sistema de agentes |
 
 **CI de GitHub, solo a mano.** Las pruebas (unitarias, lint, aceptación y E2E) se pasan en local

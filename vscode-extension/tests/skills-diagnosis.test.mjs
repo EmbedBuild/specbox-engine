@@ -51,6 +51,8 @@ const { healthRows, renderHealthReport } = require(path.join(root, 'out', 'healt
 const { StatusTreeProvider } = require(path.join(root, 'out', 'views', 'status-tree.js'));
 const { StatusBarManager } = require(path.join(root, 'out', 'statusbar.js'));
 const { KNOWN_SKILLS } = require(path.join(root, 'out', 'constants.js'));
+/** Las skills de SpecBox que se esperan (26 hasta la 6.47.0; /fix es la 27). */
+const N = KNOWN_SKILLS.length;
 
 const OWN = Array.from({ length: 28 }, (_, i) => `mia-${i}`);
 const BASE = {
@@ -83,19 +85,19 @@ test('AC-01 · el panel lateral y la barra de estado no dicen «Not installed» 
 	bar.update(AFFECTED);
 	assert.doesNotMatch(bar.item.text, /not installed/);
 	assert.equal(bar.item.text, '$(alert) SpecBox v6.25.0 · 1 pending');
-	assert.match(bar.item.tooltip.value, /\[ \] 26 SpecBox skills missing/);
+	assert.match(bar.item.tooltip.value, new RegExp(`\\[ \\] ${N} SpecBox skills missing`));
 
 	bar.update({ ...AFFECTED, enginePath: null, engineVersion: null });
 	assert.equal(bar.item.text, '$(warning) SpecBox · not installed', 'sin engine sí lo dice');
 });
 
 test('AC-02 · el contador cuenta solo las 26 de SpecBox', async () => {
-	assert.equal(row(AFFECTED, 'Skills').detail, '0/26', 'antes salía 28/54');
-	assert.equal(row(BASE, 'Skills').detail, '26/26', 'las 28 propias no suben la cifra');
+	assert.equal(row(AFFECTED, 'Skills').detail, `0/${N}`, 'antes salía 28/54');
+	assert.equal(row(BASE, 'Skills').detail, `${N}/${N}`, 'las 28 propias no suben la cifra');
 	const two = { ...BASE, skills: { installed: OWN, missing: KNOWN_SKILLS.slice(2) } };
-	assert.equal(row(two, 'Skills').detail, '2/26');
+	assert.equal(row(two, 'Skills').detail, `2/${N}`);
 	const items = await new StatusTreeProvider(fixedHealth(AFFECTED)).getChildren();
-	assert.ok(labels(items).includes('Skills: 0/26'));
+	assert.ok(labels(items).includes(`Skills: 0/${N}`));
 });
 
 test('AC-03 · el informe nombra las skills que faltan y la acción que las repone', () => {
@@ -125,7 +127,7 @@ test('AC-04 · el panel lateral enseña el mismo resultado que el informe del He
 	const tree = new StatusTreeProvider(health);
 	tree.show(AFFECTED);
 	const items = await tree.getChildren();
-	assert.ok(labels(items).includes('Skills: 0/26'), 'las cifras del informe, no las de otra comprobación');
+	assert.ok(labels(items).includes(`Skills: 0/${N}`), 'las cifras del informe, no las de otra comprobación');
 	assert.equal(health.calls, 0, 'no vuelve a comprobar por su cuenta');
 });
 

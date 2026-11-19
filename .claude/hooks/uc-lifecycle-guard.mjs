@@ -38,9 +38,9 @@ if (!isSpecDriven) {
   process.exit(0);
 }
 
-// Only check feature branches
+// Only check the branches of a UC: feature/ (/implement) and fix/ (/fix, UC-12701)
 const branch = git('branch --show-current');
-if (!branch || !branch.startsWith('feature/')) {
+if (!branch || !/^(feature|fix)\//.test(branch)) {
   process.exit(0);
 }
 

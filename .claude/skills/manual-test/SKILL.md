@@ -7,7 +7,7 @@ description: >
   validate features interactively before a demo or release.
   The user provides screenshots, the agent diagnoses and fixes bugs in real-time.
 context: direct
-allowed-tools: Read, Grep, Glob, Write, Edit, Bash(*), Agent, WebFetch, mcp__supabase__execute_sql, mcp__supabase__list_tables, mcp__supabase__apply_migration
+allowed-tools: Read, Grep, Glob, Write, Edit, Bash(*), Agent, WebFetch, Skill, AskUserQuestion, mcp__SpecBox-MCP, mcp__supabase__execute_sql, mcp__supabase__list_tables, mcp__supabase__apply_migration
 triggers:
   - manual-test
   - pruebas manuales
@@ -46,6 +46,10 @@ Antes de cualquier acción:
 3. Identificar BD: buscar config de Supabase, PostgreSQL, Firebase, etc.
 4. Detectar rutas: leer el router (GoRouter, React Router, etc.) para mapear URLs a features
 5. Detectar roles de usuario: buscar enum/constantes de roles (rider, sponsor, team_admin, etc.)
+6. **¿Hay tablero?** Lo hay si `.claude/settings.local.json` tiene `boardId`, `backend_type` o
+   `specbox.backend_type`, o `.claude/project-config.json` tiene `backend_type` (la regla de los
+   hooks, `lib/config.mjs`). Con tablero, cada arreglo de código del Paso 4 va por /fix (US-127 ·
+   UC-12701); sin él, se arregla como siempre.
 
 Guardar hallazgos en variables internas para los pasos siguientes.
 
@@ -113,8 +117,8 @@ Crear `doc/testing/manual-test-evidence.md` usando la plantilla:
 
 ## Bugs encontrados y resueltos durante testing
 
-| # | Bug | Severidad | Commit fix | Estado |
-|---|-----|-----------|-----------|--------|
+| # | Bug | Severidad | Commit fix | UC | PR | Estado |
+|---|-----|-----------|-----------|----|----|--------|
 
 ---
 
@@ -166,10 +170,25 @@ Para cada paso del itinerario:
 4. **Si FAIL/BUG detectado**:
    a. Leer el error (en pantalla, en logs, en consola)
    b. Diagnosticar causa raíz leyendo el código
-   c. Aplicar fix en el código
-   d. Verificar que compila (`flutter analyze` / `npm run lint` / etc.)
-   e. Registrar como BUG-XXX en la tabla de bugs
-   f. Pedir al usuario que recargue y reintente el paso
+   c. **Con tablero y el arreglo en el código del repositorio**: arreglarlo con **/fix** (4.2b).
+      **Sin tablero, o si el arreglo es de configuración o de datos** (la base, el entorno): aplicar
+      el fix como siempre y verificar que compila (`flutter analyze` / `npm run lint` / etc.)
+   d. Registrar como BUG-XXX en la tabla de bugs (con su UC y su PR si fue por /fix)
+   e. Pedir al usuario que recargue y reintente el paso
+
+### 4.2b — Con tablero: cada arreglo de código por /fix (UC-12701 AC-05)
+
+- Llamar a /fix (herramienta Skill) con el bug: qué falla, cómo se reproduce y la causa que viste.
+  La historia es la de la UC del paso que falla (`/fix US-XX "…"`); si no se sabe, la de bugs del
+  proyecto.
+- /fix escribe la prueba que reproduce el bug, crea la UC con su criterio (la persona lo aprueba,
+  está delante), la rama `fix/`, el arreglo, el recibo, la revisión aislada y la PR. **Cada arreglo
+  se fusiona antes de seguir con el itinerario**; ramas apiladas solo si la persona lo pide.
+- Si /fix para porque el arreglo es grande (más de 5 ficheros, un contrato de API o una migración
+  de datos), el paso queda BLOCKED con la UC que dejó /fix y se propone /prd. Si para porque el bug
+  no se reproduce con una prueba, se apunta como hoy y se propone /feedback.
+- Los arreglos de configuración o de datos (severidad «Configuración») no son de /fix: se aplican
+  y se apuntan como siempre, con su motivo.
 
 ### 4.3 — Cierre del itinerario
 1. Actualizar tabla de resumen ejecutivo (pass/fail/blocked counts)

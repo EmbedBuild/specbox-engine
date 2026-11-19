@@ -45,6 +45,8 @@ require.cache['vscode-stub'] = { id: 'vscode-stub', filename: 'vscode-stub', loa
 const { InstallManager, managedEnginePath, restoreManagedEngine } = require(path.join(root, 'out', 'install.js'));
 const { HealthChecker } = require(path.join(root, 'out', 'health.js'));
 const { KNOWN_SKILLS, CLAUDE_SKILLS_DIR } = require(path.join(root, 'out', 'constants.js'));
+/** Las skills de SpecBox que se esperan (26 hasta la 6.47.0; /fix es la 27). */
+const N = KNOWN_SKILLS.length;
 
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf-8' });
 
@@ -110,7 +112,7 @@ test('AC-01 · con core.autocrlf (lo normal en Windows) lo repuesto no queda com
 	const engine = engineRepo(managedEnginePath(), { autocrlf: true });
 	loseSkills(engine);
 	const r = await restoreManagedEngine(engine);
-	assert.equal(r.skills.length, 26);
+	assert.equal(r.skills.length, N);
 	assert.equal(git(engine, 'status', '--porcelain'), '', 'git status limpio');
 });
 
@@ -126,9 +128,9 @@ test('AC-02 · tras reponer, el aviso dice cuántas skills ha recuperado', async
 	linkSkills(engine);
 	loseSkills(engine);
 	const r = await new InstallManager({}).repairManagedEngine();
-	assert.equal(r.skills.length, 26);
+	assert.equal(r.skills.length, N);
 	assert.equal(shown.info.length, 1);
-	assert.match(shown.info[0], /^\[x\] SpecBox recovered 26 skills /);
+	assert.match(shown.info[0], new RegExp(`^\\[x\\] SpecBox recovered ${N} skills `));
 
 	reset();
 	loseSkills(engine, ['plan']);
@@ -162,10 +164,10 @@ test('AC-04 · una persona afectada ve 26 de 26 skills de SpecBox tras activarse
 	linkSkills(engine);
 	loseSkills(engine);
 	const health = new HealthChecker();
-	assert.equal(health.checkSkills().missing.length, 26, 'antes: 0 de 26');
+	assert.equal(health.checkSkills().missing.length, N, `antes: 0 de ${N}`);
 
 	await new InstallManager({}).repairManagedEngine();
-	assert.deepEqual(health.checkSkills().missing, [], 'después: 26 de 26');
+	assert.deepEqual(health.checkSkills().missing, [], `después: ${N} de ${N}`);
 	assert.equal(git(engine, 'status', '--porcelain'), '');
 });
 

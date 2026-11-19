@@ -49,6 +49,15 @@ export const SKILL_DEFAULTS: Record<string, SkillDefaults> = {
 		command: '/feedback <UC-XXX> "<short description>"',
 		example: '/feedback UC-701 "Sidebar still shows /remote skill"',
 	},
+	fix: {
+		whatItDoes: 'Fixes a small bug without a PRD or a plan but with its UC and criterion on the board: a test that reproduces the bug and fails, the UC branch, the fix that turns it green, the receipt, an isolated review and the close.',
+		whenToUse: [
+			'A bug that touches a few files and can be reproduced with a test.',
+			'Every code fix found during /manual-test on a project with a board.',
+		],
+		command: '/fix [US-XX] "<what fails and how it shows>"',
+		example: '/fix "The invoice total is 0 when an order has two lines"',
+	},
 	audit: {
 		whatItDoes: 'On-demand ISO/IEC 25010 (SQuaRE) quality audit. Generates a PDF + JSON report with scores across 8 quality characteristics.',
 		whenToUse: [

@@ -22,7 +22,7 @@ from server.closed_files import (
     normalize_closed_files,
 )
 from server.tools.drift import get_closed_uc_files
-from server.tools.spec_driven import complete_uc, get_uc
+from server.tools.spec_driven import complete_uc, get_session_backend, get_uc
 from tests.test_spec_gate_start_uc import CTX, US, _cleanup, _native_board, pg
 
 UCS = [
@@ -50,7 +50,10 @@ def test_the_list_of_a_close_is_relative_without_repeats_and_has_a_cap():
     for bad in (["../x.py"], ["/abs.py"], "server/a.py", ["a" * 301], [f"f{i}" for i in range(MAX_CLOSED_FILES + 1)]):
         with pytest.raises(ClosedFilesError):
             normalize_closed_files(bad)
-    assert merge_closed_files(["a.py", "b.py"], ["b.py", "c.py"]) == ["a.py", "b.py", "c.py"]
+    assert merge_closed_files(["a.py", "b.py"], ["b.py", "c.py"]) == (["a.py", "b.py", "c.py"], False)
+    full = [f"f{i}.py" for i in range(MAX_CLOSED_FILES)]
+    kept, truncated = merge_closed_files(full, ["nuevo.py"])
+    assert truncated and len(kept) == MAX_CLOSED_FILES and kept[-1] == "nuevo.py" and "f0.py" not in kept
 
 
 def test_touches_name_the_closed_uc_its_files_and_a_proposal_and_skip_the_branch_and_old_ucs():
@@ -66,6 +69,22 @@ def test_touches_name_the_closed_uc_its_files_and_a_proposal_and_skip_the_branch
     assert "revisa si sus criterios siguen valiendo" in first["proposal"] and "lo decide una persona" in first["proposal"]
     assert out["by_path"] == {"server/b.py": ["UC-701"], "server/a.py": ["UC-701"]}
     assert out["closed_without_files"] == 1 and "1 UC cerradas" in out["notice"]  # AC-04: no avisa
+    assert "6.46.0" not in out["notice"]  # se pudo cerrar hoy sin lista
+    assert closed_uc_touches(closed, ["server/b.py"], exclude="UC-702")["touches_total"] == 1  # texto, no lista
+
+
+def test_in_multirepo_only_closed_ucs_of_the_same_repo_count_and_the_most_shared_come_first():
+    closed = [
+        ClosedUc("UC-1", "US-1", "Del engine", ["CLAUDE.md", "package.json"], "2026-11-01", repo="EmbedBuild/specbox-engine"),
+        ClosedUc("UC-2", "US-1", "Del panel", ["CLAUDE.md"], "2026-11-02", repo="EmbedBuild/specbox_cloud"),
+        ClosedUc("UC-3", "US-1", "Sin repo, satélite cloud", ["package.json", "CLAUDE.md"], "2026-11-03", satellite="cloud"),
+        ClosedUc("UC-4", "US-1", "Sin nada", ["CLAUDE.md"], "2026-11-04"),
+    ]
+    out = closed_uc_touches(closed, ["CLAUDE.md", "package.json"], repo="EmbedBuild/specbox_cloud", satellite="cloud")
+    # Ni UC-1 (otro repositorio); primero la que más ficheros comparte y, a igualdad, la más reciente.
+    assert [t["uc_id"] for t in out["touches"]] == ["UC-3", "UC-4", "UC-2"]
+    capped = closed_uc_touches(closed, ["CLAUDE.md"], limit=2)
+    assert len(capped["touches"]) == 2 and capped["touches_total"] == 4
 
 
 # ── FreeForm (AC-01 a AC-04) ────────────────────────────────────────
@@ -113,14 +132,28 @@ async def test_a_reclosed_uc_adds_its_new_files_and_an_old_close_does_not_warn()
     assert out["closed_without_files"] == 1 and out["notice"]
 
 
-async def test_an_invalid_list_closes_nothing_and_no_list_closes_as_before():
+async def test_an_invalid_list_closes_nothing_and_no_list_closes_with_a_warning():
     bad = await complete_uc("ff", "UC-701", CTX, items_content=_board(), files=["../fuera.py"])
     assert bad["code"] == "INVALID_FILES" and "items_content" not in bad
+    assert (await complete_uc("ff", "UC-701", CTX, items_content=_board(), files=["a.py"], repo="no es repo"))["code"] == "INVALID_FILES"
     plain = await complete_uc("ff", "UC-701", CTX, items_content=_board())
     uc = next(i for i in json.loads(plain["items_content"]) if i["id"] == "uc1")
     assert uc["state"] == "done" and "closed_files" not in uc["meta"] and "closed_files" not in plain
+    assert "no avisará" in plain["closed_files_missing"]  # cerrar sin lista lo dice
+    # La lista se puede añadir después a la UC ya cerrada, con su repositorio.
+    later = await complete_uc("ff", "UC-701", CTX, items_content=plain["items_content"], files=["a.py"],
+                              repo="EmbedBuild/specbox-engine")
+    uc = next(i for i in json.loads(later["items_content"]) if i["id"] == "uc1")
+    assert uc["meta"]["closed_files"] == ["a.py"] and uc["meta"]["closed_repo"] == "EmbedBuild/specbox-engine"
     out = await get_closed_uc_files("ff", "server/a.py", CTX, items_content=_board())  # type: ignore[arg-type]
     assert out["code"] == "INVALID_PATHS"
+
+
+async def test_move_uc_to_done_says_the_list_is_missing():
+    from server.tools.spec_driven import move_uc
+
+    out = await move_uc("ff", "UC-701", "done", CTX, items_content=_board())
+    assert "no avisará" in out["closed_files_missing"]
 
 
 async def test_a_board_without_meta_says_it_does_not_keep_the_list(monkeypatch):
@@ -155,5 +188,14 @@ async def test_native_keeps_the_files_and_reports_them(monkeypatch, tmp_path):
         await complete_uc(pid, "UC-02", ctx)  # cerrada sin lista: no avisa
         later = await get_closed_uc_files(pid, ["server/recibos.py"], ctx)
         assert [t["uc_id"] for t in later["touches"]] == ["UC-01"] and later["closed_without_files"] == 1
+        # Las lecturas de tablero entero no cargan la lista; list_done_ucs sí.
+        backend = await get_session_backend(ctx)
+        try:
+            summary = {i.name: i.meta for i in await backend.list_board_summary(pid)}
+            assert all("closed_files" not in m for m in summary.values())
+            done = [i for i in await backend.list_done_ucs(pid) if i.meta.get("closed_files")]
+            assert [i.meta["closed_files"] for i in done] == [["server/cobros.py", "server/recibos.py"]]
+        finally:
+            await backend.close()
     finally:
         await _cleanup(pool, pid, dev)

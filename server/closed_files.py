@@ -20,9 +20,15 @@ MAX_CLOSED_FILES = 1000
 MAX_CLOSED_PATH = 300
 
 CLOSED_WITHOUT_FILES_NOTICE = (
-    "{n} UC cerradas no tienen su lista de ficheros (se cerraron sin `files` en complete_uc, antes "
-    "de 6.46.0): no avisan hasta que la tengan."
+    "{n} UC cerradas no tienen su lista de ficheros (se cerraron sin `files` en complete_uc): no "
+    "avisan hasta que la tengan (complete_uc con `files` sobre la UC ya cerrada la añade)."
 )
+NO_FILES_AT_CLOSE_NOTICE = (
+    "La UC se cerró sin `files`: un cambio posterior en sus ficheros no avisará. Pasa a complete_uc "
+    "los ficheros de su PR (gh api repos/<owner>/<repo>/pulls/<n>/files --paginate) para que avise."
+)
+#: Los avisos que caben en un informe; el resto se cuenta.
+MAX_TOUCHES = 20
 NOT_SUPPORTED_NOTICE = (
     "Este tablero no guarda los ficheros de una UC cerrada (Trello y Plane no tienen dónde): "
     "el aviso de UC cerradas no está disponible."
@@ -63,14 +69,13 @@ def normalize_closed_files(raw: Any) -> list[str]:
     return out
 
 
-def merge_closed_files(existing: Any, new: list[str]) -> list[str]:
-    """Lo que ya tenía la UC más lo nuevo: una UC que se reabre y se vuelve a cerrar suma su PR nueva."""
+def merge_closed_files(existing: Any, new: list[str]) -> tuple[list[str], bool]:
+    """``(lista, recortada)``: lo que ya tenía la UC más lo nuevo (una UC que se reabre y se vuelve a
+    cerrar suma su PR nueva). Por encima del tope se quedan los más recientes y se dice."""
     before = [normalize_path(p) for p in existing if isinstance(p, str)] if isinstance(existing, list) else []
-    out: list[str] = []
-    for path in [*before, *new]:
-        if path and path not in out:
-            out.append(path)
-    return out[:MAX_CLOSED_FILES]
+    fresh = set(new)
+    out = [p for p in dict.fromkeys(before) if p and p not in fresh] + [p for p in new if p]
+    return out[-MAX_CLOSED_FILES:], len(out) > MAX_CLOSED_FILES
 
 
 @dataclass
@@ -81,7 +86,9 @@ class ClosedUc:
     us_id: str
     name: str
     files: list[str] | None  # None = se cerró sin lista
-    closed_at: str | None = None
+    closed_at: str | None = None  # el último cierre con lista
+    repo: str | None = None  # el repositorio de su PR («owner/name»)
+    satellite: str | None = None  # su satélite en multirepo
     extra: dict[str, Any] = field(default_factory=dict)
 
 
@@ -96,15 +103,34 @@ def proposal(uc_id: str, name: str, files: list[str]) -> str:
     )
 
 
-def closed_uc_touches(closed: list[ClosedUc], paths: list[str], exclude: list[str] | None = None) -> dict[str, Any]:
+def _same_repo(uc: ClosedUc, repo: str | None, satellite: str | None) -> bool:
+    """En multirepo una ruta solo es «la misma» en el mismo repositorio: por el de su PR si los dos lo
+    saben; si no, por el satélite. Sin ninguno de los dos, cuenta."""
+    if repo and uc.repo:
+        return uc.repo.lower() == repo.lower()
+    if satellite and uc.satellite:
+        return uc.satellite.lower() == satellite.lower()
+    return True
+
+
+def closed_uc_touches(
+    closed: list[ClosedUc],
+    paths: list[str],
+    exclude: list[str] | str | None = None,
+    *,
+    repo: str | None = None,
+    satellite: str | None = None,
+    limit: int = MAX_TOUCHES,
+) -> dict[str, Any]:
     """Para unas rutas cambiadas, qué UC cerradas las cambiaron en su cierre.
 
-    ``exclude`` son las UC de la rama (sus propios ficheros no son «otra UC»). Devuelve ``touches``
-    (una entrada por UC cerrada, con los ficheros y la propuesta), ``by_path`` (ruta → UC) y
-    ``closed_without_files`` (las cerradas sin lista, que no avisan).
+    ``exclude`` son las UC de la rama (sus propios ficheros no son «otra UC»). ``repo`` y ``satellite``
+    son los del cambio: una UC cerrada de otro repositorio no cuenta. Devuelve ``touches`` (las que más
+    ficheros comparten primero, hasta ``limit``, con los ficheros y la propuesta), ``touches_total``,
+    ``by_path`` (ruta → UC) y ``closed_without_files`` (las cerradas sin lista, que no avisan).
     """
     wanted = [p for p in dict.fromkeys(normalize_path(p) for p in paths if isinstance(p, str)) if p]
-    skip = {u.upper() for u in (exclude or [])}
+    skip = {u.upper() for u in ([exclude] if isinstance(exclude, str) else exclude or [])}
     by_path: dict[str, list[str]] = {}
     touches: list[dict[str, Any]] = []
     without = 0
@@ -112,7 +138,7 @@ def closed_uc_touches(closed: list[ClosedUc], paths: list[str], exclude: list[st
         if uc.files is None:
             without += 1
             continue
-        if uc.uc_id.upper() in skip:
+        if uc.uc_id.upper() in skip or not _same_repo(uc, repo, satellite):
             continue
         own = set(uc.files)
         hit = [p for p in wanted if p in own]
@@ -128,7 +154,10 @@ def closed_uc_touches(closed: list[ClosedUc], paths: list[str], exclude: list[st
             "files": hit,
             "proposal": proposal(uc.uc_id, uc.name, hit),
         })
-    out: dict[str, Any] = {"touches": touches, "by_path": by_path, "closed_without_files": without}
+    touches.sort(key=lambda t: (len(t["files"]), t["closed_at"] or ""), reverse=True)  # más ficheros, más recientes
+    out: dict[str, Any] = {
+        "touches": touches[:limit], "touches_total": len(touches), "by_path": by_path, "closed_without_files": without,
+    }
     if without:
         out["notice"] = CLOSED_WITHOUT_FILES_NOTICE.format(n=without)
     return out

@@ -15,6 +15,7 @@ Consolidated tool modules:
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -1847,6 +1848,11 @@ async def move_uc(
             "us_all_done": us_all_done,
             "summary": f"{uc_id} movido de {original_state} a {target}",
         }
+        # UC-12603: cerrar así no guarda los ficheros de su PR; un cambio posterior en ellos no avisará.
+        if target == "done" and getattr(backend, "STORES_SPEC_META", False) and not (uc_item.meta or {}).get("closed_files"):
+            from ..closed_files import NO_FILES_AT_CLOSE_NOTICE
+
+            result["closed_files_missing"] = NO_FILES_AT_CLOSE_NOTICE
         if us_state_change:
             result["us_state_change"] = us_state_change
         return result
@@ -2309,6 +2315,7 @@ async def complete_uc(
     with_roadmap: bool = False,
     policy_content: str | None = None,
     files: list[str] | None = None,
+    repo: str | None = None,
 ) -> dict[str, Any]:
     """Mark a Use Case as complete.
 
@@ -2336,18 +2343,24 @@ async def complete_uc(
             an earlier close) so that a later change in one of them is reported by the drift
             gate with this UC. Native and FreeForm keep it; Trello and Plane answer
             `closed_files_not_stored`. An invalid list closes nothing (INVALID_FILES).
+            Calling it again with `files` on a UC already done adds the list without moving it.
+        repo: UC-12603. The repository of that PR («owner/name»): in multirepo the drift gate
+            only compares a change with closed UCs of the same repository.
 
     Returns:
         Completion result with US update status, plus `items_content` (mutated
         items.json string) when `items_content` was provided, and `closed_files`
         (how many the UC keeps) when `files` was given.
     """
-    from ..closed_files import ClosedFilesError, merge_closed_files, normalize_closed_files
+    from ..closed_files import NO_FILES_AT_CLOSE_NOTICE, ClosedFilesError, merge_closed_files, normalize_closed_files
 
     try:
         closed_files = normalize_closed_files(files)
     except ClosedFilesError as e:
         return {"error": f"Ficheros del cierre no válidos: {e}", "code": "INVALID_FILES", "uc_id": uc_id}
+    closed_repo = (repo or "").strip()
+    if closed_repo and not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", closed_repo):
+        return {"error": "repo tiene que ser «owner/nombre»", "code": "INVALID_FILES", "uc_id": uc_id}
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_story_items(board_id, uc_id=uc_id)
@@ -2376,12 +2389,15 @@ async def complete_uc(
         # Move to done. UC-12603: with the files of its PR, in the same write.
         stores_files = bool(closed_files) and bool(getattr(backend, "STORES_SPEC_META", False))
         kept_files: list[str] = []
+        truncated = False
         if stores_files:
-            kept_files = merge_closed_files((uc_item.meta or {}).get("closed_files"), closed_files)
-            await backend.update_item(
-                board_id, uc_item.id, state="done",
-                meta={"closed_files": kept_files, "closed_files_at": datetime.now(timezone.utc).isoformat()},
-            )
+            kept_files, truncated = merge_closed_files((uc_item.meta or {}).get("closed_files"), closed_files)
+            closed_meta: dict[str, Any] = {
+                "closed_files": kept_files, "closed_files_at": datetime.now(timezone.utc).isoformat(),
+            }
+            if closed_repo:
+                closed_meta["closed_repo"] = closed_repo
+            await backend.update_item(board_id, uc_item.id, state="done", meta=closed_meta)
         else:
             await backend.update_item(board_id, uc_item.id, state="done")
 
@@ -2430,8 +2446,12 @@ async def complete_uc(
             result["us_state_change"] = us_state_change
         if stores_files:
             result["closed_files"] = len(kept_files)
+            if truncated:
+                result["closed_files_truncated"] = True  # por encima del tope se quedan los más recientes
         elif closed_files:
             result["closed_files_not_stored"] = True  # UC-12603: Trello y Plane no tienen dónde
+        elif getattr(backend, "STORES_SPEC_META", False) and not (uc_item.meta or {}).get("closed_files"):
+            result["closed_files_missing"] = NO_FILES_AT_CLOSE_NOTICE
         result = attach_warnings(result, gate.get("warnings") or [])  # UC-12401: «warn» y anteriores a la regla
         result.update(_gate_extras(gate))
         if items_content is not None:

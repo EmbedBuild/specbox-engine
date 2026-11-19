@@ -430,3 +430,15 @@ test('start_uc and record_review_verdict get the Claude Code context, not what t
     p.done();
   }
 });
+
+test('UC-12603: closed_files no viaja en el contexto y dos cierres a la vez se suman', () => {
+  const sibling = { id: 'uc2', name: 'UC-702', labels: ['UC'], state: 'done', meta: { uc_id: 'UC-702', closed_files: ['a.py'] } };
+  assert.equal(asContext(sibling).meta.closed_files, undefined);
+  const uc = { id: 'uc1', name: 'UC-701', labels: ['UC'], state: 'review', meta: { uc_id: 'UC-701' } };
+  // En el disco ya hay lo de otro cierre; lo que vuelve trae lo de este: se juntan.
+  const local = [{ ...uc, meta: { ...uc.meta, closed_files: ['otro.py'] } }];
+  const returned = [{ ...uc, state: 'done', meta: { ...uc.meta, closed_files: ['este.py'] } }];
+  const [merged] = mergeFragment(local, [uc], returned);
+  assert.deepEqual(merged.meta.closed_files, ['otro.py', 'este.py']);
+  assert.equal(merged.state, 'done');
+});

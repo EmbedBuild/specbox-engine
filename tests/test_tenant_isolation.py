@@ -413,6 +413,7 @@ READERS = [
     # US-89 / UC-8901: las lecturas acotadas del board.
     ("list_story_items", lambda b, p: b.list_story_items(p, uc_id="UC-001")),
     ("list_board_summary", lambda b, p: b.list_board_summary(p, with_acs=True)),
+    ("list_done_ucs", lambda b, p: b.list_done_ucs(p)),  # UC-12603
     ("count_acceptance_criteria", lambda b, p: b.count_acceptance_criteria(p, ["UC-001"])),
     # US-124 / UC-12402: los veredictos de revisión de una UC.
     ("get_review_verdicts", lambda b, p: b.get_review_verdicts(p, SimpleNamespace(id="UC-001", meta={}))),

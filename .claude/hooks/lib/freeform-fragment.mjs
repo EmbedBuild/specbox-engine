@@ -66,7 +66,8 @@ export const FRAGMENT_TOOLS = {
 const RESERVES = { add_uc: 'UC', add_epic: 'EP' };
 
 const KINDS = ['US', 'UC', 'EP'];
-const CONTEXT_META_KEYS = ['context', 'comments', 'attachments'];
+// UC-12603: closed_files (los ficheros de la PR de una UC cerrada) tampoco viaja en el contexto.
+const CONTEXT_META_KEYS = ['context', 'comments', 'attachments', 'closed_files'];
 const PENDING_TTL_MS = 60 * 60 * 1000;
 
 // ── Reading items ──────────────────────────────────────────────────────
@@ -286,6 +287,12 @@ function same(a, b) {
  * the same time from the same UC keep both).
  */
 const APPEND_ONLY_META = new Set(['retired_criteria']);
+/** UC-12603: los ficheros de una UC cerrada se suman, no se sustituyen (dos cierres a la vez). */
+const UNION_META = new Set(['closed_files']);
+
+function unionValues(local, incoming) {
+  return [...new Set([...(Array.isArray(local) ? local : []), ...(Array.isArray(incoming) ? incoming : [])])];
+}
 
 function unionById(local, incoming) {
   const out = Array.isArray(local) ? [...local] : [];
@@ -313,7 +320,11 @@ function applyChanges(local, before, after) {
     for (const key of new Set([...Object.keys(b), ...Object.keys(a)])) {
       if (!(key in a)) delete meta[key];
       else if (!(key in b) || !same(b[key], a[key])) {
-        meta[key] = APPEND_ONLY_META.has(key) ? unionById(meta[key], a[key]) : a[key];
+        meta[key] = APPEND_ONLY_META.has(key)
+          ? unionById(meta[key], a[key])
+          : UNION_META.has(key)
+            ? unionValues(meta[key], a[key])
+            : a[key];
       }
     }
     result.meta = meta;

@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.49.0] — "Cláusula"
+
+- No changes in the extension itself. The version follows the engine, where AG-09a writes the contract
+  of each criterion (preconditions, postconditions and what is left undefined) before the acceptance
+  tests, and a new hook checks it (the measure starts in «warn»).
+
 ## [6.48.0] — "Remiendo"
 
 - The skills sidebar knows **/fix** (Pipeline category), with its help card: a small bug fixed with

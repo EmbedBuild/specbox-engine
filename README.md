@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.48.0 — "Remiendo" (sobre v6.47 "Spec viva")<br/>
+  v 6.49.0 — "Cláusula" (sobre v6.48 "Remiendo")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,22 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.49
+
+**v6.49.0 — "Cláusula"** pone un contrato delante de cada prueba de aceptación:
+
+- **El contrato de cada criterio**: antes de generar ninguna prueba, AG-09a escribe sus
+  precondiciones, sus postcondiciones y lo que el criterio no define. Cada prueba cita lo que
+  comprueba y el informe de evidencia enseña el contrato junto al resultado.
+- **Medido antes de imponerlo**: con 50 fallos sembrados en 5 UC, las pruebas desde el contrato
+  detectaron 94 de 100 frente a 91 sin él, sin falsos positivos. Por eso el contrato es lo de siempre.
+- **La medida `contract_first`**: en «block», no se escriben pruebas de aceptación sin el contrato
+  completo; nace en «warn».
+
+100% backwards-compatible: la medida nace en «warn» y un proyecto puede apagar el contrato.
 
 ---
 
@@ -1112,7 +1128,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.48.0 — "Remiendo" (over v6.47 "Spec viva")
+> v 6.49.0 — "Cláusula" (over v6.48 "Remiendo")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -1126,6 +1142,22 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.49
+
+**v6.49.0 — "Cláusula"** puts a contract in front of every acceptance test:
+
+- **A contract per criterion**: before generating any test, AG-09a writes its preconditions, its
+  postconditions and what the criterion leaves undefined. Each test cites what it checks and the
+  evidence report shows the contract next to the result.
+- **Measured before enforcing it**: with 50 seeded faults in 5 UCs, the tests written from the contract
+  caught 94 of 100 against 91 without it, with no false positives. That is why the contract is the default.
+- **The `contract_first` measure**: in «block», no acceptance test is written without the complete
+  contract; it starts in «warn».
+
+100% backwards-compatible: the measure starts in «warn» and a project can switch the contract off.
+
+---
 
 ## What's new in v6.48
 

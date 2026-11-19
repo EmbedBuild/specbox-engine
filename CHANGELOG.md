@@ -2,6 +2,63 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.49.0] - 2026-11-19 — "Cláusula"
+
+US-128 entera: AG-09a escribe el contrato de cada criterio antes de las pruebas de aceptación, y lo
+que lo hace obligatorio por defecto es una medición, no una intuición.
+
+### Added
+
+- **El contrato de cada criterio** (UC-12801, #408): `.quality/evidence/<feature>/acceptance/contract.json`
+  con las precondiciones (`AC-NN.preN`), las postcondiciones (`AC-NN.postN`) y lo que el criterio no
+  define (`undefined`, que puede ir vacío pero se escribe). Formato en `doc/specs/results-json-spec.md`.
+  - Módulo puro `server/acceptance_contract.py` con su espejo `lib/acceptance-contract.mjs` y prueba
+    de paridad.
+  - Tool pura nueva `check_acceptance_contract`: qué criterios no tienen contrato, cuáles lo tienen
+    incompleto, qué entradas no valen y, con `results.json`, qué pruebas no citan una `pre` y una
+    `post` de su criterio. `validate-results-json.js --check-contract` aplica las mismas reglas.
+- **AG-09a lo escribe antes de las pruebas** (Paso 7.5.0 de /implement) y cada prueba cita lo que
+  comprueba: etiquetas `@pre:AC-01.pre1 @post:AC-01.post1`, o un comentario `contract:` en los flujos
+  de Maestro y los tests de Patrol. Los tres generadores de evidencia llevan las citas a
+  `results[].contract` y enseñan el contrato en la tarjeta de cada criterio.
+- **Medida `contract_first`**, activa desde 6.49.0 y en «warn» por defecto. Hook nuevo
+  `contract-first-guard` (PreToolUse de Write/Edit en `tests/acceptance/`, `test/acceptance/`,
+  `e2e/acceptance/` y `.maestro/`) y la misma medida en `e2e-gate` al hacer commit. En «block»
+  detienen la escritura o el commit hasta que el contrato está completo; las UC de /fix no se miden.
+- **`run_acceptance_check(contract_content)`**: el contrato junto al veredicto de cada criterio, o
+  «Sin contrato» y el aviso de un contrato incompleto.
+- **La medición que decidió el valor por defecto** (`scripts/contract-eval/`): 50 fallos sembrados en
+  5 UC, registrados antes de generar ninguna prueba, y dos brazos × dos pasadas. Con contrato, 94 de
+  100 detectados; sin él, 91 de 100; ningún falso positivo. Con más tokens (~9 %) y tiempo (~80 %)
+  por UC, y un margen pequeño, la regla fijada antes da el contrato por bueno.
+
+### Changed
+
+- `acceptance.contract: true` en la plantilla: AG-09a escribe el contrato siempre; un proyecto que lo
+  ponga a `false` lo salta.
+
+### Fixed
+
+- /implement adjuntaba la evidencia de aceptación con el tipo `acceptance`, que el servidor no acepta
+  (`INVALID_EVIDENCE_TYPE`); ahora es `ag09`, con el contrato de cada criterio.
+
+### Security
+
+- `check_acceptance_contract` es pura: solo lee el contrato y los resultados que recibe, sin tablero,
+  disco ni identidad. Por eso la plantilla de permisos la deja correr sin preguntar, como las demás tools
+  de solo lectura. Tiene topes antes de leer: 512 KB el contrato, 5 MB los resultados, 200 criterios, 50
+  condiciones por clase y 2000 caracteres por texto. Un JSON con `NaN`, un anidamiento sin fin o un
+  carácter suelto responden `INVALID_CONTRACT` o `INVALID_RESULTS`, nunca un fallo. Tiene su fila en el
+  modelo de amenazas.
+
+### Para los proyectos que ya existían
+
+- `contract_first` queda en «warn»: una UC sin contrato pasa a las pruebas y el aviso lo dice. Las UC
+  ya empezadas cuentan como anteriores a la regla. Para que bloquee:
+  `set_enforcement_mode(measure="contract_first", mode="block")`.
+- Si el proyecto no quiere contratos, `acceptance.contract: false` en `.claude/settings.json` y la
+  medida en «off».
+
 ## [6.48.0] - 2026-11-19 — "Remiendo"
 
 Primera pieza de US-127: un camino ligero para los bugs pequeños, sin PRD ni plan pero con su UC, su

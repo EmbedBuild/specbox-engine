@@ -20,6 +20,7 @@ from typing import Any
 
 import structlog
 from ..app_docs.roadmap import with_roadmap_sync  # UC-12203
+from ..behavior_doc import with_behavior_doc_sync  # UC-12605
 from fastmcp import Context
 
 from ..auth_gateway import get_session_backend
@@ -960,6 +961,7 @@ async def delete_ac(
 # ── 1.8 add_uc ───────────────────────────────────────────────────────
 
 
+@with_behavior_doc_sync
 @with_roadmap_sync
 async def add_uc(
     board_id: str,
@@ -977,6 +979,8 @@ async def add_uc(
     items_content: str | None = None,
     uc_id: str | None = None,
     with_roadmap: bool = False,
+    with_behavior_doc: bool = False,
+    behavior_doc_us_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     """Create a single new Use Case under an existing User Story.
 
@@ -1001,6 +1005,10 @@ async def add_uc(
     remote it cannot read the client's items.json. Pass its contents as a
     string and the mutated items.json is returned under the `items_content`
     key for the client to write back. Omit it for local MCP / disk mode.
+
+    `with_behavior_doc` and `behavior_doc_us_ids` (UC-12605), as in `complete_uc`: put by the
+    app-docs-fragment hook so it can take the «superseded» mark off the PRD of a story that has
+    work again.
 
     Returns:
         {uc_id, name, ac_count, numbering, backend_item_url, created_at}

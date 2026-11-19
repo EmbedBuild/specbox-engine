@@ -22,6 +22,7 @@ from typing import Any
 
 import structlog
 from ..app_docs.roadmap import with_roadmap_sync  # UC-12203
+from ..behavior_doc import with_behavior_doc_sync  # UC-12605
 from fastmcp import Context
 
 from ..ac_evidence import (
@@ -1772,6 +1773,7 @@ def _criterion_links(
     return links
 
 
+@with_behavior_doc_sync
 @with_roadmap_sync
 @returns_items_content
 async def move_uc(
@@ -1781,6 +1783,8 @@ async def move_uc(
     ctx: Context,
     items_content: str | None = None,
     with_roadmap: bool = False,
+    with_behavior_doc: bool = False,
+    behavior_doc_us_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     """Move a Use Case to a workflow state.
 
@@ -1792,6 +1796,10 @@ async def move_uc(
         board_id: Board/project ID
         uc_id: Use Case ID (e.g., "UC-001")
         target: Target state (user_stories, backlog, in_progress, review, done)
+        with_behavior_doc: UC-12605, as in `complete_uc`: put by the app-docs-fragment hook so it
+            can update the behavior document and take the «superseded» mark off a PRD whose story
+            has work again.
+        behavior_doc_us_ids: UC-12605, as in `complete_uc`.
 
     Returns:
         Movement result with parent US update status.
@@ -2305,6 +2313,7 @@ async def _native_uc_ids_reserved_by_others(session: dict[str, str]) -> set[str]
         return set()
 
 
+@with_behavior_doc_sync
 @with_roadmap_sync
 async def complete_uc(
     board_id: str,
@@ -2316,6 +2325,8 @@ async def complete_uc(
     policy_content: str | None = None,
     files: list[str] | None = None,
     repo: str | None = None,
+    with_behavior_doc: bool = False,
+    behavior_doc_us_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     """Mark a Use Case as complete.
 
@@ -2349,6 +2360,14 @@ async def complete_uc(
             the files a closed UC changed in the same repository (a UC with PRs in two
             repositories keeps two lists). A PR over 1000 files closes and keeps the most recent
             (`closed_files_truncated`).
+        with_behavior_doc: UC-12605. Put by the app-docs-fragment hook: the answer carries
+            `behavior_doc` with the section of the UC's story for `doc/spec/<feature>.md` (its
+            closed UCs with their criteria), `sections` (one per story of `behavior_doc_us_ids`
+            too) and `complete_stories` (stories with nothing pending: archived, or with every
+            non-archived UC done), for the hook to write the behavior document and mark a PRD as
+            superseded. Without it the answer is as before.
+        behavior_doc_us_ids: UC-12605. The other stories the PRD defines (up to 20), whose
+            sections come too; ids that are not «US-NN» are ignored (`ignored_us_ids`).
 
     Returns:
         Completion result with US update status, plus `items_content` (mutated

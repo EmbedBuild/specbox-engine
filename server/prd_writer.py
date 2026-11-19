@@ -31,6 +31,8 @@ def find_prd_path(
       5. doc/prds/*.md (single file → that's the one)
       6. None if not found
 
+    A PRD marked as superseded (UC-12605) is still the PRD of its stories: it is found the same.
+
     Every path is returned with the name it has on disk: a disk that ignores case would also
     find ``PRD.md`` when asked for ``prd.md``, and the hook compares it with the files of a PR
     (UC-12219). `.claude/hooks/lib/prd-locate.mjs` follows the same order (tests compare them).

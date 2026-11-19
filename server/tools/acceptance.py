@@ -33,7 +33,14 @@ from fastmcp import FastMCP
 
 
 def _find_prd_files(project_path: Path) -> list[Path]:
-    """Search for PRD markdown files in common locations."""
+    """Search for PRD markdown files in common locations.
+
+    UC-12605: a PRD marked as superseded is left out, and the behavior documents
+    (``doc/spec/*.md``) come after the PRDs. With no PRD superseded and no doc/spec the list is the
+    same as before.
+    """
+    from ..behavior_doc import is_superseded
+
     candidates: list[Path] = []
     for subdir in ("doc/prd", "doc/prds"):
         d = project_path / subdir
@@ -42,7 +49,18 @@ def _find_prd_files(project_path: Path) -> list[Path]:
     # Also check root-level PRD files
     candidates.extend(project_path.glob("*.prd.md"))
     candidates.extend(project_path.glob("PRD*.md"))
-    return sorted(candidates)
+
+    def current(path: Path) -> bool:
+        try:
+            return not is_superseded(path.read_text(encoding="utf-8"))
+        except OSError:
+            return True
+
+    found = sorted(p for p in candidates if current(p))
+    spec = project_path / "doc" / "spec"
+    if spec.is_dir():
+        found += sorted(spec.glob("*.md"))
+    return found
 
 
 #: UC-12601: una línea de criterio, con o sin casilla y negrita.
@@ -1096,8 +1114,13 @@ def run_acceptance_check_from_content(
     """Content-passing version of run_acceptance_check.
 
     Args:
-        prd_content: Concatenated PRD content from one or more files.
-        item_id: UC-XXX, US-XX, or empty (checks every UC found).
+        prd_content: Concatenated PRD content from one or more files. Put a line
+            ``<!-- @specbox:file path="<relative path>" -->`` before each file (UC-12605): with
+            it the PRDs marked as superseded are left out exactly; without it the content is split
+            at its ``# `` titles, and a superseded PRD that may hide another one is kept.
+        item_id: UC-XXX, US-XX, or empty (checks every UC found). A UC asked for (or of the US
+            asked for) without criteria in the current PRDs takes them from a superseded one, and
+            its result says ``from_superseded_prd`` (a story reopened before the mark was removed).
         branch: Branch name (informational; the client knows it).
         code_index: Optional ``{relative_path: file_content}`` mapping.
             When omitted, the tool relies solely on AC mentions in the PRD
@@ -1121,17 +1144,29 @@ def run_acceptance_check_from_content(
           "total_criteria": int,
         }
     """
-    if not prd_content or not prd_content.strip():
+    # UC-12605: solo los PRD vigentes (los superados quedan fuera; sin ninguno, igual que antes). Una
+    # UC pedida sin criterios en lo vigente los toma de un PRD superado (historia reabierta).
+    from ..behavior_doc import current_prd_content, superseded_prd_content
+
+    full_content = prd_content or ""
+    prd_content, superseded_prds = current_prd_content(full_content)
+    old_content = superseded_prd_content(full_content) if superseded_prds else ""
+    item_upper = item_id.upper().strip() if item_id else ""
+    explicit = item_upper.startswith(("US-", "UC-"))
+    if not prd_content.strip() and not (explicit and old_content.strip()):
         return {
             "error": "prd_content is empty",
             "hint": "Provide concatenated PRD markdown via prd_content.",
         }
 
     timestamp = datetime.now(timezone.utc).isoformat()
-    item_upper = item_id.upper().strip() if item_id else ""
 
     if item_upper.startswith("US-"):
         ucs = _find_ucs_for_us(prd_content, item_upper)
+        if old_content:
+            for uc in _find_ucs_for_us(old_content, item_upper):
+                if uc not in ucs and not _extract_ac_from_prd(prd_content, uc):
+                    ucs.append(uc)
         if not ucs:
             return {
                 "error": f"No UCs found for {item_upper} in PRD",
@@ -1163,8 +1198,13 @@ def run_acceptance_check_from_content(
     except ResultsError as e:
         return {"error": f"results_content no es un results.json válido: {e}", "code": "INVALID_RESULTS"}
 
+    from_superseded: list[str] = []
     for uc_id in uc_ids_to_check:
         criteria = _extract_ac_from_prd(prd_content, uc_id)
+        if not criteria and old_content and explicit:
+            criteria = _extract_ac_from_prd(old_content, uc_id)
+            if criteria:
+                from_superseded.append(uc_id)
         if not criteria:
             all_results.append(
                 {
@@ -1219,6 +1259,8 @@ def run_acceptance_check_from_content(
                 k for k in feature_files if k.startswith(f".quality/acceptance-check/{uc_id}/")
             ],
         }
+        if uc_id in from_superseded:
+            report["from_superseded_prd"] = True
         report_json_rel = f".quality/acceptance-check/{uc_id}/report.json"
         report_files[report_json_rel] = json.dumps(report, indent=2, ensure_ascii=False)
 
@@ -1272,6 +1314,10 @@ def run_acceptance_check_from_content(
         # UC-12601: cómo se juzgó cada criterio.
         "method": "results" if results is not None else "heuristic",
     }
+    if superseded_prds:
+        out["superseded_prds"] = superseded_prds
+    if from_superseded:
+        out["from_superseded_prd"] = from_superseded
     if results is None:
         out["note"] = (
             "Sin results.json: cada criterio se juzgó buscando su id en el código y palabras en las "
@@ -1327,7 +1373,8 @@ def get_e2e_gap_report_from_content(
     Args:
         project_name: Display name for the project.
         stack: Detected stack ("flutter" | "react" | "go" | "python" | "unknown").
-        prd_content: Concatenated PRD content.
+        prd_content: Concatenated PRD content, with a line
+            ``<!-- @specbox:file path="<relative path>" -->`` before each file (UC-12605): the PRDs marked as superseded are then left out exactly, and ``doc/spec/*.md`` adds the behavior documents; without the marks a superseded PRD that may hide another one is kept.
         evidence_index: Mapping from relative path (under .quality/evidence/)
             to its UTF-8 content. The tool greps each evidence file for
             UC-XXX and ``"uc_id"`` markers to count coverage.
@@ -1337,6 +1384,10 @@ def get_e2e_gap_report_from_content(
             ``.quality/acceptance-check/`` (i.e. the client found one).
         code_index: Optional code snippets for per-AC evidence detection.
     """
+    # UC-12605: solo los PRD vigentes (los superados quedan fuera; sin ninguno, igual que antes).
+    from ..behavior_doc import current_prd_content
+
+    prd_content, superseded_prds = current_prd_content(prd_content or "")
     if not prd_content or not prd_content.strip():
         return {
             "project": project_name,
@@ -1483,6 +1534,7 @@ def get_e2e_gap_report_from_content(
         "uc_results": uc_results,
         "e2e_plan": plan_items if plan_items else None,
         "summary": summary,
+        **({"superseded_prds": superseded_prds} if superseded_prds else {}),
     }
 
 
@@ -1503,7 +1555,8 @@ def register_acceptance_tools(mcp: FastMCP, engine_path: Path, state_path: Path)
 
         Args:
             prd_content: Concatenated markdown of every PRD file the caller
-                wants to consider (e.g. ``doc/prd/*.md`` joined with newlines).
+                wants to consider (e.g. ``doc/prd/*.md`` joined with newlines), with a line
+                ``<!-- @specbox:file path="<relative path>" -->`` before each file (UC-12605): the PRDs marked as superseded are then left out exactly, and ``doc/spec/*.md`` adds the behavior documents; without the marks a superseded PRD that may hide another one is kept.
             item_id: UC-XXX, US-XX, or empty. If empty, every UC found in
                 ``prd_content`` is checked.
             branch: Informational — the client knows its branch.
@@ -1571,7 +1624,8 @@ def register_acceptance_tools(mcp: FastMCP, engine_path: Path, state_path: Path)
         **v6.0.1 — content-passing API**
 
         Args:
-            prd_content: Concatenated PRD markdown.
+            prd_content: Concatenated PRD markdown, with a line
+                ``<!-- @specbox:file path="<relative path>" -->`` before each file (UC-12605): the PRDs marked as superseded are then left out exactly, and ``doc/spec/*.md`` adds the behavior documents; without the marks a superseded PRD that may hide another one is kept.
             project_name: Display name for the report.
             stack: One of ``"flutter"``, ``"react"``, ``"go"``, ``"python"``
                 or ``"unknown"``. The caller detects this locally.

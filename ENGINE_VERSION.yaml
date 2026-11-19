@@ -1,5 +1,5 @@
-version: 6.43.0
-codename: "Para siempre"
+version: 6.44.0
+codename: "Visto previo"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-19
@@ -656,8 +656,19 @@ features:
   - stable-criterion-ids
   - retired-criteria
   - import-spec-uc-exists
+  # New (v6.44.0) — Visto previo
+  - approve-criteria
+  - measure-ac-approval
 
 changelog:
+  6.44.0:
+    date: 2026-11-19
+    codename: "Visto previo"
+    changes:
+      - "feat: new tool approve_criteria (uc_ids or us_id): a person approves a UC's criteria before implementing; it keeps the fingerprint of the current criteria (id and text) with who and when, and a subagent cannot approve (SUBAGENT_CANNOT_APPROVE); rewriting, adding or retiring a criterion leaves the UC stale; get_uc returns criteria_approval; native table uc_criteria_approvals (migration 0040), FreeForm in the UC's meta (UC-12502, #395)"
+      - "feat: ac_approval measure (since 6.44.0, born in «warn»): in «block» start_uc answers AC_NOT_APPROVED and find_next_uc does not propose unapproved UCs (NO_APPROVED_UC unless include_unapproved=True); in «warn» start_uc warns and find_next_uc proposes approved UCs first; a UC open when the measure went to «block» counts as «aprobada por migración»; the impact report measures it; Trello and Plane do not apply it (APPROVAL_NOT_SUPPORTED) (UC-12502, #395)"
+      - "feat: /prd asks for the approval at the end of seeding (new decision_key criteria_approval, «ask» at every autopilot level); /implement stops on AC_NOT_APPROVED; agent-identity and freeform-fragment cover approve_criteria; backend migrations and the dual mirror carry the approval with its author and date (UC-12502, #395)"
+
   6.43.0:
     date: 2026-11-19
     codename: "Para siempre"

@@ -2,6 +2,73 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.44.0] - 2026-11-19 — "Visto previo"
+
+Segunda y última tanda de US-125: una persona aprueba los criterios de una UC antes de implementarla,
+y cualquier cambio en ellos pide una aprobación nueva.
+
+### Added
+
+- **Aprobar los criterios antes de implementar** (UC-12502, #395) — tool nueva `approve_criteria`
+  (`uc_ids` o `us_id`).
+  - Guarda la huella de los criterios vigentes (id y texto, `server/approval.py`) con quién y cuándo.
+  - La llama la sesión que habla con la persona; un subagente no puede (`SUBAGENT_CANNOT_APPROVE`,
+    con la identidad que pone el hook `agent-identity`).
+  - Reescribir un criterio, añadir uno o retirarlo cambia la huella: la UC queda «stale» hasta otra
+    aprobación.
+  - `get_uc` devuelve `criteria_approval` (`approved`, `stale` o `none`).
+- **Medida `ac_approval`** (activa desde 6.44.0).
+  - En «block», `start_uc` responde `AC_NOT_APPROVED` y no reserva la UC.
+  - En «block», `find_next_uc` no propone UC sin aprobar (`NO_APPROVED_UC`, salvo
+    `include_unapproved=True`).
+  - En «warn», `start_uc` arranca con aviso y `find_next_uc` propone primero las aprobadas.
+  - Una UC abierta cuando la medida pasó a «block» cuenta como «aprobada por migración».
+  - El informe de impacto la mide.
+- **/prd pide la aprobación** al terminar de sembrar (paso 3.5): una pregunta por PRD con la
+  `decision_key` nueva `criteria_approval`, «ask» en los cuatro niveles de autopilot. /implement se
+  detiene ante `AC_NOT_APPROVED` y nunca aprueba.
+- Migración **0040** (`uc_criteria_approvals`), con su copia en `supabase/migrations`.
+
+### Changed
+
+- **Los hooks `agent-identity` y `freeform-fragment` cubren `approve_criteria`**. En FreeForm la
+  aprobación queda en `meta.criteria_approval` de la UC, con el nombre de git (`approved_by`), y
+  `find_next_uc` recibe la política del tablero.
+- **Las migraciones de backend y el espejo dual llevan la aprobación** con su autor y su fecha.
+
+### Para los proyectos que ya existían
+
+- **`ac_approval` empieza en «warn»** en todos los tableros, nuevos y existentes.
+  - `start_uc` arranca como siempre, con un aviso mientras los criterios no estén aprobados.
+  - `find_next_uc` propone primero las UC aprobadas.
+  - Para que detenga el trabajo, quien administra el proyecto ejecuta
+    `set_enforcement_mode(measure="ac_approval", mode="block")`, que primero enseña el informe de
+    impacto. Las UC abiertas en ese momento cuentan como «aprobadas por migración» mientras sus
+    criterios no cambien.
+- **Trello y Plane no aplican la medida**: no tienen dónde guardar la aprobación
+  (`approve_criteria` responde `APPROVAL_NOT_SUPPORTED`).
+- **Los hooks llegan con la plantilla.** Hasta actualizar los del proyecto (`specbox hooks update`),
+  `agent-identity` no cubre `approve_criteria` y nada distingue a un subagente.
+- **Quién puede aprobar**: en native, cualquier miembro del proyecto. Que sea una persona y no el
+  autopilot lo pide la skill (/prd pregunta siempre); el servidor solo rechaza a un subagente.
+- **Self-hosted**: aplica la migración 0040 de `supabase/migrations` en tu base antes de desplegar
+  esta versión. En el MCP alojado ya está aplicada.
+
+### Security
+
+- **El contexto de quien aprueba no lo declara el modelo**: lo pone el hook `agent-identity` con lo
+  que Claude Code da a los hooks.
+- **La tabla nueva está cerrada a los roles públicos**, con seguridad por filas y la política
+  restrictiva del board.
+
+### Tests
+
+- `tests/test_criteria_approval.py`: 16 pruebas en FreeForm y en Postgres. Cubren la huella, los
+  estados, el arranque en «warn» y «block», la UC anterior a la regla con descripción, más de 25
+  candidatas, Trello y Plane, y la migración de FreeForm a native.
+- Pruebas de arranque, aislamiento por tenant e informe de impacto adaptadas.
+- Revisión aislada en dos rondas.
+
 ## [6.43.0] - 2026-11-19 — "Para siempre"
 
 Primera tanda de US-125: un criterio conserva su id para siempre, el que se retira sigue visible con

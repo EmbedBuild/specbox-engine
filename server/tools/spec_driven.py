@@ -1754,9 +1754,10 @@ def _criterion_links(
         if links["test"] is None and receipt.get("test"):
             links["test"] = receipt["test"]
     if contract is not None:
-        from ..plan_contract import phase_of
+        from ..plan_contract import phase_named, phase_of
 
-        phase = phase_of(contract, uc_id, ac_id)
+        # La fase que dice el recibo, si el plan la tiene; si no, la primera que nombra el criterio.
+        phase = (phase_named(contract, links["phase"]) if links["phase"] else None) or phase_of(contract, uc_id, ac_id)
         if phase is not None:
             if links["phase"] is None:
                 links["phase"] = phase.title
@@ -2596,7 +2597,8 @@ async def mark_ac_batch(
 
         # Add consolidated comment
         now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-        comment_lines = [f"Validacion AG-09b [{now}]:"]
+        header = f"Validacion AG-09b [{now}]:"
+        comment_lines: list[str] = []
         for d in details:
             if d.get("code"):
                 continue  # UC-12501: retired, nothing was marked
@@ -2606,7 +2608,10 @@ async def mark_ac_batch(
                 # One line per AC: a multi-line receipt would break the batch format.
                 line += " — " + " ".join(evidence_comment_text(d["receipt"]).split())
             comment_lines.append(line)
-        await backend.add_comment(board_id, uc_item.id, "\n".join(comment_lines))
+        # UC-12604: con ficheros en los recibos el comentario crece; Trello no admite más de 16 384
+        # caracteres, así que va en varios comentarios, cada uno con su cabecera.
+        for chunk in _batch_comment_chunks(header, comment_lines):
+            await backend.add_comment(board_id, uc_item.id, chunk)
 
         if failed_count == 0 and passed_count > 0:
             await backend.add_comment(
@@ -2628,6 +2633,26 @@ async def mark_ac_batch(
         }
     finally:
         await backend.close()
+
+
+#: Lo que cabe en un comentario de Trello (16 384), con margen.
+MAX_COMMENT_CHARS = 15_000
+
+
+def _batch_comment_chunks(header: str, lines: list[str], limit: int = MAX_COMMENT_CHARS) -> list[str]:
+    """El comentario de un lote en trozos de como mucho ``limit`` caracteres, cada uno con su
+    cabecera (el lector de comentarios los lee igual que uno solo). Sin líneas, solo la cabecera."""
+    chunks: list[str] = []
+    current = [header]
+    size = len(header)
+    for line in lines:
+        if len(current) > 1 and size + 1 + len(line) > limit:
+            chunks.append("\n".join(current))
+            current, size = [header], len(header)
+        current.append(line)
+        size += 1 + len(line)
+    chunks.append("\n".join(current))
+    return chunks
 
 
 async def get_ac_status(

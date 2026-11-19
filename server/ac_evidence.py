@@ -18,6 +18,7 @@ el portal no pueden enseñar un recibo con eso. Este módulo define la forma
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timezone
 from typing import Any, Literal, Required, TypedDict
@@ -181,19 +182,20 @@ def evidence_comment_text(evidence: dict[str, Any]) -> str:
 
     Una evidencia en texto libre se escribe tal cual, así el comentario de las
     llamadas de siempre no cambia ni un carácter (AC-02). La fase, la prueba y
-    los ficheros (UC-12604) van detrás, `` · fase …``, `` · prueba …`` y
-    `` · ficheros a, b``, y el commit (UC-11702) al final,
-    `` · commit owner/nombre@sha``; `evidence_from_comments` los recupera, así
-    Trello y Plane guardan el recibo entero como native y FreeForm.
+    los ficheros (UC-12604) van detrás en un bloque `` · recibo {…}`` en JSON,
+    y el commit (UC-11702) al final, `` · commit owner/nombre@sha``;
+    `evidence_from_comments` los recupera, así Trello y Plane guardan el recibo
+    entero como native y FreeForm. El bloque es JSON y se valida al leerlo: un
+    texto que solo diga «· fase …» no se toma por un recibo.
     """
     commit = evidence.get("commit")
-    links = [(key, evidence.get(key)) for key in ("phase", "test", "files")]
+    links = {key: evidence[key] for key in RECEIPT_LINKS if evidence.get(key)}
     if (
         evidence["type"] == FREE_TEXT_TYPE
         and evidence["link"] is None
         and evidence["detail"] is None
         and not commit
-        and not any(value for _, value in links)
+        and not links
     ):
         return evidence["label"]
     text = f"[{evidence['type']}] {evidence['label']}"
@@ -201,9 +203,8 @@ def evidence_comment_text(evidence: dict[str, Any]) -> str:
         text += f" <{evidence['link']}>"
     if evidence["detail"]:
         text += f" — {evidence['detail']}"
-    for key, value in links:
-        if value:
-            text += f" · {_LINK_WORDS[key]} {', '.join(value) if key == 'files' else value}"
+    if links:
+        text += f" {_LINKS_MARK} " + json.dumps(links, ensure_ascii=False)
     if commit:
         repo = evidence.get("repo")
         text += f" · commit {repo}@{commit}" if repo else f" · commit {commit}"
@@ -214,8 +215,28 @@ def evidence_comment_text(evidence: dict[str, Any]) -> str:
 _STRUCTURED_RE = re.compile(r"^\[(test|screenshot|diff|url|pr)\] (.+)$", re.DOTALL)
 _COMMIT_SUFFIX_RE = re.compile(r" · commit (?:([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@)?([0-9a-f]{7,40})$")
 _LINK_RE = re.compile(r"^(.*?) <(https?://\S+)>(?: — (.*))?$", re.DOTALL)
-#: UC-12604: cómo se escriben en el comentario la fase, la prueba y los ficheros del recibo.
-_LINK_WORDS = {"phase": "fase", "test": "prueba", "files": "ficheros"}
+#: UC-12604: la fase, la prueba y los ficheros del recibo van en el comentario tras esta marca, en JSON.
+RECEIPT_LINKS = ("phase", "test", "files")
+_LINKS_MARK = "· recibo"
+_LINKS_RE = re.compile(r" · recibo (\{.*\})$", re.DOTALL)
+
+
+def _links_from_json(raw: str) -> dict[str, Any] | None:
+    """El bloque del recibo si es el que escribe `evidence_comment_text`; si no, None (el texto sigue
+    siendo parte de la etiqueta o del detalle, como siempre)."""
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return None
+    if not isinstance(data, dict) or not data or set(data) - set(RECEIPT_LINKS):
+        return None
+    for key in ("phase", "test"):
+        if key in data and not isinstance(data[key], str):
+            return None
+    files = data.get("files")
+    if files is not None and not (isinstance(files, list) and all(isinstance(f, str) for f in files)):
+        return None
+    return data
 
 
 def _receipt_from_text(text: str) -> dict[str, Any]:
@@ -237,12 +258,12 @@ def _receipt_from_text(text: str) -> dict[str, Any]:
         repo, commit = suffix[1], suffix[2]
         rest = rest[: suffix.start()]
     found: dict[str, Any] = {}
-    for key in ("files", "test", "phase"):  # al revés de como se escriben
-        tail = re.search(rf" · {_LINK_WORDS[key]} (.+)$", rest, re.DOTALL)
-        if tail:
-            value = tail[1].strip()
-            found[key] = [f for f in value.split(", ") if f] if key == "files" else value
-            rest = rest[: tail.start()]
+    block = _LINKS_RE.search(rest)
+    if block:
+        links = _links_from_json(block[1])
+        if links is not None:
+            found = links
+            rest = rest[: block.start()]
     link = detail = None
     linked = _LINK_RE.match(rest)
     if linked:
@@ -254,7 +275,7 @@ def _receipt_from_text(text: str) -> dict[str, Any]:
     if not label.strip():
         return free
     receipt = {"type": ev_type, "label": label, "link": link, "detail": detail, "commit": commit, "repo": repo}
-    for key in ("files", "test", "phase"):
+    for key in RECEIPT_LINKS:
         if found.get(key):
             receipt[key] = found[key]
     return receipt

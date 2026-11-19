@@ -23,12 +23,20 @@ from dataclasses import dataclass, field
 from typing import Any
 
 _HEADING = re.compile(r"^(#{2,4})\s+(.+?)\s*$")
-_FENCE = re.compile(r"^\s*(```|~~~)")
-_PHASE_TITLE = re.compile(r"^(?:\W+\s*)?(?:fase|phase)\s+\d+\b", re.IGNORECASE)
+_FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
+#: «Fase 2: …», «Fase 2 · …», «Fase 2 (UC-1) …», «Fase 2» sola; no «Fase 2 bloqueada» ni «Fase 2.1».
+_PHASE_TITLE = re.compile(r"^(?:\W+\s*)?(?:fase|phase)\s+(\d+)\s*(?:[:·—–(\[-]|$)", re.IGNORECASE)
+#: La UC de una fase: entre paréntesis o corchetes, al principio del título o justo tras «Fase N ·».
+_HEADING_UC = re.compile(
+    r"[(\[]\s*(UC-\d+[a-z]?)\s*[)\]]"
+    r"|^(?:\W+\s*)?(UC-\d+[a-z]?)\b"
+    r"|^(?:\W+\s*)?(?:fase|phase)\s+\d+\s*[:·—–-]\s*(UC-\d+[a-z]?)\b",
+    re.IGNORECASE,
+)
+_CHECKBOX = re.compile(r"^\s*[-*]\s+\[[ xX]\]")
 _CRITERIA_LINE = re.compile(r"^\s*[-*]?\s*\*\*Criterios:?\*\*:?\s*(.*)$", re.IGNORECASE)
 _FILES_LINE = re.compile(r"^\s*[-*]?\s*\*\*Ficheros:?\*\*:?\s*(.*)$", re.IGNORECASE)
 _LIST_ITEM = re.compile(r"^\s*[-*]\s+(.+?)\s*$")
-_UC = re.compile(r"\bUC-\d+[a-z]?\b", re.IGNORECASE)
 _RANGE = re.compile(
     r"\bAC-(\d+)\s*(?:\.\.|–|—|\ba\b|\bal\b|\bhasta\b|\bto\b)\s*(?:AC-)?(\d+)\b", re.IGNORECASE
 )
@@ -36,7 +44,7 @@ _TOKEN = re.compile(r"\b(UC-\d+[a-z]?)\b|\bAC-(\d+)\b", re.IGNORECASE)
 _BACKTICKED = re.compile(r"`([^`]+)`")
 _ANNOTATION = re.compile(r"\s+\([^)]*\)\s*$")
 _DEPS_HEADING = re.compile(r"^##\s+Dependencias\s+nuevas\b", re.IGNORECASE)
-_DEP_LINE = re.compile(r"^\s*[-*]\s+`?([A-Za-z]+)`?\s*:\s*`?([^`\s]+)`?")
+_DEP_LINE = re.compile(r"^\s*[-*]\s+`?([A-Za-z]+)`?\s*:\s*(.+?)\s*$")
 _NONE_WORDS = {"ninguna", "ninguno", "none", "-", "—"}
 #: Los gestores de paquetes que la sección «Dependencias nuevas» entiende; otra palabra antes de «:»
 #: (una nota, por ejemplo) no es un paquete.
@@ -55,6 +63,24 @@ CONTRACT_NOTICE_OLD_PLAN = (
 def ac_key(number: str | int) -> str:
     """``AC-1`` y ``AC-01`` son el mismo criterio: el id con al menos dos cifras."""
     return f"AC-{int(number):02d}"
+
+
+def _heading_uc(title: str) -> str | None:
+    match = _HEADING_UC.search(title)
+    if not match:
+        return None
+    return next(g for g in match.groups() if g).upper()
+
+
+def _dep_names(text: str) -> list[str]:
+    """``rapidfuzz, `httpx>=0.27` `` → [rapidfuzz, httpx>=0.27]; la primera palabra de cada trozo."""
+    out: list[str] = []
+    for part in re.split(r"[,;]", text):
+        words = part.strip().strip("`").split()
+        name = words[0].strip("`") if words else ""
+        if name and name.lower() not in _NONE_WORDS and name not in out:
+            out.append(name)
+    return out
 
 
 def normalize_ac(ac_id: str) -> str:
@@ -158,20 +184,25 @@ def parse_plan_contract(plan_content: str, *, default_uc: str | None = None) -> 
     phases: list[Phase] = []
     current: Phase | None = None
     in_deps = False
-    in_fence = False
+    fence: str | None = None  # la marca que abrió el bloque de código («```», «````», «~~~»)
     deps: list[dict[str, str]] | None = None
     collecting: str | None = None  # "criteria" | "files": la lista que sigue a una línea vacía
+    collected = 0
 
     def _register(phase: Phase) -> None:
         if not any(p is phase for p in phases):
             phases.append(phase)
 
     for line in (plan_content or "").splitlines():
-        if _FENCE.match(line):
-            in_fence = not in_fence
-            collecting = None
+        opener = _FENCE.match(line)
+        if fence is not None:
+            # Solo lo cierra una marca del mismo carácter y al menos igual de larga, sola en su línea.
+            if opener and opener[1][0] == fence[0] and len(opener[1]) >= len(fence) and not line.strip()[len(opener[1]):].strip():
+                fence = None
             continue
-        if in_fence:
+        if opener:
+            fence = opener[1]
+            collecting = None
             continue
         heading = _HEADING.match(line)
         if heading:
@@ -182,29 +213,31 @@ def parse_plan_contract(plan_content: str, *, default_uc: str | None = None) -> 
                 current = None
                 continue
             title = heading.group(2).strip()
-            uc = _UC.search(title)
-            current = Phase(title=title, uc=uc[0].upper() if uc else None)
+            current = Phase(title=title, uc=_heading_uc(title))
             if _PHASE_TITLE.match(title):
                 _register(current)
             continue
         if in_deps:
             dep = _DEP_LINE.match(line)
             if dep and deps is not None and dep.group(1).lower() in ECOSYSTEMS:
-                entry = {"ecosystem": dep.group(1).lower(), "name": dep.group(2)}
-                if entry not in deps:
-                    deps.append(entry)
+                for name in _dep_names(dep.group(2)):
+                    entry = {"ecosystem": dep.group(1).lower(), "name": name}
+                    if entry not in deps:
+                        deps.append(entry)
             continue
         if current is None:
             continue
         if collecting:
             item = _LIST_ITEM.match(line)
-            if item:
+            # La lista acaba en la primera línea en blanco tras algún elemento o en una tarea «- [ ]».
+            if item and not _CHECKBOX.match(line):
+                collected += 1
                 if collecting == "criteria":
                     current.criteria += [c for c in _criteria_of(item[1], current.uc) if c not in current.criteria]
                 else:
                     current.files += [f for f in _files_of(item[1]) if f not in current.files]
                 continue
-            if not line.strip():
+            if not line.strip() and not collected:
                 continue
             collecting = None
         crit = _CRITERIA_LINE.match(line)
@@ -212,6 +245,7 @@ def parse_plan_contract(plan_content: str, *, default_uc: str | None = None) -> 
             current.has_criteria_line = True
             current.criteria += [c for c in _criteria_of(crit.group(1), current.uc) if c not in current.criteria]
             collecting = "criteria" if not crit.group(1).strip() else None
+            collected = 0
             _register(current)
             continue
         files = _FILES_LINE.match(line)
@@ -219,6 +253,7 @@ def parse_plan_contract(plan_content: str, *, default_uc: str | None = None) -> 
             current.has_files_line = True
             current.files += [f for f in _files_of(files.group(1)) if f not in current.files]
             collecting = "files" if not files.group(1).strip() else None
+            collected = 0
             _register(current)
 
     if not any(p.criteria for p in phases):
@@ -276,6 +311,25 @@ def phase_of(contract: PlanContract, uc_id: str, ac_id: str) -> Phase | None:
     for phase in contract.phases:
         for uc, ac in phase.criteria:
             if ac == key and _matches(contract, uc, uc_id):
+                return phase
+    return None
+
+
+def _title_key(title: str) -> str:
+    return " ".join((title or "").split()).casefold()
+
+
+def phase_named(contract: PlanContract, title: str) -> Phase | None:
+    """La fase del plan con ese título; si no hay ninguna igual y el título es «Fase N», la fase N."""
+    key = _title_key(title)
+    for phase in contract.phases:
+        if _title_key(phase.title) == key:
+            return phase
+    number = _PHASE_TITLE.match(title or "")
+    if number:
+        for phase in contract.phases:
+            own = _PHASE_TITLE.match(phase.title)
+            if own and own[1] == number[1]:
                 return phase
     return None
 

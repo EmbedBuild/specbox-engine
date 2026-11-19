@@ -25,7 +25,7 @@ from server.plan_contract import (
     uncovered_criteria,
 )
 from server.tools.plan_contract import check_plan_contract
-from server.tools.spec_driven import get_uc, mark_ac
+from server.tools.spec_driven import _batch_comment_chunks, _criterion_links, get_uc, mark_ac
 from tests.test_spec_gate_start_uc import CTX, US, _cleanup, _native_board, pg
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -166,10 +166,66 @@ def test_criteria_ranges_short_ids_and_several_ucs():
 
 
 def test_only_package_managers_count_as_new_dependencies():
-    plan = PLAN.replace("- npm: zod", "- npm: `zod`\n- Nota: nada que añadir\n- `pypi`: `httpx>=0.27`")
+    plan = PLAN.replace("- npm: zod", "- npm: `zod`\n- Nota: nada que añadir\n- `pypi`: `httpx>=0.27`, anyio")
     deps = parse_plan_contract(plan, default_uc="UC-701").dependencies
     assert deps == [{"ecosystem": "pypi", "name": "rapidfuzz"}, {"ecosystem": "npm", "name": "zod"},
-                    {"ecosystem": "pypi", "name": "httpx>=0.27"}]
+                    {"ecosystem": "pypi", "name": "httpx>=0.27"}, {"ecosystem": "pypi", "name": "anyio"}]
+
+
+def test_a_list_ends_at_the_first_blank_line_or_task():
+    plan = """### Fase 1: Base
+**Criterios:**
+- AC-01
+
+- [ ] Revisar AC-04 con el equipo
+**Ficheros:**
+- a.py
+
+- [ ] Verificar tablas
+- [ ] Tiempo estimado: X min
+### Fase 2: Otra
+**Criterios:** AC-02
+**Ficheros:**
+- b.py
+- [ ] Tarea pegada a la lista
+"""
+    contract = parse_plan_contract(plan, default_uc="UC-1")
+    assert [p.criteria for p in contract.phases] == [[("UC-1", "AC-01")], [("UC-1", "AC-02")]]
+    assert [p.files for p in contract.phases] == [["a.py"], ["b.py"]]
+
+
+def test_headings_that_only_mention_a_phase_or_a_uc_do_not_take_it():
+    plan = """### Fase 1: Reusar el patrón de UC-11702
+**Criterios:** AC-01
+**Ficheros:** a.py
+### Fase 2 · UC-9: Lo de la otra
+**Criterios:** AC-02
+**Ficheros:** b.py
+## Riesgos
+### Fase 2 bloqueada si falta la migración
+#### Fase 2.1
+````markdown
+```
+### Fase 9: Ejemplo dentro de otro ejemplo
+**Criterios:** AC-09
+```
+````
+"""
+    contract = parse_plan_contract(plan, default_uc="UC-1")
+    assert [p.title for p in contract.phases] == ["Fase 1: Reusar el patrón de UC-11702", "Fase 2 · UC-9: Lo de la otra"]
+    assert contract.phases[0].criteria == [(None, "AC-01")]  # citar UC-11702 no la hace suya
+    assert contract.phases[1].criteria == [("UC-9", "AC-02")]
+    assert incomplete_phases(contract) == []
+
+
+def test_plan_files_come_from_the_phase_the_receipt_names():
+    """Revisión: un criterio en dos fases (la suya y la de QA) toma los ficheros previstos de la del recibo."""
+    plan = PLAN.replace("## Dependencias", "### Fase 3: QA\n**Criterios:** AC-01, AC-03\n**Ficheros:** tests/test_cobros.py\n## Dependencias")
+    contract = parse_plan_contract(plan, default_uc="UC-701")
+    qa = _criterion_links([{"passed": True, "phase": "Fase 3"}], contract, "UC-701", "AC-01")
+    assert (qa["phase"], qa["plan_files"]) == ("Fase 3", ["tests/test_cobros.py"])
+    own = _criterion_links([], contract, "UC-701", "AC-01")
+    assert (own["phase"], own["plan_files"]) == ("Fase 1: Registro del cobro", ["server/cobros.py", "server/recibos.py"])
 
 
 # ── El recibo (AC-02) ───────────────────────────────────────────────
@@ -193,16 +249,41 @@ def test_trello_and_plane_keep_files_test_and_phase_in_the_comment():
     receipt = normalize_evidence({"type": "test", "label": "tests/t.py::x", "files": ["a.py", "b/c.py"],
                                   "test": "tests/t.py::x", "phase": "Fase 1: Base", "commit": "abcdef1", "repo": "o/r"})
     text = evidence_comment_text(receipt)
-    assert text.endswith(" · commit o/r@abcdef1") and " · ficheros a.py, b/c.py" in text
+    assert text.endswith(" · commit o/r@abcdef1") and ' · recibo {"phase": "Fase 1: Base"' in text
     single = evidence_from_comments([{"text": f"AC-01: PASSED — {text} [2026-11-19 01:00 UTC]"}])["AC-01"][0]
     batch = evidence_from_comments([{"text": f"Validacion AG-09b [2026-11-19 01:00 UTC]:\n  AC-02: PASSED — {text}"}])["AC-02"][0]
     for read in (single, batch):
         assert (read["files"], read["test"], read["phase"]) == (["a.py", "b/c.py"], "tests/t.py::x", "Fase 1: Base")
         assert (read["label"], read["commit"], read["repo"]) == ("tests/t.py::x", "abcdef1", "o/r")
     only_phase = evidence_comment_text(normalize_evidence({"type": "url", "label": "nota", "phase": "Fase 2"}))
-    assert only_phase == "[url] nota · fase Fase 2"  # un texto libre con fase deja de ser texto libre
+    assert only_phase == '[url] nota · recibo {"phase": "Fase 2"}'  # un texto libre con fase deja de ser texto libre
     old = evidence_from_comments([{"text": "AC-01: PASSED — [test] t.py — 8/8 [2026-11-19 01:00 UTC]"}])["AC-01"][0]
     assert "files" not in old and "test" not in old and "phase" not in old  # los de siempre, igual
+
+
+def test_a_receipt_that_only_mentions_a_phase_in_its_text_reads_as_before():
+    """Revisión: «· fase …» o «· prueba …» dentro de la etiqueta o del detalle no es el bloque del recibo."""
+    shot = "AC-01: PASSED — [screenshot] Pantalla de cobro · fase final del flujo <https://x.y/a.png> [2026-11-19 01:00 UTC]"
+    [read] = evidence_from_comments([{"text": shot}])["AC-01"]
+    assert (read["label"], read["link"]) == ("Pantalla de cobro · fase final del flujo", "https://x.y/a.png")
+    assert "phase" not in read
+    receipt = normalize_evidence({"type": "test", "label": "Cobro · prueba de humo", "link": "https://ci/1",
+                                  "detail": "PASS · 3 pasos", "test": "t.py::x", "phase": "Fase 1", "files": ["a.py"]})
+    [again] = evidence_from_comments([{"text": f"AC-02: PASSED — {evidence_comment_text(receipt)} [2026-11-19 01:00 UTC]"}])["AC-02"]
+    assert (again["label"], again["link"], again["detail"]) == ("Cobro · prueba de humo", "https://ci/1", "PASS · 3 pasos")
+    assert (again["test"], again["phase"], again["files"]) == ("t.py::x", "Fase 1", ["a.py"])
+    fake = "AC-03: PASSED — [test] t.py · recibo {\"otra\": 1} [2026-11-19 01:00 UTC]"
+    [kept] = evidence_from_comments([{"text": fake}])["AC-03"]
+    assert kept["label"] == 't.py · recibo {"otra": 1}' and "phase" not in kept  # un JSON que no es el recibo
+
+
+def test_a_long_batch_comment_goes_in_several_comments_that_read_the_same():
+    lines = [f"  AC-{i:02d}: PASSED — [test] t.py · " + "x" * 3000 for i in range(1, 11)]
+    chunks = _batch_comment_chunks("Validacion AG-09b [2026-11-19 01:00 UTC]:", lines)
+    assert len(chunks) > 1 and all(len(c) <= 15_000 for c in chunks)
+    read = evidence_from_comments([{"text": c} for c in chunks])
+    assert sorted(read) == [f"AC-{i:02d}" for i in range(1, 11)]
+    assert _batch_comment_chunks("H:", []) == ["H:"]
 
 
 # ── get_uc (AC-03) ──────────────────────────────────────────────────

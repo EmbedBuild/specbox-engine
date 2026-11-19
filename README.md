@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.44.0 — "Visto previo" (sobre v6.43 "Para siempre")<br/>
+  v 6.45.0 — "Hilo conductor" (sobre v6.44 "Visto previo")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,22 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.45
+
+**v6.45.0 — "Hilo conductor"** une cada criterio con su fase, su código y su prueba:
+
+- **El plan dice qué cubre cada fase**: cada fase lleva sus criterios y los ficheros que espera tocar,
+  y la tool nueva `check_plan_contract` avisa del criterio que ninguna fase cubre.
+- **El recibo dice qué lo implementa**: los ficheros, la prueba y la fase de cada criterio, en los
+  cuatro backends, y `get_uc` los devuelve.
+- **Al cerrar, lo hecho frente al plan**: cada fase lista lo que sobra y lo que falta.
+- **Cada criterio, por su prueba**: con el `results.json` de las pruebas de aceptación, un criterio
+  pasa solo si su prueba pasa.
+
+100% backwards-compatible: un plan anterior sigue funcionando y el informe dice que falta la relación.
 
 ---
 
@@ -1051,7 +1067,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.44.0 — "Visto previo" (over v6.43 "Para siempre")
+> v 6.45.0 — "Hilo conductor" (over v6.44 "Visto previo")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -1065,6 +1081,22 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.45
+
+**v6.45.0 — "Hilo conductor"** ties each criterion to its phase, its code and its test:
+
+- **The plan says what each phase covers**: each phase lists its criteria and the files it expects to
+  touch, and the new `check_plan_contract` tool flags a criterion no phase covers.
+- **The receipt says what implements it**: each criterion's files, test and phase, on the four
+  backends, returned by `get_uc`.
+- **At the close, the work against the plan**: each phase lists what is extra and what is missing.
+- **Each criterion, by its test**: with the acceptance tests' `results.json`, a criterion passes only
+  when its test passes.
+
+100% backwards-compatible: an older plan still works and the report says the link is missing.
+
+---
 
 ## What's new in v6.44
 

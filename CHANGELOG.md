@@ -2,6 +2,77 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.45.0] - 2026-11-19 — "Hilo conductor"
+
+Primera tanda de US-126: el plan relaciona cada fase con sus criterios y sus ficheros, el recibo de un
+criterio dice qué ficheros lo implementan y qué prueba lo comprueba, y al cerrar lo hecho se compara
+con el plan y cada criterio se juzga por su prueba.
+
+### Added
+
+- **El contrato del plan** (UC-12604, #397).
+  - Cada fase de un plan de /plan lleva una línea `Criterios:` (los AC que cubre) y otra `Ficheros:` (los que
+    espera tocar). El plan lleva además una sección `## Dependencias nuevas`.
+  - `server/plan_contract.py` lo lee. Lo que va en un bloque de código es un ejemplo y no cuenta.
+    `contract_version` es 1 si alguna línea `Criterios:` nombra un criterio, y 0 en un plan anterior,
+    que no se adivina.
+  - Tool nueva `check_plan_contract`: devuelve `uncovered` (criterios sin fase), `incomplete_phases`
+    (fases sin sus dos líneas), `unattributed` (criterios sin su UC en un plan de varias) y `ok`.
+    /plan la llama antes de entregar y /implement al empezar (Paso 0.4d).
+- **El recibo de un criterio dice sus ficheros, su prueba y su fase** (UC-12604, #397): `files` (hasta
+  50 rutas relativas de hasta 200 caracteres), `test` y `phase`. `get_uc` los devuelve en cada criterio,
+  y aparte, en `plan_files`, los ficheros que el plan espera en su fase.
+- **Al cerrar, lo hecho se compara con el plan** (UC-12601, #398).
+  - `aggregate_phase_outputs(plan_content)` compara cada línea de `phase_outputs.jsonl` que trae
+    `plan_phase` (campo nuevo: la «Fase N» del plan) con esa fase. Empareja por número, no por
+    posición.
+  - El bloque de cada fase lista lo que sobra y lo que falta: hasta 50 de cada, con el total.
+  - `plan_comparison` da lo hecho frente a las fases ejecutadas.
+  - Sin comparación, el motivo verdadero, que no cuenta como desviación.
+- **Cada criterio, por su prueba** (UC-12601, #398).
+  - Con `results_content`, `run_acceptance_check` juzga cada criterio por las pruebas que llevan su
+    etiqueta: FAIL falla, SKIP no da resultado y sin prueba sale «Sin prueba». Manda la ejecución más
+    reciente.
+  - Un `results.json` que no se entiende es `INVALID_RESULTS`.
+
+### Changed
+
+- **Trello y Plane guardan el recibo entero** en el comentario del criterio, en un bloque
+  ` · recibo {…}` en JSON que se valida al leerlo. El comentario de un lote se reparte en varios si pasa
+  de 15 000 caracteres.
+- **Plane deshace el escape HTML de sus comentarios** al leerlos: vuelven el recibo y los enlaces
+  `<https://…>`, que antes se perdían.
+- **El lector de criterios del PRD**:
+  - salta las secciones «Implementation Status»;
+  - lee los ids enteros (`AC-02.1.1` no es AC-02);
+  - no repite una sección que se vuelve a abrir;
+  - toma las UC de una historia de sus encabezados, listas o tablas (`MGR-US-20` nombra US-20).
+- **`regenerate_evidence`** pasa el `results.json` de cada UC y dice por qué queda pendiente.
+- **Spec-Code Sync vuelve a comparar con el plan**: se retira la nota de UC-12204.
+
+### Para los proyectos que ya existían
+
+- **Los planes anteriores siguen funcionando** (contrato 0): /implement trabaja igual y su informe dice
+  que el plan no relaciona fases y criterios. Los planes nuevos de /plan traen las líneas.
+- **Los recibos de siempre no cambian**: los campos nuevos solo aparecen si llegan.
+- **`plan_phase` es opcional**: sin él, la fase dice «Comparación no disponible» y por qué.
+- **`run_acceptance_check` sin `results_content`** busca el id en el código como antes y lo avisa en
+  `note`. Si no hay `results.json`, se omite el campo: un texto vacío es un fichero vacío.
+- **Los hooks llegan con la plantilla** (`specbox hooks update`).
+
+### Security
+
+- **El recibo de Trello y Plane se valida al leerlo**: un texto que imite el bloque no se toma por un
+  recibo si no es el JSON que escribe el engine.
+
+### Tests
+
+- `tests/test_plan_contract.py` (23) y `tests/test_plan_comparison.py` (14). Cubren planes reales con
+  ejemplos, listas, casillas, rangos y varias UC, recibos en comentarios de Trello y de Plane simulado,
+  y `results.json` rotos, vacíos o con varias ejecuciones.
+- Los 109 planes reales del orquestador y de los satélites se leen como contrato 0, y 265 UC del
+  orquestador se leen sin diferencias.
+
 ## [6.44.0] - 2026-11-19 — "Visto previo"
 
 Segunda y última tanda de US-125: una persona aprueba los criterios de una UC antes de implementarla,

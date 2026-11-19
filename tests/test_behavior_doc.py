@@ -25,6 +25,7 @@ from server.behavior_doc import (
     behavior_doc_from_freeform,
     complete_stories,
     current_prd_content,
+    doc_header,
     is_superseded,
     mark_superseded,
     prd_stories,
@@ -271,3 +272,18 @@ def test_a_reopened_story_takes_its_new_uc_from_the_superseded_prd():
     # Sin UC pedida se leen solo los vigentes, como antes.
     every = run_acceptance_check_from_content(prd_content=content, item_id="")
     assert [r["uc_id"] for r in every["uc_results"]] == ["UC-001"] and "from_superseded_prd" not in every
+
+
+def test_the_behavior_doc_header_names_no_uc():
+    """Sin item, los lectores buscan cualquier UC-NNN en todo el contenido: la cabecera no puede citar una."""
+    import re
+
+    assert not re.search(r"\b(UC|US|AC)-\d", doc_header("cobros"))
+    doc = replace_story_section("", "US-01", render_section({"us_id": "US-01", "title": "Cobrar"}, [
+        {"uc_id": "UC-001", "title": "Cobrar", "criteria": [{"ac_id": "AC-01", "text": "Uno", "done": True}]}]), "cobros")
+    content = "\n".join(f'<!-- @specbox:file path="{p}" -->\n{t}' for p, t in
+                        (("doc/prd/avisos/prd.md", PRD_B), ("doc/spec/cobros.md", doc)))
+    every = run_acceptance_check_from_content(prd_content=content, item_id="PR-12")
+    assert sorted(r["uc_id"] for r in every["uc_results"]) == ["UC-001", "UC-010"]
+    gap = get_e2e_gap_report_from_content(prd_content=content, project_name="p", stack="python")
+    assert "UC-12605" not in json.dumps(gap)

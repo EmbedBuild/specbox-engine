@@ -324,3 +324,7 @@ test('revisión 2: start_uc e import_spec quitan la marca en cualquier rama; un 
 test('revisión 2: una «>» del cuerpo no es una historia del PRD', () => {
   assert.deepEqual(prdStories('# PRD\n\n> US-01\n\n## US-01 — Cobrar\n\n> densa (US-13) tiene 63 AC\n'), ['US-01']);
 });
+
+test('revisión 3: la cabecera del documento no cita ninguna UC (los lectores sin item buscan cualquier UC-NNN)', () => {
+  assert.doesNotMatch(replaceStorySection('', 'US-01', SECTION, 'cobros').split('<!--')[0], /\b(UC|US|AC)-\d/);
+});

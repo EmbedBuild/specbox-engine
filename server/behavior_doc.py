@@ -113,7 +113,7 @@ def doc_header(feature: str) -> str:
     return (
         f"# Comportamiento: {feature}\n\n"
         "> Lo que el sistema hace hoy: una sección por historia, con los criterios de sus UC cerradas.\n"
-        "> Lo escribe el engine al cerrar cada UC (UC-12605) y se regenera desde el tablero: no lo\n"
+        "> Lo escribe el engine al cerrar cada UC y se regenera desde el tablero: no lo\n"
         "> edites a mano. Los PRD siguen siendo el historial de cada cambio.\n"
     )
 

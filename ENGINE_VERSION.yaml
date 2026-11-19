@@ -1,5 +1,5 @@
-version: 6.45.0
-codename: "Hilo conductor"
+version: 6.46.0
+codename: "La puerta"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-19
@@ -664,8 +664,21 @@ features:
   - receipt-files-test-phase
   - plan-comparison
   - acceptance-by-tests
+  # New (v6.46.0) — La puerta
+  - closed-uc-files
+  - drift-gate
 
 changelog:
+  6.46.0:
+    date: 2026-11-19
+    codename: "La puerta"
+    changes:
+      - "feat: the files of a closed UC: complete_uc(files, repo) keeps the files its PR changed in meta.closed_files and, with repo, in that repository's list (meta.closed_files_by_repo); a re-close adds the new ones and over 1000 paths keeps the most recent (closed_files_truncated); get_uc returns closed_files; whole-board reads leave it out and list_done_ucs reads it; complete_uc without files and move_uc to done warn (closed_files_missing) (UC-12603, #399)"
+      - "feat: new tool get_closed_uc_files(board_id, paths, exclude_uc_ids, repo, satellite): which closed UCs of the same repository changed these paths (most shared files first, up to 20, touches_total) with the proposal to review their criteria; read-only; a UC closed without its list never warns and is counted in closed_without_files (UC-12603, #399)"
+      - "feat: the drift gate: new CLI command specbox drift and read-only tool get_drift_report compare the files a branch changes against origin/main with what its UCs claim by their plan's Ficheros lines or their criteria receipts, name the dependencies the plan does not declare, list the project's exclusions (drift.exclude, read from the base branch) and the closed UCs the change touches; branches skipped by prefix (drift.skip_branch_prefixes); in a satellite the board and plans come from the orchestrator (UC-12602, #401)"
+      - "feat: drift_gate measure (since 6.46.0, born in «warn»): in «block» specbox drift exits 1 with a file without UC, an undeclared dependency, more than 20 000 files, a path over 1024 characters or exclusions too costly to match; without a board, an identity or an answer it reports «sin comprobar», never green; the local CI runs it as the desviacion block (UC-12602, #401)"
+      - "fix: exclusion globs are matched in linear time with a per-call work cap (EXCLUDE_TOO_COSTLY) and up to 20 wildcards, so a pathological glob cannot hang the shared server; paths with accents reach the gate unquoted (core.quotePath=false, -z) (UC-12602, #401)"
+
   6.45.0:
     date: 2026-11-19
     codename: "Hilo conductor"

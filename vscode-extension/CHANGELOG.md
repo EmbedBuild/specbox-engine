@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.46.0] — "La puerta"
+
+- No changes in the extension itself. The version follows the engine, where the local CI compares the
+  files a branch changes with what its UCs claim (`specbox drift`, the measure starts in «warn»), and the
+  board keeps the files each closed UC changed.
+
 ## [6.45.0] — "Hilo conductor"
 
 - No changes in the extension itself. The version follows the engine, where each plan phase names its

@@ -1,4 +1,12 @@
 {
+  "drift": {
+    "exclude": [
+      ".quality/*.json",
+      ".quality/*.jsonl",
+      ".quality/evidence/**",
+      ".quality/logs/**"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

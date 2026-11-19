@@ -579,6 +579,11 @@
       "_v5_32_note": "v5.32.0 'Implement Task Isolation'. The 16000 budget leaves a 20% margin over the ideal 20k declared in the SKILL.md for the Task's response tokens (~4k). UC-12210: the budget mode is the EP-20 measure context_budget of the board's policy (warn unless a person changes it with set_enforcement_mode); write task_budget_mode (off | warn | block) in settings.local.json only to override it on this machine."
     }
   },
+  "drift": {
+    "_comment": "Puerta de desviación (specbox drift, UC-12602): ficheros que no cuentan y ramas que no llevan UC por diseño.",
+    "exclude": [],
+    "skip_branch_prefixes": ["dependabot/", "deps/", "docs/", "ci/", "release/"]
+  },
   "stitch": {
     "projectId": "{STITCH_PROJECT_ID}",
     "deviceType": "DESKTOP",

@@ -100,6 +100,8 @@ def build_drift_report(
     dependencies_added: list[dict[str, str]] | None = None,
     exclude: list[str] | None = None,
     known_ucs: set[str] | None = None,
+    repo: str | None = None,
+    satellite: str | None = None,
 ) -> dict[str, Any]:
     """El informe de la puerta (UC-12602 AC-01 a AC-04, UC-12603 AC-02 y AC-03).
 
@@ -155,7 +157,9 @@ def build_drift_report(
         if f"{ecosystem_key(d.get('ecosystem', ''))}:{dependency_key(d.get('ecosystem', ''), d['name'])}" not in declared
     ]
 
-    touches = closed_uc_touches(closed or [], [f["path"] for f in report_files if "excluded_by" not in f], branch)
+    touches = closed_uc_touches(
+        closed or [], [f["path"] for f in report_files if "excluded_by" not in f], branch, repo=repo, satellite=satellite,
+    )
     out: dict[str, Any] = {
         "uc_ids": branch,
         "plans": [
@@ -167,6 +171,7 @@ def build_drift_report(
         "excluded": excluded,
         "dependencies": {"added": added, "undeclared": undeclared, "plans_without_section": plans_without_section},
         "closed_touches": touches["touches"],
+        "closed_touches_total": touches["touches_total"],
         "closed_without_files": touches["closed_without_files"],
         "ok": not unclaimed and not undeclared,
     }

@@ -105,7 +105,9 @@ MAX_DRIFT_FILES = 5000
 MAX_PLAN_BYTES = 2_000_000
 
 
-async def _board_backend(ctx: Context, board_id: str, items_content: str | None) -> tuple[Any | None, str]:
+async def _board_backend(
+    ctx: Context, board_id: str, items_content: str | None, backend_type: str = ""
+) -> tuple[Any | None, str]:
     """El tablero para leer, y su tipo: la sesión; si no hay, el ``items.json`` de FreeForm que llega o
     el tablero native del proyecto con el token de la conexión (la identidad del dispositivo, como
     ``set_auth_token``). ``(None, motivo)`` si no hay forma de leerlo."""
@@ -119,6 +121,8 @@ async def _board_backend(ctx: Context, board_id: str, items_content: str | None)
         from ..backends.freeform_backend import FreeformBackend
 
         return FreeformBackend(items_content=items_content), "freeform"
+    if backend_type and backend_type != "native":
+        return None, f"el tablero {backend_type} no se lee sin su sesión: solo cuenta el plan"
     from ..coordination.transport_auth import transport_token
     from .session_heartbeat import PROJECT_ID
 
@@ -162,6 +166,9 @@ async def get_drift_report(
     exclude: list[str] | None = None,
     items_content: str | None = None,
     policy_content: str | None = None,
+    repo: str | None = None,
+    satellite: str | None = None,
+    backend_type: str = "",
 ) -> dict[str, Any]:
     """The drift gate's report for a branch (UC-12602). Read-only; `specbox drift` calls it.
 
@@ -174,6 +181,11 @@ async def get_drift_report(
         exclude: The project's exclusion globs (specbox.drift.exclude).
         items_content: FreeForm content-passing: the whole items.json.
         policy_content: FreeForm: doc/tracking/policy.json, for the mode of the measure.
+        repo: The branch's repository («owner/name»); satellite: its satellite in multirepo. Only
+            closed UCs of the same repository are reported.
+        backend_type: The board's backend as the project declares it (native, freeform, trello,
+            plane): without a board session, only a native board is opened with the connection's
+            identity.
 
     Returns:
         `files` (each with `claimed_by`, `source` plan|receipt|plan+receipt, or `excluded_by`),
@@ -195,16 +207,14 @@ async def get_drift_report(
     known: set[str] | None = None
     board_note = "leído"
     mode = "warn"
-    backend, backend_type = await _board_backend(ctx, board_id, items_content)
+    backend, backend_type = await _board_backend(ctx, board_id, items_content, backend_type)
     if backend is None:
         board_note = backend_type
     else:
         try:
+            items = await backend.list_board_summary(board_id)
             if getattr(backend, "STORES_SPEC_META", False):
-                items = await backend.list_board_summary(board_id)
-                closed = closed_ucs_of(items)
-            else:
-                items = await backend.list_board_summary(board_id)
+                closed = closed_ucs_of(await backend.list_done_ucs(board_id))
             ucs = {_get_uc_id(i).upper(): i for i in items if _is_uc(i)}
             known = set(ucs)
             for uc_id in branch:
@@ -230,7 +240,7 @@ async def get_drift_report(
 
     report = build_drift_report(
         files=files, uc_ids=branch, contracts=contracts, receipts=receipts, closed=closed,
-        dependencies_added=dependencies_added, exclude=exclude, known_ucs=known,
+        dependencies_added=dependencies_added, exclude=exclude, known_ucs=known, repo=repo, satellite=satellite,
     )
     return {"success": True, "board": board_note, "mode": mode, **report}
 

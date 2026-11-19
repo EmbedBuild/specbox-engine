@@ -115,9 +115,28 @@ export function resolveBoard(root) {
   return { ...orch, root, orchestratorRoot, satellite: true };
 }
 
-/** `specbox.drift` del `.claude/settings.json` del repo: exclusiones y prefijos de rama sin UC. */
+/** «owner/nombre» del remoto origin (GitHub por https o ssh), o null. */
+export function repoOf(root) {
+  const url = gitOr(root, ["remote", "get-url", "origin"]).trim();
+  const m = url.match(/[/:]([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?\/?$/);
+  return m ? `${m[1]}/${m[2]}` : null;
+}
+
+/** El nombre del satélite de este repo en el orquestador (multirepo.satellites), o null. */
+export function satelliteOf(board) {
+  if (!board.satellite) return null;
+  const satellites = readJson(join(board.orchestratorRoot, ".claude", "settings.local.json"))?.multirepo?.satellites;
+  if (!satellites || typeof satellites !== "object") return null;
+  for (const [name, entry] of Object.entries(satellites)) {
+    if (typeof entry?.path === "string" && resolve(board.orchestratorRoot, entry.path) === resolve(board.root)) return name;
+  }
+  return null;
+}
+
+/** `drift` (o `specbox.drift`) del `.claude/settings.json` del repo: exclusiones y prefijos de rama sin UC. */
 export function driftSettings(root) {
-  const settings = readJson(join(root, ".claude", "settings.json"))?.specbox?.drift ?? {};
+  const json = readJson(join(root, ".claude", "settings.json")) ?? {};
+  const settings = json.specbox?.drift ?? json.drift ?? {};
   const list = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim()) : null);
   return { exclude: list(settings.exclude) ?? [], skipPrefixes: list(settings.skip_branch_prefixes) ?? DEFAULT_SKIP_PREFIXES };
 }
@@ -384,18 +403,23 @@ export async function runDrift(opts, deps = {}) {
   const { ucs, source } = branchUcs(root, base, branch);
   const args = {
     board_id: board.boardId,
+    backend_type: board.backendType,
     files,
     uc_ids: ucs,
     plan_contents: plansFor(board.orchestratorRoot, ucs),
     dependencies_added: addedDependencies(root, base, files),
     exclude: settings.exclude,
   };
+  const repo = repoOf(root);
+  const satellite = satelliteOf(board);
+  if (repo) args.repo = repo;
+  if (satellite) args.satellite = satellite;
   if (board.backendType === "freeform") {
     const tracking = board.freeformRoot || join(board.orchestratorRoot, "doc", "tracking");
     try {
       args.items_content = readFileSync(join(tracking, "items.json"), "utf8");
     } catch {
-      // sin items.json: solo el plan
+      return finish(0, "saltado", `El tablero FreeForm no está en este equipo (${join(tracking, "items.json")}): la puerta no se ejecuta.`);
     }
     try {
       args.policy_content = readFileSync(join(tracking, "policy.json"), "utf8");

@@ -20,6 +20,8 @@
  *
  * Argumentos opcionales:
  *   --video build/maestro/UC-001/recording.mp4    Embed video link in report
+ *   --contract <contract.json>                    The UC's contract (UC-12801); default: next to the report
+ *   --flows .maestro                              Flows with their «# contract: AC-01.pre1, AC-01.post1» comment
  *
  * SpecBox Engine v5.28.0
  */
@@ -43,6 +45,134 @@ const junitPath = getArg('--junit');
 const screenshotsDir = getArg('--screenshots') || 'build/maestro';
 const videoPath = getArg('--video');
 const outputPath = getArg('--output') || `.quality/evidence/${feature}/acceptance/e2e-evidence-report.html`;
+const contractArg = getArg('--contract'); // UC-12801: contract.json (default: next to the report)
+const flowsDir = getArg('--flows') || '.maestro'; // UC-12801: flows with their «# contract:» comment
+let CONTRACT = null;
+
+// ---------------------------------------------------------------------------
+// Contract (US-128 · UC-12801) — the same block in the three evidence generators
+// (api, maestro, patrol); tests/hooks/evidence-generators-contract.test.mjs checks it.
+//
+// Each test cites the conditions of contract.json it checks: Gherkin tags
+// (@pre:AC-01.pre1 @post:AC-01.post1) or a «contract:» comment in the flow or the test
+// (# contract: AC-01.pre1, AC-01.post1). They go to results[].contract, and the
+// report shows the UC's contract (--contract, or contract.json next to the report)
+// in the card of each criterion.
+// ---------------------------------------------------------------------------
+const CONTRACT_CONDITION_RE = /^AC-(\d{1,4})\.(pre|post)(\d{1,4})$/i;
+
+function normalizeConditionId(raw) {
+  const m = CONTRACT_CONDITION_RE.exec(String(raw).trim());
+  return m ? `AC-${String(Number(m[1])).padStart(2, '0')}.${m[2].toLowerCase()}${Number(m[3])}` : null;
+}
+
+/** Citations from Gherkin tags: the tag says the kind (@pre: / @post:). */
+function citationsFromTags(tags) {
+  const out = { pre: [], post: [] };
+  for (const tag of tags || []) {
+    const m = /^@?(pre|post):(.+)$/i.exec(String(tag).trim());
+    if (!m) continue;
+    const kind = m[1].toLowerCase();
+    const id = normalizeConditionId(m[2]) || m[2].trim();
+    if (!out[kind].includes(id)) out[kind].push(id);
+  }
+  return out;
+}
+
+/** Citations from a «contract:» comment: the id says the kind (AC-01.pre1, AC-01.post1). */
+function citationsFromComment(text) {
+  const out = { pre: [], post: [] };
+  for (const part of String(text || '').split(/[\s,;]+/).filter(Boolean)) {
+    const id = normalizeConditionId(part);
+    if (!id) continue;
+    const kind = id.includes('.pre') ? 'pre' : 'post';
+    if (!out[kind].includes(id)) out[kind].push(id);
+  }
+  return out;
+}
+
+const hasCitations = (c) => !!c && (c.pre.length > 0 || c.post.length > 0);
+
+/** The UC's contract.json (--contract, or next to the report), or null. Never fails the report. */
+function loadContract(explicitPath, reportDir) {
+  const candidate = explicitPath || path.join(reportDir, 'contract.json');
+  if (!fs.existsSync(candidate)) {
+    if (explicitPath) console.error(`WARNING: contract not found at ${explicitPath}`);
+    return null;
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(candidate, 'utf-8'));
+    const criteria = {};
+    for (const [key, entry] of Object.entries((data && data.criteria) || {})) {
+      const m = /^AC-(\d{1,4})$/i.exec(String(key).trim());
+      if (m && entry && typeof entry === 'object') criteria[`AC-${String(Number(m[1])).padStart(2, '0')}`] = entry;
+    }
+    return { criteria };
+  } catch (e) {
+    console.error(`WARNING: contract at ${candidate} is not valid JSON (${e.message})`);
+    return null;
+  }
+}
+
+/** The contract of a criterion in its card, with the conditions this test cites marked. */
+function contractHtml(contract, acId, cited) {
+  if (!contract) return '';
+  const entry = contract.criteria[acId];
+  const box = 'margin-top:8px;padding:8px 12px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px';
+  if (!entry) {
+    return `<div class="contract" style="${box};color:#b45309">Sin contrato para este criterio</div>`;
+  }
+  const all = [...((cited && cited.pre) || []), ...((cited && cited.post) || [])];
+  const conditions = (list) => (Array.isArray(list) ? list : []).map((c) => {
+    const id = normalizeConditionId(c && c.id) || String((c && c.id) || '');
+    const mark = all.includes(id) ? ' <strong title="comprobada por esta prueba">✓</strong>' : '';
+    return `<li><code>${escapeHtml(id)}</code> ${escapeHtml((c && c.text) || '')}${mark}</li>`;
+  }).join('');
+  const undef = (Array.isArray(entry.undefined) ? entry.undefined : [])
+    .map((u) => `<li>${escapeHtml(u)}</li>`).join('') || '<li>Nada</li>';
+  return `<div class="contract" style="${box}">
+        <div style="font-weight:600;margin-bottom:4px">Contrato</div>
+        <div>Precondiciones</div><ul style="margin:2px 0 6px 18px;padding:0">${conditions(entry.pre)}</ul>
+        <div>Postcondiciones</div><ul style="margin:2px 0 6px 18px;padding:0">${conditions(entry.post)}</ul>
+        <div>Sin definir</div><ul style="margin:2px 0 0 18px;padding:0">${undef}</ul>
+      </div>`;
+}
+
+/** Which «contract:» comment belongs to a test: by its name, else the only one of its criterion. */
+function matchCitations(result, sources, results) {
+  const byName = sources.find((s) => s.names.some((n) => n && (result.scenario === n || result.scenario.includes(n))));
+  if (byName) return byName.citations;
+  const sameAc = results.filter((r) => r.id === result.id);
+  if (sameAc.length !== 1) return null;
+  const mine = sources.filter((s) => [...s.citations.pre, ...s.citations.post].every((id) => id.startsWith(`${result.id}.`))
+    && hasCitations(s.citations));
+  return mine.length === 1 ? mine[0].citations : null;
+}
+// --- end of the contract block ---
+
+/** The flows with their «# contract:» comment (UC-12801), by flow name and file name. */
+function collectFlowCitations(dir) {
+  const out = [];
+  if (!dir || !fs.existsSync(dir)) return out;
+  const walk = (d) => {
+    for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+      const full = path.join(d, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+        continue;
+      }
+      if (!/\.ya?ml$/i.test(entry.name)) continue;
+      const text = fs.readFileSync(full, 'utf-8');
+      const comments = [...text.matchAll(/^\s*#\s*contract:\s*(.+)$/gim)].map((m) => m[1]).join(',');
+      if (!comments) continue;
+      const header = text.split(/^---\s*$/m)[0];
+      const name = (header.match(/^name:\s*["']?(.+?)["']?\s*$/m) || [])[1];
+      out.push({ names: [name, entry.name.replace(/\.ya?ml$/i, '')].filter(Boolean), citations: citationsFromComment(comments) });
+    }
+  };
+  walk(dir);
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Parse JUnit XML (minimal parser — no dependencies)
@@ -153,6 +283,12 @@ function buildResults(parsed, screenshots) {
   });
 }
 
+/** Each result with the citations of its flow (UC-12801). */
+function attachCitations(results, sources) {
+  for (const r of results) r.contract = matchCitations(r, sources, results) || { pre: [], post: [] };
+  return results;
+}
+
 // ---------------------------------------------------------------------------
 // Generate HTML — same shape as patrol-evidence-generator.js so AG-09b
 // and validate-results-json.js cannot tell the difference.
@@ -183,6 +319,7 @@ function generateHtml(results, totalTests, totalPass, totalFail, passRate) {
       </div>
       ${imgs}
       <div style="margin-top:4px;font-size:12px;color:#9ca3af">Duration: ${r.duration_ms}ms</div>
+      ${contractHtml(CONTRACT, r.id, r.contract)}
       ${errorBlock}
     </div>`;
   }).join('\n');
@@ -282,6 +419,7 @@ function generateResultsJson(results, totalTests, totalPass, totalFail) {
       duration_ms: r.duration_ms,
       evidence: r.screenshots.length > 0 ? `${r.screenshots[0].name}.png` : null,
       error: r.error,
+      ...(hasCitations(r.contract) ? { contract: r.contract } : {}),
     })),
   };
 }
@@ -306,12 +444,13 @@ function main() {
   const screenshots = collectScreenshots(screenshotsDir);
   console.log(`Found ${Object.keys(screenshots).length} screenshots in ${screenshotsDir}`);
 
-  const results = buildResults(parsed, screenshots);
+  const results = attachCitations(buildResults(parsed, screenshots), collectFlowCitations(flowsDir));
   const totalTests = results.length || parsed.totalFromSuite;
   const totalPass = results.filter(r => r.status === 'PASS').length;
   const totalFail = results.filter(r => r.status === 'FAIL').length;
   const passRate = totalTests > 0 ? Math.round((totalPass / totalTests) * 100) : 0;
 
+  CONTRACT = loadContract(contractArg, path.dirname(outputPath));
   const html = generateHtml(results, totalTests, totalPass, totalFail, passRate);
 
   const outputDir = path.dirname(outputPath);

@@ -28,6 +28,8 @@
 │  │  Request/Response log (JSON formateado)│      │
 │  └────────────────────────────────────────┘      │
 │  Steps: Dado ✓ → Cuando ✓ → Entonces ✓ (1.2s)  │
+│  Contrato: pre AC-01.pre1 … ✓ · post … ✓        │
+│            sin definir: …                        │
 ├──────────────────────────────────────────────────┤
 │  AC-02: Texto del escenario          [FAIL]      │
 │  ┌────────────────────────────────────────┐      │
@@ -47,7 +49,16 @@
 
 ## Input
 
-El report se genera desde `results.json` (ver `doc/specs/results-json-spec.md`).
+El report se genera desde `results.json` (ver `doc/specs/results-json-spec.md`) y, si existe, el
+`contract.json` de la UC junto a él (UC-12801).
+
+## Contrato de cada criterio (UC-12801)
+
+Cada tarjeta enseña, después de los steps y la duración, el contrato de su criterio: las
+precondiciones y las postcondiciones con su id y su texto (las que cita esa prueba en
+`results[].contract`, marcadas con ✓) y lo no definido («Nada» si la lista está vacía). Un criterio
+sin entrada en el contrato dice «Sin contrato para este criterio». Sin `contract.json` no hay
+bloque.
 
 ---
 
@@ -174,6 +185,15 @@ Cuando `evidence` es null (no se capturó): mostrar placeholder gris con texto "
     </div>
     <div class="duration">Duration: ${durationMs}ms</div>
 
+    <!-- CONTRACT (UC-12801, if contract.json exists) -->
+    <div class="contract">
+      <div>Contrato</div>
+      <div>Precondiciones</div><ul><li><code>${preId}</code> ${preText} ${citedMark}</li></ul>
+      <div>Postcondiciones</div><ul><li><code>${postId}</code> ${postText} ${citedMark}</li></ul>
+      <div>Sin definir</div><ul><li>${undefinedText}</li></ul>
+    </div>
+    <!-- or: <div class="contract">Sin contrato para este criterio</div> -->
+
     <!-- ERROR (only if FAIL) -->
     <pre class="error-block">${errorMessage}</pre>
   </div>
@@ -194,9 +214,10 @@ Cuando `evidence` es null (no se capturó): mostrar placeholder gris con texto "
 | Stack | Generador | Input |
 |-------|-----------|-------|
 | Flutter Web | Inline en step definitions (Playwright `afterAll`) | Playwright HTML + cucumber JSON |
-| Flutter Mobile | `.quality/scripts/patrol-evidence-generator.js` | JUnit XML + screenshots |
+| Flutter Mobile | `.quality/scripts/maestro-evidence-generator.js` (recomendado) | JUnit XML + screenshots + flujos con `# contract:` |
+| Flutter Mobile | `.quality/scripts/patrol-evidence-generator.js` | JUnit XML + screenshots + tests con `// contract:` |
 | React | Inline en step definitions (Playwright `afterAll`) | Playwright HTML + cucumber JSON |
-| Python | `.quality/scripts/api-evidence-generator.js` | cucumber JSON + response logs |
+| Python | `.quality/scripts/api-evidence-generator.js` | cucumber JSON (con `@pre:`/`@post:`) + response logs |
 
 Todos producen el mismo HTML. AG-09b no distingue el origen.
 

@@ -1757,7 +1757,9 @@ def _criterion_links(
         from ..plan_contract import phase_named, phase_of
 
         # La fase que dice el recibo, si el plan la tiene; si no, la primera que nombra el criterio.
-        phase = (phase_named(contract, links["phase"]) if links["phase"] else None) or phase_of(contract, uc_id, ac_id)
+        phase = (phase_named(contract, links["phase"], uc_id, ac_id) if links["phase"] else None) or phase_of(
+            contract, uc_id, ac_id
+        )
         if phase is not None:
             if links["phase"] is None:
                 links["phase"] = phase.title
@@ -2606,7 +2608,7 @@ async def mark_ac_batch(
             line = f"  {d['ac_id']}: {status_text}"
             if d["receipt"]:
                 # One line per AC: a multi-line receipt would break the batch format.
-                line += " — " + " ".join(evidence_comment_text(d["receipt"]).split())
+                line += " — " + evidence_comment_text(d["receipt"], single_line=True)
             comment_lines.append(line)
         # UC-12604: con ficheros en los recibos el comentario crece; Trello no admite más de 16 384
         # caracteres, así que va en varios comentarios, cada uno con su cabecera.

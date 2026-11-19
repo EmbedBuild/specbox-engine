@@ -36,6 +36,8 @@ _FIELDS = ("type", "label", "link", "detail", "commit", "repo", "files", "test",
 MAX_RECEIPT_FILES = 50
 MAX_RECEIPT_TEXT = 300
 MAX_PHASE_TEXT = 200
+#: Una ruta de `files` no pasa de esto: 50 rutas caben con holgura en un comentario de Trello (16 384).
+MAX_RECEIPT_PATH = 200
 
 #: UC-11702: el commit con el que se comprobó el criterio (lo manda quien marca:
 #: el servidor no ve su git) y el repositorio donde vive, para enlazarlo.
@@ -157,8 +159,10 @@ def _receipt_files(raw: Any) -> list[str]:
         path = path.strip().replace("\\", "/")
         if not path:
             continue
-        if path.startswith("/") or ".." in path.split("/") or len(path) > MAX_RECEIPT_TEXT or "\n" in path:
+        if path.startswith("/") or ".." in path.split("/") or "\n" in path:
             raise EvidenceError(f"evidence.files: {path!r} tiene que ser una ruta relativa al repositorio, sin «..»")
+        if len(path) > MAX_RECEIPT_PATH:
+            raise EvidenceError(f"evidence.files: una ruta admite como mucho {MAX_RECEIPT_PATH} caracteres")
         if path not in clean:
             clean.append(path)
     if len(clean) > MAX_RECEIPT_FILES:
@@ -177,7 +181,7 @@ def _receipt_text(raw: Any, key: str, limit: int) -> str | None:
     return value or None
 
 
-def evidence_comment_text(evidence: dict[str, Any]) -> str:
+def evidence_comment_text(evidence: dict[str, Any], *, single_line: bool = False) -> str:
     """Texto de la evidencia en el comentario de la UC.
 
     Una evidencia en texto libre se escribe tal cual, así el comentario de las
@@ -187,7 +191,16 @@ def evidence_comment_text(evidence: dict[str, Any]) -> str:
     `evidence_from_comments` los recupera, así Trello y Plane guardan el recibo
     entero como native y FreeForm. El bloque es JSON y se valida al leerlo: un
     texto que solo diga «· fase …» no se toma por un recibo.
+
+    ``single_line`` (el comentario de un lote, una línea por criterio) junta los
+    espacios de la etiqueta, el enlace y el detalle, pero no los del bloque JSON,
+    que nunca lleva saltos de línea: una ruta con dos espacios vuelve igual.
     """
+    if single_line:
+        evidence = {
+            **evidence,
+            **{key: " ".join(str(evidence[key]).split()) for key in ("label", "link", "detail") if evidence.get(key)},
+        }
     commit = evidence.get("commit")
     links = {key: evidence[key] for key in RECEIPT_LINKS if evidence.get(key)}
     if (

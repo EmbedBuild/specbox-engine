@@ -24,15 +24,18 @@ from typing import Any
 
 _HEADING = re.compile(r"^(#{2,4})\s+(.+?)\s*$")
 _FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
-#: «Fase 2: …», «Fase 2 · …», «Fase 2 (UC-1) …», «Fase 2» sola; no «Fase 2 bloqueada» ni «Fase 2.1».
-_PHASE_TITLE = re.compile(r"^(?:\W+\s*)?(?:fase|phase)\s+(\d+)\s*(?:[:·—–(\[-]|$)", re.IGNORECASE)
-#: La UC de una fase: entre paréntesis o corchetes, al principio del título o justo tras «Fase N ·».
+#: «Fase 2: …», «Fase 2. …», «Fase 2 · …», «Fase 2 (UC-1) …», «Fase 2» sola; no «Fase 2 bloqueada» ni
+#: «Fase 2.1».
+_PHASE_TITLE = re.compile(r"^(?:\W+\s*)?(?:fase|phase)\s+(\d+)\s*(?:[:·—–(\[-]|\.(?!\d)|$)", re.IGNORECASE)
+#: La UC de una fase: al principio del título, o justo tras «Fase N» (entre paréntesis o corchetes, o
+#: tras «·», «:» o una raya). Una UC citada más adelante en el título no es la de la fase.
 _HEADING_UC = re.compile(
-    r"[(\[]\s*(UC-\d+[a-z]?)\s*[)\]]"
-    r"|^(?:\W+\s*)?(UC-\d+[a-z]?)\b"
-    r"|^(?:\W+\s*)?(?:fase|phase)\s+\d+\s*[:·—–-]\s*(UC-\d+[a-z]?)\b",
+    r"^(?:\W+\s*)?(UC-\d+[a-z]?)\b"
+    r"|^(?:\W+\s*)?(?:fase|phase)\s+\d+\s*(?:[(\[]\s*|[:.·—–-]\s*)(UC-\d+[a-z]?)\b",
     re.IGNORECASE,
 )
+#: Una casilla de criterio («- [ ] UC-1 AC-01», «- [x] AC-02: texto»), que sí es parte de la lista.
+_CRITERION_ITEM = re.compile(r"^\s*[-*]\s+\[[ xX]\]\s+\**\s*(?:UC-\d+[a-z]?\b|AC-\d+\b)", re.IGNORECASE)
 _CHECKBOX = re.compile(r"^\s*[-*]\s+\[[ xX]\]")
 _CRITERIA_LINE = re.compile(r"^\s*[-*]?\s*\*\*Criterios:?\*\*:?\s*(.*)$", re.IGNORECASE)
 _FILES_LINE = re.compile(r"^\s*[-*]?\s*\*\*Ficheros:?\*\*:?\s*(.*)$", re.IGNORECASE)
@@ -229,8 +232,10 @@ def parse_plan_contract(plan_content: str, *, default_uc: str | None = None) -> 
             continue
         if collecting:
             item = _LIST_ITEM.match(line)
-            # La lista acaba en la primera línea en blanco tras algún elemento o en una tarea «- [ ]».
-            if item and not _CHECKBOX.match(line):
+            # La lista acaba en la primera línea en blanco tras algún elemento o en una tarea «- [ ]»
+            # (una casilla que empieza por su criterio sí es de la lista de criterios).
+            is_criterion = collecting == "criteria" and _CRITERION_ITEM.match(line)
+            if item and (not _CHECKBOX.match(line) or is_criterion):
                 collected += 1
                 if collecting == "criteria":
                     current.criteria += [c for c in _criteria_of(item[1], current.uc) if c not in current.criteria]
@@ -319,17 +324,31 @@ def _title_key(title: str) -> str:
     return " ".join((title or "").split()).casefold()
 
 
-def phase_named(contract: PlanContract, title: str) -> Phase | None:
-    """La fase del plan con ese título; si no hay ninguna igual y el título es «Fase N», la fase N."""
-    key = _title_key(title)
-    for phase in contract.phases:
-        if _title_key(phase.title) == key:
-            return phase
+def _covers(contract: PlanContract, phase: Phase, uc_id: str, ac_id: str) -> bool:
+    key = normalize_ac(ac_id)
+    return any(ac == key and _matches(contract, uc, uc_id) for uc, ac in phase.criteria)
+
+
+def phase_named(contract: PlanContract, title: str, uc_id: str, ac_id: str) -> Phase | None:
+    """La fase del plan que nombra un recibo, para ese criterio.
+
+    Con el mismo título: la que cubre la UC y el criterio, o la única con ese título. Si no hay ninguna
+    con ese título y es «Fase N» (el plan se renumeró o el recibo abrevia), solo una fase N que cubra
+    la UC y el criterio. Si no, None: quien llama usa la primera fase que nombra el criterio.
+    """
+    same = [p for p in contract.phases if _title_key(p.title) == _title_key(title)]
+    covering = [p for p in same if _covers(contract, p, uc_id, ac_id)]
+    if covering:
+        return covering[0]
+    if len(same) == 1:
+        return same[0]
+    if same:
+        return None
     number = _PHASE_TITLE.match(title or "")
     if number:
         for phase in contract.phases:
             own = _PHASE_TITLE.match(phase.title)
-            if own and own[1] == number[1]:
+            if own and own[1] == number[1] and _covers(contract, phase, uc_id, ac_id):
                 return phase
     return None
 

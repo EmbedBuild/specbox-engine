@@ -13,14 +13,17 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 
 from server.ac_evidence import EvidenceError, evidence_comment_text, evidence_from_comments, normalize_evidence
+from server.backends.plane_backend import PlaneBackend
 from server.plan_contract import (
     CONTRACT_NOTICE_OLD_PLAN,
     incomplete_phases,
     parse_plan_contract,
+    phase_named,
     phase_of,
     uncovered_criteria,
 )
@@ -172,6 +175,45 @@ def test_only_package_managers_count_as_new_dependencies():
                     {"ecosystem": "pypi", "name": "httpx>=0.27"}, {"ecosystem": "pypi", "name": "anyio"}]
 
 
+def test_criteria_written_as_checkboxes_are_part_of_the_list():
+    plan = """### Fase 1. Base
+**Criterios:**
+- [ ] UC-1 AC-01
+- [x] **AC-02**: queda registrado
+- [ ] Revisar con el equipo
+**Ficheros:** a.py
+### Fase 2: Igual que en [UC-12501]
+**Criterios:** AC-03
+**Ficheros:** b.py
+"""
+    contract = parse_plan_contract(plan, default_uc="UC-1")
+    assert contract.contract_version == 1 and [p.title for p in contract.phases] == ["Fase 1. Base", "Fase 2: Igual que en [UC-12501]"]
+    assert contract.phases[0].criteria == [("UC-1", "AC-01"), ("UC-1", "AC-02")]
+    assert contract.phases[1].criteria == [("UC-1", "AC-03")]  # citar [UC-12501] no la hace suya
+
+
+def test_the_phase_a_receipt_names_is_the_one_of_its_uc_and_criterion():
+    plan = """## UC-1
+### Fase 1: Preparación
+**Criterios:** UC-1 AC-01
+**Ficheros:** uc1/a.py
+## UC-2
+### Fase 1: Preparación
+**Criterios:** UC-2 AC-01
+**Ficheros:** uc2/a.py
+### Fase 2: Cobro
+**Criterios:** UC-2 AC-02
+**Ficheros:** uc2/cobro.py
+"""
+    contract = parse_plan_contract(plan)
+    assert phase_named(contract, "Fase 1: Preparación", "UC-2", "AC-01").files == ["uc2/a.py"]
+    assert _criterion_links([{"phase": "Fase 1: Preparación"}], contract, "UC-2", "AC-01")["plan_files"] == ["uc2/a.py"]
+    # Renumerado: «Fase 1: Cobro» no está; la fase 1 no cubre el criterio, así que no se toma por ella.
+    assert phase_named(contract, "Fase 1: Cobro", "UC-2", "AC-02") is None
+    links = _criterion_links([{"phase": "Fase 1: Cobro"}], contract, "UC-2", "AC-02")
+    assert (links["phase"], links["plan_files"]) == ("Fase 1: Cobro", ["uc2/cobro.py"])
+
+
 def test_a_list_ends_at_the_first_blank_line_or_task():
     plan = """### Fase 1: Base
 **Criterios:**
@@ -239,7 +281,7 @@ def test_a_receipt_keeps_files_test_and_phase_only_when_given():
     assert receipt["test"] == "tests/test_cobros.py::test_registra" and receipt["phase"] == "Fase 1: Registro"
     plain = normalize_evidence({"type": "url", "label": "x"})
     assert set(plain) == {"type", "label", "link", "detail", "commit", "repo"}  # los de siempre, sin cambios
-    for bad in (["../etc/passwd"], ["/abs/path"], "server/x.py", [f"f{i}.py" for i in range(51)]):
+    for bad in (["../etc/passwd"], ["/abs/path"], "server/x.py", [f"f{i}.py" for i in range(51)], ["d/" + "x" * 200]):
         with pytest.raises(EvidenceError):
             normalize_evidence({"type": "test", "label": "x", "files": bad})
 
@@ -275,6 +317,36 @@ def test_a_receipt_that_only_mentions_a_phase_in_its_text_reads_as_before():
     fake = "AC-03: PASSED — [test] t.py · recibo {\"otra\": 1} [2026-11-19 01:00 UTC]"
     [kept] = evidence_from_comments([{"text": fake}])["AC-03"]
     assert kept["label"] == 't.py · recibo {"otra": 1}' and "phase" not in kept  # un JSON que no es el recibo
+
+
+async def test_plane_gives_back_the_receipt_it_was_given():
+    """AC-02 en Plane: el comentario se guarda escapado como HTML y se lee sin el escape."""
+    stored: list[dict] = []
+    client = AsyncMock()
+
+    async def create(board, item, comment_html):
+        stored.append({"id": f"c{len(stored)}", "comment_html": comment_html, "created_at": "", "actor_detail": {}})
+        return stored[-1]
+
+    client.create_comment.side_effect = create
+    client.list_comments.side_effect = lambda board, item: stored
+    plane = PlaneBackend(base_url="https://plane.example.com", api_key="k", workspace_slug="ws")
+    plane.client = client
+    receipt = normalize_evidence({"type": "test", "label": "tests/a.feature: Cobro", "link": "https://ci/1?a=1&b=2",
+                                  "detail": "PASS", "test": "t.py::x", "phase": "Fase 1: Cobro", "files": ["a b.py", "c&d.py"]})
+    await plane.add_comment("b", "i", f"AC-01: PASSED — {evidence_comment_text(receipt)} [2026-11-19 01:00 UTC]")
+    assert "&quot;" in stored[0]["comment_html"]  # Plane lo guarda escapado
+    [read] = evidence_from_comments(await plane.get_comments("b", "i"))["AC-01"]
+    assert (read["label"], read["link"], read["detail"]) == ("tests/a.feature: Cobro", "https://ci/1?a=1&b=2", "PASS")
+    assert (read["test"], read["phase"], read["files"]) == ("t.py::x", "Fase 1: Cobro", ["a b.py", "c&d.py"])
+
+
+def test_a_batch_line_keeps_the_receipt_block_as_written():
+    receipt = normalize_evidence({"type": "test", "label": "Cobro\n  de   humo", "files": ["dir/a  b.py"], "phase": "Fase\u00a01"})
+    line = evidence_comment_text(receipt, single_line=True)
+    assert "\n" not in line and line.startswith("[test] Cobro de humo · recibo ")
+    [read] = evidence_from_comments([{"text": f"Validacion AG-09b [2026-11-19 01:00 UTC]:\n  AC-01: PASSED — {line}"}])["AC-01"]
+    assert read["files"] == ["dir/a  b.py"] and read["phase"] == receipt["phase"]
 
 
 def test_a_long_batch_comment_goes_in_several_comments_that_read_the_same():

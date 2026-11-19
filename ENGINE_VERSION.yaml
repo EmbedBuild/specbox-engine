@@ -1,5 +1,5 @@
-version: 6.44.0
-codename: "Visto previo"
+version: 6.45.0
+codename: "Hilo conductor"
 brand: "SpecBox Engine"
 brand_full: "SpecBox Engine by JPS"
 release_date: 2026-11-19
@@ -659,8 +659,22 @@ features:
   # New (v6.44.0) — Visto previo
   - approve-criteria
   - measure-ac-approval
+  # New (v6.45.0) — Hilo conductor
+  - plan-contract
+  - receipt-files-test-phase
+  - plan-comparison
+  - acceptance-by-tests
 
 changelog:
+  6.45.0:
+    date: 2026-11-19
+    codename: "Hilo conductor"
+    changes:
+      - "feat: the plan contract: each phase of a /plan plan carries **Criterios:** and **Ficheros:** lines and the plan a «## Dependencias nuevas» section; server/plan_contract.py reads it (contract_version 1, 0 for an older plan, never guessed; code blocks are examples); new tool check_plan_contract returns uncovered, incomplete_phases, unattributed and ok; /plan calls it before delivering and /implement at the start (UC-12604, #397)"
+      - "feat: a criterion's receipt takes files (up to 50 relative paths), test and phase; native and FreeForm keep them with the receipt, Trello and Plane in the comment in a validated « · recibo {…}» JSON block; get_uc returns phase, files and test per criterion and the plan's expected files apart in plan_files; Plane now undoes the HTML escaping of its comments, so links come back too (UC-12604, #397)"
+      - "feat: the close compares what was done with the plan: aggregate_phase_outputs(plan_content) compares each phase_outputs line with the plan's «Fase N» it names (new plan_phase field, by number), lists what is extra and missing (up to 50 of each with the total) and returns plan_comparison for the executed phases; without a comparison it says the true reason, never a deviation (UC-12601, #398)"
+      - "feat: run_acceptance_check judges each criterion by its tagged tests in results_content (latest run wins, FAIL fails, SKIP is no result, without a test «Sin prueba»); an unreadable results.json is INVALID_RESULTS, never the old id search; the criteria reader skips «Implementation Status» sections; regenerate_evidence passes each UC's results.json; the Spec-Code Sync note of UC-12204 is retired (UC-12601, #398)"
+
   6.44.0:
     date: 2026-11-19
     codename: "Visto previo"

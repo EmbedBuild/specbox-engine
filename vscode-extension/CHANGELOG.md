@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.45.0] — "Hilo conductor"
+
+- No changes in the extension itself. The version follows the engine, where each plan phase names its
+  criteria and files, a criterion's receipt names the files and the test behind it, and the close
+  compares the work with the plan and judges each criterion by its test.
+
 ## [6.44.0] — "Visto previo"
 
 - No changes in the extension itself. The version follows the engine, where a person approves a UC's

@@ -848,6 +848,16 @@ class SpecBackend(ABC):
     # database pooler, and a tool about one UC used to read every story, UC and
     # criterion of the project.
 
+    async def list_done_ucs(self, board_id: str) -> list[ItemDTO]:
+        """The board's stories and its UCs in «done», with their whole meta (UC-12603).
+
+        The drift gate reads ``meta.closed_files`` of the closed UCs from here: the whole-board
+        summaries (``list_board_summary``) leave that list out so that they do not carry it. The
+        stories come so that a UC finds its story. Default: ``list_items``, filtered.
+        """
+        items = await self.list_items(board_id)
+        return [i for i in items if "UC" not in i.labels or i.state == "done"]
+
     async def list_story_items(
         self,
         board_id: str,

@@ -2344,6 +2344,25 @@ comprueba con `get_uc` que la UC sigue en **Review** con sus recibos.
 > UCs estan en Review/Done y a Done cuando se completa el ultimo. No hace
 > falta llamar a `move_us`; la decision humana sigue siendo completar cada UC.
 
+**Los ficheros de la UC al cerrarla (UC-12603).** Quien llame a `complete_uc` le pasa los ficheros
+que cambió la PR de la UC y su repositorio, sacados de la PR fusionada. `gh pr view --json files`
+devuelve como mucho 100: usa la API paginada.
+
+```bash
+gh api "repos/<owner>/<repo>/pulls/<n>/files" --paginate -q '.[].filename'
+```
+
+```
+complete_uc(board_id, uc_id, evidence=..., files=[<esas rutas>], repo="<owner>/<repo>")
+```
+
+El tablero los guarda con la UC (si se vuelve a cerrar, suma los de la PR nueva; con una UC ya
+cerrada, la misma llamada añade la lista sin moverla). Un cambio posterior en uno de ellos, desde otra
+UC o sin UC y en el mismo repositorio, sale en la puerta de desviación con esta UC y la propuesta de
+revisar sus criterios. Sin `files`, la UC no avisa nunca y la respuesta lo dice
+(`closed_files_missing`); `move_uc` a «done» tampoco guarda la lista. Trello y Plane no la guardan
+(`closed_files_not_stored`).
+
 ### 8.5.5 Siguiente UC/card
 
 #### Si origen es una épica (EP-NN mode, US-78):
@@ -2576,7 +2595,7 @@ TODOS los intentos de self-healing se registran en `.quality/evidence/${feature}
 | `get_uc(board_id, uc_id)` | Paso 0: detalle completo del UC (ACs, pantallas) |
 | `find_next_uc(board_id, epic?, satellite?)` | Paso 0/8.5: determinar siguiente UC a implementar (por épica o satélite, US-78) |
 | `start_uc(board_id, uc_id)` | Paso 0: mover UC (y su US) a In Progress + timestamp |
-| `complete_uc(board_id, uc_id, evidence)` | Paso 8.5: mover UC a Done + actualizar US (a Done si era el ultimo UC) |
+| `complete_uc(board_id, uc_id, evidence, files, repo)` | Paso 8.5: mover UC a Done + actualizar US (a Done si era el ultimo UC); `files` y `repo` = los de su PR (UC-12603) |
 | `move_us(board_id, us_id, target)` | Solo correcciones manuales: start_uc / move_uc / complete_uc ya mueven la US (UC-4305) |
 | `mark_ac_batch(board_id, uc_id, results)` | Paso 8.5: reportar resultados de ACs a Trello |
 | `attach_evidence(board_id, id, type, kind, md)` | Paso 8.5: adjuntar delivery report como PDF |

@@ -21,7 +21,7 @@ export const FRAGMENT_FORMAT = 'specbox-freeform-fragment/1';
 export const CONTENT_TOOLS = new Set([
   'add_ac', 'add_epic', 'add_uc', 'approve_criteria', 'attach_evidence', 'bulk_update_hours_from_description', 'complete_uc',
   'delete_ac', 'delete_epic', 'delete_uc', 'estimate_from_ac', 'find_next_uc', 'get_ac_status',
-  'get_board_status', 'get_cross_repo_dependencies', 'get_delivery_report', 'get_epic', 'get_evidence',
+  'get_board_status', 'get_closed_uc_files', 'get_cross_repo_dependencies', 'get_delivery_report', 'get_epic', 'get_evidence',
   'get_satellite_queue', 'get_sprint_status', 'get_uc', 'get_us', 'get_us_progress', 'import_spec',
   'link_uc_parent', 'list_epics', 'list_uc', 'list_us', 'mark_ac', 'mark_ac_batch', 'move_uc', 'move_us',
   'record_review_verdict',
@@ -66,7 +66,8 @@ export const FRAGMENT_TOOLS = {
 const RESERVES = { add_uc: 'UC', add_epic: 'EP' };
 
 const KINDS = ['US', 'UC', 'EP'];
-const CONTEXT_META_KEYS = ['context', 'comments', 'attachments'];
+// UC-12603: closed_files (los ficheros de la PR de una UC cerrada) tampoco viaja en el contexto.
+const CONTEXT_META_KEYS = ['context', 'comments', 'attachments', 'closed_files', 'closed_files_by_repo'];
 const PENDING_TTL_MS = 60 * 60 * 1000;
 
 // ── Reading items ──────────────────────────────────────────────────────
@@ -286,6 +287,23 @@ function same(a, b) {
  * the same time from the same UC keep both).
  */
 const APPEND_ONLY_META = new Set(['retired_criteria']);
+/** UC-12603: los ficheros de una UC cerrada se suman, no se sustituyen (dos cierres a la vez). */
+const UNION_META = new Set(['closed_files', 'closed_files_by_repo']);
+const MAX_CLOSED_FILES = 1000; // el tope del servidor (server/closed_files.py): se quedan los más recientes
+
+function unionList(local, incoming) {
+  const merged = [...new Set([...(Array.isArray(local) ? local : []), ...(Array.isArray(incoming) ? incoming : [])])];
+  return merged.slice(-MAX_CLOSED_FILES);
+}
+
+function unionValues(local, incoming) {
+  if (Array.isArray(incoming) || Array.isArray(local)) return unionList(local, incoming);
+  const isObject = (v) => v && typeof v === 'object';
+  if (!isObject(incoming)) return incoming;
+  const out = { ...(isObject(local) ? local : {}) };
+  for (const [repo, files] of Object.entries(incoming)) out[repo] = unionList(out[repo], files);
+  return out;
+}
 
 function unionById(local, incoming) {
   const out = Array.isArray(local) ? [...local] : [];
@@ -313,7 +331,11 @@ function applyChanges(local, before, after) {
     for (const key of new Set([...Object.keys(b), ...Object.keys(a)])) {
       if (!(key in a)) delete meta[key];
       else if (!(key in b) || !same(b[key], a[key])) {
-        meta[key] = APPEND_ONLY_META.has(key) ? unionById(meta[key], a[key]) : a[key];
+        meta[key] = APPEND_ONLY_META.has(key)
+          ? unionById(meta[key], a[key])
+          : UNION_META.has(key)
+            ? unionValues(meta[key], a[key])
+            : a[key];
       }
     }
     result.meta = meta;

@@ -55,6 +55,7 @@ APPROVED_PATHS: dict[str, str] = {
     "enable_mirror": "remotely writes the registry only and returns client_writes (UC-8604)",
     "disable_mirror": "remotely writes the registry only and returns client_writes (UC-8604)",
     "build_execution_context": "project_root_absolute and plan_path are copied into the returned content, never opened (UC-11202)",
+    "get_closed_uc_files": "paths are repo-relative names compared with the board's closed_files, never opened (UC-12603)",
 }
 
 #: Reads relative to the server's working directory: a relative ``Path`` literal,

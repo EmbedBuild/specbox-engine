@@ -611,7 +611,28 @@ class NativeBackend(SpecBackend):
         return items
 
     #: What the board-wide tools never show, left in the database.
-    _LIGHT_META = "meta - 'comments' - 'context' - 'attachments' AS meta"
+    # UC-12603: closed_files (the files of a closed UC's PR) too; the drift gate reads it with
+    # list_done_ucs.
+    _LIGHT_META = "meta - 'comments' - 'context' - 'attachments' - 'closed_files' - 'closed_files_by_repo' AS meta"
+
+    async def list_done_ucs(self, board_id: str) -> list[ItemDTO]:
+        """The stories (light) and the UCs in «done» with their whole meta (UC-12603)."""
+        await self._require_read_access(board_id)
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            us_rows = await conn.fetch(
+                "SELECT id, name, '' AS description, state, labels, priority, "
+                f"external_source, external_id, {self._LIGHT_META}, version, epic_id "
+                "FROM user_stories WHERE project_id = $1 ORDER BY id",
+                board_id,
+            )
+            uc_rows = await conn.fetch(
+                "SELECT id, us_id, name, '' AS description, state, labels, priority, "
+                "external_source, external_id, meta - 'comments' - 'context' - 'attachments' AS meta, version "
+                "FROM use_cases WHERE project_id = $1 AND state = 'done' ORDER BY id",
+                board_id,
+            )
+        return [*(self._us_row_to_dto(r) for r in us_rows), *(self._uc_row_to_dto(r) for r in uc_rows)]
 
     async def list_board_summary(
         self, board_id: str, *, with_acs: bool = False

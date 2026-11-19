@@ -15,6 +15,7 @@ Consolidated tool modules:
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -1716,6 +1717,10 @@ async def get_uc(
             retired = []
         if retired:
             result["retired_criteria"] = retired
+        # UC-12603: los ficheros que cambió su PR, si se cerró con ellos.
+        closed = (uc_item.meta or {}).get("closed_files")
+        if isinstance(closed, list) and closed:
+            result["closed_files"] = [f for f in closed if isinstance(f, str)]
         # UC-12502: si una persona aprobó estos criterios (approved), los aprobó y cambiaron (stale) o
         # nunca (none). Solo native y FreeForm la guardan. «Aprobada por migración» la dicen start_uc y
         # find_next_uc, que leen la política del tablero.
@@ -1843,6 +1848,11 @@ async def move_uc(
             "us_all_done": us_all_done,
             "summary": f"{uc_id} movido de {original_state} a {target}",
         }
+        # UC-12603: cerrar así no guarda los ficheros de su PR; un cambio posterior en ellos no avisará.
+        if target == "done" and getattr(backend, "STORES_SPEC_META", False) and not (uc_item.meta or {}).get("closed_files"):
+            from ..closed_files import NO_FILES_AT_CLOSE_NOTICE
+
+            result["closed_files_missing"] = NO_FILES_AT_CLOSE_NOTICE
         if us_state_change:
             result["us_state_change"] = us_state_change
         return result
@@ -2304,6 +2314,8 @@ async def complete_uc(
     items_content: str | None = None,
     with_roadmap: bool = False,
     policy_content: str | None = None,
+    files: list[str] | None = None,
+    repo: str | None = None,
 ) -> dict[str, Any]:
     """Mark a Use Case as complete.
 
@@ -2326,11 +2338,32 @@ async def complete_uc(
         items_content: FreeForm content-passing (UC-660). Pass items.json as a
             string for remote MCP; the mutated string is returned under
             `items_content`. Omit for local MCP / disk mode.
+        files: UC-12603. The files the UC's PR changed (`gh pr view <n> --json files`),
+            relative to the repo. Kept in the UC's `meta.closed_files` (added to the list of
+            an earlier close) so that a later change in one of them is reported by the drift
+            gate with this UC. Native and FreeForm keep it; Trello and Plane answer
+            `closed_files_not_stored`. An invalid list closes nothing (INVALID_FILES).
+            Calling it again with `files` on a UC already done adds the list without moving it.
+        repo: UC-12603. The repository of that PR («owner/name»), kept with its own list in
+            `meta.closed_files_by_repo`: in multirepo the drift gate only compares a change with
+            the files a closed UC changed in the same repository (a UC with PRs in two
+            repositories keeps two lists). A PR over 1000 files closes and keeps the most recent
+            (`closed_files_truncated`).
 
     Returns:
         Completion result with US update status, plus `items_content` (mutated
-        items.json string) when `items_content` was provided.
+        items.json string) when `items_content` was provided, and `closed_files`
+        (how many the UC keeps) when `files` was given.
     """
+    from ..closed_files import NO_FILES_AT_CLOSE_NOTICE, ClosedFilesError, merge_closed_files, normalize_closed_files
+
+    try:
+        closed_files = normalize_closed_files(files)
+    except ClosedFilesError as e:
+        return {"error": f"Ficheros del cierre no válidos: {e}", "code": "INVALID_FILES", "uc_id": uc_id}
+    closed_repo = (repo or "").strip()
+    if closed_repo and not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", closed_repo):
+        return {"error": "repo tiene que ser «owner/nombre»", "code": "INVALID_FILES", "uc_id": uc_id}
     backend = await get_session_backend(ctx, items_content=items_content)
     try:
         items = await backend.list_story_items(board_id, uc_id=uc_id)
@@ -2356,8 +2389,24 @@ async def complete_uc(
         if gate.get("error"):
             return {**gate["error"], **_gate_extras(gate)}
 
-        # Move to done
-        await backend.update_item(board_id, uc_item.id, state="done")
+        # Move to done. UC-12603: with the files of its PR, in the same write.
+        stores_files = bool(closed_files) and bool(getattr(backend, "STORES_SPEC_META", False))
+        kept_files: list[str] = []
+        truncated = False
+        if stores_files:
+            kept_files, truncated = merge_closed_files((uc_item.meta or {}).get("closed_files"), closed_files)
+            closed_meta: dict[str, Any] = {
+                "closed_files": kept_files, "closed_files_at": datetime.now(timezone.utc).isoformat(),
+            }
+            if closed_repo:
+                # Una lista por repositorio: una UC con PR en dos repositorios no mezcla sus ficheros.
+                by_repo = dict((uc_item.meta or {}).get("closed_files_by_repo") or {})
+                by_repo[closed_repo], repo_truncated = merge_closed_files(by_repo.get(closed_repo), closed_files)
+                truncated = truncated or repo_truncated
+                closed_meta["closed_files_by_repo"] = by_repo
+            await backend.update_item(board_id, uc_item.id, state="done", meta=closed_meta)
+        else:
+            await backend.update_item(board_id, uc_item.id, state="done")
 
         # Native sessions release the reservation symmetrically to start_uc
         # (which reserves via _start_uc_native). Without this, completing a UC
@@ -2402,6 +2451,14 @@ async def complete_uc(
         }
         if us_state_change:
             result["us_state_change"] = us_state_change
+        if stores_files:
+            result["closed_files"] = len(kept_files)
+            if truncated:
+                result["closed_files_truncated"] = True  # por encima del tope se quedan los más recientes
+        elif closed_files:
+            result["closed_files_not_stored"] = True  # UC-12603: Trello y Plane no tienen dónde
+        elif getattr(backend, "STORES_SPEC_META", False) and not (uc_item.meta or {}).get("closed_files"):
+            result["closed_files_missing"] = NO_FILES_AT_CLOSE_NOTICE
         result = attach_warnings(result, gate.get("warnings") or [])  # UC-12401: «warn» y anteriores a la regla
         result.update(_gate_extras(gate))
         if items_content is not None:
@@ -3401,7 +3458,9 @@ def register_spec_driven_tools(mcp_instance) -> None:
     mcp_instance.tool(
         description="Complete a UC: moves to Done, updates parent US (Done when it was the last UC), adds evidence. "
         "Measure closing_evidence (UC-12401): every criterion done with a receipt that passes; in «block» a "
-        "UC that misses any returns AC_WITHOUT_PASSING_EVIDENCE with each criterion and stays as it was."
+        "UC that misses any returns AC_WITHOUT_PASSING_EVIDENCE with each criterion and stays as it was. "
+        "files (UC-12603): the files its PR changed, kept so that the drift gate reports a later change "
+        "in them with this UC."
     )(complete_uc)
 
     # Acceptance Criteria (3)

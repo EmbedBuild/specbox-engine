@@ -10,6 +10,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { spawnWithStdin } from './_spawn-stdin.mjs';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -30,9 +31,8 @@ function project(files = {}) {
 }
 
 function launch(dir, prompt) {
-  const r = spawnSync(process.execPath, [HOOK], {
+  const r = spawnWithStdin(process.execPath, [HOOK], JSON.stringify({ tool_name: 'Agent', tool_input: { description: 'x', prompt } }), {
     cwd: dir,
-    input: JSON.stringify({ tool_name: 'Agent', tool_input: { description: 'x', prompt } }),
     encoding: 'utf8',
     env: { ...process.env, SPECBOX_ENFORCEMENT_POLICY: 'off' },
   });

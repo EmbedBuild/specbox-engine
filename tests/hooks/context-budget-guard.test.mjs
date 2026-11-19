@@ -7,7 +7,7 @@
 
 import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawnWithStdin } from './_spawn-stdin.mjs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -78,8 +78,7 @@ function makeTempDir() {
 }
 
 function runHook(payload, cwd) {
-  const result = spawnSync('node', [hookPath], {
-    input: JSON.stringify(payload),
+  const result = spawnWithStdin('node', [hookPath], JSON.stringify(payload), {
     cwd,
     encoding: 'utf-8',
     // Sin preguntar al tablero (UC-12210): la prueba no sale de la máquina.

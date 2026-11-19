@@ -125,8 +125,10 @@ def _build_description_html(
 
 
 def _strip_html(text: str) -> str:
-    """Strip HTML tags for plain text output."""
-    return re.sub(r"<[^>]+>", "", text or "").strip()
+    """Strip HTML tags for plain text output, then undo the escaping (``add_comment`` writes
+    ``html.escape(text)``): without it «<https://…>» and the receipt's JSON (UC-12604) came back as
+    «&lt;…&gt;» and «&quot;…&quot;»."""
+    return html.unescape(re.sub(r"<[^>]+>", "", text or "")).strip()
 
 
 def _detect_item_type(name: str) -> str:

@@ -39,6 +39,7 @@ from .tools.enforcement import register_enforcement_tools  # US-122 UC-12212
 from .tools.prd_format import register_prd_format_tools  # US-123 UC-12304
 from .tools.review import register_review_tools  # US-124 UC-12402
 from .tools.approval import register_approval_tools  # US-125 UC-12502
+from .tools.plan_contract import register_plan_contract_tools  # US-126 UC-12604
 from .coordination.access_log import ToolAccessLogMiddleware, build_default_store, configure_store
 from .coordination.rate_limit import RateLimitMiddleware  # UC-11401
 from .coordination.transport_auth import TransportAuthMiddleware, TransportNoticeMiddleware  # UC-3901
@@ -235,6 +236,9 @@ register_review_tools(mcp)
 
 # UC-12502 — approve_criteria: una persona aprueba los criterios antes de implementar.
 register_approval_tools(mcp)
+
+# UC-12604 — check_plan_contract: cada criterio con su fase del plan y sus ficheros.
+register_plan_contract_tools(mcp)
 
 # UC-3901 — the transport authenticates every HTTP request (see main()); while
 # connections without a token are tolerated (grace period), every tool response

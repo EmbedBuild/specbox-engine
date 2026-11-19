@@ -488,19 +488,31 @@ y `warnings` (exposicion). Las dos avisan; el servidor no detiene nada.
 
 ## Fases de Implementación
 
+> **Contrato del plan (UC-12604).** Cada fase lleva, justo debajo del título, dos líneas que se leen
+> solas: `**Criterios:**` con los criterios que cubre (`UC-XXXX AC-NN, AC-NN`) y `**Ficheros:**` con
+> los ficheros que espera tocar, separados por comas. Cada criterio de la UC aparece en al menos una
+> fase. /implement las usa para enlazar cada criterio con su fase, sus ficheros y su prueba, y para
+> comparar al cerrar lo hecho con lo que el plan esperaba.
+
 ### Fase 1: Preparación [AG-03 si existe]
+**Criterios:** UC-XXX AC-01
+**Ficheros:** supabase/migrations/[fecha]_[nombre].sql
 
 - [ ] Verificar/crear tablas en DB
 - [ ] Configurar índices y RLS
 - [ ] Tiempo estimado: X min
 
 ### Fase 2: Componentes UI [AG-02 si existe]
+**Criterios:** UC-XXX AC-02
+**Ficheros:** lib/core/widgets/[widget].dart
 
 - [ ] Crear widgets faltantes en `lib/core/widgets/`
 - [ ] [Lista de widgets a crear]
 - [ ] Tiempo estimado: X min
 
 ### Fase 3: Feature Structure [AG-01 si existe]
+**Criterios:** UC-XXX AC-03, AC-04
+**Ficheros:** lib/data/models/[feature]_model.dart, lib/presentation/features/[feature]/bloc/[feature]_bloc.dart
 
 - [ ] Modelo con Freezed
 - [ ] Repository contract + impl
@@ -510,6 +522,8 @@ y `warnings` (exposicion). Las dos avisan; el servidor no detiene nada.
 - [ ] Tiempo estimado: X min
 
 ### Fase 4: Integración
+**Criterios:** UC-XXX AC-03
+**Ficheros:** lib/core/di/injection.dart, lib/core/router/app_router.dart
 
 - [ ] Registrar en DI
 - [ ] Añadir rutas
@@ -518,6 +532,8 @@ y `warnings` (exposicion). Las dos avisan; el servidor no detiene nada.
 - [ ] Tiempo estimado: X min
 
 ### Fase 5: QA [AG-04 si existe]
+**Criterios:** UC-XXX AC-01, AC-02, AC-03, AC-04
+**Ficheros:** test/features/[feature]/[feature]_bloc_test.dart, e2e/acceptance/UC-XXX.spec.ts
 
 - [ ] Tests unitarios BLoC
 - [ ] Tests de repository
@@ -544,6 +560,15 @@ flutter test --coverage
 > Si no queda nada, escribir «Ninguno».
 
 - [POR DECIDIR: decision abierta — quien la toma]
+
+---
+
+## Dependencias nuevas
+
+> Una línea por paquete que el plan añade (`- pypi: nombre`, `- npm: nombre`, `- pub: nombre`,
+> `- go: módulo`), o «Ninguna». La puerta de desviación del CI local compara con esta lista.
+
+- Ninguna
 
 ---
 
@@ -587,6 +612,24 @@ lib/
 ---
 
 ## Paso 5: Guardar Plan
+
+### 5.0 Comprobar el contrato del plan (UC-12604)
+
+Antes de guardar, llama a `check_plan_contract(plan_content=<el plan>, uc_criteria={"UC-XXX":
+["AC-01", ...]}, default_uc="UC-XXX")` con los criterios de cada UC (de `get_uc`).
+
+- `ok: true` → sigue.
+- `uncovered` → añade esos criterios a la línea **Criterios:** de la fase que los implementa y repite.
+- `incomplete_phases` → a esa fase le falta la línea **Criterios:** o **Ficheros:**: añádela y repite.
+- `unattributed` → el plan cubre varias UC y esos criterios no dicen de cuál son: escribe la UC delante
+  («UC-XXXX AC-01») y repite.
+- Aviso de «Dependencias nuevas» → añade la sección (o «Ninguna»).
+
+Las líneas que van dentro de un bloque de código son ejemplos y no cuentan. Los ficheros se escriben
+separados por comas (o entre comillas invertidas, o en una lista debajo de **Ficheros:**); un rango
+de criterios («AC-01 a AC-04») cubre todos los de en medio.
+
+Un plan sin las líneas (`contract_version: 0`) no se entrega: la plantilla de arriba las lleva.
 
 1. Crear archivo: `doc/plans/[nombre]_plan.md`
 2. Si no existe `doc/plans/`: crearlo

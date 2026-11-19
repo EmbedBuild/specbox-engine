@@ -33,6 +33,7 @@
       "mcp__SpecBox-MCP__get_context_budget",
       "mcp__SpecBox-MCP__get_cross_repo_dependencies",
       "mcp__SpecBox-MCP__get_delivery_report",
+      "mcp__SpecBox-MCP__get_drift_report",
       "mcp__SpecBox-MCP__get_e2e_gap_report",
       "mcp__SpecBox-MCP__enforcement_readiness",
       "mcp__SpecBox-MCP__get_enforcement_impact",

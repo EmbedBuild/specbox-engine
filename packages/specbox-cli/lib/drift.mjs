@@ -297,8 +297,9 @@ export async function callTool({ url, headers = {}, name, args = {}, timeoutMs =
     if (r.status >= 400 || !r.message) throw new Error(`tools/call ${r.status}`);
     if (r.message.error) throw new Error(`tools/call ${r.message.error.code ?? "error"}`);
     const result = r.message.result || {};
-    if (result.structuredContent) return result.structuredContent;
     const text = result.content?.find?.((c) => c.type === "text")?.text;
+    if (result.isError) throw new Error(String(text || "la tool respondió con un error").slice(0, 160));
+    if (result.structuredContent) return result.structuredContent;
     try {
       return text ? JSON.parse(text) : {};
     } catch {

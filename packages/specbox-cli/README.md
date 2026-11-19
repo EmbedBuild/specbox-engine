@@ -21,8 +21,11 @@ The token expires after 90 days and **renews itself** from 14 days before. If a 
 | `specbox logout` | Disconnects this device in the panel and deletes the local credential. |
 | `specbox hooks status` | Lists the project's hooks (`.claude/hooks/`) that differ from the ones this version publishes. |
 | `specbox hooks update` | Lists them, then installs the missing ones and replaces the ones you did not change. A hook you changed is left as it is and the new version is saved next to it as `<hook>.mjs.new`; `--overwrite <hook>` replaces it. Missing registrations are added to `.claude/settings.json` (copy in `settings.json.bak`). |
+| `specbox drift` | The drift gate of the local CI: each file the branch changes (against `origin/main`, `--base` to change it) with the UC that claims it, by its plan or by the receipts of its criteria, or «sin UC»; the dependencies the plan does not declare; the excluded files; and the closed UCs the change touches. It exits with 1 only when the board's `drift_gate` measure is in «block» and something has no UC; in «warn» it shows the report and exits with 0. `--json` for machines, `--summary <file>` for one line. |
 
-Options: `--no-browser` (just print the link), `--server <url>` and `--cloud <url>` for self-hosted servers (or `SPECBOX_MCP_URL` / `SPECBOX_CLOUD_API`), `--project <dir>` for `hooks` (default: the current repository).
+Options: `--no-browser` (just print the link), `--server <url>` and `--cloud <url>` for self-hosted servers (or `SPECBOX_MCP_URL` / `SPECBOX_CLOUD_API`), `--project <dir>` for `hooks` and `drift` (default: the current repository).
+
+`specbox drift` reads its settings from `drift` in the repository's `.claude/settings.json`: `exclude` (globs that never count, such as `docs/**`) and `skip_branch_prefixes` (branches that carry no UC by design; by default `dependabot/`, `deps/`, `docs/`, `ci/` and `release/`). In a satellite repository it reads the board and the plans from the orchestrator, not from the satellite. Without a board, without `specbox login` or without an answer from the MCP it checks nothing, says why and exits with 0.
 
 ## What it changes on your computer
 

@@ -115,8 +115,11 @@ async def _board_backend(
 
     config = await ctx.get_state(BACKEND_STATE_KEY)
     if config:
-        backend = await get_session_backend(ctx, items_content=items_content)
-        return backend, str(config.get("backend_type") or "")
+        try:
+            backend = await get_session_backend(ctx, items_content=items_content)
+            return backend, str(config.get("backend_type") or "")
+        except RuntimeError:
+            pass  # una sesión que no sirve para esta lectura: las demás vías
     if items_content is not None:
         from ..backends.freeform_backend import FreeformBackend
 

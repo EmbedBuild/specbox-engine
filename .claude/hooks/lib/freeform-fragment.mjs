@@ -21,7 +21,7 @@ export const FRAGMENT_FORMAT = 'specbox-freeform-fragment/1';
 export const CONTENT_TOOLS = new Set([
   'add_ac', 'add_epic', 'add_uc', 'approve_criteria', 'attach_evidence', 'bulk_update_hours_from_description', 'complete_uc',
   'delete_ac', 'delete_epic', 'delete_uc', 'estimate_from_ac', 'find_next_uc', 'get_ac_status',
-  'get_board_status', 'get_closed_uc_files', 'get_cross_repo_dependencies', 'get_delivery_report', 'get_epic', 'get_evidence',
+  'get_board_status', 'get_closed_uc_files', 'get_cross_repo_dependencies', 'get_delivery_report', 'get_drift_report', 'get_epic', 'get_evidence',
   'get_satellite_queue', 'get_sprint_status', 'get_uc', 'get_us', 'get_us_progress', 'import_spec',
   'link_uc_parent', 'list_epics', 'list_uc', 'list_us', 'mark_ac', 'mark_ac_batch', 'move_uc', 'move_us',
   'record_review_verdict',

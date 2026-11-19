@@ -62,8 +62,14 @@ test("parseArgs entiende la orden y las opciones", () => {
     args: [],
     project: null,
     overwrite: [],
+    base: null,
+    json: false,
+    summary: null,
   });
   assert.equal(parseArgs(["--version"]).command, "version");
+  // UC-12602: drift con su base, su resumen y --json.
+  const drift = parseArgs(["drift", "--base", "origin/dev", "--summary", "/tmp/r", "--json"]);
+  assert.deepEqual([drift.command, drift.base, drift.summary, drift.json], ["drift", "origin/dev", "/tmp/r", true]);
   // UC-11201: hooks <acción> con su proyecto y los retocados que se sustituyen.
   const hooks = parseArgs(["hooks", "update", "--project", "/p", "--overwrite", "a,b", "--overwrite", "c"]);
   assert.deepEqual([hooks.command, hooks.args, hooks.project, hooks.overwrite], ["hooks", ["update"], "/p", ["a", "b", "c"]]);

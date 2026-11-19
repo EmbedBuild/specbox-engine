@@ -24,13 +24,15 @@ export const LABELS = {
 export const DEFAULT_API = [
   '**/openapi*.yaml', '**/openapi*.yml', '**/openapi*.json',
   '**/swagger*.yaml', '**/swagger*.yml', '**/swagger*.json',
-  '**/*.proto', '**/*.graphql', '**/*.graphqls',
+  '**/*.proto', '**/schema*.graphql', '**/*.graphqls',
 ];
 export const DEFAULT_MIGRATION = [
   '**/migrations/**', '**/alembic/versions/**', '**/db/migrate/**', '**/*.sql', '**/schema.prisma',
 ];
-/** Lo que nunca es una migración aunque esté en su carpeta: la documentación. */
-const NOT_MIGRATION = /\.(md|markdown|txt|rst)$/i;
+/** Lo que nunca es una migración: la documentación, las semillas y los datos de prueba. */
+const DOC_FILE = /\.(md|markdown|txt|rst)$/i;
+const SEED_OR_FIXTURE = /(^|\/)(seeds?|fixtures?|tests?|__tests__|spec)\/|(^|\/)seed[^/]*$/i;
+export const notMigration = (path) => DOC_FILE.test(path) || SEED_OR_FIXTURE.test(path);
 /** Funciones públicas que no son contrato por convención: los registros de tools y los `*_impl`. */
 export const DEFAULT_SIGNATURE_IGNORE = ['register_*', '*_impl'];
 const DEPENDENCY_FILES = new Set([
@@ -143,30 +145,39 @@ const nameIgnored = (name, ignore) =>
 
 /**
  * Las firmas de las funciones públicas de un fichero Python: {nombre: "parámetros -> retorno"}.
- * Cualquier nivel de sangría (las tools anidadas en `register_*()` y los métodos cuentan), con los
- * paréntesis contados de verdad (un valor por defecto «"):"» no corta la firma), sin docstrings ni
- * comentarios y sin la coma final: reformatear no es cambiar el contrato.
+ * Cuentan las de nivel de módulo, los métodos de una clase y las tools anidadas en `register_*()`;
+ * un auxiliar definido dentro de otra función no es contrato. Cada una se identifica por su nombre y
+ * el de quien la contiene («Clase.metodo», «register_x.tool»), nunca por su orden. Paréntesis
+ * contados de verdad (un valor por defecto «"):"» no corta la firma), sin docstrings ni comentarios
+ * y sin la coma final: reformatear no es cambiar el contrato.
  */
 export function pythonSignatures(source, ignore = DEFAULT_SIGNATURE_IGNORE) {
   const code = stripPython(source);
   const out = {};
-  const head = /^[ \t]*(?:async[ \t]+)?def[ \t]+([A-Za-z]\w*)[ \t]*\(/gm;
+  const stack = [];
+  const head = /^([ \t]*)(?:(?:async[ \t]+)?(def)|(class))[ \t]+([A-Za-z_]\w*)/gm;
   for (const m of code.matchAll(head)) {
-    const name = m[1];
-    if (nameIgnored(name, ignore)) continue;
+    const indent = m[1].replace(/\t/g, '    ').length;
+    const kind = m[2] ? 'def' : 'class';
+    const name = m[4];
+    while (stack.length && stack.at(-1).indent >= indent) stack.pop();
+    const parent = stack.at(-1);
+    stack.push({ indent, kind, name });
+    if (kind !== 'def' || name.startsWith('_') || nameIgnored(name, ignore)) continue;
+    if (parent && !(parent.kind === 'class' || /^register_/.test(parent.name))) continue;
+    let j = code.indexOf('(', m.index + m[0].length);
+    if (j < 0) continue;
     let depth = 1;
-    let j = m.index + m[0].length;
-    const startParams = j;
-    while (j < code.length && depth > 0) {
+    const startParams = j + 1;
+    for (j += 1; j < code.length && depth > 0; j += 1) {
       if ('([{'.includes(code[j])) depth += 1;
       else if (')]}'.includes(code[j])) depth -= 1;
-      j += 1;
     }
     const params = code.slice(startParams, j - 1).replace(/\s+/g, ' ').replace(/,\s*$/, '').trim();
-    const rest = code.slice(j, code.indexOf(':', j) >= 0 ? code.indexOf(':', j) : j);
-    const ret = /->\s*(.+)$/s.exec(rest)?.[1]?.replace(/\s+/g, ' ').trim();
-    let key = name;
-    for (let n = 2; key in out; n += 1) key = `${name}#${n}`;
+    const colon = code.indexOf(':', j);
+    const ret = /->\s*(.+)$/s.exec(code.slice(j, colon >= 0 ? colon : j))?.[1]?.replace(/\s+/g, ' ').trim();
+    let key = parent ? `${parent.name}.${name}` : name;
+    for (let n = 2; key in out; n += 1) key = `${parent ? `${parent.name}.` : ''}${name}#${n}`;
     out[key] = `${params}${ret ? ` -> ${ret}` : ''}`;
   }
   return out;
@@ -196,7 +207,7 @@ export function classifyCommit(files, config = {}, versions = () => null) {
     if (!path) continue;
     const base = path.split('/').at(-1);
     if (api.some((m) => m(path))) classes.api_contract.push({ path, why: 'fichero de contrato' });
-    else if (!NOT_MIGRATION.test(base) && migration.some((m) => m(path))) classes.data_migration.push({ path, why: 'migración' });
+    else if (!notMigration(path) && migration.some((m) => m(path))) classes.data_migration.push({ path, why: 'migración' });
     else if (DEPENDENCY_FILES.has(base) || /^requirements.*\.txt$/.test(base)) classes.dependencies.push({ path, why: 'manifiesto o lockfile' });
     else if (signatures.some((m) => m(path))) {
       const v = versions(path);

@@ -67,7 +67,8 @@ def test_the_path_rules_are_the_same_as_the_hook_defaults():
         "web/api.graphql", "api/swagger.yml", "server/db/migrations/0041_x.sql", "supabase/migrations/2026_x.sql",
         "db/seed.sql", "prisma/schema.prisma", "apps/api/prisma/schema.prisma", "app/alembic/versions/0001_x.py",
         "db/migrate/20260101_x.rb", "docs/migrations/README.md", "server/a.py", "package.json", "README.md",
-        "openapi.md", "db/esquema_señal.sql",
+        "openapi.md", "db/esquema_señal.sql", "src/graphql/queries/getUser.graphql", "supabase/seed.sql",
+        "tests/fixtures/data.sql",
     ]
     script = (
         "import { classifyCommit } from './.claude/hooks/lib/impact-radius.mjs';"

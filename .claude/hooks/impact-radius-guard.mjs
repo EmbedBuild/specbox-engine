@@ -82,43 +82,161 @@ if (mode === 'off') process.exit(0);
 
 // ── Los ficheros del commit ─────────────────────────────────────────
 
-/** Las palabras de la orden (comillas respetadas), sin interpretar nada. */
-function words(text) {
+/**
+ * La orden partida en llamadas (cada una, sus palabras con las comillas resueltas) por `&&`, `||`, `;`,
+ * `|`, `&` y saltos de línea fuera de las comillas. El cuerpo de un heredoc y lo que va dentro de
+ * `$(…)` no parten nada: un mensaje con «;» o «|» no es otra orden.
+ */
+function segments(text) {
   const out = [];
-  const re = /"((?:[^"\\]|\\.)*)"|'([^']*)'|(\S+)/g;
-  for (const m of text.matchAll(re)) out.push(m[1] ?? m[2] ?? m[3]);
+  let words = [];
+  let cur = '';
+  let has = false;
+  let heredoc = null;
+  const pushWord = () => {
+    if (has) words.push(cur);
+    cur = '';
+    has = false;
+  };
+  const pushSeg = () => {
+    pushWord();
+    if (words.length) out.push(words);
+    words = [];
+  };
+  /** `$(…)` desde `i` (en el `$`): el índice tras su `)`, con los paréntesis contados. */
+  const skipSubst = (i) => {
+    let depth = 0;
+    let j = i + 1;
+    for (; j < text.length; j += 1) {
+      if (text[j] === '(') depth += 1;
+      else if (text[j] === ')') {
+        depth -= 1;
+        if (depth === 0) return j + 1;
+      }
+    }
+    return text.length;
+  };
+  for (let i = 0; i < text.length; ) {
+    const ch = text[i];
+    if (ch === "'") {
+      const j = text.indexOf("'", i + 1);
+      cur += text.slice(i + 1, j < 0 ? text.length : j);
+      has = true;
+      i = j < 0 ? text.length : j + 1;
+    } else if (ch === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') {
+        if (text[j] === '\\' && j + 1 < text.length) { cur += text[j + 1]; j += 2; continue; }
+        if (text[j] === '$' && text[j + 1] === '(') { const k = skipSubst(j); cur += text.slice(j, k); j = k; continue; }
+        cur += text[j];
+        j += 1;
+      }
+      has = true;
+      i = j + 1;
+    } else if (ch === '\\' && i + 1 < text.length) {
+      cur += text[i + 1];
+      has = true;
+      i += 2;
+    } else if (ch === '$' && text[i + 1] === '(') {
+      const k = skipSubst(i);
+      cur += text.slice(i, k);
+      has = true;
+      i = k;
+    } else if (ch === '<' && text[i + 1] === '<' && text[i + 2] !== '<') {
+      pushWord();
+      let j = i + 2;
+      if (text[j] === '-') j += 1;
+      while (text[j] === ' ' || text[j] === '\t') j += 1;
+      let delim = '';
+      if (text[j] === "'" || text[j] === '"') {
+        const q = text[j];
+        const k = text.indexOf(q, j + 1);
+        delim = text.slice(j + 1, k < 0 ? text.length : k);
+        j = k < 0 ? text.length : k + 1;
+      } else {
+        while (j < text.length && /[^\s;&|<>()]/.test(text[j])) delim += text[j++];
+      }
+      heredoc = delim;
+      i = j;
+    } else if (ch === '\n') {
+      if (heredoc !== null) {
+        // El cuerpo del heredoc no es parte de la orden: hasta la línea con su delimitador.
+        let j = i + 1;
+        while (j < text.length) {
+          const e = text.indexOf('\n', j);
+          const line = text.slice(j, e < 0 ? text.length : e);
+          j = e < 0 ? text.length : e + 1;
+          if (line.trim() === heredoc) break;
+        }
+        heredoc = null;
+        pushSeg();
+        i = j;
+      } else {
+        pushSeg();
+        i += 1;
+      }
+    } else if ((ch === '&' && text[i + 1] === '&') || (ch === '|' && text[i + 1] === '|')) {
+      pushSeg();
+      i += 2;
+    } else if (ch === ';' || ch === '|' || ch === '&' || ch === '(' || ch === ')') {
+      pushSeg();
+      i += 1;
+    } else if (/\s/.test(ch)) {
+      pushWord();
+      i += 1;
+    } else {
+      cur += ch;
+      has = true;
+      i += 1;
+    }
+  }
+  pushSeg();
   return out;
 }
 
-/** Los trozos de la orden que son una llamada a `git <verbo>` (separados por &&, ;, ||, |). */
+/** Los argumentos de cada llamada a `git <verbo>` de la orden. */
 function gitCalls(verb) {
-  return command.split(/&&|\|\||;|\|/).map((part) => words(part.trim())).filter((w) => {
-    const g = w.indexOf('git');
-    if (g < 0) return false;
+  const calls = [];
+  for (const w of segments(command)) {
+    const g = w.findIndex((x) => x === 'git' || x.endsWith('/git'));
+    if (g < 0) continue;
     let i = g + 1;
-    while (i < w.length && w[i].startsWith('-')) i += w[i] === '-C' || w[i] === '-c' ? 2 : 1;
-    return w[i] === verb;
-  }).map((w) => {
-    let i = w.indexOf('git') + 1;
-    while (i < w.length && w[i].startsWith('-')) i += w[i] === '-C' || w[i] === '-c' ? 2 : 1;
-    return w.slice(i + 1);
-  });
+    while (i < w.length && w[i].startsWith('-')) i += ['-C', '-c', '--git-dir', '--work-tree', '--namespace'].includes(w[i]) ? 2 : 1;
+    if (w[i] === verb) calls.push(w.slice(i + 1));
+  }
+  return calls;
 }
 
-const VALUE_OPTS = new Set(['-m', '--message', '-F', '--file', '-C', '--reuse-message', '-c', '--reedit-message',
-  '--author', '--date', '-t', '--template', '--fixup', '--squash', '--cleanup', '--trailer', '--pathspec-from-file']);
+/** Opciones de `git commit` con valor: cortas (también al final de un grupo, «-am "x"») y largas. */
+const VALUE_SHORT = new Set(['m', 'F', 'C', 'c', 't']);
+const VALUE_LONG = new Set(['--message', '--file', '--reuse-message', '--reedit-message', '--author', '--date',
+  '--template', '--fixup', '--squash', '--cleanup', '--trailer', '--pathspec-from-file']);
 
-const [commitArgs = []] = gitCalls('commit');
 let all = false;
+let include = false;
 let pathspecs = [];
-for (let i = 0; i < commitArgs.length; i += 1) {
-  const a = commitArgs[i];
-  if (a === '--') { pathspecs.push(...commitArgs.slice(i + 1)); break; }
-  if (VALUE_OPTS.has(a)) { i += 1; continue; }
-  if (/^--[\w-]+=/.test(a) || /^-[mFCct].+/.test(a)) continue;
-  if (a === '-a' || a === '--all' || (/^-[a-zA-Z]+$/.test(a) && a.includes('a') && !a.startsWith('--'))) { all = true; continue; }
-  if (a.startsWith('-')) continue;
-  pathspecs.push(a);
+for (const args of gitCalls('commit')) {
+  for (let i = 0; i < args.length; i += 1) {
+    const a = args[i];
+    if (a === '--') { pathspecs.push(...args.slice(i + 1)); break; }
+    if (a.startsWith('--')) {
+      if (a === '--all') all = true;
+      else if (a === '--include') include = true;
+      else if (!a.includes('=') && VALUE_LONG.has(a)) i += 1;
+      continue;
+    }
+    if (a.startsWith('-') && a.length > 1) {
+      // Un grupo de opciones cortas: «-am», «-qm», «-mtexto».
+      for (let k = 1; k < a.length; k += 1) {
+        const c = a[k];
+        if (c === 'a') all = true;
+        else if (c === 'i') include = true;
+        else if (VALUE_SHORT.has(c)) { if (k === a.length - 1) i += 1; break; }
+      }
+      continue;
+    }
+    pathspecs.push(a);
+  }
 }
 pathspecs = pathspecs.filter(Boolean);
 
@@ -126,13 +244,7 @@ const pendingAdds = gitCalls('add');
 const pendingRms = gitCalls('rm');
 const files = new Set();
 const fromDisk = new Set();
-if (pathspecs.length) {
-  // `git commit <ruta>` commitea esas rutas tal como están en el disco (también borradas).
-  for (const f of list0(gitx(['diff', '--name-only', '-z', '--no-renames', 'HEAD', '--', ...pathspecs], { raw: true }))) {
-    files.add(f);
-    fromDisk.add(f);
-  }
-} else {
+const addIndex = () => {
   for (const f of list0(gitx(['diff', '--cached', '--name-only', '-z', '--no-renames'], { raw: true }))) files.add(f);
   if (all) {
     for (const f of list0(gitx(['diff', '--name-only', '-z', '--no-renames', 'HEAD'], { raw: true }))) {
@@ -140,6 +252,18 @@ if (pathspecs.length) {
       fromDisk.add(f);
     }
   }
+};
+if (pathspecs.length) {
+  // `git commit <ruta>` commitea esas rutas tal como están en el disco (también borradas); con `-i`,
+  // además lo que hay en el índice. Si las rutas no resuelven nada, se mira el índice.
+  const byPath = list0(gitx(['diff', '--name-only', '-z', '--no-renames', 'HEAD', '--', ...pathspecs], { raw: true }));
+  for (const f of byPath) {
+    files.add(f);
+    fromDisk.add(f);
+  }
+  if (include || !byPath.length) addIndex();
+} else {
+  addIndex();
 }
 for (const args of pendingAdds) {
   const paths = args.filter((a) => !a.startsWith('-'));
@@ -165,7 +289,10 @@ if (!files.size) process.exit(0);
 
 /** La configuración de la rama base: la de la rama misma no cuenta (no puede aflojar su medida). */
 function impactSettings() {
-  for (const ref of ['origin/main', 'main', 'origin/master', 'master', 'HEAD']) {
+  // La rama por defecto del remoto (origin/HEAD, p. ej. origin/develop) y, si no, main o master.
+  const defaultRef = gitx(['rev-parse', '--abbrev-ref', 'origin/HEAD']);
+  const refs = [...(defaultRef && defaultRef !== 'origin/HEAD' ? [defaultRef] : []), 'origin/main', 'main', 'origin/master', 'master', 'HEAD'];
+  for (const ref of refs) {
     const text = gitx(['show', `${ref}:.claude/settings.json`]);
     if (!text) continue;
     try {
@@ -194,7 +321,8 @@ const versions = (path) => ({ before: gitx(['show', `HEAD:${path}`], { raw: true
 
 const result = classifyCommit([...files], impactSettings(), versions);
 const ucId = marker?.uc_id || '';
-const head = gitx(['rev-parse', 'HEAD']);
+// El primer commit de un repositorio no tiene HEAD: su intento se identifica con el commit nulo.
+const head = gitx(['rev-parse', '--verify', '-q', 'HEAD']) || '0'.repeat(40);
 const deciding = result.deciding.map((f) => f.path).sort();
 
 function log(outcome, extra = {}) {

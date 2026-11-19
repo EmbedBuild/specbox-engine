@@ -84,7 +84,7 @@ test('AC-01: cada clase por sus ficheros, la mayor manda y dice qué ficheros la
     [['package.json', 'server/a.py'], 'dependencies'],
     [['requirements-dev.txt'], 'dependencies'],
     [['server/db/migrations/0041_x.sql'], 'data_migration'],
-    [['db/seed.sql', 'package.json'], 'data_migration'],
+    [['db/0003_add.sql', 'package.json'], 'data_migration'],
     [['api/openapi.yaml', 'server/db/migrations/1.sql'], 'api_contract'],
     [['proto/cobros.proto'], 'api_contract'],
     [['web/schema.graphql'], 'api_contract'],
@@ -331,11 +331,86 @@ test('revisión: la configuración sale de la rama base y la documentación no e
 
 test('revisión: firmas de tools anidadas, métodos y valores por defecto con «):»; reformatear no cuenta', () => {
   const tools = (sig) => `def register_x(mcp):\n    @mcp.tool()\n    def read_plan(${sig}):\n        """Doc con def falso(a):"""\n        return 1\n`;
-  assert.deepEqual(changedSignatures(tools('plan_name'), tools('plan_name, version=0')), ['read_plan']);
+  assert.deepEqual(changedSignatures(tools('plan_name'), tools('plan_name, version=0')), ['register_x.read_plan']);
   assert.deepEqual(changedSignatures(tools('plan_name'), tools('\n        plan_name,  # el plan\n    ')), []);
   assert.deepEqual(changedSignatures('def f(a=")", b=1):\n  pass', 'def f(a=")", b=2):\n  pass'), ['f']);
   assert.deepEqual(changedSignatures('', 'def nuevo_impl(a):\n  pass\ndef register_y(m):\n  pass'), []);
   assert.equal(classifyCommit(['app/alembic/versions/0001_x.py']).class, 'data_migration');
   assert.equal(classifyCommit(['apps/api/prisma/schema.prisma']).class, 'data_migration');
   assert.equal(classifyCommit(['api/swagger.yaml']).class, 'api_contract');
+});
+
+// ── Revisión 2 de la PR #402 ─────────────────────────────────────────
+
+test('revisión 2: -am, mensajes con «;» o «|», grupos -qm y heredocs no dejan pasar una migración', () => {
+  const dir = project({ mode: 'block' });
+  try {
+    write(dir, 'db/migrations/0001_a.sql', 'CREATE TABLE a (id int);\n');
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'UC-701: base');
+    write(dir, 'db/migrations/0001_a.sql', 'CREATE TABLE a (id int, b int);\n');
+    assert.equal(commit(dir, 'git commit -am "UC-701: x"').code, 2); // -a con la migración versionada
+    git(dir, 'add', '-A');
+    for (const cmd of [
+      "git commit -m 'UC-701: a; b'",
+      'git commit --message="UC-701: a; b"',
+      'git commit -m "a" -m "cuerpo: x | y"',
+      'git commit -qm "UC-701: x"',
+      'git commit -vm "UC-701: x"',
+      "git commit -F - <<'EOF'\nUC-701: algo && otra cosa; y | más\nEOF",
+      'git commit -m "$(printf \'%s\' \'a; b\')"',
+    ]) {
+      const r = commit(dir, cmd);
+      assert.equal(r.code, 2, cmd);
+      assert.match(r.stderr, /db\/migrations\/0001_a\.sql/, cmd);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('revisión 2: -i suma el índice a las rutas y unas rutas que no resuelven nada miran el índice', () => {
+  const dir = project({ mode: 'block' });
+  try {
+    write(dir, 'db/migrations/0002_b.sql', 'DROP TABLE a;\n');
+    git(dir, 'add', 'db/migrations/0002_b.sql');
+    write(dir, 'server/a.py', 'x = 3\n');
+    assert.equal(commit(dir, 'git commit -i -m x server/a.py').code, 2);
+    assert.equal(commit(dir, 'git commit -m x server/no-existe.py').code, 2);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('revisión 2: el primer commit de un repositorio puede gastar su aprobación', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'impact-first-'));
+  try {
+    git(dir, 'init', '-q', '-b', 'main');
+    git(dir, 'config', 'user.email', 't@t.t');
+    git(dir, 'config', 'user.name', 't');
+    write(dir, '.claude/settings.local.json', { specbox: { backend_type: 'freeform' } });
+    write(dir, 'doc/tracking/policy.json', {
+      schema: 1, origin: 'existing', skips: [SKIP], measures: { impact_radius: { mode: 'block', block_since: '2026-11-19T00:00:00+00:00' } },
+    });
+    write(dir, '.quality/active_uc.json', { uc_id: 'UC-701', board_id: 'ff-1' });
+    write(dir, 'db/migrations/0001_a.sql', 'CREATE TABLE a (id int);\n');
+    git(dir, 'add', 'db/migrations/0001_a.sql');
+    const r = commit(dir);
+    assert.equal(r.code, 0);
+    assert.match(r.note, /Aprobado por Ana/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('revisión 2: las firmas son las del módulo, las clases y las tools de register_*; nada por orden', () => {
+  const before = 'class A:\n    def m(self, x): pass\ndef register_t(mcp):\n    def tool(a):\n        def mutate(r): pass\n';
+  // Un auxiliar anidado que cambia no es contrato; un homónimo nuevo no desplaza a los demás.
+  const after = 'class A:\n    def m(self, x): pass\ndef register_t(mcp):\n    def tool(a):\n        def mutate(r, s): pass\ndef mutate(z): pass\n';
+  assert.deepEqual(changedSignatures(before, after), ['mutate']);
+  assert.deepEqual(changedSignatures(before, before.replace('def m(self, x)', 'def m(self, x, y)')), ['A.m']);
+  assert.equal(classifyCommit(['src/graphql/queries/getUser.graphql']).class, 'internal');
+  assert.equal(classifyCommit(['supabase/seed.sql']).class, 'internal');
+  assert.equal(classifyCommit(['tests/fixtures/data.sql']).class, 'internal');
+  assert.equal(classifyCommit(['web/schema.graphql']).class, 'api_contract');
 });

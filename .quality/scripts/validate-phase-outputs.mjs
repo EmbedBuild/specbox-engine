@@ -18,6 +18,7 @@ const ALLOWED = new Set([
   'ts',
   'phase',
   'phase_index',
+  'plan_phase',
   'agent',
   'task_id',
   'duration_s',

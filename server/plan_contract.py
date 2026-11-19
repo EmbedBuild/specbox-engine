@@ -353,6 +353,14 @@ def phase_named(contract: PlanContract, title: str, uc_id: str, ac_id: str) -> P
     return None
 
 
+def phase_by_number(contract: PlanContract, number: int) -> Phase | None:
+    """La fase «Fase N» del plan (UC-12601), por su número y no por su posición: un plan puede
+    empezar en la Fase 0. Si varias fases tienen ese número (un plan de varias UC), None: no se
+    adivina cuál."""
+    found = [p for p in contract.phases if (m := _PHASE_TITLE.match(p.title)) and int(m[1]) == number]
+    return found[0] if len(found) == 1 else None
+
+
 def expected_files(contract: PlanContract) -> list[str]:
     """Todos los ficheros que el plan espera tocar, en el orden en que aparecen."""
     out: list[str] = []

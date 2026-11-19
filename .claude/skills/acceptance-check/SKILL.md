@@ -29,7 +29,7 @@ Validates acceptance criteria from a PRD against the current codebase without re
 
 ## Nota v6.0.1 — MCP Path Contract
 
-Si en algún momento delegas la ejecución al MCP via `run_acceptance_check`, la API es ahora content-passing: pasa `prd_content=<concatenated markdown>` y opcionalmente `code_index={relpath: content}` (snippets del diff). Las tools devuelven `feature_files` y `reports` como dicts `{relpath: string_content}` para que tú escribas con `Write`. La firma vieja `run_acceptance_check(project_path, item_id, branch)` aplica solo al helper Path-based `run_acceptance_check_impl` que sigue vivo para callers in-process.
+Si en algún momento delegas la ejecución al MCP via `run_acceptance_check`, la API es ahora content-passing: pasa `prd_content=<concatenated markdown>` y opcionalmente `code_index={relpath: content}` (snippets del diff). Pasa también `results_content` con el contenido de `.quality/evidence/{feature}/acceptance/results.json` si existe (UC-12601): así cada criterio se juzga por su prueba (`method: "results"`) y no por la aparición de su id en el código (`method: "heuristic"`, que la respuesta avisa). Un `results.json` que no se entiende devuelve `INVALID_RESULTS`. Las tools devuelven `feature_files` y `reports` como dicts `{relpath: string_content}` para que tú escribas con `Write`. La firma vieja `run_acceptance_check(project_path, item_id, branch)` aplica solo al helper Path-based `run_acceptance_check_impl` que sigue vivo para callers in-process.
 
 ## Paso 0: Parse Input and Detect Context
 

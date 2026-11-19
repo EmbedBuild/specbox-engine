@@ -26,6 +26,8 @@ def generate_phase_delta(
     decisions: list[str] | None = None,
     healing_events: list[dict] | None = None,
     error_summary: str | None = None,
+    files_deleted: list[str] | None = None,
+    comparison_note: str | None = None,
 ) -> str:
     """Generate a Markdown delta block for a completed phase.
 
@@ -35,7 +37,11 @@ def generate_phase_delta(
         phase_status: One of "complete", "failed", "needs_healing".
         files_created: List of file paths created in this phase.
         files_modified: List of file paths modified in this phase.
-        plan_files_expected: Files the plan expected (for delta detection). None = skip comparison.
+        plan_files_expected: Files the plan expected for this phase (UC-12601: from the plan's
+            **Ficheros:** line, ``server/plan_contract.py``). None = the plan does not say.
+        files_deleted: Files deleted in this phase; they count as touched in the comparison.
+        comparison_note: Why there is nothing to compare when ``plan_files_expected`` is None
+            (UC-12601); by default the plan does not declare files per phase.
         decisions: Key decisions made by the sub-agent during this phase.
         healing_events: List of healing event dicts with keys: type, resolved (bool).
         error_summary: Error description if phase failed.
@@ -59,7 +65,9 @@ def generate_phase_delta(
     lines.append(f"- **Archivos modificados:** {_format_file_list(files_modified)}")
 
     # Deltas vs plan
-    deltas_text = _compute_deltas(files_created, files_modified, plan_files_expected)
+    deltas_text = _compute_deltas(files_created, files_modified, plan_files_expected, files_deleted or [])
+    if plan_files_expected is None and comparison_note:
+        deltas_text = comparison_note
     lines.append(f"- **Deltas vs plan:** {deltas_text}")
 
     # Decisions
@@ -151,33 +159,62 @@ def _format_file_list(files: list[str]) -> str:
     return ", ".join(f"`{f}`" for f in shown) + f" ... y {len(files) - MAX_FILES_PER_CATEGORY} más"
 
 
+#: UC-12601: lo que dice el bloque cuando el plan no declara ficheros por fase.
+NO_PLAN_COMPARISON = "Comparación no disponible: el plan no declara ficheros por fase"
+NO_PLAN_PHASE = "Comparación no disponible: la tarea no dice qué «Fase N» del plan hizo (plan_phase)"
+PLAN_PHASE_NOT_FOUND = "Comparación no disponible: el plan no tiene una única «Fase {n}»"
+NO_PLAN_GIVEN = "Comparación no disponible: no llegó el plan (plan_content)"
+NO_DELTAS = "Sin deltas — implementación conforme al plan"
+#: Los que caben en el bloque de una fase; la lista entera va en ``plan_comparison``.
+MAX_DELTA_FILES = 50
+
+
+def normalize_repo_path(path: str) -> str:
+    """``./server\\x.py`` → ``server/x.py``: como se comparan lo hecho y lo previsto."""
+    clean = (path or "").strip().replace("\\", "/")
+    while clean.startswith("./"):
+        clean = clean[2:]
+    return clean
+
+
+def compare_files(touched: list[str], expected: list[str]) -> tuple[list[str], list[str]]:
+    """``(sobran, faltan)`` (UC-12601). Un previsto que acaba en «/» es una carpeta: la cubre
+    cualquier fichero de dentro. Rutas normalizadas, sin repetir, en orden."""
+    done = sorted({normalize_repo_path(f) for f in touched if normalize_repo_path(f)})
+    plan = sorted({normalize_repo_path(f) for f in expected if normalize_repo_path(f)})
+
+    def covers(entry: str, path: str) -> bool:
+        return path == entry or (entry.endswith("/") and path.startswith(entry))
+
+    extra = [p for p in done if not any(covers(e, p) for e in plan)]
+    missing = [e for e in plan if not any(covers(e, p) for p in done)]
+    return extra, missing
+
+
+def _listed(files: list[str]) -> str:
+    shown = ", ".join(f"`{f}`" for f in files[:MAX_DELTA_FILES])
+    return shown + (f" y {len(files) - MAX_DELTA_FILES} más" if len(files) > MAX_DELTA_FILES else "")
+
+
 def _compute_deltas(
     files_created: list[str],
     files_modified: list[str],
     plan_files_expected: list[str] | None,
+    files_deleted: list[str] | None = None,
 ) -> str:
-    """Compute delta description between actual files and plan expectation (AC-03)."""
+    """Lo hecho frente a lo que el plan esperaba en la fase (UC-12601): los que sobran y los que
+    faltan (hasta 50 de cada, con el total; la lista entera va en ``plan_comparison``); un fichero
+    borrado cuenta como tocado."""
     if plan_files_expected is None:
-        return "Comparación no disponible — archivos listados sin referencia al plan"
+        return NO_PLAN_COMPARISON
 
-    actual_set = set(files_created) | set(files_modified)
-    expected_set = set(plan_files_expected)
-
-    if actual_set == expected_set:
-        return "Sin deltas — implementación conforme al plan"
-
+    extra, missing = compare_files([*files_created, *files_modified, *(files_deleted or [])], plan_files_expected)
     parts: list[str] = []
-    extra = actual_set - expected_set
-    missing = expected_set - actual_set
-
     if extra:
-        extra_list = ", ".join(f"`{f}`" for f in sorted(extra)[:5])
-        parts.append(f"Archivos adicionales: {extra_list}")
+        parts.append(f"Archivos adicionales ({len(extra)}): " + _listed(extra))
     if missing:
-        missing_list = ", ".join(f"`{f}`" for f in sorted(missing)[:5])
-        parts.append(f"Archivos esperados no tocados: {missing_list}")
-
-    return "; ".join(parts) if parts else "Sin deltas — implementación conforme al plan"
+        parts.append(f"Archivos esperados no tocados ({len(missing)}): " + _listed(missing))
+    return "; ".join(parts) if parts else NO_DELTAS
 
 
 def _enforce_token_budget(text: str) -> str:

@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "uc_id": "UC-12502",
+  "criteria": {
+    "AC-01": {
+      "pre": [
+        { "id": "AC-01.pre1", "text": "Existe una aprobación guardada de la UC con la huella de sus criterios, quién la dio (`by`) y cuándo (`at`)" },
+        { "id": "AC-01.pre2", "text": "Los criterios vigentes de la UC son los mismos (id y texto) que cuando se aprobó, de modo que su huella coincide con la guardada" }
+      ],
+      "post": [
+        { "id": "AC-01.post1", "text": "approval_state devuelve state «approved»" },
+        { "id": "AC-01.post2", "text": "El estado trae `by` con quién dio la aprobación, tal cual se guardó" },
+        { "id": "AC-01.post3", "text": "El estado trae `at` con cuándo se dio la aprobación, tal cual se guardó" },
+        { "id": "AC-01.post4", "text": "criteria_fingerprint de los criterios vigentes devuelve una huella de 32 caracteres hexadecimales, la misma en cada llamada con los mismos criterios" },
+        { "id": "AC-01.post5", "text": "is_approved del estado aprobado devuelve True" }
+      ],
+      "undefined": [
+        "Qué datos de la aprobación guardada se reflejan en el estado además de quién y cuándo, y qué pasa con los que faltan o vienen vacíos",
+        "Qué huella tienen unos criterios vacíos",
+        "Si el estado devuelve también la huella u otros campos de la aprobación guardada"
+      ]
+    },
+    "AC-02": {
+      "pre": [
+        { "id": "AC-02.pre1", "text": "Los criterios de la UC nunca se han aprobado: no hay aprobación guardada" }
+      ],
+      "post": [
+        { "id": "AC-02.post1", "text": "approval_state devuelve state «none», sin quién ni cuándo" },
+        { "id": "AC-02.post2", "text": "is_approved del estado devuelve False: la UC no cuenta como aprobada y start_uc no la arrancaría" },
+        { "id": "AC-02.post3", "text": "not_approved_reason devuelve «Nadie ha aprobado todavía los criterios de <UC>.» con el id de la UC" }
+      ],
+      "undefined": [
+        "El código de error AC_NOT_APPROVED y que start_uc no reserve la UC viven en start_uc, fuera de server/approval.py: este contrato no los cubre",
+        "Qué pasa con una UC sin ningún criterio",
+        "Qué pasa si la aprobación guardada no es un diccionario, o no trae huella o la trae vacía",
+        "Qué devuelve is_approved con un estado ausente, que no es un diccionario o con un nombre de estado desconocido"
+      ]
+    },
+    "AC-03": {
+      "pre": [
+        { "id": "AC-03.pre1", "text": "La UC tiene una aprobación guardada cuya huella es la de sus criterios de entonces" },
+        { "id": "AC-03.pre2", "text": "Después se cambia el texto de un criterio, se añade uno o se retira uno" }
+      ],
+      "post": [
+        { "id": "AC-03.post1", "text": "criteria_fingerprint de los criterios cambiados es distinta de la huella aprobada, en los tres casos" },
+        { "id": "AC-03.post2", "text": "approval_state con la aprobación anterior devuelve state «stale» y is_approved devuelve False" },
+        { "id": "AC-03.post3", "text": "El estado stale trae `reason` «Los criterios cambiaron después de la última aprobación.» y `previous_by` y `previous_at` con quién y cuándo aprobó antes" },
+        { "id": "AC-03.post4", "text": "not_approved_reason de un estado stale devuelve «Los criterios de <UC> cambiaron después de su última aprobación.»" },
+        { "id": "AC-03.post5", "text": "Una nueva aprobación guardada con la huella nueva devuelve a la UC al estado «approved»" }
+      ],
+      "undefined": [
+        "Si cambiar cómo se comprueba un criterio o marcarlo como hecho invalida la aprobación",
+        "Si un cambio solo de espacios o de saltos en el texto invalida la aprobación, y si un cambio de mayúsculas lo hace",
+        "Si el orden en que llegan los criterios cambia la huella, y si renumerar un criterio o intercambiar los textos de dos la cambia",
+        "Si volver al texto aprobado devuelve la UC a «approved» sin nueva aprobación",
+        "Cómo ordena criteria_snapshot los ids que no son numéricos y qué formas de criterio acepta (diccionario con id o ac_id, objeto con atributos), y qué pasa con un criterio sin texto",
+        "Qué trae el estado stale si la aprobación anterior no guardaba quién o cuándo"
+      ]
+    },
+    "AC-06": {
+      "pre": [
+        { "id": "AC-06.pre1", "text": "La UC es anterior a la regla (predates=True)" },
+        { "id": "AC-06.pre2", "text": "La UC no tiene una aprobación que coincida con sus criterios de ahora: ninguna guardada, o una de criterios que cambiaron" }
+      ],
+      "post": [
+        { "id": "AC-06.post1", "text": "approval_state devuelve state «migration»" },
+        { "id": "AC-06.post2", "text": "El estado trae la marca `label` «aprobada por migración» y `source` «migration»" },
+        { "id": "AC-06.post3", "text": "is_approved del estado devuelve True: la UC cuenta como aprobada" }
+      ],
+      "undefined": [
+        "Lo que hacen start_uc en «warn» y en «block» (aviso o no arranque) y find_next_uc vive fuera de server/approval.py: este contrato no lo cubre",
+        "Qué estado tiene una UC anterior a la regla cuya aprobación sí coincide con sus criterios de ahora",
+        "Si el estado «migration» trae quién o cuándo",
+        "Si una UC anterior a la regla con una aprobación guardada de criterios que cambiaron sigue contando como aprobada por migración"
+      ]
+    }
+  }
+}

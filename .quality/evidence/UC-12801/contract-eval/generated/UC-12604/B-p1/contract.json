@@ -1,0 +1,123 @@
+{
+  "schema": 1,
+  "uc_id": "UC-12604",
+  "criteria": {
+    "AC-01": {
+      "pre": [
+        {
+          "id": "AC-01.pre1",
+          "text": "Un plan de /plan en Markdown cuyas fases («### Fase N: título») traen cada una una línea «**Criterios:** UC-XXXX AC-NN, AC-MM» (también admite un rango «AC-01 a AC-03» o una lista debajo) y una línea «**Ficheros:**»"
+        },
+        {
+          "id": "AC-01.pre2",
+          "text": "Los criterios de la UC llegan como diccionario {uc_id: [ac_id, ...]}, por ejemplo {\"UC-12604\": [\"AC-01\", \"AC-02\", \"AC-03\"]}"
+        },
+        {
+          "id": "AC-01.pre3",
+          "text": "Un plan puede traer una fase sin su línea «**Criterios:**», sin su línea «**Ficheros:**» o sin ninguna de las dos"
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-01.post1",
+          "text": "parse_plan_contract devuelve contract_version == 1 y, para cada fase, declares_criteria == True y la lista de pares (UC, AC) que su línea «**Criterios:**» nombra, con el id normalizado a dos cifras (AC-1 == AC-01) y un rango expandido a todos los criterios de en medio, sin repetir"
+        },
+        {
+          "id": "AC-01.post2",
+          "text": "uncovered_criteria devuelve un diccionario vacío ({}) cuando cada criterio de la UC aparece en al menos una fase"
+        },
+        {
+          "id": "AC-01.post3",
+          "text": "uncovered_criteria devuelve {uc_id: [criterios que ninguna fase cubre]}, en el orden recibido, y no incluye ni los criterios cubiertos ni las UC sin criterios sin cubrir"
+        },
+        {
+          "id": "AC-01.post4",
+          "text": "incomplete_phases devuelve [] cuando todas las fases traen las líneas «**Criterios:**» y «**Ficheros:**»"
+        },
+        {
+          "id": "AC-01.post5",
+          "text": "incomplete_phases devuelve una entrada {phase: título, missing: [...]} por cada fase a la que le falta una de las dos líneas, con missing == ['Criterios'], ['Ficheros'] o ['Criterios', 'Ficheros'] según lo que falte, en el orden del plan"
+        }
+      ],
+      "undefined": [
+        "Qué pasa con un criterio escrito sin su UC en un plan que nombra varias UC (no se atribuye a ninguna; se ve en unattributed y en phase_of)",
+        "Qué pasa con un criterio escrito sin su UC cuando se pasa default_uc, y cuando el plan nombra otra UC",
+        "Qué pasa con una línea «**Criterios:**» que está dentro de un bloque de código (``` o ~~~): es un ejemplo y no cuenta",
+        "Qué pasa con un texto de plan vacío o None",
+        "Qué pasa con un rango invertido («AC-04 a AC-02») o con ids en minúsculas",
+        "Qué pasa con una fase que no se titula «Fase N» pero lleva una línea de criterios o de ficheros",
+        "Qué pasa si la misma UC se pasa en minúsculas en uc_criteria"
+      ]
+    },
+    "AC-03": {
+      "pre": [
+        {
+          "id": "AC-03.pre1",
+          "text": "Un plan con fases que declaran «**Criterios:**» y «**Ficheros:**» (los ficheros separados por comas o punto y coma, entre comillas invertidas o con una anotación final entre paréntesis)"
+        },
+        {
+          "id": "AC-03.pre2",
+          "text": "Un criterio identificado por su UC y su id (por ejemplo UC-12604 y AC-02, o AC-2)"
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-03.post1",
+          "text": "phase_of devuelve la fase del plan que cubre el criterio (la primera si varias lo cubren), con su título, aceptando el id con una o dos cifras"
+        },
+        {
+          "id": "AC-03.post2",
+          "text": "Los ficheros que el plan espera para esa fase (Phase.files, el «plan_files» de get_uc) son los de su línea «**Ficheros:**», en orden, sin repetir y sin la anotación final entre paréntesis ni las comillas invertidas"
+        },
+        {
+          "id": "AC-03.post3",
+          "text": "phase_of devuelve None cuando ninguna fase cubre el criterio"
+        }
+      ],
+      "undefined": [
+        "La prueba del criterio: no sale del plan, viene del recibo con el que se marca el criterio; plan_contract no la conoce",
+        "Qué pasa con un criterio que cubren varias fases (se devuelve la primera)",
+        "Qué pasa con un criterio de otra UC con el mismo id en un plan que nombra varias UC",
+        "Qué fase corresponde cuando el recibo nombra una (phase_named: la del mismo título que cubre el criterio, la única con ese título o la «Fase N» abreviada) y cuando no encuentra ninguna",
+        "Qué pasa con un plan de contrato 0 (phase_of devuelve None)"
+      ]
+    },
+    "AC-04": {
+      "pre": [
+        {
+          "id": "AC-04.pre1",
+          "text": "Un plan anterior que no relaciona fases y criterios: ninguna línea «**Criterios:**» nombra un criterio (AC-NN) fuera de un bloque de código; puede traer fases «Fase N», líneas «**Ficheros:**» sueltas o «**Criterios:**» solo dentro de un bloque de código"
+        },
+        {
+          "id": "AC-04.pre2",
+          "text": "Los criterios de la UC se pasan igualmente, como {uc_id: [ac_id, ...]}"
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-04.post1",
+          "text": "parse_plan_contract no falla con el plan anterior y devuelve contract_version == 0 con phases == [] (la relación entre fases y criterios no se adivina)"
+        },
+        {
+          "id": "AC-04.post2",
+          "text": "as_dict() del contrato lo muestra: contract_version == 0 y phases == [] para que el informe diga que falta la relación"
+        },
+        {
+          "id": "AC-04.post3",
+          "text": "CONTRACT_NOTICE_OLD_PLAN, el aviso que acompaña al informe, dice que el plan no relaciona fases y criterios (sin líneas «**Criterios:**» ni «**Ficheros:**»), que la comparación con el plan y la fase de cada criterio no están disponibles y que los planes nuevos de /plan las llevan"
+        },
+        {
+          "id": "AC-04.post4",
+          "text": "Con el plan anterior, incomplete_phases == [], expected_files == [], phase_of == None y phase_by_number == None: /implement sigue funcionando sin errores"
+        }
+      ],
+      "undefined": [
+        "Qué devuelve uncovered_criteria con un plan de contrato 0 (todos los criterios de la UC quedan sin cubrir)",
+        "Qué pasa con la sección «## Dependencias nuevas» en un plan anterior (se sigue leyendo en dependencies)",
+        "Qué pasa con una fase «Fase N» sin líneas en un plan anterior (no se registra: no hay fases)",
+        "Qué pasa con default_uc en un plan anterior (no cambia nada: contrato 0)",
+        "Un plan con una línea «**Criterios:**» vacía o sin ningún AC-NN sigue siendo de contrato 0"
+      ]
+    }
+  }
+}

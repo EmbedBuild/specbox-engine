@@ -581,6 +581,7 @@
   "acceptance": {
     "framework": "gherkin",
     "language": "es",
+    "contract": true,
     "features_path": {
       "flutter": "test/acceptance/features/",
       "react": "tests/acceptance/features/",

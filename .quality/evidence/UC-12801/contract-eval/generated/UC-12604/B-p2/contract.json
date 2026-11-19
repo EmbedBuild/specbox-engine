@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "uc_id": "UC-12604",
+  "criteria": {
+    "AC-01": {
+      "pre": [
+        {
+          "id": "AC-01.pre1",
+          "text": "El plan es el texto de un plan de /plan: sus fases son encabezados (## a ####) que empiezan por «Fase N» y cada una puede llevar una línea **Criterios:** y una línea **Ficheros:**."
+        },
+        {
+          "id": "AC-01.pre2",
+          "text": "La UC tiene criterios vigentes con id AC-NN (por ejemplo AC-01 a AC-04) que el plan debe cubrir, dados como {UC: [criterios]}."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-01.post1",
+          "text": "parse_plan_contract devuelve una fase por cada encabezado «Fase N» con los criterios (UC, AC) que declara su línea **Criterios:**, sus ficheros y la marca de que declara cada línea; el contrato sale con contract_version 1."
+        },
+        {
+          "id": "AC-01.post2",
+          "text": "incomplete_phases devuelve [] cuando cada fase trae las dos líneas, y una entrada {phase, missing} por cada fase a la que falta la línea Criterios, la línea Ficheros o ambas, con el nombre de lo que falta."
+        },
+        {
+          "id": "AC-01.post3",
+          "text": "uncovered_criteria devuelve {} cuando cada criterio de la UC aparece en al menos una fase, y {UC: [criterios]} con los criterios que no aparecen en ninguna fase, en el orden dado y por UC."
+        }
+      ],
+      "undefined": [
+        "Un rango de criterios («AC-01 a AC-03», «AC-01..AC-03», «AC-01–AC-03», «AC-01 hasta 3») y un rango al revés («AC-03 a AC-01»).",
+        "Criterios escritos en una lista debajo de la línea **Criterios:** en vez de detrás de los dos puntos, y casillas «- [ ]» dentro de esa lista.",
+        "Ids escritos con otro formato (AC-1 en lugar de AC-01, uc-12604 en minúsculas) y un criterio repetido en una fase o repartido en dos.",
+        "Un criterio escrito sin su UC: en un plan de una sola UC, con la UC en el encabezado de la fase, con default_uc, y en un plan que nombra varias UC (no se sabe de cuál es).",
+        "Un encabezado que no empieza por «Fase N» pero lleva líneas Criterios o Ficheros; títulos como «Fase 2 bloqueada» o «Fase 2.1»; encabezados de nivel # o #####.",
+        "Variantes de formato de la línea (con guion delante, dos puntos fuera de las negritas, mayúsculas) y ficheros con «ninguno», con anotación entre paréntesis o entre comillas invertidas.",
+        "Un ejemplo de fase dentro de un bloque de código en un plan nuevo (si cuenta como fase)."
+      ]
+    },
+    "AC-03": {
+      "pre": [
+        {
+          "id": "AC-03.pre1",
+          "text": "El plan que el cliente pasa a get_uc (plan_content) es de contrato 1: sus fases declaran los criterios que cubren y los ficheros que esperan tocar."
+        },
+        {
+          "id": "AC-03.pre2",
+          "text": "Se pregunta por un criterio concreto de la UC (uc_id, ac_id) o por la fase que nombra su recibo (un título de fase)."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-03.post1",
+          "text": "phase_of devuelve la primera fase del plan que cubre el criterio (UC y AC), con su título."
+        },
+        {
+          "id": "AC-03.post2",
+          "text": "Los ficheros que el plan espera para la fase de un criterio son los de su línea **Ficheros:** (Phase.files), sin repeticiones ni la anotación final entre paréntesis."
+        },
+        {
+          "id": "AC-03.post3",
+          "text": "expected_files reúne los ficheros de todas las fases del plan, sin repetir y en el orden en que aparecen."
+        },
+        {
+          "id": "AC-03.post4",
+          "text": "phase_named devuelve la fase que nombra el recibo del criterio: la de ese título que cubre la UC y el criterio, o, si el plan se renumeró y el título es «Fase N», la fase N que cubre el criterio."
+        }
+      ],
+      "undefined": [
+        "Un criterio cubierto por varias fases (se devuelve la primera) y uno que ninguna fase cubre, o que es de otra UC.",
+        "Un criterio escrito sin UC en un plan que nombra varias UC, y un plan de contrato 0 (sin fases).",
+        "Dos fases con el mismo título, un recibo que nombra una fase que el plan no tiene, y un título único que no cubre el criterio.",
+        "De dónde salen la prueba y los ficheros del recibo que get_uc devuelve junto a la fase: vienen del recibo, no del plan, y quedan fuera de plan_contract."
+      ]
+    },
+    "AC-04": {
+      "pre": [
+        {
+          "id": "AC-04.pre1",
+          "text": "Se lee un plan anterior a UC-12604: ninguna de sus fases trae una línea **Criterios:** que nombre un criterio (AC-NN), con o sin líneas de ficheros, y puede traer una sección de dependencias."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-04.post1",
+          "text": "parse_plan_contract lee el plan anterior sin fallar y devuelve contract_version 0 y ninguna fase: no adivina fases ni criterios."
+        },
+        {
+          "id": "AC-04.post2",
+          "text": "El informe dice que falta la relación: CONTRACT_NOTICE_OLD_PLAN afirma que el plan no relaciona fases y criterios (no tiene líneas **Criterios:** ni **Ficheros:**) y que los planes nuevos las llevan."
+        },
+        {
+          "id": "AC-04.post3",
+          "text": "Las consultas del contrato sobre un plan anterior no fallan y no afirman nada del plan: phase_of es None, expected_files es [], incomplete_phases es [] y uncovered_criteria lista todos los criterios de la UC."
+        },
+        {
+          "id": "AC-04.post4",
+          "text": "Lo que va dentro de un bloque de código (``` o ~~~) es un ejemplo y no cuenta: un plan cuyas líneas Criterios solo están en un bloque de código sigue siendo un plan anterior."
+        }
+      ],
+      "undefined": [
+        "Un plan vacío, en blanco o None.",
+        "Un plan con solo líneas **Ficheros:**, o con una línea **Criterios:** que no nombra ningún criterio («todos»).",
+        "Un plan anterior con sección «Dependencias nuevas»: si el contrato 0 conserva sus dependencias, y si no la tiene (None) frente a «Ninguna» (lista vacía).",
+        "Una valla más larga que contiene otra más corta, y una valla ~~~ que contiene una ```."
+      ]
+    }
+  }
+}

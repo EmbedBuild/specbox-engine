@@ -519,6 +519,10 @@ Localizar PRD → extraer lista de AC-XX funcionales con ID + descripción.
 
 ### 1.5. Escribir el contrato antes de las pruebas (UC-12801)
 
+Por defecto, siempre (`acceptance.contract: true` en `.claude/settings.json`): en la medición de
+UC-12801 las pruebas generadas desde el contrato detectaron 94 de 100 fallos sembrados frente a 91
+sin él, sin más falsos positivos. Solo con `acceptance.contract: false` se salta este paso.
+
 Antes de generar ningún `.feature`, flujo o test, escribe
 `.quality/evidence/{feature}/acceptance/contract.json` con los criterios vigentes de la UC
 (formato: `doc/specs/results-json-spec.md`, «Contrato de cada criterio»):

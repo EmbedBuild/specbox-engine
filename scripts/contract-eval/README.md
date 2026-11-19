@@ -42,6 +42,21 @@ en «warn»; si no, el contrato queda como opción y la medida nace en «off» (
    Escribe `results.jsonl` y `report.md` en `.quality/evidence/UC-12801/contract-eval/`, que se
    adjuntan como evidencia `ag09` de la UC.
 
+## El resultado (2026-11-19)
+
+| Brazo | Mutantes detectados | Falsos positivos | Pruebas por pasada | Tokens por pasada | Segundos por pasada |
+|---|---|---|---|---|---|
+| A, desde los criterios | 91/100 | 0 | 41,9 | 185 666 | 109,9 |
+| B, contrato primero | 94/100 | 0 | 58,4 | 202 268 | 196,6 |
+
+**El contrato gana** según la regla: B detecta 3 mutantes más sin más falsos positivos. El margen es
+pequeño, y B escribe más pruebas (58 frente a 42 por pasada), que explica parte de la diferencia. Por
+UC, sumando las dos pasadas: B gana en UC-12305 (20 frente a 19), UC-12502 (20 frente a 18) y
+UC-12603 (20 frente a 19); empata en UC-12606 (18 y 18: los dos brazos dejan pasar M06, el orden entre
+«documentación» y «contrato»), y pierde por uno en UC-12604 (16 frente a 17: B se deja M03 y M05 en
+las dos pasadas). El detalle está en
+`.quality/evidence/UC-12801/contract-eval/report.md` y `results.jsonl`.
+
 ## Límites
 
 - Los subagentes trabajan en la copia del repositorio: el aislamiento (no leer `tests/` ni
@@ -51,3 +66,7 @@ en «warn»; si no, el contrato queda como opción y la medida nace en «off» (
   equivalentes y con que los dos brazos se miden contra los mismos.
 - Cinco UC del propio engine, todas de lógica pura en Python: el resultado dice algo de este tipo de
   código, no de una interfaz.
+- Una pasada del brazo A (UC-12305, pasada 2) leyó el PRD del orquestador antes de que respondiera el
+  MCP: trae los mismos criterios que `get_uc`, no pruebas ni mutantes.
+- Los subagentes recibieron el `CLAUDE.md` del engine, que describe en prosa varias de estas UC; lo
+  recibieron los dos brazos por igual.

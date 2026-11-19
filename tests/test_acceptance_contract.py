@@ -299,3 +299,33 @@ def test_ac06_an_empty_contract_means_the_uc_has_none_and_omitted_keeps_the_old_
 def test_an_unreadable_contract_answers_invalid_contract():
     out = _check(contract_content='{"schema": 3}')
     assert out["code"] == "INVALID_CONTRACT" and "schema" in out["error"]
+
+
+# ── AC-04 / AC-05: la medición decide el valor por defecto ─────────────────────────────────────
+
+EVAL = ROOT / ".quality" / "evidence" / "UC-12801" / "contract-eval"
+
+
+def test_ac04_the_measurement_is_in_the_evidence_with_its_rule():
+    rows = [json.loads(line) for line in (EVAL / "results.jsonl").read_text(encoding="utf-8").splitlines() if line]
+    assert {r["uc_id"] for r in rows} == {"UC-12604", "UC-12603", "UC-12502", "UC-12305", "UC-12606"}
+    assert sorted((r["arm"], r["pass"]) for r in rows if r["uc_id"] == "UC-12604") == [("A", 1), ("A", 2), ("B", 1), ("B", 2)]
+    assert all(r["mutants"] >= 8 for r in rows)  # al menos 8 fallos sembrados por UC
+    assert "Regla fijada antes de empezar" in (EVAL / "report.md").read_text(encoding="utf-8")
+
+
+def test_ac05_the_default_follows_the_measurement():
+    from server.coordination.enforcement import MEASURES
+
+    rows = [json.loads(line) for line in (EVAL / "results.jsonl").read_text(encoding="utf-8").splitlines() if line]
+    total = lambda arm, key: sum(r[key] for r in rows if r["arm"] == arm)  # noqa: E731
+    wins = total("B", "killed") > total("A", "killed") and total("B", "false_positives") <= total("A", "false_positives")
+    template = json.loads((ROOT / "templates/settings.json.template").read_text(encoding="utf-8"))
+    implement = (ROOT / ".claude/skills/implement/SKILL.md").read_text(encoding="utf-8")
+    if wins:
+        assert template["acceptance"]["contract"] is True
+        assert MEASURES["contract_first"].new_default == "warn"
+        assert "**Por defecto, siempre** (`acceptance.contract: true`" in implement
+    else:
+        assert template["acceptance"]["contract"] is False
+        assert MEASURES["contract_first"].new_default == "off"

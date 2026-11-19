@@ -1707,6 +1707,11 @@ git commit -m "test({feature}): add tests with 85%+ coverage"
 > medida `contract_first` (desde 6.49.0, «warn» por defecto; modo en `get_enforcement_policy`)
 > decide si una UC sin contrato completo pasa a generar pruebas.
 
+0. **Por defecto, siempre** (`acceptance.contract: true` en `.claude/settings.json`; la plantilla lo
+   trae así). La medición de UC-12801 (5 UC, 50 fallos sembrados, dos pasadas por brazo) dio 94 de
+   100 detectados con contrato frente a 91 sin él, sin falsos positivos en ninguno
+   (`.quality/evidence/UC-12801/contract-eval/report.md` del engine). Un proyecto que ponga
+   `acceptance.contract: false` lo salta, y entonces pone también la medida `contract_first` en «off».
 1. Con los criterios vigentes de la UC (`get_uc`, sin los retirados), AG-09a escribe
    `.quality/evidence/{feature}/acceptance/contract.json` (formato en
    `doc/specs/results-json-spec.md`, «Contrato de cada criterio»). Por cada criterio:

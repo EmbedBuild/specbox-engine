@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "uc_id": "UC-12606",
+  "criteria": {
+    "AC-01": {
+      "pre": [
+        {
+          "id": "AC-01.pre1",
+          "text": "Se tiene la ruta de un fichero que toca el cambio (como la escribe un diff o la línea **Ficheros:** de una fase del plan), sin globs de proyecto."
+        },
+        {
+          "id": "AC-01.pre2",
+          "text": "Se tiene un plan con una fase (con sus líneas **Criterios:** y **Ficheros:**) cuyos ficheros incluyen un contrato de API y una migración de datos, y otras fases de código interno o dependencias."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-01.post1",
+          "text": "classify_path devuelve \"api_contract\" para un contrato de API: openapi* o swagger* en .yaml/.yml/.json, un .proto, un .graphqls y un schema*.graphql."
+        },
+        {
+          "id": "AC-01.post2",
+          "text": "classify_path devuelve \"data_migration\" para una migración de datos: un fichero bajo migrations/, alembic/versions/ o db/migrate/, un .sql y schema.prisma."
+        },
+        {
+          "id": "AC-01.post3",
+          "text": "classify_path devuelve None para dependencias (package.json, pyproject.toml, requirements.txt, go.mod) y para código interno (src/app.py): no son contrato ni migración."
+        },
+        {
+          "id": "AC-01.post4",
+          "text": "plan_impact clasifica cada fase por lo que tocan sus ficheros: devuelve entradas con class \"api_contract\" y label \"contrato de API\", o class \"data_migration\" y label \"migración de datos\", junto al título de la fase."
+        },
+        {
+          "id": "AC-01.post5",
+          "text": "La clase aparece en el mensaje del triaje: la descripción de impact_decision nombra la etiqueta de cada clase detectada (\"contrato de API\", \"migración de datos\") y la fase que la trae."
+        }
+      ],
+      "undefined": [
+        "El módulo no separa dependencias de código interno: ambos dan None; solo el hook JS lo registra como clase aparte.",
+        "Una ruta vacía o de solo espacios.",
+        "Un nombre de contrato con mayúsculas (OPENAPI.yaml) o con otra extensión detrás (openapi.yaml.bak).",
+        "Un .sql o un fichero de semilla/fixture fuera de una carpeta de migraciones, y documentación (.md) dentro de una; una semilla dentro de migrations/ cuenta como migración.",
+        "La misma ruta escrita de dos formas en una fase (openapi.yaml y ./openapi.yaml) aparece repetida.",
+        "La clase en el mensaje del propio hook (JS) y su registro en .quality/logs/impact-radius.jsonl: viven fuera de este módulo."
+      ]
+    },
+    "AC-02": {
+      "pre": [
+        {
+          "id": "AC-02.pre1",
+          "text": "Se tiene un plan con al menos una fase (con su línea **Criterios:**) cuyos **Ficheros:** son un contrato de API o una migración de datos."
+        },
+        {
+          "id": "AC-02.pre2",
+          "text": "La medida impact_radius está en \"block\" o no se indica (el lado seguro)."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-02.post1",
+          "text": "impact_decision devuelve una decisión con decision_key \"impact_radius_approval\" y source \"plan · fases con contrato de API o migración de datos\": el triaje de /implement pide la aprobación por adelantado."
+        },
+        {
+          "id": "AC-02.post2",
+          "text": "La descripción de la decisión nombra cada fase afectada con su clase y sus ficheros, avisa de que los commits necesitan la aprobación de una persona en «block» y dice que queda registrada con skip_enforcement y measure=\"impact_radius\", una por fase."
+        },
+        {
+          "id": "AC-02.post3",
+          "text": "La decisión no depende del nivel de autopilot: impact_decision solo recibe el plan, la medida y los globs del proyecto, y el mismo plan da siempre la misma decisión (también en agresivo)."
+        }
+      ],
+      "undefined": [
+        "Un plan sin ninguna línea **Criterios:** (contrato 0) no tiene fases para este módulo y no pide aprobación aunque nombre un contrato.",
+        "Un plan vacío o None.",
+        "Cuántas fases y ficheros se nombran en la descripción cuando hay muchos (hasta 5 fases y 3 ficheros por fase, con «y N más» y «…»).",
+        "Un plan con globs del proyecto inválidos (ImpactConfigError) o con globs de contrato, de migración o de firmas.",
+        "El commit detenido antes de hacerse y la aprobación registrada en el tablero: lo hacen el hook y las tools del servidor, fuera de este módulo."
+      ]
+    },
+    "AC-03": {
+      "pre": [
+        {
+          "id": "AC-03.pre1",
+          "text": "Se tiene un plan cuyas fases solo declaran ficheros internos o de dependencias (código, package.json, documentación, pruebas, semillas)."
+        },
+        {
+          "id": "AC-03.pre2",
+          "text": "Se tiene un plan con fases solo internas y otra fase que mezcla ficheros internos con un contrato de API y una migración de datos."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-03.post1",
+          "text": "plan_impact devuelve una lista vacía para el plan solo interno."
+        },
+        {
+          "id": "AC-03.post2",
+          "text": "impact_decision devuelve None para el plan solo interno: no pide aprobación, con la medida en \"block\" y sin indicarla."
+        },
+        {
+          "id": "AC-03.post3",
+          "text": "Con el plan mixto, plan_impact devuelve solo las fases de contrato o migración, y cada entrada trae en files los ficheros que decidieron su clase, sin los internos de esa fase."
+        }
+      ],
+      "undefined": [
+        "Una fase con ficheros de contrato y de migración a la vez: da dos entradas, una por clase, con el mismo título de fase.",
+        "Documentación (.md) o semillas dentro de una carpeta de migraciones y dependencias que cambian: no se separan de lo interno.",
+        "El registro en .quality/logs/impact-radius.jsonl de la clasificación del hook: vive en el hook JS."
+      ]
+    },
+    "AC-04": {
+      "pre": [
+        {
+          "id": "AC-04.pre1",
+          "text": "Se tiene un plan con una fase de contrato de API o de migración de datos."
+        },
+        {
+          "id": "AC-04.pre2",
+          "text": "La medida impact_radius toma el valor \"warn\", \"off\" o \"block\"."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-04.post1",
+          "text": "Con la medida en \"warn\", impact_decision devuelve None: no hay nada que aprobar y el triaje no pregunta (el cambio sigue)."
+        },
+        {
+          "id": "AC-04.post2",
+          "text": "Con la medida en \"warn\", la clase del cambio sigue disponible: plan_impact devuelve la clase y los ficheros de la fase."
+        },
+        {
+          "id": "AC-04.post3",
+          "text": "Con la medida en \"block\", impact_decision devuelve la misma decisión de AC-02 (decision_key \"impact_radius_approval\"), igual que sin indicar la medida."
+        },
+        {
+          "id": "AC-04.post4",
+          "text": "Con la medida en \"off\", impact_decision devuelve None."
+        }
+      ],
+      "undefined": [
+        "Un valor de la medida distinto de los tres (\"BLOCK\" con mayúsculas, \"strict\", cadena vacía): no es «block» y no pregunta.",
+        "El mensaje de nota del hook en «warn» y el exit 0/2 del commit: viven en el hook JS."
+      ]
+    }
+  }
+}

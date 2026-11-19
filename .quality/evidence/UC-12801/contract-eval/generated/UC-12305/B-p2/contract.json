@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "uc_id": "UC-12305",
+  "criteria": {
+    "AC-02": {
+      "pre": [
+        {
+          "id": "AC-02.pre1",
+          "text": "Una UC (con su nombre, su descripción y su lista de criterios) tiene al menos un criterio cuyo texto contiene una marca `[POR DECIDIR: <lo que falta por decidir>]` escrita tal cual, fuera de comillas invertidas y de comillas angulares."
+        },
+        {
+          "id": "AC-02.pre2",
+          "text": "Una UC tiene en su nombre o en su descripción (su texto) una marca `[POR DECIDIR: <lo que falta por decidir>]` escrita tal cual, fuera de comillas invertidas y de comillas angulares."
+        },
+        {
+          "id": "AC-02.pre3",
+          "text": "La UC lleva más de una marca, con detalles distintos y en sitios distintos (criterios, nombre, descripción)."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-02.post1",
+          "text": "`pending_marks(uc)` devuelve una entrada `{where, mark}` por cada marca: `where` es el id del criterio donde está («AC-01»), «el nombre» o «la descripción», y `mark` es lo que falta por decidir, sin la marca («el proveedor de pagos»)."
+        },
+        {
+          "id": "AC-02.post2",
+          "text": "`_eval_pending_decisions(uc)` devuelve un motivo (una cadena, no None): lo que impide que la UC arranque."
+        },
+        {
+          "id": "AC-02.post3",
+          "text": "El motivo muestra cada marca: «Quedan N marca(s) «por decidir»: » seguido de `<where>: «<mark>»` por cada marca, separadas por «; » y cerrado con un punto (por ejemplo: «Quedan 2 marca(s) «por decidir»: AC-01: «el proveedor de pagos»; la descripción: «el plazo».»). `pending_reason(marks)` produce esa misma frase desde las marcas."
+        }
+      ],
+      "undefined": [
+        "Si una marca citada entre comillas invertidas o entre comillas angulares (como la que nombra este mismo criterio) cuenta como marca.",
+        "Si la marca distingue mayúsculas de minúsculas o cuenta con espacios distintos dentro del corchete (`[por decidir: x]`, `[ POR DECIDIR : x ]`, `[POR DECIDIR:x]`).",
+        "Qué se muestra como lo que falta por decidir cuando la marca no trae detalle (`[POR DECIDIR]`, `[POR DECIDIR: ]`).",
+        "Dónde acaba lo que falta por decidir si la marca no cierra el corchete o el detalle sigue en la línea siguiente.",
+        "Qué pasa con los espacios repetidos dentro del detalle de la marca y con un fragmento citado dentro del detalle.",
+        "Cuántas veces se muestra una marca repetida: la misma en dos criterios, la misma en un criterio y en el nombre o la descripción, la misma dos veces en una descripción.",
+        "En qué orden se listan las marcas en el motivo (criterios, nombre, descripción).",
+        "Qué devuelven las funciones con una UC sin ninguna marca, sin criterios, vacía, con textos ausentes, vacíos o que no son cadenas, o con un criterio sin id.",
+        "Si el estado de la UC influye en que se muestren sus marcas.",
+        "Si el texto «por decidir» sin los corchetes de la marca cuenta como marca.",
+        "Qué pasa con una comilla invertida sin cerrar delante de la marca."
+      ]
+    }
+  }
+}

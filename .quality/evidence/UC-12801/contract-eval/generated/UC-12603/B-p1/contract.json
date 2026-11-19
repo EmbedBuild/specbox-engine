@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "uc_id": "UC-12603",
+  "criteria": {
+    "AC-01": {
+      "pre": [
+        {
+          "id": "AC-01.pre1",
+          "text": "Una UC se cierra y llega la lista de rutas de los ficheros que cambió su PR (texto, con la forma que dé gh: puede traer «./», barras invertidas o rutas repetidas)."
+        },
+        {
+          "id": "AC-01.pre2",
+          "text": "La UC ya tenía guardada la lista de un cierre anterior (se reabrió y se vuelve a cerrar con otra PR)."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-01.post1",
+          "text": "La lista que se guarda trae cada ruta de la PR en su forma normalizada (relativa al repositorio, con «/» y sin «./» delante), sin repetir y en el orden en que llegó."
+        },
+        {
+          "id": "AC-01.post2",
+          "text": "Al cerrar otra vez, la lista guardada conserva los ficheros del cierre anterior y suma los de la PR nueva al final, sin repetir ninguno."
+        },
+        {
+          "id": "AC-01.post3",
+          "text": "Por encima de 1000 rutas se guardan las 1000 más recientes y se avisa de que la lista se recortó (recortada = verdadero); con 1000 o menos no se recorta."
+        }
+      ],
+      "undefined": [
+        "Qué se guarda si la PR llega sin lista (None) o con una lista vacía: el código devuelve lista vacía y, al unir, deja intacta la lista anterior.",
+        "Qué pasa con una ruta absoluta, con «..», con saltos de línea o de más de 300 caracteres: el código lanza ClosedFilesError y no devuelve ninguna lista.",
+        "Qué pasa si lo que llega no es una lista de textos (un texto suelto, un número en la lista): el código lanza ClosedFilesError.",
+        "Qué pasa con una entrada vacía o solo espacios: el código la ignora.",
+        "Si el tope de 1000 se aplica al normalizar una PR enorme: el código no recorta al normalizar, solo al unir con lo guardado.",
+        "Cómo se unen listas guardadas que traen valores que no son texto o rutas vacías: el código los ignora.",
+        "Dónde y cómo persiste cada backend (Native, FreeForm, Trello, Plane) la lista: queda fuera de closed_files.py y no se prueba aquí."
+      ]
+    },
+    "AC-02": {
+      "pre": [
+        {
+          "id": "AC-02.pre1",
+          "text": "Hay una UC cerrada con la lista de ficheros que cambió su PR guardada (ClosedUc con files)."
+        },
+        {
+          "id": "AC-02.pre2",
+          "text": "Un cambio posterior toca (entre las rutas cambiadas) uno o más de esos ficheros."
+        },
+        {
+          "id": "AC-02.pre3",
+          "text": "El cambio no es de la propia UC cerrada: viene de otra UC (exclude nombra la UC de la rama, distinta de la cerrada) o de ninguna (exclude vacío)."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-02.post1",
+          "text": "El informe (touches) trae una entrada con la UC cerrada que toca: su uc_id, us_id, name y closed_at."
+        },
+        {
+          "id": "AC-02.post2",
+          "text": "La entrada lista en files exactamente los ficheros del cambio que esa UC cambió en su cierre, y ninguno que no sea suyo."
+        },
+        {
+          "id": "AC-02.post3",
+          "text": "by_path asocia cada ruta tocada con el id de la UC cerrada y touches_total cuenta las UC cerradas que avisan."
+        },
+        {
+          "id": "AC-02.post4",
+          "text": "Si el cambio toca ficheros de varias UC cerradas, cada una aparece en el informe con sus propios ficheros."
+        }
+      ],
+      "undefined": [
+        "Qué pasa si el cambio es de la propia UC cerrada (está en exclude): el código no la avisa.",
+        "Qué pasa con un cambio que no toca ningún fichero de las UC cerradas: el código devuelve touches vacío y touches_total 0.",
+        "Qué pasa con rutas del cambio con formato distinto (./, barras invertidas, repetidas, vacías): el código las normaliza y no repite.",
+        "En qué orden salen las UC y cuántas se listan: más ficheros compartidos primero, después el cierre más reciente, hasta 20 (limit) con touches_total completo.",
+        "Si exclude puede ser un texto suelto o llevar minúsculas: el código lo admite y compara sin mayúsculas.",
+        "Qué pasa con UC cerradas de otro repositorio o satélite (multirepo): el código solo cuenta las del mismo repositorio (by_repo) o satélite, y sin ninguno de los dos cuentan todas.",
+        "Cómo llega el informe a la puerta de desviación (server/drift.py, CLI): queda fuera de closed_files.py y no se prueba aquí."
+      ]
+    },
+    "AC-03": {
+      "pre": [
+        {
+          "id": "AC-03.pre1",
+          "text": "Un cambio posterior toca ficheros de una UC cerrada y el informe trae su aviso."
+        },
+        {
+          "id": "AC-03.pre2",
+          "text": "Las UC cerradas y las rutas del cambio están registradas antes de pedir el aviso, para poder compararlas después."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-03.post1",
+          "text": "El aviso (proposal) de cada entrada nombra la UC cerrada y propone revisar si sus criterios siguen valiendo."
+        },
+        {
+          "id": "AC-03.post2",
+          "text": "El aviso deja la decisión a una persona: dice que la spec no cambia sola y que si hay que cambiarla lo decide una persona (update_ac, add_ac o delete_ac)."
+        },
+        {
+          "id": "AC-03.post3",
+          "text": "Pedir el aviso no cambia la spec: las UC cerradas (ficheros, nombre, cierre), las rutas y la lista exclude quedan exactamente como estaban."
+        }
+      ],
+      "undefined": [
+        "Qué dice el aviso si la UC no tiene nombre: el código omite el título entre paréntesis.",
+        "Cuántos ficheros nombra el aviso: los 5 primeros y «y N más» el resto.",
+        "Si el aviso cambia al llamar otra vez con los mismos datos: el código devuelve el mismo texto (es puro).",
+        "Si el engine ofrece algún camino para cambiar los criterios desde este módulo: no hay ninguno, solo nombra las tools que usaría una persona."
+      ]
+    },
+    "AC-04": {
+      "pre": [
+        {
+          "id": "AC-04.pre1",
+          "text": "Una UC se cerró antes de la medida: no guardó la lista de ficheros (files es None)."
+        },
+        {
+          "id": "AC-04.pre2",
+          "text": "Un cambio posterior cambia rutas (que la PR de esa UC pudo haber tocado) y se pide el informe."
+        },
+        {
+          "id": "AC-04.pre3",
+          "text": "Más tarde esa UC recibe su lista de ficheros (se vuelve a cerrar con files)."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-04.post1",
+          "text": "La UC sin lista no aparece en touches ni en by_path, y no cuenta en touches_total."
+        },
+        {
+          "id": "AC-04.post2",
+          "text": "Se cuenta en closed_without_files y el informe trae un notice que dice cuántas UC cerradas no tienen su lista; sin ninguna así, el informe no trae notice y closed_without_files es 0."
+        },
+        {
+          "id": "AC-04.post3",
+          "text": "Cuando la UC tiene su lista, avisa con normalidad: aparece en touches con los ficheros que comparte y deja de contar en closed_without_files."
+        }
+      ],
+      "undefined": [
+        "Qué pasa con una UC cerrada con la lista vacía (files = []): el código no la cuenta como «sin lista» y no avisa nunca.",
+        "Qué pasa con una UC sin lista que está en exclude: el código la cuenta igualmente en closed_without_files.",
+        "Si el notice cambia con el número de UC afectadas: el código escribe el número en el texto.",
+        "Cómo recibe la UC vieja su lista (complete_uc con files sobre una UC ya cerrada): queda fuera de closed_files.py y no se prueba aquí."
+      ]
+    }
+  }
+}

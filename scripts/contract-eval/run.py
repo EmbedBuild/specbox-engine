@@ -225,6 +225,30 @@ def report(rows: list[dict]) -> str:
         "",
         f"**Resultado**: {'el contrato gana' if wins else 'el contrato no gana'} "
         f"({'B detecta más sin más falsos positivos' if wins else 'B no detecta más, o lo hace con más falsos positivos'}).",
+        "",
+        "## Coste medio por pasada",
+        "",
+        "| Brazo | Pruebas | Tokens del subagente | Segundos |",
+        "|---|---|---|---|",
+    ]
+    for arm in ("A", "B"):
+        own = [r for r in rows if r["arm"] == arm]
+        if own:
+            mean = lambda key: sum(r[key] or 0 for r in own) / len(own)  # noqa: E731
+            lines.append(f"| {arm} | {mean('tests'):.1f} | {mean('tokens'):,.0f} | {mean('seconds'):.1f} |")
+    lines += ["", "## Mutantes que no detectó una pasada", "", "| UC | Brazo | Pasada | Mutantes |", "|---|---|---|---|"]
+    for r in sorted(rows, key=lambda r: (r["uc_id"], r["arm"], r["pass"])):
+        if r["survivors"]:
+            lines.append(f"| {r['uc_id']} | {r['arm']} | {r['pass']} | {', '.join(r['survivors'])} |")
+    lines += [
+        "",
+        "## Límites",
+        "",
+        "- El aislamiento de los subagentes es una instrucción, no una barrera; cada informe lo confirma.",
+        "- Los tokens son los del subagente entero (incluye el contexto que recibe al empezar), no solo los "
+        "de escribir las pruebas.",
+        "- Cinco UC del propio engine, de lógica pura en Python; 10 mutantes por UC escritos por agentes "
+        "aislados (ver `scripts/contract-eval/README.md`).",
     ]
     return "\n".join(lines) + "\n"
 

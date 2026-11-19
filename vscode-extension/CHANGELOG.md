@@ -8,6 +8,12 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.47.0] — "Spec viva"
+
+- No changes in the extension itself. The version follows the engine, where a hook classifies each commit
+  by what it touches (API contract, data migration, dependencies or internal; the measure starts in
+  «warn»), and each feature gets a behavior document that says what the system does today.
+
 ## [6.46.0] — "La puerta"
 
 - No changes in the extension itself. The version follows the engine, where the local CI compares the

@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.46.0 — "La puerta" (sobre v6.45 "Hilo conductor")<br/>
+  v 6.47.0 — "Spec viva" (sobre v6.46 "La puerta")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,20 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.47
+
+**v6.47.0 — "Spec viva"** cierra la puerta del CI local con dos piezas:
+
+- **El radio de impacto**: cada commit sale clasificado por lo que toca (contrato de API, migración de
+  datos, dependencias o código interno). En «block», un contrato o una migración espera a que una
+  persona lo apruebe, también en autopilot.
+- **Una spec viva por funcionalidad**: `doc/spec/<funcionalidad>.md` dice lo que el sistema hace hoy,
+  con los criterios de las UC cerradas, y el PRD que ya está entregado entero queda marcado como superado.
+
+100% backwards-compatible: la medida nace en «warn» y ningún PRD queda superado por actualizar.
 
 ---
 
@@ -1080,7 +1094,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.46.0 — "La puerta" (over v6.45 "Hilo conductor")
+> v 6.47.0 — "Spec viva" (over v6.46 "La puerta")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -1094,6 +1108,20 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.47
+
+**v6.47.0 — "Spec viva"** closes the local CI gate with two pieces:
+
+- **The impact radius**: every commit is classified by what it touches (API contract, data migration,
+  dependencies or internal code). In «block», a contract or a migration waits for a person to approve
+  it, autopilot included.
+- **A living spec per feature**: `doc/spec/<feature>.md` says what the system does today, with the
+  criteria of the closed UCs, and a PRD that is fully delivered is marked as superseded.
+
+100% backwards-compatible: the measure starts in «warn» and no PRD becomes superseded by upgrading.
+
+---
 
 ## What's new in v6.46
 

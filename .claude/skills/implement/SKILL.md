@@ -2382,7 +2382,8 @@ revisar sus criterios. Sin `files`, la UC no avisa nunca y la respuesta lo dice
 orquestador si es multirepo) la sección de cada historia que define el PRD, con sus UC cerradas y sus
 criterios: lo que el sistema hace hoy. Si todas esas historias quedan sin nada pendiente, marca el PRD
 como superado con la fecha y ese documento, y desde entonces `run_acceptance_check` lee el documento y
-no el PRD; si una vuelve a tener trabajo (`move_uc` fuera de «done», `add_uc`), le quita la marca. Lo
+no el PRD; si una vuelve a tener trabajo (`start_uc`, `import_spec` con UC nuevas, `add_uc`, `move_uc`
+fuera de «done»), le quita la marca en cualquier rama. Lo
 hace solo con el repositorio del canon en su rama principal (como el roadmap) y con un servidor 6.47.0
 o posterior: el cierre que /implement hace tras fusionar y volver a main lo deja escrito; súbelo con el
 siguiente cambio de docs. No pases `with_behavior_doc` ni `behavior_doc_us_ids` a mano: los pone el hook.

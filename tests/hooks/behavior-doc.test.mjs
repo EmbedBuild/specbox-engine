@@ -288,3 +288,39 @@ async function withDirAsync(fn) {
     rmSync(base, { recursive: true, force: true });
   }
 }
+
+// ── Revisión 2 ─────────────────────────────────────────────────────
+
+test('revisión 2: start_uc e import_spec quitan la marca en cualquier rama; un cierre en una rama no la pone', () => withDir((base) => {
+  const marked = markSuperseded(PRD, '2026-11-19', 'doc/spec/cobros.md');
+  const dir = repo(join(base, 'p'), 'feature/UC-002-devolver', { 'doc/prd/cobros/prd.md': marked });
+  // import_spec que solo repite UC que ya existen sin cambios: la marca se queda.
+  const spec = { user_stories: [{ us_id: 'US-01', use_cases: [{ uc_id: 'UC-001' }] }] };
+  const same = { created: { us: 0, uc: 0, ac: 0 }, warnings: [{ uc_id: 'UC-001', code: 'uc_exists', applied: false, identical: true }] };
+  assert.equal(run(dir, 'PreToolUse', { spec }, undefined, 'import_spec').out, null); // nunca toca la entrada
+  run(dir, 'PostToolUse', { spec }, remote(same), 'import_spec');
+  assert.equal(read(dir, 'doc/prd/cobros/prd.md'), marked);
+  // Con una UC nueva, la historia tiene trabajo: el PRD vuelve a estar vigente, aunque no sea main.
+  const grown = { user_stories: [{ us_id: 'US-01', use_cases: [{ uc_id: 'UC-001' }, { uc_id: 'UC-002' }] }] };
+  run(dir, 'PostToolUse', { spec: grown }, remote({ ...same, created: { us: 0, uc: 1, ac: 1 } }), 'import_spec');
+  assert.equal(read(dir, 'doc/prd/cobros/prd.md'), PRD);
+  // start_uc también (la historia sale del marcador que devuelve).
+  writeFileSync(join(dir, 'doc/prd/cobros/prd.md'), marked);
+  run(dir, 'PostToolUse', { uc_id: 'UC-002' }, remote({ uc_id: 'UC-002', active_uc_marker: { uc_id: 'UC-002', us_id: 'US-01' } }), 'start_uc');
+  assert.equal(read(dir, 'doc/prd/cobros/prd.md'), PRD);
+  // Un start_uc que falla no toca nada.
+  writeFileSync(join(dir, 'doc/prd/cobros/prd.md'), marked);
+  run(dir, 'PostToolUse', { uc_id: 'UC-002' }, remote({ error: 'x', code: 'AC_NOT_APPROVED' }), 'start_uc');
+  assert.equal(read(dir, 'doc/prd/cobros/prd.md'), marked);
+  // move_uc a «done» fuera de main ni escribe el documento ni toca la marca.
+  run(dir, 'PostToolUse', { uc_id: 'UC-002', target: 'done' }, remote({ uc_id: 'UC-002', behavior_doc: BLOCK(['US-01']) }), 'move_uc');
+  assert.equal(read(dir, 'doc/prd/cobros/prd.md'), marked);
+  assert.equal(existsSync(join(dir, 'doc/spec')), false);
+  // move_uc hacia atrás, sin bloque del servidor y por el PRD que nombra la UC, sí la quita.
+  run(dir, 'PostToolUse', { uc_id: 'UC-001', target: 'in_progress' }, remote({ uc_id: 'UC-001' }), 'move_uc');
+  assert.equal(read(dir, 'doc/prd/cobros/prd.md'), PRD);
+}));
+
+test('revisión 2: una «>» del cuerpo no es una historia del PRD', () => {
+  assert.deepEqual(prdStories('# PRD\n\n> US-01\n\n## US-01 — Cobrar\n\n> densa (US-13) tiene 63 AC\n'), ['US-01']);
+});

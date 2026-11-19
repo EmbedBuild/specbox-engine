@@ -203,11 +203,19 @@ def unmark_superseded(prd: str, by: str) -> str:
 
 
 def prd_stories(prd: str) -> list[str]:
-    """Las historias que define un PRD: las que nombran sus encabezados o sus líneas «>», fuera de código."""
+    """Las historias que define un PRD: las que nombran sus encabezados o las líneas «>» de su cabecera.
+
+    Fuera de bloques de código. Una «>» del cuerpo es una cita (otra historia de la que se habla), no
+    una que el PRD defina.
+    """
+    lines = (prd or "").split("\n")
+    head = set(_header(lines))
     found: list[str] = []
     fences = _Fences()
-    for line in (prd or "").split("\n"):
+    for i, line in enumerate(lines):
         if fences.code(line) or not _DEFINING_RE.match(line):
+            continue
+        if line.lstrip().startswith(">") and i not in head:
             continue
         for us in _US_ID.findall(line):
             if us.upper() not in found:
@@ -251,17 +259,45 @@ def split_documents(content: str) -> list[str]:
     return ["\n".join(d) for d in docs]
 
 
+def _hides_a_title(doc: str) -> bool:
+    """¿Lleva el documento, dentro de un bloque de código, una línea que empieza por «# »?
+
+    Sin marcas de fichero, una valla de código que un PRD deja sin cerrar se come los PRD que van
+    detrás, y su título acaba dentro del bloque. Un documento así no se deja fuera: podría llevar otro.
+    """
+    fences = _Fences()
+    return any(fences.code(line) and line.startswith("# ") for line in doc.split("\n"))
+
+
+def _partition(content: str) -> tuple[list[str], list[bool]]:
+    """Los documentos y cuáles se dejan fuera por superados."""
+    docs = split_documents(content)
+    marked = any(FILE_MARK_RE.match(line) for line in (content or "").split("\n"))
+    return docs, [is_superseded(d) and (marked or not _hides_a_title(d)) for d in docs]
+
+
 def current_prd_content(content: str) -> tuple[str, int]:
     """El contenido sin los PRD superados, y cuántos se dejaron fuera.
 
-    Sin ningún PRD superado devuelve el contenido tal cual, byte a byte (AC-05).
+    Sin ningún PRD superado devuelve el contenido tal cual, byte a byte (AC-05). Sin marcas de fichero,
+    en la duda (un título dentro de un bloque de código) un PRD superado se queda: se lee de más, nunca
+    de menos.
     """
-    docs = split_documents(content)
-    flags = [is_superseded(d) for d in docs]
+    docs, flags = _partition(content)
     if not any(flags):
         return content, 0
     kept = [d for d, superseded in zip(docs, flags) if not superseded]
     return "\n".join(kept), sum(flags)
+
+
+def superseded_prd_content(content: str) -> str:
+    """Solo los PRD superados que ``current_prd_content`` deja fuera, unidos con «\\n» ('' si ninguno).
+
+    Los lectores lo usan de respaldo: una UC pedida cuyos criterios no están en lo vigente (una historia
+    reabierta por /prd antes de que el hook quitara la marca) los toma de aquí.
+    """
+    docs, flags = _partition(content)
+    return "\n".join(d for d, superseded in zip(docs, flags) if superseded)
 
 
 # ── Las historias del tablero (ítems de FreeForm o DTO de cualquier backend) ──

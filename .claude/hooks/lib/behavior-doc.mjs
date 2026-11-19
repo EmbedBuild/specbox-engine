@@ -230,12 +230,19 @@ export function unmarkSuperseded(prd, by) {
   return lines.filter((_, i) => !drop.has(i)).join('\n');
 }
 
-/** Las historias que define un PRD: las que nombran sus encabezados o sus líneas «>», fuera de código. */
+/**
+ * Las historias que define un PRD: las que nombran sus encabezados o las líneas «>» de su cabecera,
+ * fuera de código. Una «>» del cuerpo es una cita, no una historia que el PRD defina.
+ */
 export function prdStories(prd) {
+  const lines = String(prd || '').split('\n');
+  const head = new Set(header(lines));
   const found = [];
   const f = fences();
-  for (const line of String(prd || '').split('\n')) {
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
     if (f.code(line) || !DEFINING_RE.test(line)) continue;
+    if (line.trimStart().startsWith('>') && !head.has(i)) continue;
     for (const m of line.matchAll(US_ID_RE)) {
       const us = m[0].toUpperCase();
       if (!found.includes(us)) found.push(us);

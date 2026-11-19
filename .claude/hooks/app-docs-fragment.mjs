@@ -52,6 +52,8 @@ import { readMarker, topObject } from './lib/uc-state.mjs';
 
 const TOOLS = new Set(['complete_uc', 'move_uc', 'add_uc', 'delete_uc', 'mark_ac_batch']);
 const SPEC_TOOLS = new Set(['complete_uc', 'move_uc', 'add_uc']);
+/** Tools que dan trabajo a una historia: su PRD deja de estar superado, en cualquier rama (UC-12605). */
+const REOPEN_TOOLS = new Set(['start_uc', 'import_spec', 'add_uc', 'move_uc']);
 /** El primer servidor que acepta `with_behavior_doc` y `behavior_doc_us_ids`. */
 const SPEC_MIN_SERVER = '6.47.0';
 const DOC = join('doc', 'app', 'app_prd.md');
@@ -59,7 +61,7 @@ const MERGE_WAIT_MS = 4000;
 
 const { event, toolName, toolInput, cwd, payload } = readHookInput();
 const parsed = parseToolName(toolName);
-if (!parsed || !TOOLS.has(parsed.tool)) process.exit(0);
+if (!parsed || !(TOOLS.has(parsed.tool) || REOPEN_TOOLS.has(parsed.tool))) process.exit(0);
 
 const git = (dir, args) => {
   try {
@@ -90,10 +92,8 @@ const docPath = join(canonRoot, DOC);
 const onMain = () => ['main', 'master'].includes(git(canonRoot, ['branch', '--show-current']));
 const wanted = () => existsSync(docPath) && onMain();
 // UC-12605: el documento de comportamiento vive junto a los PRD, en el repositorio del canon.
-const specWanted = () =>
-  SPEC_TOOLS.has(parsed.tool) &&
-  (existsSync(join(canonRoot, 'doc', 'prd')) || existsSync(join(canonRoot, 'doc', 'prds'))) &&
-  onMain();
+const hasPrds = () => existsSync(join(canonRoot, 'doc', 'prd')) || existsSync(join(canonRoot, 'doc', 'prds'));
+const specWanted = () => SPEC_TOOLS.has(parsed.tool) && hasPrds() && onMain();
 
 /** La ruta absoluta de `rel` dentro del repositorio del canon, o null si sale de él o pasa por un enlace. */
 function insideCanon(rel) {
@@ -142,7 +142,8 @@ function prdStoriesFor(input) {
 
 if (event === 'PreToolUse') {
   // FreeForm: la zona y el documento los calcula el hook; además, freeform-fragment ya cambia la entrada.
-  if (!freeform) {
+  // start_uc e import_spec no aceptan estos parámetros: solo se miran después.
+  if (!freeform && TOOLS.has(parsed.tool)) {
     const extra = {};
     if (toolInput.with_roadmap !== true && wanted()) extra.with_roadmap = true;
     if (toolInput.with_behavior_doc !== true && specWanted() && (await serverAtLeast(SPEC_MIN_SERVER, { root }))) {
@@ -268,6 +269,65 @@ function writeBehaviorDoc() {
   if (updated !== prd) writeAtomic(prdPath, updated);
 }
 
+/** El PRD (ruta relativa) de una historia o, si no se sabe cuál, el que nombra la UC. */
+function prdRelOf({ usId = '', ucId = '' }) {
+  let us = String(usId || '').toUpperCase();
+  if (!us && ucId) {
+    const marker = readMarker(root);
+    if (marker?.uc_id && String(marker.uc_id).toUpperCase() === String(ucId).toUpperCase()) us = String(marker.us_id || '').toUpperCase();
+    if (!us && freeform) {
+      const items = itemsOf();
+      if (Array.isArray(items)) us = storyIdFromItems(items, { ucId });
+    }
+  }
+  if (us) return locatePrd({ root: canonRoot, usId: us });
+  return ucId ? prdForUc(canonRoot, ucId) : null;
+}
+
+/** Las historias (o la UC) a las que esta llamada deja trabajo pendiente. */
+function reopened() {
+  const tool = parsed.tool;
+  if (tool === 'add_uc') return [{ usId: toolInput.us_id }];
+  if (tool === 'move_uc') return toolInput.target === 'done' ? [] : [{ usId: top?.behavior_doc?.us_id, ucId: toolInput.uc_id }];
+  if (tool === 'start_uc') return [{ usId: top?.active_uc_marker?.us_id, ucId: toolInput.uc_id }];
+  if (tool !== 'import_spec') return [];
+  // import_spec: las historias con alguna UC nueva o con criterios añadidos (lo que no dice uc_exists sin cambios).
+  let spec = toolInput.spec;
+  if (typeof spec === 'string') {
+    try {
+      spec = JSON.parse(spec);
+    } catch {
+      spec = null;
+    }
+  }
+  const warnings = Array.isArray(top?.warnings) ? top.warnings : [];
+  const unchanged = new Set(
+    warnings.filter((w) => w?.code === 'uc_exists' && !(w.applied && !w.identical)).map((w) => String(w.uc_id).toUpperCase()),
+  );
+  return (Array.isArray(spec?.user_stories) ? spec.user_stories : [])
+    .filter((us) => (Array.isArray(us?.use_cases) ? us.use_cases : []).some((uc) => !uc?.uc_id || !unchanged.has(String(uc.uc_id).toUpperCase())))
+    .map((us) => ({ usId: us.us_id }));
+}
+
+/**
+ * UC-12605: el PRD de una historia que vuelve a tener trabajo deja de estar superado, en cualquier
+ * rama (/prd siembra con import_spec y /implement arranca con start_uc, a menudo fuera de main). Solo
+ * quita la marca que puso el engine con el documento de esa funcionalidad.
+ */
+function unmarkReopened() {
+  const seen = new Set();
+  for (const target of reopened()) {
+    const prdRel = prdRelOf(target);
+    if (!prdRel || seen.has(prdRel)) continue;
+    seen.add(prdRel);
+    const path = insideCanon(prdRel);
+    if (!path) continue;
+    const prd = readFileSync(path, 'utf-8');
+    const next = unmarkSuperseded(prd, `${SPEC_DIR}/${featureOf(prdRel)}.md`);
+    if (next !== prd) writeAtomic(path, next);
+  }
+}
+
 /** FreeForm: espera a que freeform-fragment fusione lo que cambió la tool en items.json. */
 function waitForMerge() {
   if (!payload.tool_use_id) return;
@@ -279,7 +339,7 @@ function waitForMerge() {
 }
 
 try {
-  if (top && !top.error && top.success !== false && wanted()) {
+  if (top && !top.error && top.success !== false && TOOLS.has(parsed.tool) && wanted()) {
     let body = sync?.ok === true && typeof sync.roadmap_body === 'string' ? sync.roadmap_body : null;
     if (body == null && freeform) {
       const items = itemsOf();
@@ -302,6 +362,11 @@ try {
   if (top && !top.error && top.success !== false && specWanted()) writeBehaviorDoc();
 } catch {
   // el documento de comportamiento tampoco hace fallar la tool
+}
+try {
+  if (top && !top.error && top.success !== false && REOPEN_TOOLS.has(parsed.tool) && hasPrds()) unmarkReopened();
+} catch {
+  // tampoco quitar la marca
 }
 hide();
 process.exit(0);

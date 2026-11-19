@@ -352,8 +352,10 @@ Presenta al usuario un reporte con **exactamente estas 4 secciones**:
 4. REGENERACIÓN DE EVIDENCIAS (opcional)
    - Para refrescar la evidencia contra el código actual:
      ¿Quieres ejecutar regenerate_evidence ahora? (s/n)
-   - Si SÍ → llamar regenerate_evidence(project_path=".") y mostrar el progreso
-     por UC + el reporte en doc/migrations/.
+   - Si SÍ → llamar regenerate_evidence con `prd_content` armado como en /acceptance-check
+     (cada PRD de `doc/prd/` y `doc/prds/`, y después `doc/spec/*.md`, con una línea
+     `<!-- @specbox:file path="<ruta>" -->` delante de cada fichero, UC-12605) y mostrar el
+     progreso por UC + el reporte en doc/migrations/.
    - Si NO → recordar que puede ejecutarse después con la tool regenerate_evidence.
 ```
 

@@ -231,3 +231,43 @@ def test_a_superseded_prd_is_still_the_prd_of_its_story(tmp_path):
     (tmp_path / "doc/spec").mkdir()
     (tmp_path / "doc/spec/cobros.md").write_text(SPEC)
     assert [p.relative_to(tmp_path).as_posix() for p in _find_prd_files(tmp_path)] == ["doc/prd/avisos.md", "doc/spec/cobros.md"]
+
+
+# ── Revisión 2 ──────────────────────────────────────────────────────
+
+
+def test_a_quote_in_the_body_is_not_a_story_of_the_prd():
+    prd = "# PRD: Cobros\n\n> Historia: US-01\n\n## US-01 — Cobrar\n\n> densa (US-13) tiene 63 AC en 10 UC\n"
+    assert prd_stories(prd) == ["US-01"]
+
+
+def test_without_file_marks_a_superseded_prd_that_may_hide_another_is_kept():
+    """Una valla sin cerrar se come los PRD de detrás: en la duda se lee de más, nunca de menos."""
+    hiding = mark_superseded(PRD_A, "2026-11-19", "doc/spec/cobros.md") + "\n```\n"
+    content = hiding + "\n" + PRD_B
+    assert current_prd_content(content) == (content, 0)
+    # Con marcas de fichero, el reparto es exacto y el superado se deja fuera.
+    marked = f'<!-- @specbox:file path="a.md" -->\n{hiding}\n<!-- @specbox:file path="b.md" -->\n{PRD_B}'
+    kept, dropped = current_prd_content(marked)
+    assert dropped == 1 and "El aviso sale" in kept and "Viejo criterio" not in kept
+
+
+def test_a_reopened_story_takes_its_new_uc_from_the_superseded_prd():
+    """La historia vuelve a tener trabajo antes de que el hook quite la marca: UC-002 no se pierde."""
+    reopened = mark_superseded(PRD_A, "2026-11-19", "doc/spec/cobros.md") + (
+        "\n### UC-002: Devolver\n- [ ] **AC-01**: La devolución queda registrada\n")
+    content = "\n".join(
+        f'<!-- @specbox:file path="{p}" -->\n{t}' for p, t in
+        (("doc/prd/cobros/prd.md", reopened), ("doc/spec/cobros.md", SPEC))
+    )
+    out = run_acceptance_check_from_content(prd_content=content, item_id="UC-002")
+    [uc] = out["uc_results"]
+    assert [c["ac_id"] for c in uc["criteria"]] == ["AC-01"] and uc["from_superseded_prd"] is True
+    assert out["from_superseded_prd"] == ["UC-002"]
+    story = run_acceptance_check_from_content(prd_content=content, item_id="US-01")
+    by_uc = {r["uc_id"]: r for r in story["uc_results"]}
+    assert set(by_uc) == {"UC-001", "UC-002"} and "from_superseded_prd" not in by_uc["UC-001"]
+    assert [c["ac_id"] for c in by_uc["UC-001"]["criteria"]] == ["AC-01"]  # del documento, sin el viejo AC-02
+    # Sin UC pedida se leen solo los vigentes, como antes.
+    every = run_acceptance_check_from_content(prd_content=content, item_id="")
+    assert [r["uc_id"] for r in every["uc_results"]] == ["UC-001"] and "from_superseded_prd" not in every

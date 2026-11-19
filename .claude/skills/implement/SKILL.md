@@ -2282,7 +2282,8 @@ Antes del merge, escribir el Implementation Status en el PRD:
    **Criterio, fase, ficheros y prueba (UC-12604).** `phase` y `files` salen de la fase del plan
    cuya línea **Criterios:** nombra el AC (`check_plan_contract`, Paso 0.4d); si lo nombran varias,
    la primera, que es la que lo implementa (la de QA lo vuelve a nombrar), y `phase` lleva su título
-   tal como está en el plan. `files` se queda con
+   tal como está en el plan. `files` (como mucho 50 rutas de hasta 200 caracteres: si son más, las
+   50 primeras; un recibo que pase del tope hace que `mark_ac_batch` no marque nada) se queda con
    los de esa fase que la rama cambió de verdad (`git diff --name-only origin/main...HEAD`). Los
    guardan todos los backends: native y FreeForm con el recibo, Trello y Plane en el comentario del
    criterio. `get_uc` los devuelve en cada criterio (`files` son los del recibo; los que el plan espera

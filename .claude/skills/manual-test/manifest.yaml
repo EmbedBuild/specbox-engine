@@ -26,3 +26,4 @@ triggers:
 
 depends_on:
   - quality-gate
+  - fix

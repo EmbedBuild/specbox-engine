@@ -3,7 +3,7 @@ name: fix
 description: >
   Arregla un bug pequeño sin PRD ni plan, pero con su UC y su criterio en el tablero: prueba que
   reproduce el bug y falla, UC en la historia indicada o en la de bugs del proyecto, criterio
-  aprobado, rama fix/, arreglo que deja la prueba en verde, recibo, revisión aislada y cierre.
+  aprobado, rama fix/, arreglo que deja la prueba en verde, recibo, visto bueno independiente y cierre.
   Para y propone /prd si el arreglo toca más de 5 ficheros, un contrato de API o una migración de
   datos, y propone /feedback si el bug no se puede reproducir con una prueba. Use when the user
   says "fix", "arregla este bug", "corrige el bug", "quick fix", "arreglo rápido", or when
@@ -29,9 +29,11 @@ los demás.
 
 ## Paso 0 — ¿Hay tablero?
 
-Hay tablero si `.claude/settings.local.json` tiene `boardId`, `backend_type` o
-`specbox.backend_type`, o `.claude/project-config.json` tiene `backend_type` (la misma regla que los
-hooks, `lib/config.mjs`). En un satélite multirepo el tablero es el del orquestador.
+Hay tablero con la misma regla que los hooks (`isSpecDriven` de `.claude/hooks/lib/config.mjs`):
+`.claude/project-config.json` o `.claude/settings.local.json` tienen `boardId`, `board_id` o
+`backend_type`, o el bloque `specbox` de `.claude/settings.local.json` tiene `backend_type`,
+`board_id`, `trello_board_id`, `project_id` o `native_project_id`. En un satélite multirepo el
+tablero es el del orquestador.
 
 Sin tablero, /fix no hace nada y lo dice así:
 
@@ -63,7 +65,9 @@ a medio escribir y dilo así:
 
 **Primera medida del alcance.** Con el diagnóstico, estima qué ficheros cambiará el arreglo. Si ya se
 ve que serán más de 5 (sin contar sus pruebas), o que toca un contrato de API o una migración de
-datos, para aquí y propone /prd (Paso 8 dice cómo).
+datos, para aquí: todavía no hay UC ni rama, así que no toques el tablero ni hagas commit. Deja la
+prueba sin commitear (di en qué fichero queda y la orden que la ejecuta) y propone /prd con la causa
+y esa prueba, que /prd puede recoger. El Paso 8 es para cuando la UC y la rama ya existen.
 
 ## Paso 2 — La historia
 
@@ -130,7 +134,8 @@ preguntar. En Trello o Plane la respuesta es `APPROVAL_NOT_SUPPORTED`: sigue y d
    Si hay cambios sin commitear que no son la prueba del arreglo, para y pregunta qué hacer con
    ellos antes de cambiar de rama.
 
-   En native, `register_native_branch(board_id, uc_id, branch)`.
+   En native, `register_native_branch(uc_id, branch)` (la tool no lleva `board_id`: usa el tablero
+   de la sesión).
 3. Commit de **la prueba sola**, que falla: `test(UC-XXXX): reproduce <el bug>`. Ejecútala otra vez
    en la rama y apunta que falla.
 
@@ -143,16 +148,27 @@ preguntar. En Trello o Plane la respuesta es `APPROVAL_NOT_SUPPORTED`: sigue y d
 
 ## Paso 7 — ¿Sigue siendo pequeño?
 
+Antes de medir, añade con `git add` los ficheros nuevos del arreglo (los que no tenían seguimiento):
+el script cuenta lo commiteado frente a la rama base y lo pendiente de los ficheros con seguimiento,
+y deja aparte los nuevos sin añadir, que pueden ser notas o restos ajenos al arreglo.
+
 ```bash
 node ~/.claude/skills/fix/scripts/scope.mjs        # o .claude/skills/fix/scripts/scope.mjs en el engine
 ```
 
-Devuelve `count`, `files`, `excluded`, `classes`, `stop` y `reasons`. Cuenta los ficheros del arreglo
-frente a la rama base sin sus pruebas, `.quality/` ni `doc/tracking/`, y los clasifica con la regla
-del radio de impacto (con los `impact` de la rama base).
+Devuelve `count`, `files`, `excluded`, `untracked`, `classes`, `stop` y `reasons`. Cuenta los
+ficheros del arreglo sin sus pruebas, `.quality/` ni `doc/tracking/`, y clasifica todos menos
+`.quality/` y `doc/tracking/` (también los de carpetas de pruebas: un `spec/openapi.yaml` es un
+contrato) con la regla del radio de impacto y los `impact` de la rama base. Un renombrado cuenta
+como dos ficheros (el que se va y el que llega).
 
 - `stop: false` → commit del arreglo: `fix(UC-XXXX): <el bug>`.
 - `stop: true` → **el Paso 8**.
+- `untracked` con algo del arreglo → `git add` de esos ficheros y mide otra vez.
+- `notice`: sin rama base (no hay `origin/HEAD`, `main` ni `master`), mide otra vez con
+  `--base <rama principal>`; sin el clasificador del radio de impacto, solo se cuentan los ficheros:
+  mira tú si alguno es un contrato de API (openapi, swagger, `.proto`, esquema GraphQL, la firma de
+  una función pública de la API) o una migración de datos y, si lo es, sigue por el Paso 8.
 
 ## Paso 8 — Cuando deja de ser un arreglo pequeño
 
@@ -160,8 +176,12 @@ Con más de 5 ficheros, un contrato de API o una migración de datos (UC-12701 A
 
 1. No hagas commit del arreglo. Deja la rama con la prueba que falla.
 2. Apunta en la UC por qué se para (`update_uc` con la descripción ampliada: los `reasons` de
-   `scope.mjs` y lo que falta), quita el motivo sin PRD (`update_uc(no_prd_reason="")`) y libérala
-   (`release_uc`): queda en el tablero para que /prd la recoja con su prueba.
+   `scope.mjs` y lo que falta), quita el motivo sin PRD (`update_uc(no_prd_reason="")`) y devuélvela
+   a pendiente con `move_uc(board_id, uc_id, "backlog")`, en cualquier tablero. En native, suelta
+   además su reserva con `release_uc(uc_id)` (borra también el marcador de UC activa). En FreeForm,
+   Trello y Plane no hay reserva (`release_uc` responde `NOT_NATIVE_SESSION`): borra
+   `.quality/active_uc.json` si es de esa UC, para que los hooks no la den por activa. Queda en el
+   tablero para que /prd la recoja con su prueba.
 3. Dilo así:
 
    > Este arreglo ya no es pequeño: {reasons}. Va por /prd (y después /plan y /implement), que
@@ -184,11 +204,18 @@ Con más de 5 ficheros, un contrato de API o una migración de datos (UC-12701 A
 3. CI local del proyecto si lo tiene (`bash scripts/ci-local.sh`), push y PR:
    `fix(UC-XXXX): <el bug>`, con el bug, la causa, la prueba (falla antes, pasa después) y los
    ficheros.
-4. **Revisión aislada**, como 8.5.1c de /implement: un subagente `general-purpose` que solo recibe la
-   UC (`get_uc`), su criterio, su recibo y el diff de la PR, comprueba que la prueba reproduce el bug
-   y que el arreglo no rompe nada, y registra `record_review_verdict(board_id, uc_id,
-   verdict="accepted")` o `verdict="returned"` con su `reason`. Con «returned», corrige, vuelve a
-   marcar el recibo y repite.
+4. **El visto bueno de alguien que no lo implementó**, como 8.5.1c de /implement (medida
+   `independent_review`, que el hook `merge-guard` mira antes de fusionar):
+   - **En autopilot «agresivo» o en FreeForm**: un **evaluador aislado** (herramienta Agent,
+     subagente `general-purpose`) que solo recibe la UC (`get_uc`), su criterio, su recibo y el diff
+     de la PR. Comprueba que la prueba reproduce el bug y que el arreglo no rompe nada, y registra
+     `record_review_verdict(board_id, uc_id, verdict="accepted")` o `verdict="returned"` con un
+     `reason` de 10 a 500 caracteres. Con «returned», corrige, vuelve a marcar el recibo y repite.
+   - **En los demás casos** (native en «low», «conservador» o «equilibrado»): una **persona** acepta
+     la UC en revisión desde el panel. Avísala con el enlace a la UC y a la PR y espera: no fusiones
+     antes. El veredicto de un subagente no cuenta ahí para la medida.
+   - Con la medida en «block», `merge-guard` detiene la fusión hasta tenerlo; en «warn» avisa, pero
+     /fix espera igual.
 
 ## Paso 10 — Fusionar y cerrar
 

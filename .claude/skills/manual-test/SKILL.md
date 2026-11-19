@@ -182,11 +182,14 @@ Para cada paso del itinerario:
   La historia es la de la UC del paso que falla (`/fix US-XX "…"`); si no se sabe, la de bugs del
   proyecto.
 - /fix escribe la prueba que reproduce el bug, crea la UC con su criterio (la persona lo aprueba,
-  está delante), la rama `fix/`, el arreglo, el recibo, la revisión aislada y la PR. **Cada arreglo
-  se fusiona antes de seguir con el itinerario**; ramas apiladas solo si la persona lo pide.
+  está delante), la rama `fix/`, el arreglo, el recibo, el visto bueno independiente (el evaluador
+  aislado, o la persona en el panel según el tablero y el nivel de autopilot) y la PR. **Cada
+  arreglo se fusiona antes de seguir con el itinerario**; ramas apiladas solo si la persona lo pide.
 - Si /fix para porque el arreglo es grande (más de 5 ficheros, un contrato de API o una migración
-  de datos), el paso queda BLOCKED con la UC que dejó /fix y se propone /prd. Si para porque el bug
-  no se reproduce con una prueba, se apunta como hoy y se propone /feedback.
+  de datos), el paso queda BLOCKED con la UC que dejó /fix (si llegó a crearla) y se propone /prd.
+- Si /fix para porque el bug no se reproduce con una prueba, **no se cambia el código**: el bug se
+  apunta en la tabla sin UC ni PR, el paso queda FAIL y se propone /feedback. Un arreglo de código
+  sin prueba ni UC es justo lo que /fix evita, aunque sea un bug visual.
 - Los arreglos de configuración o de datos (severidad «Configuración») no son de /fix: se aplican
   y se apuntan como siempre, con su motivo.
 

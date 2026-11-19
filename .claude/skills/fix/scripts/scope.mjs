@@ -3,13 +3,17 @@
  * scope.mjs — ¿sigue siendo pequeño el arreglo? (US-127 · UC-12701 AC-04)
  *
  * /fix lo ejecuta antes del commit del arreglo. Junta los ficheros que el arreglo cambia frente a la
- * rama base (lo ya commiteado, lo pendiente y lo nuevo sin seguimiento), deja fuera sus pruebas,
- * `.quality/` y `doc/tracking/`, y los clasifica con la misma regla que el hook del radio de impacto
- * (`.claude/hooks/lib/impact-radius.mjs`, con los `impact` de la rama base). El arreglo deja de ser
- * de /fix con más de 5 ficheros, un contrato de API o una migración de datos.
+ * rama base (lo ya commiteado y lo pendiente de los ficheros con seguimiento, también lo añadido con
+ * `git add`), los cuenta sin sus pruebas, `.quality/` ni `doc/tracking/`, y clasifica todos menos
+ * `.quality/` y `doc/tracking/` con la misma regla que el hook del radio de impacto
+ * (`.claude/hooks/lib/impact-radius.mjs`, con los `impact` de la rama base): una prueba no cuenta
+ * para el límite, pero un `spec/openapi.yaml` sigue siendo un contrato. Los ficheros nuevos sin
+ * añadir no cuentan (pueden ser notas ajenas al arreglo): salen en `untracked`. Un renombrado cuenta
+ * como dos ficheros. El arreglo deja de ser de /fix con más de 5 ficheros, un contrato de API o una
+ * migración de datos.
  *
  * Uso: node scope.mjs [--base <ref>] [--limit 5]
- * Escribe un JSON: {base, count, limit, files, excluded, class, classes, stop, reasons}.
+ * Escribe un JSON: {base, count, limit, files, excluded, untracked, class, classes, stop, reasons}.
  * Sale con 0 aunque `stop` sea true (lo decide la skill); con 2 si no está en un repositorio git.
  */
 
@@ -21,16 +25,22 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 export const DEFAULT_LIMIT = 5;
 /** Pruebas del arreglo: carpetas y nombres de prueba de los stacks del engine. */
 const TEST_PATH = /(^|\/)(tests?|__tests__|spec|e2e|integration_test)\/|\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)test_[^/]*\.py$|_test\.(py|go|dart)$/;
+/** `doc/spec/` es el documento de comportamiento (UC-12605), no una carpeta de pruebas. */
+const NOT_A_TEST = /(^|\/)doc\/spec\//;
 const NEVER_COUNTED = [/^\.quality\//, /^doc\/tracking\//];
+export const ENGINE_RECORD = 'registro del engine';
 
 /** ¿Este fichero no cuenta para el límite? Devuelve el motivo, o null si cuenta. */
 export function excludedBecause(path) {
-  if (NEVER_COUNTED.some((re) => re.test(path))) return 'registro del engine';
-  if (TEST_PATH.test(path)) return 'prueba del arreglo';
+  if (NEVER_COUNTED.some((re) => re.test(path))) return ENGINE_RECORD;
+  if (TEST_PATH.test(path) && !NOT_A_TEST.test(path)) return 'prueba del arreglo';
   return null;
 }
 
-/** La decisión: pura, para las pruebas. `classified` es lo que devuelve classifyCommit. */
+/** Lo que se clasifica con la regla del radio de impacto: todo menos el registro del engine. */
+export const classifiable = (files) => [...new Set(files)].filter((path) => excludedBecause(path) !== ENGINE_RECORD);
+
+/** La decisión: pura, para las pruebas. `classified` es lo que devuelve classifyCommit sobre `classifiable(files)`. */
 export function decide(files, classified, limit = DEFAULT_LIMIT) {
   const counted = [];
   const excluded = [];
@@ -76,7 +86,7 @@ function baseRef(cwd, asked) {
   for (const ref of [...(remoteHead && remoteHead !== 'origin/HEAD' ? [remoteHead] : []), 'origin/main', 'origin/master', 'main', 'master']) {
     if (git(cwd, ['rev-parse', '--verify', '-q', ref])) return ref;
   }
-  return 'HEAD';
+  return null;
 }
 
 /** Los `impact` de la rama base, como el hook: una rama no afloja su propia regla. */
@@ -113,22 +123,32 @@ async function main(argv) {
     process.stdout.write(`${JSON.stringify({ error: 'not_a_git_repo', stop: true, reasons: ['no estás en un repositorio git'] })}\n`);
     return 2;
   }
-  const base = baseRef(root, arg('--base'));
+  const foundBase = baseRef(root, arg('--base'));
+  const base = foundBase || 'HEAD';
   const limit = Number(arg('--limit')) > 0 ? Number(arg('--limit')) : DEFAULT_LIMIT;
   const files = [
-    ...list0(git(root, ['diff', '--name-only', '-z', '--no-renames', `${base}...HEAD`], true)),
+    ...(foundBase ? list0(git(root, ['diff', '--name-only', '-z', '--no-renames', `${base}...HEAD`], true)) : []),
     ...list0(git(root, ['diff', '--name-only', '-z', '--no-renames', 'HEAD'], true)),
-    ...list0(git(root, ['ls-files', '--others', '--exclude-standard', '-z'], true)),
   ];
+  const untracked = list0(git(root, ['ls-files', '--others', '--exclude-standard', '-z'], true)).sort();
   const classify = await loadClassifier(root);
-  const counted = files.filter((path) => !excludedBecause(path));
   const versions = (path) => ({
     before: git(root, ['show', `${base}:${path}`], true),
     after: existsSync(join(root, path)) ? readFileSync(join(root, path), 'utf-8') : '',
   });
-  const classified = classify ? classify(counted, impactConfig(root, base), versions) : null;
-  const result = { base, ...decide(files, classified, limit) };
-  if (!classify) result.notice = 'Sin el clasificador del radio de impacto: solo se cuentan los ficheros.';
+  const classified = classify ? classify(classifiable(files), impactConfig(root, base), versions) : null;
+  const result = { base, ...decide(files, classified, limit), untracked };
+  const notices = [];
+  if (!foundBase) {
+    notices.push('Sin rama base (no hay origin/HEAD, main ni master): solo cuenta lo pendiente, no lo ya '
+      + 'commiteado. Mide otra vez con --base <rama principal>.');
+  }
+  if (!classify) notices.push('Sin el clasificador del radio de impacto: solo se cuentan los ficheros.');
+  if (untracked.length) {
+    notices.push(`${untracked.length} ficheros nuevos sin añadir no cuentan: si alguno es del arreglo, `
+      + 'añádelo con git add y mide otra vez.');
+  }
+  if (notices.length) result.notice = notices.join(' ');
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   return 0;
 }

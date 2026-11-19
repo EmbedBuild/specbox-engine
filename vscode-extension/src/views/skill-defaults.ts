@@ -50,7 +50,7 @@ export const SKILL_DEFAULTS: Record<string, SkillDefaults> = {
 		example: '/feedback UC-701 "Sidebar still shows /remote skill"',
 	},
 	fix: {
-		whatItDoes: 'Fixes a small bug without a PRD or a plan but with its UC and criterion on the board: a test that reproduces the bug and fails, the UC branch, the fix that turns it green, the receipt, an isolated review and the close.',
+		whatItDoes: 'Fixes a small bug without a PRD or a plan but with its UC and criterion on the board: a test that reproduces the bug and fails, the UC branch, the fix that turns it green, the receipt, an independent review and the close.',
 		whenToUse: [
 			'A bug that touches a few files and can be reproduced with a test.',
 			'Every code fix found during /manual-test on a project with a board.',

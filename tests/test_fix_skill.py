@@ -101,3 +101,28 @@ def test_ac07_a_bug_without_a_reproducing_test_goes_to_feedback():
     assert "/feedback" in step and "no lo toma" in step
     # Y es antes de tocar el tablero: no deja UC.
     assert _pos(FIX, "**Si no se puede reproducir con una prueba**") < _pos(FIX, "## Paso 2 — La historia")
+
+
+def test_the_independent_review_follows_the_rule_of_the_measure():
+    # merge-guard solo acepta el veredicto de un evaluador en «agresivo» o en FreeForm; si no, una persona.
+    review = FIX[_pos(FIX, "4. **El visto bueno de alguien que no lo implementó**"):_pos(FIX, "## Paso 10")]
+    assert "«agresivo» o en FreeForm" in review and "record_review_verdict(" in review
+    assert "una **persona** acepta" in review and "no fusiones" in review
+
+
+def test_stopping_leaves_the_uc_pending_in_any_board():
+    stop = FIX[_pos(FIX, "## Paso 8"):_pos(FIX, "## Paso 9")]
+    assert 'move_uc(board_id, uc_id, "backlog")' in stop and "release_uc(uc_id)" in stop
+    assert "NOT_NATIVE_SESSION" in stop and ".quality/active_uc.json" in stop
+    # Las tools de coordinación no llevan board_id.
+    assert "register_native_branch(uc_id, branch)" in FIX and "register_native_branch(board_id" not in FIX
+
+
+def test_the_early_stop_touches_neither_the_board_nor_git():
+    early = FIX[_pos(FIX, "**Primera medida del alcance.**"):_pos(FIX, "## Paso 2")]
+    assert "no toques el tablero ni hagas commit" in early and "/prd" in early
+
+
+def test_ac05_manual_test_does_not_change_the_code_when_fix_refuses_it():
+    step = MANUAL[_pos(MANUAL, "### 4.2b"):_pos(MANUAL, "### 4.3")]
+    assert "**no se cambia el código**" in step and "/feedback" in step

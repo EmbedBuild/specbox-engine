@@ -2,6 +2,66 @@
 
 All notable changes to SpecBox Engine (formerly SDD-JPS Engine) are documented here.
 
+## [6.46.0] - 2026-11-19 — "La puerta"
+
+Segunda tanda de US-126: el tablero recuerda qué ficheros cambió cada UC cerrada, y el CI local tiene
+una puerta que compara lo que cambia una rama con lo que reclaman sus UC.
+
+### Added
+
+- **Los ficheros de una UC cerrada** (UC-12603, #399).
+  - `complete_uc(files, repo)` guarda los ficheros que cambió su PR en `meta.closed_files` y, con
+    `repo`, en la lista de ese repositorio. /implement los saca con `gh api …/pulls/<n>/files --paginate`.
+  - Si se vuelve a cerrar, se suman. Por encima de 1000 rutas se quedan las más recientes
+    (`closed_files_truncated`). `get_uc` los devuelve en `closed_files`.
+  - Tool nueva `get_closed_uc_files`: qué UC cerradas del mismo repositorio cambiaron unas rutas, con
+    la propuesta de revisar sus criterios. Solo lee.
+- **La puerta de desviación** (UC-12602, #401).
+  - Orden nueva `specbox drift` y tool `get_drift_report`, que solo lee. Cada fichero que cambia la rama
+    sale con la UC que lo reclama, por la línea `Ficheros:` de su plan o por los recibos de sus
+    criterios, o «sin UC».
+  - Nombra las dependencias que la rama añade y el plan no declara en «## Dependencias nuevas»
+    (`package.json`, `pyproject.toml` con extras y Poetry, `pubspec.yaml`, `go.mod`).
+  - Lista las exclusiones del proyecto (`drift.exclude`) y las UC cerradas que el cambio toca.
+  - El CI local la ejecuta en el bloque `desviacion`, y su resultado sale en el resumen.
+- **Medida `drift_gate`**, activa desde 6.46.0 y en «warn» por defecto. En «block», la orden termina con
+  1 si hay un fichero sin UC o una dependencia sin declarar.
+
+### Changed
+
+- **`complete_uc` y `move_uc` a «done»** avisan cuando la UC se cierra sin su lista de ficheros
+  (`closed_files_missing`).
+- **Las lecturas de tablero entero** no llevan la lista (`_LIGHT_META`, y el hook `freeform-fragment`
+  tampoco la manda en el contexto). Se lee con `list_done_ucs`.
+
+### Para los proyectos que ya existían
+
+- **La medida `drift_gate` nace en «warn»**: la puerta enseña el informe y el CI sigue. Para que detenga
+  la rama, `set_enforcement_mode(measure="drift_gate", mode="block")`, con el informe de impacto antes.
+- **Las UC cerradas antes de 6.46.0 no avisan** hasta tener su lista: se cuentan en
+  `closed_without_files`.
+- **Una rama cuyas UC tienen plan anterior al contrato** y no reclaman nada queda «sin comprobar», como
+  aviso y nunca en verde. Los planes nuevos de /plan traen las líneas `Ficheros:`.
+- **La configuración `drift`** (exclusiones y prefijos de rama) se lee de la rama base: un cambio vale
+  cuando llega a main.
+- **Trello y Plane** no guardan la lista (`closed_files_not_stored`), y en esos tableros la puerta solo
+  avisa.
+
+### Security
+
+- **Una exclusión no puede colgar el servidor compartido**: los globs se comparan en tiempo lineal, con
+  un tope de trabajo por llamada (`EXCLUDE_TOO_COSTLY`, que en «block» falla) y hasta 20 comodines.
+- **Una rama no afloja su propia puerta**: las exclusiones y los prefijos salen de la rama base, y en
+  «block» fallan una rama de más de 20 000 ficheros o una ruta de más de 1024 caracteres.
+
+### Tests
+
+- `tests/test_closed_files.py` y `tests/test_drift_gate.py` (21 casos). Cubren native y FreeForm, PR
+  en dos repositorios, recortes, globs patológicos, UC inventadas, cerradas o de plan viejo, y planes
+  de otra UC.
+- `packages/specbox-cli/test/drift.test.mjs` (10). Cubren satélite, prefijos, configuración de la base,
+  rutas con tildes, rutas largas y «block».
+
 ## [6.45.0] - 2026-11-19 — "Hilo conductor"
 
 Primera tanda de US-126: el plan relaciona cada fase con sus criterios y sus ficheros, el recibo de un

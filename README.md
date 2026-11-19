@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.45.0 — "Hilo conductor" (sobre v6.44 "Visto previo")<br/>
+  v 6.46.0 — "La puerta" (sobre v6.45 "Hilo conductor")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,19 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.46
+
+**v6.46.0 — "La puerta"** pone una puerta en el CI local entre el código y su spec:
+
+- **La puerta de desviación**: `specbox drift` muestra cada fichero que cambia la rama con la UC que
+  lo reclama, o «sin UC», y nombra las dependencias que el plan no declara. En «block», el CI falla.
+- **Lo cerrado se recuerda**: el tablero guarda los ficheros que cambió cada UC cerrada, y un cambio
+  posterior en ellos avisa con la propuesta de revisar sus criterios.
+
+100% backwards-compatible: la medida nace en «warn» y una UC cerrada antes no avisa.
 
 ---
 
@@ -1067,7 +1080,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.45.0 — "Hilo conductor" (over v6.44 "Visto previo")
+> v 6.46.0 — "La puerta" (over v6.45 "Hilo conductor")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -1081,6 +1094,19 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.46
+
+**v6.46.0 — "La puerta"** puts a gate between the code and its spec in the local CI:
+
+- **The drift gate**: `specbox drift` shows each file the branch changes with the UC that claims it,
+  or «sin UC», and names the dependencies the plan does not declare. In «block», the CI fails.
+- **What was closed is remembered**: the board keeps the files each closed UC changed, and a later
+  change to them warns with the proposal to review its criteria.
+
+100% backwards-compatible: the measure starts in «warn» and a UC closed earlier never warns.
+
+---
 
 ## What's new in v6.45
 

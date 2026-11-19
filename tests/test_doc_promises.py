@@ -8,7 +8,7 @@ verdad, y estas pruebas impiden que la promesa vuelva a colarse.
   `spec_quality` en «block». Ningún documento dice que bloquea sin decir dónde (`start_uc`) y cuándo
   («block»), ni conserva la nota de que «llegará».
 - UC-12202: spec-guard avisa después de escribir; solo bloquea en main o master.
-- UC-12204: Spec-Code Sync lista los ficheros tocados; aún no los compara con el plan.
+- UC-12204 → UC-12601: Spec-Code Sync compara con el plan cuando el plan declara ficheros por fase.
 """
 from __future__ import annotations
 
@@ -188,33 +188,18 @@ def test_uc_12202_branch_guard_is_not_sold_as_blocking():
     assert "**BLOQUEANTE**" not in _row("rules/GLOBAL_RULES.md", "branch-guard")
 
 
-# UC-12204 ─ Spec-Code Sync no compara con el plan (el comparador no recibe sus ficheros).
-PLAN_COMPARISON = re.compile(
-    r"deltas? vs\.? plan|compara(?:do|da)? con el plan|conforme al plan|compared? (?:with|against) the plan",
-    re.IGNORECASE,
-)
-
-
-def test_uc_12204_no_doc_says_spec_code_sync_compares_with_the_plan():
-    offending = [
-        f"{rel}:{start}: {text[:160]}"
-        for rel, start, text in DOC_PARAGRAPHS
-        if PLAN_COMPARISON.search(text)
-    ]
-    assert offending == [], "Spec-Code Sync aún no compara con el plan:\n" + "\n".join(offending)
-
-
-def test_uc_12204_the_mcp_instructions_do_not_promise_a_plan_comparison():
+# UC-12601 ─ Spec-Code Sync compara con el plan (sustituye a la nota de UC-12204).
+def test_uc_12601_the_mcp_instructions_say_it_compares_with_the_plan():
     # server.py:INSTRUCTIONS es lo que el MCP manda a todos los clientes al conectar.
     server = (REPO_ROOT / "server/server.py").read_text(encoding="utf-8")
     line = next(text for text in server.splitlines() if "Spec-Code Sync" in text)
-    assert not PLAN_COMPARISON.search(line), line
-    assert "not checked against the plan yet" in line
+    assert "compared with the plan" in line and "not checked against the plan" not in line
 
 
-def test_uc_12204_the_spec_code_sync_section_says_what_it_lists():
+def test_uc_12601_the_spec_code_sync_section_says_how_it_compares():
     claude = (REPO_ROOT / "CLAUDE.md").read_text(encoding="utf-8")
     section = claude.split("## Spec-Code Sync", 1)[1].split("\n## ", 1)[0]
-    assert "The plan is not used yet" in section
-    assert "Comparación no disponible" in section
-    assert "UC-12601" in section
+    assert "The plan is not used yet" not in section
+    assert "UC-12601" in section and "**Ficheros:**" in section
+    assert "Comparación no disponible: el plan no declara ficheros por fase" in section
+    assert "results_content" in section

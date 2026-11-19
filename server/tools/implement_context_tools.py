@@ -19,7 +19,8 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
-from ..delta_generator import generate_phase_delta
+from ..delta_generator import NO_PLAN_COMPARISON, generate_phase_delta
+from ..plan_contract import PlanContract, expected_files, parse_plan_contract
 from ..implement_context import (
     PhaseOutput,
     aggregate_phase_entries,
@@ -36,8 +37,12 @@ _FEATURE_SLUG = re.compile(r"^(?!\.{1,2}$)[A-Za-z0-9._-]{1,120}$")
 _DELTA_STATUS = {"ok": "complete", "error": "failed", "partial": "needs_healing"}
 
 
-def _phase_delta(entry: PhaseOutput) -> str:
-    """The Markdown block of one phase, as ``write_implementation_status`` expects it."""
+def _phase_delta(entry: PhaseOutput, expected: list[str] | None = None) -> str:
+    """The Markdown block of one phase, as ``write_implementation_status`` expects it.
+
+    ``expected`` (UC-12601) are the files the plan's phase of the same number declares; None when
+    the plan does not say (an older plan, or no plan passed).
+    """
 
     healing = (
         [{"type": f"{entry.healing_attempts} intento(s)", "resolved": entry.status == "ok"}]
@@ -50,10 +55,33 @@ def _phase_delta(entry: PhaseOutput) -> str:
         phase_status=_DELTA_STATUS.get(entry.status, entry.status),
         files_created=entry.files_created,
         files_modified=entry.files_modified,
+        files_deleted=entry.files_deleted,
+        plan_files_expected=expected,
         decisions=[entry.summary] if entry.summary else None,
         healing_events=healing,
         error_summary=entry.error,
     )
+
+
+def _expected_for(contract: PlanContract, entry: PhaseOutput) -> list[str] | None:
+    """Los ficheros de la fase N del plan para la fase con ``phase_index`` N, o None."""
+    if contract.contract_version == 0 or not 1 <= entry.phase_index <= len(contract.phases):
+        return None
+    return list(contract.phases[entry.phase_index - 1].files)
+
+
+def _plan_comparison(contract: PlanContract, entries: list[PhaseOutput]) -> dict[str, Any]:
+    """Toda la ejecución frente a todo lo que el plan esperaba (UC-12601 AC-01)."""
+    if contract.contract_version == 0:
+        return {"available": False, "reason": NO_PLAN_COMPARISON}
+    expected = set(expected_files(contract))
+    touched = {f for e in entries for f in (*e.files_created, *e.files_modified, *e.files_deleted)}
+    return {
+        "available": True,
+        "expected": sorted(expected),
+        "extra": sorted(touched - expected),
+        "missing": sorted(expected - touched),
+    }
 
 
 def _invalid_slug(feature_slug: str) -> dict[str, Any] | None:
@@ -145,13 +173,21 @@ def register_implement_context_tools(mcp, engine_path: Path) -> None:
         return {"path": context_relpath(feature_slug), "content": content, "changed": changed}
 
     @mcp.tool
-    def aggregate_phase_outputs(feature_slug: str, phase_outputs_content: str = "") -> dict[str, Any]:
+    def aggregate_phase_outputs(
+        feature_slug: str, phase_outputs_content: str = "", plan_content: str = "",
+    ) -> dict[str, Any]:
         """Aggregate /implement's phase_outputs.jsonl for Spec-Code Sync.
 
         Use from /implement (Pasos 5.1.1b and 8.5.1a) instead of running the
         engine's Python. Pass the content of
         ``.quality/evidence/<feature_slug>/phase_outputs.jsonl`` (empty if the
         file does not exist yet). Corrupt lines are skipped.
+
+        ``plan_content`` (UC-12601) is the plan's text: with **Ficheros:** lines in its phases
+        (contract 1, ``check_plan_contract``), the phase whose ``phase_index`` is N is compared
+        with the plan's phase N and each block lists every file that is extra or missing;
+        ``plan_comparison`` adds the whole run against everything the plan expected. Without it,
+        or with an older plan, each block says the comparison is not available.
 
         Returns:
             ``{feature_slug, overall_status, delta_count, files_created,
@@ -165,5 +201,7 @@ def register_implement_context_tools(mcp, engine_path: Path) -> None:
             return invalid
         entries = parse_phase_outputs(phase_outputs_content)
         result = asdict(aggregate_phase_entries(feature_slug, entries))
-        result["phase_deltas"] = [_phase_delta(entry) for entry in entries]
+        contract = parse_plan_contract(plan_content or "")
+        result["phase_deltas"] = [_phase_delta(entry, _expected_for(contract, entry)) for entry in entries]
+        result["plan_comparison"] = _plan_comparison(contract, entries)
         return result

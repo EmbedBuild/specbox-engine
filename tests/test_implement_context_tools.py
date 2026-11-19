@@ -132,6 +132,8 @@ async def test_ac03_the_aggregate_is_the_same_as_the_python(server, tmp_path):
     out = await _call(server, "aggregate_phase_outputs", {"feature_slug": FEATURE, "phase_outputs_content": content})
 
     deltas = out.pop("phase_deltas")
+    # UC-12601: sin plan, la comparación con el plan no está disponible (no forma parte del agregado).
+    assert out.pop("plan_comparison")["available"] is False
     assert out == {
         "feature_slug": python_agg.feature_slug,
         "overall_status": python_agg.overall_status,

@@ -26,6 +26,7 @@ def generate_phase_delta(
     decisions: list[str] | None = None,
     healing_events: list[dict] | None = None,
     error_summary: str | None = None,
+    files_deleted: list[str] | None = None,
 ) -> str:
     """Generate a Markdown delta block for a completed phase.
 
@@ -35,7 +36,9 @@ def generate_phase_delta(
         phase_status: One of "complete", "failed", "needs_healing".
         files_created: List of file paths created in this phase.
         files_modified: List of file paths modified in this phase.
-        plan_files_expected: Files the plan expected (for delta detection). None = skip comparison.
+        plan_files_expected: Files the plan expected for this phase (UC-12601: from the plan's
+            **Ficheros:** line, ``server/plan_contract.py``). None = the plan does not say.
+        files_deleted: Files deleted in this phase; they count as touched in the comparison.
         decisions: Key decisions made by the sub-agent during this phase.
         healing_events: List of healing event dicts with keys: type, resolved (bool).
         error_summary: Error description if phase failed.
@@ -59,7 +62,7 @@ def generate_phase_delta(
     lines.append(f"- **Archivos modificados:** {_format_file_list(files_modified)}")
 
     # Deltas vs plan
-    deltas_text = _compute_deltas(files_created, files_modified, plan_files_expected)
+    deltas_text = _compute_deltas(files_created, files_modified, plan_files_expected, files_deleted or [])
     lines.append(f"- **Deltas vs plan:** {deltas_text}")
 
     # Decisions
@@ -151,33 +154,33 @@ def _format_file_list(files: list[str]) -> str:
     return ", ".join(f"`{f}`" for f in shown) + f" ... y {len(files) - MAX_FILES_PER_CATEGORY} más"
 
 
+#: UC-12601: lo que dice el bloque cuando el plan no declara ficheros por fase.
+NO_PLAN_COMPARISON = "Comparación no disponible: el plan no declara ficheros por fase"
+NO_DELTAS = "Sin deltas — implementación conforme al plan"
+
+
 def _compute_deltas(
     files_created: list[str],
     files_modified: list[str],
     plan_files_expected: list[str] | None,
+    files_deleted: list[str] | None = None,
 ) -> str:
-    """Compute delta description between actual files and plan expectation (AC-03)."""
+    """Lo hecho frente a lo que el plan esperaba en la fase (UC-12601): todos los que sobran y
+    todos los que faltan, sin recorte; un fichero borrado cuenta como tocado."""
     if plan_files_expected is None:
-        return "Comparación no disponible — archivos listados sin referencia al plan"
+        return NO_PLAN_COMPARISON
 
-    actual_set = set(files_created) | set(files_modified)
+    actual_set = set(files_created) | set(files_modified) | set(files_deleted or [])
     expected_set = set(plan_files_expected)
 
-    if actual_set == expected_set:
-        return "Sin deltas — implementación conforme al plan"
-
+    extra = sorted(actual_set - expected_set)
+    missing = sorted(expected_set - actual_set)
     parts: list[str] = []
-    extra = actual_set - expected_set
-    missing = expected_set - actual_set
-
     if extra:
-        extra_list = ", ".join(f"`{f}`" for f in sorted(extra)[:5])
-        parts.append(f"Archivos adicionales: {extra_list}")
+        parts.append("Archivos adicionales: " + ", ".join(f"`{f}`" for f in extra))
     if missing:
-        missing_list = ", ".join(f"`{f}`" for f in sorted(missing)[:5])
-        parts.append(f"Archivos esperados no tocados: {missing_list}")
-
-    return "; ".join(parts) if parts else "Sin deltas — implementación conforme al plan"
+        parts.append("Archivos esperados no tocados: " + ", ".join(f"`{f}`" for f in missing))
+    return "; ".join(parts) if parts else NO_DELTAS
 
 
 def _enforce_token_budget(text: str) -> str:

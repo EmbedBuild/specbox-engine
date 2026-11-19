@@ -178,7 +178,10 @@ def _parse_uc_block(uc_id: str, block: str) -> UCImplementationStatus:
     for phase in phases:
         if phase.status == "failed":
             has_failed = True
-        if phase.deltas and "sin deltas" not in phase.deltas.lower():
+        # UC-12601: solo cuenta como desviación lo que el comparador dio por desviación; «no
+        # disponible» (el plan no declara ficheros) no es una desviación.
+        deltas = (phase.deltas or "").lower()
+        if deltas and "sin deltas" not in deltas and "no disponible" not in deltas:
             has_deltas = True
             delta_count += 1
         if phase.healing:

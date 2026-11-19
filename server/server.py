@@ -163,7 +163,7 @@ mcp = FastMCP(
     - Import project specifications, track progress, attach evidence
     - Find next UC to implement, mark acceptance criteria, generate delivery reports
     - Migrate projects bidirectionally between Trello and Plane
-    - Query Spec-Code Sync status (files touched per phase; not checked against the plan yet)
+    - Query Spec-Code Sync status (files touched per phase, compared with the plan when it declares them)
     - Run standalone acceptance checks against PRDs without full /implement
     - Generate public benchmark snapshots with anonymized project metrics
     - Manage contextual hints for new developers

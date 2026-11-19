@@ -1396,9 +1396,12 @@ Es una tool del MCP (UC-11202): no hace falta el clon del engine ni Python.
 Reglas de uso:
 - Si `agg.overall_status == "error"` → linea: "Fase {phase} fallida — pendiente de resolucion"
 - Si `agg.total_healing_attempts > 0` → linea adicional con count y nivel maximo
-- Hoy el bloque de cada fase no se contrasta con el plan: lista los ficheros tocados y dice
-  «Comparación no disponible». No afirmar que la fase sigue el plan (UC-12204; el comparador
-  llega con UC-12601).
+- Pasa el plan (`plan_content`, el texto de `doc/plans/...`) a `aggregate_phase_outputs`
+  (UC-12601): la fase con `phase_index` N se compara con la fase N del plan (su línea
+  **Ficheros:**) y el bloque lista los ficheros que sobran y los que faltan; `plan_comparison`
+  da la ejecución entera frente al plan. Escribe `phase_index` con el número de la fase del plan
+  que ejecutas. Con un plan anterior (contrato 0) el bloque dice «Comparación no disponible»: no
+  afirmes que la fase sigue el plan.
 
 El orquestador YA NO mantiene `implementation_deltas: list[str]` en memoria.
 Cualquier consulta posterior (Paso 7.7a, Paso 8.5.1a) vuelve a llamar a

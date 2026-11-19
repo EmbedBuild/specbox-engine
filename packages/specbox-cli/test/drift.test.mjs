@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { run } from "../bin/specbox.mjs";
-import { addedDependencies, branchUcs, resolveBoard, runDrift } from "../lib/drift.mjs";
+import { addedDependencies, branchUcs, inferBackend, plansFor, resolveBoard, runDrift } from "../lib/drift.mjs";
 
 function write(root, rel, content) {
   mkdirSync(dirname(join(root, rel)), { recursive: true });
@@ -203,6 +203,63 @@ test("las UC salen de los commits y de la rama; sin ninguna, del marcador; y las
     assert.deepEqual(added.map((d) => `${d.ecosystem}:${d.name}`).sort(), [
       "go:github.com/a/b", "npm:zod", "pub:http", "pub:test", "pypi:Rapid_Fuzz", "pypi:httpx", "pypi:pytest",
     ]);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+
+test("revisión: dependencias de Python con extras, git y Poetry, y el mismo nombre con otra grafía", () => {
+  const root = repoWithBranch();
+  try {
+    write(root, "pyproject.toml", '[project]\nname = "x"\ndependencies = [\n  "httpx[http2]>=0.27",\n  "PyYAML",\n]\n');
+    git(root, "add", "-A");
+    git(root, "commit", "-q", "-m", "base py");
+    const base = git(root, "rev-parse", "HEAD").trim();
+    write(root, "pyproject.toml", [
+      "[project]", 'name = "x"', "dependencies = [", '  "httpx[http2]>=0.27",  # con extras', '  "pyyaml",',
+      '  "uvicorn[standard]",', '  "mipaquete @ git+https://x/y.git#egg=mipaquete",', '  "rapidfuzz",', "]",
+      "[tool.poetry.dependencies]", 'python = "^3.12"', 'requests = "^2"',
+    ].join("\n"));
+    git(root, "add", "-A");
+    git(root, "commit", "-q", "-m", "más py");
+    const added = addedDependencies(root, base, ["pyproject.toml"]).map((d) => d.name).sort();
+    assert.deepEqual(added, ["mipaquete", "rapidfuzz", "requests", "uvicorn"]); // «pyyaml» no es nueva
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("revisión: el plan que solo cita la UC en el texto no es suyo; el tipo de tablero se deduce", () => {
+  const root = mkdtempSync(join(tmpdir(), "drift-plans-"));
+  try {
+    write(root, "doc/plans/US-07_plan.md", "### Fase 1\n**Criterios:** UC-701 AC-01\n");
+    write(root, "doc/plans/US-09_plan.md", "### Fase 1\n**Criterios:** UC-999 AC-01\nComo en UC-701, …\n");
+    write(root, "doc/plans/US-08_plan.md", "## UC-701 · resumen\nsin criterios\n");
+    assert.deepEqual(Object.keys(plansFor(root, ["UC-701"])).sort(), ["doc/plans/US-07_plan.md", "doc/plans/US-08_plan.md"]);
+    assert.equal(inferBackend({ boardId: "Acme/x", orchestratorRoot: root }), "native");
+    assert.equal(inferBackend({ boardId: "5f9a1b2c3d4e5f6a7b8c9d0e", orchestratorRoot: root }), "unknown");
+    write(root, "doc/tracking/items.json", "[]");
+    assert.equal(inferBackend({ boardId: "ff-1", orchestratorRoot: root }), "freeform");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("revisión: «off» no comprueba, sin login queda «sin comprobar» y una rama enorme falla en «block»", async () => {
+  const root = repoWithBranch();
+  try {
+    const summary = join(root, "r.txt");
+    const out = [];
+    assert.equal(await runDrift({ root, base: "main", summaryFile: summary }, deps(fakeMcp(REPORT({ mode: "off" })), out)), 0);
+    assert.match(readFileSync(summary, "utf8"), /^saltado: La medida drift_gate está en «off»/);
+    await runDrift({ root, base: "main", summaryFile: summary }, deps(fakeMcp(REPORT()), [], { headersFor: async () => ({}) }));
+    assert.match(readFileSync(summary, "utf8"), /^sin comprobar: .*specbox login/);
+    const big = fakeMcp(REPORT({ mode: "block" }));
+    assert.equal(await runDrift({ root, base: "main", summaryFile: summary }, deps(big, [], { maxFiles: 2 })), 1);
+    assert.deepEqual(big.calls[0].arguments.files, []); // solo se pregunta el modo
+    assert.match(readFileSync(summary, "utf8"), /^fallo: La rama .* cambia 3 ficheros \(más de 2\)/);
+    assert.equal(await runDrift({ root, base: "main" }, deps(fakeMcp(REPORT()), [], { maxFiles: 2 })), 0); // «warn»
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

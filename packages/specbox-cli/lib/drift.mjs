@@ -21,6 +21,8 @@ import { basename, isAbsolute, join, resolve } from "node:path";
 export const DEFAULT_SKIP_PREFIXES = ["dependabot/", "deps/", "docs/", "ci/", "release/"];
 const UC_ID = /\bUC-\d+[a-z]?\b/gi;
 const MAX_PLAN_FILES = 20;
+/** Lo que el servidor compara fichero a fichero (MAX_DRIFT_FILES). */
+const MAX_FILES = 20_000;
 const MAX_PLAN_BYTES = 400_000;
 
 // ── Git ────────────────────────────────────────────────────────────────
@@ -115,6 +117,18 @@ export function resolveBoard(root) {
   return { ...orch, root, orchestratorRoot, satellite: true };
 }
 
+/**
+ * El tipo de tablero cuando la configuración no lo dice (la forma antigua, solo `boardId`): un id
+ * «owner/repo» es native; con un tablero FreeForm en disco, freeform; si no, «desconocido», y el
+ * servidor no abre nada con él.
+ */
+export function inferBackend(board) {
+  if (/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(board.boardId || "")) return "native";
+  const tracking = board.freeformRoot || join(board.orchestratorRoot, "doc", "tracking");
+  if (existsSync(join(tracking, "items.json"))) return "freeform";
+  return "unknown";
+}
+
 /** «owner/nombre» del remoto origin (GitHub por https o ssh), o null. */
 export function repoOf(root) {
   const url = gitOr(root, ["remote", "get-url", "origin"]).trim();
@@ -154,7 +168,12 @@ export function plansFor(orchestratorRoot, ucs) {
     } catch {
       continue;
     }
-    const named = new Set([...text.matchAll(UC_ID)].map((m) => m[0].toUpperCase()));
+    // Solo el plan que nombra la UC en una línea de criterios o en un encabezado: el que solo la cita
+    // en el texto es de otra UC.
+    const named = new Set();
+    for (const line of text.split("\n")) {
+      if (/^\s*#{1,6}\s|\*\*Criterios:?\*\*/i.test(line)) for (const m of line.matchAll(UC_ID)) named.add(m[0].toUpperCase());
+    }
     if (!ucs.some((u) => named.has(u))) continue;
     if (Object.keys(out).length >= MAX_PLAN_FILES || total + text.length > MAX_PLAN_BYTES) break;
     out[`doc/plans/${name}`] = text;
@@ -180,31 +199,59 @@ function npmNames(text) {
   return new Set(keys.flatMap((k) => (data[k] && typeof data[k] === "object" ? Object.keys(data[k]) : [])));
 }
 
-function pyNames(text) {
-  const out = new Set();
-  let table = "";
-  let inArray = false;
-  for (const raw of String(text).split("\n")) {
-    const line = raw.replace(/#.*$/, "").trim();
-    const header = line.match(/^\[+([^\]]+)\]+$/);
-    if (header) {
-      table = header[1].trim();
-      inArray = false;
-      continue;
-    }
-    const isDepTable = table === "project.optional-dependencies" || table === "dependency-groups";
-    const start = line.match(/^([A-Za-z0-9_.-]+)\s*=\s*\[(.*)$/);
-    if (start && ((table === "project" && start[1] === "dependencies") || (table === "tool.uv" && start[1] === "dev-dependencies") || isDepTable)) {
-      inArray = !start[2].includes("]");
-      for (const m of start[2].matchAll(/["']([^"']+)["']/g)) out.add(m[1]);
-      continue;
-    }
-    if (inArray) {
-      for (const m of line.matchAll(/["']([^"']+)["']/g)) out.add(m[1]);
-      if (line.includes("]")) inArray = false;
-    }
+/** Las cadenas de una lista TOML que empieza en `start` (justo después de «[»), con comillas y extras. */
+function tomlStrings(text, start) {
+  const out = [];
+  let i = start;
+  let quote = null;
+  let current = "";
+  while (i < text.length) {
+    const c = text[i];
+    if (quote) {
+      if (c === "\\" && quote === '"') { current += text[i + 1] ?? ""; i += 2; continue; }
+      if (c === quote) { out.push(current); current = ""; quote = null; }
+      else current += c;
+    } else if (c === '"' || c === "'") quote = c;
+    else if (c === "#") { while (i < text.length && text[i] !== "\n") i += 1; continue; }
+    else if (c === "]") break;
+    i += 1;
   }
-  return new Set([...out].map((spec) => spec.split(/[\s\[<>=!~;,(]/)[0]).filter(Boolean));
+  return out;
+}
+
+/** El nombre de una dependencia de Python: «httpx>=0.27», «uvicorn[standard]», «pkg @ git+…» → httpx, uvicorn, pkg. */
+function pyName(spec) {
+  return String(spec).trim().split(/[\s\[<>=!~;,(@]/)[0];
+}
+
+function pyNames(text) {
+  const src = String(text);
+  const out = new Set();
+  const lines = src.split("\n");
+  let table = "";
+  let offset = 0;
+  for (const raw of lines) {
+    const line = raw.replace(/^\s+/, "");
+    const header = line.match(/^\[+([^\]]+)\]+\s*(#.*)?$/);
+    if (header) table = header[1].trim();
+    else {
+      const key = line.match(/^([A-Za-z0-9_.-]+)\s*=\s*(.*)$/);
+      if (key) {
+        const [, name, value] = key;
+        const isArrayTable = table === "project.optional-dependencies" || table === "dependency-groups";
+        const isArray = (table === "project" && name === "dependencies") || (table === "tool.uv" && name === "dev-dependencies") || isArrayTable;
+        const poetry = /^tool\.poetry(\.group\.[^.]+)?\.(dev-)?dependencies$/.test(table);
+        if (isArray && value.startsWith("[")) {
+          const at = offset + raw.indexOf("[", raw.indexOf("=")) + 1;
+          for (const spec of tomlStrings(src, at)) if (pyName(spec)) out.add(pyName(spec));
+        } else if (poetry && name.toLowerCase() !== "python") {
+          out.add(name);
+        }
+      }
+    }
+    offset += raw.length + 1;
+  }
+  return out;
 }
 
 function pubNames(text) {
@@ -236,15 +283,22 @@ function goNames(text) {
 
 const PARSERS = { npm: npmNames, pypi: pyNames, pub: pubNames, go: goNames };
 
+/** Cómo se comparan dos nombres de un mismo gestor: «PyYAML» y «pyyaml» son el mismo en PyPI. */
+function nameKey(ecosystem, name) {
+  if (ecosystem === "pypi") return name.toLowerCase().replace(/[-_.]+/g, "-");
+  if (ecosystem === "npm" || ecosystem === "pub") return name.toLowerCase();
+  return name;
+}
+
 /** Las dependencias que la rama añade a sus manifiestos: [{ecosystem, name, manifest}]. */
 export function addedDependencies(root, base, files) {
   const out = [];
   for (const path of files) {
     const ecosystem = MANIFESTS[basename(path)];
     if (!ecosystem) continue;
-    const before = PARSERS[ecosystem](gitOr(root, ["show", `${base}:${path}`]));
+    const before = new Set([...PARSERS[ecosystem](gitOr(root, ["show", `${base}:${path}`]))].map((n) => nameKey(ecosystem, n)));
     const after = PARSERS[ecosystem](gitOr(root, ["show", `HEAD:${path}`]));
-    for (const name of after) if (!before.has(name)) out.push({ ecosystem, name, manifest: path });
+    for (const name of after) if (!before.has(nameKey(ecosystem, name))) out.push({ ecosystem, name, manifest: path });
   }
   return out;
 }
@@ -329,8 +383,10 @@ export function formatReport(report, context) {
   if (report.unknown_ucs?.length) lines.push(`UC que el tablero no tiene: ${report.unknown_ucs.join(", ")}`);
   lines.push("");
   lines.push("Ficheros:");
+  const notJudged = new Set(report.not_judged ?? []);
   for (const f of report.files ?? []) {
     if (f.excluded_by) lines.push(`  ${f.path} — excluido (${f.excluded_by})`);
+    else if (notJudged.has(f.path)) lines.push(`  ${f.path} — sin plan con ficheros (no se juzga)`);
     else if (f.claimed_by?.length) lines.push(`  ${f.path} — ${f.claimed_by.join(", ")} (${f.source === "plan+receipt" ? "plan y recibo" : f.source === "plan" ? "plan" : "recibo"})`);
     else lines.push(`  ${f.path} — sin UC${f.planned_for?.length ? ` (el plan lo prevé para ${f.planned_for.join(", ")})` : ""}`);
   }
@@ -394,33 +450,35 @@ export async function runDrift(opts, deps = {}) {
   }
   const board = resolveBoard(root);
   if (board.missingOrchestrator) {
-    return finish(0, "saltado", `El repositorio es satélite, pero su orquestador (${board.orchestratorRoot}) no está en este equipo: la puerta no se ejecuta.`);
+    return finish(0, "sin comprobar", `El repositorio es satélite, pero su orquestador (${board.orchestratorRoot}) no está en este equipo: la puerta no se ejecuta.`);
   }
   if (!board.boardId && !board.backendType) {
     return finish(0, "saltado", "El proyecto no tiene tablero (no es spec-driven): la puerta no se ejecuta.");
   }
   const files = changedFiles(root, base);
   if (!files.length) return finish(0, "ok", `La rama ${branch} no cambia ficheros frente a ${base}.`);
+  const maxFiles = deps.maxFiles ?? MAX_FILES;
+  const tooMany = files.length > maxFiles;
   const { ucs, source } = branchUcs(root, base, branch);
   const args = {
     board_id: board.boardId,
-    backend_type: board.backendType,
+    backend_type: board.backendType || inferBackend(board),
     files,
     uc_ids: ucs,
     plan_contents: plansFor(board.orchestratorRoot, ucs),
-    dependencies_added: addedDependencies(root, base, files),
+    dependencies_added: tooMany ? [] : addedDependencies(root, base, files),
     exclude: settings.exclude,
   };
   const repo = repoOf(root);
   const satellite = satelliteOf(board);
   if (repo) args.repo = repo;
   if (satellite) args.satellite = satellite;
-  if (board.backendType === "freeform") {
+  if (args.backend_type === "freeform") {
     const tracking = board.freeformRoot || join(board.orchestratorRoot, "doc", "tracking");
     try {
       args.items_content = readFileSync(join(tracking, "items.json"), "utf8");
     } catch {
-      return finish(0, "saltado", `El tablero FreeForm no está en este equipo (${join(tracking, "items.json")}): la puerta no se ejecuta.`);
+      return finish(0, "sin comprobar", `El tablero FreeForm no está en este equipo (${join(tracking, "items.json")}): la puerta no se ejecuta.`);
     }
     try {
       args.policy_content = readFileSync(join(tracking, "policy.json"), "utf8");
@@ -436,17 +494,26 @@ export async function runDrift(opts, deps = {}) {
   } catch {
     headers = {};
   }
-  if (board.backendType === "native" && !headers.Authorization) {
-    return finish(0, "saltado", "Este equipo no tiene la identidad de SpecBox para leer el tablero: ejecuta `specbox login`. La puerta no se ejecuta.");
+  if (args.backend_type === "native" && !headers.Authorization) {
+    return finish(0, "sin comprobar", "Este equipo no tiene la identidad de SpecBox para leer el tablero: ejecuta `specbox login`. La puerta no se ejecuta.");
   }
+  const ask = (a) => callTool({ url, headers, name: "get_drift_report", args: a, fetchImpl: deps.fetchImpl ?? fetch });
   let report;
   try {
-    report = await callTool({ url, headers, name: "get_drift_report", args, fetchImpl: deps.fetchImpl ?? fetch });
+    report = await ask(tooMany ? { ...args, files: [], dependencies_added: [] } : args);
   } catch (err) {
-    return finish(0, "saltado", `El MCP de SpecBox no respondió (${err.message}): la puerta no se ejecuta.`);
+    return finish(0, "sin comprobar", `El MCP de SpecBox no respondió (${err.message}): la puerta no se ejecuta.`);
   }
   if (!report?.success) {
-    return finish(0, "saltado", `El MCP no dio el informe (${report?.code ?? report?.error ?? "sin respuesta"}): la puerta no se ejecuta.`);
+    return finish(0, "sin comprobar", `El MCP no dio el informe (${report?.code ?? report?.error ?? "sin respuesta"}): la puerta no se ejecuta.`);
+  }
+  if (report.mode === "off") {
+    return finish(0, "saltado", "La medida drift_gate está en «off» en este tablero: la puerta no comprueba nada.");
+  }
+  if (tooMany) {
+    // Una rama así suele llevar node_modules o vendor por error: no se compara fichero a fichero.
+    const text = `La rama ${branch} cambia ${files.length} ficheros (más de ${maxFiles}): no se comparan uno a uno. Revisa que no se hayan subido dependencias o ficheros generados.`;
+    return finish(report.mode === "block" ? 1 : 0, report.mode === "block" ? "fallo" : "aviso", text);
   }
   const text = formatReport(report, { branch, base, ucSource: source, satellite: board.satellite, orchestratorRoot: board.orchestratorRoot, boardId: board.boardId });
   const unclaimed = report.unclaimed?.length ?? 0;

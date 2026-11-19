@@ -166,18 +166,19 @@ hooks() {
 }
 
 # UC-12602: la puerta lee el tablero con la identidad de este equipo (specbox login). Con la medida
-# drift_gate en «warn» y desvíos queda en «aviso»; en «block», en fallo. Sin tablero, sin identidad o
-# sin MCP no comprueba nada y lo dice. Su primera línea va al resumen (ci_detalle).
+# drift_gate en «warn» y desvíos queda en «aviso»; en «block», en fallo. Si no pudo comprobar (sin
+# identidad, sin MCP o sin la tool) también queda en «aviso», nunca en verde. Su primera línea va al
+# resumen (ci_detalle).
 desviacion() {
   cd "$ROOT" || return 1
   ci_paso "Puerta de desviación" node packages/specbox-cli/bin/specbox.mjs drift --summary "$CI_DIR/desviacion.resumen" || return 1
-  grep -q '^aviso' "$CI_DIR/desviacion.resumen" 2>/dev/null && return 3
+  grep -qE '^(aviso|sin comprobar):' "$CI_DIR/desviacion.resumen" 2>/dev/null && return 3
   return 0
 }
 
 ci_detalle() { # $1 = bloque → su línea de detalle en el resumen
   case "$1" in
-    desviacion) sed 's/^[a-z]*: //' "$CI_DIR/desviacion.resumen" 2>/dev/null ;;
+    desviacion) sed -E 's/^[a-z ]+: //' "$CI_DIR/desviacion.resumen" 2>/dev/null ;;
   esac
 }
 

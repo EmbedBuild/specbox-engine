@@ -25,7 +25,7 @@ The token expires after 90 days and **renews itself** from 14 days before. If a 
 
 Options: `--no-browser` (just print the link), `--server <url>` and `--cloud <url>` for self-hosted servers (or `SPECBOX_MCP_URL` / `SPECBOX_CLOUD_API`), `--project <dir>` for `hooks` and `drift` (default: the current repository).
 
-`specbox drift` reads its settings from `drift` in the repository's `.claude/settings.json`: `exclude` (globs that never count, such as `docs/**`) and `skip_branch_prefixes` (branches that carry no UC by design; by default `dependabot/`, `deps/`, `docs/`, `ci/` and `release/`). In a satellite repository it reads the board and the plans from the orchestrator, not from the satellite. Without a board, without `specbox login` or without an answer from the MCP it checks nothing, says why and exits with 0.
+`specbox drift` reads its settings from `drift` in the repository's `.claude/settings.json`: `exclude` (up to 200 globs that never count, as in .gitignore: `docs` covers the folder, `docs/**` too, `/CHANGELOG.md` only the root) and `skip_branch_prefixes` (branches that carry no UC by design; by default `dependabot/`, `deps/`, `docs/`, `ci/` and `release/`). In a satellite repository it reads the board and the plans from the orchestrator, not from the satellite. When the branch's plans do not declare files per phase (older plans), it says it cannot judge and counts no file as «sin UC». With the measure in «off» it checks nothing. Without a board, without `specbox login` or without an answer from the MCP it checks nothing, says why («sin comprobar» in `--summary`) and exits with 0.
 
 ## What it changes on your computer
 

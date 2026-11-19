@@ -40,33 +40,97 @@ def dependency_key(ecosystem: str, name: str) -> str:
     return base.lower()
 
 
-def glob_regex(pattern: str) -> re.Pattern[str]:
-    """Un glob del proyecto (``docs/**``, ``**/*.md``, ``*.lock``) como expresión: ``**`` cruza carpetas,
-    ``*`` y ``?`` no. Un patrón sin «/» vale en cualquier carpeta (como en .gitignore)."""
-    pat = normalize_path(pattern)
-    if "/" not in pat.rstrip("/"):
-        pat = "**/" + pat
-    if pat.endswith("/"):
-        pat += "**"
-    out = ""
+#: Lo que admite la lista de exclusiones de un proyecto.
+MAX_EXCLUDE = 200
+MAX_EXCLUDE_LEN = 200
+
+
+def _glob_tokens(pattern: str) -> list[str]:
+    """``docs/**/*.md`` → [d, o, c, s, /, **/, *, ., m, d]. Los ``*`` seguidos se juntan."""
+    out: list[str] = []
     i = 0
-    while i < len(pat):
-        if pat.startswith("**/", i):
-            out += "(?:.*/)?"
-            i += 3
-        elif pat.startswith("**", i):
-            out += ".*"
-            i += 2
-        elif pat[i] == "*":
-            out += "[^/]*"
-            i += 1
-        elif pat[i] == "?":
-            out += "[^/]"
+    while i < len(pattern):
+        if pattern.startswith("**", i):
+            j = i
+            while j < len(pattern) and pattern[j] == "*":
+                j += 1
+            if pattern.startswith("/", j):
+                if not out or out[-1] != "**/":
+                    out.append("**/")
+                i = j + 1
+            else:
+                if not out or out[-1] not in ("**", "*"):
+                    out.append("**")
+                elif out[-1] == "*":
+                    out[-1] = "**"
+                i = j
+        elif pattern[i] == "*":
+            if not out or out[-1] not in ("*", "**"):
+                out.append("*")
             i += 1
         else:
-            out += re.escape(pat[i])
+            out.append(pattern[i])
             i += 1
-    return re.compile(f"^{out}$")
+    return out
+
+
+def _glob_match(tokens: list[str], path: str) -> bool:
+    """¿``path`` entero casa con el glob? Programación dinámica: tiempo ``len(tokens) × len(path)``,
+    sin la vuelta atrás de una expresión regular (un glob con muchos ``*`` no cuelga el servidor)."""
+    n = len(path)
+    nxt = [False] * (n + 1)
+    nxt[n] = True  # sin tokens, casa solo el final
+    for tok in reversed(tokens):
+        cur = [False] * (n + 1)
+        if tok == "**/":
+            # Cero o más carpetas: o sigue sin consumir nada, o consume hasta una «/» incluida.
+            reach = False  # ¿desde j se llega, consumiendo hasta alguna «/», a un punto que casa?
+            for j in range(n - 1, -1, -1):
+                reach = (path[j] == "/" and nxt[j + 1]) or reach
+                cur[j] = nxt[j] or reach
+            cur[n] = nxt[n]
+        elif tok == "**":
+            cur[n] = nxt[n]
+            for j in range(n - 1, -1, -1):
+                cur[j] = nxt[j] or cur[j + 1]
+        elif tok == "*":
+            cur[n] = nxt[n]
+            for j in range(n - 1, -1, -1):
+                cur[j] = nxt[j] or (path[j] != "/" and cur[j + 1])
+        elif tok == "?":
+            for j in range(n):
+                cur[j] = path[j] != "/" and nxt[j + 1]
+        else:
+            for j in range(n):
+                cur[j] = path[j] == tok and nxt[j + 1]
+        nxt = cur
+    return nxt[0]
+
+
+def glob_matcher(pattern: str):
+    """Un glob del proyecto (como en .gitignore) → ``match(ruta) -> bool``.
+
+    ``**`` cruza carpetas y ``*`` y ``?`` no. Un patrón sin «/» vale en cualquier carpeta; uno que
+    empieza por «/» solo en la raíz; un nombre sin comodines (``docs``) cubre también lo que hay dentro.
+    """
+    pat = (pattern or "").strip().replace("\\", "/")
+    anchored = pat.startswith("/")
+    pat = pat.lstrip("/")
+    while pat.startswith("./"):
+        pat = pat[2:]
+    if not pat:
+        return lambda path: False
+    if pat.endswith("/"):
+        pat += "**"
+    if not anchored and "/" not in pat.rstrip("/"):
+        pat = "**/" + pat
+    whole = _glob_tokens(pat)
+    inside = _glob_tokens(pat + "/**") if not pat.endswith("**") else None
+
+    def match(path: str) -> bool:
+        return _glob_match(whole, path) or (inside is not None and _glob_match(inside, path))
+
+    return match
 
 
 def _covers(entry: str, path: str) -> bool:
@@ -74,19 +138,24 @@ def _covers(entry: str, path: str) -> bool:
     return path == entry or (entry.endswith("/") and path.startswith(entry))
 
 
-def plan_claims(contracts: list[PlanContract]) -> list[tuple[str, frozenset[str | None]]]:
+def plan_claims(contracts: list[PlanContract], branch: set[str]) -> list[tuple[str, frozenset[str | None]]]:
     """``(fichero o carpeta del plan, UC de los criterios de su fase)`` de los planes con contrato.
 
-    Una fase cuyos criterios no dicen su UC (plan de una sola UC) la reclama con ``None``: vale para
-    cualquier UC de la rama.
+    Una fase cuyos criterios no dicen su UC la reclama con ``None`` (vale para cualquier UC de la
+    rama) solo si el plan no nombra otras UC que las de la rama: el plan de otra UC que solo cita una
+    de la rama no le da por buenos sus ficheros.
     """
     out: list[tuple[str, frozenset[str | None]]] = []
     for contract in contracts:
         if contract.contract_version == 0:
             continue
+        own_plan = all(u in branch for u in contract.named_ucs)
         for phase in contract.phases:
             ucs = frozenset(uc for uc, _ in phase.criteria) or frozenset({phase.uc})
-            out += [(f, ucs) for f in phase.files]
+            if None in ucs and not own_plan:
+                ucs = frozenset(u for u in ucs if u is not None)
+            if ucs:
+                out += [(f, ucs) for f in phase.files]
     return out
 
 
@@ -112,8 +181,8 @@ def build_drift_report(
     """
     branch = [u.upper() for u in dict.fromkeys(uc_ids)]
     mine = set(branch)
-    patterns = [(p, glob_regex(p)) for p in (exclude or []) if isinstance(p, str) and p.strip()]
-    claims = plan_claims([c for _, c in contracts])
+    patterns = [(p, glob_matcher(p)) for p in (exclude or []) if isinstance(p, str) and p.strip()]
+    claims = plan_claims([c for _, c in contracts], mine)
     receipt_files = {uc.upper(): {normalize_path(f) for f in fs} for uc, fs in (receipts or {}).items()}
 
     report_files: list[dict[str, Any]] = []
@@ -122,7 +191,7 @@ def build_drift_report(
     for raw in dict.fromkeys(normalize_path(f) for f in files if isinstance(f, str)):
         if not raw:
             continue
-        rule = next((p for p, rx in patterns if rx.match(raw)), None)
+        rule = next((p for p, matches in patterns if matches(raw)), None)
         if rule:
             excluded.append(raw)
             report_files.append({"path": raw, "excluded_by": rule, "claimed_by": [], "source": None})
@@ -157,6 +226,12 @@ def build_drift_report(
         if f"{ecosystem_key(d.get('ecosystem', ''))}:{dependency_key(d.get('ecosystem', ''), d['name'])}" not in declared
     ]
 
+    # Con UC pero sin nada que las relacione con ficheros (planes de contrato 0 y recibos sin
+    # `files`), la puerta no puede juzgar: lo dice, pero esos ficheros no son «sin UC».
+    judgeable = not branch or bool(claims) or any(receipt_files.get(u) for u in branch)
+    not_judged = [] if judgeable else list(unclaimed)
+    if not judgeable:
+        unclaimed = []
     touches = closed_uc_touches(
         closed or [], [f["path"] for f in report_files if "excluded_by" not in f], branch, repo=repo, satellite=satellite,
     )
@@ -167,6 +242,8 @@ def build_drift_report(
         ],
         "files": report_files,
         "unclaimed": unclaimed,
+        "not_judged": not_judged,
+        "judgeable": judgeable,
         "exclude": [p for p, _ in patterns],
         "excluded": excluded,
         "dependencies": {"added": added, "undeclared": undeclared, "plans_without_section": plans_without_section},
@@ -180,9 +257,15 @@ def build_drift_report(
     notes: list[str] = []
     if not branch:
         notes.append("La rama no nombra ninguna UC (asuntos de los commits, nombre de la rama ni marcador): todo queda «sin UC».")
-    if contracts and all(c.contract_version == 0 for _, c in contracts):
+    if not judgeable:
+        notes.append(
+            "Ningún plan de estas UC declara ficheros por fase (planes anteriores al contrato) y sus recibos no "
+            "traen `files`: la puerta no puede decir qué fichero es de qué UC y no cuenta ninguno como «sin UC». "
+            "Los planes nuevos de /plan traen las líneas **Ficheros:**."
+        )
+    elif contracts and all(c.contract_version == 0 for _, c in contracts):
         notes.append("Los planes de estas UC son anteriores al contrato (sin **Criterios:**/**Ficheros:**): solo cuentan los recibos.")
-    if not contracts:
+    if not contracts and branch:
         notes.append("No se encontró el plan de estas UC en el orquestador: solo cuentan los recibos de sus criterios.")
     if notes:
         out["notes"] = notes

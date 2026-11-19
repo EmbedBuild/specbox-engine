@@ -18,7 +18,7 @@ import pytest
 
 from server.closed_files import ClosedUc
 from server.coordination.enforcement import MEASURES
-from server.drift import build_drift_report, dependency_key, glob_regex
+from server.drift import build_drift_report, dependency_key, glob_matcher
 from server.plan_contract import parse_plan_contract
 from server.tools.drift import get_drift_report
 from server.tools.spec_driven import complete_uc, mark_ac
@@ -66,8 +66,10 @@ def test_an_undeclared_dependency_is_named_and_aliases_and_versions_do_not_count
 
 
 def test_only_the_project_exclusions_leave_a_file_out_and_the_report_lists_them():
-    assert glob_regex("docs/**").match("docs/a/b.md") and glob_regex("*.lock").match("sub/uv.lock")
-    assert not glob_regex("docs/*.md").match("docs/a/b.md")
+    assert glob_matcher("docs/**")("docs/a/b.md") and glob_matcher("*.lock")("sub/uv.lock")
+    assert not glob_matcher("docs/*.md")("docs/a/b.md")
+    assert glob_matcher("docs")("docs/a/b.md") and glob_matcher("/CHANGELOG.md")("CHANGELOG.md")
+    assert not glob_matcher("/CHANGELOG.md")("a/CHANGELOG.md")
     out = build_drift_report(files=["CHANGELOG.md", "docs/x.md", "server/c.py"], uc_ids=["UC-701"], contracts=CONTRACTS,
                              exclude=["CHANGELOG.md", "docs/**"])
     assert out["exclude"] == ["CHANGELOG.md", "docs/**"] and out["excluded"] == ["CHANGELOG.md", "docs/x.md"]
@@ -140,5 +142,43 @@ async def test_native_reads_the_board_with_the_session(monkeypatch, tmp_path):
 
 @pytest.mark.parametrize("exclude", [None, []])
 def test_no_exclusions_means_nothing_is_left_out(exclude):
-    out = build_drift_report(files=["a.md"], uc_ids=["UC-1"], contracts=[], exclude=exclude)
+    out = build_drift_report(files=["a.md"], uc_ids=[], contracts=[], exclude=exclude)
     assert out["excluded"] == [] and out["exclude"] == [] and out["unclaimed"] == ["a.md"]
+
+
+# ── Revisión de la PR #401 ───────────────────────────────────────────
+
+
+def test_a_pathological_exclusion_does_not_hang_the_server():
+    import time
+
+    start = time.perf_counter()
+    assert not glob_matcher("*" * 40 + "z")("a" * 300)
+    assert not glob_matcher("**/" * 20 + "x")("a/" * 100 + "y")
+    assert time.perf_counter() - start < 0.5
+
+
+async def test_the_tool_caps_the_exclusions_and_only_opens_native_when_declared():
+    too_many = await get_drift_report("x", ["a.py"], CTX, exclude=["*.md"] * 201)
+    assert too_many["code"] == "INVALID_EXCLUDE"
+    too_long = await get_drift_report("x", ["a.py"], CTX, exclude=["a" * 201])
+    assert too_long["code"] == "INVALID_EXCLUDE"
+    undeclared = await get_drift_report("tablero", ["a.py"], CTX, uc_ids=["UC-1"])  # sin backend_type
+    assert "sin tipo declarado" in undeclared["board"]
+
+
+def test_with_only_old_plans_and_no_receipt_files_nothing_is_counted_as_sin_uc():
+    old = [("doc/plans/US-126_plan.md", parse_plan_contract("# Plan\n### Fase 1: Todo\n- [ ] hacer\n"))]
+    out = build_drift_report(files=["server/a.py", "CLAUDE.md"], uc_ids=["UC-12602"], contracts=old)
+    assert out["ok"] is True and out["unclaimed"] == [] and out["not_judged"] == ["server/a.py", "CLAUDE.md"]
+    assert out["judgeable"] is False and "no puede decir" in " ".join(out["notes"])
+    # Sin ninguna UC sí cuenta todo como «sin UC».
+    assert build_drift_report(files=["a.py"], uc_ids=[], contracts=old)["unclaimed"] == ["a.py"]
+
+
+def test_the_plan_of_another_uc_does_not_claim_the_branch_files():
+    foreign = parse_plan_contract("### Fase 1\n**Criterios:** UC-999 AC-01\n**Ficheros:** server/a.py\n"
+                                  "### Fase 2\n**Criterios:** AC-02\n**Ficheros:** server/b.py\n")
+    out = build_drift_report(files=["server/a.py", "server/b.py"], uc_ids=["UC-701"], contracts=[("p.md", foreign)],
+                             receipts={"UC-701": {"server/otro.py"}})
+    assert out["unclaimed"] == ["server/a.py", "server/b.py"]  # ni la fase de UC-999 ni la que no dice UC

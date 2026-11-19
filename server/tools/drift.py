@@ -101,7 +101,7 @@ async def get_closed_uc_files(
         await backend.close()
 
 
-MAX_DRIFT_FILES = 5000
+MAX_DRIFT_FILES = 20_000
 MAX_PLAN_BYTES = 2_000_000
 
 
@@ -124,8 +124,9 @@ async def _board_backend(
         from ..backends.freeform_backend import FreeformBackend
 
         return FreeformBackend(items_content=items_content), "freeform"
-    if backend_type and backend_type != "native":
-        return None, f"el tablero {backend_type} no se lee sin su sesión: solo cuenta el plan"
+    if backend_type != "native":
+        what = f"el tablero {backend_type}" if backend_type else "un tablero sin tipo declarado"
+        return None, f"{what} no se lee sin su sesión: solo cuenta el plan"
     from ..coordination.transport_auth import transport_token
     from .session_heartbeat import PROJECT_ID
 
@@ -202,6 +203,14 @@ async def get_drift_report(
     plans = plan_contents or {}
     if not isinstance(plans, dict) or sum(len(str(v)) for v in plans.values()) > MAX_PLAN_BYTES:
         return {"error": "plan_contents debe ser {ruta: texto} de hasta 2 MB", "code": "INVALID_PLANS"}
+    from ..drift import MAX_EXCLUDE, MAX_EXCLUDE_LEN
+
+    if exclude is not None and (
+        not isinstance(exclude, list) or len(exclude) > MAX_EXCLUDE
+        or not all(isinstance(p, str) and len(p) <= MAX_EXCLUDE_LEN for p in exclude)
+    ):
+        return {"error": f"exclude admite hasta {MAX_EXCLUDE} globs de hasta {MAX_EXCLUDE_LEN} caracteres",
+                "code": "INVALID_EXCLUDE"}
     branch = [str(u).strip().upper() for u in (uc_ids or []) if str(u).strip()]
     contracts = [(path, parse_plan_contract(str(text))) for path, text in plans.items()]
 
@@ -254,7 +263,7 @@ def register_spec_drift_tools(mcp_instance) -> None:
         description="Which closed UCs changed these files when they were closed (read-only, UC-12603): "
         "pass the branch's changed paths and its own UCs as exclude_uc_ids. Returns touches (closed UC, "
         "its files, and a proposal to review its criteria; the spec does not change), by_path and "
-        "closed_without_files (closed without their file list, before 6.46.0: they never warn)."
+        "closed_without_files (closed without their file list: they never warn)."
     )(get_closed_uc_files)
     mcp_instance.tool(
         description="The drift gate's report for a branch (read-only, UC-12602; `specbox drift` calls it): pass "

@@ -147,20 +147,40 @@ export function satelliteOf(board) {
   return null;
 }
 
-/** `drift` (o `specbox.drift`) del `.claude/settings.json` del repo: exclusiones y prefijos de rama sin UC. */
-export function driftSettings(root) {
-  const json = readJson(join(root, ".claude", "settings.json")) ?? {};
+/**
+ * `drift` (o `specbox.drift`) del `.claude/settings.json` de la rama base: exclusiones y prefijos de
+ * rama sin UC. Se lee de la base y no de la rama, para que una rama no pueda aflojar su propia puerta
+ * (excluirlo todo o añadir su prefijo); un cambio de la configuración vale cuando llega a la base.
+ * Sin el fichero en la base, los valores por defecto.
+ */
+export function driftSettings(root, base) {
+  let json = {};
+  if (base) {
+    try {
+      json = JSON.parse(git(root, ["show", `${base}:.claude/settings.json`])) ?? {};
+    } catch {
+      json = {};
+    }
+  } else {
+    json = readJson(join(root, ".claude", "settings.json")) ?? {};
+  }
   const settings = json.specbox?.drift ?? json.drift ?? {};
   const list = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim()) : null);
   return { exclude: list(settings.exclude) ?? [], skipPrefixes: list(settings.skip_branch_prefixes) ?? DEFAULT_SKIP_PREFIXES };
 }
 
-/** Los planes del orquestador que nombran alguna UC de la rama: {ruta relativa: texto}. */
+/**
+ * Los planes del orquestador que nombran alguna UC de la rama: {ruta relativa: texto}. Van todos los
+ * que la nombran, en cualquier sitio; el servidor decide de qué UC es cada fase (el plan de otra UC
+ * que solo la cita no reclama nada para ella). Primero los que la nombran en un encabezado o en una
+ * línea de criterios, por si hay que recortar.
+ */
 export function plansFor(orchestratorRoot, ucs) {
   const dir = join(orchestratorRoot, "doc", "plans");
   const out = {};
   if (!ucs.length || !existsSync(dir)) return out;
-  let total = 0;
+  const wanted = new Set(ucs.map((u) => u.toUpperCase()));
+  const found = [];
   for (const name of readdirSync(dir).filter((n) => n.endsWith(".md")).sort()) {
     let text;
     try {
@@ -168,13 +188,19 @@ export function plansFor(orchestratorRoot, ucs) {
     } catch {
       continue;
     }
-    // Solo el plan que nombra la UC en una línea de criterios o en un encabezado: el que solo la cita
-    // en el texto es de otra UC.
-    const named = new Set();
+    let rank = null;
     for (const line of text.split("\n")) {
-      if (/^\s*#{1,6}\s|\*\*Criterios:?\*\*/i.test(line)) for (const m of line.matchAll(UC_ID)) named.add(m[0].toUpperCase());
+      const strong = /^\s*#{1,6}\s|\*\*Criterios:?\*\*/i.test(line);
+      for (const m of line.matchAll(UC_ID)) {
+        if (!wanted.has(m[0].toUpperCase())) continue;
+        rank = strong ? 0 : rank ?? 1;
+      }
+      if (rank === 0) break;
     }
-    if (!ucs.some((u) => named.has(u))) continue;
+    if (rank !== null) found.push({ name, text, rank });
+  }
+  let total = 0;
+  for (const { name, text } of found.sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name))) {
     if (Object.keys(out).length >= MAX_PLAN_FILES || total + text.length > MAX_PLAN_BYTES) break;
     out[`doc/plans/${name}`] = text;
     total += text.length;
@@ -405,10 +431,15 @@ export function formatReport(report, context) {
   lines.push("");
   const unclaimed = report.unclaimed?.length ?? 0;
   const undeclared = deps.undeclared?.length ?? 0;
+  const notJudgedCount = report.not_judged?.length ?? 0;
   lines.push(
-    report.ok
-      ? "Resultado: cada fichero tiene su UC y no hay dependencias sin declarar."
-      : `Resultado: ${unclaimed} fichero(s) sin UC, ${undeclared} dependencia(s) sin declarar · medida drift_gate en «${report.mode}».`,
+    !report.ok
+      ? `Resultado: ${unclaimed} fichero(s) sin UC, ${undeclared} dependencia(s) sin declarar · medida drift_gate en «${report.mode}».`
+      : notJudgedCount
+        ? `Resultado: sin comprobar. ${notJudgedCount} fichero(s) no se juzgan porque los planes de estas UC no declaran ficheros por fase; no hay dependencias sin declarar.`
+        : report.board && report.board !== "leído"
+          ? "Resultado: según el plan, cada fichero tiene su UC y no hay dependencias sin declarar, pero el tablero no se pudo leer."
+          : "Resultado: cada fichero tiene su UC y no hay dependencias sin declarar.",
   );
   return lines.join("\n");
 }
@@ -443,7 +474,7 @@ export async function runDrift(opts, deps = {}) {
   const base = resolveBase(root, opts.base);
   if (!base) return finish(0, "saltado", `No hay rama base con la que comparar (${opts.base || "origin/main"}): la puerta no se ejecuta.`);
   const branch = gitOr(root, ["rev-parse", "--abbrev-ref", "HEAD"]).trim() || "HEAD";
-  const settings = driftSettings(root);
+  const settings = driftSettings(root, base);
   const prefix = settings.skipPrefixes.find((p) => branch.startsWith(p));
   if (prefix) {
     return finish(0, "saltado", `La rama ${branch} no lleva UC por diseño (prefijo «${prefix}», specbox.drift.skip_branch_prefixes: ${settings.skipPrefixes.join(", ")}): fuera de la puerta.`);
@@ -510,6 +541,8 @@ export async function runDrift(opts, deps = {}) {
   if (report.mode === "off") {
     return finish(0, "saltado", "La medida drift_gate está en «off» en este tablero: la puerta no comprueba nada.");
   }
+  const notJudged = report.not_judged?.length ?? 0;
+  const boardRead = !report.board || report.board === "leído";
   if (tooMany) {
     // Una rama así suele llevar node_modules o vendor por error: no se compara fichero a fichero.
     const text = `La rama ${branch} cambia ${files.length} ficheros (más de ${maxFiles}): no se comparan uno a uno. Revisa que no se hayan subido dependencias o ficheros generados.`;
@@ -518,17 +551,31 @@ export async function runDrift(opts, deps = {}) {
   const text = formatReport(report, { branch, base, ucSource: source, satellite: board.satellite, orchestratorRoot: board.orchestratorRoot, boardId: board.boardId });
   const unclaimed = report.unclaimed?.length ?? 0;
   const undeclared = report.dependencies?.undeclared?.length ?? 0;
-  const brief = report.ok
-    ? `${files.length} fichero(s) con su UC`
-    : `${unclaimed} sin UC, ${undeclared} dependencia(s) sin declarar (drift_gate: ${report.mode})`;
+  // Verde solo si se juzgó todo con el tablero leído: lo que no se juzga queda «sin comprobar» y un
+  // tablero sin leer (no se sabe si las UC existen ni su modo) se queda en «aviso».
+  let state;
+  let brief;
+  if (!report.ok) {
+    state = report.mode === "block" ? "fallo" : "aviso";
+    brief = `${unclaimed} sin UC, ${undeclared} dependencia(s) sin declarar (drift_gate: ${report.mode})`;
+  } else if (notJudged) {
+    state = "sin comprobar";
+    brief = `${notJudged} fichero(s) sin juzgar: los planes de ${(report.old_plan_ucs ?? []).join(", ") || "estas UC"} no declaran ficheros por fase`;
+  } else if (!boardRead) {
+    state = "aviso";
+    brief = `${files.length - (report.excluded?.length ?? 0)} fichero(s) con su UC según el plan, sin leer el tablero (${report.board})`;
+  } else {
+    state = "ok";
+    brief = `${files.length - (report.excluded?.length ?? 0)} fichero(s) con su UC`;
+  }
   if (opts.summaryFile) {
     try {
-      writeFileSync(opts.summaryFile, `${summaryLine(report.ok ? "ok" : report.mode === "block" ? "fallo" : "aviso", brief)}\n`);
+      writeFileSync(opts.summaryFile, `${summaryLine(state, brief)}\n`);
     } catch {
       // sin resumen
     }
   }
-  if (opts.json) print(JSON.stringify({ state: report.ok ? "ok" : report.mode, branch, base, report }));
+  if (opts.json) print(JSON.stringify({ state, branch, base, report }));
   else print(text);
-  return !report.ok && report.mode === "block" ? 1 : 0;
+  return state === "fallo" ? 1 : 0;
 }

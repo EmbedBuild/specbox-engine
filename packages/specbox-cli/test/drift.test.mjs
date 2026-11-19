@@ -115,7 +115,7 @@ test("AC-01/AC-08: en «block» con ficheros sin UC termina con 1; sin desvíos,
       headersFor: async () => ({ Authorization: "Bearer t" }), store: { read: () => null, kind: "memory" },
     });
     assert.equal(code, 1);
-    assert.equal(JSON.parse(json.at(-1)).state, "block");
+    assert.equal(JSON.parse(json.at(-1)).state, "fallo");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -129,7 +129,17 @@ test("AC-07: una rama sin UC por diseño queda fuera por su prefijo, configurabl
     assert.equal(await runDrift({ root, base: "main" }, deps(mcp, out)), 0);
     assert.equal(mcp.calls.length, 0);
     assert.match(out.join("\n"), /no lleva UC por diseño \(prefijo «dependabot\/»/);
+    // La configuración vale desde la base: cambiarla solo en la rama no cuenta.
     write(root, ".claude/settings.json", { drift: { skip_branch_prefixes: ["bots/"] } });
+    const same = fakeMcp(REPORT());
+    await runDrift({ root, base: "main" }, deps(same, []));
+    assert.equal(same.calls.length, 0);
+    git(root, "stash", "-q");
+    git(root, "checkout", "-q", "main");
+    write(root, ".claude/settings.json", { drift: { skip_branch_prefixes: ["bots/"] } });
+    git(root, "commit", "-q", "-am", "otros prefijos");
+    git(root, "checkout", "-q", "dependabot/npm/zod-3");
+    git(root, "stash", "drop", "-q");
     const again = fakeMcp(REPORT());
     await runDrift({ root, base: "main" }, deps(again, []));
     assert.equal(again.calls.length, 1); // con otros prefijos, «dependabot/» ya no se salta
@@ -230,13 +240,17 @@ test("revisión: dependencias de Python con extras, git y Poetry, y el mismo nom
   }
 });
 
-test("revisión: el plan que solo cita la UC en el texto no es suyo; el tipo de tablero se deduce", () => {
+test("revisión: van los planes que nombran la UC en cualquier sitio, primero los de encabezado o criterios; el tipo de tablero se deduce", () => {
   const root = mkdtempSync(join(tmpdir(), "drift-plans-"));
   try {
     write(root, "doc/plans/US-07_plan.md", "### Fase 1\n**Criterios:** UC-701 AC-01\n");
     write(root, "doc/plans/US-09_plan.md", "### Fase 1\n**Criterios:** UC-999 AC-01\nComo en UC-701, …\n");
     write(root, "doc/plans/US-08_plan.md", "## UC-701 · resumen\nsin criterios\n");
-    assert.deepEqual(Object.keys(plansFor(root, ["UC-701"])).sort(), ["doc/plans/US-07_plan.md", "doc/plans/US-08_plan.md"]);
+    write(root, "doc/plans/US-06_plan.md", "| UC-701 | Cobrar |\n### Fase 1\n**Criterios:**\n- AC-01\n**Ficheros:** a.py\n");
+    write(root, "doc/plans/US-05_plan.md", "### Fase 1\n**Criterios:** UC-7010 AC-01\n");
+    const plans = plansFor(root, ["UC-701"]);
+    // El servidor decide de quién es cada fase; aquí solo se descarta lo que no la nombra (UC-7010 no es UC-701).
+    assert.deepEqual(Object.keys(plans), ["doc/plans/US-07_plan.md", "doc/plans/US-08_plan.md", "doc/plans/US-06_plan.md", "doc/plans/US-09_plan.md"]);
     assert.equal(inferBackend({ boardId: "Acme/x", orchestratorRoot: root }), "native");
     assert.equal(inferBackend({ boardId: "5f9a1b2c3d4e5f6a7b8c9d0e", orchestratorRoot: root }), "unknown");
     write(root, "doc/tracking/items.json", "[]");
@@ -260,6 +274,37 @@ test("revisión: «off» no comprueba, sin login queda «sin comprobar» y una r
     assert.deepEqual(big.calls[0].arguments.files, []); // solo se pregunta el modo
     assert.match(readFileSync(summary, "utf8"), /^fallo: La rama .* cambia 3 ficheros \(más de 2\)/);
     assert.equal(await runDrift({ root, base: "main" }, deps(fakeMcp(REPORT()), [], { maxFiles: 2 })), 0); // «warn»
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("revisión 2: lo que no se juzga queda «sin comprobar», un tablero sin leer no da verde y la rama no afloja su puerta", async () => {
+  const root = repoWithBranch();
+  try {
+    const summary = join(root, "r.txt");
+    const notJudged = REPORT({
+      mode: "block", ok: true, unclaimed: [], not_judged: ["server/a.py", "package.json"], judgeable: false,
+      old_plan_ucs: ["UC-701"], dependencies: { added: [], undeclared: [] },
+    });
+    const out = [];
+    assert.equal(await runDrift({ root, base: "main", summaryFile: summary }, deps(fakeMcp(notJudged), out)), 0);
+    assert.match(readFileSync(summary, "utf8"), /^sin comprobar: 2 fichero\(s\) sin juzgar: los planes de UC-701/);
+    assert.match(out.join("\n"), /Resultado: sin comprobar\. 2 fichero\(s\) no se juzgan/);
+    const json = [];
+    await runDrift({ root, base: "main", json: true }, deps(fakeMcp(notJudged), json));
+    assert.equal(JSON.parse(json.at(-1)).state, "sin comprobar");
+
+    const blind = REPORT({ board: "no se pudo leer: x", ok: true, unclaimed: [], dependencies: { added: [], undeclared: [] } });
+    await runDrift({ root, base: "main", summaryFile: summary }, deps(fakeMcp(blind), []));
+    assert.match(readFileSync(summary, "utf8"), /^aviso: .*sin leer el tablero/);
+
+    // La rama se excluye todo en su settings.json: no cuenta, vale el de la base.
+    write(root, ".claude/settings.json", { drift: { exclude: ["**"] } });
+    git(root, "commit", "-q", "-am", "UC-701: excluirlo todo");
+    const mcp = fakeMcp(REPORT());
+    await runDrift({ root, base: "main" }, deps(mcp, []));
+    assert.deepEqual(mcp.calls[0].arguments.exclude, ["docs/**"]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

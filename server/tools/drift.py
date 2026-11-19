@@ -198,12 +198,17 @@ async def get_drift_report(
         the spec does not change), `ok`, `mode` of the `drift_gate` measure (off|warn|block) and
         `board` (read | why it could not be read).
     """
-    if not isinstance(files, list) or not all(isinstance(f, str) for f in files) or len(files) > MAX_DRIFT_FILES:
-        return {"error": f"files debe ser una lista de hasta {MAX_DRIFT_FILES} rutas (texto)", "code": "INVALID_FILES"}
+    from ..drift import MAX_DRIFT_PATH, MAX_EXCLUDE, MAX_EXCLUDE_LEN, ExcludeTooCostly
+
+    if (
+        not isinstance(files, list) or len(files) > MAX_DRIFT_FILES
+        or not all(isinstance(f, str) and len(f) <= MAX_DRIFT_PATH for f in files)
+    ):
+        return {"error": f"files debe ser una lista de hasta {MAX_DRIFT_FILES} rutas (texto de hasta "
+                f"{MAX_DRIFT_PATH} caracteres)", "code": "INVALID_FILES"}
     plans = plan_contents or {}
     if not isinstance(plans, dict) or sum(len(str(v)) for v in plans.values()) > MAX_PLAN_BYTES:
         return {"error": "plan_contents debe ser {ruta: texto} de hasta 2 MB", "code": "INVALID_PLANS"}
-    from ..drift import MAX_EXCLUDE, MAX_EXCLUDE_LEN
 
     if exclude is not None and (
         not isinstance(exclude, list) or len(exclude) > MAX_EXCLUDE
@@ -212,7 +217,7 @@ async def get_drift_report(
         return {"error": f"exclude admite hasta {MAX_EXCLUDE} globs de hasta {MAX_EXCLUDE_LEN} caracteres",
                 "code": "INVALID_EXCLUDE"}
     branch = [str(u).strip().upper() for u in (uc_ids or []) if str(u).strip()]
-    contracts = [(path, parse_plan_contract(str(text))) for path, text in plans.items()]
+    contracts = [(str(path), parse_plan_contract(str(text)), str(text)) for path, text in plans.items()]
 
     receipts: dict[str, set[str]] = {}
     closed: list[ClosedUc] = []
@@ -250,10 +255,13 @@ async def get_drift_report(
         finally:
             await backend.close()
 
-    report = build_drift_report(
-        files=files, uc_ids=branch, contracts=contracts, receipts=receipts, closed=closed,
-        dependencies_added=dependencies_added, exclude=exclude, known_ucs=known, repo=repo, satellite=satellite,
-    )
+    try:
+        report = build_drift_report(
+            files=files, uc_ids=branch, contracts=contracts, receipts=receipts, closed=closed,
+            dependencies_added=dependencies_added, exclude=exclude, known_ucs=known, repo=repo, satellite=satellite,
+        )
+    except ExcludeTooCostly as e:
+        return {"error": str(e), "code": "EXCLUDE_TOO_COSTLY", "mode": mode}
     return {"success": True, "board": board_note, "mode": mode, **report}
 
 

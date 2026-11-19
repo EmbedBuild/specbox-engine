@@ -8,13 +8,21 @@
  *   3. Evidence files referenced in results.json actually exist
  * Acceptance tests committed before running them (no evidence yet) pass.
  *
+ * UC-12801 (measure `contract_first`, «warn» by default): the same commit, for the active UC (not a
+ * /fix UC), needs its complete contract (.quality/evidence/<feature>/acceptance/contract.json) and,
+ * once there is evidence, every test citing its pre and post. «block» stops it (exit 2) and goes to
+ * the board; «warn» leaves a note; a UC that predates the rule only gets the note.
+ *
  * v5.12.0 — E2E Evidence Quality Gate · US-93/UC-9302: runs before the commit (after it, the
  * staging area was empty and the gate never acted) and its reason reaches the agent.
  */
 
 import { readHookInput, gitDirForCommand, git, commitFiles, fileExists, findFiles, readJsonFile } from './lib/utils.mjs';
 import { getProjectConfig } from './lib/config.mjs';
-import { blockWith } from './lib/output.mjs';
+import { blockWith, noteWith } from './lib/output.mjs';
+import { leerPolitica, modoDe } from './lib/enforcement-policy.mjs';
+import { recordCorrectionIfBlocked, recordEnforcementEvent } from './lib/enforcement-events.mjs';
+import { MEASURE as CONTRACT_MEASURE, contractProblem, howToFollow, measuredUc } from './lib/contract-first.mjs';
 import { spawnSync } from 'child_process';
 import { dirname, join } from 'path';
 import { readFileSync } from 'fs';
@@ -30,16 +38,52 @@ try {
 if (!git('rev-parse --show-toplevel')) process.exit(0);
 
 const files = commitFiles(command);
-const hasAcceptanceFiles = files.some((f) => /(test\/acceptance\/|tests\/acceptance\/|e2e\/acceptance\/|e2e\/.*\.spec\.)/.test(f));
+const hasAcceptanceFiles = files.some((f) => /(test\/acceptance\/|tests\/acceptance\/|e2e\/acceptance\/|e2e\/.*\.spec\.|(^|\/)\.maestro\/)/.test(f));
 const hasEvidenceFiles = files.some((f) => /\.quality\/evidence\/.*\/acceptance\//.test(f));
 if (!hasAcceptanceFiles && !hasEvidenceFiles) process.exit(0);
 
-const activeUC = readJsonFile('.quality/active_uc.json')?.uc_id || '';
+const marker = readJsonFile('.quality/active_uc.json');
+const activeUC = marker?.uc_id || '';
 const resultsFiles = findFiles('.quality/evidence', /^results\.json$/, 'acceptance');
 
+/** UC-12801: the contract_first measure, as a net at commit time. */
+async function checkContractFirst(relevantResults) {
+  if (!measuredUc(marker)) return;
+  const config = getProjectConfig();
+  if (!config.isSpecDriven) return;
+  const root = git('rev-parse --show-toplevel');
+  const politica = await leerPolitica({ root, backendType: config.backendType, boardId: config.boardId, trackingDir: config.freeformRoot });
+  const mode = modoDe(politica, CONTRACT_MEASURE);
+  if (mode === 'off') return;
+  const { reason, contractPath } = contractProblem({ root, marker, resultsPaths: relevantResults });
+  if (!reason) {
+    await recordCorrectionIfBlocked({ root, config, measure: CONTRACT_MEASURE, ucId: marker.uc_id, by: 'e2e-gate' });
+    return;
+  }
+  const how = howToFollow(marker, contractPath);
+  const predates = Array.isArray(marker.predates_rule) && marker.predates_rule.includes(CONTRACT_MEASURE);
+  if (mode === 'block' && !predates) {
+    await recordEnforcementEvent({ root, config, measure: CONTRACT_MEASURE, ucId: marker.uc_id, outcome: 'blocked', by: 'e2e-gate' });
+    blockWith('E2E GATE: pruebas de aceptación sin su contrato', [
+      `SpecBox detuvo el commit por la medida ${CONTRACT_MEASURE}. Motivo: ${reason}`,
+      ...how.map((h) => `Cómo seguir: ${h}`),
+    ]);
+  }
+  noteWith('PreToolUse', 'E2E GATE: pruebas de aceptación sin su contrato (aviso)', [
+    predates
+      ? `Medida ${CONTRACT_MEASURE} en «block», pero ${marker.uc_id} es anterior a la regla: el commit sigue. Motivo: ${reason}`
+      : `Medida ${CONTRACT_MEASURE} en «warn»: el commit sigue. Motivo: ${reason}`,
+    ...how,
+  ]);
+}
+
 if (resultsFiles.length === 0) {
-  // Only acceptance tests, no evidence yet (AG-09a writing tests before running them): allowed.
-  if (!hasEvidenceFiles) process.exit(0);
+  // Only acceptance tests, no evidence yet (AG-09a writing tests before running them): allowed,
+  // after their contract (UC-12801).
+  if (!hasEvidenceFiles) {
+    await checkContractFirst([]);
+    process.exit(0);
+  }
   blockWith('E2E GATE: evidencia sin results.json', [
     'El commit lleva ficheros de evidencia pero no hay ningún results.json.',
     'Se espera: .quality/evidence/{feature}/acceptance/results.json',
@@ -59,6 +103,7 @@ if (!VALIDATOR) {
 }
 
 const errors = [];
+const relevantResults = [];
 for (const resultsFile of resultsFiles) {
   const evidenceDir = dirname(resultsFile);
   let relevant = files.some((f) => f.includes(evidenceDir));
@@ -68,6 +113,7 @@ for (const resultsFile of resultsFiles) {
     } catch { /* unreadable: not relevant */ }
   }
   if (!relevant) continue;
+  relevantResults.push(resultsFile);
   const res = spawnSync(process.execPath, [VALIDATOR, resultsFile, '--check-evidence'], { encoding: 'utf-8' });
   if (res.status !== 0) errors.push(`${resultsFile}:`, ...`${res.stdout || ''}${res.stderr || ''}`.trim().split('\n').slice(-15).map((l) => `  ${l}`));
   const htmlReport = join(evidenceDir, 'e2e-evidence-report.html');
@@ -83,4 +129,5 @@ if (errors.length) {
     'node .quality/scripts/validate-results-json.js <results.json> --check-evidence',
   ]);
 }
+await checkContractFirst(relevantResults);
 process.exit(0);

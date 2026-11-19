@@ -1701,6 +1701,38 @@ git commit -m "test({feature}): add tests with 85%+ coverage"
 > Generar y ejecutar tests BDD en formato Gherkin que validen acceptance criteria del PRD.
 > PRD es OBLIGATORIO. Sin PRD no hay AC-XX → no hay acceptance tests → pipeline PARA.
 
+### 7.5.0 El contrato de cada criterio, antes de las pruebas (UC-12801)
+
+> Las pruebas se generan desde el **contrato** de cada criterio, no directamente desde su texto. La
+> medida `contract_first` (desde 6.49.0, «warn» por defecto; modo en `get_enforcement_policy`)
+> decide si una UC sin contrato completo pasa a generar pruebas.
+
+0. **Por defecto, siempre** (`acceptance.contract: true` en `.claude/settings.json`; la plantilla lo
+   trae así). La medición de UC-12801 (5 UC, 50 fallos sembrados, dos pasadas por brazo) dio 94 de
+   100 detectados con contrato frente a 91 sin él, sin falsos positivos en ninguno
+   (`.quality/evidence/UC-12801/contract-eval/report.md` del engine). Un proyecto que ponga
+   `acceptance.contract: false` lo salta, y entonces pone también la medida `contract_first` en «off».
+1. Con los criterios vigentes de la UC (`get_uc`, sin los retirados), AG-09a escribe
+   `.quality/evidence/{feature}/acceptance/contract.json` (formato en
+   `doc/specs/results-json-spec.md`, «Contrato de cada criterio»). Por cada criterio:
+   - `pre`: lo que tiene que ser cierto antes (datos, sesión, estado), cada una con su id
+     (`AC-01.pre1`) y su texto.
+   - `post`: lo observable que la prueba comprueba después (`AC-01.post1`, …), con su valor.
+   - `undefined`: lo que el criterio no dice (límites, errores, concurrencia, vacíos). Lista
+     vacía si no hay nada, pero se escribe.
+2. `check_acceptance_contract(contract_content=<contract.json>, uc_criteria=[<ids de get_uc>],
+   uc_id=<UC>)`:
+   - `ok: true` → 7.5.1.
+   - `ok: false` → corrige lo que dicen `missing`, `incomplete` e `invalid` y vuelve a llamarla.
+     Con `contract_first` en «block» no se genera ninguna prueba hasta `ok: true`; en «warn» se
+     sigue, el informe de aceptación enseña «Sin contrato» en esos criterios y el resumen lo avisa.
+3. Si algo de `undefined` cambia lo que el criterio espera, es una decisión de producto:
+   pregúntala (o aplázala en la cola de decisiones), no la decidas dentro de la prueba.
+4. Cada escenario cita lo que comprueba (7.5.2) y, tras ejecutar (7.5.6),
+   `check_acceptance_contract(..., results_content=<results.json>)` y
+   `validate-results-json.js --check-contract <contract.json>` dicen qué prueba no cita su `pre` y
+   su `post` o cita una condición que no es de su criterio.
+
 ### 7.5.1 Localizar PRD
 
 ```
@@ -1736,13 +1768,13 @@ Generar un archivo `.feature` por cada UC del plan actual, con un `Escenario` po
 @US-XX @UC-XXX
 Característica: {Título del UC-XXX}
 
-  @AC-01
+  @AC-01 @pre:AC-01.pre1 @post:AC-01.post1
   Escenario: {Descripción del AC-01}
     Dado ...
     Cuando ...
     Entonces ...
 
-  @AC-02
+  @AC-02 @pre:AC-02.pre1 @post:AC-02.post1
   Escenario: {Descripción del AC-02}
     Dado ...
     Cuando ...
@@ -1751,6 +1783,10 @@ Característica: {Título del UC-XXX}
 
 **Reglas:**
 - Tags obligatorios: `@US-XX`, `@UC-XXX`, `@AC-XX` en cada escenario
+- Con contrato (7.5.0), cada escenario cita la precondición y la postcondición que comprueba:
+  `@pre:AC-NN.preN @post:AC-NN.postN`, de su propio criterio (UC-12801). En Maestro y Patrol, sin
+  etiquetas, un comentario `# contract: AC-01.pre1, AC-01.post1` en la cabecera del flujo o
+  `// contract: …` justo encima del test
 - Idioma obligatorio: `# language: es`
 - Un `.feature` por UC, un `Escenario` por AC-XX
 
@@ -1849,7 +1885,10 @@ Guardar en `.quality/evidence/{feature}/acceptance/`:
 
 **El informe DEBE incluir:**
 - Pass rate (%) con color verde/amarillo/rojo
-- Card por cada AC-XX con: status badge, screenshot embebido, steps, duration
+- Card por cada AC-XX con: status badge, screenshot embebido, steps, duration y su **contrato**
+  (precondiciones, postcondiciones con las que comprueba esa prueba marcadas, y lo no definido; o
+  «Sin contrato para este criterio»). Los generadores de Maestro, Patrol y Python lo leen de
+  `contract.json` junto al informe (UC-12801)
 - Error details con stack trace para los FAIL
 - Resumen de viewports testeados
 
@@ -1868,8 +1907,12 @@ Guardar en `.quality/evidence/{feature}/acceptance/acceptance-report.pdf`
 
 Si el flujo es spec-driven (tiene board_id y UC card):
 ```
-attach_evidence(board_id, uc_card_id, "uc", "acceptance", pdf_path)
+attach_evidence(board_id, uc_id, "uc", "ag09", <Markdown del informe: resumen, tabla AC y el contrato de cada criterio>)
 ```
+
+El tipo es `ag09` (el servidor acepta `prd`, `plan`, `ag09`, `delivery` y `feedback`; `acceptance`
+respondía `INVALID_EVIDENCE_TYPE`). El Markdown lleva el contrato de cada criterio (`pre`, `post`
+y `undefined`) junto a su resultado, para que quede en la evidencia de la UC (UC-12801).
 Agregar comentario estructurado en la card del UC:
 ```
 Acceptance Tests — UC-XXX
@@ -1941,6 +1984,8 @@ Delegar a AG-09b (ver `agents/acceptance-validator.md`). El validador recibe:
 - `git diff main..HEAD` (código implementado)
 - Resultados de tests unitarios (AG-04, Paso 7)
 - Resultados de acceptance tests (AG-09a, Paso 7.5)
+- El contrato de la UC (`contract.json`, Paso 7.5.0): comprueba que cada prueba cita su `pre` y su
+  `post` y que cada `post` acaba en una aserción de la prueba (UC-12801)
 - Screenshots/evidencia generada
 - audit.json de AG-08 (Paso 7.6)
 
@@ -2279,7 +2324,8 @@ Antes del merge, escribir el Implementation Status en el PRD:
 
 #### Todos los backends (Trello/Plane/FreeForm):
 1. Llamar `move_uc(board_id, uc_id, "review")` — mueve UC a **Review** (NO a Done)
-2. Adjuntar evidencia: `attach_evidence(board_id, uc_id, "uc", "acceptance", evidence_md)`
+2. Adjuntar evidencia: `attach_evidence(board_id, uc_id, "uc", "ag09", evidence_md)` (con el
+   contrato de cada criterio, 7.5.9)
 3. Reportar acceptance tests: `mark_ac_batch(board_id, uc_id, results)`, con un recibo por AC
    (`{"ac_id", "passed", "evidence": {type: test|screenshot|diff|url|pr, label, link?, detail?,
    commit, repo}}`, US-56/UC-5601): el panel y el portal lo enseñan como prueba de que el criterio se

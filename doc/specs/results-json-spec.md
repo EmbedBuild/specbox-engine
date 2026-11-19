@@ -34,7 +34,11 @@
           "status": "string — PASS | FAIL",
           "duration_ms": "number"
         }
-      ]
+      ],
+      "contract": {
+        "pre": ["string — AC-XX.preN que la prueba comprueba"],
+        "post": ["string — AC-XX.postN que la prueba comprueba"]
+      }
     }
   ]
 }
@@ -69,6 +73,7 @@
 | `evidence` | string/null | Sí | Nombre del archivo de evidencia (screenshot o response log) |
 | `error` | string/null | Sí | Mensaje de error (null si PASS) |
 | `steps` | array | No | Desglose de steps Gherkin (si disponible) |
+| `contract` | object | No (sí con contrato) | Las condiciones del contrato que comprueba la prueba: `{"pre": [...], "post": [...]}` con ids `AC-XX.preN` / `AC-XX.postN` de su criterio. Ver «Contrato de cada criterio» |
 
 ---
 
@@ -197,6 +202,71 @@ Un `results.json` es válido si:
 5. `stack` es uno de los valores definidos
 6. `evidence_type` es `screenshot` o `response-log`
 7. Si `evidence` no es null, el archivo referenciado existe en el mismo directorio
+8. Si un resultado trae `contract`, es un objeto con `pre` y `post` como listas de ids
+
+Con `--check-contract <contract.json>`, además, cada criterio del contrato tiene su `pre`, su `post`
+y su `undefined`, y cada resultado cita al menos una `pre` y una `post` **de su criterio** que el
+contrato tiene. Las condiciones que ninguna prueba cita salen como aviso.
+
+```bash
+node .quality/scripts/validate-results-json.js \
+  .quality/evidence/{feature}/acceptance/results.json \
+  --check-evidence --check-contract .quality/evidence/{feature}/acceptance/contract.json
+```
+
+---
+
+## Contrato de cada criterio (US-128 · UC-12801)
+
+Antes de generar ninguna prueba de aceptación, AG-09a escribe el contrato de la UC: por cada
+criterio vigente, sus precondiciones, sus postcondiciones y el comportamiento que el criterio no
+define. Las pruebas se generan desde el contrato y cada una cita lo que comprueba.
+
+**Ubicación**: `.quality/evidence/{feature}/acceptance/contract.json`, junto a `results.json`. Se
+adjunta como evidencia `ag09` de la UC.
+
+```json
+{
+  "schema": 1,
+  "uc_id": "UC-001",
+  "criteria": {
+    "AC-01": {
+      "pre": [{ "id": "AC-01.pre1", "text": "El usuario está autenticado como propietario" }],
+      "post": [
+        { "id": "AC-01.post1", "text": "La propiedad aparece en el listado con el nombre enviado" },
+        { "id": "AC-01.post2", "text": "El contador de propiedades sube en 1" }
+      ],
+      "undefined": ["Qué pasa si dos propietarios crean a la vez una propiedad con el mismo nombre"]
+    }
+  }
+}
+```
+
+| Regla | Detalle |
+|-------|---------|
+| `schema` | `1` |
+| `uc_id` | La UC del contrato; debe coincidir con la de `results.json` |
+| Una entrada por criterio | Cada criterio vigente de la UC, con su id (`AC-01`); un criterio retirado no lleva |
+| `pre` y `post` | Al menos una de cada; cada condición con `id` (`AC-01.pre1`, `AC-01.post1`: su criterio, su clase y un número) y `text` |
+| `undefined` | Lista de textos; puede estar vacía, pero se escribe: decir que no hay nada sin definir también es una decisión |
+| Límites | 512 KB por contrato, 200 criterios, 50 condiciones por clase, 2000 caracteres por texto |
+
+**Cómo cita una prueba lo que comprueba**:
+
+| Stack | Dónde | Ejemplo |
+|-------|-------|---------|
+| Gherkin (Playwright, pytest-bdd) | Etiquetas del escenario | `@AC-01 @pre:AC-01.pre1 @post:AC-01.post1` |
+| Maestro | Comentario de cabecera del flujo | `# contract: AC-01.pre1, AC-01.post1` |
+| Patrol | Comentario encima del test | `// contract: AC-01.pre1, AC-01.post1` |
+
+Los generadores de evidencia llevan esas citas a `results[].contract`.
+
+**Comprobación**: la tool `check_acceptance_contract(contract_content, uc_criteria, uc_id,
+results_content)` (pura: no lee el tablero ni el disco) dice qué criterios no tienen contrato
+(`missing`), cuáles no tienen `pre`, `post` o `undefined` (`incomplete`), qué entradas no valen
+(`invalid`) y, con los resultados, qué pruebas no citan su `pre` y su `post` (`uncited`) o citan
+una condición que no es de su criterio (`unknown`). El validador usa las mismas reglas
+(`.claude/hooks/lib/acceptance-contract.mjs`, espejo de `server/acceptance_contract.py`).
 
 ---
 

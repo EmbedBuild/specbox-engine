@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "uc_id": "UC-12502",
+  "criteria": {
+    "AC-01": {
+      "pre": [
+        {
+          "id": "AC-01.pre1",
+          "text": "Los criterios vigentes de la UC son AC-01 «Texto uno» y AC-02 «Texto dos»; su huella F es la de criteria_fingerprint sobre esos criterios."
+        },
+        {
+          "id": "AC-01.pre2",
+          "text": "La última aprobación guardada de la UC es {fingerprint: F, by: 'jesusperezdeveloper', at: '2026-11-19T10:00:00+00:00', session_id: 'sess-1', source: 'panel'}."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-01.post1",
+          "text": "approval_state devuelve state 'approved' para esos criterios."
+        },
+        {
+          "id": "AC-01.post2",
+          "text": "El estado lleva quién dio la aprobación: by = 'jesusperezdeveloper'."
+        },
+        {
+          "id": "AC-01.post3",
+          "text": "El estado lleva cuándo se dio: at = '2026-11-19T10:00:00+00:00'."
+        },
+        {
+          "id": "AC-01.post4",
+          "text": "El estado conserva session_id = 'sess-1' y source = 'panel' del registro, y no copia la huella ni otras claves del registro."
+        }
+      ],
+      "undefined": [
+        "La herramienta propia (approve_criteria) que escribe el registro no pertenece a server/approval.py: aquí solo se prueba cómo se lee un registro ya guardado.",
+        "Qué pasa con las claves by, at, session_id o source cuando el registro las trae a None o no las trae.",
+        "Qué formato tienen by y at: el módulo los devuelve tal cual, sin validarlos."
+      ]
+    },
+    "AC-02": {
+      "pre": [
+        {
+          "id": "AC-02.pre1",
+          "text": "La UC UC-12502 tiene los criterios vigentes AC-01 y AC-02, con una huella F."
+        },
+        {
+          "id": "AC-02.pre2",
+          "text": "Nadie ha aprobado nunca sus criterios: no hay ningún registro de aprobación (latest es None)."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-02.post1",
+          "text": "approval_state devuelve exactamente {'state': 'none'}."
+        },
+        {
+          "id": "AC-02.post2",
+          "text": "is_approved de ese estado es False: la UC no cuenta como aprobada."
+        },
+        {
+          "id": "AC-02.post3",
+          "text": "not_approved_reason('UC-12502', estado) es 'Nadie ha aprobado todavía los criterios de UC-12502.'"
+        }
+      ],
+      "undefined": [
+        "El código de error AC_NOT_APPROVED y el rechazo de start_uc viven en la herramienta, fuera de server/approval.py.",
+        "Qué estado sale si el registro no es un diccionario, es un diccionario vacío o trae una huella vacía.",
+        "Qué estado sale para una UC sin ningún criterio.",
+        "Qué pasa con is_approved si recibe None, un valor que no es diccionario o un estado desconocido."
+      ]
+    },
+    "AC-03": {
+      "pre": [
+        {
+          "id": "AC-03.pre1",
+          "text": "La UC tiene los criterios AC-01 «Texto uno» y AC-02 «Texto dos» y una aprobación {fingerprint: F0, by: 'jesusperezdeveloper', at: '2026-11-19T10:00:00+00:00'} con la huella F0 de esos criterios, por lo que está 'approved'."
+        },
+        {
+          "id": "AC-03.pre2",
+          "text": "Después de la aprobación los criterios vigentes cambian de tres maneras distintas: se reescribe el texto de AC-02, se añade AC-03 o se retira AC-02."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-03.post1",
+          "text": "Con el texto de AC-02 reescrito, la huella es distinta de F0 y approval_state devuelve state 'stale'."
+        },
+        {
+          "id": "AC-03.post2",
+          "text": "Con un criterio añadido (AC-03), la huella es distinta de F0 y approval_state devuelve state 'stale'."
+        },
+        {
+          "id": "AC-03.post3",
+          "text": "Con un criterio retirado (AC-02 ya no figura entre los vigentes), la huella es distinta de F0 y approval_state devuelve state 'stale'."
+        },
+        {
+          "id": "AC-03.post4",
+          "text": "En los tres casos is_approved es False y not_approved_reason('UC-12502', estado) es 'Los criterios de UC-12502 cambiaron después de su última aprobación.'"
+        },
+        {
+          "id": "AC-03.post5",
+          "text": "El estado 'stale' dice quién y cuándo aprobó antes: previous_by = 'jesusperezdeveloper', previous_at = '2026-11-19T10:00:00+00:00', y un reason con el motivo."
+        },
+        {
+          "id": "AC-03.post6",
+          "text": "Hasta que haya una nueva aprobación sigue 'stale'; con una nueva aprobación de la huella nueva el estado vuelve a ser 'approved' con el by y el at de la nueva aprobación."
+        }
+      ],
+      "undefined": [
+        "Si cambiar solo la verificación de un criterio, marcarlo como hecho o añadirle recibos cambia la huella (el docstring del módulo dice que no).",
+        "Si un cambio solo de espacios dentro del texto de un criterio cuenta como cambio de texto.",
+        "Si reordenar los criterios, o pasarlos como diccionarios con ac_id en lugar de id, o como objetos, cambia la huella.",
+        "Qué pasa si se retira un criterio y se vuelve a añadir otro con el mismo id y el mismo texto, o con el mismo id y otro texto.",
+        "Cómo se ordenan los criterios con un id que no sigue el formato AC-NN (por ejemplo AC-x) o que supera AC-9.",
+        "Qué longitud y formato tiene la huella."
+      ]
+    },
+    "AC-06": {
+      "pre": [
+        {
+          "id": "AC-06.pre1",
+          "text": "La UC es anterior a la regla (predates=True) y ninguna aprobación guardada coincide con la huella de sus criterios vigentes (no hay registro, o su huella es otra)."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-06.post1",
+          "text": "approval_state devuelve state 'migration' con source 'migration' y label 'aprobada por migración'."
+        },
+        {
+          "id": "AC-06.post2",
+          "text": "is_approved de ese estado es True: la UC anterior a la regla cuenta como aprobada."
+        },
+        {
+          "id": "AC-06.post3",
+          "text": "El estado no inventa un by ni un at: una aprobación por migración no la dio nadie."
+        }
+      ],
+      "undefined": [
+        "El modo de la medida (warn o block) y el aviso o el rechazo de start_uc: no los decide server/approval.py, que recibe predates ya resuelto.",
+        "Qué pasa si la UC es anterior a la regla y además tiene una aprobación que coincide con la huella (el módulo da prioridad a la aprobación real).",
+        "Qué pasa si la UC es anterior a la regla y su aprobación anterior quedó obsoleta (stale): el módulo la cuenta como migración.",
+        "Qué pasa con predates cuando no se pasa: el valor por defecto es False."
+      ]
+    }
+  }
+}

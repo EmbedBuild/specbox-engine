@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "uc_id": "UC-12305",
+  "criteria": {
+    "AC-02": {
+      "pre": [
+        {
+          "id": "AC-02.pre1",
+          "text": "Una UC lleva una marca `[POR DECIDIR: …]` sin entrecomillar en su texto (el nombre o la descripción); basta con una."
+        },
+        {
+          "id": "AC-02.pre2",
+          "text": "Una UC lleva una marca `[POR DECIDIR: …]` sin entrecomillar en el texto de alguno de sus criterios; basta con una."
+        }
+      ],
+      "post": [
+        {
+          "id": "AC-02.post1",
+          "text": "La evaluación de la medida pending_decisions de esa UC (`_eval_pending_decisions`) devuelve un motivo y no None: la UC no arranca."
+        },
+        {
+          "id": "AC-02.post2",
+          "text": "El motivo del error muestra cada marca: nombra lo que falta por decidir de cada una y dónde está (el criterio, el nombre o la descripción)."
+        },
+        {
+          "id": "AC-02.post3",
+          "text": "El detalle `pending_marks` trae una entrada por cada marca, con su ubicación (`where`) y lo que falta por decidir (`mark`), tanto si la marca está en un criterio como en el nombre o en la descripción."
+        }
+      ],
+      "undefined": [
+        "Si arranca una UC sin ninguna marca: el criterio solo dice qué pasa con las que tienen una.",
+        "Si cuenta una marca citada entre comillas invertidas o angulares, como las que escriben los propios criterios de esta UC.",
+        "Qué se muestra de una marca sin detalle (`[POR DECIDIR]` o `[POR DECIDIR: ]`).",
+        "Si la marca distingue mayúsculas de minúsculas, o admite espacios dentro de los corchetes.",
+        "Qué pasa con una marca a la que le falta el corchete de cierre, o con una comilla invertida sin cerrar.",
+        "Cuántas veces se muestra una marca repetida: la misma en un criterio y en la descripción (import_spec copia los criterios a la descripción), en el nombre y en la descripción, o en dos criterios.",
+        "Cómo se escribe lo que falta por decidir cuando trae espacios, tabuladores o saltos de línea sobrantes.",
+        "Qué pasa con una UC sin criterios, sin descripción o sin nombre (campos vacíos o ausentes).",
+        "Cómo se nombra el criterio de una marca cuando el criterio no trae id.",
+        "En qué orden se muestran las marcas y si hay un tope de cuántas se muestran.",
+        "Si la UC arranca igualmente en modo «warn» o siendo anterior a la regla: lo define otro criterio (AC-04), no este."
+      ]
+    }
+  }
+}

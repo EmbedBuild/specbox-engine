@@ -1,0 +1,86 @@
+{
+  "uc_id": "UC-12604",
+  "module": "server/plan_contract.py",
+  "mutants": [
+    {
+      "id": "M01",
+      "file": "server/plan_contract.py",
+      "find": "lambda m: \", \".join(ac_key(n) for n in range(int(m[1]), int(m[2]) + 1))",
+      "replace": "lambda m: \", \".join(ac_key(n) for n in range(int(m[1]), int(m[2])))",
+      "criterion": "AC-01",
+      "description": "Un rango de criterios («AC-01 a AC-04», «AC-01..AC-04») deja fuera el último, que sale como no cubierto."
+    },
+    {
+      "id": "M02",
+      "file": "server/plan_contract.py",
+      "find": "        if missing:\n            out.append({\"phase\": phase.title, \"missing\": missing})",
+      "replace": "        if len(missing) > 1:\n            out.append({\"phase\": phase.title, \"missing\": missing})",
+      "criterion": "AC-01",
+      "description": "incomplete_phases solo avisa de las fases a las que les faltan las dos líneas; una sin **Criterios:** o sin **Ficheros:** pasa."
+    },
+    {
+      "id": "M03",
+      "file": "server/plan_contract.py",
+      "find": "and not (single and not contract.ambiguous and (None, normalize_ac(ac)) in covered)",
+      "replace": "and not (single and (None, normalize_ac(ac)) in covered)",
+      "criterion": "AC-01",
+      "description": "En un plan de varias UC, un criterio escrito sin su UC cuenta como cubierto para la UC que se comprueba."
+    },
+    {
+      "id": "M04",
+      "file": "server/plan_contract.py",
+      "find": "    return not contract.ambiguous\n",
+      "replace": "    return True\n",
+      "criterion": "AC-03",
+      "description": "phase_of/phase_named atribuyen un criterio sin UC de un plan de varias UC a cualquier UC: get_uc da una fase que no es la suya."
+    },
+    {
+      "id": "M05",
+      "file": "server/plan_contract.py",
+      "find": "return found[0] if len(found) == 1 else None",
+      "replace": "return found[0] if found else None",
+      "criterion": "AC-03",
+      "description": "phase_by_number adivina: con varias «Fase N» del mismo número (plan de varias UC) devuelve la primera en vez de None."
+    },
+    {
+      "id": "M06",
+      "file": "server/plan_contract.py",
+      "find": "if own and own[1] == number[1] and _covers(contract, phase, uc_id, ac_id):",
+      "replace": "if own and own[1] == number[1]:",
+      "criterion": "AC-03",
+      "description": "phase_named, con un plan renumerado, da la «Fase N» del recibo aunque no cubra esa UC y ese criterio."
+    },
+    {
+      "id": "M07",
+      "file": "server/plan_contract.py",
+      "find": "path = _ANNOTATION.sub(\"\", raw.strip().strip(\"`\").strip()).strip()",
+      "replace": "path = raw.strip().strip(\"`\").strip()",
+      "criterion": "AC-03",
+      "description": "Las rutas de **Ficheros:** conservan la anotación final («server/x.py (nuevo)»): los ficheros de la fase (plan_files) salen mal."
+    },
+    {
+      "id": "M08",
+      "file": "server/plan_contract.py",
+      "find": "_FENCE = re.compile(r\"^\\s*(`{3,}|~{3,})\")",
+      "replace": "_FENCE = re.compile(r\"^\\s*(`{3,})\")",
+      "criterion": "AC-04",
+      "description": "Un bloque de código con ~~~ no se reconoce: sus líneas de ejemplo cuentan y un plan anterior pasa a contrato 1."
+    },
+    {
+      "id": "M09",
+      "file": "server/plan_contract.py",
+      "find": "return PlanContract(phases=[], dependencies=deps, contract_version=0)",
+      "replace": "return PlanContract(phases=phases, dependencies=deps, contract_version=0)",
+      "criterion": "AC-04",
+      "description": "Un plan de contrato 0 se adivina: devuelve sus fases «Fase N» en vez de ninguna (y luego se informan como incompletas)."
+    },
+    {
+      "id": "M10",
+      "file": "server/plan_contract.py",
+      "find": "    if not any(p.criteria for p in phases):\n",
+      "replace": "    if not any(p.criteria or p.files for p in phases):\n",
+      "criterion": "AC-04",
+      "description": "Un plan que solo trae líneas **Ficheros:** (sin criterios) pasa a contrato 1 en vez de 0."
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "uc_id": "UC-12305",
+  "module": "server/coordination/enforcement.py",
+  "mutants": [
+    {
+      "id": "M01",
+      "file": "server/coordination/enforcement.py",
+      "find": "_PENDING_FULL.finditer(_QUOTED.sub(\" \", str(text or \"\")))",
+      "replace": "_PENDING_FULL.finditer(str(text or \"\"))",
+      "criterion": "AC-02",
+      "description": "Lo citado entre comillas vuelve a contar: una UC que nombra `[POR DECIDIR` en un criterio (la propia UC-12305) no arranca."
+    },
+    {
+      "id": "M02",
+      "file": "server/coordination/enforcement.py",
+      "find": "r\"\\[\\s*POR DECIDIR\\s*:?\\s*([^\\]\\n]*)\\]?\"",
+      "replace": "r\"\\[\\s*POR DECIDIR\\s*:\\s*([^\\]\\n]*)\\]?\"",
+      "criterion": "AC-02",
+      "description": "Exige los dos puntos: «[POR DECIDIR el proveedor]» deja de ser una marca y la UC arranca."
+    },
+    {
+      "id": "M03",
+      "file": "server/coordination/enforcement.py",
+      "find": "([^\\]\\n]*)\\]?\", re.IGNORECASE)",
+      "replace": "([^\\]\\n]*)\\]?\")",
+      "criterion": "AC-02",
+      "description": "Distingue mayúsculas: «[por decidir: proveedor]» o «[Por decidir: …]» no se detectan."
+    },
+    {
+      "id": "M04",
+      "file": "server/coordination/enforcement.py",
+      "find": "\\s*([^\\]\\n]*)\\]?\", re.IGNORECASE)",
+      "replace": "\\s*([^\\]\\n]*)\\]\", re.IGNORECASE)",
+      "criterion": "AC-02",
+      "description": "Una marca sin cerrar («[POR DECIDIR: proveedor» al final de línea) se ignora."
+    },
+    {
+      "id": "M05",
+      "file": "server/coordination/enforcement.py",
+      "find": "            what = \" \".join(match.group(1).split()) or \"sin detalle\"\n",
+      "replace": "            what = \" \".join(match.group(1).split())\n            if not what:\n                continue\n",
+      "criterion": "AC-02",
+      "description": "Una marca sin detalle («[POR DECIDIR]» o «[POR DECIDIR:]») se salta y la UC arranca."
+    },
+    {
+      "id": "M06",
+      "file": "server/coordination/enforcement.py",
+      "find": "sources += [(\"el nombre\", uc.get(\"name\", \"\")), (\"la descripción\", uc.get(\"description\", \"\"))]",
+      "replace": "sources += [(\"la descripción\", uc.get(\"description\", \"\"))]",
+      "criterion": "AC-02",
+      "description": "El nombre de la UC deja de mirarse: una marca solo en el nombre no la detiene."
+    },
+    {
+      "id": "M07",
+      "file": "server/coordination/enforcement.py",
+      "find": "sources += [(\"el nombre\", uc.get(\"name\", \"\")), (\"la descripción\", uc.get(\"description\", \"\"))]",
+      "replace": "sources += [(\"el nombre\", uc.get(\"name\", \"\"))]",
+      "criterion": "AC-02",
+      "description": "La descripción de la UC deja de mirarse: una marca solo en la descripción no la detiene."
+    },
+    {
+      "id": "M08",
+      "file": "server/coordination/enforcement.py",
+      "find": "ac.get(\"text\", \"\")) for ac in uc.get(\"acs\") or []]",
+      "replace": "ac.get(\"text\", \"\")) for ac in uc.get(\"acceptance_criteria\") or []]",
+      "criterion": "AC-02",
+      "description": "Los criterios dejan de mirarse (lee una clave que el dict de la UC no trae): una marca en un criterio no la detiene."
+    },
+    {
+      "id": "M09",
+      "file": "server/coordination/enforcement.py",
+      "find": "detail = \"; \".join(f\"{m['where']}: «{m['mark']}»\" for m in marks)",
+      "replace": "detail = \"; \".join(m[\"where\"] for m in marks)",
+      "criterion": "AC-02",
+      "description": "El motivo dice dónde hay marcas pero no qué falta decidir en cada una."
+    },
+    {
+      "id": "M10",
+      "file": "server/coordination/enforcement.py",
+      "find": "\\s*([^\\]\\n]*)\\]?\", re.IGNORECASE)",
+      "replace": "\\s*([^\\]\\n]*?)\\]?\", re.IGNORECASE)",
+      "criterion": "AC-04",
+      "description": "Captura perezosa: toda marca sale como «sin detalle», así que la respuesta (y el error) no muestran qué queda por decidir."
+    }
+  ]
+}

@@ -12,9 +12,14 @@
  *   - CI pipelines
  *
  * Usage:
- *   node validate-results-json.js <path-to-results.json> [--check-evidence]
+ *   node validate-results-json.js <path-to-results.json> [--check-evidence] [--check-contract <contract.json>]
  *
  *   --check-evidence: Also verify that evidence files referenced exist on disk
+ *   --check-contract: Also verify the UC's contract (US-128 · UC-12801): every criterion of the
+ *                     contract has its pre, post and undefined, and every result cites in
+ *                     `contract` a pre and a post condition of its criterion that the contract has.
+ *                     The rules live in .claude/hooks/lib/acceptance-contract.mjs (the same as the
+ *                     server's check_acceptance_contract).
  *
  * SpecBox Engine v5.12.0
  */
@@ -22,11 +27,17 @@
 const fs = require('fs');
 const path = require('path');
 
+const os = require('os');
+const { pathToFileURL } = require('url');
+
 const filePath = process.argv[2];
 const checkEvidence = process.argv.includes('--check-evidence');
+const contractFlag = process.argv.indexOf('--check-contract');
+const contractPath = contractFlag > -1 ? process.argv[contractFlag + 1] : null;
+const USAGE = 'Usage: node validate-results-json.js <path-to-results.json> [--check-evidence] [--check-contract <contract.json>]';
 
-if (!filePath) {
-  console.error('Usage: node validate-results-json.js <path-to-results.json> [--check-evidence]');
+if (!filePath || (contractFlag > -1 && (!contractPath || contractPath.startsWith('--')))) {
+  console.error(USAGE);
   process.exit(1);
 }
 
@@ -37,10 +48,11 @@ if (!fs.existsSync(filePath)) {
 
 const errors = [];
 const warnings = [];
+let data = null;
 
 try {
   const raw = fs.readFileSync(filePath, 'utf-8');
-  const data = JSON.parse(raw);
+  data = JSON.parse(raw);
 
   // --- Required top-level fields ---
   const requiredFields = {
@@ -133,6 +145,16 @@ try {
         warnings.push(`${prefix}.error field missing (should be string or null)`);
       }
 
+      // contract (UC-12801): optional; when present, {pre: [ids], post: [ids]}
+      if ('contract' in r) {
+        const c = r.contract;
+        const okShape = c !== null && typeof c === 'object' && !Array.isArray(c)
+          && ['pre', 'post'].every((k) => !(k in c) || (Array.isArray(c[k]) && c[k].every((v) => typeof v === 'string')));
+        if (!okShape) {
+          errors.push(`${prefix}.contract must be an object with "pre" and "post" lists of condition ids`);
+        }
+      }
+
       // --- Check evidence files exist (optional, with --check-evidence) ---
       if (checkEvidence && r.evidence) {
         const evidenceDir = path.dirname(filePath);
@@ -212,17 +234,80 @@ try {
   }
 }
 
-// --- Output ---
-if (errors.length > 0) {
-  console.error(`VALIDATION FAILED: ${filePath}`);
-  console.error(`  ${errors.length} error(s), ${warnings.length} warning(s)\n`);
-  errors.forEach(e => console.error(`  ERROR: ${e}`));
-  warnings.forEach(w => console.error(`  WARN:  ${w}`));
-  process.exit(1);
-} else {
-  if (warnings.length > 0) {
-    warnings.forEach(w => console.log(`  WARN: ${w}`));
+// --- Contract (UC-12801): the same rules as check_acceptance_contract ---
+function contractLibCandidates() {
+  return [
+    path.resolve(__dirname, '../../.claude/hooks/lib/acceptance-contract.mjs'),
+    path.join(os.homedir(), '.claude/hooks/lib/acceptance-contract.mjs'),
+  ];
+}
+
+async function checkContract() {
+  if (!fs.existsSync(contractPath)) {
+    errors.push(`Contract not found: ${contractPath}`);
+    return;
   }
-  console.log(`VALID: ${filePath}`);
-  process.exit(0);
+  const lib = contractLibCandidates().find((p) => fs.existsSync(p));
+  if (!lib) {
+    errors.push('--check-contract needs .claude/hooks/lib/acceptance-contract.mjs (install the SpecBox hooks)');
+    return;
+  }
+  const { contractReport } = await import(pathToFileURL(lib).href);
+  const contractContent = fs.readFileSync(contractPath, 'utf-8');
+  let ids = [];
+  try {
+    const parsed = JSON.parse(contractContent);
+    ids = parsed && typeof parsed.criteria === 'object' && parsed.criteria ? Object.keys(parsed.criteria) : [];
+  } catch {
+    // contractReport says why it cannot be read
+  }
+  const report = contractReport({
+    contractContent,
+    criteriaIds: ids,
+    ucId: data && typeof data.uc_id === 'string' ? data.uc_id : null,
+    resultsContent: JSON.stringify(data),
+  });
+  if (!report.success) {
+    errors.push(`Contract: ${report.error}`);
+    return;
+  }
+  for (const i of report.invalid) errors.push(`Contract ${i.ac_id || '(uc_id)'}: ${i.problem}`);
+  for (const i of report.incomplete) errors.push(`Contract ${i.ac_id}: missing ${i.missing.join(', ')}`);
+  if (report.uc_mismatch) {
+    errors.push(`Contract is for ${report.uc_mismatch.found}, results are for ${report.uc_mismatch.expected}`);
+  }
+  for (const u of report.citations.uncited) {
+    errors.push(`results ${u.ac_id} «${u.test}» does not cite its ${u.missing.join(' and ')} condition`);
+  }
+  for (const u of report.citations.unknown) {
+    errors.push(`results ${u.ac_id} «${u.test}» cites ${u.condition}: ${u.problem}`);
+  }
+  if (report.citations.not_cited.length) {
+    warnings.push(`Conditions no test checks: ${report.citations.not_cited.join(', ')}`);
+  }
+}
+
+// --- Output ---
+function finish() {
+  if (errors.length > 0) {
+    console.error(`VALIDATION FAILED: ${filePath}`);
+    console.error(`  ${errors.length} error(s), ${warnings.length} warning(s)\n`);
+    errors.forEach(e => console.error(`  ERROR: ${e}`));
+    warnings.forEach(w => console.error(`  WARN:  ${w}`));
+    process.exit(1);
+  } else {
+    if (warnings.length > 0) {
+      warnings.forEach(w => console.log(`  WARN: ${w}`));
+    }
+    console.log(`VALID: ${filePath}`);
+    process.exit(0);
+  }
+}
+
+if (contractPath && data && Array.isArray(data.results)) {
+  checkContract()
+    .catch((e) => errors.push(`Contract check failed: ${e.message}`))
+    .finally(finish);
+} else {
+  finish();
 }

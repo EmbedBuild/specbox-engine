@@ -19,7 +19,10 @@ Transformar los acceptance criteria (AC-XX) del PRD en archivos `.feature` en es
 ## Responsabilidades
 
 1. Cargar PRD y extraer criterios AC-XX (solo funcionales, ignorar técnicos)
-2. Generar un archivo `.feature` por UC con un Escenario por cada AC-XX
+1b. Escribir el **contrato** de cada criterio (precondiciones, postcondiciones y lo no definido)
+   antes de generar ninguna prueba, y comprobarlo con `check_acceptance_contract` (UC-12801)
+2. Generar un archivo `.feature` por UC con un Escenario por cada AC-XX, que cita las condiciones
+   del contrato que comprueba
 3. Generar step definitions usando el framework BDD nativo del stack
 4. Ejecutar los tests y producir JSON report en formato Cucumber
 5. Capturar screenshots por cada escenario
@@ -100,7 +103,7 @@ Característica: UC-XXX — [Nombre del caso de uso]
     Dado el usuario está autenticado como "[Actor]"
     Y está en la pantalla "[Pantalla principal del UC]"
 
-  @AC-01
+  @AC-01 @pre:AC-01.pre1 @post:AC-01.post1
   Escenario: [Texto del AC-01 tal como está en el PRD]
     Dado [precondición específica si la hay]
     Cuando [acción del usuario — paso 1]
@@ -108,7 +111,7 @@ Característica: UC-XXX — [Nombre del caso de uso]
     Entonces [resultado observable — qué ve/oye/recibe el usuario]
     Y [resultado adicional si aplica]
 
-  @AC-02
+  @AC-02 @pre:AC-02.pre1 @post:AC-02.post1
   Escenario: [Texto del AC-02 tal como está en el PRD]
     Cuando [acción]
     Entonces [resultado]
@@ -120,7 +123,7 @@ Característica: UC-XXX — [Nombre del caso de uso]
 |-------|---------|
 | Idioma | `# language: es` — SIEMPRE, primera línea |
 | Tags de Característica | `@US-XX @UC-XXX` |
-| Tags de Escenario | `@AC-XX` |
+| Tags de Escenario | `@AC-XX` y, con contrato, `@pre:AC-XX.preN @post:AC-XX.postN` de su propio criterio (UC-12801) |
 | Un archivo | = Un Use Case |
 | Un Escenario | = Un Acceptance Criterion |
 | Antecedentes | Precondiciones comunes del UC (auth, navegación) |
@@ -280,6 +283,7 @@ npx bddgen && npx playwright test tests/acceptance/ --reporter=html,json
 
 ```yaml
 # .maestro/flows/UC-XXX_{feature}/AC-01_{descripcion}.yaml
+# contract: AC-01.pre1, AC-01.post1
 appId: com.embedbuild.myapp
 name: "AC-01: usuario crea propiedad con datos válidos"
 ---
@@ -353,6 +357,7 @@ import 'package:patrol/patrol.dart';
 import 'package:my_app/main.dart' as app;
 
 void main() {
+  // contract: AC-01.pre1, AC-01.post1
   patrolTest('AC-01: usuario acepta permisos de cámara', ($) async {
     app.main();
     await $.pumpAndSettle();
@@ -512,12 +517,47 @@ npx jest tests/acceptance/ --json --outputFile=tests/acceptance/reports/cucumber
 
 Localizar PRD → extraer lista de AC-XX funcionales con ID + descripción.
 
+### 1.5. Escribir el contrato antes de las pruebas (UC-12801)
+
+Por defecto, siempre (`acceptance.contract: true` en `.claude/settings.json`): en la medición de
+UC-12801 las pruebas generadas desde el contrato detectaron 94 de 100 fallos sembrados frente a 91
+sin él, sin más falsos positivos. Solo con `acceptance.contract: false` se salta este paso.
+
+Antes de generar ningún `.feature`, flujo o test, escribe
+`.quality/evidence/{feature}/acceptance/contract.json` con los criterios vigentes de la UC
+(formato: `doc/specs/results-json-spec.md`, «Contrato de cada criterio»):
+
+```json
+{
+  "schema": 1,
+  "uc_id": "UC-XXX",
+  "criteria": {
+    "AC-01": {
+      "pre": [{ "id": "AC-01.pre1", "text": "El propietario tiene la sesión iniciada y ninguna propiedad" }],
+      "post": [{ "id": "AC-01.post1", "text": "La propiedad aparece en el listado con el nombre enviado" }],
+      "undefined": ["Qué pasa si el nombre ya existe"]
+    }
+  }
+}
+```
+
+- `pre`: lo que tiene que ser cierto antes (datos sembrados, sesión, pantalla). Sale de la seed
+  strategy (3.5) y de los Antecedentes.
+- `post`: lo observable que la prueba comprueba, con su valor. Cada `post` acaba en una aserción.
+- `undefined`: lo que el criterio no dice (límites, errores, vacíos, concurrencia). Lista vacía si
+  no hay nada, pero se escribe. Si una entrada cambia lo que el criterio espera, es una decisión de
+  producto: el orquestador la pregunta; AG-09a no la decide dentro de la prueba.
+
+Compruébalo con `check_acceptance_contract(contract_content, uc_criteria=[ids], uc_id)` y corrige
+hasta `ok: true` (en «block», la medida `contract_first` no deja generar pruebas sin él). Luego
+genera las pruebas **desde el contrato**: cada escenario, flujo o test cita su `pre` y su `post`.
+
 ### 2. Generar archivo `.feature`
 
 - Un `.feature` por UC en `{test_dir}/acceptance/features/UC-XXX_{nombre_snake}.feature`
 - Idioma: `# language: es`
 - Tags: `@US-XX @UC-XXX` en la Característica
-- Un Escenario por AC-XX con tag `@AC-XX`
+- Un Escenario por AC-XX con tag `@AC-XX` y las citas del contrato (`@pre:AC-XX.preN @post:AC-XX.postN`)
 - Antecedentes con precondiciones comunes
 
 ### 3. Generar step definitions
@@ -722,7 +762,8 @@ son OBLIGATORIOS — sin ellos el validador rechaza el archivo.
       "steps": [
         {"keyword": "Dado", "text": "el usuario está autenticado", "status": "PASS", "duration_ms": 120},
         {"keyword": "Cuando", "text": "completa el formulario", "status": "PASS", "duration_ms": 340}
-      ]
+      ],
+      "contract": {"pre": ["AC-01.pre1"], "post": ["AC-01.post1"]}
     },
     {
       "id": "AC-02",
@@ -736,9 +777,14 @@ son OBLIGATORIOS — sin ellos el validador rechaza el archivo.
 }
 ```
 
+`contract` lleva las citas de las etiquetas `@pre:`/`@post:` del escenario (UC-12801). Los
+generadores de Maestro, Patrol y Python las sacan solos; con Playwright, AG-09a las copia de las
+etiquetas del JSON Cucumber.
+
 **Tras generar results.json, VALIDAR antes de continuar:**
 ```bash
-node .quality/scripts/validate-results-json.js .quality/evidence/{feature}/acceptance/results.json --check-evidence
+node .quality/scripts/validate-results-json.js .quality/evidence/{feature}/acceptance/results.json --check-evidence \
+  --check-contract .quality/evidence/{feature}/acceptance/contract.json
 ```
 
 Si el validador falla, corregir results.json ANTES de generar el HTML report.
@@ -905,12 +951,19 @@ function generateEvidenceReport(feature: string, ucId: string, evidenceDir: stri
 > Para Flutter Mobile (Maestro o Patrol) y Python (pytest-bdd), AG-09a DEBE invocar el generator
 > como paso automático — NO dejar para invocación manual.
 
+Los tres generadores leen `contract.json` junto al informe (o `--contract <ruta>`), enseñan el
+contrato en la tarjeta de cada criterio y llevan las citas de cada prueba a `results[].contract`:
+Python de las etiquetas `@pre:`/`@post:`, Maestro del comentario `# contract:` de cada flujo
+(`--flows`, por defecto `.maestro`) y Patrol del `// contract:` encima de cada test (`--tests`, por
+defecto `patrol_test` e `integration_test`).
+
 **Flutter Mobile (Maestro — recomendado) — auto-invocar tras paso 5:**
 ```bash
 node .quality/scripts/maestro-evidence-generator.js \
   --uc-id UC-XXX --feature {feature} --us-id US-XX \
   --junit build/maestro/results.xml \
   --screenshots build/maestro/UC-XXX/ \
+  --flows .maestro/flows/UC-XXX_{feature}/ \
   --output .quality/evidence/{feature}/acceptance/e2e-evidence-report.html
 ```
 
@@ -939,7 +992,8 @@ node .quality/scripts/api-evidence-generator.js \
 
 ```bash
 node .quality/scripts/validate-results-json.js \
-  .quality/evidence/{feature}/acceptance/results.json --check-evidence
+  .quality/evidence/{feature}/acceptance/results.json --check-evidence \
+  --check-contract .quality/evidence/{feature}/acceptance/contract.json
 ```
 
 Si falla: corregir results.json o regenerar evidence. NO commitear hasta que pase.
@@ -1011,7 +1065,9 @@ git commit -m "test(acceptance): add Gherkin scenarios for UC-XXX"
 ## Checklist
 
 - [ ] PRD localizado y criterios AC-XX extraídos
+- [ ] `contract.json` escrito antes de las pruebas y `check_acceptance_contract` con `ok: true`
 - [ ] Un `.feature` generado por UC con Escenarios por cada AC-XX
+- [ ] Cada escenario, flujo o test cita su `pre` y su `post` (`--check-contract` pasa)
 - [ ] `.feature` en español con `# language: es` y tags `@US-XX @UC-XXX @AC-XX`
 - [ ] `.feature` incluye `Antecedentes` con steps de seed
 - [ ] Step definitions generados con el framework BDD del stack

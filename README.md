@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Programación agéntica con Claude Code, sin ceder calidad por velocidad.</strong><br/>
-  v 6.43.0 — "Para siempre" (sobre v6.42 "Otra mirada")<br/>
+  v 6.44.0 — "Visto previo" (sobre v6.43 "Para siempre")<br/>
   <a href="https://specbox.build">specbox.build</a> · <a href="#english-version">English version below</a>
 </p>
 
@@ -23,6 +23,21 @@ Un sistema que convierte a Claude Code en un compañero de equipo serio:
 - **Convive con tu flujo**: spec-driven con FreeForm/Trello/Plane según el cliente.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+---
+
+## Lo nuevo en v6.44
+
+**v6.44.0 — "Visto previo"** hace que una persona dé el visto bueno a los criterios antes de implementar:
+
+- **Aprobar los criterios** — la tool nueva `approve_criteria` guarda quién aprobó los criterios de una
+  UC y cuándo; /prd lo pregunta al sembrar y el autopilot nunca lo hace por la persona.
+- **Un cambio pide otra aprobación** — reescribir, añadir o retirar un criterio deja la UC sin aprobar.
+- **La medida `ac_approval`** — en «block», `start_uc` no arranca una UC sin aprobar y `find_next_uc`
+  no la propone; en «warn», el valor de partida, avisa y propone primero las aprobadas.
+
+100% backwards-compatible: la medida empieza en «warn» y las UC abiertas al endurecerla cuentan como
+«aprobadas por migración».
 
 ---
 
@@ -1036,7 +1051,7 @@ quieres consultoría, implantación, formación o soporte, mira [SERVICES.md](SE
 # SpecBox Engine — English version
 
 > **Agentic programming with Claude Code, without trading quality for speed.**
-> v 6.43.0 — "Para siempre" (over v6.42 "Otra mirada")
+> v 6.44.0 — "Visto previo" (over v6.43 "Para siempre")
 > [specbox.build/en](https://specbox.build/en/)
 
 ## What is this?
@@ -1050,6 +1065,21 @@ A system that turns Claude Code into a serious teammate:
 - **Coexists with your flow**: spec-driven with FreeForm/Trello/Plane depending on the client.
 
 > The LLM provides speed. SpecBox provides quality and traceability.
+
+## What's new in v6.44
+
+**v6.44.0 — "Visto previo"** has a person approve the criteria before anyone implements them:
+
+- **Approve the criteria** — the new `approve_criteria` tool records who approved a UC's criteria and
+  when; /prd asks for it at the end of seeding and the autopilot never does it for the person.
+- **A change needs a new approval** — rewriting, adding or retiring a criterion leaves the UC unapproved.
+- **The `ac_approval` measure** — in «block», `start_uc` does not start an unapproved UC and
+  `find_next_uc` does not propose it; in «warn», the default, it warns and proposes approved UCs first.
+
+100% backwards-compatible: the measure starts in «warn» and the UCs open when it is hardened count as
+«approved by migration».
+
+---
 
 ## What's new in v6.43
 

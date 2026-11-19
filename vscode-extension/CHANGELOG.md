@@ -8,6 +8,11 @@ in lockstep with the SpecBox Engine itself (`extension.version === engine.versio
 
 ## [Unreleased]
 
+## [6.44.0] — "Visto previo"
+
+- No changes in the extension itself. The version follows the engine, where a person approves a UC's
+  criteria before implementing and any change to them needs a new approval (the measure starts in «warn»).
+
 ## [6.43.0] — "Para siempre"
 
 - No changes in the extension itself. The version follows the engine, where a criterion keeps its id
